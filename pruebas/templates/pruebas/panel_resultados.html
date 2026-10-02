@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resultados · {{ origen.titulo }}</title>
+<style>
+:root{--vino:#460F10;--mor:#9E1982;--fuc:#FF289A;--lila:#F7EFF5;--line:#E6D6E2;--bg:#FBF7FA;
+      --ink:#26161F;--muted:#6B5566;--verde:#2E7D32;--red:#B3261E}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Segoe UI',system-ui,Arial,sans-serif;font-size:16px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 18px 70px}
+header{background:#fff;border-bottom:3px solid var(--mor);padding:18px 0}
+header .in{max-width:1180px;margin:0 auto;padding:0 18px;display:flex;justify-content:space-between;
+           align-items:center;gap:16px;flex-wrap:wrap}
+header h1{margin:0;font-size:20px;color:var(--vino)}
+header p{margin:3px 0 0;font-size:13.5px;color:var(--muted)}
+.btn{background:var(--mor);color:#fff;text-decoration:none;padding:11px 20px;border-radius:10px;
+     font-weight:600;font-size:15px;border:none;cursor:pointer;display:inline-block}
+.btn:hover{background:var(--vino)}
+.btn.sec{background:#fff;color:var(--vino);border:1.5px solid var(--line)}
+h2{color:var(--vino);font-size:19px;margin:32px 0 12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:14px;margin-top:22px}
+.tile{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;text-align:center}
+.tile .n{font-size:30px;font-weight:700;color:var(--mor);line-height:1.1}
+.tile .t{font-size:13px;color:var(--muted);margin-top:4px}
+.franjas{display:flex;height:30px;border-radius:99px;overflow:hidden;margin:10px 0 6px;background:var(--lila)}
+.franjas i{display:block;height:100%}
+.leyenda{display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px;color:var(--muted)}
+.leyenda span b{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th{background:var(--vino);color:#fff;padding:10px;text-align:left;font-size:12.5px;text-transform:uppercase;
+   letter-spacing:.4px;position:sticky;top:0}
+td{border-bottom:1px solid var(--line);padding:10px;vertical-align:top}
+tr:hover td{background:var(--lila)}
+.tabla{overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:14px}
+.barra{height:8px;background:var(--lila);border-radius:99px;overflow:hidden;min-width:80px}
+.barra i{display:block;height:100%;background:var(--mor)}
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12.5px;color:#fff;font-weight:600}
+.bajo{color:var(--red);font-weight:700}
+.alto{color:var(--verde);font-weight:700}
+.filtros{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0 0}
+.filtros a{text-decoration:none;color:var(--vino);border:1.5px solid var(--line);background:#fff;
+           padding:8px 14px;border-radius:99px;font-size:14px}
+.filtros a.on{background:var(--mor);color:#fff;border-color:var(--mor)}
+.vacio{text-align:center;color:var(--muted);padding:44px}
+.nota{font-size:13.5px;color:var(--muted);margin:6px 0 0}
+</style>
+</head>
+<body>
+<header><div class="in">
+  <div>
+    <h1>{{ origen.titulo }}</h1>
+    <p>Resultados recibidos{% if grupo_activo %} · grupo {{ grupo_activo }}{% endif %}</p>
+  </div>
+  <div>
+    <a class="btn" href="{% url 'pruebas:exportar_resultados' origen.slug %}">Descargar informe en Excel</a>
+  </div>
+</div></header>
+
+<div class="wrap">
+
+{% if grupos %}
+<div class="filtros">
+  <a href="?" class="{% if not grupo_activo %}on{% endif %}">Todos</a>
+  {% for g in grupos %}
+    <a href="?grupo={{ g|urlencode }}" class="{% if grupo_activo == g %}on{% endif %}">{{ g }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if resumen.n %}
+
+<div class="tiles">
+  <div class="tile"><div class="n">{{ resumen.n }}</div><div class="t">presentaciones</div></div>
+  <div class="tile"><div class="n">{{ resumen.promedio }}%</div><div class="t">promedio del grupo</div></div>
+  <div class="tile"><div class="n">{{ resumen.mejor }}%</div><div class="t">mejor resultado</div></div>
+  <div class="tile"><div class="n">{{ resumen.peor }}%</div><div class="t">resultado más bajo</div></div>
+</div>
+
+<h2>Distribución por franja</h2>
+<div class="card">
+  <div class="franjas">
+    {% for f in resumen.franjas %}
+      {% if f.n %}<i style="width:{{ f.pct }}%;background:{{ f.color }}" title="{{ f.nombre }}: {{ f.n }}"></i>{% endif %}
+    {% endfor %}
+  </div>
+  <div class="leyenda">
+    {% for f in resumen.franjas %}
+      <span><b style="background:{{ f.color }}"></b>{{ f.nombre }}: {{ f.n }} ({{ f.pct }}%)</span>
+    {% endfor %}
+  </div>
+</div>
+
+<h2>Desempeño por competencia</h2>
+<div class="tabla">
+  <table>
+    <thead><tr><th>Competencia</th><th>Aciertos</th><th>Respuestas</th><th style="width:38%">% de acierto</th></tr></thead>
+    <tbody>
+    {% for c in resumen.competencias %}
+      <tr>
+        <td><strong>{{ c.sigla }}</strong></td>
+        <td>{{ c.ok }}</td>
+        <td>{{ c.n }}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="barra" style="flex:1"><i style="width:{{ c.pct }}%"></i></div>
+            <span class="{% if c.pct < 40 %}bajo{% elif c.pct >= 70 %}alto{% endif %}">{{ c.pct }}%</span>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>Pregunta por pregunta</h2>
+<p class="nota">Ordenadas como aparecen en la prueba. La columna del distractor muestra la opción equivocada que más se marcó.</p>
+<div class="tabla">
+  <table>
+    <thead><tr>
+      <th>N.º</th><th>Comp.</th><th>Aprendizaje evaluado</th><th>Clave</th>
+      <th>% acierto</th><th>Distractor</th>
+    </tr></thead>
+    <tbody>
+    {% for p in resumen.preguntas %}
+      <tr>
+        <td>{{ p.numero }}</td>
+        <td>{{ p.competencia }}</td>
+        <td>{{ p.aprendizaje|default:"—" }}</td>
+        <td><strong>{{ p.clave }}</strong></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px;min-width:150px">
+            <div class="barra" style="flex:1"><i style="width:{{ p.pct }}%"></i></div>
+            <span class="{% if p.pct < 40 %}bajo{% elif p.pct >= 70 %}alto{% endif %}">{{ p.pct }}%</span>
+          </div>
+        </td>
+        <td>{% if p.distractor %}{{ p.distractor }} · {{ p.distractor_n }} {% if p.distractor_n == 1 %}vez{% else %}veces{% endif %}{% else %}—{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>Estudiantes</h2>
+<div class="tabla">
+  <table>
+    <thead><tr>
+      <th>Estudiante</th><th>Grupo</th><th>Fecha</th><th>Aciertos</th>
+      <th>%</th><th>Franja</th><th>Vinculado</th>
+    </tr></thead>
+    <tbody>
+    {% for s in sesiones %}
+      <tr>
+        <td><strong>{{ s.completo }}</strong></td>
+        <td>{{ s.grupo|default:"—" }}</td>
+        <td>{{ s.fecha|date:"d/m/Y H:i" }}</td>
+        <td>{{ s.aciertos }} de {{ s.total }}</td>
+        <td class="{% if s.porcentaje < 40 %}bajo{% elif s.porcentaje >= 70 %}alto{% endif %}">{{ s.porcentaje }}%</td>
+        <td><span class="pill" style="background:{{ s.franja.1 }}">{{ s.franja.0 }}</span></td>
+        <td>{% if s.estudiante %}{{ s.estudiante }}{% if s.curso %} · {{ s.curso }}{% endif %}
+            {% else %}<span style="color:var(--muted)">sin vincular</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% else %}
+  <div class="card vacio">
+    <p><strong>Todavía no ha llegado ningún resultado.</strong></p>
+    <p>Aparecerán aquí en cuanto el primer estudiante termine la prueba.</p>
+  </div>
+{% endif %}
+
+</div>
+</body>
+</html>

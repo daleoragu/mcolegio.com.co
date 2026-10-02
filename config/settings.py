@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'crispy_bootstrap5',
     'storages',
     'elecciones',  # <--- NUEVA APLICACIÓN AGREGADA AQUÍ
+    'pruebas',     # <--- Módulo de pruebas y páginas publicadas
 ]
 
 MIDDLEWARE = [
@@ -93,37 +94,65 @@ LOGIN_URL = '/super-admin/login/'
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# STATICFILES_STORAGE fue eliminado en Django 5.1: ahora se define en STORAGES (abajo).
 
 # --- LÓGICA DE ALMACENAMIENTO DE MEDIOS ---
+# Django 5.1 eliminó DEFAULT_FILE_STORAGE y STATICFILES_STORAGE.
+# A partir de Django 4.2 la configuración correcta es el diccionario STORAGES.
 
-# Verificamos si las credenciales de S3/Spaces están definidas en el .env
 USE_SPACES = os.getenv('DO_SPACES_BUCKET_NAME')
 
+WHITENOISE_STATICFILES = {
+    'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+}
+
 if USE_SPACES:
-    # --- CONFIGURACIÓN PARA PRODUCCIÓN (Y PRUEBAS LOCALES CON .env) ---
+    # --- PRODUCCIÓN: DigitalOcean Spaces ---
     print("✅ Usando DigitalOcean Spaces para almacenamiento de medios.")
+
     AWS_ACCESS_KEY_ID = os.getenv('DO_SPACES_ACCESS_KEY')
     AWS_SECRET_ACCESS_KEY = os.getenv('DO_SPACES_SECRET_KEY')
     AWS_STORAGE_BUCKET_NAME = os.getenv('DO_SPACES_BUCKET_NAME')
     AWS_S3_REGION_NAME = os.getenv('DO_SPACES_REGION')
     AWS_S3_ENDPOINT_URL = f'https://{AWS_S3_REGION_NAME}.digitaloceanspaces.com'
-    AWS_DEFAULT_ACL = 'public-read'
-    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com'
     AWS_LOCATION = 'media'
-    AWS_QUERYSTRING_AUTH = False
-    
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    
-    # --- LÍNEA CORREGIDA ---
-    # Esta es la forma correcta de construir la URL pública, incluyendo el nombre del bucket.
-    MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com/{AWS_LOCATION}/'
+
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+            'OPTIONS': {
+                'access_key': AWS_ACCESS_KEY_ID,
+                'secret_key': AWS_SECRET_ACCESS_KEY,
+                'bucket_name': AWS_STORAGE_BUCKET_NAME,
+                'region_name': AWS_S3_REGION_NAME,
+                'endpoint_url': AWS_S3_ENDPOINT_URL,
+                'custom_domain': AWS_S3_CUSTOM_DOMAIN,
+                'location': AWS_LOCATION,
+                'default_acl': 'public-read',
+                'querystring_auth': False,
+                'file_overwrite': False,
+                'object_parameters': {'CacheControl': 'max-age=86400'},
+            },
+        },
+        'staticfiles': WHITENOISE_STATICFILES,
+    }
+
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
 
 else:
-    # --- CONFIGURACIÓN PARA DESARROLLO LOCAL (SIN .env o con él comentado) ---
+    # --- DESARROLLO LOCAL ---
     print("⚪️ Usando almacenamiento local para medios (carpeta 'media').")
+
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
+
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': WHITENOISE_STATICFILES,
+    }
 
 # --- Otras Configuraciones ---
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"

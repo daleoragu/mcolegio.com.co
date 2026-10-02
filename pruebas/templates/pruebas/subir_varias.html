@@ -1,0 +1,54 @@
+{% extends "notas/base.html" %}
+
+{% block page_title %}<h1 class="h3 mb-0">Publicar varios archivos</h1>{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+          {% for campo in form %}
+            <div class="mb-3">
+              {% if campo.field.widget.input_type == 'checkbox' %}
+                <div class="form-check">
+                  {{ campo }}
+                  <label class="form-check-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                </div>
+              {% else %}
+                <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                {{ campo }}
+              {% endif %}
+              {% if campo.help_text %}<div class="form-text">{{ campo.help_text }}</div>{% endif %}
+              {% for e in campo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary">Publicar todos</button>
+          <a href="{% url 'pruebas:lista_paginas' %}" class="btn btn-link">Cancelar</a>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card bg-light">
+      <div class="card-body small">
+        <h6>Cómo quedan</h6>
+        <p class="mb-2">
+          El nombre del archivo se convierte en el título y en la dirección. Por ejemplo
+          <code>Prueba_Lenguaje_5_pagina_web.html</code> queda como
+          <em>Prueba lenguaje 5</em> en <code>/p/prueba-lenguaje-5/</code>.
+        </p>
+        <p class="mb-2">
+          Cada uno recibe su propia clave para que los docentes vean los resultados.
+          Al terminar te muestro la tabla con todos los enlaces y claves.
+        </p>
+        <p class="mb-0">
+          Puedes cambiarle el título, la dirección o la clave a cualquiera después,
+          desde la lista.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

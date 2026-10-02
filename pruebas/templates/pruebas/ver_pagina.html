@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ pagina.titulo }}{% if colegio %} · {{ colegio.nombre }}{% endif %}</title>
+{% if colegio.favicon %}<link rel="icon" href="{{ colegio.favicon.url }}">{% endif %}
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#FBF7FA}
+  iframe{display:block;width:100%;height:100%;border:0}
+</style>
+</head>
+<body>
+<iframe src="{{ pagina.url_contenido }}"
+        title="{{ pagina.titulo }}"
+        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-same-origin"
+        referrerpolicy="no-referrer"></iframe>
+</body>
+</html>

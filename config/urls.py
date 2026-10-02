@@ -21,7 +21,13 @@ urlpatterns = [
     #    Todo lo que empiece por /elecciones2026/ será manejado por tu nueva app.
     path('elecciones2026/', include('elecciones.urls', namespace='elecciones')),
 
-    # 4. RUTAS DE TU APLICACIÓN "NOTAS"
+    # 4. MÓDULO DE PRUEBAS
+    #    /pruebas/  -> panel, resultados y pruebas del banco de preguntas
+    #    /p/        -> páginas HTML publicadas por los docentes
+    path('pruebas/', include('pruebas.urls', namespace='pruebas')),
+    path('p/', include('pruebas.urls_publicas', namespace='paginas')),
+
+    # 5. RUTAS DE TU APLICACIÓN "NOTAS"
     #    Esta línea incluye todas las URLs de tu archivo 'notas/urls.py'.
     path('', include('notas.urls', namespace='notas')),
 ]

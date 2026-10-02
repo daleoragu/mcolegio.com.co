@@ -1,0 +1,121 @@
+{% extends "notas/base.html" %}
+
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center w-100">
+  <h1 class="h3 mb-0">Páginas y pruebas publicadas</h1>
+  <div>
+    <a href="{% url 'pruebas:subir_varias' %}" class="btn btn-outline-primary">
+      <i class="fas fa-layer-group me-1"></i> Publicar varios
+    </a>
+    <a href="{% url 'pruebas:nueva_pagina' %}" class="btn btn-primary">
+      <i class="fas fa-upload me-1"></i> Publicar una página
+    </a>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if messages %}
+  {% for m in messages %}
+    <div class="alert alert-{{ m.tags|default:'info' }}">{{ m }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="card mb-4">
+  <div class="card-header"><strong>Páginas subidas</strong></div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Nombre</th><th>Enlace</th><th class="text-center">Estado</th>
+          <th class="text-center">Resultados</th><th class="text-center">Clave</th>
+          <th class="text-center">Visitas</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in paginas %}
+        <tr>
+          <td>
+            <strong>{{ p.titulo }}</strong>
+            {% if p.tipo == 'sitio' %}
+              <span class="badge bg-info ms-1">sitio · {{ p.archivos_sitio }} archivos</span>
+            {% endif %}
+            {% if p.descripcion %}<div class="small text-muted">{{ p.descripcion }}</div>{% endif %}
+          </td>
+          <td><a href="{{ p.ruta }}" target="_blank"><code>{{ p.ruta }}</code></a></td>
+          <td class="text-center">
+            {% if p.estado == 'abierta' %}<span class="badge bg-success">abierta</span>
+            {% elif p.estado == 'programada' %}<span class="badge bg-warning text-dark"
+              title="Se abre el {{ p.abre_en|date:'d/m/Y H:i' }}">programada</span>
+            {% elif p.estado == 'cerrada' %}<span class="badge bg-dark">cerrada</span>
+            {% else %}<span class="badge bg-secondary">oculta</span>{% endif %}
+          </td>
+          <td class="text-center">
+            {% if p.captura_resultados and p.endpoint_reescrito %}
+              <a href="{% url 'pruebas:panel_resultados' p.slug %}">{{ p.total_sesiones }}</a>
+            {% elif p.captura_resultados %}
+              <span class="text-warning" title="El archivo no tiene la línea ENDPOINT">sin conectar</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center"><code>{{ p.clave_panel }}</code></td>
+          <td class="text-center">{{ p.visitas }}</td>
+          <td class="text-end">
+            <a href="{% url 'pruebas:qr_hoja' p.slug %}" target="_blank"
+               class="btn btn-sm btn-outline-secondary" title="Código QR para imprimir">QR</a>
+            <a href="{% url 'pruebas:editar_pagina' p.slug %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+            <form method="post" action="{% url 'pruebas:eliminar_pagina' p.slug %}" class="d-inline"
+                  onsubmit="return confirm('¿Eliminar «{{ p.titulo|escapejs }}»? Los resultados guardados también se borran.');">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4">
+          Todavía no has publicado ninguna página.
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><strong>Pruebas del banco de preguntas</strong></div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Prueba</th><th>Área</th><th class="text-center">Grado</th>
+          <th class="text-center">Preguntas</th><th class="text-center">Código</th>
+          <th class="text-center">Clave</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for pr in pruebas %}
+        <tr>
+          <td><a href="{{ pr.ruta }}" target="_blank">{{ pr.titulo }}</a></td>
+          <td>{{ pr.get_area_display }}</td>
+          <td class="text-center">{{ pr.grado }}°</td>
+          <td class="text-center">{{ pr.total_preguntas }}</td>
+          <td class="text-center"><code>{{ pr.codigo }}</code></td>
+          <td class="text-center"><code>{{ pr.clave_panel }}</code></td>
+          <td class="text-end">
+            <a href="{% url 'pruebas:panel_resultados' pr.slug %}" class="btn btn-sm btn-outline-primary">
+              Resultados
+            </a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4">
+          No hay pruebas importadas. Se cargan con el comando
+          <code>importar_prueba_html</code>.
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

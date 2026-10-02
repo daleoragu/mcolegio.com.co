@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ pagina.titulo }}</title>
+<style>
+:root{--vino:#460F10;--mor:#9E1982;--line:#E6D6E2;--bg:#FBF7FA;--muted:#6B5566}
+body{margin:0;background:var(--bg);color:#26161F;font-family:'Segoe UI',system-ui,Arial,sans-serif;
+     display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;text-align:center}
+.caja{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;max-width:460px}
+h1{font-size:22px;color:var(--vino);margin:0 0 10px}
+p{color:var(--muted);font-size:16px;margin:0 0 6px}
+.fecha{color:var(--mor);font-weight:600}
+</style>
+</head>
+<body>
+<div class="caja">
+  <h1>{{ pagina.titulo }}</h1>
+  {% if pagina.estado == 'programada' %}
+    <p>Esta prueba todavía no está abierta.</p>
+    <p class="fecha">Se abre el {{ pagina.abre_en|date:"d/m/Y" }} a las {{ pagina.abre_en|date:"H:i" }}</p>
+  {% else %}
+    <p>Esta prueba ya cerró.</p>
+    <p class="fecha">Cerró el {{ pagina.cierra_en|date:"d/m/Y" }} a las {{ pagina.cierra_en|date:"H:i" }}</p>
+  {% endif %}
+  <p style="margin-top:18px">Si crees que es un error, avísale a tu docente.</p>
+</div>
+</body>
+</html>

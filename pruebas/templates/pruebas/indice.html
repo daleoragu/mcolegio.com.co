@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pruebas y materiales{% if colegio %} · {{ colegio.nombre }}{% endif %}</title>
+<style>
+:root{--vino:#460F10;--mor:#9E1982;--line:#E6D6E2;--bg:#FBF7FA;--muted:#6B5566}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#26161F;font-family:'Segoe UI',system-ui,Arial,sans-serif}
+header{background:#fff;border-bottom:3px solid var(--mor);text-align:center;padding:20px}
+header img{height:84px;display:block;margin:0 auto 10px}
+header h1{margin:0;font-size:18px;color:var(--vino)}
+.wrap{max-width:900px;margin:0 auto;padding:28px 18px 60px}
+h2{color:var(--vino);text-align:center;margin:0 0 22px}
+.item{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:14px;
+      display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.item h3{margin:0 0 4px;font-size:19px;color:var(--vino)}
+.item p{margin:0;color:var(--muted);font-size:14.5px}
+.item a{background:var(--mor);color:#fff;text-decoration:none;padding:11px 22px;border-radius:10px;
+        font-weight:600;white-space:nowrap}
+.item a:hover{background:var(--vino)}
+.vacio{text-align:center;color:var(--muted);padding:50px 0}
+</style>
+</head>
+<body>
+<header>
+  {% if colegio.escudo %}<img src="{{ colegio.escudo.url }}" alt="Escudo">{% endif %}
+  <h1>{{ colegio.nombre|default:"Institución educativa" }}</h1>
+</header>
+<div class="wrap">
+  <h2>Pruebas y materiales</h2>
+  {% for p in paginas %}
+    <div class="item">
+      <div>
+        <h3>{{ p.titulo }}</h3>
+        {% if p.descripcion %}<p>{{ p.descripcion }}</p>
+        {% elif p.grado %}<p>Grado {{ p.grado }}°{% if p.area %} · {{ p.get_area_display }}{% endif %}</p>{% endif %}
+      </div>
+      <a href="{{ p.ruta }}">Entrar</a>
+    </div>
+  {% empty %}
+    <p class="vacio">Por ahora no hay material publicado.</p>
+  {% endfor %}
+</div>
+</body>
+</html>
