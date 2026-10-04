@@ -255,6 +255,9 @@ code {
     :root:not([data-theme="light"]) .tarjeta-contacto { background: #1a1d25; }
     :root:not([data-theme="light"]) .barra { background: rgba(18,20,26,.94); }
     :root:not([data-theme="light"]) .navegacion { background: #12141a; }
+    /* El morado de la marca secundaria sobre fondo oscuro daba 1.19:1 de
+       contraste: prácticamente invisible. Sobre oscuro va el rosa claro. */
+    :root:not([data-theme="light"]) .marca-secundaria { color: #ef5bb4; }
 }
 
 /* --- Impresión ---------------------------------------------------------- */
@@ -330,8 +333,52 @@ code {
     background: linear-gradient(135deg, var(--morado-hondo) 0%, var(--morado) 55%, #4a1b6d 100%);
     color: #fff; border-color: transparent;
 }
+.baldosa-servicios {
+    background: linear-gradient(135deg, #087d52 0%, #065f3e 55%, #04442c 100%);
+    color: #fff; border-color: transparent;
+}
+.baldosa-colegios {
+    background: linear-gradient(135deg, #ac5509 0%, #834107 55%, #5d2e05 100%);
+    color: #fff; border-color: transparent;
+}
 .baldosa-contacto { background: var(--negro); color: #fff; border-color: transparent; }
 .baldosa-contacto .baldosa-lista { opacity: .8; }
+
+/* Sobre fondo de color, el texto secundario no puede ir tan apagado como
+   sobre blanco: con opacidad .75 el contraste se cae por debajo de lo
+   legible. Se sube aquí en vez de cambiarlo para todas las baldosas. */
+.baldosa-hero .baldosa-lista, .baldosa-salon .baldosa-lista,
+.baldosa-servicios .baldosa-lista, .baldosa-colegios .baldosa-lista { opacity: .92; }
+.baldosa-hero .baldosa-rotulo, .baldosa-salon .baldosa-rotulo,
+.baldosa-servicios .baldosa-rotulo, .baldosa-colegios .baldosa-rotulo,
+.baldosa-contacto .baldosa-rotulo { opacity: .9; }
+
+/* Los escudos de los colegios van sobre fondo naranja: necesitan su propia
+   pastilla clara para no desaparecer. */
+.baldosa-colegios .mini-escudo {
+    background: #fff; border-color: rgba(255,255,255,.55);
+}
+
+/* Los puntos de la lista llevan los colores de la marca, y sobre la baldosa
+   verde el punto verde desaparecía. Dentro de una baldosa de color se vuelven
+   blancos: ahí el punto solo tiene que marcar el renglón, no clasificar nada. */
+.baldosa-servicios .baldosa-puntos .punto,
+.baldosa-colegios .baldosa-puntos .punto,
+.baldosa-hero .baldosa-puntos .punto,
+.baldosa-salon .baldosa-puntos .punto {
+    background: rgba(255,255,255,.85);
+}
+
+/* Red de seguridad: si mañana se agrega una baldosa sin color propio, en modo
+   oscuro no puede quedar blanca con el texto blanco encima. Fue justo lo que
+   pasó con estas dos. */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .baldosa:not(.baldosa-hero):not(.baldosa-salon):not(.baldosa-servicios):not(.baldosa-colegios):not(.baldosa-contacto) {
+        background: #1a1d25;
+    }
+    :root:not([data-theme="light"]) .baldosa-colegios .mini-escudo { background: #fff; }
+    :root:not([data-theme="light"]) .mini-escudo { background: #222733; }
+}
 
 .baldosa-escudos { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .mini-escudo {
