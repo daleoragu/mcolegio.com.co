@@ -5,6 +5,10 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseNotFound
 from django.contrib import messages
 from decimal import Decimal, ROUND_HALF_UP
+
+from notas.boletin.ponderacion import (
+    ajustes as ajustes_colegio, definitiva_anual, nota_necesaria,
+)
 from django.template.loader import render_to_string
 from django.utils import timezone
 from itertools import groupby
@@ -47,9 +51,19 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
     
     materias_del_curso = Materia.objects.filter(colegio=colegio, asignaciondocente__curso=curso).distinct().order_by('nombre')
     
-    areas_con_materias = AreaConocimiento.objects.filter(colegio=colegio, materias__in=materias_del_curso).prefetch_related(
+    areas_con_materias = list(AreaConocimiento.objects.filter(
+        colegio=colegio, materias__in=materias_del_curso
+    ).prefetch_related(
         Prefetch('materias', queryset=materias_del_curso, to_attr='materias_del_curso_ordenadas')
-    ).distinct().order_by('nombre')
+    ).distinct().order_by('nombre'))
+
+    # Un área con una sola asignatura repetiría la misma nota en dos columnas.
+    reglas_colegio = ajustes_colegio(colegio)
+    for _area in areas_con_materias:
+        _area.colapsada = (reglas_colegio.colapsar_area_unica
+                           and len(_area.materias_del_curso_ordenadas) == 1)
+
+    ultimo_periodo = periodos_del_ano.last()
     
     ponderaciones_map = {(p.area_id, p.materia_id): p.peso_porcentual for p in PonderacionAreaMateria.objects.filter(colegio=colegio, materia__in=materias_del_curso)}
 
@@ -105,7 +119,9 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
                                 suma_pesos_area += peso
                     
                     nota_area = (suma_ponderada_area / suma_pesos_area).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP) if suma_pesos_area > 0 else None
-                    if not usar_recuperacion:
+                    if area.colapsada:
+                        pass  # la columna de la asignatura ya muestra esta misma nota
+                    elif not usar_recuperacion:
                         celdas_fila.append({'is_area': True, 'nota_original': nota_area}) # Guardamos la original
                     else:
                         # Buscamos la celda del área y le añadimos la nota recuperada si es diferente
@@ -147,16 +163,34 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
             for area in areas_con_materias:
                 suma_ponderada_area_final, suma_pesos_area_final = CERO, CERO
                 for materia in area.materias_del_curso_ordenadas:
-                    suma_notas_materia, num_periodos_validos = CERO, 0
+                    # Las notas van por periodo para que se puedan ponderar.
+                    notas_materia = {}
                     for p_inner in periodos_transcurridos:
                         cal_data = calificaciones_pivot.get((est.id, materia.id, p_inner.id), {})
                         nota_valida = (cal_data.get('niv') if usar_recuperacion else None) or cal_data.get('prom')
-                        if nota_valida is not None:
-                            suma_notas_materia += nota_valida
-                            num_periodos_validos += 1
-                    
-                    promedio_final_materia = (suma_notas_materia / num_periodos_validos).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP) if num_periodos_validos > 0 else None
-                    celdas_acumuladas.append({'is_area': False, 'nota': promedio_final_materia})
+                        notas_materia[p_inner.id] = nota_valida
+
+                    # La columna acumulada es un avance, no la nota final del año:
+                    # se calcula con lo que haya aunque falten periodos.
+                    promedio_final_materia, faltan = definitiva_anual(
+                        colegio, notas_materia, periodos_transcurridos, exigir=False)
+
+                    # Qué nota necesita en el último periodo para no reprobar.
+                    proyeccion = None
+                    if usar_recuperacion and ultimo_periodo is not None:
+                        ya_califico_el_ultimo = calificaciones_pivot.get(
+                            (est.id, materia.id, ultimo_periodo.id), {}).get('prom') is not None
+                        if not ya_califico_el_ultimo:
+                            notas_ano = {pp.id: notas_materia.get(pp.id) for pp in periodos_del_ano}
+                            proyeccion = nota_necesaria(
+                                colegio, notas_ano, periodos_del_ano, ultimo_periodo)
+
+                    celdas_acumuladas.append({
+                        'is_area': False,
+                        'nota': promedio_final_materia,
+                        'faltantes': [p.get_nombre_display() for p in faltan],
+                        'necesaria': proyeccion,
+                    })
 
                     if promedio_final_materia is not None:
                         if usar_recuperacion: notas_acumuladas_materias[materia.id].append(promedio_final_materia)
@@ -166,7 +200,8 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
                             suma_pesos_area_final += peso
                 
                 nota_area_final = (suma_ponderada_area_final / suma_pesos_area_final).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP) if suma_pesos_area_final > 0 else None
-                celdas_acumuladas.append({'is_area': True, 'nota': nota_area_final})
+                if not area.colapsada:
+                    celdas_acumuladas.append({'is_area': True, 'nota': nota_area_final})
                 
                 if nota_area_final is not None:
                     notas_finales_areas_para_promedio.append(nota_area_final)

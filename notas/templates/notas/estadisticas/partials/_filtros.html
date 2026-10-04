@@ -60,6 +60,9 @@
                     <option value="reprobados_materia">Reprobados por Materia</option>
                     <option value="reprobados_area">Reprobados por Área (Detallado)</option>
                     <option value="materias_reprobadas_por_docente">Materias Reprobadas por Docente</option>
+                    <option value="por_area">Resumen por Área</option>
+                    <option value="por_asignatura">Resumen por Asignatura</option>
+                    <option value="anotaciones">Anotaciones del Observador</option>
                 </select>
             </div>
             
@@ -79,6 +82,16 @@
                     <option value="todos">Todas las Áreas</option>
                     {% for area in areas %}
                         <option value="{{ area.id }}">{{ area.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="materia_select">Asignatura</label>
+                <select name="materia_id" id="materia_select" class="form-control">
+                    <option value="todos">Todas las Asignaturas</option>
+                    {% for m in materias %}
+                        <option value="{{ m.id }}" data-area="{{ m.areas_ponderadas__id|default_if_none:'' }}">{{ m.nombre }}</option>
                     {% endfor %}
                 </select>
             </div>

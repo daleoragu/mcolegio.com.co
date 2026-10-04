@@ -20,6 +20,21 @@
         .conclusiones-list { padding-left: 22px; }
         .conclusiones-list li { margin-bottom: 8px; }
 
+        /* --- Bloques nuevos: resúmenes y anotaciones --- */
+        .tabla-resumen td, .tabla-resumen th { font-size: 0.92rem; }
+        .tabla-resumen .malo  { color: #b02a37; font-weight: 600; }
+        .tabla-resumen .bueno { color: #146c43; font-weight: 600; }
+        .resumen-anotaciones { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; }
+        .cubo { flex: 1 1 150px; max-width: 220px; text-align: center; padding: 15px 10px;
+                border-radius: 8px; background: #f8f9fa; border: 1px solid #e9ecef; }
+        .cubo .numero { display: block; font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
+        .cubo .texto  { font-size: 0.85rem; color: #6c757d; }
+        .cubo.positivo .numero { color: #146c43; }
+        .cubo.negativo .numero { color: #b02a37; }
+        .cubo.pendiente .numero { color: #997404; }
+        .aviso-automaticas { margin-top: 1.2rem; padding: 12px 15px; border-radius: 6px;
+                             background: #eef2ff; border: 1px solid #dbe1ff; font-size: 0.9rem; }
+
         /* --- ESTILOS PARA EL ENCABEZADO DEL PDF (COPIADOS DE BOLETIN) --- */
         .encabezado-tabla { width: 100%; border-collapse: collapse; border: 1px solid #000; }
         .encabezado-tabla td { vertical-align: middle; text-align: center; padding: 5px; border: 1px solid #000; }
@@ -83,6 +98,160 @@
             </div>
             {% include 'notas/estadisticas/partials/_grafico_reprobados_area.html' %}
         </div>
+        <!-- ============ RESUMEN POR ÁREA ============ -->
+        <div id="porAreaContainer" style="display: none;">
+            <div class="chart-card">
+                <h5>Resumen por Área</h5>
+                <p class="text-muted text-center" style="margin-top:-1rem;">
+                    El promedio del área respeta la ponderación de cada asignatura dentro de ella,
+                    igual que en el boletín.
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle tabla-resumen">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Área</th><th class="text-center">Promedio</th>
+                                <th class="text-center">Evaluados</th><th class="text-center">Reprobados</th>
+                                <th class="text-center">% Pérdida</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaPorArea"></tbody>
+                    </table>
+                </div>
+                <p id="porAreaNoData" class="text-center text-muted" style="display:none;">
+                    No hay datos para los filtros seleccionados.
+                </p>
+            </div>
+
+            <div class="chart-grid" style="margin-top:30px;">
+                <div class="chart-card">
+                    <h5>Promedio por Área</h5>
+                    <div class="chart-canvas-container"><canvas id="barrasAreaChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h5>Aprobación por Área</h5>
+                    <div class="chart-canvas-container"><canvas id="donaAreaChart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="chart-card" style="margin-top:30px;">
+                <h5>Dispersión de Notas por Área</h5>
+                <p class="text-muted text-center" style="margin-top:-1rem; font-size:.9rem;">
+                    La caja abarca la mitad central del curso; la línea del medio es la mediana.
+                    Cuanto más alta la caja, más desiguales están los resultados.
+                </p>
+                <div class="chart-canvas-container"><div id="cajaAreaChart"></div></div>
+                <p id="cajaAreaNoData" class="text-center text-muted" style="display:none;">
+                    No hay suficientes datos para dibujar las cajas.
+                </p>
+            </div>
+
+            <div class="conclusionesWrapper">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light"><h5 class="mb-0"><i class="fas fa-comment-dots me-2"></i>Conclusiones</h5></div>
+                    <div class="card-body"><ul id="conclusionesListPorArea" class="conclusiones-list text-muted"></ul></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ RESUMEN POR ASIGNATURA ============ -->
+        <div id="porAsignaturaContainer" style="display: none;">
+            <div class="chart-card">
+                <h5>Resumen por Asignatura</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle tabla-resumen">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Asignatura</th><th class="text-center">Promedio</th>
+                                <th class="text-center">Evaluados</th><th class="text-center">Reprobados</th>
+                                <th class="text-center">% Pérdida</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaPorAsignatura"></tbody>
+                    </table>
+                </div>
+                <p id="porAsignaturaNoData" class="text-center text-muted" style="display:none;">
+                    No hay datos para los filtros seleccionados.
+                </p>
+            </div>
+
+            <div class="chart-grid" style="margin-top:30px;">
+                <div class="chart-card">
+                    <h5>Promedio por Asignatura</h5>
+                    <div class="chart-canvas-container"><canvas id="barrasAsignaturaChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h5>Aprobación por Asignatura</h5>
+                    <div class="chart-canvas-container"><canvas id="donaAsignaturaChart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="chart-card" style="margin-top:30px;">
+                <h5>Dispersión de Notas por Asignatura</h5>
+                <p class="text-muted text-center" style="margin-top:-1rem; font-size:.9rem;">
+                    La caja abarca la mitad central del curso; la línea del medio es la mediana.
+                </p>
+                <div class="chart-canvas-container"><div id="cajaAsignaturaChart"></div></div>
+                <p id="cajaAsignaturaNoData" class="text-center text-muted" style="display:none;">
+                    No hay suficientes datos para dibujar las cajas.
+                </p>
+            </div>
+
+            <div class="conclusionesWrapper">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light"><h5 class="mb-0"><i class="fas fa-comment-dots me-2"></i>Conclusiones</h5></div>
+                    <div class="card-body"><ul id="conclusionesListPorAsignatura" class="conclusiones-list text-muted"></ul></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ ANOTACIONES ============ -->
+        <div id="anotacionesContainer" style="display: none;">
+            <div class="chart-card">
+                <h5>Anotaciones del Observador</h5>
+                <div id="anotacionesResumen" class="resumen-anotaciones"></div>
+                <div class="table-responsive" style="margin-top:1.5rem;">
+                    <table class="table table-sm table-bordered align-middle text-center tabla-resumen">
+                        <thead class="table-light">
+                            <tr>
+                                <th rowspan="2" class="align-middle">Curso</th>
+                                <th colspan="3">Académicas</th>
+                                <th colspan="3">Convivencia</th>
+                                <th rowspan="2" class="align-middle">Total</th>
+                            </tr>
+                            <tr>
+                                <th>Positivas</th><th>Negativas</th><th>Sin clasif.</th>
+                                <th>Positivas</th><th>Negativas</th><th>Sin clasif.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaAnotaciones"></tbody>
+                    </table>
+                </div>
+                <p id="anotacionesNoData" class="text-center text-muted" style="display:none;">
+                    No hay anotaciones registradas para los filtros seleccionados.
+                </p>
+                <div id="anotacionesAutomaticas" class="aviso-automaticas"></div>
+            </div>
+
+            <div class="chart-grid" style="margin-top:30px;">
+                <div class="chart-card">
+                    <h5>Anotaciones por Curso</h5>
+                    <div class="chart-canvas-container"><canvas id="barrasAnotacionesChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h5>Positivas frente a Negativas</h5>
+                    <div class="chart-canvas-container"><canvas id="donaAnotacionesChart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="conclusionesWrapper">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light"><h5 class="mb-0"><i class="fas fa-comment-dots me-2"></i>Conclusiones</h5></div>
+                    <div class="card-body"><ul id="conclusionesListAnotaciones" class="conclusiones-list text-muted"></ul></div>
+                </div>
+            </div>
+        </div>
+
         <div id="materiasReprobadasDocenteContainer" class="chart-grid" style="display: none;">
             <div id="conclusionesWrapperMateriasDocente" class="conclusionesWrapper" style="display: none;">
                 <div class="card shadow-sm"><div class="card-header bg-light"><h5 class="mb-0"><i class="fas fa-comment-dots me-2"></i>Conclusiones</h5></div><div class="card-body"><ul id="conclusionesListMateriasDocente" class="conclusiones-list text-muted"></ul></div></div>

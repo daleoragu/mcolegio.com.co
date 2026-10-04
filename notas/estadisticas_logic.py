@@ -262,6 +262,8 @@ def _get_base_query(filtros):
         base_query = base_query.filter(periodo_id=filtros['periodo_id'])
     if filtros.get('area_id'):
         base_query = base_query.filter(materia__areas_ponderadas__id=filtros['area_id'])
+    if filtros.get('materia_id'):
+        base_query = base_query.filter(materia_id=filtros['materia_id'])
     return base_query
 
 def get_promedios_por_materia(filtros=None):
@@ -394,3 +396,231 @@ def get_promedios_por_area(filtros=None):
             resultado_final.append({'area_nombre': area, 'promedio': float(promedio_final)})
 
     return sorted(resultado_final, key=lambda x: x['area_nombre'])
+
+
+# ---------------------------------------------------------------------------
+# RESÚMENES SEPARADOS: ÁREA POR UN LADO, ASIGNATURA POR OTRO
+# ---------------------------------------------------------------------------
+# Antes área y asignatura salían mezcladas en las mismas gráficas. Estas dos
+# funciones devuelven cada cosa por aparte, con las mismas columnas, para
+# poder compararlas de un vistazo.
+#
+# Ojo: el resto del módulo da por hecho que se reprueba con menos de 3.0.
+# Aquí se usa la nota de aprobación configurada en el colegio, que es lo
+# correcto cuando la escala no es sobre 5.0.
+
+def _nota_minima_aprobacion(colegio):
+    from notas.boletin.ponderacion import nota_aprobacion
+    return nota_aprobacion(colegio)
+
+
+def get_resumen_por_asignatura(filtros=None):
+    """Una fila por asignatura: promedio, evaluados, reprobados y % de pérdida."""
+    if filtros is None: filtros = {}
+    minima = _nota_minima_aprobacion(filtros.get('colegio'))
+    base = _get_base_query(filtros)
+
+    totales = {r['materia__nombre']: r for r in base.values('materia__nombre')
+               .annotate(promedio=Avg('valor_nota'), evaluados=Count('id'))}
+    perdidas = {r['materia__nombre']: r['n'] for r in base.filter(valor_nota__lt=minima)
+                .values('materia__nombre').annotate(n=Count('id'))}
+
+    filas = []
+    for nombre, r in totales.items():
+        evaluados = r['evaluados'] or 0
+        reprobados = perdidas.get(nombre, 0)
+        filas.append({
+            'nombre': nombre or 'Sin nombre',
+            'promedio': round(float(r['promedio'] or 0), 2),
+            'evaluados': evaluados,
+            'reprobados': reprobados,
+            'porcentaje': round(reprobados * 100.0 / evaluados, 1) if evaluados else 0.0,
+        })
+    return sorted(filas, key=lambda f: f['promedio'])
+
+
+def get_resumen_por_area(filtros=None):
+    """Lo mismo que el anterior, pero por área.
+
+    El promedio del área NO es el promedio simple de sus asignaturas: se toma
+    el que ya calcula el módulo respetando la ponderación de cada materia
+    dentro del área, para que coincida con el boletín.
+    """
+    if filtros is None: filtros = {}
+    minima = float(_nota_minima_aprobacion(filtros.get('colegio')))
+    datos = _get_datos_rendimiento_cached(filtros)
+    if not datos:
+        return []
+
+    acumulado = defaultdict(list)
+    for d in datos.values():
+        for area, promedio in d['promedios_area'].items():
+            acumulado[area].append(float(promedio))
+
+    filas = []
+    for area, valores in acumulado.items():
+        reprobados = sum(1 for v in valores if v < minima)
+        filas.append({
+            'nombre': area,
+            'promedio': round(sum(valores) / len(valores), 2) if valores else 0.0,
+            'evaluados': len(valores),
+            'reprobados': reprobados,
+            'porcentaje': round(reprobados * 100.0 / len(valores), 1) if valores else 0.0,
+        })
+    return sorted(filas, key=lambda f: f['promedio'])
+
+
+# ---------------------------------------------------------------------------
+# CAJA Y BIGOTES
+# ---------------------------------------------------------------------------
+# ApexCharts espera, para cada caja: {x: 'nombre', y: [min, Q1, mediana, Q3, max]}.
+# Hasta ahora al gráfico se le estaba pasando el resultado de
+# get_distribucion_por_materia(), que tiene otra forma (nombre, promedio,
+# distribución), así que el gráfico no podía dibujar nada.
+
+def _caja(valores):
+    """Los cinco números de una caja: mínimo, Q1, mediana, Q3, máximo."""
+    datos = sorted(float(v) for v in valores if v is not None)
+    if len(datos) < 2:
+        return None
+    mitad = len(datos) // 2
+    inferior = datos[:mitad]
+    superior = datos[mitad + 1:] if len(datos) % 2 else datos[mitad:]
+    q1 = statistics.median(inferior) if inferior else datos[0]
+    q3 = statistics.median(superior) if superior else datos[-1]
+    return [round(datos[0], 2), round(q1, 2), round(statistics.median(datos), 2),
+            round(q3, 2), round(datos[-1], 2)]
+
+
+def get_caja_por_asignatura(filtros=None):
+    """Distribución de notas de cada asignatura, lista para ApexCharts."""
+    if filtros is None: filtros = {}
+    base = _get_base_query(filtros)
+    cajas = defaultdict(list)
+    for nombre, nota in base.values_list('materia__nombre', 'valor_nota'):
+        if nota is not None:
+            cajas[nombre or 'Sin nombre'].append(nota)
+
+    salida = []
+    for nombre, valores in sorted(cajas.items()):
+        caja = _caja(valores)
+        if caja:
+            salida.append({'x': nombre, 'y': caja})
+    return salida
+
+
+def get_caja_por_area(filtros=None):
+    """Lo mismo, pero con el promedio de cada estudiante en cada área."""
+    if filtros is None: filtros = {}
+    datos = _get_datos_rendimiento_cached(filtros)
+    if not datos:
+        return []
+    cajas = defaultdict(list)
+    for d in datos.values():
+        for area, promedio in d.get('promedios_area', {}).items():
+            if promedio and promedio > 0:
+                cajas[area].append(promedio)
+
+    salida = []
+    for nombre, valores in sorted(cajas.items()):
+        caja = _caja(valores)
+        if caja:
+            salida.append({'x': nombre, 'y': caja})
+    return salida
+
+
+# ---------------------------------------------------------------------------
+# CONCLUSIONES DE LAS VISTAS NUEVAS
+# ---------------------------------------------------------------------------
+# Frases cortas, en el mismo tono de las que ya genera el panel. La idea no es
+# interpretar por el docente, es señalarle dónde mirar primero.
+
+def conclusiones_resumen(filas, singular, plural):
+    """Lee un resumen por área o por asignatura y señala lo que salta a la vista."""
+    if not filas:
+        return [f"No hay datos de {plural} para los filtros seleccionados."]
+
+    frases = []
+    peor, mejor = filas[0], filas[-1]          # vienen ordenadas por promedio
+    total_eval = sum(f['evaluados'] for f in filas)
+    total_rep = sum(f['reprobados'] for f in filas)
+
+    frases.append(
+        f"Se analizaron {len(filas)} {plural} con {total_eval} valoraciones en total."
+    )
+    frases.append(
+        f"El promedio más bajo es el de <strong>{peor['nombre']}</strong> "
+        f"({peor['promedio']}), y el más alto el de <strong>{mejor['nombre']}</strong> "
+        f"({mejor['promedio']})."
+    )
+    if total_eval:
+        frases.append(
+            f"La pérdida general es del {round(total_rep * 100.0 / total_eval, 1)}% "
+            f"({total_rep} de {total_eval})."
+        )
+
+    criticas = [f for f in filas if f['porcentaje'] >= 30]
+    if criticas:
+        nombres = ", ".join(f"{f['nombre']} ({f['porcentaje']}%)" for f in criticas[:4])
+        frases.append(
+            f"{len(criticas)} {plural if len(criticas) > 1 else singular} "
+            f"con pérdida igual o superior al 30%: {nombres}."
+        )
+    else:
+        frases.append(f"Ninguna {singular} supera el 30% de pérdida.")
+
+    limpias = [f['nombre'] for f in filas if f['reprobados'] == 0]
+    if limpias:
+        frases.append(f"Sin reprobados: {', '.join(limpias[:5])}.")
+    return frases
+
+
+def conclusiones_anotaciones(anot, automaticas=None):
+    """Lo mismo para el bloque de anotaciones del observador."""
+    if not anot or not anot.get('total'):
+        return ["No hay anotaciones registradas para los filtros seleccionados."]
+
+    total = anot['total']
+    pos, neg = anot['positivas'], anot['negativas']
+    sin = anot['sin_clasificar']
+    frases = [f"Hay {total} anotación(es) en el periodo y los cursos seleccionados."]
+
+    if pos or neg:
+        if neg > pos:
+            frases.append(
+                f"Predominan las negativas: {neg} frente a {pos} positivas "
+                f"({round(neg * 100.0 / total)}% del total)."
+            )
+        elif pos > neg:
+            frases.append(
+                f"Predominan las positivas: {pos} frente a {neg} negativas. "
+                f"Se está reconociendo lo bueno tanto como se señalan las faltas."
+            )
+        else:
+            frases.append(f"Hay tantas positivas como negativas ({pos} de cada una).")
+
+    acad = sum(anot['matriz']['ACADEMICA'].values())
+    conv = sum(anot['matriz']['COMPORTAMENTAL'].values())
+    if acad or conv:
+        cual = "académicas" if acad > conv else "de convivencia"
+        frases.append(f"La mayoría son {cual} ({max(acad, conv)} de {total}).")
+
+    cursos = anot.get('por_curso') or []
+    if len(cursos) > 1:
+        top = max(cursos, key=lambda c: c['total'])
+        frases.append(
+            f"El curso con más anotaciones es <strong>{top['curso']}</strong> "
+            f"({top['total']})."
+        )
+
+    if sin:
+        frases.append(
+            f"Quedan {sin} anotación(es) sin clasificar como positiva o negativa. "
+            f"Conviene revisarlas para que el conteo quede completo."
+        )
+    if automaticas and automaticas.get('total'):
+        frases.append(
+            f"Aparte, el sistema generó {automaticas['total']} observación(es) "
+            f"automáticas por bajo rendimiento, que no entran en este conteo."
+        )
+    return frases

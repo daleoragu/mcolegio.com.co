@@ -225,6 +225,156 @@
                 </tbody>
             </table>
 
+        {% elif tipo_reporte == 'por_area' %}
+            <h3>Resumen por Área</h3>
+            <p style="font-size:10px; color:#555;">
+                El promedio de cada área respeta la ponderación de sus asignaturas, igual que en el boletín.
+            </p>
+            <table class="report-table">
+                <thead><tr>
+                    <th>Área</th><th class="center">Promedio</th><th class="center">Evaluados</th>
+                    <th class="center">Reprobados</th><th class="center">% Pérdida</th>
+                </tr></thead>
+                <tbody>
+                    {% for f in datos.resumen_area %}
+                    <tr>
+                        <td>{{ f.nombre }}</td><td class="center">{{ f.promedio }}</td>
+                        <td class="center">{{ f.evaluados }}</td><td class="center">{{ f.reprobados }}</td>
+                        <td class="center">{{ f.porcentaje }}%</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="center">No hay datos para los filtros seleccionados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% if graficas_extra.barras %}
+                <img src="data:image/png;base64,{{ graficas_extra.barras }}" style="width:100%; margin-top:12px;">
+            {% endif %}
+            {% if graficas_extra.torta %}
+                <img src="data:image/png;base64,{{ graficas_extra.torta }}" style="width:52%; display:block; margin:12px auto;">
+            {% endif %}
+            {% if graficas_extra.caja %}
+                <img src="data:image/png;base64,{{ graficas_extra.caja }}" style="width:100%; margin-top:12px;">
+                <p style="font-size:9px; color:#666;">
+                    La caja abarca la mitad central del grupo y la línea roja es la mediana.
+                    Cuanto más ancha la caja, más desiguales los resultados.
+                </p>
+            {% endif %}
+            {% if conclusiones %}
+                <h4 style="margin-top:16px;">Conclusiones</h4>
+                <ul style="font-size:10px; line-height:1.5;">
+                    {% for c in conclusiones %}<li>{{ c|safe }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+
+        {% elif tipo_reporte == 'por_asignatura' %}
+            <h3>Resumen por Asignatura</h3>
+            <table class="report-table">
+                <thead><tr>
+                    <th>Asignatura</th><th class="center">Promedio</th><th class="center">Evaluados</th>
+                    <th class="center">Reprobados</th><th class="center">% Pérdida</th>
+                </tr></thead>
+                <tbody>
+                    {% for f in datos.resumen_asignatura %}
+                    <tr>
+                        <td>{{ f.nombre }}</td><td class="center">{{ f.promedio }}</td>
+                        <td class="center">{{ f.evaluados }}</td><td class="center">{{ f.reprobados }}</td>
+                        <td class="center">{{ f.porcentaje }}%</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="center">No hay datos para los filtros seleccionados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% if graficas_extra.barras %}
+                <img src="data:image/png;base64,{{ graficas_extra.barras }}" style="width:100%; margin-top:12px;">
+            {% endif %}
+            {% if graficas_extra.torta %}
+                <img src="data:image/png;base64,{{ graficas_extra.torta }}" style="width:52%; display:block; margin:12px auto;">
+            {% endif %}
+            {% if graficas_extra.caja %}
+                <img src="data:image/png;base64,{{ graficas_extra.caja }}" style="width:100%; margin-top:12px;">
+                <p style="font-size:9px; color:#666;">
+                    La caja abarca la mitad central del grupo y la línea roja es la mediana.
+                    Cuanto más ancha la caja, más desiguales los resultados.
+                </p>
+            {% endif %}
+            {% if conclusiones %}
+                <h4 style="margin-top:16px;">Conclusiones</h4>
+                <ul style="font-size:10px; line-height:1.5;">
+                    {% for c in conclusiones %}<li>{{ c|safe }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+
+        {% elif tipo_reporte == 'anotaciones' %}
+            <h3>Anotaciones del Observador</h3>
+            <p style="font-size:11px;">
+                Total: <strong>{{ datos.anotaciones.total }}</strong> &nbsp;|&nbsp;
+                Positivas: <strong>{{ datos.anotaciones.positivas }}</strong> &nbsp;|&nbsp;
+                Negativas: <strong>{{ datos.anotaciones.negativas }}</strong> &nbsp;|&nbsp;
+                Sin clasificar: <strong>{{ datos.anotaciones.sin_clasificar }}</strong>
+            </p>
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2">Curso</th>
+                        <th colspan="3" class="center">Académicas</th>
+                        <th colspan="3" class="center">Convivencia</th>
+                        <th rowspan="2" class="center">Total</th>
+                    </tr>
+                    <tr>
+                        <th class="center">Pos.</th><th class="center">Neg.</th><th class="center">S/C</th>
+                        <th class="center">Pos.</th><th class="center">Neg.</th><th class="center">S/C</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in datos.anotaciones.por_curso %}
+                    <tr>
+                        <td>{{ c.curso }}</td>
+                        <td class="center">{{ c.detalle.ACADEMICA.POSITIVA }}</td>
+                        <td class="center">{{ c.detalle.ACADEMICA.NEGATIVA }}</td>
+                        <td class="center">{{ c.detalle.ACADEMICA.SIN_CLASIFICAR }}</td>
+                        <td class="center">{{ c.detalle.COMPORTAMENTAL.POSITIVA }}</td>
+                        <td class="center">{{ c.detalle.COMPORTAMENTAL.NEGATIVA }}</td>
+                        <td class="center">{{ c.detalle.COMPORTAMENTAL.SIN_CLASIFICAR }}</td>
+                        <td class="center"><strong>{{ c.total }}</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="center">No hay anotaciones para los filtros seleccionados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p style="font-size:10px; color:#555; margin-top:10px;">
+                Aparte, el sistema generó <strong>{{ datos.anotaciones_automaticas.total }}</strong>
+                observación(es) automáticas por bajo rendimiento, que no se suman al cuadro anterior.
+                {% if datos.anotaciones.deducidas %}
+                De las académicas, {{ datos.anotaciones.deducidas }} no tenían marcada la casilla
+                positiva/negativa y se dedujeron del promedio del estudiante en ese periodo.
+                {% endif %}
+            </p>
+
+            {% if graficas_extra.barras %}
+                <img src="data:image/png;base64,{{ graficas_extra.barras }}" style="width:100%; margin-top:12px;">
+            {% endif %}
+            {% if graficas_extra.torta %}
+                <img src="data:image/png;base64,{{ graficas_extra.torta }}" style="width:52%; display:block; margin:12px auto;">
+            {% endif %}
+            {% if graficas_extra.caja %}
+                <img src="data:image/png;base64,{{ graficas_extra.caja }}" style="width:100%; margin-top:12px;">
+                <p style="font-size:9px; color:#666;">
+                    La caja abarca la mitad central del grupo y la línea roja es la mediana.
+                    Cuanto más ancha la caja, más desiguales los resultados.
+                </p>
+            {% endif %}
+            {% if conclusiones %}
+                <h4 style="margin-top:16px;">Conclusiones</h4>
+                <ul style="font-size:10px; line-height:1.5;">
+                    {% for c in conclusiones %}<li>{{ c|safe }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+
         {% elif tipo_reporte == 'reprobados_materia' %}
             <h3>Resumen de Reprobados por Materia</h3>
             <table class="report-table">

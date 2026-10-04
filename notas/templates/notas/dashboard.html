@@ -44,26 +44,66 @@
             transform: translateY(-5px);
             box-shadow: 0 8px 15px rgba(0,0,0,0.1);
         }
+        /* El icono encima y el texto debajo, para que las tarjetas se lean de un vistazo */
+        .dashboard-menu a {
+            display: flex; flex-direction: column; align-items: center; gap: 12px;
+            justify-content: center;
+        }
+        .dashboard-menu a i { font-size: 1.9rem; opacity: .85; }
+        .dashboard-menu a span { line-height: 1.3; }
     </style>
 
     <div class="dashboard-welcome">
         <h2>¡Bienvenido, {{ user.get_full_name|default:user.username }}!</h2>
-        <p class="welcome-message">Has iniciado sesión en la plataforma de la I.E.T. Alfonso Palacio Rudas.</p>
-        
-        <div class="dashboard-menu">
-            <!-- Mostramos el menú correspondiente al rol del usuario -->
-            {% if user.groups.all.0.name == 'Docentes' %}
-                <a href="{% url 'notas:ingresar_notas_periodo' %}">Ingresar Notas e Indicadores</a>
-                <a href="#">Tomar Asistencia</a>
-                <a href="#">Registrar Observador</a>
-            {% elif user.groups.all.0.name == 'Estudiantes' %}
-                <a href="#">Ver Mis Notas</a>
-                <a href="#">Ver Mi Horario</a>
-                <a href="#">Consultar Inasistencias</a>
+        {% comment %}
+            El nombre sale del colegio al que pertenece la sesión. Antes estaba
+            escrito a mano y todos los colegios veían el nombre de uno solo.
+        {% endcomment %}
+        <p class="welcome-message">
+            {% if colegio %}
+                Has iniciado sesión en la plataforma de {{ colegio.nombre }}.
             {% else %}
-                <!-- Para Superusuario o roles no definidos -->
-                <p>Bienvenido, Administrador. Puede gestionar el sistema desde el Panel de Admin.</p>
-                <a href="/admin/">Ir al Panel de Administración</a>
+                Has iniciado sesión en la plataforma.
+            {% endif %}
+        </p>
+
+        <div class="dashboard-menu">
+            {% if user.groups.all.0.name == 'Docentes' %}
+                <a href="{% url 'notas:ingresar_notas_periodo' %}">
+                    <i class="fas fa-pen-to-square"></i>
+                    <span>Ingresar Notas e Indicadores</span>
+                </a>
+                <a href="{% url 'notas:asistencia' %}">
+                    <i class="fas fa-clipboard-user"></i>
+                    <span>Tomar Asistencia</span>
+                </a>
+                <a href="{% url 'notas:observador_selector' %}">
+                    <i class="fas fa-book-open-reader"></i>
+                    <span>Registrar Observador</span>
+                </a>
+                <a href="{% url 'notas:panel_estadisticas' %}">
+                    <i class="fas fa-chart-column"></i>
+                    <span>Estadísticas</span>
+                </a>
+                <a href="{% url 'puntoexacto:lista' %}">
+                    <i class="fas fa-list-check"></i>
+                    <span>PuntoExacto</span>
+                </a>
+            {% elif user.groups.all.0.name == 'Estudiantes' %}
+                <a href="{% url 'notas:mi_boletin' %}">
+                    <i class="fas fa-file-lines"></i>
+                    <span>Mis Boletines</span>
+                </a>
+                <a href="{% url 'notas:mi_observador' %}">
+                    <i class="fas fa-book-open-reader"></i>
+                    <span>Mi Observador</span>
+                </a>
+            {% else %}
+                <p>Bienvenido, Administrador. Puede gestionar el sistema desde el panel.</p>
+                <a href="{% url 'notas:admin_dashboard' %}">
+                    <i class="fas fa-gauge-high"></i>
+                    <span>Ir al Panel de Administración</span>
+                </a>
             {% endif %}
         </div>
     </div>

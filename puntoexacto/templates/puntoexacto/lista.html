@@ -1,0 +1,62 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% block title %}PuntoExacto - {{ block.super }}{% endblock %}
+{% block page_title %}PuntoExacto{% endblock %}
+
+{% block content %}
+<div class="pe-barra">
+    <a href="{% url 'puntoexacto:crear' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> Nuevo examen
+    </a>
+    {% if archivados %}
+        <a href="{% url 'puntoexacto:lista' %}" class="btn btn-outline-secondary">Ver activos</a>
+    {% else %}
+        <a href="?archivados=1" class="btn btn-outline-secondary">Ver archivados</a>
+    {% endif %}
+    <form method="get" class="crece d-flex gap-2">
+        {% if archivados %}<input type="hidden" name="archivados" value="1">{% endif %}
+        <input type="search" name="q" value="{{ busqueda }}" class="form-control"
+               placeholder="Buscar por nombre" style="min-width:220px;">
+        <button class="btn btn-outline-secondary">Buscar</button>
+    </form>
+</div>
+
+<div class="pe-tarjeta">
+    {% if examenes %}
+    <div class="table-responsive">
+        <table class="pe-tabla">
+            <thead><tr>
+                <th>Examen</th><th>Asignatura y curso</th><th>Periodo</th>
+                <th class="pe-num">Fecha</th><th class="pe-num">Preguntas</th>
+                <th class="pe-num">Hojas</th><th></th>
+            </tr></thead>
+            <tbody>
+            {% for e in examenes %}
+                <tr>
+                    <td><a href="{% url 'puntoexacto:resultados' examen_id=e.id %}"><strong>{{ e.titulo }}</strong></a></td>
+                    <td>{% if e.asignacion %}{{ e.asignacion.materia.nombre }} · {{ e.asignacion.curso.nombre }}{% else %}<span class="pe-gris">Sin asignar</span>{% endif %}</td>
+                    <td>{{ e.periodo|default:"—" }}</td>
+                    <td class="pe-num">{{ e.fecha|date:"Y-m-d" }}</td>
+                    <td class="pe-num">{{ e.numero_preguntas }}</td>
+                    <td class="pe-num">{{ e.hojas.count }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'puntoexacto:clave' examen_id=e.id %}" class="btn btn-sm btn-outline-primary">Clave</a>
+                        <a href="{% url 'puntoexacto:hojas' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary">Hojas</a>
+                        <a href="{% url 'puntoexacto:escanear' examen_id=e.id %}" class="btn btn-sm btn-outline-success">Cámara</a>
+                        <a href="{% url 'puntoexacto:resultados' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary">Revisar</a>
+                        <a href="{% url 'puntoexacto:archivar' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary">
+                            {% if e.archivado %}Restaurar{% else %}Archivar{% endif %}</a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p class="pe-vacio">
+            {% if busqueda %}Ningún examen coincide con «{{ busqueda }}».
+            {% elif archivados %}No hay exámenes archivados.
+            {% else %}Todavía no hay exámenes. Cree el primero con el botón de arriba.{% endif %}
+        </p>
+    {% endif %}
+</div>
+{% endblock %}

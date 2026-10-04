@@ -1,0 +1,91 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}Revisión de docentes · Salón Digital{% endblock %}
+
+{% block contenido %}
+<h1 class="h3 mb-4">Revisión de docentes</h1>
+
+<div class="card mb-4">
+  <div class="card-header">Pendientes ({{ pendientes|length }})</div>
+  <div class="card-body p-0">
+    {% for c in pendientes %}
+      <div class="p-3 {% if not forloop.last %}border-bottom{% endif %}">
+        <div class="row g-3 align-items-start">
+          <div class="col-md-5">
+            <strong>{{ c.nombre_publico }}</strong>
+            <div class="small text-muted">
+              <code>{{ c.slug }}</code> · {{ c.usuario.email }}<br>
+              {{ c.institucion|default:"Sin institución" }}
+              {% if c.municipio %} · {{ c.municipio }}{% endif %}<br>
+              Registrada el {{ c.creada_en|date:"d/m/Y" }}
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="small text-muted">{{ c.get_tipo_documento_display }}</div>
+            {% if c.documento %}
+              <a href="{{ c.documento.url }}" target="_blank" class="btn btn-sm btn-outline-secondary mt-1">
+                Ver documento
+              </a>
+            {% else %}
+              <span class="text-muted small">Sin documento</span>
+            {% endif %}
+          </div>
+          <div class="col-md-4">
+            <form method="post" action="{% url 'salon_digital:revisar_cuenta' c.pk %}">
+              {% csrf_token %}
+              <input type="text" name="nota" class="form-control form-control-sm mb-2"
+                     placeholder="Observación (obligatoria si rechazas)">
+              <button name="decision" value="aprobar" class="btn btn-sm btn-success">Aprobar</button>
+              <button name="decision" value="rechazar" class="btn btn-sm btn-outline-danger">Rechazar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <p class="text-muted text-center py-5 mb-0">No hay solicitudes pendientes.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Cuentas y planes</div>
+  <div class="table-responsive">
+    <table class="table align-middle mb-0 tabla-limpia">
+      <thead><tr>
+        <th>Docente</th><th>Estado</th><th>Plan</th><th>Vence</th><th>Páginas</th><th>Activar plan</th>
+      </tr></thead>
+      <tbody>
+      {% for c in recientes %}
+        <tr>
+          <td>
+            <strong>{{ c.nombre_publico }}</strong>
+            <div class="small text-muted"><code>{{ c.slug }}</code> · {{ c.institucion }}</div>
+          </td>
+          <td>
+            {% if c.estado == 'verificada' %}<span class="badge bg-success">verificada</span>
+            {% elif c.estado == 'rechazada' %}<span class="badge bg-danger">rechazada</span>
+            {% else %}<span class="badge bg-secondary">{{ c.get_estado_display }}</span>{% endif %}
+          </td>
+          <td>{{ c.get_plan_display }}</td>
+          <td class="small {% if c.vencida %}text-danger{% endif %}">
+            {{ c.vence_en|date:"d/m/Y"|default:"—" }}
+          </td>
+          <td class="text-center">{{ c.paginas_usadas }}</td>
+          <td>
+            <form method="post" action="{% url 'salon_digital:cambiar_plan' c.pk %}" class="d-flex gap-1">
+              {% csrf_token %}
+              <select name="plan" class="form-select form-select-sm" style="max-width:130px">
+                <option value="mensual">Mensual</option>
+                <option value="anual">Anual</option>
+                <option value="prueba">Prueba</option>
+                <option value="ilimitado">Ilimitado</option>
+              </select>
+              <button class="btn btn-sm btn-outline-primary">Activar</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

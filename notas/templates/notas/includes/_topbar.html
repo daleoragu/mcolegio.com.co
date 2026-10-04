@@ -35,6 +35,8 @@
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header">Gestión Docente</h6></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'ingresar_notas_periodo' %}active{% endif %}" href="{% url 'notas:ingresar_notas_periodo' %}"><i class="fas fa-edit fa-fw me-2 text-muted"></i>Ingresar Notas</a></li>   
+                    {# PuntoExacto va junto a Ingresar Notas: de ahí salen las columnas de la planilla. #}
+                    <li><a class="dropdown-item {% if 'puntoexacto' in request.path %}active{% endif %}" href="{% url 'puntoexacto:lista' %}"><i class="fas fa-list-check fa-fw me-2 text-muted"></i>PuntoExacto</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'plan_mejoramiento' %}active{% endif %}" href="{% url 'notas:plan_mejoramiento' %}"><i class="fas fa-tasks fa-fw me-2 text-muted"></i>Planes de Mejoramiento</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'reporte_parcial' %}active{% endif %}" href="{% url 'notas:reporte_parcial' %}"><i class="fas fa-file-alt fa-fw me-2 text-muted"></i>Reporte Parcial (Docente)</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'lista_estudiantes_reporte' %}active{% endif %}" href="{% url 'notas:lista_estudiantes_reporte' %}"><i class="fas fa-user-times fa-fw me-2 text-muted"></i>Reporte Estudiantes</a></li>

@@ -1,0 +1,315 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ prueba.titulo }}</title>
+<style>
+:root{--vino:#460F10;--mor:#9E1982;--fuc:#FF289A;--lila:#F7EFF5;--line:#E6D6E2;--bg:#FBF7FA;
+      --ink:#26161F;--muted:#6B5566;--red:#B3261E;--verde:#2E7D32}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Segoe UI',system-ui,Arial,sans-serif;
+     font-size:17px;line-height:1.5}
+.wrap{max-width:1000px;margin:0 auto;padding:0 18px 60px}
+header.inst{background:#fff;border-bottom:3px solid var(--mor);text-align:center}
+header.inst .in{max-width:900px;margin:0 auto;padding:16px 18px 14px}
+header.inst img{height:96px;display:block;margin:0 auto 10px}
+header.inst h1{margin:0;font-size:18px;color:var(--vino)}
+header.inst p{margin:3px 0 0;font-size:13px;color:var(--muted)}
+h2.tit{font-size:29px;color:var(--vino);margin:26px 0 6px;text-align:center}
+p.sub{color:var(--muted);margin:0 0 22px;text-align:center}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:18px}
+label{display:block;font-weight:600;font-size:14px;color:var(--vino);margin-bottom:6px}
+input[type=text]{width:100%;padding:12px 14px;font-size:17px;border:1.5px solid var(--line);
+                 border-radius:10px;font-family:inherit}
+input:focus{outline:none;border-color:var(--mor)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:620px){.grid2{grid-template-columns:1fr}}
+button{font-family:inherit;font-size:17px;font-weight:600;border:none;border-radius:10px;padding:13px 26px;
+       cursor:pointer;background:var(--mor);color:#fff}
+button:hover{background:var(--vino)}
+button.sec{background:#fff;color:var(--vino);border:1.5px solid var(--line)}
+.center{text-align:center}.hide{display:none!important}
+.barra{height:10px;background:var(--lila);border-radius:99px;overflow:hidden;margin:18px 0 6px}
+.barra i{display:block;height:100%;background:var(--mor);width:0;transition:width .3s}
+.pmeta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:18px}
+.preg h3{font-size:15px;color:var(--mor);margin:0 0 10px;text-transform:uppercase;letter-spacing:.4px}
+.preg .enun{font-size:19px;line-height:1.55;margin:0}
+.preg figure{margin:16px 0 4px;text-align:center}
+.preg figure img{max-width:100%;max-height:320px;border:1px solid var(--line);border-radius:10px;background:#fff}
+table.datos{border-collapse:collapse;margin:16px auto 4px;font-size:16px}
+table.datos th{background:var(--vino);color:#fff;padding:9px 14px;font-size:13.5px}
+table.datos td{border:1px solid var(--line);padding:9px 14px;text-align:center;background:#fff}
+table.datos td:first-child{font-weight:700;background:var(--lila)}
+.ops{display:grid;gap:10px;margin-top:18px}
+.op{display:flex;align-items:center;gap:14px;padding:14px 16px;border:2px solid var(--line);border-radius:12px;
+    background:#fff;text-align:left;width:100%;color:var(--ink);font-weight:400;font-size:17px;cursor:pointer}
+.op:hover{border-color:var(--mor);background:var(--lila)}
+.op.sel{border-color:var(--mor);background:var(--lila)}
+.op .l{flex:0 0 34px;height:34px;border-radius:50%;background:var(--vino);color:#fff;display:flex;
+       align-items:center;justify-content:center;font-weight:700;font-size:15px}
+.op img{display:block;max-width:300px;width:100%;margin-top:10px;border:1px solid var(--line);border-radius:8px}
+.confirma{margin-top:18px;background:#F9EAF4;border:2px solid var(--mor);border-radius:12px;padding:16px}
+.it{border-left:5px solid var(--verde);background:#fff;border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.it.no{border-left-color:var(--red)}
+.it b{color:var(--vino)}
+.it p{margin:6px 0 0;font-size:15px;color:var(--muted)}
+.franja{display:inline-block;padding:6px 16px;border-radius:99px;color:#fff;font-weight:700;margin-top:8px}
+.marc{display:flex;gap:14px;align-items:center;margin:10px 0}
+.marc .barra{flex:1;margin:0}
+.marc span{font-size:14px;color:var(--muted);min-width:110px}
+</style>
+</head>
+<body>
+
+<header class="inst"><div class="in">
+  <h1>{{ cuenta.institucion|default:cuenta.nombre_publico }}</h1>
+  <p>{{ prueba.get_area_display }} · Grado {{ prueba.grado }}°{% if prueba.sede %} · {{ prueba.sede }}{% endif %}</p>
+</div></header>
+
+<div class="wrap">
+
+<!-- ===================== INICIO ===================== -->
+<section id="inicio">
+  <h2 class="tit">{{ prueba.titulo }}</h2>
+  <p class="sub">Escribe tus datos y presenta la prueba</p>
+
+  <div class="card">
+    <div class="grid2">
+      <div><label for="ape">Apellidos</label>
+        <input type="text" id="ape" placeholder="Escribe tus dos apellidos" autocomplete="off"></div>
+      <div><label for="nom">Nombres</label>
+        <input type="text" id="nom" placeholder="Escribe tus nombres" autocomplete="off"></div>
+    </div>
+    <div class="grid2" style="margin-top:16px">
+      <div><label for="sede">Sede</label>
+        <input type="text" id="sede" value="{{ prueba.sede }}" readonly
+               style="background:#F4EBF1;color:var(--muted)"></div>
+      <div><label for="gru">Grupo</label>
+        <input type="text" id="gru" placeholder="Ejemplo: {{ prueba.grado }}-01" autocomplete="off"></div>
+    </div>
+  </div>
+
+  <div class="card center">
+    <p style="margin:0 0 14px;color:var(--muted)">{{ prueba.descripcion }}</p>
+    <button onclick="App.empezar()">Comenzar la prueba · {{ prueba.total_preguntas }} preguntas</button>
+  </div>
+</section>
+
+<!-- ===================== PRUEBA ===================== -->
+<section id="prueba" class="hide">
+  <div class="barra"><i id="prog"></i></div>
+  <div class="pmeta"><span id="cont"></span><span id="reloj">00:00</span></div>
+
+  <div class="card preg">
+    <h3 id="p-comp"></h3>
+    <p class="enun" id="p-enun"></p>
+    <div id="p-extra"></div>
+    <p id="p-preg" style="font-weight:700;font-size:18.5px;margin:14px 0 0"></p>
+    <div class="ops" id="p-ops"></div>
+
+    <div id="confirma" class="confirma hide">
+      <p style="margin:0 0 12px;font-size:18px;color:var(--vino)">
+        <b>Has seleccionado la opción <span id="c-letra"></span></b>
+      </p>
+      <p style="margin:0 0 14px;color:var(--muted)" id="c-texto"></p>
+      <button id="c-sig" onclick="App.siguiente()">Pasar a la siguiente</button>
+      <button class="sec" onclick="App.cambiar()">Cambiar mi respuesta</button>
+    </div>
+  </div>
+
+  <div class="center">
+    <button class="sec" id="btn-atras" onclick="App.atras()">Volver a la anterior</button>
+  </div>
+</section>
+
+<!-- ===================== RESULTADO ===================== -->
+<section id="resultado" class="hide">
+  <h2 class="tit">Tus resultados</h2>
+  <div class="card center">
+    <p id="r-datos" style="color:var(--muted);font-size:14.5px"></p>
+    <p style="font-size:44px;font-weight:700;color:var(--mor);margin:6px 0 0">
+      <span id="r-pct"></span>
+    </p>
+    <p style="margin:0;color:var(--muted)"><span id="r-n"></span> respuestas correctas</p>
+    <div><span class="franja" id="r-franja"></span></div>
+    <p id="aviso" style="margin:16px 0 0;font-size:14.5px;color:var(--muted)"></p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 12px;color:var(--vino);font-size:17px">Por competencia</h3>
+    <div id="r-comp"></div>
+  </div>
+
+  {% if prueba.mostrar_retroalimentacion %}
+  <div class="card">
+    <h3 style="margin:0 0 12px;color:var(--vino);font-size:17px">Revisión pregunta por pregunta</h3>
+    <div id="r-rev"></div>
+  </div>
+  {% endif %}
+
+  {% if prueba.permite_reintentos %}
+  <div class="center"><button onclick="location.reload()">Presentar otra vez</button></div>
+  {% endif %}
+</section>
+
+</div>
+
+{{ preguntas|json_script:"datos-preguntas" }}
+{{ prueba.titulo|json_script:"datos-titulo" }}
+{{ endpoint|json_script:"datos-endpoint" }}
+
+<script>
+const PREGUNTAS = JSON.parse(document.getElementById('datos-preguntas').textContent);
+const NOMBRE_PRUEBA = JSON.parse(document.getElementById('datos-titulo').textContent);
+const ENDPOINT = JSON.parse(document.getElementById('datos-endpoint').textContent);
+const LETRAS = ['A','B','C','D','E','F'];
+
+let i = 0, resp = [], intentos = [], tpreg = [], t0 = 0, tq = 0, timer = null;
+const $ = id => document.getElementById(id);
+const escH = t => String(t == null ? '' : t)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const hhmm = s => String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+
+const App = {
+  empezar(){
+    for (const id of ['ape','nom']) {
+      if (!$(id).value.trim()) { $(id).focus(); $(id).style.borderColor = 'var(--red)'; return; }
+    }
+    resp = new Array(PREGUNTAS.length).fill(null);
+    intentos = new Array(PREGUNTAS.length).fill(0);
+    tpreg = new Array(PREGUNTAS.length).fill(0);
+    i = 0; t0 = Date.now(); tq = Date.now();
+    timer = setInterval(() => $('reloj').textContent = hhmm(Math.floor((Date.now()-t0)/1000)), 1000);
+    $('inicio').classList.add('hide');
+    $('prueba').classList.remove('hide');
+    pinta(); window.scrollTo({top:0});
+  },
+  cambiar(){ $('confirma').classList.add('hide'); },
+  atras(){ if (i > 0) { registrarTiempo(); i--; pinta(); window.scrollTo({top:0}); } },
+  siguiente(){
+    registrarTiempo();
+    if (i === PREGUNTAS.length - 1) return terminar();
+    i++; pinta(); window.scrollTo({top:0});
+  }
+};
+
+function registrarTiempo(){ tpreg[i] += Math.round((Date.now()-tq)/1000); tq = Date.now(); }
+
+function pinta(){
+  const q = PREGUNTAS[i];
+  $('cont').textContent = 'Pregunta ' + (i+1) + ' de ' + PREGUNTAS.length;
+  $('prog').style.width = ((i) / PREGUNTAS.length * 100) + '%';
+  $('p-comp').textContent = 'Pregunta ' + (i+1) + (q.compNombre ? ' · ' + q.compNombre : '');
+  $('p-enun').textContent = q.enun || '';
+  $('btn-atras').style.display = i === 0 ? 'none' : '';
+
+  let extra = '';
+  if (q.tabla && q.tabla.h) {
+    extra += '<table class="datos"><tr>' + q.tabla.h.map(h => '<th>'+escH(h)+'</th>').join('') + '</tr>';
+    (q.tabla.r || []).forEach(r => {
+      extra += '<tr>' + r.map(c => '<td>'+escH(c)+'</td>').join('') + '</tr>';
+    });
+    extra += '</table>';
+  }
+  if (q.fig) extra += '<figure><img src="'+escH(q.fig)+'" alt="Imagen de la pregunta"></figure>';
+  $('p-extra').innerHTML = extra;
+  $('p-preg').textContent = q.preg || '';
+
+  $('p-ops').innerHTML = q.ops.map((o, k) =>
+    '<button class="op'+(resp[i] === k ? ' sel' : '')+'" data-k="'+k+'">' +
+      '<span class="l">'+o.letra+'</span>' +
+      '<span>'+escH(o.texto) +
+        (o.fig ? '<img src="'+escH(o.fig)+'" alt="Opción '+o.letra+'">' : '') +
+      '</span>' +
+    '</button>').join('');
+
+  document.querySelectorAll('.op').forEach(b => b.onclick = () => {
+    intentos[i]++; resp[i] = +b.dataset.k; pinta(); mostrarConfirma();
+    $('confirma').scrollIntoView({behavior:'smooth', block:'center'});
+  });
+
+  if (resp[i] !== null) mostrarConfirma(); else $('confirma').classList.add('hide');
+}
+
+function mostrarConfirma(){
+  const q = PREGUNTAS[i], o = q.ops[resp[i]];
+  $('c-letra').textContent = o.letra;
+  $('c-texto').textContent = o.texto;
+  $('c-sig').textContent = (i === PREGUNTAS.length - 1)
+    ? 'Terminar y ver mis resultados' : 'Pasar a la siguiente';
+  $('confirma').classList.remove('hide');
+}
+
+function terminar(){
+  clearInterval(timer);
+  const seg = Math.floor((Date.now()-t0)/1000);
+  let ok = 0;
+  const porComp = {};
+
+  const det = PREGUNTAS.map((q, k) => {
+    const letra = resp[k] === null ? '—' : q.ops[resp[k]].letra;
+    const ac = letra === q.clave;
+    if (ac) ok++;
+    const c = q.comp || '—';
+    porComp[c] = porComp[c] || [0, 0, q.compNombre || c];
+    porComp[c][1]++; if (ac) porComp[c][0]++;
+    return {n:q.id, apr:q.apr, comp:q.comp, ac, marcada:letra, clave:q.clave,
+            expl:q.expl || q.err || '', intentos:intentos[k], seg:tpreg[k]};
+  });
+
+  const pct = Math.round(ok / PREGUNTAS.length * 1000) / 10;
+  const ape = $('ape').value.trim(), nom = $('nom').value.trim();
+  const completo = (ape + ' ' + nom).replace(/\s+/g,' ').trim();
+  const cambios = Math.max(0, intentos.reduce((a,b) => a+b, 0) - det.filter(d => d.marcada !== '—').length);
+
+  const RES = {ape, nom, completo, sede:$('sede').value, gru:$('gru').value.trim(),
+    prueba:'p1', pruebaNombre:NOMBRE_PRUEBA, fecha:new Date().toISOString(),
+    ok, total:PREGUNTAS.length, pct, seg, cambios, vez:1, det};
+
+  fetch(ENDPOINT, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+                   body:JSON.stringify(RES)})
+    .then(r => { $('aviso').textContent = r.ok
+      ? 'Resultado enviado al docente correctamente.'
+      : 'No se pudo enviar el resultado. Avísale al docente.'; })
+    .catch(() => { $('aviso').textContent = 'No hay conexión. Toma una foto de esta pantalla y muéstrasela al docente.'; });
+
+  $('prueba').classList.add('hide');
+  $('resultado').classList.remove('hide');
+
+  const f = new Date();
+  $('r-datos').textContent = completo + ' · ' + RES.sede + (RES.gru ? ' · Grupo ' + RES.gru : '') +
+    ' · ' + f.toLocaleDateString('es-CO') + ' ' + f.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}) +
+    ' · tiempo ' + hhmm(seg);
+  $('r-n').textContent = ok + ' de ' + PREGUNTAS.length;
+  $('r-pct').textContent = pct + ' %';
+
+  const fr = pct <= 20 ? ['Rojo','#B3261E'] : pct < 40 ? ['Naranja','#D98324']
+           : pct < 70 ? ['Amarillo','#9E1982'] : ['Verde','#2E7D32'];
+  $('r-franja').textContent = 'Franja ' + fr[0];
+  $('r-franja').style.background = fr[1];
+
+  $('r-comp').innerHTML = Object.keys(porComp).map(c => {
+    const [a, n, nombre] = porComp[c];
+    const p = n ? Math.round(a/n*100) : 0;
+    return '<div class="marc"><span>'+escH(nombre)+'</span>' +
+           '<div class="barra"><i style="width:'+p+'%"></i></div>' +
+           '<span>'+a+' de '+n+' · '+p+' %</span></div>';
+  }).join('');
+
+  const rev = $('r-rev');
+  if (rev) {
+    rev.innerHTML = det.map((d, k) => {
+      const q = PREGUNTAS[k];
+      return '<div class="it'+(d.ac ? '' : ' no')+'">' +
+        '<b>Pregunta '+(k+1)+' · '+(d.ac ? 'correcta' : 'incorrecta')+'</b>' +
+        '<p>'+escH(q.preg || q.enun)+'</p>' +
+        '<p>Marcaste <b>'+escH(d.marcada)+'</b>. La respuesta correcta es <b>'+escH(d.clave)+'</b>.</p>' +
+        (d.expl ? '<p>'+escH(d.expl)+'</p>' : '') +
+      '</div>';
+    }).join('');
+  }
+}
+</script>
+</body>
+</html>

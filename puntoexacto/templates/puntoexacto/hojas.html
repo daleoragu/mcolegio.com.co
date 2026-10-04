@@ -1,0 +1,133 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% block title %}Hojas - {{ block.super }}{% endblock %}
+{% block page_title %}Hojas · {{ examen.titulo }}{% endblock %}
+
+{% block content %}
+<div class="pe-barra">
+    <a href="{% url 'puntoexacto:clave' examen_id=examen.id %}" class="btn btn-outline-secondary">Clave</a>
+    <a href="{% url 'puntoexacto:resultados' examen_id=examen.id %}" class="btn btn-outline-secondary">Resultados</a>
+    {% if hojas %}
+    <a href="{% url 'puntoexacto:escanear' examen_id=examen.id %}" class="btn btn-success crece">
+        <i class="fas fa-camera me-1"></i> Calificar con la cámara
+    </a>
+    {% endif %}
+</div>
+
+{% if hojas %}
+<div class="pe-tarjeta">
+    <h5>Imprimir</h5>
+    <p class="text-muted" style="font-size:.9rem;">
+        Escoja cuántas hojas de respuesta van en cada página de papel. Cada hoja lleva
+        sus propias marcas de registro y su código de barras, así que la página se
+        recorta y cada pedazo se lee solo.
+    </p>
+    <form method="get" action="{% url 'puntoexacto:imprimir' examen_id=examen.id %}"
+          target="_blank" class="row g-3 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label">Hojas por página</label>
+            <select name="por_pagina" class="form-select">
+                {% for r in repartos %}
+                    <option value="{{ r.n }}" {% if r.actual %}selected{% endif %}
+                            {% if not r.cabe %}disabled{% endif %}>
+                        {{ r.n }} por página
+                        {% if not r.cabe %} — no cabe, solo {{ r.tope }} preguntas{% endif %}
+                        {% if r.sugerido and r.cabe %} — recomendado{% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="form-text">
+                Este examen tiene {{ examen.numero_preguntas }} pregunta{{ examen.numero_preguntas|pluralize }}.
+            </div>
+        </div>
+        <div class="col-md-7">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-print me-1"></i> Imprimir las {{ hojas|length }} hojas
+            </button>
+            <span class="text-muted" style="font-size:.85rem;">
+                Se abre en otra pestaña.
+            </span>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+{% if bloques %}
+<div class="pe-tarjeta">
+    <h6>La hoja sale por bloques</h6>
+    <p class="text-muted" style="font-size:.88rem;margin-bottom:.4rem;">
+        Como en la hoja del ICFES: cada área con su rótulo y su pestaña de color,
+        numeración corrida. Esto se arma desde la clave, en la columna «Área / bloque».
+    </p>
+    {% for b in bloques %}
+        <span class="badge bg-secondary">{{ b.nombre|default:"(sin bloque)" }} · {{ b.n }} preguntas</span>
+    {% endfor %}
+</div>
+{% endif %}
+
+
+
+<form method="post" class="pe-tarjeta">
+    {% csrf_token %}
+    <h5>Preparar las hojas</h5>
+    <p class="text-muted" style="font-size:.9rem;">
+        Se crea una hoja por estudiante, con su nombre impreso y su propio código de barras.
+        Las hojas sueltas son para quien no esté en la lista: salen en blanco para llenar a mano.
+    </p>
+    <div class="row g-3">
+        <div class="col-md-8">
+            <label class="form-label">Cursos</label>
+            <div style="max-height:200px; overflow-y:auto; border:1px solid #dee2e6;
+                        border-radius:6px; padding:10px;">
+                {% for c in cursos %}
+                    <label class="d-block" style="font-weight:400; padding:3px 0;">
+                        <input type="checkbox" name="curso_ids" value="{{ c.id }}">
+                        {{ c.nombre }}
+                    </label>
+                {% empty %}
+                    <span class="text-muted">No hay cursos en este colegio.</span>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Hojas sueltas adicionales</label>
+            <input type="number" name="sueltas" value="0" min="0" max="50" class="form-control">
+        </div>
+    </div>
+    <div class="mt-3"><button class="btn btn-primary">Preparar hojas</button></div>
+</form>
+
+<div class="pe-tarjeta">
+    <h5>Hojas preparadas</h5>
+    {% if hojas %}
+    <div class="table-responsive">
+        <table class="pe-tabla">
+            <thead><tr>
+                <th>Estudiante</th><th>Identificador</th><th>Estado</th>
+                <th class="pe-num">Nota</th><th></th>
+            </tr></thead>
+            <tbody>
+            {% for h in hojas %}
+                <tr>
+                    <td>{{ h.nombre }}</td>
+                    <td><code style="font-size:.82rem;">{{ h.identificador }}</code></td>
+                    <td>
+                        {% if h.estado == 'calificada' %}<span class="pe-chip pe-ok">Calificada</span>
+                        {% elif h.estado == 'revisar' %}<span class="pe-chip pe-media">Revisar</span>
+                        {% elif h.estado == 'ausente' %}<span class="pe-chip pe-gris">No presentó</span>
+                        {% else %}<span class="pe-chip pe-gris">Sin calificar</span>{% endif %}
+                    </td>
+                    <td class="pe-num">{{ h.nota|default:"—" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'puntoexacto:digitar' examen_id=examen.id hoja_id=h.id %}"
+                           class="btn btn-sm btn-outline-primary">Digitar respuestas</a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p class="pe-vacio">Todavía no hay hojas. Elija los cursos arriba y prepárelas.</p>
+    {% endif %}
+</div>
+{% endblock %}

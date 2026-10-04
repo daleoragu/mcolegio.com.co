@@ -9,6 +9,7 @@ from ..models import (
     AsignacionDocente, AreaConocimiento, Materia, ConfiguracionSistema,
     PeriodoAcademico, FichaEstudiante, PonderacionAreaMateria, EscalaValoracion
 )
+from .ponderacion import ajustes as ajustes_colegio, definitiva_anual
 from django.db.models import Prefetch
 
 def _get_valoracion(colegio, nota):
@@ -172,6 +173,8 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
                 datos_area['materias'].sort(key=lambda m: (not m['promedia'], m['nombre']))
                 # Marcar si toda el área es informativa
                 datos_area['es_informativa'] = all(not m['promedia'] for m in datos_area['materias'])
+                datos_area['colapsada'] = (ajustes_colegio(colegio).colapsar_area_unica
+                                           and len(datos_area.get('materias', [])) == 1)
                 datos_estudiante['areas'].append(datos_area)
 
         # Ordenar áreas: primero las académicas, de últimas las informativas
@@ -267,38 +270,35 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
                 promedia_boletin = getattr(asignacion.materia, 'promedia_en_boletin', True)
                 
                 notas_periodos_display = {}
-                notas_para_calculo_orig = []
-                notas_para_calculo_rec = []
                 
                 # Obtenemos la observación consolidada de la materia
                 materia_cal_data = calificaciones_pivot.get((estudiante.id, materia_id), {})
                 observacion_final_materia = materia_cal_data.get('ultima_observacion_inclusion', "")
                 lista_obs_inclusion_final = [obs.strip() for obs in observacion_final_materia.split('\n') if obs.strip()]
 
+                # Las notas se guardan por periodo para poder ponderarlas.
+                notas_orig_por_periodo = {}
+                notas_rec_por_periodo = {}
+
                 for p in periodos_del_ano:
                     cal_data = materia_cal_data.get(p.id, {})
                     nota_orig = cal_data.get('prom')
                     nota_rec = cal_data.get('niv')
-                    
+
                     display_str = f"{nota_orig}" if nota_orig is not None else "-"
                     if nota_rec is not None:
                         display_str += f" ({nota_rec})"
                     notas_periodos_display[p.get_nombre_display()] = display_str
 
-                    if nota_orig is not None:
-                        notas_para_calculo_orig.append(Decimal(nota_orig))
-                    
+                    notas_orig_por_periodo[p.id] = Decimal(nota_orig) if nota_orig is not None else None
                     nota_final_periodo = nota_rec or nota_orig
-                    if nota_final_periodo is not None:
-                        notas_para_calculo_rec.append(Decimal(nota_final_periodo))
+                    notas_rec_por_periodo[p.id] = (
+                        Decimal(nota_final_periodo) if nota_final_periodo is not None else None)
 
-                definitiva_materia_orig = (sum(notas_para_calculo_orig) / len(notas_para_calculo_orig)) if notas_para_calculo_orig else None
-                definitiva_materia_rec = (sum(notas_para_calculo_rec) / len(notas_para_calculo_rec)) if notas_para_calculo_rec else None
-                
-                if definitiva_materia_orig is not None:
-                    definitiva_materia_orig = definitiva_materia_orig.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-                if definitiva_materia_rec is not None:
-                    definitiva_materia_rec = definitiva_materia_rec.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+                definitiva_materia_orig, _ = definitiva_anual(
+                    colegio, notas_orig_por_periodo, periodos_del_ano)
+                definitiva_materia_rec, periodos_faltantes = definitiva_anual(
+                    colegio, notas_rec_por_periodo, periodos_del_ano)
                 
                 definitiva_para_calculo_area = definitiva_materia_rec
                 promedia_boletin = getattr(asignacion.materia, 'promedia_en_boletin', True)
@@ -328,6 +328,7 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
                     'definitiva_recuperada': definitiva_materia_rec if definitiva_materia_rec != definitiva_materia_orig else None,
                     'valoracion': valoracion,
                     'promedia': promedia_boletin,
+                    'periodos_faltantes': [p.get_nombre_display() for p in periodos_faltantes],
                     # Variable clave para el boletín final
                     'observacion_inclusion': lista_obs_inclusion_final
                 })
@@ -352,6 +353,8 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
                 datos_area_actual['materias'].sort(key=lambda m: (not m['promedia'], m['nombre']))
                 # Marcar si toda el área es informativa
                 datos_area_actual['es_informativa'] = all(not m['promedia'] for m in datos_area_actual['materias'])
+                datos_area_actual['colapsada'] = (ajustes_colegio(colegio).colapsar_area_unica
+                                                  and len(datos_area_actual.get('materias', [])) == 1)
                 datos_estudiante['areas'].append(datos_area_actual)
 
         # Ordenar áreas: primero las académicas, de últimas las informativas

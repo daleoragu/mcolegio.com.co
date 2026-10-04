@@ -11,6 +11,7 @@ from django.http import HttpResponse, HttpResponseNotFound
 from django.contrib.auth import get_user_model
 from django import forms
 from django.forms import modelformset_factory
+from django.db.models import Max
 from django.views.generic.edit import UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import ImproperlyConfigured, ValidationError
@@ -200,7 +201,32 @@ class MateriaPorcentajeForm(forms.ModelForm):
 class ConfiguracionGlobalForm(forms.ModelForm):
     class Meta:
         model = ConfiguracionCalificaciones
-        fields = ['docente_puede_modificar']
+        fields = [
+            'docente_puede_modificar',
+            'ponderar_periodos', 'exigir_periodos_completos',
+            'etiqueta_ser', 'etiqueta_saber', 'etiqueta_hacer',
+            'colapsar_area_unica',
+        ]
+        widgets = {
+            'etiqueta_ser': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+            'etiqueta_saber': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+            'etiqueta_hacer': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+            'ponderar_periodos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'exigir_periodos_completos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'colapsar_area_unica': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'docente_puede_modificar': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
+class PesoPeriodoForm(forms.ModelForm):
+    """Solo el porcentaje; el resto del periodo se edita en su propia pantalla."""
+    class Meta:
+        model = PeriodoAcademico
+        fields = ['peso_porcentual']
+        widgets = {
+            'peso_porcentual': forms.NumberInput(
+                attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': 0, 'max': 100}),
+        }
 
 @user_passes_test(lambda u: u.is_superuser)
 def configuracion_calificaciones_vista(request):
@@ -209,19 +235,38 @@ def configuracion_calificaciones_vista(request):
 
     materias_colegio = Materia.objects.filter(colegio=request.colegio)
     MateriaFormSet = modelformset_factory(Materia, form=MateriaPorcentajeForm, extra=0)
-    
+    PesosFormSet = modelformset_factory(PeriodoAcademico, form=PesoPeriodoForm, extra=0)
+
     config_global, _ = ConfiguracionCalificaciones.objects.get_or_create(colegio=request.colegio)
+
+    ano_actual = PeriodoAcademico.objects.filter(colegio=request.colegio).aggregate(
+        maximo=Max('ano_lectivo'))['maximo']
+    periodos_colegio = PeriodoAcademico.objects.filter(
+        colegio=request.colegio, ano_lectivo=ano_actual).order_by('fecha_inicio')
 
     if request.method == 'POST':
         formset = MateriaFormSet(request.POST, queryset=materias_colegio)
         form_global = ConfiguracionGlobalForm(request.POST, instance=config_global)
+        formset_pesos = PesosFormSet(request.POST, queryset=periodos_colegio, prefix='pesos')
         
         # Se añade la variable para forzar la sincronización
         forzar_sincronizacion = request.POST.get('forzar_sincronizacion') == 'on'
 
-        if formset.is_valid() and form_global.is_valid():
+        if formset.is_valid() and form_global.is_valid() and formset_pesos.is_valid():
             materias_guardadas = formset.save()
             form_global.save()
+            formset_pesos.save()
+
+            if form_global.cleaned_data.get('ponderar_periodos'):
+                suma = sum(
+                    (f.cleaned_data.get('peso_porcentual') or 0) for f in formset_pesos.forms)
+                if abs(float(suma) - 100) > 0.01:
+                    messages.warning(
+                        request,
+                        f'Los porcentajes de los periodos suman {suma}% en vez de 100%. '
+                        f'Las notas se calculan repartiendo proporcionalmente, pero conviene '
+                        f'corregirlos para que los boletines digan lo que esperas.'
+                    )
 
             # ==================================================================
             # INICIO DE LA CORRECCIÓN
@@ -252,10 +297,13 @@ def configuracion_calificaciones_vista(request):
     else:
         formset = MateriaFormSet(queryset=materias_colegio.order_by('nombre'))
         form_global = ConfiguracionGlobalForm(instance=config_global)
+        formset_pesos = PesosFormSet(queryset=periodos_colegio, prefix='pesos')
 
     context = {
         'formset': formset,
         'form_global': form_global,
+        'formset_pesos': formset_pesos,
+        'periodos_colegio': periodos_colegio,
         'page_title': 'Configuración de Calificaciones por Materia',
         'colegio': request.colegio,
     }

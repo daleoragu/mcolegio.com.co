@@ -1,0 +1,46 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}Mis grupos · Salón Digital{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+  <div>
+    <h1 class="h3 mb-0">Mis grupos</h1>
+    <p class="text-muted small mb-0">
+      Organizan los resultados por curso. No son obligatorios.
+    </p>
+  </div>
+  <a href="{% url 'salon_digital:nuevo_grupo' %}" class="btn btn-primary">Crear un grupo</a>
+</div>
+
+<div class="row g-3">
+  {% for g in grupos %}
+    <div class="col-md-6 col-lg-4">
+      <div class="card h-100"><div class="card-body d-flex flex-column">
+        <div class="d-flex justify-content-between align-items-start">
+          <h2 class="h5 mb-1">{{ g.nombre }}</h2>
+          {% if not g.activo %}<span class="badge bg-secondary">inactivo</span>{% endif %}
+        </div>
+        <p class="text-muted small mb-2">{{ g.descripcion|default:"Sin descripción" }}</p>
+        <p class="mb-3">
+          <span class="text-muted small">Código:</span>
+          <code style="font-size:1.05rem;letter-spacing:2px">{{ g.codigo }}</code>
+        </p>
+        <p class="text-muted small flex-grow-1">{{ g.total_integrantes }} estudiantes</p>
+        <a href="{% url 'salon_digital:ver_grupo' g.pk %}"
+           class="btn btn-sm btn-outline-primary align-self-start">Abrir</a>
+      </div></div>
+    </div>
+  {% empty %}
+    <div class="col-12">
+      <div class="cinta text-center py-5">
+        <p class="mb-2"><strong>Todavía no tienes grupos.</strong></p>
+        <p class="text-muted small mb-3">
+          Un grupo evita que el mismo estudiante aparezca como "Juan Pérez", "juan perez"
+          y "JUAN P." en tus informes. Creas el curso, pegas la lista, y les dictas el código.
+        </p>
+        <a href="{% url 'salon_digital:nuevo_grupo' %}" class="btn btn-primary">Crear el primero</a>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

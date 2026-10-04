@@ -1,124 +1,255 @@
-<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>mColegios - Plataforma de Gestión Educativa</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    </style>
+    <title>mColegios — Plataforma de Gestión Educativa</title>
+    <meta name="description" content="La plataforma que unifica la gestión de tu colegio: calificaciones, portales públicos y administración centralizada, más Mi Salón Virtual para el aula.">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body>
 
-    <!-- Header -->
-    <header class="bg-white shadow-sm sticky top-0 z-50">
-        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <a href="#" class="text-2xl font-bold text-indigo-600">mColegios</a>
-            <div>
-                <a href="#servicios" class="text-gray-600 hover:text-indigo-600 px-3 py-2">Servicios</a>
-                <!-- Enlace nuevo a la sección de colegios -->
-                <a href="#colegios" class="text-gray-600 hover:text-indigo-600 px-3 py-2">Colegios</a>
-                <a href="#contacto" class="text-gray-600 hover:text-indigo-600 px-3 py-2">Contacto</a>
-                <!-- ENLACE CORREGIDO -->
-                <a href="/super-admin/" class="ml-4 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors">Acceso Admin</a>
-            </div>
-        </nav>
+<!-- Toda la portada cabe en una pantalla de computador. En teléfono y en
+     pantallas bajas vuelve a desplazarse de forma normal. -->
+
+<!-- ===================================================================
+     PRIMERA PANTALLA: el mosaico.
+     Los cinco bloques en una sola vista, como la maqueta. Cada baldosa
+     es un enlace que baja al bloque completo. Son anclas de toda la
+     vida: funcionan aunque el navegador tenga el JavaScript apagado.
+     =================================================================== -->
+<section class="mosaico" aria-label="Vista general">
+    <header class="mosaico-barra">
+        <a href="#" class="marca">
+            <svg class="marca-icono" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 3 1 8l11 5 9-4.09V17h2V8L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/>
+            </svg>
+            <span>mColegios</span>
+        </a>
+        <span class="marca-separador" aria-hidden="true"></span>
+        <a href="{% url 'salon_digital:landing' %}" class="marca-secundaria">Mi Salón Virtual</a>
+        <p class="mosaico-ayuda">Toca cualquier bloque para verlo completo</p>
     </header>
 
-    <!-- Hero Section -->
-    <section class="gradient-bg text-white">
-        <div class="container mx-auto px-6 py-24 text-center">
-            <h1 class="text-4xl md:text-6xl font-bold leading-tight mb-4">La plataforma que unifica y potencia la gestión de tu colegio.</h1>
-            <p class="text-lg md:text-xl text-indigo-200 mb-8">Desde las calificaciones hasta la comunicación con padres de familia, todo en un solo lugar. Simple, potente e intuitivo.</p>
-            <a href="#contacto" class="bg-white text-indigo-600 font-bold py-3 px-8 rounded-full hover:bg-gray-100 transition-transform transform hover:scale-105">Solicita una Demostración</a>
-        </div>
-    </section>
+    <div class="mosaico-rejilla">
+        <a href="#bloque-hero" class="baldosa baldosa-hero">
+            <span class="baldosa-rotulo">La plataforma</span>
+            <strong>La plataforma que unifica y potencia la gestión de tu colegio.</strong>
+            <span class="baldosa-pie">De la administración al aula, en un solo ecosistema <span class="flecha">→</span></span>
+        </a>
 
-    <!-- Features Section -->
-    <section id="servicios" class="py-20">
-        <div class="container mx-auto px-6">
-            <h2 class="text-3xl font-bold text-center mb-2">Todo lo que tu institución necesita</h2>
-            <p class="text-center text-gray-600 mb-12">Nuestras herramientas están diseñadas para facilitar el día a día de directivos, docentes, estudiantes y padres.</p>
-            <div class="grid md:grid-cols-3 gap-8">
-                <!-- Feature 1 -->
-                <div class="bg-white p-8 rounded-lg shadow-md hover:shadow-xl transition-shadow">
-                    <div class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 mb-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    </div>
-                    <h3 class="text-xl font-bold mb-2">Gestión de Calificaciones</h3>
-                    <p class="text-gray-600">Ingreso de notas por competencias (Ser, Saber, Hacer), cálculo automático de promedios y generación de boletines en PDF.</p>
-                </div>
-                <!-- Feature 2 -->
-                <div class="bg-white p-8 rounded-lg shadow-md hover:shadow-xl transition-shadow">
-                    <div class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 mb-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    </div>
-                    <h3 class="text-xl font-bold mb-2">Portal Público y Comunicación</h3>
-                    <p class="text-gray-600">Cada colegio tiene su propio portal personalizable con noticias, galería y documentos. Mensajería interna para una comunicación fluida.</p>
-                </div>
-                <!-- Feature 3 -->
-                <div class="bg-white p-8 rounded-lg shadow-md hover:shadow-xl transition-shadow">
-                    <div class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 mb-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M15 21a6 6 0 00-9-5.197m0 0A10.99 10.99 0 002.45 13.5m1.928-3.3A10.99 10.99 0 002.45 13.5m1.928-3.3A10.99 10.99 0 002.45 13.5"></path></svg>
-                    </div>
-                    <h3 class="text-xl font-bold mb-2">Administración Centralizada</h3>
-                    <p class="text-gray-600">Gestiona cursos, docentes, estudiantes y asignaturas desde un panel de control intuitivo. Importa y exporta datos masivamente.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+        <a href="#bloque-servicios" class="baldosa baldosa-servicios">
+            <span class="baldosa-rotulo">Para la institución</span>
+            <strong>Todo lo que tu institución necesita</strong>
+            <ul class="baldosa-puntos">
+                <li><span class="punto azul"></span>Calificaciones, boletines y promedios automáticos</li>
+                <li><span class="punto verde"></span>Un portal público propio para cada colegio</li>
+                <li><span class="punto naranja"></span>Cursos, docentes, estudiantes y matrículas</li>
+            </ul>
+            <span class="baldosa-pie">Ver los servicios <span class="flecha">→</span></span>
+        </a>
 
-    {% if colegios %}
-    <section id="colegios" class="bg-white py-20">
-        <div class="container mx-auto px-6">
-            <h2 class="text-3xl font-bold text-center mb-2">Accede al Portal de tu Institución</h2>
-            <p class="text-center text-gray-600 mb-12">Selecciona tu colegio para ingresar a su portal de noticias, documentos y acceso a la plataforma.</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-                
-                {% for colegio in colegios %}
-                <a href="{% if colegio.domain %}https://{{ colegio.domain }}{% else %}https://{{ colegio.slug }}.mcolegio.com.co{% endif %}" target="_blank" class="block bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 text-center">
-                    <div class="h-24 w-24 mx-auto mb-4 flex items-center justify-center">
-                        {% if colegio.escudo %}
-                            <img src="{{ colegio.escudo.url }}" alt="Logo de {{ colegio.nombre }}" class="max-h-full max-w-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                            <div style="display:none;"><i class="fas fa-university text-4xl text-gray-400"></i></div>
-                        {% else %}
-                            <div><i class="fas fa-university text-4xl text-gray-400"></i></div>
-                        {% endif %}
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-800">{{ colegio.nombre }}</h3>
-                </a>
+        <a href="#bloque-salon" class="baldosa baldosa-salon">
+            <span class="baldosa-rotulo">Para docentes</span>
+            <span class="baldosa-marca">Mi Salón Virtual</span>
+            <strong>Herramientas diseñadas por y para docentes.</strong>
+            <span class="baldosa-lista">Juegos · Escáner de exámenes · Material · Videos</span>
+            <span class="baldosa-pie">Conocer <span class="flecha">→</span></span>
+        </a>
+
+        <a href="#bloque-colegios" class="baldosa baldosa-colegios">
+            <span class="baldosa-rotulo">Para familias y estudiantes</span>
+            <strong>Ingresa al portal de tu institución</strong>
+            <span class="baldosa-escudos" aria-hidden="true">
+                {% for colegio in colegios|slice:":5" %}
+                    <span class="mini-escudo">
+                        {% if colegio.escudo %}<img src="{{ colegio.escudo.url }}" alt="">
+                        {% else %}<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 3 6v2h18V6l-9-4zM5 10v8H3v2h18v-2h-2v-8h-2v8h-3v-8h-2v8H9v-8H5z"/></svg>{% endif %}
+                    </span>
                 {% endfor %}
+            </span>
+            <span class="baldosa-lista">{{ colegios|length }} institución(es) con portal activo</span>
+            <span class="baldosa-pie">Buscar mi colegio <span class="flecha">→</span></span>
+        </a>
 
+        <a href="#bloque-contacto" class="baldosa baldosa-contacto">
+            <span class="baldosa-rotulo">Contacto</span>
+            <strong>Hablemos</strong>
+            <span class="baldosa-lista">davidlrg89@gmail.com · +57 310 239 8080</span>
+            <span class="baldosa-pie">Solicitar una demo <span class="flecha">→</span></span>
+        </a>
+    </div>
+</section>
+
+<div class="detalle">
+
+    <!-- ===== BARRA ===== -->
+    <header class="barra">
+        <div class="barra-interior">
+            <a href="#" class="marca">
+                <svg class="marca-icono" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 3 1 8l11 5 9-4.09V17h2V8L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/>
+                </svg>
+                <span>mColegios</span>
+            </a>
+            <span class="marca-separador" aria-hidden="true"></span>
+            <a href="{% url 'salon_digital:landing' %}" class="marca-secundaria">Mi Salón Virtual</a>
+            <nav class="navegacion" aria-label="Principal">
+                <a href="#bloque-servicios">Servicios</a>
+                <a href="#bloque-colegios">Colegios</a>
+                <a href="{% url 'salon_digital:landing' %}">Mi Salón Virtual</a>
+                <a href="#bloque-contacto">Contacto</a>
+            </nav>
+            <button class="menu-boton" type="button" aria-label="Abrir menú" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ===== BLOQUE 1: HERO ===== -->
+    <section class="hero" id="bloque-hero">
+        <div class="hero-texto">
+            <h1>La plataforma que unifica y potencia la gestión de tu colegio.</h1>
+            <p>De la administración institucional al trabajo en el aula. Todo en un solo ecosistema.</p>
+            <div class="hero-botones">
+                <a href="#bloque-contacto" class="boton boton-claro">Solicita una demo</a>
+                <a href="{% url 'salon_digital:landing' %}" class="boton boton-borde">Conoce Mi Salón Virtual</a>
             </div>
+        </div>
+        <div class="hero-imagen">
+            {% if imagen_hero %}
+                <img src="{{ imagen_hero }}" alt="Tablero de mColegios">
+            {% else %}
+                <div class="hueco">
+                    <span class="hueco-titulo">Imagen del hero</span>
+                    <code>static/img/hero-tablero.png</code>
+                    {% if aviso_hero %}<span class="hueco-aviso">{{ aviso_hero }}</span>{% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- ===== BLOQUE 2: SERVICIOS ===== -->
+    <section id="bloque-servicios" class="servicios">
+        <h2 class="titulo-franja">Todo lo que tu institución necesita</h2>
+        <div class="rejilla-3">
+            <article class="tarjeta">
+                <div class="tarjeta-icono azul">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg>
+                </div>
+                <div>
+                    <h3>Gestión de Calificaciones</h3>
+                    <p>Boletines y promedios automáticos por competencias, con la ponderación de cada colegio.</p>
+                </div>
+            </article>
+            <article class="tarjeta">
+                <div class="tarjeta-icono verde">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg>
+                </div>
+                <div>
+                    <h3>Portales Públicos</h3>
+                    <p>Un sitio propio por colegio, con noticias, galería, documentos y mensajería con las familias.</p>
+                </div>
+            </article>
+            <article class="tarjeta">
+                <div class="tarjeta-icono naranja">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.35.4.65.73.86"/></svg>
+                </div>
+                <div>
+                    <h3>Administración Centralizada</h3>
+                    <p>Cursos, docentes, estudiantes y matrículas desde un panel. Importa y exporta en bloque.</p>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <!-- ===== BLOQUE 3: MI SALÓN VIRTUAL ===== -->
+    <section class="salon" id="bloque-salon">
+        <div class="salon-imagen">
+            {% if imagen_docente %}
+                <img src="{{ imagen_docente }}" alt="Docente usando Mi Salón Virtual">
+            {% else %}
+                <div class="hueco oscuro">
+                    <span class="hueco-titulo">Imagen del docente</span>
+                    <code>static/img/docente.png</code>
+                    {% if aviso_docente %}<span class="hueco-aviso">{{ aviso_docente }}</span>{% endif %}
+                </div>
+            {% endif %}
+        </div>
+        <div class="salon-texto">
+            <p class="salon-rotulo">Mi Salón Virtual</p>
+            <h2>Herramientas diseñadas por y para docentes.</h2>
+            <p class="salon-bajada">Crea, evalúa y comparte recursos educativos sin fricciones.</p>
+            <div class="rejilla-4">
+                <div class="ficha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="4"/><path d="M7 12h3M8.5 10.5v3M15 11h.01M18 13h.01"/></svg><span>Apps HTML y Juegos</span></div>
+                <div class="ficha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/></svg><span>Escáner de Exámenes</span></div>
+                <div class="ficha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg><span>Material Imprimible</span></div>
+                <div class="ficha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M10 9.5l5 2.5-5 2.5z"/></svg><span>Videos Interactivos</span></div>
+            </div>
+            <a href="{% url 'salon_digital:landing' %}" class="boton boton-magenta">Entrar a Mi Salón Virtual</a>
+        </div>
+    </section>
+
+    <!-- ===== BLOQUE 4: COLEGIOS ===== -->
+    {% if colegios %}
+    <section id="bloque-colegios" class="colegios">
+        <h2 class="titulo-franja">Ingresa al portal de tu institución</h2>
+        {# Tira horizontal: con 3 colegios o con 30, nunca rompe la pantalla. #}
+        <div class="tira-colegios">
+            {% for colegio in colegios %}
+            <a class="colegio" target="_blank" rel="noopener"
+               href="{% if colegio.domain %}https://{{ colegio.domain }}{% else %}https://{{ colegio.slug }}.mcolegio.com.co{% endif %}">
+                <span class="colegio-escudo">
+                    {% if colegio.escudo %}
+                        <img src="{{ colegio.escudo.url }}" alt="Escudo de {{ colegio.nombre }}">
+                    {% else %}
+                        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 3 6v2h18V6l-9-4zM5 10v8H3v2h18v-2h-2v-8h-2v8h-3v-8h-2v8H9v-8H5z"/></svg>
+                    {% endif %}
+                </span>
+                <span class="colegio-nombre">{{ colegio.nombre }}</span>
+            </a>
+            {% endfor %}
         </div>
     </section>
     {% endif %}
 
-    <!-- Contact Section -->
-    <section id="contacto" class="bg-gray-100 py-20">
-        <div class="container mx-auto px-6 text-center">
-            <h2 class="text-3xl font-bold mb-4">¿Listo para transformar tu institución?</h2>
-            <p class="text-gray-600 mb-8">Contáctanos para agendar una demostración personalizada y resolver todas tus dudas.</p>
-            <div class="bg-white inline-block p-8 rounded-lg shadow-lg">
-                <p class="text-lg font-semibold">Correo Electrónico:</p>
-                <a href="mailto:davidlrg89@gmail.com" class="text-indigo-600 text-xl hover:underline">davidlrg89@gmail.com</a>
-                <p class="text-lg font-semibold mt-4">Teléfono:</p>
-                <p class="text-xl text-gray-800">+57 3102398080</p>
-            </div>
+    <!-- ===== BLOQUE 5: PIE (incluye el contacto) ===== -->
+    <footer id="bloque-contacto" class="pie">
+        <div class="pie-marca">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 3 1 8l11 5 9-4.09V17h2V8L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/>
+            </svg>
+            <span>mColegios <span class="pie-tenue">&amp; Mi Salón Virtual</span></span>
         </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="bg-gray-800 text-white py-6">
-        <div class="container mx-auto px-6 text-center">
-            <p>&copy; 2025 mColegios. Todos los derechos reservados.</p>
-            <p>Una solución de software educativo moderna.</p>
-        </div>
+        <p class="pie-contacto">
+            <a href="mailto:davidlrg89@gmail.com">davidlrg89@gmail.com</a>
+            <span class="pie-punto">·</span>+57 310 239 8080
+        </p>
+        <p class="pie-legal">
+            &copy; {% now "Y" %} mColegios
+            {# Tu acceso. Discreto a propósito: la portada no es para usuarios. #}
+            <a href="/super-admin/" class="pie-admin">Administración</a>
+        </p>
     </footer>
 
+</div>
+
+<script>
+    (function () {
+        var boton = document.querySelector('.menu-boton');
+        var nav = document.querySelector('.navegacion');
+        if (!boton || !nav) return;
+        boton.addEventListener('click', function () {
+            var abierto = nav.classList.toggle('abierta');
+            boton.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+        });
+        nav.addEventListener('click', function (e) {
+            if (e.target.tagName === 'A') {
+                nav.classList.remove('abierta');
+                boton.setAttribute('aria-expanded', 'false');
+            }
+        });
+    })();
+</script>
 </body>
 </html>

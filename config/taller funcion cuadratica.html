@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía y Plan de Clase - Funciones Cuadráticas</title>
+    
+    <script>
+        MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+          },
+          svg: {
+            fontCache: 'global'
+          }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .page-container {
+            background-color: white;
+            margin: 20px auto;
+            padding: 30px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            max-width: 8.5in; /* Ancho de hoja carta para visualización */
+        }
+        .guide, .lesson-plan {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 11px;
+        }
+        th, td {
+            border: 1px solid #666;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background-color: #e9ecef;
+            font-weight: bold;
+        }
+        .header-table td {
+            vertical-align: middle;
+        }
+        .header-img {
+            height: 64px;
+            margin: auto;
+            display: block;
+            object-fit: contain;
+        }
+        .section-title {
+            color: #0056b3;
+            font-weight: bold;
+            font-size: 1.5em;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 5px;
+        }
+        .subsection-title {
+            color: #0d6efd;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .emoji {
+            font-size: 1.2em;
+            margin-right: 8px;
+        }
+        .context-box {
+            background-color: #e7f5ff;
+            border-left: 5px solid #0d6efd;
+            padding: 15px;
+            margin: 1.5rem 0;
+            border-radius: 5px;
+        }
+        .step-by-step {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+        .autoevaluacion-table th {
+            font-size: 0.8em;
+            text-align: center;
+        }
+        .autoevaluacion-table td:not(:first-child) {
+            text-align: center;
+        }
+        .final-note {
+            margin-top: 2rem;
+            padding: 15px;
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .page-break {
+            page-break-after: always;
+        }
+        /* Estilos para impresión media carta y modo folleto */
+        @media print {
+            body {
+                background-color: white;
+                font-size: 10px;
+                 -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            @page {
+                size: 5.5in 8.5in; /* Media Carta */
+                margin: 0.5in;
+            }
+            .page-container {
+                box-shadow: none;
+                margin: 0;
+                padding: 0;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-container">
+    
+    <div class="guide">
+        <header class="mb-4">
+            <table class="w-full header-table">
+                <tbody>
+                    <tr>
+                        <td class="w-1/4 text-center p-1">
+                            <img src="C:\Users\david\OneDrive\Documentos\plataforma_notas_colegio\notas\static\img\Logo_govtolima.png" alt="Logo Gobernación del Tolima" class="header-img">
+                        </td>
+                        <td class="w-1/2 text-center p-1" style="font-size:9px;">
+                            <h2 style="font-weight:bold; font-size:11px;">INSTITUCION EDUCATIVA TÉCNICA<br>ALFONSO PALACIO RUDAS</h2>
+                            <p>DANE 173349000026</p>
+                            <p>Nit. 890.701.233-7</p>
+                            <p style="font-weight:bold;">Honda – Tolima</p>
+                        </td>
+                        <td class="w-1/4 text-center p-1">
+                            <img src="C:\Users\david\OneDrive\Documentos\plataforma_notas_colegio\notas\static\img\logo_colegio.png" alt="Logo del Colegio" class="header-img">
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </header>
+
+        <table>
+            <tr>
+                <td><strong>Apellido:</strong></td>
+                <td></td>
+                <td><strong>Nombre:</strong></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>Fecha:</strong></td>
+                <td></td>
+                <td><strong>Grado:</strong></td>
+                <td>10°</td>
+            </tr>
+        </table>
+
+        <h1 class="section-title"><span class="emoji">🎢</span> Guía de Estudio: Funciones Cuadráticas</h1>
+        
+        <div class="context-box">
+            <p><strong>Derecho Básico de Aprendizaje (DBA 10.7):</strong> Resuelve problemas mediante el uso de las propiedades de las funciones y usa representaciones tabulares, gráficas y algebraicas para estudiar la variación, la tendencia numérica y las razones de cambio entre magnitudes.</p>
+            <p><strong>Estándar Básico por Competencia (EBC 8°-9°):</strong> Identifico relaciones entre propiedades de las gráficas y propiedades de las ecuaciones algebraicas. Modelo situaciones de variación con funciones polinómicas.</p>
+        </div>
+
+        <h2 class="section-title"><span class="emoji">🧠</span> Aprendizaje Significativo</h2>
+        <p>¡Hola! En esta guía, vamos a explorar un tipo de función que aparece en todos lados: desde el lanzamiento de un balón 🏀 hasta la forma de un puente 🌉. Nos ayudará a entender y predecir el comportamiento de muchos fenómenos del mundo real.</p>
+        <h3 class="subsection-title">Temas Clave a Considerar:</h3>
+        <ul>
+            <li>La forma de la función cuadrática: $f(x) = ax^2 + bx + c$.</li>
+            <li>La parábola: la gráfica característica de una función cuadrática.</li>
+            <li>Elementos de la parábola: vértice, eje de simetría, interceptos (cortes con los ejes).</li>
+            <li>La fórmula cuadrática: una herramienta poderosa para encontrar soluciones.</li>
+        </ul>
+        <h3 class="subsection-title">Preguntas para Empezar:</h3>
+        <ul>
+            <li>¿Qué forma describe el agua al salir de una fuente? ⛲</li>
+            <li>Si lanzas una moneda al aire, ¿cómo puedes describir su trayectoria de subida y bajada?</li>
+            <li>¿Cómo crees que una empresa puede calcular el precio que le dará la máxima ganancia? 💰</li>
+        </ul>
+
+        <h2 class="section-title"><span class="emoji">🗺️</span> Exploración</h2>
+        <h3 class="subsection-title">Un Poco de Historia... 📜</h3>
+        <p>Los antiguos griegos, como Apolonio de Perga (siglo III a.C.), ya estudiaban las parábolas como parte de las "secciones cónicas". Sin embargo, fue en el Renacimiento cuando Galileo Galilei descubrió que la trayectoria de un proyectil (como una bala de cañón) bajo la influencia de la gravedad es una parábola. Más tarde, René Descartes conectó estas formas geométricas con las ecuaciones algebraicas, dándonos las herramientas que usamos hoy.</p>
+        
+        <h3 class="subsection-title">Instructivo Detallado: Analizando la Función Cuadrática</h3>
+        <p>La forma general de una función cuadrática es <strong>$f(x) = ax^2 + bx + c$</strong>, donde 'a', 'b' y 'c' son números reales y $a \neq 0$.</p>
+
+        <div class="step-by-step">
+            <h4 class="font-bold">Subtema 1: La Parábola y su Concavidad</h4>
+            <p>La gráfica de toda función cuadrática es una parábola. Su orientación depende del signo de 'a'.</p>
+            <ul>
+                <li>Si <strong>$a > 0$</strong> (positivo), la parábola abre hacia arriba (cóncava hacia arriba) y tiene un punto mínimo. 😊</li>
+                <li>Si <strong>$a < 0$</strong> (negativo), la parábola abre hacia abajo (cóncava hacia abajo) y tiene un punto máximo. 😟</li>
+            </ul>
+            <svg viewBox="0 0 220 100" xmlns="http://www.w3.org/2000/svg" style="margin-top:10px;">
+                <path d="M 10 90 Q 55 10, 100 90" stroke="#28a745" stroke-width="2" fill="none"/>
+                <text x="35" y="95" font-size="10">$a > 0$ (feliz)</text>
+                <path d="M 120 10 Q 165 90, 210 10" stroke="#dc3545" stroke-width="2" fill="none"/>
+                <text x="140" y="95" font-size="10">$a < 0$ (triste)</text>
+            </svg>
+            <p class="mt-2"><strong>Ejercicio Paso a Paso:</strong> Dada la función $f(x) = -3x^2 + 5x - 1$, ¿hacia dónde abre la parábola?</p>
+            <ol>
+                <li><strong>Paso 1:</strong> Identifica el coeficiente 'a'. En este caso, $a = -3$.</li>
+                <li><strong>Paso 2:</strong> Analiza el signo de 'a'. Como -3 es un número negativo ($a < 0$).</li>
+                <li><strong>Paso 3:</strong> Concluye. La parábola abre hacia abajo y tendrá un punto máximo.</li>
+            </ol>
+        </div>
+
+        <div class="step-by-step">
+            <h4 class="font-bold">Subtema 2: Vértice y Eje de Simetría</h4>
+            <p>El <strong>vértice</strong> es el punto mínimo o máximo de la parábola. El <strong>eje de simetría</strong> es una línea vertical que divide la parábola en dos mitades iguales y pasa por el vértice.</p>
+            <p>Para encontrar el vértice $(x_v, y_v)$:</p>
+            <p>1. Coordenada x del vértice: $x_v = \frac{-b}{2a}$</p>
+            <p>2. Coordenada y del vértice: Se encuentra evaluando la función en $x_v$, es decir, $y_v = f(x_v)$.</p>
+            <p>El eje de simetría es la recta vertical $x = x_v$.</p>
+            <p class="mt-2"><strong>Ejercicio Paso a Paso:</strong> Encuentra el vértice y el eje de simetría de $f(x) = 2x^2 - 8x + 6$.</p>
+            <ol>
+                <li><strong>Paso 1:</strong> Identifica 'a' y 'b'. Aquí, $a = 2$ y $b = -8$.</li>
+                <li><strong>Paso 2:</strong> Calcula $x_v$. $x_v = \frac{-(-8)}{2(2)} = \frac{8}{4} = 2$.</li>
+                <li><strong>Paso 3:</strong> Calcula $y_v$. $y_v = f(2) = 2(2)^2 - 8(2) + 6 = 2(4) - 16 + 6 = 8 - 16 + 6 = -2$.</li>
+                <li><strong>Paso 4:</strong> Concluye. El vértice es el punto $(2, -2)$ y el eje de simetría es la recta $x=2$.</li>
+            </ol>
+        </div>
+        
+        <div class="step-by-step">
+            <h4 class="font-bold">Subtema 3: Puntos de Corte (Interceptos)</h4>
+            <p><strong>Intercepto con el eje Y:</strong> Es el punto donde la parábola cruza el eje vertical. Ocurre cuando $x=0$. Siempre es el punto $(0, c)$.</p>
+            <p><strong>Interceptos con el eje X (Raíces o Ceros):</strong> Son los puntos donde la parábola cruza el eje horizontal. Ocurre cuando $y=0$, es decir, cuando resolvemos la ecuación $ax^2 + bx + c = 0$. Usamos la <strong>fórmula cuadrática</strong>:</p>
+            $$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
+            <p>El <strong>discriminante</strong>, $\Delta = b^2 - 4ac$, nos dice cuántas raíces reales hay:</p>
+            <ul>
+                <li>Si $\Delta > 0$: Hay dos raíces reales distintas (la parábola corta el eje X en dos puntos).</li>
+                <li>Si $\Delta = 0$: Hay una raíz real (la parábola toca el eje X en un punto, el vértice).</li>
+                <li>Si $\Delta < 0$: No hay raíces reales (la parábola no corta el eje X).</li>
+            </ul>
+            <svg viewBox="0 0 330 110" xmlns="http://www.w3.org/2000/svg">
+                <line x1="5" y1="55" x2="105" y2="55" stroke="black" stroke-width="0.5"/>
+                <line x1="115" y1="55" x2="215" y2="55" stroke="black" stroke-width="0.5"/>
+                <line x1="225" y1="55" x2="325" y2="55" stroke="black" stroke-width="0.5"/>
+                <path d="M 10 90 Q 55 20, 100 90" stroke="#007bff" stroke-width="1.5" fill="none"/>
+                <text x="30" y="105" font-size="9">$\Delta > 0$, 2 cortes</text>
+                <path d="M 120 90 Q 165 55, 210 90" stroke="#198754" stroke-width="1.5" fill="none"/>
+                <text x="140" y="105" font-size="9">$\Delta = 0$, 1 toque</text>
+                <path d="M 230 40 Q 275 10, 320 40" stroke="#ffc107" stroke-width="1.5" fill="none"/>
+                <text x="245" y="105" font-size="9">$\Delta < 0$, sin cortes</text>
+            </svg>
+            <p class="mt-2"><strong>Ejercicio Paso a Paso:</strong> Encuentra los interceptos de $f(x) = x^2 - 4x + 3$.</p>
+            <ol>
+                <li><strong>Paso 1 (Intercepto Y):</strong> Identifica 'c'. $c = 3$. El punto de corte con el eje Y es $(0, 3)$.</li>
+                <li><strong>Paso 2 (Interceptos X):</strong> Identifica a=1, b=-4, c=3. Usa la fórmula cuadrática.</li>
+                <li>$x = \frac{-(-4) \pm \sqrt{(-4)^2 - 4(1)(3)}}{2(1)} = \frac{4 \pm \sqrt{16 - 12}}{2} = \frac{4 \pm \sqrt{4}}{2} = \frac{4 \pm 2}{2}$</li>
+                <li><strong>Paso 3:</strong> Separa las dos soluciones.</li>
+                <li>$x_1 = \frac{4 + 2}{2} = \frac{6}{2} = 3$</li>
+                <li>$x_2 = \frac{4 - 2}{2} = \frac{2}{2} = 1$</li>
+                <li><strong>Paso 4:</strong> Concluye. Los puntos de corte con el eje X son $(1, 0)$ y $(3, 0)$.</li>
+            </ol>
+        </div>
+
+        <h2 class="section-title"><span class="emoji">🌍</span> Contextualización del Tema</h2>
+        <p>Las funciones cuadráticas modelan muchas situaciones reales, especialmente aquellas que involucran el movimiento de objetos bajo la gravedad (movimiento parabólico) o problemas de optimización (encontrar un máximo o un mínimo).</p>
+        <div class="step-by-step">
+            <h4 class="font-bold">Problema de Aplicación: El Balonazo ⚽</h4>
+            <p>Un futbolista patea un balón, y la altura $h$ (en metros) del balón en función del tiempo $t$ (en segundos) está dada por la ecuación: $h(t) = -5t^2 + 20t$.</p>
+            <ol>
+                <li>
+                    <strong>Pregunta 1: ¿Cuánto tiempo tarda el balón en alcanzar su altura máxima?</strong>
+                    <p><strong>Paso 1:</strong> Reconoce que la altura máxima ocurre en el vértice de la parábola. La fórmula es $t_v = \frac{-b}{2a}$.</p>
+                    <p><strong>Paso 2:</strong> Identifica a=-5 y b=20. Calcula $t_v = \frac{-20}{2(-5)} = \frac{-20}{-10} = 2$ segundos.</p>
+                    <p><strong>Respuesta:</strong> El balón alcanza su altura máxima a los 2 segundos.</p>
+                </li>
+                <li class="mt-4">
+                    <strong>Pregunta 2: ¿Cuál es la altura máxima que alcanza el balón?</strong>
+                    <p><strong>Paso 1:</strong> La altura máxima es la coordenada 'y' del vértice. Ya sabemos que ocurre en $t=2$.</p>
+                    <p><strong>Paso 2:</strong> Evalúa la función en $t=2$. $h(2) = -5(2)^2 + 20(2) = -5(4) + 40 = -20 + 40 = 20$ metros.</p>
+                    <p><strong>Respuesta:</strong> La altura máxima es de 20 metros.</p>
+                </li>
+                 <li class="mt-4">
+                    <strong>Pregunta 3: ¿Cuánto tiempo permanece el balón en el aire?</strong>
+                    <p><strong>Paso 1:</strong> El balón está en el aire hasta que su altura vuelve a ser cero ($h(t)=0$). Necesitamos encontrar las raíces de la ecuación $-5t^2 + 20t = 0$.</p>
+                    <p><strong>Paso 2:</strong> Resuelve la ecuación. Podemos factorizar: $5t(-t + 4) = 0$. Las soluciones son $t=0$ (cuando fue pateado) y $-t+4=0 \Rightarrow t=4$ segundos.</p>
+                    <p><strong>Respuesta:</strong> El balón permanece 4 segundos en el aire.</p>
+                </li>
+            </ol>
+        </div>
+
+        <h2 class="section-title"><span class="emoji">✏️</span> Actividades</h2>
+        <h3 class="subsection-title">Taller de Práctica</h3>
+        
+        <h4 class="font-bold">Parte A: Identificando y Caracterizando</h4>
+        <p>Para cada una de las siguientes funciones, determina: a) si es cuadrática, b) la concavidad (hacia arriba o abajo), c) las coordenadas del vértice, d) la ecuación del eje de simetría y e) los puntos de corte con los ejes X y Y.</p>
+        <ol>
+            <li>$f(x) = x^2 - 6x + 8$</li>
+            <li>$g(x) = -x^2 + 4x - 4$</li>
+            <li>$h(x) = 2x^2 + 2x + 3$</li>
+            <li>$j(x) = 3x - 5$</li>
+            <li>$k(x) = -2x^2 + 8$</li>
+        </ol>
+
+        <h3 class="subsection-title">Parte B: Problemas de Contexto Juvenil</h3>
+        <p>Resuelve los siguientes problemas. ¡Muestra tu trabajo!</p>
+        <ol>
+            <li><strong>Salto en Patineta 🛹:</strong> La trayectoria de un 'skater' al saltar de una rampa puede ser modelada por la función $h(d) = -0.5d^2 + 2d + 1$, donde 'h' es la altura en metros y 'd' es la distancia horizontal. ¿Cuál es la máxima altura que alcanza el skater?</li>
+            <li><strong>Lanzamiento de Angry Birds 🐦:</strong> La altura de un pájaro en el juego está dada por $y = -x^2 + 8x$, donde 'x' es la distancia horizontal. ¿A qué distancia horizontal cae el pájaro al suelo para golpear a los cerdos?</li>
+            <li><strong>Ganancias de un Videojuego 🎮:</strong> Creas un videojuego y tus ganancias mensuales 'G' (en miles de pesos) dependen del precio 'p' según la fórmula $G(p) = -2p^2 + 80p - 200$. ¿Qué precio deberías ponerle al juego para obtener la máxima ganancia?</li>
+            <li><strong>Tiro Libre de Baloncesto 🏀:</strong> La altura de un balón lanzado al aro está dada por $h(x) = -x^2 + 6x + 2$, donde 'x' es la distancia horizontal desde el jugador. Si el aro está a 3 metros de altura, ¿podría el balón entrar si el jugador lanza desde 5 metros de distancia? Justifica.</li>
+            <li><strong>Cohete Casero 🚀:</strong> Un cohete de agua se lanza hacia arriba. Su altura en metros después de 't' segundos es $h(t) = -5t^2 + 50t$. ¿Cuánto tiempo tiene un fotógrafo para tomar una foto del cohete cuando está por encima de los 80 metros de altura?</li>
+            <li><strong>Puente Colgante 🌉:</strong> El cable de un pequeño puente colgante forma una parábola descrita por la ecuación $y = 0.1x^2 - x + 5$, donde 'y' es la altura del cable sobre el suelo y 'x' la distancia desde uno de los pilares. ¿Cuál es la altura mínima del cable?</li>
+            <li><strong>Chorro de Agua ⛲:</strong> El agua de una fuente sigue la trayectoria $y = -0.2x^2 + x + 1.5$. ¿A qué distancia horizontal del inicio cae el agua al estanque (cuando y=0)?</li>
+            <li><strong>Caída del Celular 📱:</strong> Dejas caer tu celular desde un balcón de 45 metros de altura. La altura del celular está dada por $h(t) = 45 - 5t^2$. ¿Cuánto tiempo tarda en llegar al suelo?</li>
+            <li><strong>Despeje de un Arquero ⚽:</strong> Un arquero despeja un balón. La altura del balón sigue la ecuación $h(t) = -5t^2 + 22t$. Un jugador del otro equipo está a 40 metros. ¿Alcanzará el balón a llegar hasta él antes de caer?</li>
+            <li><strong>Montaña Rusa 🎢:</strong> La primera colina de una montaña rusa tiene la forma de una parábola dada por $y = -x^2 + 20x$, desde $x=0$ hasta $x=20$. ¿Cuál es la altura máxima de la colina?</li>
+        </ol>
+
+        <h2 class="section-title"><span class="emoji">📊</span> Autoevaluación</h2>
+        <p>Evalúa tu propio aprendizaje. Marca con una X donde corresponda, ¡sé honesto!</p>
+        <table class="autoevaluacion-table">
+            <thead>
+                <tr>
+                    <th>Criterio de Aprendizaje</th>
+                    <th>1 - No lo intenté /<br>No entendí</th>
+                    <th>2 - Bajo /<br>Necesito mucha ayuda</th>
+                    <th>3 - Aceptable /<br>Lo logro con algo de ayuda</th>
+                    <th>4 - Alto /<br>Lo hago bien por mi cuenta</th>
+                    <th>5 - Superior /<br>Puedo explicarlo a otros</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Identifico las características de una función cuadrática ($a, b, c$).</td>
+                    <td></td><td></td><td></td><td></td><td></td>
+                </tr>
+                <tr>
+                    <td>Determino la concavidad de la parábola a partir de su ecuación.</td>
+                    <td></td><td></td><td></td><td></td><td></td>
+                </tr>
+                <tr>
+                    <td>Calculo correctamente el vértice y el eje de simetría.</td>
+                    <td></td><td></td><td></td><td></td><td></td>
+                </tr>
+                <tr>
+                    <td>Hallo los puntos de corte con los ejes X e Y.</td>
+                    <td></td><td></td><td></td><td></td><td></td>
+                </tr>
+                <tr>
+                    <td>Aplico la fórmula cuadrática para encontrar las raíces.</td>
+                    <td></td><td></td><td></td><td></td><td></td>
+                </tr>
+                <tr>
+                    <td>Relaciono la gráfica de la parábola con situaciones del mundo real.</td>
+                    <td></td><td></td><td></td><td></td><td></td>
+                </tr>
+                <tr>
+                    <td>Resuelvo problemas de aplicación que involucran funciones cuadráticas.</td>
+                    <td></td><td></td><td></td><td></td><td></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="final-note">
+            <p>¡Excelente trabajo! 🌟 Esta guía es una herramienta para tu aprendizaje. Puedes pasar esta información a un documento editable para trabajarla más cómodamente.</p>
+            <p>Para un toque más visual y creativo, puedes usar herramientas como <strong>Canva</strong> para diseñar tus apuntes y presentaciones.</p>
+        </div>
+    </div>
+    
+    <div class="page-break"></div>
+
+    <div class="lesson-plan">
+        <header class="mb-4">
+            <table class="w-full header-table">
+                <tbody>
+                    <tr>
+                        <td class="w-1/4 text-center p-1">
+                            <img src="C:\Users\david\OneDrive\Documentos\plataforma_notas_colegio\notas\static\img\Logo_govtolima.png" alt="Logo Gobernación del Tolima" class="header-img">
+                        </td>
+                        <td class="w-1/2 text-center p-1" style="font-size:9px;">
+                            <h2 style="font-weight:bold; font-size:11px;">INSTITUCION EDUCATIVA TÉCNICA<br>ALFONSO PALACIO RUDAS</h2>
+                            <p>DANE 173349000026</p>
+                            <p>Nit. 890.701.233-7</p>
+                            <p style="font-weight:bold;">Honda – Tolima</p>
+                        </td>
+                        <td class="w-1/4 text-center p-1">
+                            <img src="C:\Users\david\OneDrive\Documentos\plataforma_notas_colegio\notas\static\img\logo_colegio.png" alt="Logo del Colegio" class="header-img">
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </header>
+
+        <div style="text-align: center; margin-bottom: 1rem;">
+            <h1 style="font-size: 1.2em; font-weight: bold; text-transform: uppercase;">PLAN DE CLASE 2025</h1>
+        </div>
+
+        <table class="mb-4 text-xs">
+            <tbody>
+                <tr>
+                    <th style="width: 15%;">Semana N°:</th>
+                    <td>2</td>
+                    <th style="width: 10%;">Inicio:</th>
+                    <td>14 de julio</td>
+                    <th style="width: 10%;">Fin:</th>
+                    <td>18 de julio</td>
+                    <th style="width: 15%;">No de Horas:</th>
+                    <td>5</td>
+                </tr>
+                <tr>
+                    <th>Docente:</th>
+                    <td colspan="3">David Leonardo Ramos Gutierrez</td>
+                    <th>Grado:</th>
+                    <td>Décimo (10°)</td>
+                    <th>Periodo:</th>
+                    <td>Tercero</td>
+                </tr>
+                <tr>
+                    <th>Área:</th>
+                    <td colspan="7">Matemáticas</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <table class="mb-4 text-xs">
+            <tbody>
+                <tr>
+                    <th style="width: 25%;">TEMAS:</th>
+                    <td>Funciones Cuadráticas. Características de la Parábola (Vértice, Eje de simetría, Concavidad, Interceptos). Fórmula Cuadrática.</td>
+                </tr>
+                <tr>
+                    <th>ESTÁNDAR (EBC):</th>
+                    <td>Identifico relaciones entre propiedades de las gráficas y propiedades de las ecuaciones algebraicas. Modelo situaciones de variación con funciones polinómicas.</td>
+                </tr>
+                <tr>
+                    <th>DBA:</th>
+                    <td>Resuelve problemas mediante el uso de las propiedades de las funciones y usa representaciones tabulares, gráficas y algebraicas para estudiar la variación, la tendencia numérica y las razones de cambio entre magnitudes.</td>
+                </tr>
+                <tr>
+                    <th>EVIDENCIA DE APRENDIZAJE:</th>
+                    <td>
+                        - Identifica la forma algebraica de una función cuadrática y la relaciona con su gráfica (parábola).<br>
+                        - Halla el vértice, los interceptos y el eje de simetría a partir de la ecuación.<br>
+                        - Utiliza la fórmula cuadrática para encontrar las raíces de la función.<br>
+                        - Modela situaciones de la vida real (lanzamiento de proyectiles, áreas máximas) usando funciones cuadráticas.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <table style="font-size: 10px;">
+            <thead>
+                <tr>
+                    <th style="text-align:center; background-color: #dee2e6;">EXPLORACIÓN<br>(Pre-saberes)</th>
+                    <th style="text-align:center; background-color: #dee2e6;">SABER<br>(Ejecución - Conceptualización)</th>
+                    <th style="text-align:center; background-color: #dee2e6;">SABER HACER<br>(Estructuración y Práctica)</th>
+                    <th style="text-align:center; background-color: #dee2e6;">SER<br>(Transferencia y Valoración)</th>
+                    <th style="text-align:center; background-color: #dee2e6;">MATERIALES</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <strong>Actividad de inicio:</strong><br>
+                        Se lanza la pregunta: "Si pateas un balón, ¿qué forma tiene su trayectoria en el aire? ⚽". Se muestran imágenes de parábolas en la vida real (puentes, chorros de agua, tiro de baloncesto). Se realiza un breve repaso de la función lineal ($y=mx+b$) para establecer un contraste y se revisa la solución de ecuaciones sencillas.
+                    </td>
+                    <td>
+                        <strong>Conceptualización:</strong><br>
+                        1. Definición formal de la función cuadrática $f(x) = ax^2 + bx + c$.<br>
+                        2. Explicación de la gráfica: la parábola. Se discute el concepto de concavidad a partir del signo del coeficiente 'a'.<br>
+                        3. Deducción e introducción de las fórmulas para el vértice ($x_v = -b/2a$) y el eje de simetría.<br>
+                        4. Explicación de los interceptos: el corte con el eje Y como el punto (0, c) y los cortes con el eje X como las soluciones de la ecuación $ax^2 + bx + c = 0$.<br>
+                        5. Presentación de la fórmula cuadrática como herramienta para encontrar las raíces.
+                    </td>
+                    <td>
+                        <strong>Práctica Guiada:</strong><br>
+                        El docente resuelve un ejemplo completo en el tablero. Para la función $f(x) = x^2 - 6x + 5$, se halla la concavidad, vértice, eje de simetría e interceptos. Finalmente, se esboza la gráfica uniendo los puntos clave.<br>
+                        <strong>Taller en Parejas:</strong><br>
+                        Los estudiantes trabajan en la guía de clase (sección de actividades), analizando 3 o 4 funciones cuadráticas de forma completa. El docente monitorea y resuelve dudas.
+                    </td>
+                    <td>
+                        <strong>Puesta en Común:</strong><br>
+                        Se discuten los resultados del taller, aclarando dudas generales y revisando un ejercicio en el tablero.<br>
+                        <strong>Problema de Contexto:</strong><br>
+                        Se plantea: "El ingreso 'I' por vender pulseras a un precio 'p' está dado por $I(p) = -p^2 + 50p$. ¿A qué precio se obtiene el ingreso máximo?". Se guía a los estudiantes para que identifiquen que el máximo es el vértice de la parábola.<br>
+                        <strong>Actividad de Cierre:</strong><br>
+                        Cada estudiante dibuja una parábola que represente una situación real (un salto, un lanzamiento) y etiqueta el vértice y los interceptos con su significado en ese contexto.
+                    </td>
+                    <td>
+                        <ul>
+                            <li>- Tablero y marcadores.</li>
+                            <li>- Guía de trabajo del estudiante.</li>
+                            <li>- Calculadora científica.</li>
+                            <li>- Proyector (opcional).</li>
+                            <li>- Software de graficación (Geogebra, Desmos) si hay disponibilidad.</li>
+                        </ul>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="margin-top: 1rem; font-size: 10px;">
+            <div style="border: 1px solid black; padding: 8px; margin-bottom: 8px;">
+                <strong>OBSERVACIONES:</strong> El énfasis de la semana está en la conexión entre la expresión algebraica y la representación gráfica de la parábola. La resolución de problemas más complejos y sistemas de ecuaciones cuadráticas se abordará en la siguiente semana.
+            </div>
+            <table style="text-align: center;">
+                 <thead>
+                    <tr>
+                        <th colspan="7">PROYECTOS TRANSVERSALES</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="width:14%">P.T. Aprov. Tiempo libre</td>
+                        <td style="width:14%">P.T. Cátedra paz</td>
+                        <td style="width:14%">P.T. Edu. Ambiental</td>
+                        <td style="width:14%">P.T. Edu. Democracia</td>
+                        <td style="width:14%">P.T. Edu. Sexual</td>
+                        <td style="width:14%">P.T. Edu. Ética y Valores</td>
+                        <td style="width:14%">P.T. Estilos de Vida Sal.</td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td></td>
+                        <td style="font-weight: bold; background-color: #f2f2f2;">X</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    </div>
+</body>
+</html>

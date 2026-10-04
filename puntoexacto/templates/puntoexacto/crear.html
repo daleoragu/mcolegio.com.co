@@ -1,0 +1,314 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% block title %}{% if examen %}Editar examen{% else %}Nuevo examen{% endif %} - {{ block.super }}{% endblock %}
+{% block page_title %}{% if examen %}Editar examen{% else %}Nuevo examen{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+    .pe-dos { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,440px);
+              gap:20px; align-items:start; }
+    @media (max-width:1100px) { .pe-dos { grid-template-columns:1fr; } }
+    .pe-previa { position:sticky; top:16px; }
+    .pe-previa iframe { width:100%; height:620px; border:1px solid #e3e6ec;
+                        border-radius:8px; background:#f4f5f7; }
+    .pe-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    .pe-chip-op { display:inline-flex; align-items:center; gap:5px; cursor:pointer;
+                  border:1px solid #d6dae1; border-radius:7px; background:#fff;
+                  padding:3px 8px; font-size:.8rem; font-variant-numeric:tabular-nums;
+                  user-select:none; }
+    .pe-chip-op:hover { border-color:#8fa3bb; background:#f6f9fd; }
+    .pe-chip-op.distinta { border-color:#2d4a6b; background:#eef4fb; font-weight:600; }
+    .pe-chip-op .num { color:#6b7280; }
+    .pe-chip-op.distinta .num { color:#2d4a6b; }
+</style>
+
+<div class="pe-dos">
+<form method="post" class="pe-tarjeta" id="pe-form">
+    {% csrf_token %}
+    <input type="hidden" name="opciones_por_pregunta" id="pe-ops" value="{{ opciones_actuales }}">
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+    <h5>Datos del examen</h5>
+    <div class="row g-3">
+        <div class="col-12">
+            <label class="form-label">{{ form.titulo.label }}</label>
+            {{ form.titulo }}{{ form.titulo.errors }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">{{ form.asignacion.label }}</label>
+            {{ form.asignacion }}{{ form.asignacion.errors }}
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Periodo</label>
+            {{ form.periodo }}{{ form.periodo.errors }}
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">{{ form.fecha.label }}</label>
+            {{ form.fecha }}{{ form.fecha.errors }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">{{ form.componente.label }}</label>
+            {{ form.componente }}{{ form.componente.errors }}
+            <div class="form-text">
+                A dónde va la nota en la planilla. En la clave se puede cambiar
+                pregunta por pregunta, y entonces el examen se parte en varias columnas.
+            </div>
+        </div>
+    </div>
+
+    <h5 class="mt-4">La hoja</h5>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label">Número de preguntas</label>
+            {{ form.numero_preguntas }}{{ form.numero_preguntas.errors }}
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Opciones por pregunta</label>
+            {{ form.numero_opciones }}{{ form.numero_opciones.errors }}
+            <div class="form-text">El valor por defecto de todas.</div>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Hojas por página</label>
+            {{ form.hojas_por_pagina }}{{ form.hojas_por_pagina.errors }}
+            <div class="form-text" id="pe-aviso-capacidad"></div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <label class="form-label mb-0">Preguntas con otro número de opciones</label>
+        <div class="form-text mt-0">
+            Toque una pregunta para subirle o bajarle las opciones. Las que queden en
+            azul usan un número distinto al del examen. La hoja de la derecha se
+            vuelve a dibujar en cada cambio.
+        </div>
+        <div class="pe-chips" id="pe-chips"></div>
+    </div>
+
+    <div class="mt-3">
+        <div class="form-check">
+            {{ form.mostrar_docente }}
+            <label class="form-check-label" for="{{ form.mostrar_docente.id_for_label }}">
+                {{ form.mostrar_docente.label }}
+            </label>
+        </div>
+        <div class="form-check">
+            {{ form.mostrar_fecha }}
+            <label class="form-check-label" for="{{ form.mostrar_fecha.id_for_label }}">
+                {{ form.mostrar_fecha.label }}
+            </label>
+        </div>
+        <div class="form-text">
+            Ninguno de los dos es obligatorio. Van en el recuadro del estudiante, a la
+            derecha, para no quitarle espacio a las burbujas.
+        </div>
+    </div>
+
+    <h5 class="mt-4">Cómo se calcula la nota</h5>
+    <div class="row g-3">
+        <div class="col-md-12">
+            {{ form.metodo }}{{ form.metodo.errors }}
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Nota máxima</label>
+            {{ form.nota_maxima }}{{ form.nota_maxima.errors }}
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Nota mínima</label>
+            {{ form.nota_minima }}{{ form.nota_minima.errors }}
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">{{ form.nota_todo_mal.label }}</label>
+            {{ form.nota_todo_mal }}{{ form.nota_todo_mal.errors }}
+            <div class="form-text">Solo para el método por descuento.</div>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">{{ form.nota_nada_marcado.label }}</label>
+            {{ form.nota_nada_marcado }}{{ form.nota_nada_marcado.errors }}
+            <div class="form-text">Solo para el método por descuento.</div>
+        </div>
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+        <button class="btn btn-primary">Guardar</button>
+        <a href="{% url 'puntoexacto:lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+
+<div class="pe-tarjeta pe-previa">
+    <div class="d-flex align-items-center justify-content-between mb-1">
+        <h6 class="mb-0">Así va a salir la hoja</h6>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="pe-recargar">
+            Actualizar
+        </button>
+    </div>
+    <p class="text-muted" style="font-size:.84rem;margin-bottom:.5rem;">
+        Es el mismo generador que imprime las hojas de verdad, con un estudiante de
+        muestra. Si algo no cabe, aquí lo dice.
+    </p>
+    <div class="form-check" style="font-size:.84rem;">
+        <input class="form-check-input" type="checkbox" id="pe-ver-escudo">
+        <label class="form-check-label" for="pe-ver-escudo">
+            Mostrar el escudo del colegio
+        </label>
+        <div class="form-text mt-0">
+            Apagado porque el escudo puede estar en el servidor de archivos y tardar;
+            en la hoja impresa sale siempre.
+        </div>
+    </div>
+    <div id="pe-estado" class="form-text"></div>
+    <iframe id="pe-iframe" title="Vista previa de la hoja"></iframe>
+    <div class="mt-2">
+        <a id="pe-abrir" href="#" target="_blank" style="font-size:.85rem;">
+            Abrir la vista previa en otra pestaña
+        </a>
+        <div class="form-text mt-0">
+            Si el marco de arriba queda en blanco, abra este enlace: el navegador
+            muestra ahí el error que esté dando el servidor.
+        </div>
+    </div>
+</div>
+</div>
+
+<script>
+(function () {
+    var base = "{% url 'puntoexacto:vista_previa' %}";
+    var campo = function (nombre) { return document.getElementById('id_' + nombre); };
+    var elOps = document.getElementById('pe-ops');
+    var elChips = document.getElementById('pe-chips');
+    var elIframe = document.getElementById('pe-iframe');
+    var elAviso = document.getElementById('pe-aviso-capacidad');
+    var elEstado = document.getElementById('pe-estado');
+    var elAbrir = document.getElementById('pe-abrir');
+    var elEscudo = document.getElementById('pe-ver-escudo');
+    var vigilante = null;
+    var mapa = {};
+    try { mapa = JSON.parse(elOps.value || '{}') || {}; } catch (e) { mapa = {}; }
+
+    function entero(nombre, pordefecto) {
+        var el = campo(nombre);
+        var v = el ? parseInt(el.value, 10) : NaN;
+        return isNaN(v) ? pordefecto : v;
+    }
+
+    // Cuántas preguntas caben en cada reparto. Es una tabla, no un cálculo:
+    // el cálculo de verdad vive en el servidor y la vista previa lo confirma.
+    var TOPES = {1: 240, 2: 96, 4: 54, 8: 15};
+
+    function textoAsignacion() {
+        var sel = campo('asignacion');
+        if (!sel || !sel.value) return {materia: '', curso: ''};
+        var t = sel.options[sel.selectedIndex].text || '';
+        var partes = t.split(' - ');
+        return {materia: partes[0] || t, curso: partes[1] || ''};
+    }
+
+    function pintarChips() {
+        var n = Math.max(1, Math.min(150, entero('numero_preguntas', 10)));
+        var base_op = Math.max(2, Math.min(10, entero('numero_opciones', 4)));
+        elChips.innerHTML = '';
+        for (var i = 1; i <= n; i++) {
+            (function (num) {
+                var actual = mapa[num] || base_op;
+                var chip = document.createElement('span');
+                chip.className = 'pe-chip-op' + (actual !== base_op ? ' distinta' : '');
+                chip.innerHTML = '<span class="num">' + num + '</span>' +
+                                 '<strong>' + actual + '</strong>';
+                chip.title = 'Pregunta ' + num + ': ' + actual +
+                             ' opciones. Clic para subir, clic derecho para bajar.';
+                chip.addEventListener('click', function () { mover(num, +1); });
+                chip.addEventListener('contextmenu', function (ev) {
+                    ev.preventDefault(); mover(num, -1);
+                });
+                elChips.appendChild(chip);
+            })(i);
+        }
+    }
+
+    function mover(num, paso) {
+        var base_op = Math.max(2, Math.min(10, entero('numero_opciones', 4)));
+        var actual = mapa[num] || base_op;
+        var nuevo = actual + paso;
+        if (nuevo > 10) nuevo = 2;
+        if (nuevo < 2) nuevo = 10;
+        if (nuevo === base_op) { delete mapa[num]; } else { mapa[num] = nuevo; }
+        elOps.value = JSON.stringify(mapa);
+        pintarChips();
+        refrescar();
+    }
+
+    function limpiarSobrantes() {
+        var n = entero('numero_preguntas', 10);
+        Object.keys(mapa).forEach(function (k) {
+            if (parseInt(k, 10) > n) delete mapa[k];
+        });
+        elOps.value = JSON.stringify(mapa);
+    }
+
+    var temporizador = null;
+    function refrescar() {
+        clearTimeout(temporizador);
+        temporizador = setTimeout(function () {
+            var n = Math.max(1, Math.min(150, entero('numero_preguntas', 10)));
+            var op = Math.max(2, Math.min(10, entero('numero_opciones', 4)));
+            var pp = entero('hojas_por_pagina', 1);
+            var asig = textoAsignacion();
+            var fecha = campo('fecha') ? campo('fecha').value : '';
+            var verDocente = campo('mostrar_docente') && campo('mostrar_docente').checked;
+            var verFecha = campo('mostrar_fecha') && campo('mostrar_fecha').checked;
+            var periodoSel = campo('periodo');
+            var periodo = (periodoSel && periodoSel.value)
+                ? periodoSel.options[periodoSel.selectedIndex].text : '';
+
+            var tope = TOPES[pp] || 0;
+            elAviso.textContent = tope
+                ? ('Con ' + pp + ' por página caben hasta ' + tope + ' preguntas de ' + op + ' opciones.')
+                : '';
+
+            var q = new URLSearchParams({
+                preguntas: n, opciones: op, por_pagina: pp,
+                titulo: campo('titulo') ? campo('titulo').value : '',
+                materia: asig.materia, curso: asig.curso, periodo: periodo,
+                docente: verDocente ? '1' : '0',
+                ver_fecha: verFecha ? '1' : '0',
+                fecha: fecha,
+                ops: JSON.stringify(mapa),
+                escudo: (elEscudo && elEscudo.checked) ? '1' : '0',
+                t: Date.now()
+            });
+            var url = base + '?' + q.toString();
+            elAbrir.href = url;
+            elEstado.textContent = 'Dibujando la hoja…';
+            clearTimeout(vigilante);
+            vigilante = setTimeout(function () {
+                elEstado.textContent = 'La vista previa está tardando. Pruebe el ' +
+                    'enlace de abajo para ver qué responde el servidor.';
+            }, 8000);
+            elIframe.src = url;
+        }, 450);
+    }
+
+    elIframe.addEventListener('load', function () {
+        clearTimeout(vigilante);
+        elEstado.textContent = '';
+    });
+    document.getElementById('pe-recargar').addEventListener('click', function () {
+        temporizador = null; refrescar();
+    });
+    if (elEscudo) { elEscudo.addEventListener('change', refrescar); }
+
+    ['titulo', 'asignacion', 'periodo', 'fecha', 'numero_preguntas', 'numero_opciones',
+     'hojas_por_pagina', 'mostrar_docente', 'mostrar_fecha'].forEach(function (nombre) {
+        var el = campo(nombre);
+        if (!el) return;
+        el.addEventListener('change', function () {
+            limpiarSobrantes(); pintarChips(); refrescar();
+        });
+        el.addEventListener('input', function () {
+            limpiarSobrantes(); pintarChips(); refrescar();
+        });
+    });
+
+    pintarChips();
+    refrescar();
+})();
+</script>
+{% endblock %}

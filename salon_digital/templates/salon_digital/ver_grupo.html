@@ -1,0 +1,79 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}{{ grupo.nombre }} · Salón Digital{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+  <div>
+    <h1 class="h3 mb-1">{{ grupo.nombre }}</h1>
+    <p class="text-muted mb-0">{{ grupo.descripcion }}</p>
+  </div>
+  <div class="text-end">
+    <div class="text-muted small">Código para entrar</div>
+    <code style="font-size:1.5rem;letter-spacing:4px">{{ grupo.codigo }}</code>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">
+        Estudiantes ({{ grupo.total_integrantes }})
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <tbody>
+          {% for i in integrantes %}
+            {% if i.activo %}
+            <tr>
+              <td>{{ i.completo }}</td>
+              <td class="text-end">
+                <form method="post" action="{% url 'salon_digital:quitar_integrante' grupo.pk i.pk %}"
+                      onsubmit="return confirm('¿Sacar a {{ i.completo|escapejs }} del grupo?');">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-outline-danger">Quitar</button>
+                </form>
+              </td>
+            </tr>
+            {% endif %}
+          {% empty %}
+            <tr><td class="text-center text-muted py-4">
+              La lista está vacía. Pégala desde tu planilla con el formulario de al lado.
+            </td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card mb-4">
+      <div class="card-header">Agregar estudiantes</div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% with form=lista %}{% include "salon_digital/_campos.html" %}{% endwith %}
+          <button name="pegar" value="1" class="btn btn-primary">Agregar a la lista</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Datos del grupo</div>
+      <div class="card-body">
+        <form method="post" action="{% url 'salon_digital:editar_grupo' grupo.pk %}" novalidate>
+          {% csrf_token %}
+          {% include "salon_digital/_campos.html" %}
+          <button class="btn btn-outline-primary">Guardar</button>
+        </form>
+        <hr>
+        <form method="post" action="{% url 'salon_digital:eliminar_grupo' grupo.pk %}"
+              onsubmit="return confirm('¿Eliminar el grupo {{ grupo.nombre|escapejs }}? Los resultados que ya llegaron se conservan.');">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-outline-danger">Eliminar el grupo</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

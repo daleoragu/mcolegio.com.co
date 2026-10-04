@@ -1,0 +1,21 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}{{ titulo }} · Salón Digital{% endblock %}
+{% block contenido %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <h1 class="h3 mb-4">{{ titulo }}</h1>
+    <div class="card"><div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% include "salon_digital/_campos.html" %}
+        <button class="btn btn-primary">Crear</button>
+        <a href="{% url 'salon_digital:grupos' %}" class="btn btn-link">Cancelar</a>
+      </form>
+    </div></div>
+    <p class="text-muted small mt-3">
+      El código para que entren los estudiantes se genera solo. Después puedes pegar la lista
+      del curso de una vez, copiándola de tu planilla.
+    </p>
+  </div>
+</div>
+{% endblock %}

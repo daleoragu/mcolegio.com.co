@@ -1,0 +1,152 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% block title %}Bloques - {{ block.super }}{% endblock %}
+{% block page_title %}Bloques · {{ examen.titulo }}{% endblock %}
+
+{% block content %}
+<div class="pe-barra">
+    <a href="{% url 'puntoexacto:clave' examen_id=examen.id %}" class="btn btn-outline-secondary">Clave</a>
+    <a href="{% url 'puntoexacto:hojas' examen_id=examen.id %}" class="btn btn-outline-secondary">Hojas</a>
+    <a href="{% url 'puntoexacto:resultados' examen_id=examen.id %}" class="btn btn-outline-secondary">Resultados</a>
+</div>
+
+<div class="pe-aviso">
+    Partir el examen en bloques sirve para pruebas censales: cada área sale en la hoja
+    con su propio rótulo y su pestaña de color, con numeración corrida, como en la hoja
+    del ICFES. Cada bloque produce además <strong>su propia nota</strong>, así que un
+    estudiante queda con una nota de Lenguaje y otra de Matemáticas, no con un promedio
+    que esconde las dos.
+    <ul>
+        <li>Si le pone <strong>materia</strong> a un bloque, esa nota puede llevarse después
+            a la planilla de esa asignatura. El docente se resuelve según el curso de cada
+            estudiante, así que sirve aunque la prueba sea para varios cursos.</li>
+        <li>Si lo deja <strong>sin materia</strong>, el bloque solo organiza la hoja y las
+            estadísticas. Es lo que se usa para lectura crítica o competencias ciudadanas,
+            que no son materias del plan de estudios.</li>
+        <li>Ninguna nota entra a la planilla sola. Eso se hace a mano, bloque por bloque,
+            desde «Resultados».</li>
+    </ul>
+</div>
+
+<form method="post" class="pe-tarjeta">
+    {% csrf_token %}
+    <h5>Bloques del examen</h5>
+
+    {% if filas %}
+    <div class="table-responsive">
+        <table class="pe-tabla">
+            <thead><tr>
+                <th class="pe-num">Orden</th><th>Nombre</th><th>Materia del colegio</th>
+                <th class="pe-num">Opciones</th><th class="pe-num">Preguntas</th>
+                <th class="pe-num">Desde</th><th class="pe-num">Hasta</th><th></th>
+            </tr></thead>
+            <tbody>
+            {% for f in filas %}
+                <tr>
+                    <td class="pe-num">
+                        <input type="number" name="orden_{{ f.b.id }}" value="{{ f.b.orden }}"
+                               min="1" max="20" class="form-control form-control-sm" style="width:70px;">
+                    </td>
+                    <td>
+                        <input type="text" name="nombre_{{ f.b.id }}" value="{{ f.b.nombre }}"
+                               class="form-control form-control-sm">
+                    </td>
+                    <td>
+                        <select name="materia_{{ f.b.id }}" class="form-select form-select-sm">
+                            <option value="">(sin materia · solo organiza la hoja)</option>
+                            {% for m in materias %}
+                                <option value="{{ m.id }}" {% if f.b.materia_id == m.id %}selected{% endif %}>{{ m.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td class="pe-num">
+                        <select name="opciones_{{ f.b.id }}" class="form-select form-select-sm">
+                            <option value="">del examen ({{ examen.numero_opciones }})</option>
+                            {% for n in rango_opciones %}
+                                <option value="{{ n }}" {% if f.b.numero_opciones == n %}selected{% endif %}>{{ n }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td class="pe-num">
+                        {{ f.n }}
+                        {% if not f.continuo %}
+                            <span class="pe-chip pe-media" title="Las preguntas de este bloque no van seguidas">salteadas</span>
+                        {% endif %}
+                    </td>
+                    <td class="pe-num">
+                        <input type="number" name="desde_{{ f.b.id }}" value="{{ f.desde|default_if_none:'' }}"
+                               min="1" max="{{ examen.numero_preguntas }}"
+                               class="form-control form-control-sm" style="width:80px;">
+                    </td>
+                    <td class="pe-num">
+                        <input type="number" name="hasta_{{ f.b.id }}" value="{{ f.hasta|default_if_none:'' }}"
+                               min="1" max="{{ examen.numero_preguntas }}"
+                               class="form-control form-control-sm" style="width:80px;">
+                    </td>
+                    <td class="pe-num">
+                        <button type="submit" name="accion" value="borrar"
+                                formnovalidate class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('¿Eliminar el bloque {{ f.b.nombre|escapejs }}? Sus preguntas quedan sin área; no se borra ninguna pregunta.');">
+                            Quitar
+                        </button>
+                        <input type="hidden" name="bloque_id" value="{{ f.b.id }}">
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="text-muted" style="font-size:.85rem;">
+        «Desde» y «Hasta» vuelven a repartir las preguntas de ese rango al bloque. El
+        orden de la hoja lo da la columna «Orden», y la numeración es corrida.
+    </p>
+    {% else %}
+        <p class="pe-vacio">Este examen todavía no tiene bloques. Sale en una sola rejilla.</p>
+    {% endif %}
+
+    <hr>
+    <h6>Agregar un bloque</h6>
+    <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label" style="font-size:.8rem;">Nombre</label>
+            <input type="text" name="nuevo_nombre" class="form-control form-control-sm"
+                   placeholder="Matemáticas" maxlength="60">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label" style="font-size:.8rem;">Materia del colegio</label>
+            <select name="nuevo_materia" class="form-select form-select-sm">
+                <option value="">(sin materia)</option>
+                {% for m in materias %}<option value="{{ m.id }}">{{ m.nombre }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label" style="font-size:.8rem;">Opciones</label>
+            <select name="nuevo_opciones" class="form-select form-select-sm">
+                <option value="">del examen</option>
+                {% for n in rango_opciones %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label" style="font-size:.8rem;">Desde</label>
+            <input type="number" name="nuevo_desde" min="1" max="{{ examen.numero_preguntas }}"
+                   class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label" style="font-size:.8rem;">Hasta</label>
+            <input type="number" name="nuevo_hasta" min="1" max="{{ examen.numero_preguntas }}"
+                   class="form-control form-control-sm">
+        </div>
+    </div>
+
+    {% if sin_bloque %}
+        <div class="alert alert-warning mt-3" style="font-size:.88rem;">
+            Preguntas sin bloque:
+            {% for p in sin_bloque %}{{ p.numero }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+            Van a salir al final de la hoja, fuera de las áreas.
+        </div>
+    {% endif %}
+
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">Guardar bloques</button>
+    </div>
+</form>
+{% endblock %}

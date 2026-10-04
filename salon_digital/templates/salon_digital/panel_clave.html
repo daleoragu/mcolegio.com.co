@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resultados · {{ origen.titulo }}</title>
+<style>
+:root{--vino:#460F10;--mor:#9E1982;--line:#E6D6E2;--bg:#FBF7FA;--muted:#6B5566;--red:#B3261E}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#26161F;font-family:'Segoe UI',system-ui,Arial,sans-serif;
+     display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.caja{background:#fff;border:1px solid var(--line);border-radius:16px;padding:34px;max-width:420px;width:100%;
+      text-align:center}
+h1{font-size:21px;color:var(--vino);margin:0 0 6px}
+p.sub{color:var(--muted);font-size:14.5px;margin:0 0 24px}
+input{width:100%;padding:14px;font-size:20px;text-align:center;letter-spacing:3px;border:1.5px solid var(--line);
+      border-radius:10px;font-family:inherit;text-transform:uppercase}
+input:focus{outline:none;border-color:var(--mor)}
+button{margin-top:16px;width:100%;background:var(--mor);color:#fff;border:none;border-radius:10px;padding:14px;
+       font-size:17px;font-weight:600;cursor:pointer;font-family:inherit}
+button:hover{background:var(--vino)}
+.error{color:var(--red);font-size:14px;margin-top:12px}
+</style>
+</head>
+<body>
+<form class="caja" method="post">
+  {% csrf_token %}
+  <h1>{{ origen.titulo }}</h1>
+  <p class="sub">Escribe la clave que te dio el docente para ver los resultados.</p>
+  <input type="text" name="clave" autocomplete="off" autofocus placeholder="CLAVE">
+  <button type="submit">Entrar</button>
+  {% for e in form.clave.errors %}<div class="error">{{ e }}</div>{% endfor %}
+</form>
+</body>
+</html>

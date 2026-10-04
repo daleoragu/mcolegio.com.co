@@ -1,0 +1,213 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}Cómo preparar tu archivo · Salón Digital{% endblock %}
+
+{% block extra_css %}
+<style>
+pre.codigo{background:#2A1620;color:#F2E7EE;border-radius:12px;padding:18px 20px;overflow-x:auto;
+           font-size:13.5px;line-height:1.55;margin:0}
+pre.codigo .c{color:#B49CAC}
+.bloque{position:relative}
+.bloque .copiar{position:absolute;top:10px;right:10px}
+.paso{display:flex;gap:14px;margin-bottom:18px}
+.paso .n{flex:0 0 30px;height:30px;border-radius:50%;background:var(--mor);color:#fff;
+         display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="row">
+  <div class="col-lg-9">
+
+    <h1 class="h3 mb-1">Cómo preparar tu archivo</h1>
+    <p class="text-muted mb-4">
+      Si tu actividad guarda resultados, Salón Digital necesita recibirlos en un formato
+      concreto. Hay tres caminos; escoge el que te quede más cómodo.
+    </p>
+
+    <!-- ============ 1. PLANTILLA ============ -->
+    <div class="card mb-4">
+      <div class="card-header">1 · Descarga una plantilla que ya funciona</div>
+      <div class="card-body">
+        <p>
+          Es una prueba completa de tres preguntas, lista para abrir en cualquier editor de texto.
+          Cambia el título y las preguntas, y súbela. El resto ya está resuelto: los datos del
+          estudiante, el avance, el resultado, la revisión al final y el envío.
+        </p>
+        <p class="text-muted small">
+          Si el estudiante se queda sin internet, el resultado se guarda en su celular y se
+          envía solo la próxima vez que abra la página.
+        </p>
+        <a class="btn btn-primary" href="{% url 'salon_digital:descargar' 'plantilla' %}">
+          Descargar plantilla-prueba.html
+        </a>
+      </div>
+    </div>
+
+    <!-- ============ 2. PROMPT ============ -->
+    <div class="card mb-4">
+      <div class="card-header">2 · Pídesela a una inteligencia artificial</div>
+      <div class="card-body">
+        <p>
+          Copia este texto, pégalo en ChatGPT, Claude o Gemini y cámbiale lo que está entre
+          corchetes. Lo que te devuelva se sube tal cual.
+        </p>
+        <div class="bloque">
+          <button class="btn btn-sm btn-outline-light copiar" data-para="prompt">Copiar</button>
+<pre class="codigo" id="prompt">Hazme una página web de una sola pieza, en un archivo .html, con una prueba de
+selección múltiple para mis estudiantes.
+
+Tema: [ESCRIBE AQUÍ EL TEMA, por ejemplo: fracciones equivalentes]
+Grado: [POR EJEMPLO: quinto]
+Cantidad de preguntas: [POR EJEMPLO: 10]
+
+Requisitos de funcionamiento:
+
+1. Todo en UN SOLO archivo .html, sin archivos aparte. El CSS y el JavaScript
+   van dentro. Las imágenes, si las hay, incrustadas como data:URI.
+2. Debe funcionar en celular y sin internet.
+3. Primero pide apellidos, nombres y grupo. Después muestra una pregunta a la
+   vez, con cuatro opciones. Al final muestra el puntaje y la revisión de cada
+   pregunta con su explicación.
+4. Al terminar, envía el resultado a mi plataforma. Para eso incluye EXACTAMENTE
+   estas dos constantes, vacías, sin cambiarles el nombre ni el formato:
+
+   const ENDPOINT = '';
+   const CLAVE_PANEL = '';
+
+5. Cuando el estudiante termine, arma este objeto y mándalo:
+
+   const RES = {
+     ape, nom, completo, sede, gru,
+     prueba: 'p1',
+     pruebaNombre: 'nombre de la prueba',
+     fecha: new Date().toISOString(),
+     ok,        // respuestas correctas
+     total,     // total de preguntas
+     pct,       // porcentaje con un decimal
+     seg,       // segundos que tardó
+     cambios,   // cuántas veces cambió de opción
+     vez: 1,
+     det: [
+       {
+         n: 1,              // número de la pregunta
+         apr: 'el aprendizaje que evalúa',
+         comp: 'la competencia o eje',
+         ac: true,          // si acertó
+         marcada: 'B',      // la letra que marcó, o '—' si no respondió
+         clave: 'B',        // la letra correcta
+         expl: 'la explicación',
+         intentos: 1,
+         seg: 0
+       }
+     ]
+   };
+
+   fetch(ENDPOINT, {
+     method: 'POST',
+     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+     body: JSON.stringify(RES)
+   });
+
+6. Si ENDPOINT está vacío, no intentes enviar nada y no muestres ningún error.
+7. Si el envío falla por falta de internet, guarda el resultado en localStorage
+   y reintenta cuando la página vuelva a abrirse.
+
+Las preguntas deben ser contextualizadas y con distractores que correspondan a
+errores reales, no opciones absurdas. En la explicación de cada una, di por qué
+la correcta es correcta.</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 3. CÓDIGO ============ -->
+    <div class="card mb-4">
+      <div class="card-header">3 · Conecta un archivo que ya tienes</div>
+      <div class="card-body">
+        <p>
+          Si ya hiciste tu actividad y solo le falta mandar resultados, pega esto antes del
+          <code>&lt;/body&gt;</code> y llama a <code>SalonDigital.enviar()</code> cuando el
+          estudiante termine.
+        </p>
+        <div class="bloque mb-3">
+          <button class="btn btn-sm btn-outline-light copiar" data-para="uso">Copiar</button>
+<pre class="codigo" id="uso"><span class="c">// 1. Las preguntas, con su clave</span>
+const preguntas = [
+  { id: 1, comp: 'NUM', apr: 'Fracción parte-todo', clave: 'B', expl: '5/20 = 1/4' },
+  { id: 2, comp: 'GEO', apr: 'Perímetro',           clave: 'B', expl: '30+15+30+15' },
+];
+
+<span class="c">// 2. Lo que marcó el estudiante, en el mismo orden</span>
+const marcadas = ['B', 'A'];
+
+<span class="c">// 3. Armar y enviar</span>
+const resultado = SalonDigital.armar(preguntas, marcadas, {
+  ape: 'Ramos', nom: 'David', gru: '7-01', sede: 'Sede Principal',
+  nombrePrueba: 'Prueba de fracciones', segundos: 120,
+});
+
+SalonDigital.enviar(resultado).then(function (estado) {
+  <span class="c">// 'enviado', 'pendiente' (sin internet) o 'sin-endpoint'</span>
+  console.log(estado);
+});</pre>
+        </div>
+        <a class="btn btn-outline-primary" href="{% url 'salon_digital:descargar' 'motor' %}">
+          Descargar salon.js
+        </a>
+        <p class="text-muted small mt-3 mb-0">
+          El archivo <code>salon.js</code> se pega dentro de una etiqueta
+          <code>&lt;script&gt;</code> de tu HTML. No lo enlaces desde afuera: tu actividad
+          tiene que seguir funcionando sin internet.
+        </p>
+      </div>
+    </div>
+
+    <!-- ============ QUÉ PASA AL SUBIR ============ -->
+    <div class="card">
+      <div class="card-header">Qué pasa cuando subes el archivo</div>
+      <div class="card-body">
+        <div class="paso">
+          <span class="n">1</span>
+          <div>Buscamos en tu archivo la línea <code>const ENDPOINT = '';</code> y la
+          completamos con la dirección de tu actividad. Por eso tiene que estar escrita así.</div>
+        </div>
+        <div class="paso">
+          <span class="n">2</span>
+          <div>Hacemos lo mismo con <code>const CLAVE_PANEL</code>, poniéndole la clave con la
+          que otros docentes entran a ver los resultados.</div>
+        </div>
+        <div class="paso">
+          <span class="n">3</span>
+          <div>Revisamos el contenido en busca de señales raras —campos de contraseña, nombres
+          de bancos— y te avisamos si encontramos algo.</div>
+        </div>
+        <div class="paso mb-0">
+          <span class="n">4</span>
+          <div>Queda publicada en tu dirección, con su código QR listo para imprimir.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.copiar').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var texto = document.getElementById(b.dataset.para).innerText;
+    var original = b.textContent;
+    navigator.clipboard.writeText(texto).then(function () {
+      b.textContent = 'Copiado';
+      setTimeout(function () { b.textContent = original; }, 1800);
+    }).catch(function () {
+      var r = document.createRange();
+      r.selectNode(document.getElementById(b.dataset.para));
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(r);
+      b.textContent = 'Selecciona y copia';
+    });
+  });
+});
+</script>
+{% endblock %}

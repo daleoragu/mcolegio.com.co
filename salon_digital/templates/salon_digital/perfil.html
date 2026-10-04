@@ -1,0 +1,31 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}{{ cuenta.nombre_publico }} · Salón Digital{% endblock %}
+
+{% block contenido %}
+<div class="mb-4">
+  <h1 class="h3 mb-1">{{ cuenta.nombre_publico }}</h1>
+  <p class="text-muted mb-0">
+    {{ cuenta.institucion }}{% if cuenta.municipio %} · {{ cuenta.municipio }}{% endif %}
+  </p>
+</div>
+
+<div class="row g-3">
+  {% for p in paginas %}
+    <div class="col-md-6">
+      <div class="card h-100"><div class="card-body d-flex flex-column">
+        <h2 class="h6 mb-1">{{ p.titulo }}</h2>
+        <p class="text-muted small flex-grow-1">
+          {% if p.descripcion %}{{ p.descripcion }}
+          {% elif p.grado %}Grado {{ p.grado }}°{% if p.area %} · {{ p.get_area_display }}{% endif %}
+          {% endif %}
+        </p>
+        <a href="{{ p.ruta }}" class="btn btn-primary btn-sm align-self-start">Entrar</a>
+      </div></div>
+    </div>
+  {% empty %}
+    <div class="col-12">
+      <p class="text-muted text-center py-5">Este docente todavía no tiene actividades publicadas.</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

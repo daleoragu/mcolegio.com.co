@@ -51,6 +51,12 @@ class PeriodoAcademico(models.Model):
     ano_lectivo = models.PositiveIntegerField(default=datetime.date.today().year)
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
+    peso_porcentual = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('25.00'),
+        validators=[MinValueValidator(Decimal('0.00')), MaxValueValidator(Decimal('100.00'))],
+        verbose_name="Peso del periodo (%)",
+        help_text="Solo se usa si el colegio activó la ponderación por periodos."
+    )
     esta_activo = models.BooleanField(default=True, verbose_name="Ingreso de Notas Activo")
     reporte_parcial_activo = models.BooleanField(default=True, verbose_name="Reporte Parcial Activo")
     nivelaciones_activas = models.BooleanField(default=False, verbose_name="Nivelaciones Activas")
@@ -232,6 +238,37 @@ class PublicacionBoletinFinal(models.Model):
 class ConfiguracionCalificaciones(models.Model):
     colegio = models.OneToOneField(Colegio, on_delete=models.CASCADE, related_name="configuracion_calificaciones", null=True)
     docente_puede_modificar = models.BooleanField(default=False, verbose_name="Permitir que los docentes modifiquen los porcentajes de calificación")
+
+    # --- Ponderación de periodos ---
+    ponderar_periodos = models.BooleanField(
+        default=False,
+        verbose_name="Cada periodo vale un porcentaje distinto",
+        help_text="Si se deja apagado, todos los periodos pesan igual, como hasta ahora."
+    )
+    exigir_periodos_completos = models.BooleanField(
+        default=False,
+        verbose_name="No calcular la definitiva si falta algún periodo",
+        help_text="En vez de promediar lo que haya, avisa cuáles periodos faltan. "
+                  "Se activa solo cuando se ponderan los periodos."
+    )
+
+    # --- Nombres de las tres columnas del boletín ---
+    etiqueta_ser = models.CharField(max_length=30, default="SER", verbose_name="Nombre de la columna 1")
+    etiqueta_saber = models.CharField(max_length=30, default="SABER", verbose_name="Nombre de la columna 2")
+    etiqueta_hacer = models.CharField(max_length=30, default="HACER", verbose_name="Nombre de la columna 3")
+
+    # --- Presentación ---
+    colapsar_area_unica = models.BooleanField(
+        default=True,
+        verbose_name="Unir área y asignatura cuando el área tiene una sola",
+        help_text="Evita que la sábana y el boletín repitan la misma nota en dos filas."
+    )
+
+    @property
+    def pide_todos_los_periodos(self):
+        """La ponderación obliga a tener todos los periodos para que el cálculo tenga sentido."""
+        return self.exigir_periodos_completos or self.ponderar_periodos
+
     
     def __str__(self):
         if self.colegio:

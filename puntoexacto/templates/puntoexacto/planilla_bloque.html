@@ -1,0 +1,84 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% block title %}Llevar a planilla - {{ block.super }}{% endblock %}
+{% block page_title %}{{ bloque.nombre }} → planilla de {{ bloque.materia.nombre }}{% endblock %}
+
+{% block content %}
+<div class="pe-barra">
+    <a href="{% url 'puntoexacto:resultados' examen_id=examen.id %}" class="btn btn-outline-secondary">Volver a resultados</a>
+</div>
+
+<div class="pe-aviso">
+    Esto agrega una columna nueva en la planilla de <strong>{{ bloque.materia.nombre }}</strong>,
+    periodo <strong>{{ examen.periodo }}</strong>, sin borrar ninguna nota existente.
+    El docente de cada estudiante se toma de la asignación de su curso, así que una misma
+    prueba puede caer en planillas de docentes distintos.
+    <ul>
+        <li>No se toca el promedio del periodo: eso lo recalcula la planilla cuando el
+            docente la abra y la guarde. Hasta entonces la definitiva sigue mostrando el
+            valor anterior.</li>
+        <li>Si vuelve a pasar este mismo bloque con la misma etiqueta, se reemplaza la
+            columna en vez de duplicarla.</li>
+    </ul>
+</div>
+
+{% if sin_asignacion %}
+<div class="alert alert-warning">
+    Estos cursos no tienen docente asignado en {{ bloque.materia.nombre }}:
+    <strong>{{ sin_asignacion|join:", " }}</strong>.
+    Sus estudiantes van a quedar por fuera. Cree la asignación y vuelva.
+</div>
+{% endif %}
+
+{% if filas %}
+<form method="post" class="pe-tarjeta">
+    {% csrf_token %}
+    <div class="row g-3 mb-3">
+        <div class="col-md-7">
+            <label class="form-label" style="font-size:.85rem;">Nombre de la columna</label>
+            <input type="text" name="etiqueta" value="{{ etiqueta_sugerida }}"
+                   maxlength="100" class="form-control">
+        </div>
+        <div class="col-md-5">
+            <label class="form-label" style="font-size:.85rem;">¿En qué componente?</label>
+            <select name="componente" class="form-select">
+                {% for cod, nom in componentes %}
+                    <option value="{{ cod }}" {% if examen.componente == cod %}selected{% endif %}>{{ nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="pe-tabla">
+            <thead><tr>
+                <th>Estudiante</th><th>Curso</th><th>Docente</th>
+                <th class="pe-num">Aciertos</th><th class="pe-num">Nota</th>
+            </tr></thead>
+            <tbody>
+            {% for f in filas %}
+                <tr>
+                    <td>{{ f.hoja.nombre }}</td>
+                    <td>{{ f.curso.nombre|default:"—" }}</td>
+                    <td>
+                        {% if f.asignacion %}
+                            {{ f.asignacion.docente.user.get_full_name|default:f.asignacion.docente.user.username }}
+                        {% else %}
+                            <span class="pe-chip pe-mal">sin asignación</span>
+                        {% endif %}
+                    </td>
+                    <td class="pe-num">{{ f.correctas }}/{{ f.total }}</td>
+                    <td class="pe-num"><strong>{{ f.nota }}</strong></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">Agregar la columna a la planilla</button>
+    </div>
+</form>
+{% else %}
+    <p class="pe-vacio">Todavía no hay hojas calificadas con preguntas de este bloque.</p>
+{% endif %}
+{% endblock %}

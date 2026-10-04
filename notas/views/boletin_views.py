@@ -4,6 +4,7 @@ from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFoun
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.template.loader import render_to_string
+from notas.boletin.ponderacion import ajustes as ajustes_colegio
 import datetime
 from pathlib import Path
 import os
@@ -107,7 +108,7 @@ def generar_boletin_vista(request):
 
             template_path = 'notas/boletin/boletin_prescolar_final_pdf.html'
             pdf_filename = f'boletin_final_pre_{curso.nombre}_{ano_lectivo}.pdf'
-            context = { "boletines": boletines_data, "nombres_periodos": nombres_periodos, "curso": curso, "ano_lectivo": ano_lectivo, "colegio": request.colegio }
+            context = { "boletines": boletines_data, "nombres_periodos": nombres_periodos, "curso": curso, "ano_lectivo": ano_lectivo, "colegio": request.colegio, "ajustes": ajustes_colegio(request.colegio) }
 
         # --- Boletín de periodo ---
         else:
@@ -122,7 +123,7 @@ def generar_boletin_vista(request):
 
             template_path = 'notas/boletin/boletin_prescolar_pdf.html'
             pdf_filename = f'boletines_pre_{curso.nombre}_{periodo.get_nombre_display()}.pdf'
-            context = { "boletines": boletines_data, "curso": curso, "periodo": periodo, "colegio": request.colegio }
+            context = { "boletines": boletines_data, "curso": curso, "periodo": periodo, "colegio": request.colegio, "ajustes": ajustes_colegio(request.colegio) }
 
     # --- Cursos normales (primaria, básica, media) ---
     else:
@@ -138,7 +139,7 @@ def generar_boletin_vista(request):
 
             template_path = 'notas/boletin/boletin_final_pdf.html'
             pdf_filename = f'boletin_final_{curso.nombre}_{ano_lectivo}.pdf'
-            context = { "boletines": boletines_data, "nombres_periodos": nombres_periodos, "curso": curso, "ano_lectivo": ano_lectivo, "colegio": request.colegio }
+            context = { "boletines": boletines_data, "nombres_periodos": nombres_periodos, "curso": curso, "ano_lectivo": ano_lectivo, "colegio": request.colegio, "ajustes": ajustes_colegio(request.colegio) }
 
         else:
             try:
@@ -152,7 +153,7 @@ def generar_boletin_vista(request):
 
             template_path = 'notas/boletin/boletin_pdf.html'
             pdf_filename = f'boletines_{curso.nombre}_{periodo.get_nombre_display()}.pdf'
-            context = { "boletines": boletines_data, "curso": curso, "periodo": periodo, "colegio": request.colegio }
+            context = { "boletines": boletines_data, "curso": curso, "periodo": periodo, "colegio": request.colegio, "ajustes": ajustes_colegio(request.colegio) }
 
     # --- INICIO: CORRECCIÓN FOTO E IDENTIFICACIÓN SEGURA ---
     for boletin in boletines_data:

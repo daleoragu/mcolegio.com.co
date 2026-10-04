@@ -33,7 +33,8 @@ def generar_excel_sabana(curso, periodo, sabana_data, areas_con_materias, desemp
     
     # --- Encabezado del Reporte (similar al PDF) ---
     # Se calcula el número total de columnas para poder centrar el encabezado
-    total_cols = 3 + sum(len(a.materias_del_curso_ordenadas) + 1 for a in areas_con_materias) + 1 + len(desempenos_headers) + 1
+    total_cols = 3 + sum(len(a.materias_del_curso_ordenadas) + (0 if getattr(a, 'colapsada', False) else 1)
+                         for a in areas_con_materias) + 1 + len(desempenos_headers) + 1
     
     # Insertar logo si existe
     if colegio.logo:
@@ -82,13 +83,18 @@ def generar_excel_sabana(curso, periodo, sabana_data, areas_con_materias, desemp
     col_idx = 4
     for area in areas_con_materias:
         num_materias = len(area.materias_del_curso_ordenadas)
+        colapsada = getattr(area, 'colapsada', False)
         ws.cell(row=row_h1, column=col_idx, value=area.nombre).fill = area_header_fill
-        if num_materias > 0:
-            ws.merge_cells(start_row=row_h1, start_column=col_idx, end_row=row_h1, end_column=col_idx + num_materias)
+        ancho_area = num_materias - 1 if colapsada else num_materias
+        if ancho_area > 0:
+            ws.merge_cells(start_row=row_h1, start_column=col_idx, end_row=row_h1,
+                           end_column=col_idx + ancho_area)
         
         for materia in area.materias_del_curso_ordenadas:
             ws.cell(row=row_h2, column=col_idx, value=materia.abreviatura or materia.nombre)
             col_idx += 1
+        if colapsada:
+            continue
         ws.cell(row=row_h2, column=col_idx, value="DEF. ÁREA").fill = area_header_fill
         col_idx += 1
     

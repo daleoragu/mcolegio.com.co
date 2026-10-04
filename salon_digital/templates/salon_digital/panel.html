@@ -1,0 +1,129 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}Mis páginas · Salón Digital{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+  <div>
+    <h1 class="h3 mb-0">Mis páginas</h1>
+    <p class="text-muted small mb-0">
+      Tu espacio: <code>/p/{{ cuenta.slug }}/</code>
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'salon_digital:ayuda' %}" class="btn btn-outline-secondary">Cómo preparar un archivo</a>
+    <a href="{% url 'salon_digital:subir_varias' %}" class="btn btn-outline-primary">Publicar varias</a>
+    <a href="{% url 'salon_digital:nueva_pagina' %}" class="btn btn-primary">Publicar una página</a>
+  </div>
+</div>
+
+{% if not cuenta.activa %}
+  <div class="alert alert-warning">
+    <strong>{{ cuenta.motivo_inactiva }}.</strong>
+    Mientras tanto no puedes publicar, pero tus páginas y resultados siguen aquí.
+    <a href="{% url 'salon_digital:mi_cuenta' %}" class="alert-link">Ir a mi cuenta</a>
+  </div>
+{% elif cuenta.plan == 'prueba' and cuenta.dias_restantes <= 5 %}
+  <div class="alert alert-info">
+    A tu prueba gratuita le quedan {{ cuenta.dias_restantes }} días.
+    <a href="{% url 'salon_digital:mi_cuenta' %}" class="alert-link">Ver cómo renovar</a>
+  </div>
+{% endif %}
+
+<div class="card mb-4">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 tabla-limpia">
+      <thead>
+        <tr>
+          <th>Nombre</th><th>Enlace</th><th class="text-center">Estado</th>
+          <th class="text-center">Resultados</th><th class="text-center">Clave</th>
+          <th class="text-center">Visitas</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in paginas %}
+        <tr>
+          <td>
+            <strong>{{ p.titulo }}</strong>
+            {% if p.tipo == 'sitio' %}
+              <span class="badge bg-info text-dark">sitio · {{ p.archivos_sitio }} archivos</span>
+            {% endif %}
+            {% if p.alertas %}
+              <span class="badge bg-warning text-dark" title="{{ p.alertas }}">revisar</span>
+            {% endif %}
+            {% if p.descripcion %}<div class="small text-muted">{{ p.descripcion }}</div>{% endif %}
+          </td>
+          <td><a href="{{ p.ruta }}" target="_blank"><code>{{ p.ruta }}</code></a></td>
+          <td class="text-center">
+            {% if p.estado == 'abierta' %}<span class="badge bg-success">abierta</span>
+            {% elif p.estado == 'programada' %}<span class="badge bg-warning text-dark"
+              title="Se abre el {{ p.abre_en|date:'d/m/Y H:i' }}">programada</span>
+            {% elif p.estado == 'cerrada' %}<span class="badge bg-dark">cerrada</span>
+            {% elif p.estado == 'suspendida' %}<span class="badge bg-danger">suspendida</span>
+            {% else %}<span class="badge bg-secondary">oculta</span>{% endif %}
+          </td>
+          <td class="text-center">
+            {% if p.captura_resultados and p.endpoint_reescrito %}
+              <a href="{% url 'salon_digital:panel_resultados' cuenta.slug p.slug %}">{{ p.total_sesiones }}</a>
+            {% elif p.captura_resultados %}
+              <span class="text-warning" title="El archivo no tiene la línea ENDPOINT">sin conectar</span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="text-center"><code>{{ p.clave_panel }}</code></td>
+          <td class="text-center">{{ p.visitas }}</td>
+          <td class="text-end text-nowrap">
+            <a href="{% url 'salon_digital:qr_hoja' p.slug %}" target="_blank"
+               class="btn btn-sm btn-outline-secondary" title="Código QR para imprimir">QR</a>
+            {% if p.comentarios != 'no' %}
+              <a href="{% url 'salon_digital:moderar_comentarios' p.slug %}"
+                 class="btn btn-sm btn-outline-secondary" title="Comentarios">
+                Comentarios</a>
+            {% endif %}
+            <a href="{% url 'salon_digital:editar_pagina' p.slug %}"
+               class="btn btn-sm btn-outline-secondary">Editar</a>
+            <form method="post" action="{% url 'salon_digital:eliminar_pagina' p.slug %}" class="d-inline"
+                  onsubmit="return confirm('¿Eliminar «{{ p.titulo|escapejs }}»? Los resultados guardados también se borran.');">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-5">
+          Todavía no has publicado nada.<br>
+          <a href="{% url 'salon_digital:nueva_pagina' %}">Sube tu primera página</a>
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if pruebas %}
+<div class="card">
+  <div class="card-header">Banco de preguntas</div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 tabla-limpia">
+      <thead><tr>
+        <th>Prueba</th><th>Área</th><th class="text-center">Grado</th>
+        <th class="text-center">Preguntas</th><th class="text-center">Clave</th><th></th>
+      </tr></thead>
+      <tbody>
+      {% for pr in pruebas %}
+        <tr>
+          <td><a href="{{ pr.ruta }}" target="_blank">{{ pr.titulo }}</a></td>
+          <td>{{ pr.get_area_display }}</td>
+          <td class="text-center">{{ pr.grado }}°</td>
+          <td class="text-center">{{ pr.total_preguntas }}</td>
+          <td class="text-center"><code>{{ pr.clave_panel }}</code></td>
+          <td class="text-end">
+            <a href="{% url 'salon_digital:panel_resultados' cuenta.slug pr.slug %}"
+               class="btn btn-sm btn-outline-primary">Resultados</a>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,306 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% block title %}Calificar con la cámara - {{ block.super }}{% endblock %}
+{% block page_title %}Calificar con la cámara · {{ examen.titulo }}{% endblock %}
+
+{% block content %}
+<style>
+    .pe-escaner { max-width:900px; }
+    .pe-tomar { display:block; width:100%; padding:18px; font-size:1.1rem; }
+    .pe-lienzo { position:relative; display:inline-block; line-height:0;
+                 border:1px solid #e3e6ec; border-radius:8px; overflow:hidden; }
+    .pe-marco { overflow:auto; max-height:70vh; background:#f4f5f7;
+                border-radius:8px; -webkit-overflow-scrolling:touch; }
+    .pe-lienzo img { display:block; width:100%; height:auto; }
+    .pe-burbuja { position:absolute; transform:translate(-50%,-50%);
+                  border-radius:50%; box-sizing:border-box; cursor:pointer;
+                  border:2px solid rgba(90,100,115,.35); background:transparent; }
+    .pe-burbuja.marcada { background:rgba(13,110,60,.55);
+                          border-color:#0b6b4a; }
+    .pe-burbuja.duda { border-color:#c77800; border-width:3px;
+                       box-shadow:0 0 0 3px rgba(199,120,0,.25); }
+    .pe-burbuja.tocada { outline:3px solid #1b5fa8; }
+    .pe-lista-dudas { font-size:.9rem; }
+    .pe-fila-duda { display:inline-block; margin:0 8px 6px 0; padding:3px 10px;
+                    border:1px solid #c77800; border-radius:999px; color:#8a5200;
+                    cursor:pointer; background:#fff8e6; }
+    .pe-barra-zoom { display:flex; gap:10px; align-items:center; margin:10px 0; }
+    .pe-estado-grande { font-size:1.05rem; font-weight:600; }
+</style>
+
+<div class="pe-escaner">
+<div class="pe-barra">
+    <a href="{% url 'puntoexacto:hojas' examen_id=examen.id %}" class="btn btn-outline-secondary">Hojas</a>
+    <a href="{% url 'puntoexacto:resultados' examen_id=examen.id %}" class="btn btn-outline-secondary">Resultados</a>
+</div>
+
+<div class="pe-tarjeta">
+    <p class="text-muted" style="font-size:.92rem;">
+        Tome la foto con las <strong>cuatro esquinas negras</strong> visibles y la hoja
+        lo más plana posible. El código de barras dice de quién es la hoja; si no se
+        deja leer, usted escoge al estudiante. Después puede
+        <strong>tocar cualquier burbuja</strong> para corregir lo que el lector haya
+        entendido mal.
+    </p>
+    <p class="text-muted" style="font-size:.86rem;">
+        La foto no se guarda en el servidor: entra, se mide y se descarta.
+    </p>
+    {% csrf_token %}
+    <input type="file" accept="image/*" capture="environment" id="pe-archivo" hidden>
+    <button type="button" class="btn btn-primary pe-tomar" id="pe-tomar">
+        <i class="fas fa-camera me-2"></i> Tomar foto de una hoja
+    </button>
+    <div class="form-text text-center mt-2">
+        {{ pendientes }} de {{ total }} hoja{{ total|pluralize }} sin calificar.
+    </div>
+</div>
+
+<div class="pe-tarjeta" id="pe-resultado" style="display:none;">
+    <div id="pe-cabecera" class="mb-2"></div>
+    <div id="pe-dudas" class="pe-lista-dudas mb-2"></div>
+
+    <div class="pe-barra-zoom">
+        <label for="pe-zoom" style="font-size:.86rem;white-space:nowrap;">Acercar</label>
+        <input type="range" id="pe-zoom" class="form-range" min="100" max="320" value="100">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="pe-limpiar">
+            Volver a lo leído
+        </button>
+    </div>
+
+    <div class="pe-marco">
+        <div class="pe-lienzo" id="pe-lienzo">
+            <img id="pe-img" alt="Hoja fotografiada">
+        </div>
+    </div>
+
+    <div class="mt-3 d-flex gap-2 flex-wrap align-items-center">
+        <button type="button" class="btn btn-success" id="pe-guardar">Guardar esta hoja</button>
+        <button type="button" class="btn btn-outline-secondary" id="pe-otra">Tomar otra</button>
+        <span id="pe-aviso" class="pe-estado-grande"></span>
+    </div>
+</div>
+
+<div class="pe-tarjeta" id="pe-historial" style="display:none;">
+    <h6>Calificadas en esta sesión</h6>
+    <ul id="pe-lista-ok" style="font-size:.92rem;margin-bottom:0;"></ul>
+</div>
+</div>
+
+<script>
+(function () {
+    var urlFoto = "{% url 'puntoexacto:procesar_foto' examen_id=examen.id %}";
+    var urlGuardar = "{% url 'puntoexacto:guardar_lectura' examen_id=examen.id %}";
+    var csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    var elArchivo = document.getElementById('pe-archivo');
+    var elTomar = document.getElementById('pe-tomar');
+    var elResultado = document.getElementById('pe-resultado');
+    var elCabecera = document.getElementById('pe-cabecera');
+    var elDudas = document.getElementById('pe-dudas');
+    var elLienzo = document.getElementById('pe-lienzo');
+    var elImg = document.getElementById('pe-img');
+    var elZoom = document.getElementById('pe-zoom');
+    var elAviso = document.getElementById('pe-aviso');
+    var elHistorial = document.getElementById('pe-historial');
+    var elListaOk = document.getElementById('pe-lista-ok');
+
+    var lectura = null;      // lo que devolvió el servidor
+    var respuestas = {};     // lo que vale ahora, ya con las correcciones
+    var urlObjeto = null;
+
+    elTomar.addEventListener('click', function () { elArchivo.click(); });
+    document.getElementById('pe-otra').addEventListener('click', function () {
+        elArchivo.value = ''; elArchivo.click();
+    });
+    document.getElementById('pe-limpiar').addEventListener('click', function () {
+        if (!lectura) return;
+        respuestas = Object.assign({}, lectura.respuestas);
+        pintar();
+    });
+
+    elArchivo.addEventListener('change', function () {
+        var archivo = elArchivo.files && elArchivo.files[0];
+        if (!archivo) return;
+        elAviso.textContent = '';
+        elTomar.disabled = true;
+        elTomar.innerHTML = 'Leyendo la hoja…';
+
+        // La imagen que se muestra es la del teléfono, no una copia del
+        // servidor: no hay segunda descarga y la foto no viaja de vuelta.
+        if (urlObjeto) URL.revokeObjectURL(urlObjeto);
+        urlObjeto = URL.createObjectURL(archivo);
+
+        var cuerpo = new FormData();
+        cuerpo.append('foto', archivo);
+        fetch(urlFoto, {method: 'POST', body: cuerpo, headers: {'X-CSRFToken': csrf}})
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                elTomar.disabled = false;
+                elTomar.innerHTML = '<i class="fas fa-camera me-2"></i> Tomar foto de una hoja';
+                if (!d.ok) {
+                    elResultado.style.display = 'none';
+                    elAviso.textContent = '';
+                    alert(d.error || 'No se pudo leer la foto.');
+                    return;
+                }
+                lectura = d;
+                respuestas = Object.assign({}, d.respuestas);
+                elImg.src = urlObjeto;
+                elResultado.style.display = '';
+                elZoom.value = 100;
+                elLienzo.style.width = '100%';
+                pintarCabecera();
+                pintar();
+                elResultado.scrollIntoView({behavior: 'smooth', block: 'start'});
+            })
+            .catch(function () {
+                elTomar.disabled = false;
+                elTomar.innerHTML = '<i class="fas fa-camera me-2"></i> Tomar foto de una hoja';
+                alert('No se pudo enviar la foto. Revise la conexión.');
+            });
+    });
+
+    function pintarCabecera() {
+        var d = lectura;
+        var html = '';
+        if (d.hoja_id) {
+            html += '<div class="pe-estado-grande">' + escapar(d.hoja_nombre) + '</div>';
+            html += '<div class="text-muted" style="font-size:.85rem;">' +
+                    escapar(d.identificador) + ' · ' + escapar(d.como_se_supo) + '</div>';
+            if (d.ya_calificada) {
+                html += '<div class="alert alert-warning mt-2 mb-0" style="font-size:.88rem;">' +
+                        'Esta hoja ya estaba calificada. Si guarda, se reemplaza lo anterior.</div>';
+            }
+        } else {
+            html += '<div class="alert alert-warning mb-2" style="font-size:.9rem;">' +
+                    (d.identificador
+                        ? 'El código dice <strong>' + escapar(d.identificador) +
+                          '</strong>, que no es de este examen. '
+                        : 'No se pudo leer el código de barras. ') +
+                    'Escoja de quién es esta hoja.</div>';
+            html += '<select class="form-select" id="pe-quien"><option value="">Seleccione el estudiante</option>';
+            html += window.PE_HOJAS.map(function (h) {
+                return '<option value="' + h.id + '">' + escapar(h.nombre) +
+                       (h.calificada ? ' (ya calificada)' : '') + '</option>';
+            }).join('');
+            html += '</select>';
+        }
+        elCabecera.innerHTML = html;
+    }
+
+    function pintar() {
+        // Se borran y se vuelven a crear: son pocas y así no hay estado viejo.
+        Array.prototype.slice.call(elLienzo.querySelectorAll('.pe-burbuja'))
+            .forEach(function (b) { b.remove(); });
+
+        var dudosas = {};
+        (lectura.dudas || []).forEach(function (d) { dudosas[d.pregunta] = d; });
+
+        var W = lectura.ancho_foto, H = lectura.alto_foto;
+        var diametro = (lectura.radio_px * 2 / W) * 100;   // en % del ancho
+
+        Object.keys(lectura.posiciones).forEach(function (clave) {
+            var m = clave.match(/^(\d+)([A-J])$/);
+            if (!m) return;
+            var pregunta = m[1], letra = m[2];
+            var pos = lectura.posiciones[clave];
+            var b = document.createElement('div');
+            b.className = 'pe-burbuja';
+            b.style.left = (pos[0] / W * 100) + '%';
+            b.style.top = (pos[1] / H * 100) + '%';
+            b.style.width = diametro + '%';
+            b.style.paddingBottom = diametro + '%';
+            b.style.height = '0';
+            b.dataset.pregunta = pregunta;
+            b.dataset.letra = letra;
+            b.title = 'Pregunta ' + pregunta + ', opción ' + letra;
+            if (respuestas[pregunta] === letra) b.classList.add('marcada');
+            if (dudosas[pregunta]) b.classList.add('duda');
+            b.addEventListener('click', function () { tocar(pregunta, letra); });
+            elLienzo.appendChild(b);
+        });
+        resumen();
+    }
+
+    function tocar(pregunta, letra) {
+        // Tocar la que ya está marcada la deja en blanco: así se corrige tanto
+        // "marcó otra" como "no marcó nada".
+        respuestas[pregunta] = (respuestas[pregunta] === letra) ? '' : letra;
+        pintar();
+    }
+
+    function resumen() {
+        var pendientes = (lectura.dudas || []).filter(function (d) {
+            return !respuestas[d.pregunta];
+        });
+        var html = (lectura.dudas || []).map(function (d) {
+            var resuelta = !!respuestas[d.pregunta];
+            return '<span class="pe-fila-duda" data-p="' + d.pregunta + '"' +
+                   (resuelta ? ' style="opacity:.45;text-decoration:line-through;"' : '') +
+                   '>' + d.pregunta + ': ' + escapar(d.motivo) + '</span>';
+        }).join('');
+        if (html) {
+            html = '<strong>Revise estas:</strong><br>' + html;
+            if (pendientes.length === 0) {
+                html += '<div class="text-success mt-1">Todas resueltas.</div>';
+            }
+        }
+        var enBlanco = [];
+        Object.keys(lectura.respuestas).forEach(function (p) {
+            if (!respuestas[p]) enBlanco.push(p);
+        });
+        if (enBlanco.length) {
+            html += '<div class="text-muted mt-1" style="font-size:.85rem;">' +
+                    'Quedan en blanco: ' + enBlanco.join(', ') + '</div>';
+        }
+        elDudas.innerHTML = html;
+        Array.prototype.slice.call(elDudas.querySelectorAll('.pe-fila-duda'))
+            .forEach(function (s) {
+                s.addEventListener('click', function () {
+                    var b = elLienzo.querySelector('.pe-burbuja[data-pregunta="' + s.dataset.p + '"]');
+                    if (b) {
+                        b.classList.add('tocada');
+                        b.scrollIntoView({behavior: 'smooth', block: 'center', inline: 'center'});
+                        setTimeout(function () { b.classList.remove('tocada'); }, 1600);
+                    }
+                });
+            });
+    }
+
+    elZoom.addEventListener('input', function () {
+        elLienzo.style.width = elZoom.value + '%';
+    });
+
+    document.getElementById('pe-guardar').addEventListener('click', function () {
+        var id = lectura.hoja_id;
+        if (!id) {
+            var sel = document.getElementById('pe-quien');
+            id = sel && sel.value;
+            if (!id) { alert('Escoja de quién es esta hoja.'); return; }
+        }
+        var limpias = {};
+        Object.keys(respuestas).forEach(function (p) { limpias[p] = respuestas[p] || ''; });
+        fetch(urlGuardar, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+            body: JSON.stringify({hoja_id: id, respuestas: limpias})
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (!d.ok) { alert(d.error || 'No se pudo guardar.'); return; }
+            elAviso.textContent = 'Guardada · nota ' + d.nota;
+            elHistorial.style.display = '';
+            var li = document.createElement('li');
+            li.textContent = d.nombre + ' — ' + d.nota + (d.recortada ? ' (ajustada a la escala)' : '');
+            elListaOk.appendChild(li);
+            setTimeout(function () { elArchivo.value = ''; elArchivo.click(); }, 350);
+        }).catch(function () { alert('No se pudo guardar. Revise la conexión.'); });
+    });
+
+    function escapar(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+        });
+    }
+})();
+</script>
+<script id="pe-datos-hojas" type="application/json">{{ hojas_json|safe }}</script>
+<script>window.PE_HOJAS = JSON.parse(document.getElementById('pe-datos-hojas').textContent);</script>
+{% endblock %}

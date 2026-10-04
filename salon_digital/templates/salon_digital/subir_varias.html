@@ -1,0 +1,40 @@
+{% extends "salon_digital/base_salon.html" %}
+
+{% block titulo %}Salón Digital{% endblock %}
+
+{% block contenido %}
+<div class="row">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+          {% include "salon_digital/_campos.html" %}
+          <button type="submit" class="btn btn-primary">Publicar todos</button>
+          <a href="{% url 'salon_digital:panel' %}" class="btn btn-link">Cancelar</a>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card bg-light">
+      <div class="card-body small">
+        <h6>Cómo quedan</h6>
+        <p class="mb-2">
+          El nombre del archivo se convierte en el título y en la dirección. Por ejemplo
+          <code>Prueba_Lenguaje_5_pagina_web.html</code> queda como
+          <em>Prueba lenguaje 5</em> en <code>/p/prueba-lenguaje-5/</code>.
+        </p>
+        <p class="mb-2">
+          Cada uno recibe su propia clave para que los docentes vean los resultados.
+          Al terminar te muestro la tabla con todos los enlaces y claves.
+        </p>
+        <p class="mb-0">
+          Puedes cambiarle el título, la dirección o la clave a cualquiera después,
+          desde la lista.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

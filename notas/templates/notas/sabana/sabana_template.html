@@ -22,6 +22,9 @@
     .tr-acumulada { font-weight: bold; background-color: #f0f0f0; }
     .nota-reprobada { color: #dc3545; font-weight: bold; }
     .nota-area { font-weight: bold; background-color: #f8f9fa; }
+    .necesaria { font-size: .68rem; color: #9E1982; font-weight: 600; white-space: nowrap; }
+    .necesaria.imposible { color: #B3261E; }
+    .aviso-faltante { color: #D98324; font-weight: 700; cursor: help; }
     .nota-recuperada { color: #198754; font-weight: bold; }
 
     /* Estilos para el Podio (más pequeños) */
@@ -104,7 +107,7 @@
                 <thead class="table-light">
                     <tr>
                         <th rowspan="2">N°</th><th rowspan="2" style="min-width: 220px;">Apellidos y Nombres</th><th rowspan="2">P.</th>
-                        {% for area in areas_con_materias %}<th colspan="{{ area.materias_del_curso_ordenadas|length|add:1 }}" class="th-area">{{ area.nombre }}</th>{% endfor %}
+                        {% for area in areas_con_materias %}<th colspan="{% if area.colapsada %}1{% else %}{{ area.materias_del_curso_ordenadas|length|add:1 }}{% endif %}" class="th-area">{{ area.nombre }}</th>{% endfor %}
                         <th rowspan="2">Prom.</th>
                         {% for desempeno in desempenos_headers %}<th rowspan="2" title="{{desempeno|capfirst}}">{{ desempeno|slice:":3" }}.</th>{% endfor %}
                         <th rowspan="2">Puesto</th>
@@ -112,7 +115,7 @@
                     <tr>
                         {% for area in areas_con_materias %}
                             {% for materia in area.materias_del_curso_ordenadas %}<th>{{ materia.abreviatura|default:materia.nombre }}</th>{% endfor %}
-                            <th class="th-area">DEF. ÁREA</th>
+                            {% if not area.colapsada %}<th class="th-area">DEF. ÁREA</th>{% endif %}
                         {% endfor %}
                     </tr>
                 </thead>
@@ -170,8 +173,18 @@
                         <tr class="tr-acumulada">
                             <td class="td-periodo">{{ data.fila_acumulada.periodo_nombre }}</td>
                             {% for celda in data.fila_acumulada.celdas %}
-                                <td class="{% if celda.nota|desempeno:colegio == 'BAJO' %}nota-reprobada{% endif %} {% if celda.is_area %}nota-area{% endif %}">
+                                <td class="{% if celda.nota|desempeno:colegio == 'BAJO' %}nota-reprobada{% endif %} {% if celda.is_area %}nota-area{% endif %}"
+                                    {% if celda.faltantes %}title="Faltan notas de: {{ celda.faltantes|join:', ' }}"{% endif %}>
                                     {{ celda.nota|coma_decimal|default_if_none:"-" }}
+                                    {% if celda.faltantes %}<span class="aviso-faltante" title="Faltan notas de: {{ celda.faltantes|join:', ' }}">!</span>{% endif %}
+                                    {% if celda.necesaria %}
+                                        {% if celda.necesaria.estado == 'posible' %}
+                                            <span class="necesaria" title="Necesita esta nota en el último periodo para aprobar">
+                                                &uarr;{{ celda.necesaria.valor|coma_decimal }}</span>
+                                        {% elif celda.necesaria.estado == 'imposible' %}
+                                            <span class="necesaria imposible" title="Ya no alcanza a aprobar el año">&uarr;&infin;</span>
+                                        {% endif %}
+                                    {% endif %}
                                 </td>
                             {% endfor %}
                             <td>

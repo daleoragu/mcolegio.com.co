@@ -1,0 +1,71 @@
+{% extends "salon_digital/base_salon.html" %}
+
+{% block titulo %}{{ titulo }} · Salón Digital{% endblock %}
+
+{% block contenido %}
+<h1 class="h3 mb-4">{{ titulo }}</h1>
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          {% include "salon_digital/_campos.html" %}
+
+          <button type="submit" class="btn btn-primary">Guardar y publicar</button>
+          <a href="{% url 'salon_digital:panel' %}" class="btn btn-link">Cancelar</a>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card bg-light">
+      <div class="card-body small">
+        <h6>Cómo funciona</h6>
+        <p class="mb-2">
+          Subes un <code>.html</code> suelto y queda publicado en
+          <code>/p/<em>nombre</em>/</code>. Si subes un <code>.zip</code>, se publica el
+          sitio completo con su CSS, su JavaScript y sus imágenes, respetando los
+          enlaces internos.
+        </p>
+        <p class="mb-2">
+          Si el archivo es una de las pruebas que guardan resultados, la plataforma le cambia
+          sola la línea <code>const ENDPOINT</code> para que los resultados lleguen aquí
+          en vez de a Google.
+        </p>
+        <p class="mb-0">
+          La <strong>clave para ver resultados</strong> es la que le pasas a los docentes.
+          Con ella entran a descargar el informe sin necesidad de tener usuario.
+        </p>
+      </div>
+    </div>
+    {% if pagina %}
+    <div class="card mt-3">
+      <div class="card-body small">
+        <h6>Enlaces</h6>
+        <p class="mb-1">Página: <a href="{{ pagina.ruta }}" target="_blank">{{ pagina.ruta }}</a></p>
+        <p class="mb-2">
+          Resultados:
+          <a href="{% url 'salon_digital:panel_clave' pagina.propietario.slug pagina.slug %}" target="_blank">
+            /pruebas/resultados/{{ pagina.slug }}/
+          </a>
+        </p>
+        <div class="text-center mt-3">
+          <img src="{% url 'salon_digital:qr_imagen' pagina.slug %}" alt="Código QR"
+               style="width:150px;height:150px;border:1px solid #dee2e6;border-radius:8px;padding:6px">
+          <div class="mt-2">
+            <a href="{% url 'salon_digital:qr_hoja' pagina.slug %}" target="_blank">Hoja para imprimir</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

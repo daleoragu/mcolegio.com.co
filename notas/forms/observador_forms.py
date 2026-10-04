@@ -37,10 +37,17 @@ class FichaEstudianteForm(forms.ModelForm):
         }
 
 class RegistroObservadorForm(forms.ModelForm):
-    # Añadimos un valor vacío '---' como opción válida para evitar que Django rechace las opciones vacías
+    # El subtipo (positiva / a mejorar) ahora aplica también a las anotaciones
+    # ACADÉMICAS, no solo a las de comportamiento: se trata igual de reconocer
+    # lo bueno que de dejar constancia de lo que falta.
+    #
+    # Se deja opcional a propósito. Si el docente no lo marca en una académica,
+    # las estadísticas lo deducen del promedio del estudiante en ese periodo
+    # (ver notas/estadisticas_observador.py). En convivencia no se deduce nada.
     subtipo = forms.ChoiceField(
-        choices=[('', '--- Seleccione Opción (Solo Comportamiento) ---')] + RegistroObservador.SUBTIPO_CHOICES,
+        choices=[('', '--- Seleccione (opcional) ---')] + RegistroObservador.SUBTIPO_CHOICES,
         required=False,
+        label="¿Es positiva o a mejorar?",
         widget=forms.Select(attrs={'class': 'form-select'})
     )
 

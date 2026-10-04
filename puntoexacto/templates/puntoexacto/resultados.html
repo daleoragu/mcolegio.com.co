@@ -1,0 +1,173 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% block title %}Resultados - {{ block.super }}{% endblock %}
+{% block page_title %}Resultados · {{ examen.titulo }}{% endblock %}
+
+{% block content %}
+<div class="pe-barra">
+    <a href="{% url 'puntoexacto:clave' examen_id=examen.id %}" class="btn btn-outline-secondary">Clave</a>
+    <a href="{% url 'puntoexacto:hojas' examen_id=examen.id %}" class="btn btn-outline-secondary">Hojas</a>
+    <a href="{% url 'puntoexacto:exportar' examen_id=examen.id %}" class="btn btn-outline-secondary">
+        <i class="fas fa-file-excel me-1"></i> Exportar a Excel</a>
+    <a href="{% url 'puntoexacto:bloques' examen_id=examen.id %}" class="btn btn-outline-secondary">Bloques</a>
+    <a href="{% url 'puntoexacto:escanear' examen_id=examen.id %}" class="btn btn-outline-success">
+        <i class="fas fa-camera me-1"></i> Cámara</a>
+    {% if not resumen_bloques %}
+    <a href="{% url 'puntoexacto:planilla' examen_id=examen.id %}" class="btn btn-primary crece">
+        Pasar a la planilla</a>
+    {% endif %}
+</div>
+
+{% if resumen_bloques %}
+<div class="pe-tarjeta">
+    <h5>Resultados por área</h5>
+    <p class="text-muted" style="font-size:.9rem;">
+        Cada bloque se califica solo con sus preguntas, así que estas notas son
+        independientes entre sí. Ninguna entra a la planilla hasta que usted lo pida,
+        y se pide una por una.
+    </p>
+    <div class="table-responsive">
+        <table class="pe-tabla">
+            <thead><tr>
+                <th>Área</th><th>Materia</th><th class="pe-num">Hojas</th>
+                <th class="pe-num">Promedio</th><th class="pe-num">% acierto</th>
+                <th class="pe-num">Aprobaron</th><th></th>
+            </tr></thead>
+            <tbody>
+            {% for r in resumen_bloques %}
+                <tr>
+                    <td><strong>{{ r.bloque.nombre }}</strong></td>
+                    <td>
+                        {% if r.bloque.materia %}{{ r.bloque.materia.nombre }}
+                        {% else %}<span class="pe-chip pe-gris">sin materia</span>{% endif %}
+                    </td>
+                    <td class="pe-num">{{ r.hojas }}</td>
+                    <td class="pe-num"><strong>{{ r.promedio|default_if_none:"—" }}</strong></td>
+                    <td class="pe-num">{{ r.acierto|default_if_none:"—" }}%</td>
+                    <td class="pe-num">{{ r.aprobados|default_if_none:"—" }}</td>
+                    <td class="pe-num">
+                        {% if r.bloque.materia and puede_censales and r.hojas %}
+                            <a href="{% url 'puntoexacto:planilla_bloque' examen_id=examen.id bloque_id=r.bloque.id %}"
+                               class="btn btn-sm btn-outline-primary">Pasar a planilla</a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if avisos %}
+<div class="pe-aviso"><strong>Revise la configuración:</strong>
+    <ul>{% for a in avisos %}<li>{{ a }}</li>{% endfor %}</ul></div>
+{% endif %}
+
+{% if recortadas %}
+<div class="pe-aviso">
+    <strong>{{ recortadas|length }} nota(s) se ajustaron a la escala.</strong>
+    El cálculo se salía del rango permitido y se recortó:
+    {% for h in recortadas %}{{ h.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+</div>
+{% endif %}
+
+{% if analisis.resumen %}
+<div class="pe-tarjeta">
+    <h5>Resumen</h5>
+    <div class="row text-center">
+        <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ analisis.resumen.calificadas }}</div><div class="text-muted" style="font-size:.84rem;">hojas calificadas</div></div>
+        <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ analisis.resumen.promedio }}</div><div class="text-muted" style="font-size:.84rem;">promedio</div></div>
+        <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ analisis.resumen.mediana }}</div><div class="text-muted" style="font-size:.84rem;">mediana</div></div>
+        <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ analisis.resumen.minima }}</div><div class="text-muted" style="font-size:.84rem;">la más baja</div></div>
+        <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ analisis.resumen.maxima }}</div><div class="text-muted" style="font-size:.84rem;">la más alta</div></div>
+    </div>
+</div>
+{% endif %}
+
+{% if analisis.etiquetas %}
+<div class="pe-tarjeta">
+    <h5>Cómo va el curso en cada tema</h5>
+    <table class="pe-tabla">
+        <thead><tr><th>Tema</th><th class="pe-num">Acierto</th><th>Preguntas</th></tr></thead>
+        <tbody>
+        {% for e in analisis.etiquetas %}
+            <tr>
+                <td>{{ e.etiqueta }}</td>
+                <td class="pe-num"><strong{% if e.porcentaje < 50 %} class="pe-mal"{% elif e.porcentaje >= 80 %} class="pe-ok"{% endif %}>{{ e.porcentaje }}%</strong></td>
+                <td class="text-muted">{{ e.preguntas|join:", " }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="pe-tarjeta">
+    <h5>Pregunta por pregunta</h5>
+    {% if not analisis.grupos_validos %}
+    <p class="text-muted" style="font-size:.88rem;">
+        Con menos de 6 hojas no se puede calcular la discriminación de forma confiable.
+    </p>
+    {% endif %}
+    {% if analisis.preguntas %}
+    <div class="table-responsive">
+        <table class="pe-tabla">
+            <thead><tr>
+                <th class="pe-num">#</th><th class="pe-num">Clave</th><th class="pe-num">Acertaron</th>
+                <th>Dificultad</th><th class="pe-num">Discrimina</th>
+                <th>Qué marcaron</th>
+            </tr></thead>
+            <tbody>
+            {% for f in analisis.preguntas %}
+                <tr>
+                    <td class="pe-num"><strong>{{ f.numero }}</strong></td>
+                    <td class="pe-num">{{ f.correcta|default:"—" }}</td>
+                    <td class="pe-num">{{ f.dificultad }}%</td>
+                    <td>{{ f.lectura_dificultad }}</td>
+                    <td class="pe-num">
+                        {% if f.discriminacion is not None %}
+                            <span{% if f.discriminacion < 0 %} class="pe-mal"{% endif %}>{{ f.discriminacion }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="font-size:.85rem;">
+                        {% for r in f.reparto %}<span class="me-2">{{ r.opcion }}:{{ r.pct }}%</span>{% endfor %}
+                        {% if f.discriminacion is not None and f.discriminacion < 0 %}
+                            <br><span class="pe-chip pe-mal">{{ f.lectura_discriminacion }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p class="pe-vacio">Todavía no hay hojas calificadas.</p>
+    {% endif %}
+</div>
+
+<div class="pe-tarjeta">
+    <h5>Notas</h5>
+    <table class="pe-tabla">
+        <thead><tr><th>Estudiante</th><th>Estado</th><th class="pe-num">Nota</th><th></th></tr></thead>
+        <tbody>
+        {% for h in hojas %}
+            <tr>
+                <td>{{ h.nombre }}</td>
+                <td>
+                    {% if h.estado == 'calificada' %}<span class="pe-chip pe-ok">Calificada</span>
+                    {% elif h.estado == 'revisar' %}<span class="pe-chip pe-media">Revisar</span>
+                    {% elif h.estado == 'ausente' %}<span class="pe-chip pe-gris">No presentó</span>
+                    {% else %}<span class="pe-chip pe-gris">Sin calificar</span>{% endif %}
+                </td>
+                <td class="pe-num"><strong>{{ h.nota|default:"—" }}</strong>
+                    {% if h.nota_recortada %}<span class="pe-chip pe-media">ajustada</span>{% endif %}</td>
+                <td class="text-end">
+                    <a href="{% url 'puntoexacto:digitar' examen_id=examen.id hoja_id=h.id %}"
+                       class="btn btn-sm btn-outline-secondary">Editar</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

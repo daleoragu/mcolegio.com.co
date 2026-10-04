@@ -53,7 +53,7 @@ class RegistroObservador(models.Model):
     docente_reporta = models.ForeignKey(Docente, on_delete=models.SET_NULL, null=True, related_name="observaciones_hechas")
     fecha_suceso = models.DateField(verbose_name="Fecha del Suceso")
     tipo = models.CharField(max_length=15, choices=TIPO_CHOICES)
-    subtipo = models.CharField(max_length=10, choices=SUBTIPO_CHOICES, blank=True, null=True, help_text="Solo para observaciones de comportamiento")
+    subtipo = models.CharField(max_length=10, choices=SUBTIPO_CHOICES, blank=True, null=True, help_text="Positiva o a mejorar. Aplica tanto a convivencia como a académicas.")
     descripcion = models.TextField(verbose_name="Descripción del Suceso (Docente)")
     fecha_registro = models.DateTimeField(auto_now_add=True)
     descargo_estudiante = models.TextField(verbose_name="Descargo del Estudiante", blank=True, null=True)

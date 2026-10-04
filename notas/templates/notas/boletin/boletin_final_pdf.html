@@ -114,7 +114,8 @@
             <tbody>
             {% for area in boletin.areas %}
                 
-                <!-- SIEMPRE DIBUJAR LA FILA DEL ÁREA -->
+                <!-- El área se omite cuando tiene una sola asignatura. -->
+                {% if not area.colapsada %}
                 <tr class="{{ area.estado_color_css_class }}">
                     <td class="area-nombre">{{ area.nombre }}</td>
                     <td colspan="{{ nombres_periodos|length }}" class="area-nombre" style="text-align: center; font-weight: bold;">{{ area.desempeno_area }}</td>
@@ -122,11 +123,14 @@
                         {{ area.nota_final_area|coma_decimal|default_if_none:"-" }}
                     </td>
                 </tr>
-                
+                {% endif %}
+
                 {% for materia in area.materias %}
-                <tr>
-                    <td class="materia-nombre" style="padding-left: 15px;">
-                        {% if area.materias|length > 1 %}
+                <tr class="{% if area.colapsada %}{{ area.estado_color_css_class }}{% endif %}">
+                    <td class="materia-nombre" style="{% if not area.colapsada %}padding-left: 15px;{% endif %}">
+                        {% if area.colapsada %}
+                            <strong>{{ area.nombre }}</strong><br>
+                        {% elif area.materias|length > 1 %}
                             {{ materia.nombre }}<br>
                         {% endif %}
                         {% if materia.docente %}
@@ -138,6 +142,9 @@
                             {{ materia.notas_periodos|get_item:p_nombre|safe|default_if_none:"-" }}
                         </td>
                     {% endfor %}
+                    {% if materia.periodos_faltantes %}
+                        <!-- Faltan: {{ materia.periodos_faltantes|join:", " }} -->
+                    {% endif %}
                     <td class="nota-definitiva">
                         {{ materia.definitiva_original|coma_decimal|default_if_none:"-" }}
                         {% if materia.definitiva_recuperada is not None %}

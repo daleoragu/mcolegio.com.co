@@ -20,8 +20,13 @@ document.addEventListener('DOMContentLoaded', function() {
         reprobados_docente: document.getElementById('reprobadosDocenteContainer'),
         reprobados_materia: document.getElementById('reprobadosMateriaContainer'),
         reprobados_area: document.getElementById('reprobadosAreaContainer'),
-        materias_reprobadas_por_docente: document.getElementById('materiasReprobadasDocenteContainer')
+        materias_reprobadas_por_docente: document.getElementById('materiasReprobadasDocenteContainer'),
+        por_area: document.getElementById('porAreaContainer'),
+        por_asignatura: document.getElementById('porAsignaturaContainer'),
+        anotaciones: document.getElementById('anotacionesContainer')
     };
+    // Estas vistas son tablas, no rejillas de gráficas.
+    const vistasEnBloque = ['general', 'por_area', 'por_asignatura', 'anotaciones'];
     const conclusionesWrappers = {
         general: document.getElementById('conclusionesWrapperGeneral'),
         reprobados_docente: document.getElementById('conclusionesWrapperDocente'),
@@ -39,6 +44,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     Chart.register(ChartDataLabels);
 
+    // Paleta de las vistas nuevas. Verde/rojo/ámbar elegidos para que sigan
+    // distinguiéndose con daltonismo (verificado); aun así cada segmento lleva
+    // su número encima, para no depender solo del color.
+    const COLOR = {
+        verde: '#0b8a5b', rojo: '#a4161a', ambar: '#8a6d00',
+        azul:  '#1d4ed8', azulClaro: 'rgba(29,78,216,.75)'
+    };
+    let barrasAreaChart, donaAreaChart, cajaAreaChart,
+        barrasAsignaturaChart, donaAsignaturaChart, cajaAsignaturaChart,
+        barrasAnotacionesChart, donaAnotacionesChart;
+
     // --- 2. INICIALIZACIÓN DE TODOS LOS GRÁFICOS ---
     const initCharts = () => {
         const totalizerPlugin = { id: 'totalizer', afterDatasetsDraw(chart) { const { ctx } = chart; for (let i = 0; i < chart.data.labels.length; i++) { let total = chart.data.datasets.reduce((s, d) => s + (d.data[i] || 0), 0); if (total > 0) { const topBar = chart.getDatasetMeta(chart.data.datasets.length - 1).data[i]; if (topBar) { ctx.save(); ctx.fillStyle = '#495057'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(`Σ ${total.toFixed(1)}`, topBar.x + 8, topBar.y); ctx.restore(); } } } } };
@@ -52,6 +68,74 @@ document.addEventListener('DOMContentLoaded', function() {
         const boxplotChartEl = document.querySelector("#boxplotMateriaChart");
         if (boxplotChartEl) { boxplotChart = new ApexCharts(boxplotChartEl, { series: [], chart: { type: 'boxPlot', height: '100%' }, yaxis: { min: 1, max: 5, tickAmount: 4 } }); boxplotChart.render(); }
         
+        // --- Gráficas de las vistas nuevas ---
+        const barrasPromedio = {
+            type: 'bar',
+            data: {},
+            options: {
+                responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+                scales: { x: { beginAtZero: true, max: 5.0, title: { display: true, text: 'Promedio' } } },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: { anchor: 'end', align: 'end', color: '#495057',
+                                  font: { weight: 'bold' }, formatter: v => v.toFixed(2) },
+                    tooltip: { callbacks: { label: c => `Promedio: ${c.parsed.x.toFixed(2)}` } }
+                }
+            }
+        };
+        const elBarrasArea = document.getElementById('barrasAreaChart');
+        if (elBarrasArea) barrasAreaChart = new Chart(elBarrasArea.getContext('2d'), structuredClone(barrasPromedio));
+        const elBarrasAsig = document.getElementById('barrasAsignaturaChart');
+        if (elBarrasAsig) barrasAsignaturaChart = new Chart(elBarrasAsig.getContext('2d'), structuredClone(barrasPromedio));
+
+        const donaAprobacion = {
+            type: 'doughnut',
+            data: {},
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '58%',
+                plugins: {
+                    legend: { position: 'top' },
+                    datalabels: {
+                        color: '#fff', font: { weight: 'bold' },
+                        formatter: (v, c) => {
+                            const t = c.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                            return v > 0 ? `${v} (${(v * 100 / t).toFixed(0)}%)` : '';
+                        }
+                    }
+                }
+            }
+        };
+        const elDonaArea = document.getElementById('donaAreaChart');
+        if (elDonaArea) donaAreaChart = new Chart(elDonaArea.getContext('2d'), structuredClone(donaAprobacion));
+        const elDonaAsig = document.getElementById('donaAsignaturaChart');
+        if (elDonaAsig) donaAsignaturaChart = new Chart(elDonaAsig.getContext('2d'), structuredClone(donaAprobacion));
+        const elDonaAnot = document.getElementById('donaAnotacionesChart');
+        if (elDonaAnot) donaAnotacionesChart = new Chart(elDonaAnot.getContext('2d'), structuredClone(donaAprobacion));
+
+        const elBarrasAnot = document.getElementById('barrasAnotacionesChart');
+        if (elBarrasAnot) barrasAnotacionesChart = new Chart(elBarrasAnot.getContext('2d'), {
+            type: 'bar', data: {},
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } },
+                plugins: {
+                    legend: { position: 'top' },
+                    datalabels: { color: '#fff', font: { weight: 'bold' }, formatter: v => v > 0 ? v : '' }
+                }
+            }
+        });
+
+        const opcionesCaja = (el) => ({
+            series: [], chart: { type: 'boxPlot', height: '100%', toolbar: { show: false } },
+            plotOptions: { boxPlot: { colors: { upper: '#5b8def', lower: '#9db8f0' } } },
+            yaxis: { min: 1, max: 5, tickAmount: 4, title: { text: 'Nota' } },
+            tooltip: { shared: false, intersect: true }
+        });
+        const elCajaArea = document.querySelector('#cajaAreaChart');
+        if (elCajaArea) { cajaAreaChart = new ApexCharts(elCajaArea, opcionesCaja()); cajaAreaChart.render(); }
+        const elCajaAsig = document.querySelector('#cajaAsignaturaChart');
+        if (elCajaAsig) { cajaAsignaturaChart = new ApexCharts(elCajaAsig, opcionesCaja()); cajaAsignaturaChart.render(); }
+
         const ctxHistograma = document.getElementById('histogramaChart');
         if (ctxHistograma) histogramaChart = new Chart(ctxHistograma.getContext('2d'), { type: 'bar', data: {}, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'top' } } } });
         
@@ -74,9 +158,36 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedType = tipoGraficoSelect.value;
         Object.values(containers).forEach(c => { if(c) c.style.display = 'none' });
         if (containers[selectedType]) {
-            containers[selectedType].style.display = selectedType === 'general' ? 'block' : 'grid';
+            containers[selectedType].style.display =
+                vistasEnBloque.includes(selectedType) ? 'block' : 'grid';
         }
     };
+
+    // --- Asignaturas acordes al área elegida ---
+    const areaSelect = document.getElementById('area_select');
+    const materiaSelect = document.getElementById('materia_select');
+    if (areaSelect && materiaSelect) {
+        const todasLasMaterias = Array.from(materiaSelect.options).map(o => ({
+            value: o.value, texto: o.textContent, area: o.dataset.area || ''
+        }));
+        const recortarMaterias = () => {
+            const area = areaSelect.value;
+            const elegida = materiaSelect.value;
+            materiaSelect.innerHTML = '';
+            todasLasMaterias
+                .filter(m => m.value === 'todos' || area === 'todos' || m.area === area)
+                .forEach(m => {
+                    const o = document.createElement('option');
+                    o.value = m.value; o.textContent = m.texto;
+                    if (m.area) o.dataset.area = m.area;
+                    materiaSelect.appendChild(o);
+                });
+            // Si la asignatura que estaba elegida ya no pertenece al área, se suelta.
+            materiaSelect.value =
+                Array.from(materiaSelect.options).some(o => o.value === elegida) ? elegida : 'todos';
+        };
+        areaSelect.addEventListener('change', recortarMaterias);
+    }
 
     const checkList = document.getElementById('cursos_select');
     const anchor = checkList.querySelector('.anchor');
@@ -86,6 +197,149 @@ document.addEventListener('DOMContentLoaded', function() {
         const checkedItems = checkList.querySelectorAll('input[type="checkbox"]:checked');
         anchor.textContent = checkedItems.length === 0 ? 'Seleccionar Cursos...' : (checkedItems.length === 1 ? checkedItems[0].dataset.nombre : `${checkedItems.length} cursos seleccionados`);
     });
+
+    // --- Pintado de las tablas nuevas (área, asignatura y anotaciones) ---
+    const escapar = (t) => String(t ?? '').replace(/[&<>"']/g,
+        c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    const pintarBarrasPromedio = (grafica, filas) => {
+        if (!grafica) return;
+        const datos = (filas || []).slice().sort((a, b) => b.promedio - a.promedio);
+        grafica.data = {
+            labels: datos.map(f => f.nombre),
+            datasets: [{
+                label: 'Promedio', data: datos.map(f => f.promedio),
+                // El color dice si aprueba o no; el número encima lo repite.
+                backgroundColor: datos.map(f => f.porcentaje >= 30 ? COLOR.rojo : COLOR.azulClaro),
+                borderRadius: 4, borderSkipped: false
+            }]
+        };
+        grafica.update();
+    };
+
+    const pintarDonaAprobacion = (grafica, filas) => {
+        if (!grafica) return;
+        const evaluados = (filas || []).reduce((a, f) => a + f.evaluados, 0);
+        const reprobados = (filas || []).reduce((a, f) => a + f.reprobados, 0);
+        grafica.data = {
+            labels: ['Aprobados', 'Reprobados'],
+            datasets: [{
+                data: [evaluados - reprobados, reprobados],
+                backgroundColor: [COLOR.verde, COLOR.rojo],
+                borderColor: '#fff', borderWidth: 2
+            }]
+        };
+        grafica.update();
+    };
+
+    const pintarCaja = (grafica, datos, idAviso) => {
+        if (!grafica) return;
+        const aviso = document.getElementById(idAviso);
+        const hay = datos && datos.length > 0;
+        grafica.updateSeries(hay ? [{ type: 'boxPlot', data: datos }] : []);
+        if (aviso) aviso.style.display = hay ? 'none' : 'block';
+    };
+
+    const pintarGraficasAnotaciones = (anot) => {
+        if (!anot) return;
+        if (donaAnotacionesChart) {
+            donaAnotacionesChart.data = {
+                labels: ['Positivas', 'Negativas', 'Sin clasificar'],
+                datasets: [{
+                    data: [anot.positivas, anot.negativas, anot.sin_clasificar],
+                    backgroundColor: [COLOR.verde, COLOR.rojo, COLOR.ambar],
+                    borderColor: '#fff', borderWidth: 2
+                }]
+            };
+            donaAnotacionesChart.update();
+        }
+        if (barrasAnotacionesChart) {
+            const cursos = anot.por_curso || [];
+            const suma = (c, sub) => c.detalle.ACADEMICA[sub] + c.detalle.COMPORTAMENTAL[sub];
+            barrasAnotacionesChart.data = {
+                labels: cursos.map(c => c.curso),
+                datasets: [
+                    { label: 'Positivas', data: cursos.map(c => suma(c, 'POSITIVA')),
+                      backgroundColor: COLOR.verde, borderColor: '#fff', borderWidth: 2 },
+                    { label: 'Negativas', data: cursos.map(c => suma(c, 'NEGATIVA')),
+                      backgroundColor: COLOR.rojo, borderColor: '#fff', borderWidth: 2 },
+                    { label: 'Sin clasificar', data: cursos.map(c => suma(c, 'SIN_CLASIFICAR')),
+                      backgroundColor: COLOR.ambar, borderColor: '#fff', borderWidth: 2 }
+                ]
+            };
+            barrasAnotacionesChart.update();
+        }
+    };
+
+    const pintarConclusiones = (idLista, frases) => {
+        const ul = document.getElementById(idLista);
+        if (!ul) return;
+        ul.innerHTML = (frases || []).map(f => `<li>${f}</li>`).join('');
+    };
+
+    const pintarResumen = (idTabla, idAviso, filas) => {
+        const tbody = document.getElementById(idTabla);
+        const aviso = document.getElementById(idAviso);
+        if (!tbody) return;
+        if (!filas || filas.length === 0) {
+            tbody.innerHTML = '';
+            if (aviso) aviso.style.display = 'block';
+            return;
+        }
+        if (aviso) aviso.style.display = 'none';
+        tbody.innerHTML = filas.map(f => {
+            const clase = f.porcentaje >= 30 ? 'malo' : (f.porcentaje === 0 ? 'bueno' : '');
+            return `<tr>
+                <td>${escapar(f.nombre)}</td>
+                <td class="text-center">${f.promedio.toFixed(2)}</td>
+                <td class="text-center">${f.evaluados}</td>
+                <td class="text-center">${f.reprobados}</td>
+                <td class="text-center ${clase}">${f.porcentaje.toFixed(1)}%</td>
+            </tr>`;
+        }).join('');
+    };
+
+    const pintarAnotaciones = (anot, automaticas) => {
+        const resumen = document.getElementById('anotacionesResumen');
+        const tbody = document.getElementById('tablaAnotaciones');
+        const aviso = document.getElementById('anotacionesNoData');
+        const bloqueAuto = document.getElementById('anotacionesAutomaticas');
+        if (!resumen || !tbody || !anot) return;
+
+        resumen.innerHTML = `
+            <div class="cubo"><span class="numero">${anot.total}</span><span class="texto">Anotaciones en total</span></div>
+            <div class="cubo positivo"><span class="numero">${anot.positivas}</span><span class="texto">Positivas</span></div>
+            <div class="cubo negativo"><span class="numero">${anot.negativas}</span><span class="texto">Negativas</span></div>
+            <div class="cubo pendiente"><span class="numero">${anot.sin_clasificar}</span><span class="texto">Sin clasificar</span></div>`;
+
+        if (!anot.por_curso || anot.por_curso.length === 0) {
+            tbody.innerHTML = '';
+            if (aviso) aviso.style.display = 'block';
+        } else {
+            if (aviso) aviso.style.display = 'none';
+            tbody.innerHTML = anot.por_curso.map(c => {
+                const a = c.detalle.ACADEMICA, v = c.detalle.COMPORTAMENTAL;
+                return `<tr>
+                    <td class="text-start">${escapar(c.curso)}</td>
+                    <td class="bueno">${a.POSITIVA}</td><td class="malo">${a.NEGATIVA}</td><td>${a.SIN_CLASIFICAR}</td>
+                    <td class="bueno">${v.POSITIVA}</td><td class="malo">${v.NEGATIVA}</td><td>${v.SIN_CLASIFICAR}</td>
+                    <td><strong>${c.total}</strong></td>
+                </tr>`;
+            }).join('');
+        }
+
+        if (bloqueAuto) {
+            const n = automaticas ? automaticas.total : 0;
+            const deducidas = anot.deducidas || 0;
+            let texto = `<strong>${n}</strong> observación(es) generadas automáticamente por bajo rendimiento. ` +
+                        `No se suman al conteo de arriba: no son anotaciones del observador.`;
+            if (deducidas > 0) {
+                texto += `<br><span class="text-muted">De las académicas, ${deducidas} no tenían marcada ` +
+                         `la casilla positiva/negativa y se dedujeron del promedio del estudiante en ese periodo.</span>`;
+            }
+            bloqueAuto.innerHTML = texto;
+        }
+    };
 
     // --- 4. FUNCIÓN PRINCIPAL PARA OBTENER Y PINTAR DATOS ---
     const actualizarEstadisticas = async () => {
@@ -132,6 +386,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 boxplotChart.updateSeries(hasData ? [{ data: data.distribucion_materia_chart }] : []);
                 document.getElementById('boxplotMateriaNoData').style.display = hasData ? 'none' : 'block';
             }
+
+            // --- Gráficas de las vistas nuevas ---
+            pintarBarrasPromedio(barrasAreaChart, data.resumen_area);
+            pintarBarrasPromedio(barrasAsignaturaChart, data.resumen_asignatura);
+            pintarDonaAprobacion(donaAreaChart, data.resumen_area);
+            pintarDonaAprobacion(donaAsignaturaChart, data.resumen_asignatura);
+            pintarCaja(cajaAreaChart, data.caja_area, 'cajaAreaNoData');
+            pintarCaja(cajaAsignaturaChart, data.caja_asignatura, 'cajaAsignaturaNoData');
+            pintarGraficasAnotaciones(data.anotaciones);
+
+            pintarConclusiones('conclusionesListPorArea', data.conclusiones_area);
+            pintarConclusiones('conclusionesListPorAsignatura', data.conclusiones_asignatura);
+            pintarConclusiones('conclusionesListAnotaciones', data.conclusiones_anotaciones);
+
+            pintarResumen('tablaPorArea', 'porAreaNoData', data.resumen_area);
+            pintarResumen('tablaPorAsignatura', 'porAsignaturaNoData', data.resumen_asignatura);
+            pintarAnotaciones(data.anotaciones, data.anotaciones_automaticas);
 
             const tipo = params.get('tipo_grafico');
             const wrapper = conclusionesWrappers[tipo];

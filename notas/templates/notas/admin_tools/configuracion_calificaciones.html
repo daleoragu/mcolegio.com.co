@@ -25,6 +25,106 @@
         </div>
     </div>
 
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4><i class="fas fa-percent me-2"></i>Peso de cada Periodo</h4>
+        </div>
+        <div class="card-body p-4">
+            <p class="card-text text-muted">
+                Si los cuatro periodos valen lo mismo, deja esto apagado y no tienes que
+                tocar nada: la nota del año es el promedio de los periodos, como siempre.
+                Enciéndelo solo si en tu colegio los últimos periodos pesan más.
+            </p>
+
+            <div class="form-check form-switch p-3 border rounded bg-light mb-3">
+                {{ form_global.ponderar_periodos }}
+                <label class="form-check-label ms-2" for="{{ form_global.ponderar_periodos.id_for_label }}">
+                    <span class="fw-bold">Cada periodo vale un porcentaje distinto</span>
+                </label>
+            </div>
+
+            {{ formset_pesos.management_form }}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr><th>Periodo</th><th style="width:160px">Peso (%)</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for form in formset_pesos %}
+                        <tr>
+                            <td>
+                                {{ form.instance.get_nombre_display }}
+                                <span class="text-muted small">· {{ form.instance.ano_lectivo }}</span>
+                                {{ form.id }}
+                            </td>
+                            <td>{{ form.peso_porcentual }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="2" class="text-center text-muted py-3">
+                            No hay periodos definidos para el año lectivo actual.
+                        </td></tr>
+                    {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light">
+                            <td class="text-end fw-bold">Debe sumar</td>
+                            <td class="fw-bold">100 %</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="form-check form-switch p-3 border rounded bg-light mt-3">
+                {{ form_global.exigir_periodos_completos }}
+                <label class="form-check-label ms-2" for="{{ form_global.exigir_periodos_completos.id_for_label }}">
+                    <span class="fw-bold">No calcular la definitiva si falta algún periodo</span>
+                    <div class="text-muted small">
+                        Útil cuando llega un estudiante nuevo y sus notas anteriores entran tarde:
+                        en vez de un promedio engañoso, el boletín avisa cuáles periodos faltan.
+                        Al ponderar los periodos esta regla se aplica sola.
+                    </div>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4><i class="fas fa-table me-2"></i>Presentación del Boletín</h4>
+        </div>
+        <div class="card-body p-4">
+            <p class="card-text text-muted">
+                Los nombres de las tres columnas de calificación, como deben salir impresos
+                en el boletín de tu colegio.
+            </p>
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold">Columna 1</label>
+                    {{ form_global.etiqueta_ser }}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold">Columna 2</label>
+                    {{ form_global.etiqueta_saber }}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold">Columna 3</label>
+                    {{ form_global.etiqueta_hacer }}
+                </div>
+            </div>
+
+            <div class="form-check form-switch p-3 border rounded bg-light">
+                {{ form_global.colapsar_area_unica }}
+                <label class="form-check-label ms-2" for="{{ form_global.colapsar_area_unica.id_for_label }}">
+                    <span class="fw-bold">Unir área y asignatura cuando el área tiene una sola</span>
+                    <div class="text-muted small">
+                        Evita que el boletín y la sábana repitan la misma nota en dos filas.
+                        Angosta bastante la sábana en colegios con muchas áreas de una materia.
+                    </div>
+                </label>
+            </div>
+        </div>
+    </div>
+
     <div class="card shadow-sm">
         <div class="card-header bg-secondary text-white">
             <h4><i class="fas fa-book me-2"></i>Porcentajes por Defecto de las Materias</h4>

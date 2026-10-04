@@ -14,7 +14,7 @@ except ImportError:
     HTML = None # Manejar el caso si no está instalado
 
 from ..models import (
-    Curso, PeriodoAcademico, Docente, AsignacionDocente,
+    Curso, PeriodoAcademico, Docente, AsignacionDocente, Materia,
     AreaConocimiento as Area, Estudiante
 )
 
@@ -56,7 +56,12 @@ def generar_grafico_reprobados_area(datos_grafico):
     fig, ax = plt.subplots(figsize=(7, 5))
     bottom = np.zeros(len(labels))
 
-    colors = plt.cm.get_cmap('tab20', len(materias))
+    # plt.cm.get_cmap quedó obsoleta en matplotlib 3.7 y desaparece en la 3.11.
+    # Esta forma funciona en las versiones nuevas y en las viejas.
+    try:
+        colors = matplotlib.colormaps['tab20'].resampled(len(materias))
+    except AttributeError:
+        colors = plt.cm.get_cmap('tab20', len(materias))
 
     for i, (materia, counts) in enumerate(data.items()):
         counts_np = np.array(counts)
@@ -73,6 +78,126 @@ def generar_grafico_reprobados_area(datos_grafico):
     plt.close(fig)
     image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
     return image_base64
+
+# --- Gráficas de las vistas nuevas, para el PDF -----------------------------
+# El PDF lo arma WeasyPrint, que no ejecuta JavaScript: aquí las gráficas se
+# dibujan con matplotlib y se incrustan como imagen. Los mismos colores que en
+# pantalla, elegidos para que se distingan también con daltonismo y en blanco
+# y negro, y cada barra lleva su número escrito.
+VERDE, ROJO, AMBAR, AZUL = '#0b8a5b', '#a4161a', '#8a6d00', '#1d4ed8'
+
+
+def _a_base64(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', bbox_inches='tight', dpi=110)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
+
+
+def generar_grafico_barras_resumen(filas, titulo):
+    """Barras horizontales con el promedio de cada área o asignatura."""
+    if not filas:
+        return None
+    datos = sorted(filas, key=lambda f: f['promedio'])
+    nombres = [f['nombre'] for f in datos]
+    valores = [f['promedio'] for f in datos]
+    colores = [ROJO if f['porcentaje'] >= 30 else AZUL for f in datos]
+
+    fig, ax = plt.subplots(figsize=(7, max(2.2, 0.42 * len(datos) + 1)))
+    barras = ax.barh(nombres, valores, color=colores)
+    ax.set_xlim(0, 5.2)
+    ax.set_xlabel('Promedio', fontsize=9)
+    ax.set_title(titulo, fontsize=12)
+    ax.bar_label(barras, fmt='%.2f', padding=3, fontsize=8)
+    ax.spines[['top', 'right']].set_visible(False)
+    return _a_base64(fig)
+
+
+def generar_grafico_torta_aprobacion(filas, titulo):
+    """Aprobados frente a reprobados, en total."""
+    if not filas:
+        return None
+    evaluados = sum(f['evaluados'] for f in filas)
+    reprobados = sum(f['reprobados'] for f in filas)
+    if evaluados <= 0:
+        return None
+
+    fig, ax = plt.subplots(figsize=(4.2, 4.2))
+    ax.pie([evaluados - reprobados, reprobados],
+           labels=['Aprobados', 'Reprobados'], colors=[VERDE, ROJO],
+           autopct=lambda p: f'{p:.0f}%\n({round(p * evaluados / 100)})',
+           textprops={'fontsize': 9, 'color': '#222'},
+           wedgeprops={'edgecolor': 'white', 'linewidth': 2})
+    ax.set_title(titulo, fontsize=12)
+    return _a_base64(fig)
+
+
+def generar_grafico_caja(cajas, titulo):
+    """Caja y bigotes a partir de los cinco números ya calculados."""
+    if not cajas:
+        return None
+    estadisticas = [{
+        'label': c['x'], 'whislo': c['y'][0], 'q1': c['y'][1],
+        'med': c['y'][2], 'q3': c['y'][3], 'whishi': c['y'][4], 'fliers': [],
+    } for c in cajas]
+
+    fig, ax = plt.subplots(figsize=(7, max(2.5, 0.45 * len(cajas) + 1.5)))
+    ax.bxp(estadisticas, vert=False, showfliers=False,
+           boxprops={'facecolor': '#c7d7f7', 'edgecolor': '#36507e'},
+           medianprops={'color': '#a4161a', 'linewidth': 2},
+           patch_artist=True)
+    ax.set_xlim(1, 5)
+    ax.set_xlabel('Nota', fontsize=9)
+    ax.set_title(titulo, fontsize=12)
+    ax.spines[['top', 'right']].set_visible(False)
+    return _a_base64(fig)
+
+
+def generar_grafico_barras_anotaciones(anot):
+    """Anotaciones por curso, apiladas en positivas / negativas / sin clasificar."""
+    cursos = (anot or {}).get('por_curso') or []
+    if not cursos:
+        return None
+    nombres = [c['curso'] for c in cursos]
+    def suma(c, sub):
+        return c['detalle']['ACADEMICA'][sub] + c['detalle']['COMPORTAMENTAL'][sub]
+
+    series = [('Positivas', [suma(c, 'POSITIVA') for c in cursos], VERDE),
+              ('Negativas', [suma(c, 'NEGATIVA') for c in cursos], ROJO),
+              ('Sin clasificar', [suma(c, 'SIN_CLASIFICAR') for c in cursos], AMBAR)]
+
+    fig, ax = plt.subplots(figsize=(7, max(2.5, 0.4 * len(cursos) + 1.8)))
+    base = np.zeros(len(cursos))
+    for etiqueta, valores, color in series:
+        v = np.array(valores)
+        ax.bar(nombres, v, bottom=base, label=etiqueta, color=color,
+               edgecolor='white', linewidth=1.5)
+        base += v
+    ax.set_ylabel('Nº de anotaciones', fontsize=9)
+    ax.set_title('Anotaciones por Curso', fontsize=12)
+    ax.legend(fontsize=8)
+    ax.spines[['top', 'right']].set_visible(False)
+    return _a_base64(fig)
+
+
+def generar_grafico_torta_anotaciones(anot):
+    if not anot or not anot.get('total'):
+        return None
+    valores = [anot['positivas'], anot['negativas'], anot['sin_clasificar']]
+    etiquetas = ['Positivas', 'Negativas', 'Sin clasificar']
+    presentes = [(e, v) for e, v in zip(etiquetas, valores) if v > 0]
+    if not presentes:
+        return None
+    colores = {'Positivas': VERDE, 'Negativas': ROJO, 'Sin clasificar': AMBAR}
+
+    fig, ax = plt.subplots(figsize=(4.2, 4.2))
+    ax.pie([v for _, v in presentes], labels=[e for e, _ in presentes],
+           colors=[colores[e] for e, _ in presentes],
+           autopct=lambda p: f'{p:.0f}%', textprops={'fontsize': 9},
+           wedgeprops={'edgecolor': 'white', 'linewidth': 2})
+    ax.set_title('Positivas frente a Negativas', fontsize=12)
+    return _a_base64(fig)
+
 
 def generar_grafico_distribucion(datos_distribucion):
     """
@@ -251,6 +376,14 @@ def generar_conclusiones_texto(
 
     return conclusiones
 
+from notas.estadisticas_logic import (
+    get_resumen_por_area, get_resumen_por_asignatura,
+    get_caja_por_area, get_caja_por_asignatura,
+    conclusiones_resumen, conclusiones_anotaciones,
+)
+from notas.estadisticas_observador import contar_observador, contar_automaticas
+
+
 def es_docente_o_superuser(user):
     return user.is_superuser or user.groups.filter(name='Docentes').exists()
 
@@ -274,6 +407,11 @@ def panel_estadisticas_vista(request):
     periodos = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', '-fecha_inicio')
     anos_lectivos = PeriodoAcademico.objects.filter(colegio=request.colegio).values_list('ano_lectivo', flat=True).distinct().order_by('-ano_lectivo')
     areas = Area.objects.filter(colegio=request.colegio).order_by('nombre')
+    # Cada asignatura lleva el área a la que pertenece, para que el selector
+    # de asignaturas se pueda recortar cuando el usuario elige un área.
+    materias = (Materia.objects.filter(colegio=request.colegio)
+                .values('id', 'nombre', 'areas_ponderadas__id')
+                .order_by('nombre'))
 
     context = {
         'cursos': cursos,
@@ -281,7 +419,8 @@ def panel_estadisticas_vista(request):
         'anos_lectivos': anos_lectivos,
         'ano_actual': datetime.date.today().year,
         'colegio': request.colegio,
-        'areas': areas
+        'areas': areas,
+        'materias': materias,
     }
     return render(request, 'notas/estadisticas/panel_estadisticas.html', context)
 
@@ -296,10 +435,11 @@ def datos_graficos_ajax(request):
         'ano_lectivo': request.GET.get('ano_lectivo'),
         'periodo_id': request.GET.get('periodo_id'),
         'curso_ids': request.GET.getlist('curso_ids[]'),
-        'area_id': request.GET.get('area_id')
+        'area_id': request.GET.get('area_id'),
+        'materia_id': request.GET.get('materia_id'),
     }
 
-    for key in ['ano_lectivo', 'periodo_id', 'area_id']:
+    for key in ['ano_lectivo', 'periodo_id', 'area_id', 'materia_id']:
         if filtros[key] == 'todos' or not filtros[key]:
             filtros[key] = None
     if filtros.get('periodo_id') == 'CONSOLIDADO':
@@ -358,6 +498,11 @@ def datos_graficos_ajax(request):
             'backgroundColor': materias_colores[idx],
         })
 
+    resumen_area = get_resumen_por_area(filtros)
+    resumen_asignatura = get_resumen_por_asignatura(filtros)
+    anotaciones = contar_observador(filtros)
+    anot_automaticas = contar_automaticas(filtros)
+
     data = {
         'promedio_general': f"{datos_rendimiento.get('promedio_general', 0):.1f}",
         'desviacion_estandar': f"± {datos_rendimiento.get('desviacion_estandar', 0):.1f}",
@@ -371,7 +516,9 @@ def datos_graficos_ajax(request):
             'labels': [item['materia_nombre'] for item in datos_por_materia],
             'datasets': [{'label': 'Promedio', 'data': [item['promedio'] for item in datos_por_materia], 'backgroundColor': colores_bg}]
         },
-        'distribucion_materia_chart': get_distribucion_por_materia(filtros), # Actualizado para AJAX si es necesario
+        # Antes aquí iba get_distribucion_por_materia(), que devuelve otra forma
+        # (nombre/promedio/distribución) y ApexCharts no podía dibujar nada.
+        'distribucion_materia_chart': get_caja_por_asignatura(filtros),
         'histograma_chart': {
             'labels': datos_histograma['labels'],
             'datasets': [{'label': 'Frecuencia', 'data': datos_histograma['data'], 'backgroundColor': datos_histograma['colors']}]
@@ -388,7 +535,18 @@ def datos_graficos_ajax(request):
         'materias_reprobadas_por_docente_chart': {
             'labels': docentes_unicos,
             'datasets': datasets_materias_reprobadas_docente
-        }
+        },
+        # Bloques nuevos: área y asignatura separadas, y las anotaciones.
+        'resumen_area': resumen_area,
+        'resumen_asignatura': resumen_asignatura,
+        'anotaciones': anotaciones,
+        'anotaciones_automaticas': anot_automaticas,
+        'caja_area': get_caja_por_area(filtros),
+        'caja_asignatura': get_caja_por_asignatura(filtros),
+        'conclusiones_area': conclusiones_resumen(resumen_area, 'área', 'áreas'),
+        'conclusiones_asignatura': conclusiones_resumen(
+            resumen_asignatura, 'asignatura', 'asignaturas'),
+        'conclusiones_anotaciones': conclusiones_anotaciones(anotaciones, anot_automaticas),
     }
     return JsonResponse(data)
 
@@ -404,9 +562,10 @@ def estadisticas_pdf_vista(request):
         'ano_lectivo': request.GET.get('ano_lectivo'),
         'periodo_id': request.GET.get('periodo_id'),
         'curso_ids': request.GET.getlist('curso_ids[]'),
-        'area_id': request.GET.get('area_id')
+        'area_id': request.GET.get('area_id'),
+        'materia_id': request.GET.get('materia_id'),
     }
-    for key in ['ano_lectivo', 'periodo_id', 'area_id']:
+    for key in ['ano_lectivo', 'periodo_id', 'area_id', 'materia_id']:
         if filtros[key] == 'todos' or not filtros[key]: filtros[key] = None
     if filtros.get('periodo_id') == 'CONSOLIDADO': filtros['periodo_id'] = None
 
@@ -414,11 +573,39 @@ def estadisticas_pdf_vista(request):
 
     tipo_reporte = request.GET.get('tipo_grafico', 'general')
     datos_reporte = {}
+    graficas_extra = {}
     grafico_base64 = None
     grafico_promedios_area_base64 = None
     conclusiones_texto = []
 
-    if tipo_reporte == 'general':
+    if tipo_reporte == 'por_area':
+        filas = get_resumen_por_area(filtros)
+        datos_reporte['resumen_area'] = filas
+        graficas_extra['barras'] = generar_grafico_barras_resumen(filas, 'Promedio por Área')
+        graficas_extra['torta'] = generar_grafico_torta_aprobacion(filas, 'Aprobación por Área')
+        graficas_extra['caja'] = generar_grafico_caja(
+            get_caja_por_area(filtros), 'Dispersión de Notas por Área')
+        conclusiones_texto = conclusiones_resumen(filas, 'área', 'áreas')
+
+    elif tipo_reporte == 'por_asignatura':
+        filas = get_resumen_por_asignatura(filtros)
+        datos_reporte['resumen_asignatura'] = filas
+        graficas_extra['barras'] = generar_grafico_barras_resumen(filas, 'Promedio por Asignatura')
+        graficas_extra['torta'] = generar_grafico_torta_aprobacion(filas, 'Aprobación por Asignatura')
+        graficas_extra['caja'] = generar_grafico_caja(
+            get_caja_por_asignatura(filtros), 'Dispersión de Notas por Asignatura')
+        conclusiones_texto = conclusiones_resumen(filas, 'asignatura', 'asignaturas')
+
+    elif tipo_reporte == 'anotaciones':
+        anot = contar_observador(filtros)
+        auto = contar_automaticas(filtros)
+        datos_reporte['anotaciones'] = anot
+        datos_reporte['anotaciones_automaticas'] = auto
+        graficas_extra['barras'] = generar_grafico_barras_anotaciones(anot)
+        graficas_extra['torta'] = generar_grafico_torta_anotaciones(anot)
+        conclusiones_texto = conclusiones_anotaciones(anot, auto)
+
+    elif tipo_reporte == 'general':
         datos_rendimiento = get_rendimiento_general(filtros)
         total_estudiantes = sum(n['total'] for n in datos_rendimiento.get('distribucion', []))
         datos_promedios_area_apilado = get_promedios_por_area_apilado(filtros)
@@ -464,7 +651,13 @@ def estadisticas_pdf_vista(request):
         grafico_base64 = generar_grafico_reprobados_area(datos_grafico_area)
         datos_reporte['reprobados_por_area'] = datos_grafico_area
 
-    titulo_del_reporte = tipo_reporte.replace('_', ' ').title()
+    # "por_area" -> "Por Area" queda feo y sin tilde; estos tres llevan título propio.
+    TITULOS = {
+        'por_area': 'Resumen por Área',
+        'por_asignatura': 'Resumen por Asignatura',
+        'anotaciones': 'Anotaciones del Observador',
+    }
+    titulo_del_reporte = TITULOS.get(tipo_reporte, tipo_reporte.replace('_', ' ').title())
 
     nombres_cursos = "Todos"
     if filtros.get('curso_ids'):
@@ -494,6 +687,7 @@ def estadisticas_pdf_vista(request):
         'grafico_base64': grafico_base64,
         'grafico_promedios_area_base64': grafico_promedios_area_base64,
         'conclusiones': conclusiones_texto,
+        'graficas_extra': graficas_extra,
     }
 
     html_string = render_to_string('notas/estadisticas/estadisticas_pdf.html', context)

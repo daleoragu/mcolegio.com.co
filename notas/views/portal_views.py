@@ -16,6 +16,59 @@ from ..models import (
     Colegio
 )
 
+# Extensiones que se aceptan para las imágenes de la portada. Así da igual si
+# el archivo quedó guardado como .png, .jpg o .webp: igual lo encuentra.
+_EXTENSIONES_IMAGEN = ('.png', '.jpg', '.jpeg', '.webp', '.PNG', '.JPG', '.JPEG')
+
+
+def _buscar_estatico(nombre_sin_extension, carpeta='img'):
+    """Busca una imagen en los estáticos y devuelve (url, diagnóstico).
+
+    Devuelve la URL si la encuentra. Si no, devuelve None y un texto que
+    explica qué se buscó y dónde, para que el marcador de la portada pueda
+    decirlo en vez de quedarse mudo.
+
+    Hay dos modos y los dos importan:
+      - En desarrollo los archivos se leen directo de las carpetas 'static/'.
+      - En producción solo existe lo que 'collectstatic' haya recogido; pedir
+        algo que no esté recogido lanza "Missing staticfiles manifest entry"
+        y tumbaría la página entera, así que aquí se atrapa siempre.
+    """
+    from django.conf import settings
+    from django.contrib.staticfiles import finders
+    from django.contrib.staticfiles.storage import staticfiles_storage
+    from django.templatetags.static import static
+
+    intentados = []
+    for ext in _EXTENSIONES_IMAGEN:
+        ruta = f'{carpeta}/{nombre_sin_extension}{ext}'
+        intentados.append(ruta)
+
+        # ¿Está en alguna carpeta 'static/' del proyecto? (modo desarrollo)
+        encontrado = finders.find(ruta) is not None
+        # ¿O ya fue recogido por collectstatic? (modo producción)
+        if not encontrado:
+            try:
+                encontrado = staticfiles_storage.exists(ruta)
+            except Exception:
+                encontrado = False
+
+        if encontrado:
+            try:
+                return static(ruta), None
+            except Exception:
+                # El archivo está en disco pero no en el índice: falta collectstatic.
+                return None, (
+                    f'Encontré "{ruta}" en disco, pero no está recogido. '
+                    f'Corre: python manage.py collectstatic'
+                )
+
+    aviso = 'Guarda la imagen como ' + intentados[0]
+    if settings.DEBUG:
+        aviso += f' (busqué también: {", ".join(intentados[1:4])}…)'
+    return None, aviso
+
+
 def portal_vista(request):
     """
     Renderiza el portal público.
@@ -45,9 +98,14 @@ def portal_vista(request):
         return render(request, 'notas/portal.html', context)
     else:
         todos_los_colegios = Colegio.objects.all()
-        # --- LÍNEA CORREGIDA ---
-        # Ahora apunta a la plantilla correcta para la página de bienvenida.
-        return render(request, 'landing/index.html', {'colegios': todos_los_colegios})
+        url_hero, aviso_hero = _buscar_estatico('hero-tablero')
+        url_docente, aviso_docente = _buscar_estatico('docente')
+        return render(request, 'landing/index.html', {
+            'colegios': todos_los_colegios,
+            # Si la imagen no está, llega None y el marcador dice por qué.
+            'imagen_hero': url_hero, 'aviso_hero': aviso_hero,
+            'imagen_docente': url_docente, 'aviso_docente': aviso_docente,
+        })
 
 # --- VISTAS AJAX PARA CARGAR CONTENIDO DINÁMICO EN EL PORTAL ---
 

@@ -1,0 +1,138 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% load pe_extras %}
+{% block title %}Clave - {{ block.super }}{% endblock %}
+{% block page_title %}Clave · {{ examen.titulo }}{% endblock %}
+
+{% block content %}
+<div class="pe-barra">
+    <a href="{% url 'puntoexacto:editar' examen_id=examen.id %}" class="btn btn-outline-secondary">Datos del examen</a>
+    <a href="{% url 'puntoexacto:hojas' examen_id=examen.id %}" class="btn btn-outline-secondary">Hojas</a>
+    <a href="{% url 'puntoexacto:resultados' examen_id=examen.id %}" class="btn btn-outline-secondary">Resultados</a>
+</div>
+
+{% if avisos %}
+<div class="pe-aviso">
+    <strong>Revise antes de aplicar:</strong>
+    <ul>{% for a in avisos %}<li>{{ a }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<form method="post" class="pe-tarjeta">
+    {% csrf_token %}
+    <h5>Respuesta correcta, puntaje y qué evalúa cada pregunta</h5>
+    <p class="text-muted" style="font-size:.9rem;">
+        Las etiquetas se repiten entre preguntas a propósito: así el análisis puede decir
+        cómo va el curso en cada tema, no solo en cada pregunta.
+        <br>El <strong>componente</strong> decide a qué columna de la planilla va esa
+        pregunta. Dejándolo en «Del examen» van todas a
+        <strong>{{ examen.get_componente_display }}</strong>; cambiándolo en algunas,
+        el examen se parte en varias columnas.
+        <br>Las <strong>opciones</strong> pueden cambiar de una pregunta a otra:
+        unas A–D y otras A–H, como en la hoja del ICFES. Vacío = las del bloque,
+        o las del examen.
+    </p>
+
+    {% if bloques %}
+        <p style="font-size:.88rem;">
+            <strong>Bloques de este examen:</strong>
+            {% for b in bloques %}
+                <span class="badge bg-secondary">{{ b.nombre }}{% if b.materia %} · {{ b.materia.nombre }}{% endif %}</span>
+            {% endfor %}
+            <a href="{% url 'puntoexacto:bloques' examen.id %}">editar bloques</a>
+        </p>
+    {% else %}
+        <p style="font-size:.88rem;">
+            Este examen sale en una sola rejilla.
+            <a href="{% url 'puntoexacto:bloques' examen.id %}">Partirlo por áreas</a>
+            si es una prueba censal.
+        </p>
+    {% endif %}
+    {% if sin_bloque %}
+        <div class="alert alert-warning" style="font-size:.88rem;">
+            Hay preguntas sin bloque: {% for p in sin_bloque %}{{ p.numero }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+            Van a salir al final de la hoja, fuera de las áreas.
+        </div>
+    {% endif %}
+    {% if bloques_partidos %}
+        <div class="alert alert-warning" style="font-size:.88rem;">
+            Estos bloques tienen preguntas salteadas:
+            {% for b in bloques_partidos %}<strong>{{ b.nombre }}</strong>{% if not forloop.last %}, {% endif %}{% endfor %}.
+            La hoja igual se dibuja, pero la numeración va a quedar desordenada.
+        </div>
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="pe-tabla">
+            <thead><tr>
+                <th class="pe-num">#</th><th>Correcta</th><th class="pe-num">Puntos</th>
+                <th>Crédito parcial</th><th>Bloque</th><th class="pe-num">Opciones</th><th>Qué evalúa</th><th>Componente</th><th class="pe-num">Anular</th>
+            </tr></thead>
+            <tbody>
+            {% for p in preguntas %}
+                <tr{% if p.anulada %} style="opacity:.5;"{% endif %}>
+                    <td class="pe-num"><strong>{{ p.numero }}</strong></td>
+                    <td>
+                        <div class="pe-opciones">
+                        {% for l in letras %}
+                            <label><input type="radio" name="correcta_{{ p.numero }}" value="{{ l }}"
+                                   {% if p.correcta == l %}checked{% endif %}>{{ l }}</label>
+                        {% endfor %}
+                        </div>
+                    </td>
+                    <td class="pe-num">
+                        <input type="text" name="puntos_{{ p.numero }}" value="{{ p.puntos }}"
+                               class="form-control form-control-sm" style="width:72px;">
+                    </td>
+                    <td>
+                        <div class="pe-opciones">
+                        {% for l in letras %}
+                            <span style="font-size:.78rem;">{{ l }}
+                            <input type="text" name="parcial_{{ p.numero }}_{{ l }}"
+                                   value="{{ p.parciales|valor_de:l }}"
+                                   class="form-control form-control-sm d-inline-block"
+                                   style="width:52px;" placeholder="—"></span>
+                        {% endfor %}
+                        </div>
+                    </td>
+                    <td>
+                        <select name="bloque_{{ p.numero }}" class="form-select form-select-sm">
+                            <option value="">(sin bloque)</option>
+                            {% for b in bloques %}
+                                <option value="{{ b.id }}" {% if p.bloque_id == b.id %}selected{% endif %}>{{ b.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td class="pe-num">
+                        <select name="opciones_{{ p.numero }}" class="form-select form-select-sm">
+                            <option value="">—</option>
+                            {% for n in rango_opciones %}
+                                <option value="{{ n }}" {% if p.numero_opciones == n %}selected{% endif %}>{{ n }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" name="etiquetas_{{ p.numero }}" value="{{ p.etiquetas }}"
+                               class="form-control form-control-sm"
+                               placeholder="ecuaciones, factorización">
+                    </td>
+                    <td>
+                        <select name="componente_{{ p.numero }}" class="form-select form-select-sm"
+                                style="width:110px;">
+                            <option value="">Del examen</option>
+                            {% for cod, nom in componentes %}
+                                <option value="{{ cod }}" {% if p.componente == cod %}selected{% endif %}>{{ nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td class="pe-num">
+                        <input type="checkbox" name="anulada_{{ p.numero }}"
+                               {% if p.anulada %}checked{% endif %}>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="mt-3"><button class="btn btn-primary">Guardar clave</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% comment %}
+  Bloque que Salón Digital pega al final de una página publicada.
+  Lleva sus propios estilos con prefijo sd- para no chocar con los del docente.
+{% endcomment %}
+<div id="comentarios" class="sd-zona">
+<style>
+.sd-zona{--sd-ac:#9E1982;--sd-os:#5C1416;--sd-li:#E6D6E2;--sd-te:#6B5566;
+  font-family:'Segoe UI',system-ui,Arial,sans-serif;background:#FBF7FA;
+  border-top:3px solid var(--sd-ac);margin-top:40px;padding:34px 18px 48px;color:#2A1620;
+  font-size:16px;line-height:1.6;box-sizing:border-box}
+.sd-zona *{box-sizing:border-box}
+.sd-caja{max-width:760px;margin:0 auto}
+.sd-zona h2{font-size:21px;color:var(--sd-os);margin:0 0 4px}
+.sd-zona p.sd-sub{color:var(--sd-te);font-size:14.5px;margin:0 0 22px}
+.sd-com{background:#fff;border:1px solid var(--sd-li);border-radius:12px;
+  padding:14px 16px;margin-bottom:12px}
+.sd-com.sd-autor{border-left:4px solid var(--sd-ac)}
+.sd-com b{color:var(--sd-os);font-size:15px}
+.sd-com .sd-fecha{color:var(--sd-te);font-size:13px;margin-left:8px}
+.sd-com p{margin:6px 0 0;white-space:pre-wrap;font-size:15.5px}
+.sd-eti{display:inline-block;background:var(--sd-ac);color:#fff;font-size:11px;
+  padding:1px 7px;border-radius:99px;margin-left:6px;vertical-align:1px}
+.sd-form{background:#fff;border:1px solid var(--sd-li);border-radius:12px;padding:18px;margin-top:20px}
+.sd-form label{display:block;font-weight:600;font-size:13.5px;color:var(--sd-os);margin-bottom:5px}
+.sd-form input,.sd-form textarea{width:100%;padding:10px 12px;font-size:15.5px;
+  border:1.5px solid var(--sd-li);border-radius:9px;font-family:inherit;margin-bottom:12px}
+.sd-form textarea{resize:vertical;min-height:90px}
+.sd-form input:focus,.sd-form textarea:focus{outline:none;border-color:var(--sd-ac)}
+.sd-form button{background:var(--sd-ac);color:#fff;border:none;border-radius:9px;
+  padding:11px 24px;font-size:15.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.sd-form button:hover{background:var(--sd-os)}
+.sd-trampa{position:absolute;left:-9999px}
+.sd-vacio{color:var(--sd-te);font-size:15px;padding:12px 0}
+.sd-pie{margin-top:26px;padding-top:14px;border-top:1px solid var(--sd-li);
+  display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;
+  color:var(--sd-te);font-size:13px}
+.sd-pie a{color:var(--sd-ac)}
+</style>
+
+<div class="sd-caja">
+  <h2>Comentarios</h2>
+  <p class="sd-sub">
+    {% if moderados %}
+      Los comentarios se publican cuando {{ pagina.propietario.nombre_publico }} los revisa.
+    {% else %}
+      Escribe tu nombre y tu comentario.
+    {% endif %}
+  </p>
+
+  {% for c in comentarios %}
+    <div class="sd-com{% if c.del_autor %} sd-autor{% endif %}">
+      <b>{{ c.nombre }}</b>{% if c.del_autor %}<span class="sd-eti">autor</span>{% endif %}
+      <span class="sd-fecha">{{ c.creado_en|date:"d/m/Y H:i" }}</span>
+      <p>{{ c.texto }}</p>
+    </div>
+  {% empty %}
+    <p class="sd-vacio">Todavía no hay comentarios. Puedes dejar el primero.</p>
+  {% endfor %}
+
+  <form class="sd-form" method="post" action="{{ accion }}">
+    {% csrf_token %}
+    <label for="sd-nombre">Tu nombre</label>
+    <input type="text" id="sd-nombre" name="nombre" maxlength="120" required autocomplete="name">
+
+    <label for="sd-texto">Tu comentario</label>
+    <textarea id="sd-texto" name="texto" maxlength="4000" required></textarea>
+
+    <input class="sd-trampa" type="text" name="sitio_web" tabindex="-1" autocomplete="off"
+           aria-hidden="true">
+
+    <button type="submit">Publicar comentario</button>
+  </form>
+
+  <div class="sd-pie">
+    <span>Publicado con <a href="/salon_digital/" target="_blank">Salón Digital</a></span>
+    {% if classroom %}
+      <span class="g-sharetoclassroom" data-size="32" data-url="{{ url_pagina }}"
+            data-title="{{ pagina.titulo }}" data-itemtype="assignment"></span>
+    {% endif %}
+  </div>
+</div>
+</div>
+{% if classroom %}<script src="https://apis.google.com/js/platform.js" async defer></script>{% endif %}

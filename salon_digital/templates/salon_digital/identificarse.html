@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar · {{ pagina.titulo }}</title>
+<style>
+:root{--ac:#9E1982;--os:#5C1416;--li:#E6D6E2;--bg:#FBF7FA;--te:#6B5566;--red:#B3261E}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#2A1620;font-family:'Segoe UI',system-ui,Arial,sans-serif;
+     font-size:17px;line-height:1.6;display:flex;align-items:center;justify-content:center;
+     min-height:100vh;padding:20px}
+.caja{background:#fff;border:1px solid var(--li);border-radius:16px;padding:32px;max-width:480px;width:100%}
+h1{font-size:21px;color:var(--os);margin:0 0 4px}
+p.sub{color:var(--te);font-size:15px;margin:0 0 24px}
+label{display:block;font-weight:600;font-size:14px;color:var(--os);margin-bottom:6px}
+input,select{width:100%;padding:13px 14px;font-size:18px;border:1.5px solid var(--li);
+             border-radius:10px;font-family:inherit}
+input#codigo{text-align:center;letter-spacing:5px;text-transform:uppercase;font-weight:700}
+input:focus,select:focus{outline:none;border-color:var(--ac)}
+button{width:100%;margin-top:16px;background:var(--ac);color:#fff;border:none;border-radius:10px;
+       padding:14px;font-size:17px;font-weight:600;cursor:pointer;font-family:inherit}
+button:hover{background:var(--os)}
+.error{color:var(--red);font-size:14.5px;margin-top:12px}
+.otra{text-align:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--li);font-size:14.5px}
+.otra a{color:var(--ac)}
+.actual{background:#F7EFF5;border-radius:10px;padding:12px 14px;font-size:14.5px;
+        color:var(--te);margin-bottom:18px}
+.actual b{color:var(--os)}
+</style>
+</head>
+<body>
+<form class="caja" method="post">
+  {% csrf_token %}
+  <h1>{{ pagina.titulo }}</h1>
+
+  {% if not grupo %}
+    <p class="sub">Escribe el código que te dio tu docente.</p>
+
+    {% if actual %}
+      <div class="actual">
+        La última vez entraste como <b>{{ actual.nombre }}</b> ({{ actual.grupo_nombre }}).
+      </div>
+    {% endif %}
+
+    <label for="codigo">Código del grupo</label>
+    <input type="text" id="codigo" name="codigo" maxlength="8" autocomplete="off"
+           autofocus value="{{ codigo }}" placeholder="ABC234">
+    <button type="submit">Continuar</button>
+
+  {% else %}
+    <p class="sub">Grupo <b>{{ grupo.nombre }}</b>. Busca tu nombre en la lista.</p>
+    <input type="hidden" name="codigo" value="{{ codigo }}">
+
+    <label for="integrante">¿Quién eres?</label>
+    <select id="integrante" name="integrante" required autofocus>
+      <option value="">Selecciona tu nombre</option>
+      {% for i in grupo.integrantes.all %}
+        {% if i.activo %}<option value="{{ i.pk }}">{{ i.completo }}</option>{% endif %}
+      {% endfor %}
+    </select>
+    <button type="submit">Entrar a la actividad</button>
+  {% endif %}
+
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+  {% if permite_libre %}
+    <div class="otra">
+      ¿No estás en ningún grupo?
+      <a href="{% url 'paginas:entrar_sin_grupo' pagina.propietario.slug pagina.slug %}">
+        Entra escribiendo tu nombre
+      </a>
+    </div>
+  {% endif %}
+</form>
+</body>
+</html>

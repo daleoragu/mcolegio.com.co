@@ -20,8 +20,3 @@ __pycache__/
 
 # Archivos de sistema
 .DS_Store
-
-staticfiles/
-certs/
-*.pem
-*.key

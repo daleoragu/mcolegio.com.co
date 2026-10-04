@@ -21,11 +21,15 @@ urlpatterns = [
     #    Todo lo que empiece por /elecciones2026/ será manejado por tu nueva app.
     path('elecciones2026/', include('elecciones.urls', namespace='elecciones')),
 
-    # 4. MÓDULO DE PRUEBAS
-    #    /pruebas/  -> panel, resultados y pruebas del banco de preguntas
-    #    /p/        -> páginas HTML publicadas por los docentes
-    path('pruebas/', include('pruebas.urls', namespace='pruebas')),
-    path('p/', include('pruebas.urls_publicas', namespace='paginas')),
+    # 4. SALÓN DIGITAL
+    #    /salon_digital/ -> landing, cuentas, panel y resultados
+    #    /p/             -> páginas publicadas por los docentes
+    path('salon_digital/', include('salon_digital.urls', namespace='salon_digital')),
+    path('p/', include('salon_digital.urls_publicas', namespace='paginas')),
+
+    # 5. PUNTOEXACTO
+    #    Exámenes de selección múltiple: hojas, clave y análisis.
+    path('puntoexacto/', include('puntoexacto.urls', namespace='puntoexacto')),
 
     # 5. RUTAS DE TU APLICACIÓN "NOTAS"
     #    Esta línea incluye todas las URLs de tu archivo 'notas/urls.py'.

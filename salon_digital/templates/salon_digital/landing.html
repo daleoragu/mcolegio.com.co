@@ -1,0 +1,110 @@
+{% extends "salon_digital/base_salon.html" %}
+
+{% block titulo %}Salón Digital · Herramientas para docentes{% endblock %}
+
+{% block contenido %}
+<div class="row align-items-center g-5 mb-5">
+  <div class="col-lg-7">
+    <h1 class="display-5 fw-bold mb-3">Publica tus actividades y recibe los resultados</h1>
+    <p class="fs-5 text-muted mb-4">
+      Sube tu material interactivo, compártelo con un enlace o un código QR, y mira cómo le fue a
+      cada estudiante: aciertos, tiempo, y en cuál pregunta se trabó el curso entero.
+    </p>
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-primary btn-lg" href="{% url 'salon_digital:registro' %}">Empezar gratis</a>
+      <a class="btn btn-outline-secondary btn-lg" href="{% url 'salon_digital:entrar' %}">Ya tengo cuenta</a>
+    </div>
+    <p class="text-muted small mt-3">
+      15 días de prueba. No pedimos tarjeta.
+    </p>
+  </div>
+  <div class="col-lg-5">
+    <div class="cinta">
+      <h3 class="h6 mb-3">Solo para docentes</h3>
+      <p class="small text-muted mb-0">
+        Para publicar hay que acreditar que eres docente o estudiante de licenciatura, con tu
+        constancia laboral, tu diploma o tu carné. Una persona revisa cada solicitud. Así
+        protegemos a los estudiantes que van a entrar a tus actividades.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-5">
+  <div class="col-md-4">
+    <div class="card h-100"><div class="card-body">
+      <h3 class="h6">Sube lo que ya tienes</h3>
+      <p class="text-muted small mb-0">
+        Un archivo HTML, o un .zip con el sitio completo. Queda en línea en tu propia dirección,
+        sin configurar nada. Si tu actividad envía resultados, los conectamos solos.
+      </p>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100"><div class="card-body">
+      <h3 class="h6">Repártelo con un QR</h3>
+      <p class="text-muted small mb-0">
+        Cada actividad trae su hoja imprimible con el código. La pegas en el tablero y los
+        estudiantes entran con la cámara del celular, sin escribir direcciones.
+      </p>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100"><div class="card-body">
+      <h3 class="h6">Lee los resultados</h3>
+      <p class="text-muted small mb-0">
+        Promedio del curso, desempeño por competencia, y pregunta por pregunta con el distractor
+        que más se marcó. Descargable en Excel. Otros docentes entran con una clave.
+      </p>
+    </div></div>
+  </div>
+</div>
+
+<h2 class="h4 mb-3">Planes</h2>
+<div class="row g-4">
+  <div class="col-md-4">
+    <div class="card h-100"><div class="card-body">
+      <h3 class="h6">Prueba</h3>
+      <p class="display-6 fw-bold mb-1">Gratis</p>
+      <p class="text-muted small">15 días</p>
+      <ul class="small text-muted ps-3 mb-0">
+        <li>3 páginas publicadas</li>
+        <li>300 resultados</li>
+        <li>Archivos de hasta 25 MB</li>
+      </ul>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100"><div class="card-body">
+      <h3 class="h6">Mensual</h3>
+      <p class="display-6 fw-bold mb-1">$10.000</p>
+      <p class="text-muted small">al mes</p>
+      <ul class="small text-muted ps-3 mb-0">
+        <li>30 páginas publicadas</li>
+        <li>5.000 resultados al mes</li>
+        <li>Archivos de hasta 60 MB</li>
+      </ul>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 border-2" style="border-color:var(--mor)"><div class="card-body">
+      <div class="d-flex justify-content-between align-items-start">
+        <h3 class="h6">Anual</h3>
+        <span class="badge" style="background:var(--fuc)">Pagas 8, usas 12</span>
+      </div>
+      <p class="display-6 fw-bold mb-1">$80.000</p>
+      <p class="text-muted small">al año, vacaciones incluidas</p>
+      <ul class="small text-muted ps-3 mb-0">
+        <li>60 páginas publicadas</li>
+        <li>15.000 resultados al mes</li>
+        <li>Archivos de hasta 60 MB</li>
+      </ul>
+    </div></div>
+  </div>
+</div>
+
+<p class="text-muted small mt-4">
+  El pago se hace por Nequi y la cuenta se activa el mismo día. Al terminar la prueba, tus páginas
+  y tus resultados siguen guardados; solo dejas de poder crear nuevas hasta que renueves.
+</p>
+{% endblock %}

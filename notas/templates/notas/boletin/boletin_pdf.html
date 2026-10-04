@@ -110,9 +110,9 @@
                     <th style="width: 35%;">AREA/ASIGNATURA</th>
                     <th style="width: 5%;">IH</th>
                     <th style="width: 10%;">V/N</th>
-                    <th>SER</th>
-                    <th>SAB</th>
-                    <th>HAC</th>
+                    <th>{{ ajustes.etiqueta_ser|default:"SER"|slice:":5" }}</th>
+                    <th>{{ ajustes.etiqueta_saber|default:"SABER"|slice:":5" }}</th>
+                    <th>{{ ajustes.etiqueta_hacer|default:"HACER"|slice:":5" }}</th>
                     <th style="width: 5%;">DEF</th>
                     <th style="width: 5%;">ACUM</th>
                     <th style="width: 5%;">INAS</th>
@@ -121,7 +121,9 @@
             <tbody>
             {% for area in boletin.areas %}
                 
-                <!-- SIEMPRE DIBUJAR LA FILA DEL ÁREA -->
+                <!-- El área se omite cuando tiene una sola asignatura: la fila de
+                     la asignatura lleva su nombre y evita repetir la misma nota. -->
+                {% if not area.colapsada %}
                 <tr class="{{ area.estado_color_css_class }}">
                     <td class="area-header">{{ area.nombre }}</td>
                     <td class="area-header" style="text-align: center; font-weight: bold;" colspan="5">{{ area.desempeno_area }}</td>
@@ -129,11 +131,14 @@
                     <td class="area-header" style="text-align: center;"><strong>{{ area.nota_final_area_acumulada|coma_decimal|default_if_none:"" }}</strong></td>
                     <td class="area-header"></td>
                 </tr>
+                {% endif %}
 
                 {% for materia in area.materias %}
-                <tr class="asignatura-row">
-                    <td style="padding-left: 10px;">
-                        {% if area.materias|length > 1 %}
+                <tr class="asignatura-row{% if area.colapsada %} {{ area.estado_color_css_class }}{% endif %}">
+                    <td style="{% if not area.colapsada %}padding-left: 10px;{% endif %}">
+                        {% if area.colapsada %}
+                            <strong>{{ area.nombre }}</strong><br>
+                        {% elif area.materias|length > 1 %}
                             {{ materia.nombre }}<br>
                         {% endif %}
                         <small><strong>Docente:</strong> {{ materia.docente.user.get_full_name }}</small>

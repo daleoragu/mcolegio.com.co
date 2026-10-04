@@ -33,7 +33,8 @@ INSTALLED_APPS = [
     'crispy_bootstrap5',
     'storages',
     'elecciones',  # <--- NUEVA APLICACIÓN AGREGADA AQUÍ
-    'pruebas',     # <--- Módulo de pruebas y páginas publicadas
+    'salon_digital',   # <--- Salón Digital: herramientas para docentes
+    'puntoexacto',     # <--- PuntoExacto: exámenes de selección múltiple
 ]
 
 MIDDLEWARE = [
@@ -102,9 +103,21 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 USE_SPACES = os.getenv('DO_SPACES_BUCKET_NAME')
 
-WHITENOISE_STATICFILES = {
-    'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
-}
+# En producción WhiteNoise sirve los estáticos con nombre "hasheado"
+# (estilo.a1b2c3.css) para que el navegador no use versiones viejas en caché.
+# Eso exige que exista staticfiles/staticfiles.json, generado por collectstatic.
+#
+# En local NO se usa: runserver busca los archivos en la carpeta 'static/',
+# donde los nombres hasheados no existen, así que el CSS devolvería 404 y las
+# páginas salen sin estilos. Por eso en DEBUG se usa el almacenamiento normal.
+if DEBUG:
+    WHITENOISE_STATICFILES = {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    }
+else:
+    WHITENOISE_STATICFILES = {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    }
 
 if USE_SPACES:
     # --- PRODUCCIÓN: DigitalOcean Spaces ---

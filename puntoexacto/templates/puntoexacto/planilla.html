@@ -1,0 +1,113 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% block title %}Pasar a la planilla - {{ block.super }}{% endblock %}
+{% block page_title %}Pasar a la planilla · {{ examen.titulo }}{% endblock %}
+
+{% block content %}
+<div class="pe-barra">
+    <a href="{% url 'puntoexacto:resultados' examen_id=examen.id %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Volver a resultados</a>
+    <a href="{% url 'puntoexacto:clave' examen_id=examen.id %}" class="btn btn-outline-secondary">
+        Cambiar componentes en la clave</a>
+</div>
+
+{% if periodo_cerrado %}
+<div class="pe-aviso">
+    <strong>El periodo {{ examen.periodo }} tiene el ingreso de notas cerrado.</strong>
+    Pídale al administrador que lo abra antes de pasar las notas.
+</div>
+{% endif %}
+
+<div class="pe-tarjeta">
+    <h5>Se agregarán {{ componentes|length }} columna(s) a la planilla</h5>
+    <table class="pe-tabla">
+        <thead><tr><th>Columna</th><th>Se calcula con</th></tr></thead>
+        <tbody>
+        {% for c in componentes %}
+            <tr>
+                <td><strong>{{ c.nombre }}</strong></td>
+                <td class="text-muted">preguntas {{ c.preguntas|join:", " }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% if componentes|length > 1 %}
+    <p class="text-muted" style="font-size:.9rem; margin-top:10px;">
+        Cada columna se califica solo con sus preguntas, no con todo el examen.
+        Un estudiante puede sacar {{ componentes.0.nombre }} alto y el otro componente bajo,
+        que es justamente lo que se quiere ver.
+    </p>
+    {% endif %}
+</div>
+
+<form method="post" class="pe-tarjeta">
+    {% csrf_token %}
+    <h5>{{ filas|length }} estudiante(s) con nota lista</h5>
+    <div class="row g-3 align-items-end mb-3">
+        <div class="col-md-6">
+            <label class="form-label">Nombre de la columna en la planilla</label>
+            <input type="text" name="etiqueta" value="{{ examen.titulo }}" maxlength="100"
+                   class="form-control">
+            <div class="form-text">Es lo que el docente va a ver como encabezado.
+                Si vuelve a pasar este examen, la columna se reemplaza, no se duplica.</div>
+        </div>
+        <div class="col-md-6 text-end">
+            <button class="btn btn-primary btn-lg" {% if periodo_cerrado or not filas %}disabled{% endif %}>
+                Agregar a la planilla
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="pe-tabla">
+            <thead><tr>
+                <th class="pe-num">#</th><th>Estudiante</th>
+                {% for c in componentes %}<th class="pe-num">{{ c.nombre }}</th>{% endfor %}
+            </tr></thead>
+            <tbody>
+            {% for f in filas %}
+                <tr>
+                    <td class="pe-num">{{ forloop.counter }}</td>
+                    <td>{{ f.hoja.nombre }}{% if f.hoja.enviada_a_planilla %}
+                        <span class="pe-chip pe-gris">ya enviada</span>{% endif %}</td>
+                    {% for n in f.notas %}
+                        <td class="pe-num"><strong>{{ n.nota|default:"—" }}</strong></td>
+                    {% endfor %}
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="pe-vacio">Todavía no hay hojas calificadas.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</form>
+
+<div class="pe-aviso">
+    <strong>Qué pasa después, para que no haya sorpresas.</strong>
+    La columna aparece la próxima vez que el docente abra la planilla de esa asignatura
+    y ese periodo. <strong>Tiene que abrirla, revisarla y guardarla</strong> para que la
+    definitiva del periodo se recalcule: ese promedio lo arma la planilla con los pesos
+    de cada componente, y PuntoExacto no lo toca.
+    <br><br>
+    Si el docente tiene la planilla abierta de antes, que la recargue. Si guarda una
+    página vieja, la columna nueva se pierde — no por un error, sino porque la planilla
+    se reconstruye desde el formulario que tenga a la vista.
+</div>
+
+{% if pendientes %}
+<div class="pe-tarjeta">
+    <h5>Faltan por calificar ({{ pendientes|length }})</h5>
+    <p class="text-muted">{% for h in pendientes %}{{ h.nombre }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+</div>
+{% endif %}
+
+{% if ausentes %}
+<div class="pe-tarjeta">
+    <h5>No presentaron ({{ ausentes|length }})</h5>
+    <p class="text-muted">{% for h in ausentes %}{{ h.nombre }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+    <p class="text-muted" style="font-size:.88rem;">
+        No se les pasa nota. No presentar no es lo mismo que sacar la mínima, y esa
+        decisión es del docente, no del sistema.
+    </p>
+</div>
+{% endif %}
+{% endblock %}
