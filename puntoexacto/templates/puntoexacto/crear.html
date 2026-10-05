@@ -107,6 +107,15 @@
         <div class="col-md-12">
             {{ form.metodo }}{{ form.metodo.errors }}
         </div>
+        {% if form.escala %}
+        <div class="col-md-12">
+            <div class="form-text mt-0">
+                Escala del colegio: de <strong>{{ form.escala.0 }}</strong> a
+                <strong>{{ form.escala.1 }}</strong>. Se toma de la escala de valoración
+                de la plataforma; si cambia allá, cambia aquí.
+            </div>
+        </div>
+        {% else %}
         <div class="col-md-3">
             <label class="form-label">Nota máxima</label>
             {{ form.nota_maxima }}{{ form.nota_maxima.errors }}
@@ -115,15 +124,14 @@
             <label class="form-label">Nota mínima</label>
             {{ form.nota_minima }}{{ form.nota_minima.errors }}
         </div>
-        <div class="col-md-3">
+        {% endif %}
+        <div class="col-md-3 pe-solo-descuento">
             <label class="form-label">{{ form.nota_todo_mal.label }}</label>
             {{ form.nota_todo_mal }}{{ form.nota_todo_mal.errors }}
-            <div class="form-text">Solo para el método por descuento.</div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 pe-solo-descuento">
             <label class="form-label">{{ form.nota_nada_marcado.label }}</label>
             {{ form.nota_nada_marcado }}{{ form.nota_nada_marcado.errors }}
-            <div class="form-text">Solo para el método por descuento.</div>
         </div>
     </div>
 
@@ -306,6 +314,17 @@
             limpiarSobrantes(); pintarChips(); refrescar();
         });
     });
+
+    // Las dos notas del descuento solo aparecen con ese método.
+    var elMetodo = campo('metodo');
+    function verDescuento() {
+        var si = elMetodo && elMetodo.value === 'descuento';
+        document.querySelectorAll('.pe-solo-descuento').forEach(function (d) {
+            d.style.display = si ? '' : 'none';
+        });
+    }
+    if (elMetodo) { elMetodo.addEventListener('change', verDescuento); }
+    verDescuento();
 
     pintarChips();
     refrescar();

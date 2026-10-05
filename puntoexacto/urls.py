@@ -13,6 +13,8 @@ urlpatterns = [
     path('<int:examen_id>/archivar/', views.archivar, name='archivar'),
     path('<int:examen_id>/clave/', views.clave, name='clave'),
     path('<int:examen_id>/bloques/', views.bloques, name='bloques'),
+    path('<int:examen_id>/bloques/vista-previa/', views.vista_previa_bloques,
+         name='vista_previa_bloques'),
     path('<int:examen_id>/hojas/', views.hojas, name='hojas'),
     path('<int:examen_id>/hojas/imprimir/', views.imprimir, name='imprimir'),
     path('<int:examen_id>/hoja/<int:hoja_id>/digitar/', views.digitar, name='digitar'),

@@ -20,6 +20,7 @@ from notas.models.perfiles import Colegio, Curso, Docente, Estudiante
 
 
 METODOS = [
+    ('manual', 'Manual: el docente pone los puntos de cada pregunta y la nota es su suma'),
     ('con_piso', 'Con piso: 0 aciertos saca la nota mínima'),
     ('proporcional', 'Proporcional: 0 aciertos saca 0 (se ajusta a la mínima)'),
     ('descuento', 'Por descuento: arranca en la máxima y resta'),
@@ -112,6 +113,26 @@ class Examen(models.Model):
     @property
     def preguntas_vigentes(self):
         return self.preguntas.filter(anulada=False)
+
+    @property
+    def es_manual(self):
+        return self.metodo == 'manual'
+
+    def puntos_automaticos(self):
+        """Lo que vale cada pregunta cuando la nota sale de una fórmula.
+
+        Con fórmula todas valen lo mismo: lo que aporta un acierto a la nota.
+        Con piso, cada acierto sube (máxima - mínima) / n desde la mínima; en
+        los demás, máxima / n. A la fórmula solo le importa la proporción, así
+        que el redondeo a centésimas no cambia ninguna nota.
+        """
+        from decimal import ROUND_HALF_UP
+        n = self.preguntas_vigentes.count()
+        if not n:
+            return Decimal('1.00')
+        rango = self.nota_maxima - (self.nota_minima if self.metodo == 'con_piso' else 0)
+        valor = (rango / n).quantize(Decimal('0.01'), ROUND_HALF_UP)
+        return valor if valor > 0 else Decimal('0.01')
 
     @property
     def puntos_posibles(self):
@@ -223,6 +244,14 @@ class Bloque(models.Model):
     numero_opciones = models.PositiveSmallIntegerField(
         null=True, blank=True, verbose_name='Opciones del bloque',
         help_text='Vacío = las del examen.')
+    # Cuánto pesa la nota de este bloque en la nota final de la prueba.
+    # Vacío = lo que le toque según sus puntos (con todos vacíos, la nota
+    # final sale igual que si el examen no tuviera bloques).
+    peso = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Peso en la nota final (%)',
+        help_text='Vacío = proporcional a sus puntos.')
 
     class Meta:
         ordering = ['orden', 'id']

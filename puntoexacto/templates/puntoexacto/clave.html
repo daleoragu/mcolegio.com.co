@@ -32,6 +32,26 @@
         o las del examen.
     </p>
 
+    <div class="pe-puntaje">
+        <label class="form-label mb-1" for="pe-metodo"><strong>Cómo se puntúan las preguntas</strong></label>
+        <select name="metodo" id="pe-metodo" class="form-select form-select-sm" style="max-width:560px;">
+            {% for cod, nom in metodos %}
+                <option value="{{ cod }}" {% if examen.metodo == cod %}selected{% endif %}>{{ nom }}</option>
+            {% endfor %}
+        </select>
+        <div class="form-text" id="pe-texto-manual" {% if not examen.es_manual %}hidden{% endif %}>
+            Escriba los puntos de cada pregunta. La nota es la suma de lo que acierte,
+            así que los puntos deben sumar la nota máxima ({{ examen.nota_maxima }}).
+            <strong>Van: <span id="pe-suma">—</span> de {{ examen.nota_maxima }}.</strong>
+        </div>
+        <div class="form-text" id="pe-texto-formula" {% if examen.es_manual %}hidden{% endif %}>
+            Con fórmula todas las preguntas valen lo mismo y el puntaje se pone solo:
+            <strong>cada acierto vale <span id="pe-auto">{{ puntos_auto }}</span></strong>
+            (escala de {{ examen.nota_minima }} a {{ examen.nota_maxima }}).
+            Para darle más peso a alguna pregunta, escoja «Manual».
+        </div>
+    </div>
+
     {% if bloques %}
         <p style="font-size:.88rem;">
             <strong>Bloques de este examen:</strong>
@@ -81,7 +101,9 @@
                     </td>
                     <td class="pe-num">
                         <input type="text" name="puntos_{{ p.numero }}" value="{{ p.puntos }}"
-                               class="form-control form-control-sm" style="width:72px;">
+                               class="form-control form-control-sm pe-puntos" style="width:72px;"
+                               data-manual="{{ p.puntos }}"
+                               {% if not examen.es_manual %}readonly tabindex="-1"{% endif %}>
                     </td>
                     <td>
                         <div class="pe-opciones">
@@ -125,7 +147,7 @@
                         </select>
                     </td>
                     <td class="pe-num">
-                        <input type="checkbox" name="anulada_{{ p.numero }}"
+                        <input type="checkbox" name="anulada_{{ p.numero }}" class="pe-anulada"
                                {% if p.anulada %}checked{% endif %}>
                     </td>
                 </tr>
@@ -135,4 +157,59 @@
     </div>
     <div class="mt-3"><button class="btn btn-primary">Guardar clave</button></div>
 </form>
+
+<style>
+    .pe-puntaje { background:#f6f9fd; border:1px solid #dbe5f1; border-radius:8px;
+                  padding:10px 12px; margin-bottom:14px; }
+    .pe-puntos[readonly] { background:#eef1f5; color:#4b5563; }
+</style>
+<script>
+(function () {
+    var sel = document.getElementById('pe-metodo');
+    var cajas = Array.prototype.slice.call(document.querySelectorAll('.pe-puntos'));
+    var anuladas = Array.prototype.slice.call(document.querySelectorAll('.pe-anulada'));
+    var elSuma = document.getElementById('pe-suma');
+    var elAuto = document.getElementById('pe-auto');
+    var maxima = parseFloat('{{ examen.nota_maxima|stringformat:"s" }}');
+    var minima = parseFloat('{{ examen.nota_minima|stringformat:"s" }}');
+
+    function coma(v) { return v.toFixed(2).replace('.', ','); }
+    function numero(t) { var v = parseFloat(String(t || '').replace(',', '.')); return isNaN(v) ? 0 : v; }
+    function vigentes() {
+        return cajas.filter(function (c, i) { return !(anuladas[i] && anuladas[i].checked); });
+    }
+    function automatico() {
+        var n = vigentes().length;
+        if (!n) return 1;
+        var rango = maxima - (sel.value === 'con_piso' ? minima : 0);
+        return Math.max(0.01, Math.round(rango / n * 100) / 100);
+    }
+    function sumar() {
+        var s = vigentes().reduce(function (a, c) { return a + numero(c.value); }, 0);
+        elSuma.textContent = coma(s);
+        elSuma.style.color = Math.abs(s - maxima) < 0.005 ? '#1f7a3a' : '#a3161a';
+    }
+    function aplicar() {
+        var manual = sel.value === 'manual';
+        document.getElementById('pe-texto-manual').hidden = !manual;
+        document.getElementById('pe-texto-formula').hidden = manual;
+        var auto = coma(automatico());
+        elAuto.textContent = auto;
+        cajas.forEach(function (c) {
+            if (manual) {
+                if (c.readOnly) { c.value = c.dataset.manual; }
+                c.readOnly = false; c.removeAttribute('tabindex');
+            } else {
+                if (!c.readOnly) { c.dataset.manual = c.value; }
+                c.readOnly = true; c.tabIndex = -1; c.value = auto;
+            }
+        });
+        sumar();
+    }
+    sel.addEventListener('change', aplicar);
+    cajas.forEach(function (c) { c.addEventListener('input', sumar); });
+    anuladas.forEach(function (a) { a.addEventListener('change', aplicar); });
+    aplicar();
+})();
+</script>
 {% endblock %}

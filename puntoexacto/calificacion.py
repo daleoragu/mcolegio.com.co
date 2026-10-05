@@ -28,6 +28,9 @@ def nota_desde_puntaje(obtenido, posible, maxima, minima, metodo,
     """El puntaje crudo, convertido a nota según el método elegido."""
     if posible <= 0:
         return minima
+    if metodo == 'manual':
+        # Los puntos ya están en la escala de la nota: la nota es lo que sumó.
+        return obtenido
     if metodo == 'proporcional':
         return (obtenido / posible) * maxima
     if metodo == 'con_piso':
@@ -65,6 +68,50 @@ def equilibrio_de_azar(por_error, por_blanco, opciones):
             'por_error_neutra': neutra, 'veredicto': veredicto}
 
 
+def repartir_pesos(grupos):
+    """Cuánto pesa cada bloque en la nota final. Devuelve ({clave: fracción}, avisos).
+
+    grupos: [(clave, puntos, peso_en_porcentaje_o_None), ...]
+
+    * Los bloques con peso escrito se llevan ese porcentaje.
+    * Lo que sobre hasta 100 se reparte entre los que lo dejaron vacío, en
+      proporción a sus puntos. Con todos vacíos, la nota final sale idéntica a
+      calificar el examen entero de una vez, que es lo que hacía antes.
+    * Si los escritos no cuadran, se normalizan y se avisa.
+    """
+    avisos = []
+    grupos = [(k, Decimal(pts or 0), (Decimal(str(w)) if w is not None else None))
+              for k, pts, w in grupos]
+    if not grupos:
+        return {}, avisos
+    fijos = [(k, w) for k, _, w in grupos if w is not None]
+    libres = [(k, pts) for k, pts, w in grupos if w is None]
+    suma_fijos = sum((w for _, w in fijos), Decimal('0'))
+    pesos = {k: w for k, w in fijos}
+
+    if libres:
+        resto = Decimal('100') - suma_fijos
+        if resto < 0:
+            avisos.append(f'Los pesos escritos suman {suma_fijos}%: los bloques sin peso '
+                          f'quedan valiendo 0 y los demás se ajustan para sumar 100%.')
+            resto = Decimal('0')
+        total_libres = sum((pts for _, pts in libres), Decimal('0'))
+        for k, pts in libres:
+            if total_libres > 0:
+                pesos[k] = resto * pts / total_libres
+            else:
+                pesos[k] = resto / len(libres)
+    elif suma_fijos != Decimal('100'):
+        avisos.append(f'Los pesos de los bloques suman {suma_fijos}%, no 100%. '
+                      f'Se ajustan en la misma proporción para sumar 100%.')
+
+    total = sum(pesos.values(), Decimal('0'))
+    if total <= 0:
+        n = len(grupos)
+        return {k: Decimal('1') / n for k, _, _ in grupos}, avisos
+    return {k: v / total for k, v in pesos.items()}, avisos
+
+
 # ---------------------------------------------------------------------------
 # Puente con los modelos
 # ---------------------------------------------------------------------------
@@ -100,8 +147,17 @@ def calificar_hoja(hoja, preguntas=None, guardar=True):
             else:
                 malas += 1
 
-    bruto = nota_desde_puntaje(obtenido, posible, examen.nota_maxima,
-                               examen.nota_minima, examen.metodo, castigo)
+    detalle_bloques = None
+    if examen.bloques.exists():
+        # Prueba por bloques: cada bloque saca su nota y la final es el
+        # promedio ponderado de esas notas, con los pesos de «Bloques».
+        detalle_bloques = notas_por_bloque(examen, hoja, preguntas)
+        pesos, _ = pesos_de_bloques(examen, preguntas)
+        bruto = sum((pesos.get(bid, Decimal('0')) * d['nota']
+                     for bid, d in detalle_bloques.items()), Decimal('0'))
+    else:
+        bruto = nota_desde_puntaje(obtenido, posible, examen.nota_maxima,
+                                   examen.nota_minima, examen.metodo, castigo)
     nota, recortada = acotar(bruto, examen.nota_minima, examen.nota_maxima)
     nota = nota.quantize(CENTESIMA, ROUND_HALF_UP)
 
@@ -121,8 +177,25 @@ def calificar_hoja(hoja, preguntas=None, guardar=True):
         'nota': nota, 'bruto': bruto.quantize(CENTESIMA), 'recortada': recortada,
         'aviso': aviso, 'obtenido': obtenido.quantize(CENTESIMA), 'posible': posible,
         'buenas': buenas, 'parciales': parciales, 'malas': malas,
-        'blancas': blancas, 'dobles': dobles,
+        'blancas': blancas, 'dobles': dobles, 'bloques': detalle_bloques,
     }
+
+
+def pesos_de_bloques(examen, preguntas=None):
+    """Los pesos efectivos de los bloques de un examen: ({bloque_id: fracción}, avisos).
+
+    Las preguntas sin bloque cuentan como un grupo más (clave None), con el
+    peso que les toque por sus puntos, para que no se pierdan de la nota.
+    """
+    if preguntas is None:
+        preguntas = list(examen.preguntas.filter(anulada=False))
+    puntos = {}
+    for p in preguntas:
+        puntos[p.bloque_id] = puntos.get(p.bloque_id, Decimal('0')) + p.puntos
+    grupos = [(b.id, puntos[b.id], b.peso) for b in examen.bloques.all() if b.id in puntos]
+    if None in puntos:
+        grupos.append((None, puntos[None], None))
+    return repartir_pesos(grupos)
 
 
 def calificar_examen(examen):
@@ -143,13 +216,20 @@ def revisar_configuracion(examen):
         avisos.append('Faltan respuestas en la clave: preguntas '
                       + ', '.join(str(n) for n in sin_clave) + '.')
 
+    # Con fórmula los puntos se ponen solos y solo importa su proporción; con
+    # puntaje manual la nota ES la suma, así que tiene que cuadrar con la máxima.
     total = sum(p.puntos for p in vigentes)
-    if total > examen.nota_maxima:
-        avisos.append(f'Los puntos suman {total} y la nota máxima es {examen.nota_maxima}. '
-                      f'Baje el puntaje de algunas preguntas.')
-    elif vigentes and total < examen.nota_maxima and examen.metodo != 'con_piso':
-        avisos.append(f'Los puntos suman {total}, menos que la nota máxima '
-                      f'{examen.nota_maxima}: un examen perfecto no llegaría a la máxima.')
+    if examen.metodo == 'manual' and vigentes:
+        if total > examen.nota_maxima:
+            avisos.append(f'Los puntos suman {total} y la nota máxima es {examen.nota_maxima}. '
+                          f'Baje el puntaje de algunas preguntas.')
+        elif total < examen.nota_maxima:
+            avisos.append(f'Los puntos suman {total}, menos que la nota máxima '
+                          f'{examen.nota_maxima}: un examen perfecto no llegaría a la máxima.')
+
+    if examen.bloques.exists():
+        _, avisos_pesos = pesos_de_bloques(examen, vigentes)
+        avisos.extend(avisos_pesos)
 
     letras = examen.letras
     for p in vigentes:
@@ -218,8 +298,11 @@ def notas_por_componente(examen, hoja, preguntas=None):
             # cero preguntas y daría siempre la máxima.
             bruto = examen.nota_maxima - castigo
         else:
+            # Con puntaje manual, los puntos de una parte no suman la máxima:
+            # se lleva a la escala en proporción.
+            metodo = 'proporcional' if examen.metodo == 'manual' else examen.metodo
             bruto = nota_desde_puntaje(obtenido, posible, examen.nota_maxima,
-                                       examen.nota_minima, examen.metodo)
+                                       examen.nota_minima, metodo)
         nota, _ = acotar(bruto, examen.nota_minima, examen.nota_maxima)
         salida[componente] = {
             'nota': nota.quantize(CENTESIMA, ROUND_HALF_UP),
@@ -267,7 +350,24 @@ def notas_por_bloque(examen, hoja, preguntas=None):
                 castigo += pen['por_error'] * (Decimal('1') - fr)
 
         if examen.metodo == 'descuento':
-            bruto = examen.nota_maxima - castigo
+            # Cada bloque es una prueba completa: su descuento se reparte entre
+            # SUS preguntas. Con el del examen entero, un bloque de 10 preguntas
+            # todas malas apenas bajaría un poco y quedaría con nota alta.
+            n = len(lista)
+            por_error = (examen.nota_maxima - examen.nota_todo_mal) / n
+            por_blanco = (examen.nota_maxima - examen.nota_nada_marcado) / n
+            castigo_bloque = Decimal('0')
+            for p in lista:
+                marcada = marcadas.get(p.id, '')
+                if not marcada:
+                    castigo_bloque += por_blanco
+                else:
+                    castigo_bloque += por_error * (Decimal('1') - p.fraccion(marcada))
+            bruto = examen.nota_maxima - castigo_bloque
+        elif examen.metodo == 'manual':
+            # Los puntos de un bloque no suman la máxima: se lleva a la escala.
+            bruto = nota_desde_puntaje(obtenido, posible, examen.nota_maxima,
+                                       examen.nota_minima, 'proporcional')
         else:
             bruto = nota_desde_puntaje(obtenido, posible, examen.nota_maxima,
                                        examen.nota_minima, examen.metodo)

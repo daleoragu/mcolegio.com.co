@@ -24,7 +24,7 @@ from . import calificacion as calif
 from . import hojas as hojas_mod
 from .forms import ExamenForm
 from .hojas import generar_pdf
-from .models import COMPONENTES, Bloque, Examen, Hoja, Pregunta, Respuesta
+from .models import COMPONENTES, METODOS, Bloque, Examen, Hoja, Pregunta, Respuesta
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +215,11 @@ def clave(request, examen_id):
 
     if request.method == 'POST':
         with transaction.atomic():
+            # Cómo se puntúa: a mano, pregunta por pregunta, o con una fórmula.
+            metodo = (request.POST.get('metodo') or '').strip()
+            if metodo in {c for c, _ in METODOS} and metodo != examen.metodo:
+                examen.metodo = metodo
+                examen.save(update_fields=['metodo'])
             for p in preguntas:
                 p.correcta = (request.POST.get(f'correcta_{p.numero}') or '').strip().upper()[:1]
                 bid = (request.POST.get(f'bloque_{p.numero}') or '').strip()
@@ -232,6 +237,10 @@ def clave(request, examen_id):
                     p.puntos = Decimal('1.00')
                 p.parciales = _leer_parciales(request, p, examen.letras)
                 p.save()
+            if not examen.es_manual:
+                # Con fórmula, cada pregunta vale lo mismo y el valor lo pone el
+                # sistema: lo que se haya escrito en la casilla no cuenta.
+                examen.preguntas.update(puntos=examen.puntos_automaticos())
             calif.calificar_examen(examen)
         messages.success(request, 'Clave guardada y notas recalculadas.')
         return redirect('puntoexacto:clave', examen_id=examen.id)
@@ -244,6 +253,8 @@ def clave(request, examen_id):
         'bloques_partidos': [b for b in examen.bloques.all() if not b.es_continuo()],
         'rango_opciones': range(2, 11),
         'avisos': calif.revisar_configuracion(examen),
+        'metodos': METODOS,
+        'puntos_auto': examen.puntos_automaticos(),
     })
 
 
@@ -628,6 +639,7 @@ def bloques(request, examen_id):
                 op = (request.POST.get(f'opciones_{b.id}') or '').strip()
                 b.numero_opciones = int(op) if op.isdigit() and 2 <= int(op) <= 10 else None
                 b.orden = int(request.POST.get(f'orden_{b.id}') or b.orden)
+                b.peso = _leer_peso(request.POST.get(f'peso_{b.id}'))
                 b.save()
                 desde = request.POST.get(f'desde_{b.id}') or ''
                 hasta = request.POST.get(f'hasta_{b.id}') or ''
@@ -646,6 +658,7 @@ def bloques(request, examen_id):
                     examen=examen, nombre=nuevo[:60],
                     materia_id=int(mid) if mid.isdigit() else None,
                     numero_opciones=int(op) if op.isdigit() and 2 <= int(op) <= 10 else None,
+                    peso=_leer_peso(request.POST.get('nuevo_peso')),
                     orden=(examen.bloques.count() + 1))
                 d = request.POST.get('nuevo_desde') or ''
                 h = request.POST.get('nuevo_hasta') or ''
@@ -653,22 +666,151 @@ def bloques(request, examen_id):
                     examen.preguntas.filter(numero__gte=int(d),
                                             numero__lte=int(h)).update(bloque=b)
 
+            # Las notas dependen de los bloques y sus pesos: se recalculan.
+            calif.calificar_examen(examen)
+
         for e in errores:
             messages.warning(request, e)
         if not errores:
-            messages.success(request, 'Bloques guardados.')
+            messages.success(request, 'Bloques guardados y notas recalculadas.')
         return redirect('puntoexacto:bloques', examen_id=examen.id)
 
+    vigentes = list(examen.preguntas.filter(anulada=False))
+    pesos, avisos_pesos = calif.pesos_de_bloques(examen, vigentes)
     filas = []
     for b in examen.bloques.all():
         d, h = b.rango()
+        efectivo = pesos.get(b.id)
         filas.append({'b': b, 'desde': d, 'hasta': h,
-                      'n': b.preguntas.count(), 'continuo': b.es_continuo()})
+                      'n': b.preguntas.count(), 'continuo': b.es_continuo(),
+                      'peso_efectivo': (efectivo * 100).quantize(Decimal('0.1'))
+                      if efectivo is not None else None})
+    # Lo que necesita la pantalla para recalcular en vivo, sin guardar: cada
+    # pregunta con sus puntos, sus opciones y el bloque en que está hoy.
+    preguntas_js = [{'n': p.numero, 'pts': float(p.puntos), 'anulada': p.anulada,
+                     'op': p.numero_opciones, 'b': p.bloque_id}
+                    for p in examen.preguntas.order_by('numero')]
     return render(request, 'puntoexacto/bloques.html', {
         'examen': examen, 'materias': materias, 'filas': filas,
         'sin_bloque': examen.preguntas_sin_bloque(),
         'rango_opciones': range(2, 11),
+        'peso_sin_bloque': ((pesos[None] * 100).quantize(Decimal('0.1'))
+                            if None in pesos else None),
+        'avisos_pesos': avisos_pesos,
+        'preguntas_json': preguntas_js,
     })
+
+
+def _leer_peso(crudo):
+    """Un porcentaje entre 0 y 100, o None si viene vacío o no es número."""
+    crudo = (crudo or '').strip().replace(',', '.').rstrip('%')
+    if not crudo:
+        return None
+    try:
+        valor = Decimal(crudo)
+    except InvalidOperation:
+        return None
+    if valor < 0 or valor > 100:
+        return None
+    return valor.quantize(Decimal('0.01'))
+
+
+@login_required
+@xframe_options_sameorigin
+def vista_previa_bloques(request, examen_id):
+    """La hoja de un examen por bloques, con lo que hay escrito en la pantalla.
+
+    Recibe en ?bloques= la lista de filas tal como están en el formulario, sin
+    guardar: [{"clave": "12", "nombre": "Lenguaje", "orden": 1, "desde": 1,
+    "hasta": 15, "opciones": 4}, ...]. Reparte las preguntas igual que lo haría
+    el botón Guardar y dibuja con el mismo generador que imprime de verdad.
+    Sin ?bloques= dibuja lo que ya está guardado. No guarda nada.
+    """
+    import io
+    import json
+
+    examen = _examen_o_404(request, examen_id)
+    preguntas = list(examen.preguntas.order_by('numero'))
+    asignada = {p.numero: (str(p.bloque_id) if p.bloque_id else None) for p in preguntas}
+
+    filas = []
+    crudo = request.GET.get('bloques')
+    if crudo:
+        try:
+            filas = json.loads(crudo)
+        except (ValueError, TypeError):
+            filas = []
+        if not isinstance(filas, list):
+            filas = []
+    if not filas:
+        filas = [{'clave': str(b.id), 'nombre': b.nombre, 'orden': b.orden,
+                  'opciones': b.numero_opciones} for b in examen.bloques.all()]
+
+    def entero(valor, defecto=None):
+        try:
+            return int(valor)
+        except (TypeError, ValueError):
+            return defecto
+
+    limpias = []
+    for i, f in enumerate(filas):
+        if not isinstance(f, dict):
+            continue
+        clave = str(f.get('clave') or f'nuevo{i}')
+        nombre = (str(f.get('nombre') or '').strip() or 'Bloque')[:60]
+        op = entero(f.get('opciones'))
+        limpias.append({'clave': clave, 'nombre': nombre,
+                        'orden': entero(f.get('orden'), 99),
+                        'opciones': op if op and 2 <= op <= 10 else None,
+                        'desde': entero(f.get('desde')), 'hasta': entero(f.get('hasta'))})
+        d, h = limpias[-1]['desde'], limpias[-1]['hasta']
+        if d and h and d <= h:
+            for n in range(d, h + 1):
+                if n in asignada:
+                    asignada[n] = clave
+
+    secciones = []
+    for f in sorted(limpias, key=lambda x: x['orden']):
+        suyas = [p for p in preguntas if asignada.get(p.numero) == f['clave']]
+        if not suyas:
+            continue
+        base = f['opciones'] or examen.numero_opciones
+        op_preg = [p.numero_opciones or base for p in suyas]
+        secciones.append({'nombre': f['nombre'], 'n': len(suyas),
+                          'opciones': max([base] + op_preg), 'op_pregunta': op_preg})
+
+    materia = curso = ''
+    if examen.asignacion_id:
+        materia = examen.asignacion.materia.nombre
+        curso = examen.asignacion.curso.nombre
+    datos = {
+        'colegio': examen.colegio.nombre if examen.colegio_id else '',
+        'materia': materia or 'Prueba por áreas', 'curso': curso or 'Curso',
+        'periodo': str(examen.periodo) if examen.periodo_id else '',
+        'titulo': examen.titulo,
+        'estudiante': 'APELLIDOS Y NOMBRES DEL ESTUDIANTE', 'documento': '0000000000',
+        'docente': '', 'fecha': '',
+    }
+    if not secciones:
+        return _pdf_de_aviso('Todavía no hay ningún bloque con preguntas. Escriba un '
+                             'nombre y el rango «Desde–Hasta» para ver la hoja.')
+    try:
+        por_pagina = examen.hojas_por_pagina or 1
+        if por_pagina not in hojas_mod.REPARTO:
+            por_pagina = 1
+        buffer = io.BytesIO()
+        hojas_mod.generar(buffer, [datos], opciones=examen.numero_opciones,
+                          por_pagina=por_pagina, secciones=secciones,
+                          identificadores=['PE-MUESTRA'], escudo=None)
+    except ValueError as e:
+        return _pdf_de_aviso(str(e))
+    except Exception as e:
+        return _pdf_de_aviso(f'{type(e).__name__}: {e}')
+
+    respuesta = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    respuesta['Content-Disposition'] = 'inline; filename="vista-previa-bloques.pdf"'
+    respuesta['Cache-Control'] = 'no-store'
+    return respuesta
 
 
 @login_required

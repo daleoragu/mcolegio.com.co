@@ -16,6 +16,9 @@
     estudiante queda con una nota de Lenguaje y otra de Matemáticas, no con un promedio
     que esconde las dos.
     <ul>
+        <li>La <strong>nota final de la prueba</strong> sale de las notas de los bloques,
+            con el <strong>peso</strong> que le ponga a cada uno. Si deja el peso vacío,
+            cada bloque pesa según sus puntos (más preguntas, más peso).</li>
         <li>Si le pone <strong>materia</strong> a un bloque, esa nota puede llevarse después
             a la planilla de esa asignatura. El docente se resuelve según el curso de cada
             estudiante, así que sirve aunque la prueba sea para varios cursos.</li>
@@ -27,7 +30,23 @@
     </ul>
 </div>
 
-<form method="post" class="pe-tarjeta">
+<style>
+    .pe-dos { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,420px);
+              gap:20px; align-items:start; }
+    @media (max-width:1100px) { .pe-dos { grid-template-columns:1fr; } }
+    .pe-previa { position:sticky; top:16px; }
+    .pe-previa iframe { width:100%; height:560px; border:1px solid #e3e6ec;
+                        border-radius:8px; background:#f4f5f7; }
+    .pe-final { background:#f6f9fd; border:1px solid #dbe5f1; border-radius:8px;
+                padding:10px 12px; margin-top:14px; font-size:.9rem; }
+    .pe-final table { width:100%; font-variant-numeric:tabular-nums; }
+    .pe-final td { padding:2px 4px; }
+    .pe-final .barra { height:8px; border-radius:4px; background:#2d4a6b; }
+    .pe-final .malo { color:#a3161a; }
+</style>
+
+<div class="pe-dos">
+<form method="post" class="pe-tarjeta" id="pe-form-bloques">
     {% csrf_token %}
     <h5>Bloques del examen</h5>
 
@@ -36,12 +55,12 @@
         <table class="pe-tabla">
             <thead><tr>
                 <th class="pe-num">Orden</th><th>Nombre</th><th>Materia del colegio</th>
-                <th class="pe-num">Opciones</th><th class="pe-num">Preguntas</th>
+                <th class="pe-num">Opciones</th><th class="pe-num">Peso %</th><th class="pe-num">Preguntas</th>
                 <th class="pe-num">Desde</th><th class="pe-num">Hasta</th><th></th>
             </tr></thead>
             <tbody>
             {% for f in filas %}
-                <tr>
+                <tr class="pe-fila" data-clave="{{ f.b.id }}">
                     <td class="pe-num">
                         <input type="number" name="orden_{{ f.b.id }}" value="{{ f.b.orden }}"
                                min="1" max="20" class="form-control form-control-sm" style="width:70px;">
@@ -65,6 +84,11 @@
                                 <option value="{{ n }}" {% if f.b.numero_opciones == n %}selected{% endif %}>{{ n }}</option>
                             {% endfor %}
                         </select>
+                    </td>
+                    <td class="pe-num">
+                        <input type="text" name="peso_{{ f.b.id }}" inputmode="decimal"
+                               value="{{ f.b.peso|default_if_none:'' }}" placeholder="auto"
+                               class="form-control form-control-sm" style="width:72px;">
                     </td>
                     <td class="pe-num">
                         {{ f.n }}
@@ -105,13 +129,13 @@
 
     <hr>
     <h6>Agregar un bloque</h6>
-    <div class="row g-2 align-items-end">
+    <div class="row g-2 align-items-end pe-fila" data-clave="nuevo">
         <div class="col-md-3">
             <label class="form-label" style="font-size:.8rem;">Nombre</label>
             <input type="text" name="nuevo_nombre" class="form-control form-control-sm"
                    placeholder="Matemáticas" maxlength="60">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label class="form-label" style="font-size:.8rem;">Materia del colegio</label>
             <select name="nuevo_materia" class="form-select form-select-sm">
                 <option value="">(sin materia)</option>
@@ -124,6 +148,11 @@
                 <option value="">del examen</option>
                 {% for n in rango_opciones %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
             </select>
+        </div>
+        <div class="col-md-1">
+            <label class="form-label" style="font-size:.8rem;">Peso %</label>
+            <input type="text" name="nuevo_peso" inputmode="decimal" placeholder="auto"
+                   class="form-control form-control-sm">
         </div>
         <div class="col-md-2">
             <label class="form-label" style="font-size:.8rem;">Desde</label>
@@ -145,8 +174,162 @@
         </div>
     {% endif %}
 
+    <div class="pe-final">
+        <strong>Así sale la nota final de la prueba</strong>
+        <div class="form-text mt-0 mb-2">
+            Cada bloque se califica solo con sus preguntas y la final es el promedio
+            ponderado de esas notas. Se recalcula mientras escribe.
+        </div>
+        <table id="pe-tabla-final"><tbody></tbody></table>
+        <div id="pe-aviso-pesos" class="malo mt-1"></div>
+        <div id="pe-formula" class="mt-2" style="font-size:.85rem;"></div>
+    </div>
+
     <div class="mt-3">
         <button type="submit" class="btn btn-primary">Guardar bloques</button>
     </div>
 </form>
+
+<div class="pe-tarjeta pe-previa">
+    <div class="d-flex align-items-center justify-content-between mb-1">
+        <h6 class="mb-0">Así va a salir la hoja</h6>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="pe-recargar">Actualizar</button>
+    </div>
+    <p class="text-muted" style="font-size:.84rem;margin-bottom:.5rem;">
+        Mismo generador que imprime las hojas, con lo que está escrito a la izquierda,
+        aunque todavía no lo haya guardado.
+    </p>
+    <div id="pe-estado" class="form-text"></div>
+    <iframe id="pe-iframe" title="Vista previa de la hoja por bloques"></iframe>
+    <div class="mt-2">
+        <a id="pe-abrir" href="#" target="_blank" style="font-size:.85rem;">Abrir la vista previa en otra pestaña</a>
+    </div>
+</div>
+</div>
+
+{{ preguntas_json|json_script:"pe-preguntas" }}
+<script>
+(function () {
+    var base = "{% url 'puntoexacto:vista_previa_bloques' examen_id=examen.id %}";
+    var preguntas = JSON.parse(document.getElementById("pe-preguntas").textContent);
+    var form = document.getElementById('pe-form-bloques');
+    var iframe = document.getElementById('pe-iframe');
+    var estado = document.getElementById('pe-estado');
+    var abrir = document.getElementById('pe-abrir');
+
+    function val(nombre) { var el = form.elements[nombre]; return el ? el.value : ''; }
+    function ent(t) { var v = parseInt(t, 10); return isNaN(v) ? null : v; }
+    function dec(t) {
+        t = String(t || '').trim().replace(',', '.').replace('%', '');
+        if (!t) return null;
+        var v = parseFloat(t); return isNaN(v) ? null : v;
+    }
+    function coma(v, d) { return v.toFixed(d).replace('.', ','); }
+
+    // Las filas tal como están escritas, sin guardar.
+    function filas() {
+        var salida = [];
+        form.querySelectorAll('.pe-fila').forEach(function (tr) {
+            var c = tr.dataset.clave;
+            var pre = c === 'nuevo' ? 'nuevo_' : '';
+            var suf = c === 'nuevo' ? '' : '_' + c;
+            var nombre = val(c === 'nuevo' ? 'nuevo_nombre' : 'nombre' + suf).trim();
+            if (c === 'nuevo' && !nombre) return;
+            salida.push({
+                clave: c, nombre: nombre,
+                orden: c === 'nuevo' ? 99 : ent(val('orden' + suf)),
+                opciones: ent(val(pre + 'opciones' + suf)),
+                desde: ent(val(pre + 'desde' + suf)),
+                hasta: ent(val(pre + 'hasta' + suf)),
+                peso: dec(val(pre + 'peso' + suf))
+            });
+        });
+        return salida;
+    }
+
+    // Mismo reparto y mismos pesos que el servidor (calificacion.repartir_pesos).
+    function pesosFinales(lista) {
+        var asignada = {};
+        preguntas.forEach(function (p) { asignada[p.n] = p.b ? String(p.b) : null; });
+        lista.forEach(function (f) {
+            if (f.desde && f.hasta && f.desde <= f.hasta) {
+                for (var n = f.desde; n <= f.hasta; n++) if (n in asignada) asignada[n] = f.clave;
+            }
+        });
+        var puntos = {}, cuantas = {};
+        preguntas.forEach(function (p) {
+            if (p.anulada) return;
+            var k = asignada[p.n] || '_sin';
+            puntos[k] = (puntos[k] || 0) + p.pts; cuantas[k] = (cuantas[k] || 0) + 1;
+        });
+        var grupos = [];
+        lista.forEach(function (f) {
+            if (puntos[f.clave]) grupos.push({clave: f.clave, nombre: f.nombre || 'Bloque',
+                                              pts: puntos[f.clave], n: cuantas[f.clave], peso: f.peso});
+        });
+        if (puntos._sin) grupos.push({clave: '_sin', nombre: 'Preguntas sin bloque',
+                                      pts: puntos._sin, n: cuantas._sin, peso: null});
+        var aviso = '';
+        var fijos = grupos.filter(function (g) { return g.peso !== null; });
+        var libres = grupos.filter(function (g) { return g.peso === null; });
+        var sumaFijos = fijos.reduce(function (a, g) { return a + g.peso; }, 0);
+        fijos.forEach(function (g) { g.w = g.peso; });
+        if (libres.length) {
+            var resto = 100 - sumaFijos;
+            if (resto < 0) { aviso = 'Los pesos escritos suman ' + coma(sumaFijos, 1) + '%: los bloques sin peso quedan en 0.'; resto = 0; }
+            var tl = libres.reduce(function (a, g) { return a + g.pts; }, 0);
+            libres.forEach(function (g) { g.w = tl > 0 ? resto * g.pts / tl : resto / libres.length; });
+        } else if (grupos.length && Math.abs(sumaFijos - 100) > 0.001) {
+            aviso = 'Los pesos suman ' + coma(sumaFijos, 1) + '%, no 100%. Se ajustan en la misma proporción.';
+        }
+        var total = grupos.reduce(function (a, g) { return a + g.w; }, 0);
+        grupos.forEach(function (g) { g.w = total > 0 ? 100 * g.w / total : 100 / grupos.length; });
+        return {grupos: grupos, aviso: aviso};
+    }
+
+    function pintarFinal(lista) {
+        var r = pesosFinales(lista);
+        var cuerpo = document.querySelector('#pe-tabla-final tbody');
+        cuerpo.innerHTML = '';
+        r.grupos.forEach(function (g) {
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td></td><td style="width:40%"><div class="barra"></div></td>' +
+                           '<td class="text-end"><strong></strong></td><td class="text-muted"></td>';
+            tr.children[0].textContent = g.nombre;
+            tr.querySelector('.barra').style.width = Math.max(2, g.w) + '%';
+            tr.querySelector('strong').textContent = coma(g.w, 1) + '%';
+            tr.children[3].textContent = g.n + ' preg.' + (g.peso === null ? ' · auto' : '');
+            cuerpo.appendChild(tr);
+        });
+        document.getElementById('pe-aviso-pesos').textContent = r.aviso;
+        document.getElementById('pe-formula').textContent = r.grupos.length
+            ? 'Nota final = ' + r.grupos.map(function (g) {
+                  return coma(g.w / 100, 2) + ' × ' + g.nombre; }).join(' + ')
+            : 'Agregue un bloque para ver cómo se arma la nota.';
+    }
+
+    var temporizador = null, vigilante = null;
+    function refrescar() {
+        var lista = filas();
+        pintarFinal(lista);
+        clearTimeout(temporizador);
+        temporizador = setTimeout(function () {
+            var url = base + '?' + new URLSearchParams({
+                bloques: JSON.stringify(lista), t: Date.now()}).toString();
+            abrir.href = url;
+            estado.textContent = 'Dibujando la hoja…';
+            clearTimeout(vigilante);
+            vigilante = setTimeout(function () {
+                estado.textContent = 'La vista previa está tardando; pruebe el enlace de abajo.';
+            }, 8000);
+            iframe.src = url;
+        }, 500);
+    }
+    iframe.addEventListener('load', function () { clearTimeout(vigilante); estado.textContent = ''; });
+    document.getElementById('pe-recargar').addEventListener('click', refrescar);
+    form.addEventListener('input', refrescar);
+    form.addEventListener('change', refrescar);
+    refrescar();
+})();
+</script>
 {% endblock %}

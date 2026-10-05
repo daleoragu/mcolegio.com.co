@@ -9,6 +9,21 @@ CAJA = {'class': 'form-control'}
 SELECT = {'class': 'form-select'}
 
 
+def escala_del_colegio(colegio):
+    """(mínima, máxima) de la escala de valoración del colegio, o None si no tiene."""
+    from decimal import Decimal
+    from notas.models.academicos import EscalaValoracion
+
+    escalas = EscalaValoracion.objects.filter(colegio=colegio)
+    if not escalas.exists():
+        return None
+    minima = min(e.valor_minimo for e in escalas)
+    maxima = max(e.valor_maximo for e in escalas)
+    if minima >= maxima:
+        return None
+    return Decimal(minima).quantize(Decimal('0.01')), Decimal(maxima).quantize(Decimal('0.01'))
+
+
 class ExamenForm(forms.ModelForm):
     class Meta:
         model = Examen
@@ -52,9 +67,29 @@ class ExamenForm(forms.ModelForm):
         self.fields['asignacion'].empty_label = 'Seleccione asignatura y curso'
         self.fields['periodo'].empty_label = 'Sin periodo'
 
+        # En un colegio la escala ya está definida en la plataforma (escala de
+        # valoración): pedirla otra vez sobra y abre la puerta a que no cuadre
+        # con el boletín. Solo el docente suelto, sin colegio, la escribe.
+        self.escala = escala_del_colegio(colegio) if colegio else None
+        if self.escala:
+            self.fields.pop('nota_maxima')
+            self.fields.pop('nota_minima')
+
+    def save(self, commit=True):
+        examen = super().save(commit=False)
+        if self.escala:
+            examen.nota_minima, examen.nota_maxima = self.escala
+        if commit:
+            examen.save()
+            self.save_m2m()
+        return examen
+
     def clean(self):
         datos = super().clean()
-        maxima, minima = datos.get('nota_maxima'), datos.get('nota_minima')
+        if self.escala:
+            minima, maxima = self.escala
+        else:
+            maxima, minima = datos.get('nota_maxima'), datos.get('nota_minima')
         if maxima is not None and minima is not None and minima >= maxima:
             self.add_error('nota_minima', 'La nota mínima tiene que ser menor que la máxima.')
         if datos.get('metodo') == 'descuento':
