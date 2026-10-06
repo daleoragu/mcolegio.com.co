@@ -24,7 +24,8 @@ from . import calificacion as calif
 from . import hojas as hojas_mod
 from .forms import ExamenForm
 from .hojas import generar_pdf
-from .models import COMPONENTES, METODOS, Bloque, Examen, Hoja, Pregunta, Respuesta
+from .models import (COMPONENTES, LETRAS, METODOS, Bloque, Examen, Hoja, Pregunta,
+                     Respuesta, limpiar_rotulos)
 
 
 # ---------------------------------------------------------------------------
@@ -211,21 +212,39 @@ def archivar(request, examen_id):
 @login_required
 def clave(request, examen_id):
     examen = _examen_o_404(request, examen_id)
-    preguntas = list(examen.preguntas.order_by('numero'))
+    preguntas = list(examen.preguntas.select_related('bloque').order_by('numero'))
+    bloques_del_examen = {b.id: b for b in examen.bloques.all()}
 
     if request.method == 'POST':
+        accion = request.POST.get('accion') or ''
+        ancla = ''
         with transaction.atomic():
             # Cómo se puntúa: a mano, pregunta por pregunta, o con una fórmula.
             metodo = (request.POST.get('metodo') or '').strip()
             if metodo in {c for c, _ in METODOS} and metodo != examen.metodo:
                 examen.metodo = metodo
                 examen.save(update_fields=['metodo'])
+
+            # Primero se guarda todo lo escrito, también cuando el botón fue
+            # «agregar» o «eliminar»: así no se pierde lo que se iba llenando.
             for p in preguntas:
-                p.correcta = (request.POST.get(f'correcta_{p.numero}') or '').strip().upper()[:1]
                 bid = (request.POST.get(f'bloque_{p.numero}') or '').strip()
-                p.bloque_id = int(bid) if bid.isdigit() else None
+                p.bloque = bloques_del_examen.get(int(bid)) if bid.isdigit() else None
+
+                # Opciones: el número que dejó el botón de más/menos. Si es el
+                # mismo que heredaría del bloque o del examen se guarda vacío,
+                # para que siga a esos si después cambian.
                 op = (request.POST.get(f'opciones_{p.numero}') or '').strip()
-                p.numero_opciones = int(op) if op.isdigit() and 2 <= int(op) <= 10 else None
+                op = int(op) if op.isdigit() and 2 <= int(op) <= 10 else None
+                p.numero_opciones = None if op in (None, p.opciones_heredadas()) else op
+
+                p.rotulos = ','.join(limpiar_rotulos(request.POST.get(f'rotulos_{p.numero}')))[:40]
+                letras_p = p.letras()
+                correcta = (request.POST.get(f'correcta_{p.numero}') or '').strip().upper()[:1]
+                # Si le bajaron opciones y la correcta quedó por fuera, se borra
+                # en vez de calificar contra una burbuja que ya no existe.
+                p.correcta = correcta if correcta in letras_p else ''
+
                 p.etiquetas = (request.POST.get(f'etiquetas_{p.numero}') or '').strip()[:200]
                 p.anulada = request.POST.get(f'anulada_{p.numero}') == 'on'
                 comp = (request.POST.get(f'componente_{p.numero}') or '').strip().upper()
@@ -235,27 +254,90 @@ def clave(request, examen_id):
                     p.puntos = Decimal(bruto) if bruto else Decimal('1.00')
                 except InvalidOperation:
                     p.puntos = Decimal('1.00')
-                p.parciales = _leer_parciales(request, p, examen.letras)
+                p.parciales = _leer_parciales(request, p, letras_p)
                 p.save()
+
+            if accion == 'agregar':
+                ancla = _agregar_pregunta(request, examen, preguntas)
+            elif accion == 'quitar':
+                ancla = _quitar_pregunta(request, examen, preguntas)
+
             if not examen.es_manual:
                 # Con fórmula, cada pregunta vale lo mismo y el valor lo pone el
                 # sistema: lo que se haya escrito en la casilla no cuenta.
                 examen.preguntas.update(puntos=examen.puntos_automaticos())
             calif.calificar_examen(examen)
-        messages.success(request, 'Clave guardada y notas recalculadas.')
-        return redirect('puntoexacto:clave', examen_id=examen.id)
+
+        if not accion:
+            messages.success(request, 'Clave guardada y notas recalculadas.')
+        destino = redirect('puntoexacto:clave', examen_id=examen.id)
+        if ancla:
+            destino['Location'] += f'#{ancla}'
+        return destino
 
     return render(request, 'puntoexacto/clave.html', {
-        'examen': examen, 'preguntas': preguntas, 'letras': list(examen.letras),
+        'examen': examen, 'preguntas': preguntas,
+        'letras_todas': list(LETRAS),
         'componentes': [(c, examen.nombre_componente(c)) for c, _ in COMPONENTES],
-        'bloques': list(examen.bloques.all()),
+        'bloques': list(bloques_del_examen.values()),
         'sin_bloque': examen.preguntas_sin_bloque(),
-        'bloques_partidos': [b for b in examen.bloques.all() if not b.es_continuo()],
-        'rango_opciones': range(2, 11),
+        'bloques_partidos': [b for b in bloques_del_examen.values() if not b.es_continuo()],
         'avisos': calif.revisar_configuracion(examen),
         'metodos': METODOS,
         'puntos_auto': examen.puntos_automaticos(),
+        'max_preguntas': 150,
     })
+
+
+def _agregar_pregunta(request, examen, preguntas):
+    """Agrega una pregunta al final, copiando la forma de la última.
+
+    Copia opciones, etiquetas, bloque y componente porque casi siempre la que
+    sigue es del mismo tipo: si la 20 era Verdadero/Falso, la 21 también.
+    No copia la respuesta correcta ni lo que evalúa.
+    """
+    if examen.numero_preguntas >= 150:
+        messages.warning(request, 'El examen ya tiene 150 preguntas, que es el máximo.')
+        return ''
+    ultima = preguntas[-1] if preguntas else None
+    examen.numero_preguntas += 1
+    examen.save(update_fields=['numero_preguntas'])
+    nueva = Pregunta.objects.create(
+        examen=examen, numero=examen.numero_preguntas,
+        numero_opciones=ultima.numero_opciones if ultima else None,
+        rotulos=ultima.rotulos if ultima else '',
+        bloque=ultima.bloque if ultima else None,
+        componente=ultima.componente if ultima else '',
+        puntos=ultima.puntos if ultima else Decimal('1.00'))
+    messages.success(request, f'Se agregó la pregunta {nueva.numero}. Márquele la respuesta correcta.')
+
+    tope = hojas_mod.capacidad(examen.hojas_por_pagina or 1, examen.opciones_maximas())
+    if examen.numero_preguntas > tope:
+        messages.warning(
+            request, f'Con {examen.hojas_por_pagina or 1} hoja(s) por página caben {tope} '
+                     f'preguntas y ya van {examen.numero_preguntas}. Al imprimir escoja '
+                     f'menos hojas por página.')
+    if examen.hojas.filter(respuestas__isnull=False).exists():
+        messages.warning(request, 'Este examen ya tiene hojas impresas o calificadas: la '
+                                  'pregunta nueva no está en esas hojas. Vuelva a imprimirlas.')
+    return f'p{nueva.numero}'
+
+
+def _quitar_pregunta(request, examen, preguntas):
+    """Elimina la última pregunta, con sus respuestas.
+
+    Solo la última, para no renumerar: si se borrara la 7, la 8 pasaría a ser
+    la 7 y todas las hojas ya impresas quedarían corridas.
+    """
+    if len(preguntas) <= 1:
+        messages.warning(request, 'El examen tiene que tener al menos una pregunta.')
+        return ''
+    ultima = preguntas[-1]
+    ultima.delete()
+    examen.numero_preguntas = len(preguntas) - 1
+    examen.save(update_fields=['numero_preguntas'])
+    messages.success(request, f'Se eliminó la pregunta {ultima.numero}.')
+    return f'p{examen.numero_preguntas}'
 
 
 def _leer_parciales(request, pregunta, letras):
@@ -396,7 +478,7 @@ def digitar(request, examen_id, hoja_id):
         with transaction.atomic():
             for p in preguntas:
                 marca = (request.POST.get(f'p_{p.numero}') or '').strip().upper()[:1]
-                if marca and marca not in examen.letras and marca != Hoja.MARCA_DOBLE:
+                if marca and marca not in p.letras() and marca != Hoja.MARCA_DOBLE:
                     marca = ''
                 Respuesta.objects.update_or_create(
                     hoja=hoja, pregunta=p, defaults={'marcada': marca})
@@ -411,9 +493,12 @@ def digitar(request, examen_id, hoja_id):
         return redirect('puntoexacto:hojas', examen_id=examen.id)
 
     marcadas = {r.pregunta_id: r.marcada for r in hoja.respuestas.all()}
-    filas = [{'pregunta': p, 'marcada': marcadas.get(p.id, '')} for p in preguntas]
+    filas = [{'pregunta': p, 'marcada': marcadas.get(p.id, ''),
+              # (letra interna, lo que se ve): se guarda la letra, se muestra V/F.
+              'opciones': list(zip(p.letras(), p.lista_rotulos()))}
+             for p in preguntas]
     return render(request, 'puntoexacto/digitar.html', {
-        'examen': examen, 'hoja': hoja, 'filas': filas, 'letras': list(examen.letras),
+        'examen': examen, 'hoja': hoja, 'filas': filas,
     })
 
 
@@ -776,8 +861,14 @@ def vista_previa_bloques(request, examen_id):
             continue
         base = f['opciones'] or examen.numero_opciones
         op_preg = [p.numero_opciones or base for p in suyas]
+        rot_preg = []
+        for p, o in zip(suyas, op_preg):
+            propias = limpiar_rotulos(p.rotulos)
+            rot_preg.append([propias[i] if i < len(propias) and propias[i] else LETRAS[i]
+                             for i in range(o)])
         secciones.append({'nombre': f['nombre'], 'n': len(suyas),
-                          'opciones': max([base] + op_preg), 'op_pregunta': op_preg})
+                          'opciones': max([base] + op_preg), 'op_pregunta': op_preg,
+                          'rot_pregunta': rot_preg})
 
     materia = curso = ''
     if examen.asignacion_id:
@@ -799,7 +890,7 @@ def vista_previa_bloques(request, examen_id):
         if por_pagina not in hojas_mod.REPARTO:
             por_pagina = 1
         buffer = io.BytesIO()
-        hojas_mod.generar(buffer, [datos], opciones=examen.numero_opciones,
+        hojas_mod.generar(buffer, [datos], opciones=max(x['opciones'] for x in secciones),
                           por_pagina=por_pagina, secciones=secciones,
                           identificadores=['PE-MUESTRA'], escudo=None)
     except ValueError as e:

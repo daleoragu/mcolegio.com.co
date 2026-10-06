@@ -38,6 +38,20 @@ COMPONENTES = [
 ]
 
 
+def limpiar_rotulos(crudo):
+    """'v, f' -> ['V', 'F']. Cada etiqueta queda de máximo 2 caracteres.
+
+    Dos caracteres es lo que cabe legible dentro de una burbuja. Vacío entre
+    comas se respeta (',F' -> ['', 'F']) y se rellena después con la letra.
+    """
+    if not crudo:
+        return []
+    partes = [p.strip()[:2] for p in str(crudo).split(',')]
+    while partes and not partes[-1]:
+        partes.pop()
+    return partes[:len(LETRAS)]
+
+
 class Examen(models.Model):
     """Un examen aplicado a uno o varios cursos.
 
@@ -191,9 +205,29 @@ class Examen(models.Model):
                 'n': len(preguntas),
                 'opciones': b.opciones_efectivas(),
                 'op_pregunta': [p.opciones_efectivas() for p in preguntas],
+                'rot_pregunta': [p.lista_rotulos() for p in preguntas],
                 'bloque_id': b.id,
             })
         return salida
+
+    def secciones_para_hoja(self):
+        """Lo que necesita el generador para dibujar la hoja de ESTE examen.
+
+        Con bloques son sus secciones. Sin bloques es una sola sección sin
+        nombre, pero con las opciones y etiquetas de cada pregunta: antes se
+        mandaba None y la hoja salía con las opciones del examen en todas,
+        aunque una pregunta tuviera otras.
+        """
+        con_bloques = self.secciones()
+        if con_bloques:
+            return con_bloques
+        preguntas = list(self.preguntas.order_by('numero'))
+        if not preguntas:
+            return None
+        ops = [p.opciones_efectivas() for p in preguntas]
+        return [{'nombre': None, 'n': len(preguntas), 'opciones': max(ops),
+                 'op_pregunta': ops,
+                 'rot_pregunta': [p.lista_rotulos() for p in preguntas]}]
 
     @property
     def es_censal(self):
@@ -304,6 +338,13 @@ class Pregunta(models.Model):
         verbose_name='Componente',
         help_text='Vacío = el del examen. Permite que un mismo examen evalúe '
                   'SABER en unas preguntas y HACER en otras.')
+    # Cómo se llaman las opciones en la hoja: «V,F», «Sí,No»… Vacío = A, B, C…
+    # Es SOLO lo que se ve y se imprime. Por dentro la respuesta se sigue
+    # guardando por posición (A = primera burbuja, B = segunda), así el lector
+    # de fotos, la clave y las notas ya calificadas no cambian al renombrarlas.
+    rotulos = models.CharField(
+        max_length=40, blank=True, verbose_name='Etiquetas de las opciones',
+        help_text='Separadas por coma, máximo 2 caracteres cada una. Ej.: V,F')
     anulada = models.BooleanField(default=False)
 
     class Meta:
@@ -326,6 +367,30 @@ class Pregunta(models.Model):
 
     def letras(self):
         return LETRAS[:self.opciones_efectivas()]
+
+    def lista_rotulos(self):
+        """Lo que se imprime en cada burbuja, una por opción.
+
+        Si el docente escribió menos etiquetas que opciones, las que faltan
+        siguen con su letra: «V,F» en una pregunta de 3 opciones da V, F, C.
+        """
+        propias = limpiar_rotulos(self.rotulos)
+        return [propias[i] if i < len(propias) and propias[i] else LETRAS[i]
+                for i in range(self.opciones_efectivas())]
+
+    def rotulo(self, letra):
+        """La etiqueta visible de una letra interna: 'A' -> 'V'."""
+        if not letra or letra not in LETRAS:
+            return letra
+        i = LETRAS.index(letra)
+        lista = self.lista_rotulos()
+        return lista[i] if i < len(lista) else letra
+
+    def opciones_heredadas(self):
+        """Las opciones que tendría si no fijara las suyas: las del bloque o del examen."""
+        if self.bloque_id and self.bloque.numero_opciones:
+            return self.bloque.numero_opciones
+        return self.examen.numero_opciones
 
     def lista_etiquetas(self):
         return [e.strip() for e in self.etiquetas.split(',') if e.strip()]

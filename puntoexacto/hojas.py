@@ -198,6 +198,7 @@ def _bloques(m, secciones, opciones):
                 return None
         r['opciones'] = op
         r['op_pregunta'] = s.get('op_pregunta') or [op] * s['n']
+        r['rot_pregunta'] = s.get('rot_pregunta') or []
         rejillas.append(r)
 
     # Se apilan de arriba hacia abajo repartiendo el sobrante entre todos.
@@ -490,13 +491,20 @@ def _una_hoja(c, ox, oy, m, datos, preguntas, opciones, plan, escudo=None):
             c.setFont('Helvetica-Bold', min(f * .8, radio * 2.0))
             c.drawRightString(cx0 + rej['num_w'] - 2.0 * mm, yy - radio * .55, str(n))
             op_n = rej['op_pregunta'][j] if j < len(rej['op_pregunta']) else rej['opciones']
+            rot_j = rej['rot_pregunta'][j] if j < len(rej['rot_pregunta']) else []
             for i in range(op_n):
                 cx = cx0 + rej['num_w'] + rej['paso_x'] * (i + 0.5)
                 c.setLineWidth(0.8)
                 c.circle(cx, yy, radio, stroke=1, fill=0)
-                c.setFont('Helvetica', min(f * .6, radio * 1.45))
+                # Lo impreso es la etiqueta (V, F, Sí…); el mapa de abajo sigue
+                # con la letra interna, que es la que entiende el lector.
+                texto = rot_j[i] if i < len(rot_j) and rot_j[i] else LETRAS[i]
+                tam = min(f * .6, radio * 1.45)
+                if len(texto) > 1:
+                    tam = min(tam, radio * 1.05)
+                c.setFont('Helvetica', tam)
                 c.setFillColorRGB(.5, .5, .5)
-                c.drawCentredString(cx, yy - radio * .42, LETRAS[i])
+                c.drawCentredString(cx, yy - tam * .3, texto)
                 c.setFillColorRGB(0, 0, 0)
                 mapa[f'{n}{LETRAS[i]}'] = (round((cx - ox) / mm, 2), round((yy - oy) / mm, 2))
 
@@ -680,7 +688,7 @@ def mapa_de_examen(examen):
     import io
 
     por_pagina = examen.hojas_por_pagina or 1
-    secciones = examen.secciones() or None
+    secciones = examen.secciones_para_hoja()
     firma = (examen.id, examen.numero_preguntas, examen.numero_opciones,
              por_pagina, repr(secciones),
              tuple(sorted((p.numero, p.numero_opciones or 0)
@@ -692,7 +700,7 @@ def mapa_de_examen(examen):
              'titulo': '', 'estudiante': '', 'documento': '',
              'docente': '', 'fecha': ''}
     info = generar(io.BytesIO(), [datos], preguntas=examen.numero_preguntas,
-                   opciones=examen.numero_opciones, por_pagina=por_pagina,
+                   opciones=examen.opciones_maximas(), por_pagina=por_pagina,
                    secciones=secciones, devolver_mapa=True)
     if len(_CACHE_MAPA) > 64:
         _CACHE_MAPA.clear()
@@ -750,7 +758,7 @@ def generar_pdf(examen, hojas_examen, por_pagina=None):
 
     buffer = io.BytesIO()
     generar(buffer, datos, preguntas=examen.numero_preguntas,
-            opciones=examen.numero_opciones, por_pagina=por_pagina,
-            identificadores=identificadores, secciones=examen.secciones() or None,
+            opciones=examen.opciones_maximas(), por_pagina=por_pagina,
+            identificadores=identificadores, secciones=examen.secciones_para_hoja(),
             escudo=imagen)
     return buffer.getvalue()

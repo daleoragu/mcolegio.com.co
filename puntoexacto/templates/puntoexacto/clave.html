@@ -27,9 +27,10 @@
         pregunta. Dejándolo en «Del examen» van todas a
         <strong>{{ examen.get_componente_display }}</strong>; cambiándolo en algunas,
         el examen se parte en varias columnas.
-        <br>Las <strong>opciones</strong> pueden cambiar de una pregunta a otra:
-        unas A–D y otras A–H, como en la hoja del ICFES. Vacío = las del bloque,
-        o las del examen.
+        <br>Las <strong>opciones</strong> pueden cambiar de una pregunta a otra con
+        <strong>−</strong> y <strong>+</strong>: unas A–D y otras A–H, como en la hoja
+        del ICFES. Con <strong>Etiquetas</strong> se renombran: una de dos opciones puede
+        salir como V y F en la hoja impresa.
     </p>
 
     <div class="pe-puntaje">
@@ -85,18 +86,52 @@
         <table class="pe-tabla">
             <thead><tr>
                 <th class="pe-num">#</th><th>Correcta</th><th class="pe-num">Puntos</th>
-                <th>Crédito parcial</th><th>Bloque</th><th class="pe-num">Opciones</th><th>Qué evalúa</th><th>Componente</th><th class="pe-num">Anular</th>
+                <th>Crédito parcial</th><th>Bloque</th><th>Qué evalúa</th><th>Componente</th><th class="pe-num">Anular</th>
             </tr></thead>
             <tbody>
             {% for p in preguntas %}
-                <tr{% if p.anulada %} style="opacity:.5;"{% endif %}>
-                    <td class="pe-num"><strong>{{ p.numero }}</strong></td>
-                    <td>
-                        <div class="pe-opciones">
-                        {% for l in letras %}
-                            <label><input type="radio" name="correcta_{{ p.numero }}" value="{{ l }}"
-                                   {% if p.correcta == l %}checked{% endif %}>{{ l }}</label>
+                <tr id="p{{ p.numero }}" class="pe-preg" data-n="{{ p.numero }}"{% if p.anulada %} style="opacity:.5;"{% endif %}>
+                    <td class="pe-num">
+                        <strong>{{ p.numero }}</strong>
+                        {% if forloop.last and preguntas|length > 1 %}
+                            <div class="mt-2">
+                                <button type="submit" name="accion" value="quitar" formnovalidate
+                                        class="btn btn-sm btn-outline-danger pe-btn-quitar"
+                                        title="Eliminar la pregunta {{ p.numero }}"
+                                        onclick="return confirm('¿Eliminar la pregunta {{ p.numero }}? Se borran también las respuestas que los estudiantes tengan en ella. Lo demás que haya escrito se guarda.');">
+                                    Eliminar pregunta
+                                </button>
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td class="pe-celda-correcta">
+                        <input type="hidden" name="opciones_{{ p.numero }}" class="pe-n-op"
+                               value="{{ p.opciones_efectivas }}">
+                        <div class="pe-opciones pe-radios">
+                        {% for l in letras_todas %}
+                            <label class="pe-op" data-i="{{ forloop.counter0 }}"
+                                   {% if forloop.counter > p.opciones_efectivas %}hidden{% endif %}>
+                                <input type="radio" name="correcta_{{ p.numero }}" value="{{ l }}"
+                                       {% if p.correcta == l %}checked{% endif %}><span class="pe-rot">{{ l }}</span>
+                            </label>
                         {% endfor %}
+                        </div>
+                        <div class="pe-ctrl">
+                            <button type="button" class="pe-mm pe-menos" aria-label="Quitar una opción">−</button>
+                            <span class="pe-cuenta">{{ p.opciones_efectivas }}</span>
+                            <button type="button" class="pe-mm pe-mas" aria-label="Agregar una opción">+</button>
+                            <button type="button" class="pe-etq-btn">Etiquetas</button>
+                        </div>
+                        <div class="pe-etq" {% if not p.rotulos %}hidden{% endif %}>
+                            <input type="text" name="rotulos_{{ p.numero }}" value="{{ p.rotulos }}"
+                                   class="form-control form-control-sm pe-rotulos" maxlength="40"
+                                   placeholder="A,B,C,D" autocomplete="off">
+                            <div class="pe-presets">
+                                <button type="button" data-rot="V,F" data-n="2">V F</button>
+                                <button type="button" data-rot="Sí,No" data-n="2">Sí No</button>
+                                <button type="button" data-rot="1,2,3,4,5" data-n="">1 2 3</button>
+                                <button type="button" data-rot="" data-n="">A B C</button>
+                            </div>
                         </div>
                     </td>
                     <td class="pe-num">
@@ -106,9 +141,10 @@
                                {% if not examen.es_manual %}readonly tabindex="-1"{% endif %}>
                     </td>
                     <td>
-                        <div class="pe-opciones">
-                        {% for l in letras %}
-                            <span style="font-size:.78rem;">{{ l }}
+                        <div class="pe-opciones pe-parciales">
+                        {% for l in letras_todas %}
+                            <span class="pe-op" data-i="{{ forloop.counter0 }}" style="font-size:.78rem;"
+                                  {% if forloop.counter > p.opciones_efectivas %}hidden{% endif %}><span class="pe-rot">{{ l }}</span>
                             <input type="text" name="parcial_{{ p.numero }}_{{ l }}"
                                    value="{{ p.parciales|valor_de:l }}"
                                    class="form-control form-control-sm d-inline-block"
@@ -121,14 +157,6 @@
                             <option value="">(sin bloque)</option>
                             {% for b in bloques %}
                                 <option value="{{ b.id }}" {% if p.bloque_id == b.id %}selected{% endif %}>{{ b.nombre }}</option>
-                            {% endfor %}
-                        </select>
-                    </td>
-                    <td class="pe-num">
-                        <select name="opciones_{{ p.numero }}" class="form-select form-select-sm">
-                            <option value="">—</option>
-                            {% for n in rango_opciones %}
-                                <option value="{{ n }}" {% if p.numero_opciones == n %}selected{% endif %}>{{ n }}</option>
                             {% endfor %}
                         </select>
                     </td>
@@ -155,6 +183,17 @@
             </tbody>
         </table>
     </div>
+    {% if preguntas|length < max_preguntas %}
+    <div class="pe-agregar">
+        <button type="submit" name="accion" value="agregar" formnovalidate class="btn btn-outline-primary">
+            + Agregar pregunta
+        </button>
+        <span class="form-text">
+            Sale como la {{ preguntas|length|add:1 }}, con las mismas opciones y etiquetas de la
+            última. Lo que haya escrito se guarda antes.
+        </span>
+    </div>
+    {% endif %}
     <div class="mt-3"><button class="btn btn-primary">Guardar clave</button></div>
 </form>
 
@@ -162,6 +201,26 @@
     .pe-puntaje { background:#f6f9fd; border:1px solid #dbe5f1; border-radius:8px;
                   padding:10px 12px; margin-bottom:14px; }
     .pe-puntos[readonly] { background:#eef1f5; color:#4b5563; }
+    .pe-celda-correcta { min-width:150px; }
+    .pe-op[hidden] { display:none !important; }
+    .pe-ctrl { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
+    .pe-mm { width:32px; height:32px; border:1px solid #c8d1dc; border-radius:8px;
+             background:#fff; font-size:1.15rem; line-height:1; color:#2d4a6b; padding:0; }
+    .pe-mm:disabled { opacity:.35; }
+    .pe-mm:active { background:#eef4fb; }
+    .pe-cuenta { min-width:16px; text-align:center; font-weight:600;
+                 font-variant-numeric:tabular-nums; }
+    .pe-etq-btn { border:0; background:none; color:#2d5ea8; font-size:.82rem;
+                  padding:4px 2px; text-decoration:underline; }
+    .pe-etq { margin-top:6px; max-width:200px; }
+    .pe-presets { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+    .pe-presets button { border:1px solid #d6dae1; background:#fff; border-radius:6px;
+                         font-size:.75rem; padding:2px 7px; }
+    .pe-agregar { display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+                  border:1px dashed #b9c6d6; border-radius:8px; padding:10px 12px;
+                  margin-top:10px; background:#fafcfe; }
+    tr.pe-recien { animation: pe-brillo 2s ease-out; }
+    @keyframes pe-brillo { from { background:#fff6cc; } to { background:transparent; } }
 </style>
 <script>
 (function () {
@@ -206,6 +265,58 @@
         });
         sumar();
     }
+    // ----- Opciones y etiquetas por pregunta ---------------------------------
+    var LETRAS = 'ABCDEFGHIJ';
+    function rotulosDe(texto) {
+        var partes = String(texto || '').split(',').map(function (x) { return x.trim().slice(0, 2); });
+        while (partes.length && !partes[partes.length - 1]) partes.pop();
+        return partes;
+    }
+    function pintarPregunta(tr) {
+        var n = parseInt(tr.querySelector('.pe-n-op').value, 10) || 4;
+        var propios = rotulosDe(tr.querySelector('.pe-rotulos').value);
+        tr.querySelectorAll('.pe-op').forEach(function (op) {
+            var i = parseInt(op.dataset.i, 10);
+            op.hidden = i >= n;
+            op.querySelector('.pe-rot').textContent = propios[i] || LETRAS[i];
+            var radio = op.querySelector('input[type=radio]');
+            if (op.hidden && radio && radio.checked) radio.checked = false;
+        });
+        tr.querySelector('.pe-cuenta').textContent = n;
+        tr.querySelector('.pe-menos').disabled = n <= 2;
+        tr.querySelector('.pe-mas').disabled = n >= 10;
+        tr.querySelector('.pe-rotulos').placeholder = LETRAS.slice(0, n).split('').join(',');
+    }
+    document.querySelectorAll('tr.pe-preg').forEach(function (tr) {
+        var campoN = tr.querySelector('.pe-n-op');
+        var etq = tr.querySelector('.pe-etq');
+        var rot = tr.querySelector('.pe-rotulos');
+        function mover(paso) {
+            var n = (parseInt(campoN.value, 10) || 4) + paso;
+            campoN.value = Math.max(2, Math.min(10, n));
+            pintarPregunta(tr);
+        }
+        tr.querySelector('.pe-menos').addEventListener('click', function () { mover(-1); });
+        tr.querySelector('.pe-mas').addEventListener('click', function () { mover(+1); });
+        tr.querySelector('.pe-etq-btn').addEventListener('click', function () {
+            etq.hidden = !etq.hidden;
+            if (!etq.hidden) rot.focus();
+        });
+        rot.addEventListener('input', function () { pintarPregunta(tr); });
+        tr.querySelectorAll('.pe-presets button').forEach(function (b) {
+            b.addEventListener('click', function () {
+                rot.value = b.dataset.rot;
+                if (b.dataset.n) campoN.value = b.dataset.n;
+                pintarPregunta(tr);
+            });
+        });
+        pintarPregunta(tr);
+    });
+    if (location.hash && /^#p\d+$/.test(location.hash)) {
+        var fila = document.querySelector(location.hash);
+        if (fila) { fila.classList.add('pe-recien'); fila.scrollIntoView({block: 'center'}); }
+    }
+
     sel.addEventListener('change', aplicar);
     cajas.forEach(function (c) { c.addEventListener('input', sumar); });
     anuladas.forEach(function (a) { a.addEventListener('change', aplicar); });

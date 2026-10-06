@@ -98,16 +98,18 @@ def analizar(examen):
             ((op, n) for op, n in reparto.items() if op != p.correcta and op != '—'),
             key=lambda x: -x[1])
         filas.append({
-            'numero': p.numero, 'correcta': p.correcta,
+            'numero': p.numero, 'correcta': p.rotulo(p.correcta),
             'etiquetas': p.lista_etiquetas(),
             'correctas': correctas, 'total': len(hojas),
             'dificultad': round(dificultad * 100, 1),
             'lectura_dificultad': _interpretar_dificultad(dificultad),
             'discriminacion': round(discriminacion, 3) if discriminacion is not None else None,
             'lectura_discriminacion': _interpretar_discriminacion(discriminacion),
-            'reparto': [{'opcion': op, 'n': n, 'pct': round(n * 100 / len(hojas), 1)}
+            'reparto': [{'opcion': op if op == '—' else p.rotulo(op), 'n': n,
+                         'pct': round(n * 100 / len(hojas), 1)}
                         for op, n in sorted(reparto.items(), key=lambda x: -x[1])],
-            'distractor_fuerte': distractores[0] if distractores else None,
+            'distractor_fuerte': ((p.rotulo(distractores[0][0]), distractores[0][1])
+                                  if distractores else None),
             'en_blanco': reparto.get('—', 0),
         })
 

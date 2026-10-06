@@ -231,22 +231,22 @@ def revisar_configuracion(examen):
         _, avisos_pesos = pesos_de_bloques(examen, vigentes)
         avisos.extend(avisos_pesos)
 
-    letras = examen.letras
     for p in vigentes:
+        letras = p.letras()
         if p.correcta and p.correcta not in letras:
-            avisos.append(f'Pregunta {p.numero}: la respuesta "{p.correcta}" no existe; '
-                          f'las opciones son {letras}.')
+            avisos.append(f'Pregunta {p.numero}: la respuesta marcada ya no existe; '
+                          f'las opciones son {", ".join(p.lista_rotulos())}.')
         for opcion, valor in (p.parciales or {}).items():
             if opcion == p.correcta:
-                avisos.append(f'Pregunta {p.numero}: "{opcion}" es la correcta y además '
+                avisos.append(f'Pregunta {p.numero}: "{p.rotulo(opcion)}" es la correcta y además '
                               f'aparece como parcial. Sobra.')
             try:
                 v = Decimal(str(valor))
             except Exception:
-                avisos.append(f'Pregunta {p.numero}: el parcial de "{opcion}" no es un número.')
+                avisos.append(f'Pregunta {p.numero}: el parcial de "{p.rotulo(opcion)}" no es un número.')
                 continue
             if v <= 0 or v >= 1:
-                avisos.append(f'Pregunta {p.numero}: el parcial de "{opcion}" es {v}; '
+                avisos.append(f'Pregunta {p.numero}: el parcial de "{p.rotulo(opcion)}" es {v}; '
                               f'debe estar entre 0 y 1.')
 
     if examen.metodo == 'descuento' and vigentes:

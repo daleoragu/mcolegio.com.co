@@ -29,9 +29,9 @@
                         <div class="pe-opciones">
                             <label><input type="radio" name="p_{{ f.pregunta.numero }}" value=""
                                    {% if not f.marcada %}checked{% endif %}> en blanco</label>
-                        {% for l in letras %}
+                        {% for l, rot in f.opciones %}
                             <label><input type="radio" name="p_{{ f.pregunta.numero }}" value="{{ l }}"
-                                   {% if f.marcada == l %}checked{% endif %}>{{ l }}</label>
+                                   {% if f.marcada == l %}checked{% endif %}>{{ rot }}</label>
                         {% endfor %}
                             <label><input type="radio" name="p_{{ f.pregunta.numero }}" value="?"
                                    {% if f.marcada == '?' %}checked{% endif %}>doble</label>
