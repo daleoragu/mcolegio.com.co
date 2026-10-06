@@ -33,6 +33,10 @@ def generar_reporte_individual_excel(request):
     except (ValueError, TypeError, AsignacionDocente.DoesNotExist, PeriodoAcademico.DoesNotExist):
         return HttpResponse("Parámetros inválidos o no encontrados.", status=400)
 
+    from ..planillas.asistencia import puede_usar
+    if not puede_usar(request.user, asignacion):
+        return HttpResponse("Esta asignatura no es suya.", status=403)
+
     generator = AsistenciaExcelGenerator(colegio=request.colegio)
     workbook = generator.generate_report(asignacion, periodo, mes_seleccionado)
 
@@ -70,6 +74,10 @@ def generar_reporte_individual_pdf(request):
         periodo = get_object_or_404(PeriodoAcademico, pk=periodo_id, colegio=request.colegio)
     except (ValueError, TypeError, AsignacionDocente.DoesNotExist, PeriodoAcademico.DoesNotExist):
         return HttpResponse("Parámetros inválidos o no encontrados.", status=400)
+
+    from ..planillas.asistencia import puede_usar
+    if not puede_usar(request.user, asignacion):
+        return HttpResponse("Esta asignatura no es suya.", status=403)
 
     generator = AsistenciaPDFGenerator(colegio=request.colegio)
     pdf_file, error_message = generator.generate_report(request, asignacion, periodo, mes_seleccionado)

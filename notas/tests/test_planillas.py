@@ -121,3 +121,19 @@ class ObservacionDeLaAsignatura(ColegioDePrueba):
                    content_type='application/json')
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(self.obs(ana), 'Excelente trabajo')
+
+
+class BoletinConNotasDelExcel(ColegioDePrueba):
+
+    def test_el_boletin_no_se_cae_con_inclusion_vacia(self):
+        """Una definitiva guardada sin indicador de inclusión (NULL) no debe tumbar el boletín."""
+        from notas.boletin.logic import get_datos_boletin_curso
+        ana = self.estudiantes[0]
+        guardar_estudiante(self.a, self.asig, self.p1, ana, {'SABER': [('Nota 1', '4')]})
+        Calificacion.objects.filter(estudiante=ana, tipo_nota='PROM_PERIODO').update(observacion_inclusion=None)
+        get_datos_boletin_curso(self.a, self.curso, self.p1)     # antes: AttributeError
+
+    def test_guardar_no_deja_inclusion_en_null(self):
+        beto = self.estudiantes[1]
+        guardar_estudiante(self.a, self.asig, self.p1, beto, {'SABER': [('Nota 1', '4')]})
+        self.assertEqual(Calificacion.objects.get(estudiante=beto, tipo_nota='PROM_PERIODO').observacion_inclusion, '')

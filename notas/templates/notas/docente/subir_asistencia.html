@@ -1,0 +1,85 @@
+{% extends 'notas/base.html' %}
+
+{% block title %}Subir asistencia{% endblock %}
+
+{% block page_title %}
+    <h1>Subir asistencia de Excel</h1>
+{% endblock %}
+
+{% block content %}
+<style>
+    .sa-caja { border:1px solid #e3e6ec; border-radius:10px; background:#fff; margin-bottom:14px; }
+    .sa-cab { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 14px; border-bottom:1px solid #eef0f3; }
+    .sa-cab h5 { margin:0; font-size:1rem; font-weight:700; }
+    .sa-chip { display:inline-block; border-radius:999px; padding:2px 10px; font-size:.78rem; background:#eef1f5; white-space:nowrap; }
+    .sa-chip.rojo { background:#fdecec; color:#a3161a; }
+    .sa-chip.ambar { background:#fff4dc; color:#8a5a00; }
+    .sa-chip.verde { background:#e6f4ea; color:#1f7a3a; }
+    .sa-caja table { font-size:.88rem; margin:0; }
+    .sa-nota { font-size:.85rem; padding:10px 14px; }
+    .sa-nota ul { margin:0; padding-left:18px; }
+    .sa-pie { position:sticky; bottom:0; background:#fff; border-top:1px solid #e3e6ec; padding:12px 0; z-index:5; }
+</style>
+
+<a href="{% url 'notas:consulta_asistencia' %}" class="btn btn-sm btn-outline-secondary mb-3"><i class="fas fa-arrow-left me-1"></i>Volver a asistencia</a>
+<p class="text-muted small mb-3">Archivo: <strong>{{ archivo }}</strong>. Todavía no se ha guardado nada: revise y confirme.</p>
+
+{% if r.errores %}
+<div class="sa-caja">
+    <div class="sa-cab"><h5 class="text-danger"><i class="fas fa-circle-exclamation me-1"></i>Hay que corregir el archivo</h5></div>
+    <div class="sa-nota"><ul>{% for e in r.errores|slice:":40" %}<li>{{ e }}</li>{% endfor %}</ul>
+    {% if r.errores|length > 40 %}<div class="text-muted mt-1">…y {{ r.errores|length|add:"-40" }} más.</div>{% endif %}
+    <div class="mt-2">Corríjalo y súbalo otra vez. Mientras haya errores no se guarda nada.</div></div>
+</div>
+{% endif %}
+
+{% for h in r.hojas %}
+<div class="sa-caja">
+    <div class="sa-cab">
+        <h5>{{ h.titulo }} · {{ h.asignacion }}</h5>
+        <span class="sa-chip">{{ h.dias }} día(s)</span>
+        <span class="sa-chip rojo">{{ h.ausencias }} ausencia(s)</span>
+        <span class="sa-chip ambar">{{ h.tardes }} tarde(s)</span>
+        {% if not h.nueva %}<span class="sa-chip ambar">Plantilla anterior</span>{% endif %}
+    </div>
+</div>
+{% endfor %}
+
+{% if r.avisos %}
+<div class="sa-caja"><div class="sa-nota"><strong>Para tener en cuenta:</strong>
+    <ul>{% for a in r.avisos|slice:":20" %}<li>{{ a }}</li>{% endfor %}</ul></div></div>
+{% endif %}
+
+{% if r.filas %}
+<div class="sa-caja">
+    <div class="sa-cab">
+        <h5>Lo que cambia en la plataforma</h5>
+        {% if r.resumen.marcadas %}<span class="sa-chip rojo">{{ r.resumen.marcadas }} falla(s) o tarde(s) nuevas</span>{% endif %}
+        {% if r.resumen.quitadas %}<span class="sa-chip verde">{{ r.resumen.quitadas }} falla(s) que se quitan</span>{% endif %}
+    </div>
+    <div class="table-responsive" style="max-height:60vh">
+    <table class="table table-sm table-hover">
+        <thead class="table-light"><tr><th>Estudiante</th><th>Curso · asignatura</th><th>Fecha</th><th>Antes</th><th>Queda</th></tr></thead>
+        <tbody>
+        {% for f in r.filas %}
+            <tr><td>{{ f.estudiante }}</td><td>{{ f.curso }} · {{ f.asignacion }}</td><td>{{ f.fecha }}</td>
+                <td class="text-muted">{{ f.antes }}</td><td><strong>{{ f.ahora }}</strong></td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% elif not r.errores %}
+<div class="alert alert-info">El archivo coincide con lo que ya está en la plataforma: no hay nada nuevo para guardar.</div>
+{% endif %}
+
+<form method="post" action="{% url 'notas:importar_asistencia_excel' %}" class="sa-pie d-flex flex-wrap gap-2">
+    {% csrf_token %}
+    <button type="submit" name="accion" value="cancelar" class="btn btn-outline-secondary">No guardar</button>
+    {% if r.filas and not r.errores %}
+        <button type="submit" name="accion" value="confirmar" class="btn btn-primary ms-auto">
+            <i class="fas fa-save me-1"></i>Guardar en la plataforma
+        </button>
+    {% endif %}
+</form>
+{% endblock %}

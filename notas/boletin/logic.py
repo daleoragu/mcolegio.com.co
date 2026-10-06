@@ -122,7 +122,7 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
                 definitiva_valor_periodo = definitiva_obj.valor_nota if definitiva_obj else None
                 
                 # EXTRAYENDO LA OBSERVACIÓN DE INCLUSIÓN Y CONVIRTIENDOLA EN LISTA
-                observacion_inclusion_actual = definitiva_obj.observacion_inclusion if definitiva_obj else ""
+                observacion_inclusion_actual = (definitiva_obj.observacion_inclusion if definitiva_obj else "") or ""  # puede venir NULL (Excel, registros viejos)
                 lista_obs_inclusion = [obs.strip() for obs in observacion_inclusion_actual.split('\n') if obs.strip()]
 
                 if definitiva_valor_periodo is not None and definitiva_valor_periodo < UMBRAL_APROBACION:
