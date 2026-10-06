@@ -1,6 +1,7 @@
 # notas/decorators.py
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth.decorators import user_passes_test
+from .permisos import es_admin_usuario
 
 def es_administrador_de_colegio(user):
     """
@@ -12,7 +13,7 @@ def es_administrador_de_colegio(user):
         raise PermissionDenied
 
     # Comprueba si es superusuario o si pertenece al grupo requerido.
-    if user.is_superuser or user.groups.filter(name='Administrador de colegio').exists():
+    if es_admin_usuario(user):
         return True
     
     # Si no cumple ninguna de las condiciones, deniega el acceso.

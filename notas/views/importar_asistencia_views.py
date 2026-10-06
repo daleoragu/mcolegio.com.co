@@ -15,10 +15,11 @@ except ImportError:
 # Se importan los modelos necesarios para las validaciones
 from ..models.academicos import Asistencia, AsignacionDocente
 from ..models.perfiles import Estudiante
+from ..permisos import es_admin, es_admin_usuario
 
 def es_docente_o_superuser(user):
     """Decorador para asegurar que solo los docentes o superusuarios puedan acceder."""
-    return user.is_superuser or user.groups.filter(name='Docentes').exists()
+    return es_admin_usuario(user) or user.groups.filter(name='Docentes').exists()
 
 @login_required
 @user_passes_test(es_docente_o_superuser)

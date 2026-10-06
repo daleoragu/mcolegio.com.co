@@ -12,6 +12,7 @@ import json
 from datetime import datetime
 
 from ..models import Docente, AsignacionDocente, Estudiante, Asistencia
+from ..permisos import es_admin, es_admin_usuario
 
 def _enviar_correo_inasistencia(estudiante, asignacion, fecha):
     # Esta función auxiliar no necesita cambios, ya que recibe objetos ya filtrados.
@@ -39,11 +40,11 @@ def asistencia_vista(request):
         return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
 
     docente_actual = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
-    if not docente_actual and not request.user.is_superuser:
+    if not docente_actual and not es_admin(request):
         messages.error(request, "Acceso denegado. Su usuario no está asociado a un perfil de docente en este colegio.")
         return redirect('notas:dashboard')
 
-    if request.user.is_superuser:
+    if es_admin(request):
         asignaciones_docente = AsignacionDocente.objects.filter(colegio=request.colegio).select_related('curso', 'materia').order_by('curso__nombre', 'materia__nombre')
     else:
         asignaciones_docente = AsignacionDocente.objects.filter(docente=docente_actual, colegio=request.colegio).select_related('curso', 'materia').order_by('curso__nombre', 'materia__nombre')
@@ -62,7 +63,7 @@ def asistencia_vista(request):
     if asignacion_id:
         try:
             asignacion_actual = get_object_or_404(AsignacionDocente, id=asignacion_id, colegio=request.colegio)
-            if not request.user.is_superuser and asignacion_actual.docente != docente_actual:
+            if not es_admin(request) and asignacion_actual.docente != docente_actual:
                 raise AsignacionDocente.DoesNotExist
             
             mostrar_lista = True
@@ -108,7 +109,7 @@ def guardar_inasistencia_ajax(request):
         estudiante = get_object_or_404(Estudiante, id=estudiante_id, colegio=request.colegio)
         
         docente_actual = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
-        if not request.user.is_superuser and asignacion.docente != docente_actual:
+        if not es_admin(request) and asignacion.docente != docente_actual:
              return JsonResponse({'status': 'error', 'message': 'Permiso denegado'}, status=403)
 
         asistencia_obj, created = Asistencia.objects.update_or_create(

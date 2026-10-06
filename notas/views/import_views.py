@@ -20,9 +20,10 @@ except ImportError:
 
 from ..models.perfiles import Estudiante, Docente, Curso, FichaEstudiante
 from ..models.academicos import Materia, AreaConocimiento, PonderacionAreaMateria
+from ..permisos import es_admin, es_admin_usuario
 
 def es_superusuario(user):
-    return user.is_superuser
+    return es_admin_usuario(user)
 
 @login_required
 @user_passes_test(es_superusuario)

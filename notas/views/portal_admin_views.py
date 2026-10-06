@@ -10,9 +10,10 @@ from ..forms import (
     DocumentoPublicoForm, FotoGaleriaForm, NoticiaForm, ImagenCarruselForm,
     ColegioPersonalizacionForm
 )
+from ..permisos import es_admin, es_admin_usuario
 
 def es_admin_o_docente(user):
-    return user.is_superuser or user.groups.filter(name='Docentes').exists()
+    return es_admin_usuario(user) or user.groups.filter(name='Docentes').exists()
 
 @user_passes_test(es_admin_o_docente)
 def personalizacion_portal_vista(request):

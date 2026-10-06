@@ -52,5 +52,16 @@ class ColegioMiddleware:
             # el detalle para poder arreglarlo.
             logger.exception('Error identificando el colegio para %s', host)
         
+        # ¿Administra el usuario ESTE colegio? Se calcula una vez y queda en
+        # request.user, así cualquier vista o plantilla lo consulta sin repetir
+        # la búsqueda (ver notas/permisos.py).
+        try:
+            usuario = getattr(request, 'user', None)
+            if usuario is not None and usuario.is_authenticated:
+                from .permisos import es_admin_colegio
+                usuario.es_admin_colegio = es_admin_colegio(usuario, request.colegio)
+        except Exception:
+            logger.exception('Error calculando si el usuario administra %s', host)
+
         response = self.get_response(request)
         return response

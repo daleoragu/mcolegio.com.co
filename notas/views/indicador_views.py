@@ -9,6 +9,7 @@ from django.views.decorators.http import require_POST
 from django.http import HttpResponseNotFound
 
 from ..models import Docente, IndicadorLogroPeriodo, AsignacionDocente, PeriodoAcademico
+from ..permisos import es_admin, es_admin_usuario
 
 @login_required
 @require_POST
@@ -26,7 +27,7 @@ def crear_indicador_vista(request):
     docente_id_param = request.POST.get('docente_id')
 
     redirect_url = f"{reverse('notas:ingresar_notas_periodo')}?asignacion_id={asignacion_id or ''}&periodo_id={periodo_id or ''}"
-    if request.user.is_superuser and docente_id_param:
+    if es_admin(request) and docente_id_param:
         redirect_url += f"&docente_id={docente_id_param}"
 
     if not all([asignacion_id, periodo_id, descripcion]):
@@ -40,7 +41,7 @@ def crear_indicador_vista(request):
         
         docente_actual = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
         
-        if not (request.user.is_superuser or (docente_actual and asignacion.docente == docente_actual)):
+        if not (es_admin(request) or (docente_actual and asignacion.docente == docente_actual)):
             messages.error(request, "No tiene permiso para agregar indicadores a esta asignación.")
             return redirect(redirect_url)
 
@@ -73,14 +74,14 @@ def editar_indicador_vista(request, indicador_id):
         indicador = IndicadorLogroPeriodo.objects.select_related('asignacion__docente', 'asignacion__docente__user').get(id=indicador_id, colegio=request.colegio)
         docente_actual = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
         
-        if not (request.user.is_superuser or (docente_actual and indicador.asignacion.docente == docente_actual)):
+        if not (es_admin(request) or (docente_actual and indicador.asignacion.docente == docente_actual)):
             messages.error(request, "No tiene permiso para editar este indicador.")
             return redirect('notas:ingresar_notas_periodo')
     except IndicadorLogroPeriodo.DoesNotExist:
         messages.error(request, "El indicador que intenta editar no existe o no pertenece a este colegio.")
         return redirect('notas:ingresar_notas_periodo')
 
-    docente_id_param = indicador.asignacion.docente.id if request.user.is_superuser else None
+    docente_id_param = indicador.asignacion.docente.id if es_admin(request) else None
     redirect_url = f"{reverse('notas:ingresar_notas_periodo')}?asignacion_id={indicador.asignacion.id}&periodo_id={indicador.periodo.id}"
     if docente_id_param:
         redirect_url += f"&docente_id={docente_id_param}"
@@ -118,14 +119,14 @@ def eliminar_indicador_vista(request, indicador_id):
         # CORRECCIÓN: Filtrar por colegio al obtener el indicador.
         indicador = IndicadorLogroPeriodo.objects.select_related('asignacion__docente').get(id=indicador_id, colegio=request.colegio)
         
-        docente_id_param = indicador.asignacion.docente.id if request.user.is_superuser else None
+        docente_id_param = indicador.asignacion.docente.id if es_admin(request) else None
         redirect_url = f"{reverse('notas:ingresar_notas_periodo')}?asignacion_id={indicador.asignacion.id}&periodo_id={indicador.periodo.id}"
         if docente_id_param:
             redirect_url += f"&docente_id={docente_id_param}"
         
         docente_actual = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
         
-        if not (request.user.is_superuser or (docente_actual and indicador.asignacion.docente == docente_actual)):
+        if not (es_admin(request) or (docente_actual and indicador.asignacion.docente == docente_actual)):
             messages.error(request, "No tiene permiso para eliminar este indicador.")
         else:
             indicador.delete()

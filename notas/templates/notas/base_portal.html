@@ -71,7 +71,7 @@
         .whatsapp-float { background-color: #25d366; }
         .facebook-float { background-color: #1877F2; }
         .instagram-float { background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%,#d6249f 60%,#285AEB 90%); }
-        .twitter-float { background-color: #1DA1F2; }
+        .tiktok-float { background-color: #000000; }
         .youtube-float { background-color: #FF0000; }
         .email-float { background-color: #B23121; }
         .documents-float { background-color: #6c757d; }
@@ -112,8 +112,8 @@
         {% if colegio.url_instagram %}
             <a href="{{ colegio.url_instagram }}" target="_blank" class="instagram-float" title="Síguenos en Instagram"><i class="fab fa-instagram"></i></a>
         {% endif %}
-        {% if colegio.url_twitter_x %}
-            <a href="{{ colegio.url_twitter_x }}" target="_blank" class="twitter-float" title="Síguenos en Twitter/X"><i class="fab fa-twitter"></i></a>
+        {% if colegio.url_tiktok %}
+            <a href="{{ colegio.url_tiktok }}" target="_blank" rel="noopener" class="tiktok-float" title="Síguenos en TikTok"><i class="fab fa-tiktok"></i></a>
         {% endif %}
          {% if colegio.url_youtube %}
             <a href="{{ colegio.url_youtube }}" target="_blank" class="youtube-float" title="Síguenos en YouTube"><i class="fab fa-youtube"></i></a>

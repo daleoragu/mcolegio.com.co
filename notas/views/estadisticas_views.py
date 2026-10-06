@@ -382,10 +382,11 @@ from notas.estadisticas_logic import (
     conclusiones_resumen, conclusiones_anotaciones,
 )
 from notas.estadisticas_observador import contar_observador, contar_automaticas
+from ..permisos import es_admin, es_admin_usuario
 
 
 def es_docente_o_superuser(user):
-    return user.is_superuser or user.groups.filter(name='Docentes').exists()
+    return es_admin_usuario(user) or user.groups.filter(name='Docentes').exists()
 
 @user_passes_test(es_docente_o_superuser)
 def panel_estadisticas_vista(request):
@@ -394,7 +395,7 @@ def panel_estadisticas_vista(request):
 
     user = request.user
     cursos = []
-    if user.is_superuser:
+    if es_admin_usuario(user):
         cursos = Curso.objects.filter(colegio=request.colegio).order_by('nombre')
     else:
         try:

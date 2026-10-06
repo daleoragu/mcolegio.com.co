@@ -13,10 +13,11 @@ from unidecode import unidecode
 
 from ..models import Docente, FichaDocente
 from ..forms import AdminCrearDocenteForm, AdminEditarDocenteForm
+from ..permisos import es_admin, es_admin_usuario
 
 def es_personal_admin(user):
     """Verifica si el usuario es superusuario."""
-    return user.is_superuser
+    return es_admin_usuario(user)
 
 # ===============================================================
 # VISTAS PARA GESTIÓN DE DOCENTES

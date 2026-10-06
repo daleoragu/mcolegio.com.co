@@ -12,16 +12,12 @@ from io import BytesIO
 
 from ..models.perfiles import Estudiante, Docente, Colegio, Curso
 from ..models.academicos import AsignacionDocente, Asistencia
+from ..permisos import es_admin, es_admin_usuario
 
 # --- FUNCIÓN DE PERMISOS ---
 def es_admin_del_colegio(user):
-    if not user.is_authenticated:
-        return False
-    if user.is_superuser:
-        return True
-    if hasattr(user, 'colegios_administrados') and user.colegios_administrados.filter(pk=user.colegio_actual_id).exists():
-        return True
-    return False
+    """Superusuario o administrador de ESTE colegio (ver notas/permisos.py)."""
+    return es_admin_usuario(user)
 
 # ==============================================================================
 # VISTA PARA GENERAR EL CARNET INDIVIDUAL
@@ -105,7 +101,7 @@ def vista_kiosko_asistencia(request):
     if not request.colegio:
         return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
 
-    if request.user.is_superuser:
+    if es_admin(request):
         asignaciones = AsignacionDocente.objects.filter(colegio=request.colegio)
     else:
         docente_actual = get_object_or_404(Docente, user=request.user, colegio=request.colegio)

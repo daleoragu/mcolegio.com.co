@@ -1,0 +1,139 @@
+{% extends 'notas/base.html' %}
+
+{% block title %}Alertas tempranas{% endblock %}
+
+{% block page_title %}
+    <h1>Alertas tempranas</h1>
+{% endblock %}
+
+{% block content %}
+<style>
+    .at-filtros { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; margin-bottom:16px; }
+    .at-filtros .form-select { min-width:150px; }
+    .at-resumen { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:16px; }
+    .at-caja { border:1px solid #e3e6ec; border-radius:10px; padding:12px 14px; background:#fff; }
+    .at-caja .num { font-size:1.8rem; font-weight:800; line-height:1.1; font-variant-numeric:tabular-nums; }
+    .at-caja .txt { font-size:.85rem; color:#4b5563; }
+    .at-caja.alto { border-left:5px solid #dc3545; } .at-caja.alto .num { color:#b02a37; }
+    .at-caja.medio { border-left:5px solid #f0ad00; } .at-caja.medio .num { color:#8a6100; }
+    .at-caja.ok { border-left:5px solid #198754; } .at-caja.ok .num { color:#146c43; }
+    .at-cursos { border:1px solid #e3e6ec; border-radius:10px; background:#fff; padding:12px 14px; margin-bottom:16px; }
+    .at-barra { display:flex; height:10px; border-radius:5px; overflow:hidden; background:#eef1f5; min-width:120px; }
+    .at-barra span { display:block; height:100%; }
+    .at-pill { display:inline-block; border-radius:999px; padding:2px 10px; font-size:.75rem; font-weight:700; white-space:nowrap; }
+    .at-pill.alto { background:#f8d7da; color:#842029; }
+    .at-pill.medio { background:#fff3cd; color:#664d03; }
+    .at-pill.ok { background:#d1e7dd; color:#0f5132; }
+    .at-pill.sin_notas { background:#eef1f5; color:#4b5563; }
+    .at-mat { display:inline-block; border:1px solid #f1c2c7; background:#fff5f5; border-radius:7px;
+              padding:1px 8px; margin:2px 4px 2px 0; font-size:.8rem; white-space:nowrap; }
+    .at-mat b { font-variant-numeric:tabular-nums; }
+    .at-tabla td { vertical-align:middle; }
+    .at-num { text-align:center; font-variant-numeric:tabular-nums; }
+</style>
+
+<form method="get" class="at-filtros">
+    <div>
+        <label class="form-label mb-1 small" for="at-ano">Año</label>
+        <select name="ano" id="at-ano" class="form-select" onchange="this.form.periodo.value='';this.form.submit()">
+            {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label mb-1 small" for="at-periodo">Hasta el periodo</label>
+        <select name="periodo" id="at-periodo" class="form-select" onchange="this.form.submit()">
+            {% for p in periodos %}<option value="{{ p.id }}" {% if periodo and p.id == periodo.id %}selected{% endif %}>{{ p.get_nombre_display }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label mb-1 small" for="at-curso">Curso</label>
+        <select name="curso" id="at-curso" class="form-select" onchange="this.form.submit()">
+            {% if cursos|length > 1 %}<option value="">Todos</option>{% endif %}
+            {% for c in cursos %}<option value="{{ c.id }}" {% if curso_sel and c.id == curso_sel.id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label mb-1 small" for="at-ver">Mostrar</label>
+        <select name="ver" id="at-ver" class="form-select" onchange="this.form.submit()">
+            <option value="riesgo" {% if ver == 'riesgo' %}selected{% endif %}>Solo en riesgo</option>
+            <option value="todos" {% if ver == 'todos' %}selected{% endif %}>Todos</option>
+        </select>
+    </div>
+</form>
+
+<p class="small text-muted">
+    Cuenta las <strong>materias</strong> cuya nota acumulada del año, hasta el periodo escogido, está por debajo de
+    <strong>{{ aprobacion }}</strong>, con la misma cuenta del boletín. <strong>Riesgo alto</strong>: más de {{ maximo }}
+    materia{{ maximo|pluralize }} perdida{{ maximo|pluralize }}, más de las que el colegio permite para ser promovido
+    (la promoción se decide por áreas; en un área de una sola materia es lo mismo).
+</p>
+
+<div class="at-resumen">
+    <div class="at-caja alto"><div class="num">{{ resumen.alto }}</div><div class="txt">en riesgo alto de perder el año</div></div>
+    <div class="at-caja medio"><div class="num">{{ resumen.medio }}</div><div class="txt">van perdiendo alguna materia</div></div>
+    <div class="at-caja ok"><div class="num">{{ resumen.ok }}</div><div class="txt">van ganando todo</div></div>
+    <div class="at-caja"><div class="num">{{ resumen.total }}</div><div class="txt">estudiantes{% if resumen.sin_notas %} · {{ resumen.sin_notas }} sin notas aún{% endif %}</div></div>
+</div>
+
+{% if por_curso|length > 1 %}
+<div class="at-cursos">
+    <h6 class="mb-2">Por curso</h6>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead><tr><th>Curso</th><th class="at-num">Alto</th><th class="at-num">Medio</th><th class="at-num">Estudiantes</th><th style="width:40%">Proporción</th></tr></thead>
+            <tbody>
+            {% for c in por_curso %}
+                <tr>
+                    <td><a href="?ano={{ ano }}&periodo={{ periodo.id }}&curso={{ c.curso.id }}&ver={{ ver }}">{{ c.curso.nombre }}</a></td>
+                    <td class="at-num">{{ c.alto }}</td><td class="at-num">{{ c.medio }}</td><td class="at-num">{{ c.total }}</td>
+                    <td>
+                        <div class="at-barra" title="{{ c.alto }} alto · {{ c.medio }} medio · {{ c.ok }} sin riesgo">
+                            <span style="width:{% widthratio c.alto c.total 100 %}%;background:#dc3545"></span>
+                            <span style="width:{% widthratio c.medio c.total 100 %}%;background:#f0ad00"></span>
+                            <span style="width:{% widthratio c.ok c.total 100 %}%;background:#198754"></span>
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table at-tabla mb-0">
+            <thead class="table-light"><tr>
+                <th>Estudiante</th><th>Curso</th><th>Riesgo</th>
+                <th>Materias perdidas en el acumulado (le falta)</th>
+                <th class="at-num">Perdidas en {{ periodo.get_nombre_display|default:"el periodo" }}</th>
+            </tr></thead>
+            <tbody>
+            {% for f in filas %}
+                <tr>
+                    <td><strong>{{ f.estudiante.user.last_name }} {{ f.estudiante.user.first_name }}</strong></td>
+                    <td>{{ f.curso.nombre }}</td>
+                    <td>
+                        {% if f.riesgo == 'alto' %}<span class="at-pill alto">Alto · {{ f.n }}</span>
+                        {% elif f.riesgo == 'medio' %}<span class="at-pill medio">Medio · {{ f.n }}</span>
+                        {% elif f.riesgo == 'ok' %}<span class="at-pill ok">Sin riesgo</span>
+                        {% else %}<span class="at-pill sin_notas">Sin notas</span>{% endif %}
+                    </td>
+                    <td>
+                        {% for m in f.perdidas %}
+                            <span class="at-mat" title="{% if m.docente %}Docente: {{ m.docente }}{% endif %}">{{ m.materia }} <b>{{ m.acumulada }}</b> <span class="text-muted">(+{{ m.falta }})</span></span>
+                        {% empty %}<span class="text-muted small">—</span>{% endfor %}
+                    </td>
+                    <td class="at-num">{{ f.perdidas_periodo }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">
+                    {% if total_filas %}Ningún estudiante en riesgo con estos filtros.{% else %}Todavía no hay notas para este periodo.{% endif %}
+                </td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

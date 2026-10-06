@@ -13,6 +13,7 @@ from calendar import month_name
 import locale
 
 from ..models import Docente, AsignacionDocente, Estudiante, Asistencia, PeriodoAcademico, Curso
+from ..permisos import es_admin, es_admin_usuario
 
 @login_required
 def consulta_asistencia_vista(request):
@@ -31,7 +32,7 @@ def consulta_asistencia_vista(request):
     fecha_consulta_str = request.GET.get('fecha_consulta', timezone.now().strftime('%Y-%m-%d'))
     
     # Lógica para determinar qué asignaciones mostrar
-    if user.is_superuser:
+    if es_admin_usuario(user):
         # CORRECCIÓN: Filtrar docentes y asignaciones por el colegio actual.
         context['todos_los_docentes'] = Docente.objects.filter(colegio=request.colegio).order_by('user__last_name', 'user__first_name')
         if docente_seleccionado_id:

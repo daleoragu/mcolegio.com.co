@@ -78,7 +78,7 @@
     <!-- El formulario ahora apunta a una nueva URL unificada -->
     <form method="GET" action="{% url 'notas:generar_boletin' %}" target="_blank" class="form-selector">
         <div class="form-body">
-            {% if user.is_superuser %}
+            {% if user.es_admin_colegio %}
             <div class="form-group">
                 <label for="docente_select_periodo">Filtrar por Docente (Opcional)</label>
                 <!-- Este onchange recarga la página para filtrar los cursos.

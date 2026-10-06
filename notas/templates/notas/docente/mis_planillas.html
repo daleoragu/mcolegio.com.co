@@ -1,0 +1,210 @@
+{% extends 'notas/base.html' %}
+
+{% block title %}Mis planillas{% endblock %}
+
+{% block page_title %}
+    <h1>Mis planillas</h1>
+{% endblock %}
+
+{% block content %}
+<style>
+    .mp-cab { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+    .mp-cab .form-select { min-width: 200px; }
+    .mp-modos { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin:16px 0; }
+    .mp-modo { border:1px solid #e3e6ec; border-radius:10px; padding:14px 16px; background:#fff; }
+    .mp-modo h6 { font-weight:700; margin-bottom:4px; }
+    .mp-modo p { font-size:.88rem; color:#6b7280; margin-bottom:10px; }
+    .mp-asig { border:1px solid #e3e6ec; border-radius:10px; background:#fff; margin-bottom:12px; }
+    .mp-asig-cab { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:12px 14px; }
+    .mp-asig-cab h5 { margin:0; font-weight:700; font-size:1.05rem; }
+    .mp-chip { display:inline-block; border-radius:999px; padding:2px 10px; font-size:.78rem;
+               background:#eef1f5; color:#374151; white-space:nowrap; }
+    .mp-acciones { margin-left:auto; display:flex; flex-wrap:wrap; gap:6px; }
+    .mp-config { border-top:1px solid #eef0f3; padding:14px; background:#fafbfc; border-radius:0 0 10px 10px; }
+    .mp-comp { margin-bottom:14px; }
+    .mp-comp-cab { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+    .mp-mm { width:32px; height:32px; border:1px solid #c8d1dc; border-radius:8px; background:#fff;
+             font-size:1.1rem; line-height:1; padding:0; color:#2d4a6b; }
+    .mp-cuenta { min-width:18px; text-align:center; font-weight:700; font-variant-numeric:tabular-nums; }
+    .mp-nombres { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:6px; }
+    .mp-nombre { position:relative; }
+    .mp-nombre .form-control { padding-right:22px; }
+    .mp-nombre .mp-lock { position:absolute; right:7px; top:50%; transform:translateY(-50%);
+                          font-size:.7rem; color:#9ca3af; }
+</style>
+
+{% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+{% endfor %}
+
+<form method="get" class="mp-cab mb-2">
+    {% if docentes %}
+    <div>
+        <label class="form-label mb-1 small" for="mp-docente">Docente</label>
+        <select name="docente" id="mp-docente" class="form-select" onchange="this.form.submit()">
+            <option value="">— Escoja un docente —</option>
+            {% for d in docentes %}
+                <option value="{{ d.id }}" {% if docente and d.id == docente.id %}selected{% endif %}>{{ d.user.get_full_name|default:d.user.username }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+    <div>
+        <label class="form-label mb-1 small" for="mp-periodo">Periodo</label>
+        <select name="periodo" id="mp-periodo" class="form-select" onchange="this.form.submit()">
+            {% for p in periodos %}
+                <option value="{{ p.id }}" {% if periodo and p.id == periodo.id %}selected{% endif %}>
+                    {{ p.get_nombre_display }} {{ p.ano_lectivo }}{% if not p.esta_activo %} · cerrado{% endif %}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+
+{% if not docente %}
+    <p class="text-muted mt-3">
+        {% if docentes %}Escoja un docente para ver sus planillas.{% else %}Su usuario no tiene un perfil de docente en este colegio.{% endif %}
+    </p>
+{% elif not periodo %}
+    <p class="text-muted mt-3">El colegio todavía no tiene periodos académicos.</p>
+{% else %}
+
+<div class="mp-modos">
+    <div class="mp-modo">
+        <h6><i class="fas fa-globe me-2 text-primary"></i>En línea</h6>
+        <p>Digite las notas en la plataforma; la definitiva se ve al instante. Use «Abrir en línea» en cada asignatura.</p>
+    </div>
+    <div class="mp-modo">
+        <h6><i class="fas fa-file-excel me-2 text-success"></i>Sin internet (Excel)</h6>
+        <p>Descargue el Excel con los colores del colegio, llénelo donde quiera y súbalo después.</p>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-success btn-sm" href="{% url 'notas:descargar_planillas' periodo.id %}{% if docentes %}?docente={{ docente.id }}{% endif %}">
+                <i class="fas fa-download me-1"></i>Descargar todas
+            </a>
+            <a class="btn btn-outline-success btn-sm" href="{% url 'notas:subir_planilla' %}">
+                <i class="fas fa-upload me-1"></i>Subir Excel
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if not periodo.esta_activo %}
+    <div class="alert alert-warning">El {{ periodo.get_nombre_display }} {{ periodo.ano_lectivo }} está cerrado: puede ver y descargar, pero no guardar notas.</div>
+{% endif %}
+
+{% for f in filas %}
+<div class="mp-asig" id="asig-{{ f.a.id }}">
+    <div class="mp-asig-cab">
+        <h5>{{ f.a.curso.nombre }} · {{ f.a.materia.nombre }}</h5>
+        {% for c in f.componentes %}
+            <span class="mp-chip">{{ c.nombre }} {{ c.peso }}% · {{ c.columnas|length }} nota{{ c.columnas|length|pluralize }}</span>
+        {% empty %}
+            <span class="mp-chip">Informativa (sin porcentajes)</span>
+        {% endfor %}
+        <div class="mp-acciones">
+            <a class="btn btn-primary btn-sm" href="{% url 'notas:ingresar_notas_periodo' %}?asignacion_id={{ f.a.id }}&periodo_id={{ periodo.id }}{% if docentes %}&docente_id={{ docente.id }}{% endif %}">
+                <i class="fas fa-globe me-1"></i>Abrir en línea
+            </a>
+            <a class="btn btn-outline-success btn-sm" href="{% url 'notas:descargar_planilla' periodo.id f.a.id %}">
+                <i class="fas fa-file-excel me-1"></i>Excel
+            </a>
+            {% if f.componentes %}
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#cfg-{{ f.a.id }}" aria-expanded="false">
+                <i class="fas fa-sliders-h me-1"></i>Configurar notas
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    {% if f.componentes %}
+    <div class="collapse" id="cfg-{{ f.a.id }}">
+        <form method="post" action="{% url 'notas:guardar_columnas_planilla' f.a.id periodo.id %}" class="mp-config">
+            {% csrf_token %}
+            <p class="small text-muted mb-3">
+                Escoja cuántas notas tiene cada componente y cómo se llama cada una. Si no las configura, salen
+                {{ por_defecto }} por componente. Las que ya tienen notas (<i class="fas fa-lock"></i>) no se pueden quitar.
+            </p>
+            {% for c in f.componentes %}
+            <div class="mp-comp" data-tope="{{ tope }}">
+                <div class="mp-comp-cab">
+                    <strong>{{ c.nombre }}</strong> <span class="text-muted small">{{ c.peso }}%</span>
+                    <button type="button" class="mp-mm mp-menos ms-2" aria-label="Quitar una nota">−</button>
+                    <span class="mp-cuenta">{{ c.columnas|length }}</span>
+                    <button type="button" class="mp-mm mp-mas" aria-label="Agregar una nota">+</button>
+                </div>
+                <div class="mp-nombres" data-codigo="{{ c.codigo }}">
+                    {% for nombre in c.columnas %}
+                    <div class="mp-nombre">
+                        <input type="text" name="col_{{ c.codigo }}" value="{{ nombre }}" maxlength="60"
+                               class="form-control form-control-sm" {% if nombre in c.con_notas %}data-con-notas="1"{% endif %}
+                               aria-label="Nombre de la nota {{ forloop.counter }}">
+                        {% if nombre in c.con_notas %}<i class="fas fa-lock mp-lock" title="Ya tiene notas"></i>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i>Guardar columnas</button>
+            <span class="small text-muted ms-2 mp-aviso"></span>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% empty %}
+    <p class="text-muted">No tiene asignaturas en este colegio.</p>
+{% endfor %}
+{% endif %}
+
+<script>
+(function () {
+    document.querySelectorAll('.mp-comp').forEach(function (comp) {
+        var lista = comp.querySelector('.mp-nombres');
+        var cuenta = comp.querySelector('.mp-cuenta');
+        var tope = parseInt(comp.dataset.tope, 10) || 15;
+        var aviso = comp.closest('form').querySelector('.mp-aviso');
+        var codigo = lista.dataset.codigo;
+        function pintar() {
+            var n = lista.querySelectorAll('input').length;
+            cuenta.textContent = n;
+            comp.querySelector('.mp-menos').disabled = n <= 1;
+            comp.querySelector('.mp-mas').disabled = n >= tope;
+        }
+        comp.querySelector('.mp-mas').addEventListener('click', function () {
+            var n = lista.querySelectorAll('input').length;
+            if (n >= tope) return;
+            var caja = document.createElement('div');
+            caja.className = 'mp-nombre';
+            var input = document.createElement('input');
+            input.type = 'text'; input.name = 'col_' + codigo; input.maxLength = 60;
+            input.className = 'form-control form-control-sm';
+            var k = n + 1, usados = Array.prototype.map.call(lista.querySelectorAll('input'), function (i) { return i.value; });
+            while (usados.indexOf('Nota ' + k) >= 0) k++;
+            input.value = 'Nota ' + k;
+            caja.appendChild(input);
+            lista.appendChild(caja);
+            input.focus(); input.select();
+            aviso.textContent = '';
+            pintar();
+        });
+        comp.querySelector('.mp-menos').addEventListener('click', function () {
+            var cajas = lista.querySelectorAll('.mp-nombre');
+            if (cajas.length <= 1) return;
+            var ultima = cajas[cajas.length - 1];
+            if (ultima.querySelector('input').dataset.conNotas) {
+                aviso.textContent = '«' + ultima.querySelector('input').value + '» ya tiene notas: bórrelas en línea para poder quitarla.';
+                return;
+            }
+            ultima.remove();
+            pintar();
+        });
+        pintar();
+    });
+    if (location.hash && /^#asig-\d+$/.test(location.hash)) {
+        var el = document.querySelector(location.hash);
+        if (el) el.scrollIntoView({ block: 'center' });
+    }
+})();
+</script>
+{% endblock %}

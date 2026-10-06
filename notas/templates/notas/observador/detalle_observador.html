@@ -145,7 +145,7 @@
                                 <span><strong>Reporta:</strong> {{ registro.docente_reporta.user.get_full_name }}</span>
                                 
                                 {# --- BOTONES DE EDITAR Y ELIMINAR --- #}
-                                {% if request.user.is_superuser or request.user == registro.docente_reporta.user %}
+                                {% if request.user.es_admin_colegio or request.user == registro.docente_reporta.user %}
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-light border-0 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                         <i class="fas fa-ellipsis-v"></i>

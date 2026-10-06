@@ -69,6 +69,46 @@ document.addEventListener('DOMContentLoaded', function () {
     let hayCambiosSinGuardar = false;
     let descripcionesColumnas = { ser: {}, saber: {}, hacer: {} };
 
+    // --- PLAN DE NOTAS: columnas de cada componente, con su nombre ---------
+    // Las notas se guardan sin huecos (si falta la nota 2, se guarda [1, 3]).
+    // Antes se pintaban por posición y la nota 3 caía en la columna 2. Ahora
+    // cada nota va a la columna que tiene su mismo nombre.
+    const planNotasEl = document.getElementById('plan-notas-json');
+    let planNotas = null;
+    if (planNotasEl) {
+        try { planNotas = JSON.parse(planNotasEl.textContent.trim() || 'null'); }
+        catch (e) { console.error('Error leyendo el plan de notas:', e); }
+    }
+    function escaparHtml(texto) {
+        return String(texto == null ? '' : texto)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    if (planNotas) {
+        for (const tipo of ['ser', 'saber', 'hacer']) {
+            const columnas = Array.isArray(planNotas[tipo]) ? planNotas[tipo] : [];
+            if (!columnas.length) continue;
+            columnas.forEach((nombre, i) => { descripcionesColumnas[tipo][i] = nombre; });
+            estudiantesData.forEach(est => {
+                const guardadas = (est.notas && est.notas[tipo]) || [];
+                const ubicadas = columnas.map(nombre => ({ valor: '', descripcion: nombre }));
+                const usadas = new Array(columnas.length).fill(false);
+                const sinLugar = [];
+                guardadas.forEach(nota => {
+                    const i = columnas.findIndex((c, k) => !usadas[k] && c === nota.descripcion);
+                    if (i >= 0) { ubicadas[i].valor = nota.valor; usadas[i] = true; }
+                    else sinLugar.push(nota);
+                });
+                sinLugar.forEach(nota => {
+                    const i = usadas.indexOf(false);
+                    if (i >= 0) { ubicadas[i].valor = nota.valor; usadas[i] = true; }
+                });
+                if (!est.notas) est.notas = { ser: [], saber: [], hacer: [] };
+                est.notas[tipo] = ubicadas;
+            });
+        }
+    }
+
     // Helper para reemplazar los alert() nativos
     function mostrarNotificacion(mensaje, esError = false) {
         const div = document.createElement('div');
@@ -141,6 +181,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         for (const tipo in maxNotas) {
+            const delPlan = Object.keys(descripcionesColumnas[tipo]).length;
+            if (delPlan > maxNotas[tipo]) maxNotas[tipo] = delPlan;
             if (maxNotas[tipo] === 0) maxNotas[tipo] = 1;
         }
 
@@ -152,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         for (const tipo of ['ser', 'saber', 'hacer']) {
             for (let i = 0; i < maxNotas[tipo]; i++) {
-                const desc = descripcionesColumnas[tipo][i] || '';
+                const desc = escaparHtml(descripcionesColumnas[tipo][i] || '');
                 headerHtml += `<th class="text-center th-nota" data-tipo="${tipo}" data-col-index="${i}" style="cursor: pointer;" title="Clic para describir esta columna">
                                  <span class="col-title text-primary"><i class="fas fa-edit me-1 small"></i>n${i + 1}</span><br>
                                  <span class="col-desc small fw-normal text-muted">${desc}</span>
@@ -330,9 +372,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (btnAdd) {
             sincronizarDatosDesdeDOM();
             const tipo = btnAdd.dataset.tipo;
+            const nueva = tablaCalificaciones.querySelectorAll(`thead .th-nota[data-tipo="${tipo}"]`).length;
+            if (!descripcionesColumnas[tipo][nueva]) descripcionesColumnas[tipo][nueva] = `Nota ${nueva + 1}`;
             if (estudiantesData.length > 0) {
                 estudiantesData.forEach(est => {
                     if (!est.notas[tipo]) est.notas[tipo] = [];
+                    while (est.notas[tipo].length < nueva) est.notas[tipo].push({ valor: '', descripcion: '' });
                     est.notas[tipo].push({ valor: '', descripcion: '' });
                 });
             }
@@ -392,10 +437,24 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    guardarTodoBtn?.addEventListener('click', async function() {
-        this.disabled = true;
-        this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
-        
+    // --- GUARDAR: lo usan el botón y el autoguardado -------------------------
+    let guardando = false;
+    let cambiosDuranteGuardado = false;
+
+    async function guardar(silencioso) {
+        if (!guardarTodoBtn) return false;
+        if (guardando) { cambiosDuranteGuardado = true; return false; }
+        if (!navigator.onLine) {
+            mostrarEstadoConexion();
+            if (!silencioso) mostrarNotificacion('No hay internet. Los cambios quedaron guardados en este equipo y se subirán al volver la conexión.', true);
+            return false;
+        }
+        guardando = true;
+        cambiosDuranteGuardado = false;
+        guardarTodoBtn.disabled = true;
+        guardarTodoBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+        if (silencioso) mostrarEstado('guardando');
+
         // Sincronizar todos los inputs visibles de la tabla
         sincronizarDatosDesdeDOM();
         
@@ -403,8 +462,15 @@ document.addEventListener('DOMContentLoaded', function () {
             asignacion_id: asignacionData.id,
             periodo_id: asignacionData.periodoId,
             estudiantes: [],
-            porcentajes: {}
+            porcentajes: {},
+            plan: {}
         };
+        // Las columnas tal como están en pantalla: se guardan como el plan de
+        // notas, para que el Excel y la próxima apertura salgan iguales.
+        for (const tipo of ['ser', 'saber', 'hacer']) {
+            const n = tablaCalificaciones.querySelectorAll(`thead .th-nota[data-tipo="${tipo}"]`).length;
+            payload.plan[tipo] = Array.from({ length: n }, (_, i) => descripcionesColumnas[tipo][i] || `Nota ${i + 1}`);
+        }
         
         const pSerInput = document.getElementById('p-ser');
         if (pSerInput) {
@@ -444,6 +510,7 @@ document.addEventListener('DOMContentLoaded', function () {
             payload.estudiantes.push(datosEst);
         });
 
+        let ok = false;
         try {
             const response = await fetch(asignacionData.guardarUrl, {
                 method: 'POST',
@@ -453,22 +520,160 @@ document.addEventListener('DOMContentLoaded', function () {
             const result = await response.json();
             
             if (!response.ok) throw new Error(result.message || 'Error del servidor');
-            
-            window.actualizarStatus('saved');
-            mostrarNotificacion('Todas las calificaciones y observaciones PIAR fueron guardadas exitosamente.', false);
+            ok = true;
+            if (cambiosDuranteGuardado) {
+                window.actualizarStatus('pending');      // se digitó algo mientras guardaba
+            } else {
+                window.actualizarStatus('saved');
+                borrarBorrador();
+            }
+            if (silencioso) mostrarEstado('autoguardado');
+            else mostrarNotificacion('Todas las calificaciones y observaciones PIAR fueron guardadas exitosamente.', false);
         } catch (error) {
             console.error('Error al guardar:', error);
-            mostrarNotificacion('Error al guardar: ' + error.message, true);
             window.actualizarStatus('error');
+            if (!navigator.onLine) mostrarEstadoConexion();
+            else mostrarNotificacion('Error al guardar: ' + error.message +
+                (silencioso ? ' Sus cambios siguen en este equipo; intente con «Guardar Cambios».' : ''), true);
         } finally {
-            this.disabled = false;
-            this.innerHTML = '<i class="fas fa-save me-2"></i>Guardar Cambios';
+            guardando = false;
+            guardarTodoBtn.innerHTML = '<i class="fas fa-save me-2"></i>Guardar Cambios';
+            guardarTodoBtn.disabled = !hayCambiosSinGuardar;
+            if (cambiosDuranteGuardado) programarAutoguardado();
         }
+        return ok;
+    }
+
+    guardarTodoBtn?.addEventListener('click', function () {
+        clearTimeout(temporizadorAuto);
+        guardar(false);
+    });
+
+    // --- AUTOGUARDADO Y RESPALDO EN ESTE EQUIPO -------------------------------
+    // 1. Cada cambio se copia al navegador (localStorage) al instante: si se va
+    //    la luz o el internet, al volver a abrir la planilla se ofrece recuperarlo.
+    // 2. A los 20 segundos sin digitar, se guarda solo en la plataforma.
+    // 3. Sin internet no se intenta: se avisa y se sube al volver la conexión.
+    const SEGUNDOS_AUTOGUARDADO = 20;
+    const claveBorrador = `mcolegio-planilla-${asignacionData.id}-${asignacionData.periodoId}`;
+    let temporizadorAuto = null;
+    let temporizadorBorrador = null;
+    const puedeGuardar = !!guardarTodoBtn && tablaCalificaciones.dataset.hayIndicadores === 'true';
+
+    function mostrarEstado(tipo) {
+        if (!statusIndicator) return;
+        const hora = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+        if (tipo === 'guardando') {
+            statusIndicator.className = 'status-indicator badge ms-3 fs-6 p-2 bg-info text-dark';
+            statusIndicator.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando…';
+        } else if (tipo === 'autoguardado') {
+            statusIndicator.innerHTML = `<i class="fas fa-check-circle me-1"></i>Guardado solo · ${hora}`;
+        }
+    }
+    function mostrarEstadoConexion() {
+        if (!statusIndicator) return;
+        if (!navigator.onLine) {
+            statusIndicator.className = 'status-indicator badge ms-3 fs-6 p-2 bg-secondary';
+            statusIndicator.innerHTML = '<i class="fas fa-wifi me-1"></i>Sin internet · los cambios quedan en este equipo';
+        }
+    }
+    function programarAutoguardado() {
+        if (!puedeGuardar) return;
+        clearTimeout(temporizadorAuto);
+        temporizadorAuto = setTimeout(() => { if (hayCambiosSinGuardar) guardar(true); }, SEGUNDOS_AUTOGUARDADO * 1000);
+    }
+    function guardarBorrador() {
+        if (!puedeGuardar) return;
+        clearTimeout(temporizadorBorrador);
+        temporizadorBorrador = setTimeout(() => {
+            sincronizarDatosDesdeDOM();
+            const borrador = {
+                fecha: Date.now(),
+                columnas: descripcionesColumnas,
+                estudiantes: estudiantesData.map(est => ({
+                    id: est.id,
+                    inasistencias: est.inasistencias,
+                    notas: Object.fromEntries(['ser', 'saber', 'hacer'].map(t =>
+                        [t, (est.notas[t] || []).map(n => (n && n.valor) || '')]))
+                }))
+            };
+            try { localStorage.setItem(claveBorrador, JSON.stringify(borrador)); } catch (e) { /* sin espacio o bloqueado */ }
+        }, 800);
+    }
+    function borrarBorrador() {
+        clearTimeout(temporizadorBorrador);
+        try { localStorage.removeItem(claveBorrador); } catch (e) { /* nada */ }
+    }
+    function recuperarBorrador(borrador) {
+        // Las columnas se emparejan por su nombre: si el plan cambió, cada nota
+        // vuelve a la columna que se llama igual.
+        for (const tipo of ['ser', 'saber', 'hacer']) {
+            const viejas = borrador.columnas?.[tipo] || {};
+            const actuales = descripcionesColumnas[tipo];
+            borrador.estudiantes.forEach(b => {
+                const est = estudiantesData.find(e => String(e.id) === String(b.id));
+                if (!est) return;
+                if (!est.notas[tipo]) est.notas[tipo] = [];
+                (b.notas?.[tipo] || []).forEach((valor, i) => {
+                    if (!valor) return;
+                    const nombre = viejas[i];
+                    let destino = Object.keys(actuales).find(k => actuales[k] === nombre);
+                    destino = destino !== undefined ? parseInt(destino, 10) : i;
+                    while (est.notas[tipo].length <= destino) est.notas[tipo].push({ valor: '', descripcion: '' });
+                    est.notas[tipo][destino].valor = valor;
+                });
+            });
+        }
+        borrador.estudiantes.forEach(b => {
+            const est = estudiantesData.find(e => String(e.id) === String(b.id));
+            if (est && b.inasistencias !== undefined) est.inasistencias = b.inasistencias;
+        });
+        renderizarTabla();
+        window.actualizarStatus('pending');
+        programarAutoguardado();
+    }
+    function ofrecerBorrador() {
+        if (!puedeGuardar) return;
+        let borrador = null;
+        try { borrador = JSON.parse(localStorage.getItem(claveBorrador) || 'null'); } catch (e) { borrador = null; }
+        if (!borrador || !Array.isArray(borrador.estudiantes)) return;
+        const fecha = new Date(borrador.fecha).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+        const aviso = document.createElement('div');
+        aviso.className = 'alert alert-warning d-flex flex-wrap align-items-center gap-2 mx-3 mt-3 mb-0';
+        aviso.innerHTML = `<div class="me-auto"><i class="fas fa-life-ring me-2"></i>En este equipo quedaron notas sin guardar del <strong>${fecha}</strong>.</div>
+            <button type="button" class="btn btn-sm btn-warning" data-accion="recuperar">Recuperarlas</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-accion="descartar">Descartarlas</button>`;
+        tablaCalificaciones.closest('.card')?.insertBefore(aviso, tablaCalificaciones.closest('.table-responsive'));
+        aviso.addEventListener('click', ev => {
+            const accion = ev.target.closest('button')?.dataset.accion;
+            if (accion === 'recuperar') { recuperarBorrador(borrador); aviso.remove(); }
+            if (accion === 'descartar') { borrarBorrador(); aviso.remove(); }
+        });
+    }
+
+    // Cada cambio: respaldo inmediato y autoguardado a los 20 s.
+    const actualizarStatusOriginal = window.actualizarStatus;
+    window.actualizarStatus = function (estado) {
+        actualizarStatusOriginal(estado);
+        if (estado === 'pending') {
+            guardarBorrador();
+            if (navigator.onLine) programarAutoguardado(); else mostrarEstadoConexion();
+        }
+        if (estado === 'saved') hayCambiosSinGuardar = false;
+    };
+    window.addEventListener('offline', mostrarEstadoConexion);
+    window.addEventListener('online', () => {
+        if (hayCambiosSinGuardar) guardar(true);
+        else window.actualizarStatus('saved');
+    });
+    window.addEventListener('beforeunload', ev => {
+        if (hayCambiosSinGuardar) { ev.preventDefault(); ev.returnValue = ''; }
     });
 
     // --- INITIALIZATION ---
     renderizarTabla();
     window.actualizarStatus('saved');
+    ofrecerBorrador();
     
     // Exponer el array de estudiantes a nivel global (útil para debuggear)
     window.estudiantesData = estudiantesData;

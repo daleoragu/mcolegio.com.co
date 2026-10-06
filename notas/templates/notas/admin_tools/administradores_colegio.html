@@ -1,0 +1,102 @@
+{% extends "notas/base.html" %}
+
+{% block page_title %}
+    <h1>Administradores del colegio</h1>
+{% endblock %}
+
+{% block content %}
+{% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+{% endfor %}
+
+<p class="text-muted" style="max-width:760px;">
+    Quien esté aquí puede hacer en <strong>{{ colegio.nombre }}</strong> todo lo que hace la administración de la
+    plataforma: estudiantes, docentes, cursos, notas, boletines, promoción y la configuración del colegio.
+    No puede entrar a ningún otro colegio. Los docentes siguen como siempre.
+</p>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white"><strong>Administran hoy</strong></div>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="table-light"><tr><th>Nombre</th><th>Usuario</th><th>Cargo</th><th></th></tr></thead>
+                    <tbody>
+                    {% for a in admins %}
+                        <tr {% if not a.activo %}class="text-muted"{% endif %}>
+                            <td>{{ a.user.get_full_name|default:a.user.username }}{% if not a.activo %} <span class="badge bg-secondary">sin acceso</span>{% endif %}</td>
+                            <td>{{ a.user.username }}</td>
+                            <td>{{ a.get_cargo_display }}</td>
+                            <td class="text-end">
+                                {% if a.user_id != user.id %}
+                                <form method="post" action="{% url 'notas:quitar_administrador' a.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    {% if a.activo %}
+                                        <button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Quitarle el acceso de administración a {{ a.user.get_full_name|default:a.user.username|escapejs }}? Si también es docente, sigue siéndolo.');">Quitar acceso</button>
+                                    {% else %}
+                                        <button class="btn btn-sm btn-outline-success">Devolver acceso</button>
+                                    {% endif %}
+                                </form>
+                                {% else %}<span class="small text-muted">Usted</span>{% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-4">Todavía no hay administradores. Hoy solo el superusuario administra este colegio.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-white"><strong>Darle administración a un docente</strong></div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="origen" value="docente">
+                    <label class="form-label" for="ad-docente">Docente</label>
+                    <select name="docente" id="ad-docente" class="form-select mb-2" required>
+                        <option value="">— Escoja —</option>
+                        {% for d in docentes %}<option value="{{ d.id }}">{{ d.user.get_full_name|default:d.user.username }}</option>{% endfor %}
+                    </select>
+                    <label class="form-label" for="ad-cargo1">Cargo</label>
+                    <select name="cargo" id="ad-cargo1" class="form-select mb-3">
+                        {% for c, n in cargos %}<option value="{{ c }}" {% if c == 'COORDINADOR' %}selected{% endif %}>{{ n }}</option>{% endfor %}
+                    </select>
+                    <button class="btn btn-primary">Agregar</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-white"><strong>Crear un usuario administrativo</strong></div>
+            <div class="card-body">
+                <p class="small text-muted">Para rectoría o secretaría, que no dictan clase.</p>
+                <form method="post" autocomplete="off">
+                    {% csrf_token %}
+                    <input type="hidden" name="origen" value="nuevo">
+                    <div class="row g-2">
+                        <div class="col-6"><label class="form-label small" for="ad-nom">Nombres</label><input name="nombres" id="ad-nom" class="form-control" required></div>
+                        <div class="col-6"><label class="form-label small" for="ad-ape">Apellidos</label><input name="apellidos" id="ad-ape" class="form-control"></div>
+                        <div class="col-6"><label class="form-label small" for="ad-usu">Usuario</label><input name="usuario" id="ad-usu" class="form-control" required autocomplete="off"></div>
+                        <div class="col-6"><label class="form-label small" for="ad-cla">Clave inicial</label><input name="clave" id="ad-cla" class="form-control" placeholder="Si la deja vacía, se genera" autocomplete="new-password"></div>
+                        <div class="col-12"><label class="form-label small" for="ad-cor">Correo (opcional)</label><input name="correo" id="ad-cor" type="email" class="form-control"></div>
+                        <div class="col-12"><label class="form-label small" for="ad-cargo2">Cargo</label>
+                            <select name="cargo" id="ad-cargo2" class="form-select">
+                                {% for c, n in cargos %}<option value="{{ c }}" {% if c == 'RECTOR' %}selected{% endif %}>{{ n }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary mt-3">Crear y dar acceso</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

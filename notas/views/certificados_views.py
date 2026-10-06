@@ -6,16 +6,12 @@ from django.http import HttpResponse, HttpResponseNotFound
 
 from ..models.perfiles import Estudiante, Curso, Colegio
 from ..reportes.certificado_generator import CertificadoPDFGenerator
+from ..permisos import es_admin, es_admin_usuario
 
 # Función de permisos para administradores del colegio
 def es_admin_del_colegio(user):
-    if not user.is_authenticated:
-        return False
-    if user.is_superuser:
-        return True
-    if hasattr(user, 'colegio_actual_id') and hasattr(user, 'colegios_administrados'):
-        return user.colegios_administrados.filter(pk=user.colegio_actual_id).exists()
-    return False
+    """Superusuario o administrador de ESTE colegio (ver notas/permisos.py)."""
+    return es_admin_usuario(user)
 
 @login_required
 @user_passes_test(es_admin_del_colegio)

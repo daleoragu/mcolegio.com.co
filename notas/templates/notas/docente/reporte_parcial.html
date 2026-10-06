@@ -28,7 +28,7 @@
     <p class="lead text-muted mb-4 text-center">Seleccione una asignación y el periodo para generar el reporte de seguimiento parcial.</p>
 
     <form method="GET" action="{% url 'notas:reporte_parcial' %}" class="form-filtros">
-        {% if user.is_superuser %}
+        {% if user.es_admin_colegio %}
         <div class="form-grupo">
             <label for="docente_id">Filtrar por Docente</label>
             <select name="docente_id" id="docente_id" class="form-select" onchange="this.form.submit()">

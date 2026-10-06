@@ -37,7 +37,7 @@
 
     <form method="GET" action="{% url 'notas:plan_mejoramiento' %}" class="form-filtros">
         
-        {% if user.is_superuser %}
+        {% if user.es_admin_colegio %}
         <div class="form-grupo">
             <label for="docente_id">Filtrar por Docente</label>
             <select name="docente_id" id="docente_id" class="form-select" onchange="this.form.submit()">

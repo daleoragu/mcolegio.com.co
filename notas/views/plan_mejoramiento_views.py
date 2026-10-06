@@ -10,6 +10,7 @@ from ..models import (
     Docente, AsignacionDocente, PeriodoAcademico, Estudiante,
     Calificacion, PlanDeMejoramiento, Observacion, EscalaValoracion
 )
+from ..permisos import es_admin, es_admin_usuario
 
 @login_required
 def plan_mejoramiento_vista(request):
@@ -60,7 +61,7 @@ def plan_mejoramiento_vista(request):
     context['nota_minima_aprobatoria'] = nota_minima_aprobatoria
     # --- FIN: Lógica MEJORADA ---
 
-    if user.is_superuser:
+    if es_admin_usuario(user):
         context['todos_los_docentes'] = Docente.objects.filter(colegio=request.colegio).order_by('user__last_name', 'user__first_name')
         if docente_seleccionado_id:
             asignaciones_docente = AsignacionDocente.objects.filter(docente_id=docente_seleccionado_id, colegio=request.colegio)
@@ -97,7 +98,7 @@ def plan_mejoramiento_vista(request):
         try:
             asignacion = get_object_or_404(AsignacionDocente, id=asignacion_id, colegio=request.colegio)
             docente_asignado = asignacion.docente
-            if not user.is_superuser and asignacion.docente != docente_que_reporta:
+            if not es_admin_usuario(user) and asignacion.docente != docente_que_reporta:
                 raise Exception("Permiso denegado para esta asignación.")
             
             estudiantes_en_formulario = request.POST.getlist('estudiante_id')

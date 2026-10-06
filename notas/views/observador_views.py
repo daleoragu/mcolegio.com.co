@@ -18,9 +18,10 @@ from ..models import (
     Docente, Estudiante, Curso, FichaEstudiante, 
     AsignacionDocente, RegistroObservador, Notificacion
 )
+from ..permisos import es_admin, es_admin_usuario
 
 def es_docente_o_superuser(user):
-    return user.is_superuser or user.groups.filter(name='Docentes').exists()
+    return es_admin_usuario(user) or user.groups.filter(name='Docentes').exists()
 
 @login_required
 @user_passes_test(es_docente_o_superuser)
@@ -32,7 +33,7 @@ def observador_selector_vista(request):
     cursos = []
     estudiantes = Estudiante.objects.none()
 
-    if user.is_superuser:
+    if es_admin_usuario(user):
         cursos = Curso.objects.filter(colegio=request.colegio).order_by('nombre')
     else:
         try:
@@ -146,7 +147,7 @@ def editar_registro_observador_vista(request, registro_id):
     
     # Validar que sea el creador de la nota o un administrador
     es_autor = registro.docente_reporta and registro.docente_reporta.user == request.user
-    if not (es_autor or request.user.is_superuser):
+    if not (es_autor or es_admin(request)):
         messages.error(request, "No tienes permiso para editar esta observación. Solo el autor puede hacerlo.")
         return redirect('notas:vista_detalle_observador', estudiante_id=estudiante.id)
 
@@ -186,7 +187,7 @@ def eliminar_registro_observador_vista(request, registro_id):
     estudiante = registro.estudiante
     
     es_autor = registro.docente_reporta and registro.docente_reporta.user == request.user
-    if not (es_autor or request.user.is_superuser):
+    if not (es_autor or es_admin(request)):
         messages.error(request, "No tienes permiso para eliminar esta observación.")
         return redirect('notas:vista_detalle_observador', estudiante_id=estudiante.id)
 

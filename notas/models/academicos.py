@@ -257,6 +257,14 @@ class ConfiguracionCalificaciones(models.Model):
     etiqueta_saber = models.CharField(max_length=30, default="SABER", verbose_name="Nombre de la columna 2")
     etiqueta_hacer = models.CharField(max_length=30, default="HACER", verbose_name="Nombre de la columna 3")
 
+    # --- Planilla de notas ---
+    notas_por_componente = models.PositiveSmallIntegerField(
+        default=5, validators=[MinValueValidator(1), MaxValueValidator(15)],
+        verbose_name="Notas por componente cuando el docente no elige",
+        help_text="Cuántas columnas trae cada componente (SER, SABER, HACER) en la planilla "
+                  "en línea y en el Excel, si el docente no configuró las suyas."
+    )
+
     # --- Presentación ---
     colapsar_area_unica = models.BooleanField(
         default=True,
@@ -276,6 +284,33 @@ class ConfiguracionCalificaciones(models.Model):
         return "Configuración de Calificaciones (sin colegio asignado)"
     class Meta:
         verbose_name = "Configuración de Permisos de Calificación"; verbose_name_plural = "Configuración de Permisos de Calificación"
+
+class PlanNotas(models.Model):
+    """Las columnas de notas que un docente decidió para un componente.
+
+    Una fila por asignación, periodo y componente: «SABER de Matemáticas 601
+    en el primer periodo tiene Taller 1, Quiz y Evaluación». Lo usan la
+    planilla en línea y el Excel, así las dos muestran las mismas columnas con
+    los mismos nombres. Las notas siguen guardándose en NotaDetallada; su
+    descripción es la que las amarra a su columna.
+    """
+    COMPONENTES = [('SER', 'SER'), ('SABER', 'SABER'), ('HACER', 'HACER')]
+
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="planes_notas", null=True)
+    asignacion = models.ForeignKey('AsignacionDocente', on_delete=models.CASCADE, related_name='planes_notas')
+    periodo = models.ForeignKey('PeriodoAcademico', on_delete=models.CASCADE, related_name='planes_notas')
+    componente = models.CharField(max_length=6, choices=COMPONENTES)
+    columnas = models.JSONField(default=list, blank=True,
+                                help_text="Nombres de las notas, en orden: [\"Taller 1\", \"Quiz\"…]")
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('asignacion', 'periodo', 'componente')
+        verbose_name = "Plan de notas"; verbose_name_plural = "Planes de notas"
+
+    def __str__(self):
+        return f"{self.asignacion} · {self.periodo} · {self.componente}: {len(self.columnas or [])} nota(s)"
+
 
 class PonderacionAreaMateria(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="ponderaciones", null=True)

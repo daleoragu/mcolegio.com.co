@@ -1,0 +1,112 @@
+# notas/planillas/guardar.py
+"""Guardar las notas de un estudiante y calcular su definitiva del periodo.
+
+Es la regla que usaba la planilla en línea, sacada aquí para que la subida
+del Excel la use tal cual. Si mañana cambia la forma de calcular, cambia en
+un solo lugar y la planilla en línea y el Excel siguen dando lo mismo.
+
+La regla:
+  * Una nota vale si está entre 1 y 5. Las demás (vacías, 0, 7, texto) no se
+    guardan.
+  * El promedio de cada componente es el de sus notas válidas, a 2 decimales;
+    sin notas, 0.
+  * La definitiva es la suma de cada promedio por su porcentaje, a 2 decimales.
+  * Un componente con 0 % no se toca.
+"""
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+
+from ..models.academicos import Calificacion, InasistenciasManualesPeriodo, NotaDetallada
+from .columnas import COMPONENTES, peso_componente
+
+MINIMA = Decimal('1')
+MAXIMA = Decimal('5')
+CENTESIMA = Decimal('0.01')
+
+
+def a_decimal(valor):
+    """'4,5' -> Decimal('4.5'); lo que no sea número -> None."""
+    if valor is None:
+        return None
+    if isinstance(valor, (int, float, Decimal)) and not isinstance(valor, bool):
+        try:
+            return Decimal(str(valor))
+        except InvalidOperation:
+            return None
+    texto = str(valor).strip().replace(',', '.')
+    if not texto:
+        return None
+    try:
+        return Decimal(texto)
+    except InvalidOperation:
+        return None
+
+
+def es_nota_valida(valor):
+    v = a_decimal(valor)
+    return v is not None and MINIMA <= v <= MAXIMA
+
+
+def guardar_componente(colegio, estudiante, asignacion, periodo, codigo, notas):
+    """Reemplaza las notas de un componente y devuelve su promedio.
+
+    notas: [{'descripcion': 'Taller 1', 'valor': '4,5'}, …] o [(desc, valor), …]
+    """
+    cal, _ = Calificacion.objects.get_or_create(
+        colegio=colegio, estudiante=estudiante, materia=asignacion.materia, periodo=periodo,
+        tipo_nota=codigo, defaults={'valor_nota': Decimal('0.0'), 'docente': asignacion.docente})
+    cal.notas_detalladas.all().delete()
+
+    nuevas, total = [], Decimal('0')
+    for n in notas:
+        desc, valor = (n.get('descripcion'), n.get('valor')) if isinstance(n, dict) else n
+        v = a_decimal(valor)
+        if v is None or not (MINIMA <= v <= MAXIMA):
+            continue
+        nuevas.append(NotaDetallada(colegio=colegio, calificacion_promedio=cal,
+                                    descripcion=(str(desc or '').strip() or f'Nota {len(nuevas) + 1}')[:100],
+                                    valor_nota=v))
+        total += v
+    if nuevas:
+        NotaDetallada.objects.bulk_create(nuevas)
+        promedio = total / len(nuevas)
+    else:
+        promedio = Decimal('0')
+    cal.valor_nota = promedio.quantize(CENTESIMA, rounding=ROUND_HALF_UP)
+    cal.save()
+    return cal.valor_nota
+
+
+def guardar_estudiante(colegio, asignacion, periodo, estudiante, notas_por_componente,
+                       inasistencias=None, observacion_inclusion=None):
+    """Guarda todo lo de un estudiante y devuelve su definitiva del periodo.
+
+    notas_por_componente: {'SER': [...], 'SABER': [...], 'HACER': [...]} (las
+    claves también pueden venir en minúscula, como las manda la planilla en línea).
+    """
+    por_codigo = {k.upper(): v for k, v in (notas_por_componente or {}).items()}
+    definitiva = Decimal('0')
+    for codigo in COMPONENTES:
+        peso = peso_componente(asignacion, codigo) / Decimal(100)
+        if peso <= 0:
+            continue
+        promedio = guardar_componente(colegio, estudiante, asignacion, periodo, codigo,
+                                      por_codigo.get(codigo, []))
+        definitiva += promedio * peso
+
+    defaults = {'valor_nota': definitiva.quantize(CENTESIMA, rounding=ROUND_HALF_UP),
+                'docente': asignacion.docente}
+    if observacion_inclusion is not None:
+        defaults['observacion_inclusion'] = observacion_inclusion
+    Calificacion.objects.update_or_create(
+        colegio=colegio, estudiante=estudiante, materia=asignacion.materia, periodo=periodo,
+        tipo_nota='PROM_PERIODO', defaults=defaults)
+
+    if inasistencias is not None:
+        try:
+            cantidad = max(0, int(Decimal(str(inasistencias).strip() or '0')))
+        except (InvalidOperation, ValueError):
+            cantidad = 0
+        InasistenciasManualesPeriodo.objects.update_or_create(
+            colegio=colegio, estudiante=estudiante, asignacion=asignacion, periodo=periodo,
+            defaults={'cantidad': cantidad})
+    return defaults['valor_nota']

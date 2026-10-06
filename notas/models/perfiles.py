@@ -123,7 +123,7 @@ class Colegio(models.Model):
     # --- Redes Sociales ---
     url_facebook = models.URLField(max_length=255, blank=True, verbose_name="URL de Facebook")
     url_instagram = models.URLField(max_length=255, blank=True, verbose_name="URL de Instagram")
-    url_twitter_x = models.URLField(max_length=255, blank=True, verbose_name="URL de Twitter / X")
+    url_tiktok = models.URLField(max_length=255, blank=True, verbose_name="URL de TikTok")
     url_youtube = models.URLField(max_length=255, blank=True, verbose_name="URL de YouTube")
 
     # --- Configuración del Portal ---
@@ -436,6 +436,35 @@ class FichaDocente(models.Model):
     class Meta:
         verbose_name = "Ficha del Docente"
         verbose_name_plural = "Fichas de Docentes"
+
+
+class AdministradorColegio(models.Model):
+    """Rector, coordinador o secretaría: administra UN colegio.
+
+    Puede todo lo que puede el superusuario, pero solo en este colegio (ver
+    notas/permisos.py). Se puede ser además docente del mismo colegio.
+    """
+    CARGOS = [
+        ('RECTOR', 'Rector(a)'),
+        ('COORDINADOR', 'Coordinador(a)'),
+        ('SECRETARIA', 'Secretaría académica'),
+        ('ADMINISTRATIVO', 'Administrativo'),
+        ('OTRO', 'Otro'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='administraciones')
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='administradores')
+    cargo = models.CharField(max_length=15, choices=CARGOS, default='ADMINISTRATIVO')
+    activo = models.BooleanField(default=True, help_text='Desmárquelo para quitarle el acceso sin borrar el registro.')
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'colegio')
+        verbose_name = 'Administrador del colegio'
+        verbose_name_plural = 'Administradores del colegio'
+        ordering = ['colegio__nombre', 'user__last_name']
+
+    def __str__(self):
+        return f'{self.user.get_full_name() or self.user.username} · {self.get_cargo_display()} · {self.colegio}'
 
 
 class HistorialMatricula(models.Model):

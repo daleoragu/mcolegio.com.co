@@ -21,14 +21,19 @@ from django.contrib.auth.models import User
 from django.shortcuts import redirect
 from django.views.decorators.http import require_POST
 
+from ..permisos import es_admin_colegio, es_admin_usuario
+
 logger = logging.getLogger('mcolegio.seguridad')
 
-GRUPOS_ADMIN = ('Administradores', 'Administrador de colegio')
-
-
 def es_personal_admin(user):
-    """Superusuario o miembro de un grupo de administración."""
-    return user.is_superuser or user.groups.filter(name__in=GRUPOS_ADMIN).exists()
+    """Superusuario o administrador del colegio de la dirección (ver notas/permisos.py)."""
+    return es_admin_usuario(user)
+
+
+def es_administrador_en_alguna_parte(user):
+    """¿Administra algún colegio? A esos no se les suplanta nunca."""
+    return (user.is_superuser or user.is_staff
+            or user.administraciones.filter(activo=True).exists())
 
 
 def motivo_para_no_suplantar(admin, objetivo, colegio):
@@ -39,7 +44,7 @@ def motivo_para_no_suplantar(admin, objetivo, colegio):
         return 'No puede suplantarse a sí mismo.'
     if not objetivo.is_active:
         return 'Ese usuario está desactivado.'
-    if objetivo.is_superuser or objetivo.is_staff or es_personal_admin(objetivo):
+    if es_administrador_en_alguna_parte(objetivo):
         return 'No se puede suplantar a un administrador.'
     if colegio is None:
         return 'No se identificó el colegio.'
@@ -88,7 +93,7 @@ def detener_suplantacion(request):
         return redirect('notas:dashboard')
 
     admin_user = User.objects.filter(id=original_user_id).first()
-    if admin_user is None or not es_personal_admin(admin_user):
+    if admin_user is None or not es_admin_colegio(admin_user, getattr(request, 'colegio', None)):
         # La cuenta original ya no es administradora (o no existe): por
         # seguridad se cierra todo en vez de devolverle un acceso que ya no tiene.
         logger.warning('Fin de suplantación con cuenta original inválida (id=%s). Se cierra la sesión.',

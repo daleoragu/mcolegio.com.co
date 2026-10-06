@@ -27,12 +27,13 @@ from ..models.academicos import (
 )
 from ..models.comunicaciones import Notificacion
 from ..forms import ColegioPersonalizacionForm, EscalaValoracionForm
+from ..permisos import es_admin, es_admin_usuario
 # --- FIN: CORRECCIÓN DE IMPORTACIONES ---
 
 
 # --- FUNCIÓN DE TEST PARA SUPERUSUARIO ---
 def es_superusuario(user):
-    return user.is_superuser
+    return es_admin_usuario(user)
 
 
 # --- VISTAS EXISTENTES (CÓDIGO ORIGINAL) ---
@@ -228,7 +229,7 @@ class PesoPeriodoForm(forms.ModelForm):
                 attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': 0, 'max': 100}),
         }
 
-@user_passes_test(lambda u: u.is_superuser)
+@user_passes_test(es_admin_usuario)
 def configuracion_calificaciones_vista(request):
     if not request.colegio:
         return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
@@ -403,9 +404,7 @@ class ColegioPersonalizacionUpdateView(LoginRequiredMixin, UserPassesTestMixin, 
         raise ImproperlyConfigured("El usuario no está asociado a ningún colegio para poder editarlo.")
 
     def test_func(self):
-        es_admin_colegio = self.request.user.groups.filter(name='AdminColegio').exists()
-        es_superusuario = self.request.user.is_superuser
-        return es_admin_colegio or es_superusuario
+        return es_admin(self.request)
 
     def form_valid(self, form):
         messages.success(self.request, '¡La configuración de tu colegio ha sido actualizada!')

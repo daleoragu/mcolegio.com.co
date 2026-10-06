@@ -64,7 +64,8 @@
             </table>
         </div>
         <div class="card-footer d-flex justify-content-between align-items-center">
-            <small class="text-muted">Haga clic en los encabezados (n1, n2...) para describirlos.</small>
+            <small class="text-muted">Haga clic en los encabezados (n1, n2...) para describirlos.
+                {% if not periodo_cerrado %}Se guarda solo a los 20 segundos de dejar de digitar, y sin internet queda respaldado en este equipo.{% endif %}</small>
             <div>
                 {% if not periodo_cerrado %}
                     <button class="btn btn-primary" id="guardarTodoBtn" disabled>
@@ -83,6 +84,7 @@
     <div id="estudiantes-data-json" style="display: none;">{{ estudiantes_data_json|safe }}</div>
     <div id="url-get-inasistencias" data-url="{% url 'notas:get_inasistencias_auto' %}"></div>
     <div id="escala-valoracion-json" style="display: none;">{{ escala_valoracion_json|safe }}</div>
+    {{ plan_notas|json_script:"plan-notas-json" }}
     <div id="inclusion-data-json" style="display: none;">{{ inclusion_data_json|safe }}</div>
 
     <div id="asignacion-details" 

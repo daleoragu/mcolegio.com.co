@@ -13,10 +13,11 @@ from ..models import (
     PonderacionAreaMateria
 )
 from ..forms import CursoForm, AreaConocimientoForm, MateriaForm
+from ..permisos import es_admin, es_admin_usuario
 
 def es_personal_admin(user):
     """Verifica si el usuario es superusuario."""
-    return user.is_superuser
+    return es_admin_usuario(user)
 
 # ===============================================================
 # VISTA PRINCIPAL DE ASIGNACIÓN ACADÉMICA
