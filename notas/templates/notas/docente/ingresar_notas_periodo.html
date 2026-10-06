@@ -69,7 +69,10 @@
 
         {% include 'notas/partials/_filtros_notas.html' %}
         
-        <div class="d-flex justify-content-end my-3">
+        <div class="d-flex justify-content-end flex-wrap gap-2 my-3">
+            <a href="{% url 'notas:mis_planillas' %}" class="btn btn-outline-success">
+                <i class="fas fa-table-cells me-2"></i>Mis planillas (configurar, Excel y subir)
+            </a>
             <a href="#" id="exportarPlanillasBtn" class="btn btn-success disabled" title="Seleccione un docente y un periodo para activar">
                 <i class="fas fa-file-excel me-2"></i>Exportar Planillas del Docente
             </a>

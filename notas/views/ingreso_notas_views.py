@@ -18,6 +18,8 @@ from ..models.academicos import (
     ConfiguracionCalificaciones, EscalaValoracion 
 )
 from ..models.perfiles import Docente
+from ..planillas.columnas import columnas_del_plan, componentes_activos, guardar_plan
+from ..planillas.guardar import guardar_componente, guardar_estudiante
 
 class IngresoNotasView(LoginRequiredMixin, View):
     template_name = 'notas/docente/ingresar_notas_periodo.html'
@@ -112,6 +114,13 @@ class IngresoNotasView(LoginRequiredMixin, View):
                     'lista_obs': [s.strip() for s in (obs_inc or "").split('\n') if s.strip()]
                 }
             
+            # Las columnas de cada componente (el plan de notas): la tabla las
+            # usa para ubicar cada nota por su nombre y no por su posición.
+            plan_columnas = {}
+            for codigo in ('SER', 'SABER', 'HACER'):
+                plan_columnas[codigo.lower()] = columnas_del_plan(asignacion_seleccionada, periodo_seleccionado, codigo, config=config)
+            context['plan_notas'] = plan_columnas
+
             indicadores = IndicadorLogroPeriodo.objects.filter(asignacion=asignacion_seleccionada, periodo=periodo_seleccionado, colegio=request.colegio).order_by('id')
             
             context.update({
@@ -172,48 +181,23 @@ class IngresoNotasView(LoginRequiredMixin, View):
                     mensaje_error = e.messages[0] if hasattr(e, 'messages') else str(e)
                     return JsonResponse({'status': 'error', 'message': f"Error en porcentajes: {mensaje_error}"}, status=400)
             
-            pesos = {
-                'ser': asignacion.ser_calc / Decimal(100),
-                'saber': asignacion.saber_calc / Decimal(100),
-                'hacer': asignacion.hacer_calc / Decimal(100),
-            }
+            # La planilla en línea manda también sus columnas (cuántas notas y
+            # cómo se llama cada una): se guardan como el plan de notas, para que
+            # el Excel y la próxima vez que se abra salgan iguales.
+            plan_nuevo = data.get('plan') or {}
+            for codigo in ('SER', 'SABER', 'HACER'):
+                columnas = plan_nuevo.get(codigo.lower())
+                if isinstance(columnas, list) and columnas:
+                    guardar_plan(asignacion, periodo, codigo, columnas)
 
+            # El cálculo vive en notas/planillas/guardar.py: es el mismo que usa
+            # la subida del Excel, así las dos dan la misma definitiva.
             for est_data in estudiantes_data:
                 estudiante = get_object_or_404(Estudiante, id=est_data['id'], colegio=request.colegio)
-                
-                promedio_ser = Decimal('0.0')
-                if pesos['ser'] > 0:
-                    promedio_ser = self.calcular_promedio_componente(request.colegio, estudiante, asignacion, periodo, 'SER', est_data['notas'].get('ser', []))
-                
-                promedio_saber = Decimal('0.0')
-                if pesos['saber'] > 0:
-                    promedio_saber = self.calcular_promedio_componente(request.colegio, estudiante, asignacion, periodo, 'SABER', est_data['notas'].get('saber', []))
-                
-                promedio_hacer = Decimal('0.0')
-                if pesos['hacer'] > 0:
-                    promedio_hacer = self.calcular_promedio_componente(request.colegio, estudiante, asignacion, periodo, 'HACER', est_data['notas'].get('hacer', []))
-
-                definitiva_periodo = (promedio_ser * pesos['ser']) + (promedio_saber * pesos['saber']) + (promedio_hacer * pesos['hacer'])
-
-                defaults_dict = {
-                    'valor_nota': definitiva_periodo.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP), 
-                    'docente': asignacion.docente
-                }
-
-                # CORRECCIÓN DE GUARDADO: Antes revisaba si existía 'observacion_inclusion', pero el script 
-                # frontend de la tabla de notas lo inyectaba a veces solo si no estaba vacío. Ahora forzamos 
-                # a que siempre guarde lo que mande el frontend (incluso si lo borraron y mandaron vacío).
-                if 'observacion_inclusion' in est_data:
-                    defaults_dict['observacion_inclusion'] = est_data['observacion_inclusion']
-
-                Calificacion.objects.update_or_create(
-                    colegio=request.colegio, estudiante=estudiante, materia=asignacion.materia, periodo=periodo, tipo_nota='PROM_PERIODO',
-                    defaults=defaults_dict
-                )
-                
-                InasistenciasManualesPeriodo.objects.update_or_create(
-                    colegio=request.colegio, estudiante=estudiante, asignacion=asignacion, periodo=periodo,
-                    defaults={'cantidad': int(est_data.get('inasistencias', 0))}
+                guardar_estudiante(
+                    request.colegio, asignacion, periodo, estudiante, est_data.get('notas', {}),
+                    inasistencias=est_data.get('inasistencias', 0),
+                    observacion_inclusion=est_data.get('observacion_inclusion') if 'observacion_inclusion' in est_data else None,
                 )
 
             return JsonResponse({'status': 'success', 'message': 'Calificaciones guardadas correctamente.'})
@@ -222,36 +206,8 @@ class IngresoNotasView(LoginRequiredMixin, View):
             return JsonResponse({'status': 'error', 'message': f'Ocurrió un error inesperado: {e}'}, status=500)
 
     def calcular_promedio_componente(self, colegio, estudiante, asignacion, periodo, tipo_componente, notas_data):
-        cal_prom, _ = Calificacion.objects.get_or_create(
-            colegio=colegio, estudiante=estudiante, materia=asignacion.materia, periodo=periodo, tipo_nota=tipo_componente,
-            defaults={'valor_nota': Decimal('0.0'), 'docente': asignacion.docente}
-        )
-        cal_prom.notas_detalladas.all().delete()
-        
-        notas_detalladas_list = []
-        total_notas = Decimal('0.0')
-        
-        for nota_det_data in notas_data:
-            try:
-                valor = Decimal(str(nota_det_data['valor']).replace(',', '.'))
-                if valor >= 1 and valor <= 5:
-                    notas_detalladas_list.append(NotaDetallada(
-                        colegio=colegio, calificacion_promedio=cal_prom, descripcion=nota_det_data['descripcion'], valor_nota=valor
-                    ))
-                    total_notas += valor
-            except (ValueError, TypeError):
-                continue
-
-        if notas_detalladas_list:
-            NotaDetallada.objects.bulk_create(notas_detalladas_list)
-            promedio = total_notas / len(notas_detalladas_list)
-        else:
-            promedio = Decimal('0.0')
-
-        promedio_final = promedio.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        cal_prom.valor_nota = promedio_final
-        cal_prom.save()
-        return promedio_final
+        """Se conserva por compatibilidad: ahora delega en notas/planillas/guardar.py."""
+        return guardar_componente(colegio, estudiante, asignacion, periodo, tipo_componente, notas_data)
 
 @login_required
 def ajax_get_inasistencias_auto(request):

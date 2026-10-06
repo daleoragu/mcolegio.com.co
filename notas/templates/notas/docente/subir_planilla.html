@@ -1,0 +1,116 @@
+{% extends 'notas/base.html' %}
+
+{% block title %}Subir planilla{% endblock %}
+
+{% block page_title %}
+    <h1>Subir planilla de Excel</h1>
+{% endblock %}
+
+{% block content %}
+<style>
+    .sp-hoja { border:1px solid #e3e6ec; border-radius:10px; background:#fff; margin-bottom:12px; }
+    .sp-hoja-cab { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 14px; border-bottom:1px solid #eef0f3; }
+    .sp-hoja-cab h5 { margin:0; font-size:1rem; font-weight:700; }
+    .sp-chip { display:inline-block; border-radius:999px; padding:2px 10px; font-size:.78rem; background:#eef1f5; white-space:nowrap; }
+    .sp-chip.ok { background:#e6f4ea; color:#1f7a3a; }
+    .sp-chip.mal { background:#fdecec; color:#a3161a; }
+    .sp-hoja table { font-size:.88rem; margin:0; }
+    .sp-hoja td, .sp-hoja th { vertical-align:middle; }
+    .sp-num { text-align:center; font-variant-numeric:tabular-nums; }
+    .sp-errores { font-size:.85rem; padding:10px 14px; background:#fffaf0; border-top:1px solid #f3e8c8; }
+    .sp-errores ul { margin:0; padding-left:18px; }
+    .sp-pie { position:sticky; bottom:0; background:#fff; border-top:1px solid #e3e6ec; padding:12px 0; z-index:5; }
+</style>
+
+{% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+{% endfor %}
+
+<div class="mb-3">
+    <a href="{% url 'notas:mis_planillas' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Volver a mis planillas</a>
+</div>
+
+{% if paso == 'subir' %}
+<div class="card shadow-sm" style="max-width:640px;">
+    <div class="card-body">
+        <p>Suba el Excel que descargó de <strong>Mis planillas</strong>, con las notas que llenó. Antes de guardar
+        le mostramos qué estudiantes cambian y si alguna nota no es válida; no se guarda nada hasta que confirme.</p>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <label for="sp-archivo" class="form-label">Archivo de Excel (.xlsx)</label>
+            <input type="file" name="archivo" id="sp-archivo" accept=".xlsx" class="form-control mb-3" required>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-search me-1"></i>Revisar antes de guardar</button>
+        </form>
+    </div>
+</div>
+
+{% else %}
+    {% if resultado.ignoradas %}
+        <p class="small text-muted">Hojas sin planilla de mColegio que se ignoraron: {{ resultado.ignoradas|join:", " }}.</p>
+    {% endif %}
+
+    {% for h in resultado.hojas %}
+    <div class="sp-hoja">
+        <div class="sp-hoja-cab">
+            <h5>{{ h.nombre|default:h.titulo }}</h5>
+            {% if h.periodo_nombre %}<span class="sp-chip">{{ h.periodo_nombre }}</span>{% endif %}
+            {% if h.estado == 'ok' %}
+                <span class="sp-chip {% if h.cambian %}ok{% endif %}">{{ h.cambian }} estudiante{{ h.cambian|pluralize }} con cambios</span>
+                <span class="sp-chip">{{ h.notas }} nota{{ h.notas|pluralize }} válida{{ h.notas|pluralize }}</span>
+                {% if h.errores %}<span class="sp-chip mal">{{ h.errores|length }} aviso{{ h.errores|length|pluralize }}</span>{% endif %}
+                {% if h.plan_cambia %}<span class="sp-chip">Cambian los nombres de las notas</span>{% endif %}
+            {% else %}
+                <span class="sp-chip mal">No se guarda</span>
+            {% endif %}
+        </div>
+        {% if h.estado != 'ok' %}
+            <div class="p-3 text-danger small">{{ h.error }}</div>
+        {% else %}
+            {% if h.cambian %}
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead class="table-light"><tr>
+                        <th>Estudiante</th><th class="sp-num">Definitiva hoy</th><th class="sp-num">Quedaría</th><th class="sp-num">Fallas</th>
+                    </tr></thead>
+                    <tbody>
+                    {% for e in h.estudiantes %}{% if e.cambia %}
+                        <tr>
+                            <td>{{ e.nombre }}</td>
+                            <td class="sp-num text-muted">{{ e.definitiva_antes|default:"—" }}</td>
+                            <td class="sp-num fw-bold">{{ e.definitiva }}</td>
+                            <td class="sp-num">{{ e.fallas|default:"0" }}</td>
+                        </tr>
+                    {% endif %}{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <div class="p-3 small text-muted">Ningún estudiante cambia frente a lo que ya está en la plataforma.</div>
+            {% endif %}
+            {% if h.errores %}
+            <div class="sp-errores">
+                <strong>Estas casillas no se guardan:</strong>
+                <ul>{% for e in h.errores|slice:":30" %}<li>{{ e }}</li>{% endfor %}</ul>
+                {% if h.errores|length > 30 %}<div class="text-muted">…y {{ h.errores|length|add:"-30" }} más.</div>{% endif %}
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <form method="post" class="sp-pie d-flex flex-wrap gap-2">
+        {% csrf_token %}
+        <button type="submit" name="accion" value="cancelar" class="btn btn-outline-secondary">No guardar</button>
+        {% if hay_algo %}
+            <button type="submit" name="accion" value="confirmar" class="btn btn-primary ms-auto">
+                <i class="fas fa-save me-1"></i>Guardar en la plataforma
+            </button>
+        {% else %}
+            <span class="ms-auto text-muted small align-self-center">No hay nada nuevo para guardar.</span>
+        {% endif %}
+    </form>
+{% endif %}
+{% endblock %}

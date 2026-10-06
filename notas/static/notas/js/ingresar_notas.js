@@ -69,6 +69,46 @@ document.addEventListener('DOMContentLoaded', function () {
     let hayCambiosSinGuardar = false;
     let descripcionesColumnas = { ser: {}, saber: {}, hacer: {} };
 
+    // --- PLAN DE NOTAS: columnas de cada componente, con su nombre ---------
+    // Las notas se guardan sin huecos (si falta la nota 2, se guarda [1, 3]).
+    // Antes se pintaban por posición y la nota 3 caía en la columna 2. Ahora
+    // cada nota va a la columna que tiene su mismo nombre.
+    const planNotasEl = document.getElementById('plan-notas-json');
+    let planNotas = null;
+    if (planNotasEl) {
+        try { planNotas = JSON.parse(planNotasEl.textContent.trim() || 'null'); }
+        catch (e) { console.error('Error leyendo el plan de notas:', e); }
+    }
+    function escaparHtml(texto) {
+        return String(texto == null ? '' : texto)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    if (planNotas) {
+        for (const tipo of ['ser', 'saber', 'hacer']) {
+            const columnas = Array.isArray(planNotas[tipo]) ? planNotas[tipo] : [];
+            if (!columnas.length) continue;
+            columnas.forEach((nombre, i) => { descripcionesColumnas[tipo][i] = nombre; });
+            estudiantesData.forEach(est => {
+                const guardadas = (est.notas && est.notas[tipo]) || [];
+                const ubicadas = columnas.map(nombre => ({ valor: '', descripcion: nombre }));
+                const usadas = new Array(columnas.length).fill(false);
+                const sinLugar = [];
+                guardadas.forEach(nota => {
+                    const i = columnas.findIndex((c, k) => !usadas[k] && c === nota.descripcion);
+                    if (i >= 0) { ubicadas[i].valor = nota.valor; usadas[i] = true; }
+                    else sinLugar.push(nota);
+                });
+                sinLugar.forEach(nota => {
+                    const i = usadas.indexOf(false);
+                    if (i >= 0) { ubicadas[i].valor = nota.valor; usadas[i] = true; }
+                });
+                if (!est.notas) est.notas = { ser: [], saber: [], hacer: [] };
+                est.notas[tipo] = ubicadas;
+            });
+        }
+    }
+
     // Helper para reemplazar los alert() nativos
     function mostrarNotificacion(mensaje, esError = false) {
         const div = document.createElement('div');
@@ -141,6 +181,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         for (const tipo in maxNotas) {
+            const delPlan = Object.keys(descripcionesColumnas[tipo]).length;
+            if (delPlan > maxNotas[tipo]) maxNotas[tipo] = delPlan;
             if (maxNotas[tipo] === 0) maxNotas[tipo] = 1;
         }
 
@@ -152,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         for (const tipo of ['ser', 'saber', 'hacer']) {
             for (let i = 0; i < maxNotas[tipo]; i++) {
-                const desc = descripcionesColumnas[tipo][i] || '';
+                const desc = escaparHtml(descripcionesColumnas[tipo][i] || '');
                 headerHtml += `<th class="text-center th-nota" data-tipo="${tipo}" data-col-index="${i}" style="cursor: pointer;" title="Clic para describir esta columna">
                                  <span class="col-title text-primary"><i class="fas fa-edit me-1 small"></i>n${i + 1}</span><br>
                                  <span class="col-desc small fw-normal text-muted">${desc}</span>
@@ -330,9 +372,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (btnAdd) {
             sincronizarDatosDesdeDOM();
             const tipo = btnAdd.dataset.tipo;
+            const nueva = tablaCalificaciones.querySelectorAll(`thead .th-nota[data-tipo="${tipo}"]`).length;
+            if (!descripcionesColumnas[tipo][nueva]) descripcionesColumnas[tipo][nueva] = `Nota ${nueva + 1}`;
             if (estudiantesData.length > 0) {
                 estudiantesData.forEach(est => {
                     if (!est.notas[tipo]) est.notas[tipo] = [];
+                    while (est.notas[tipo].length < nueva) est.notas[tipo].push({ valor: '', descripcion: '' });
                     est.notas[tipo].push({ valor: '', descripcion: '' });
                 });
             }
@@ -403,8 +448,15 @@ document.addEventListener('DOMContentLoaded', function () {
             asignacion_id: asignacionData.id,
             periodo_id: asignacionData.periodoId,
             estudiantes: [],
-            porcentajes: {}
+            porcentajes: {},
+            plan: {}
         };
+        // Las columnas tal como están en pantalla: se guardan como el plan de
+        // notas, para que el Excel y la próxima apertura salgan iguales.
+        for (const tipo of ['ser', 'saber', 'hacer']) {
+            const n = tablaCalificaciones.querySelectorAll(`thead .th-nota[data-tipo="${tipo}"]`).length;
+            payload.plan[tipo] = Array.from({ length: n }, (_, i) => descripcionesColumnas[tipo][i] || `Nota ${i + 1}`);
+        }
         
         const pSerInput = document.getElementById('p-ser');
         if (pSerInput) {

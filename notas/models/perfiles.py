@@ -123,7 +123,7 @@ class Colegio(models.Model):
     # --- Redes Sociales ---
     url_facebook = models.URLField(max_length=255, blank=True, verbose_name="URL de Facebook")
     url_instagram = models.URLField(max_length=255, blank=True, verbose_name="URL de Instagram")
-    url_twitter_x = models.URLField(max_length=255, blank=True, verbose_name="URL de Twitter / X")
+    url_tiktok = models.URLField(max_length=255, blank=True, verbose_name="URL de TikTok")
     url_youtube = models.URLField(max_length=255, blank=True, verbose_name="URL de YouTube")
 
     # --- Configuración del Portal ---

@@ -10,7 +10,8 @@ from .academicos import (
     AreaConocimiento, Materia, PeriodoAcademico, AsignacionDocente,
     Calificacion, NotaDetallada, IndicadorLogroPeriodo, ReporteParcial, Observacion,
     PlanDeMejoramiento, Asistencia, InasistenciasManualesPeriodo, EscalaValoracion, 
-    ConfiguracionSistema, PublicacionBoletin, PublicacionBoletinFinal,PonderacionAreaMateria
+    ConfiguracionSistema, PublicacionBoletin, PublicacionBoletinFinal,PonderacionAreaMateria,
+    PlanNotas
 )
 from .comunicaciones import Mensaje, RegistroObservador, Notificacion
 from .portal_models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel
@@ -24,7 +25,7 @@ __all__ = [
     'AreaConocimiento', 'Materia', 'PeriodoAcademico', 'AsignacionDocente', 'EscalaValoracion', 
     'Calificacion', 'NotaDetallada', 'IndicadorLogroPeriodo', 'ReporteParcial', 'Observacion',
     'PlanDeMejoramiento', 'Asistencia', 'InasistenciasManualesPeriodo','PonderacionAreaMateria',
-    'ConfiguracionSistema', 'PublicacionBoletin', 'PublicacionBoletinFinal',
+    'ConfiguracionSistema', 'PublicacionBoletin', 'PublicacionBoletinFinal', 'PlanNotas',
     'Mensaje', 'RegistroObservador', 'Notificacion',
     'DocumentoPublico', 'FotoGaleria', 'Noticia', 'ImagenCarrusel',
 ]

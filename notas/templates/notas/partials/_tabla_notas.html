@@ -83,6 +83,7 @@
     <div id="estudiantes-data-json" style="display: none;">{{ estudiantes_data_json|safe }}</div>
     <div id="url-get-inasistencias" data-url="{% url 'notas:get_inasistencias_auto' %}"></div>
     <div id="escala-valoracion-json" style="display: none;">{{ escala_valoracion_json|safe }}</div>
+    {{ plan_notas|json_script:"plan-notas-json" }}
     <div id="inclusion-data-json" style="display: none;">{{ inclusion_data_json|safe }}</div>
 
     <div id="asignacion-details" 

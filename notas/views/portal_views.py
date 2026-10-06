@@ -241,7 +241,7 @@ def ajax_redes_sociales(request):
     data = {
         'facebook': request.colegio.url_facebook,
         'instagram': request.colegio.url_instagram,
-        'twitter': request.colegio.url_twitter_x,
+        'tiktok': request.colegio.url_tiktok,
         'youtube': request.colegio.url_youtube,
     }
     return JsonResponse(data)

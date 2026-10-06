@@ -57,7 +57,7 @@ class ColegioPersonalizacionForm(forms.ModelForm):
             'color_primario', 'color_texto_primario', 'color_secundario', 'color_fondo', 
             'color_topbar', 'color_topbar_texto', 'color_footer', 'color_footer_texto',
             'telefono', 'email_contacto', 'whatsapp_numero',
-            'url_facebook', 'url_instagram', 'url_twitter_x', 'url_youtube',
+            'url_facebook', 'url_instagram', 'url_tiktok', 'url_youtube',
             'layout_portal', 
             'portal_publico_activo'
         ]
@@ -92,7 +92,7 @@ class ColegioPersonalizacionForm(forms.ModelForm):
             'whatsapp_numero': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 573001234567'}),
             'url_facebook': forms.URLInput(attrs={'class': 'form-control'}),
             'url_instagram': forms.URLInput(attrs={'class': 'form-control'}),
-            'url_twitter_x': forms.URLInput(attrs={'class': 'form-control'}),
+            'url_tiktok': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://www.tiktok.com/@sucolegio'}),
             'url_youtube': forms.URLInput(attrs={'class': 'form-control'}),
 
             # --- Configuración ---

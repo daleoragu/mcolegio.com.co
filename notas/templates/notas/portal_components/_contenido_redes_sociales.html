@@ -19,9 +19,9 @@
             </a>
             {% endif %}
 
-            {% if colegio.url_twitter_x %}
-            <a href="{{ colegio.url_twitter_x }}" target="_blank" class="btn btn-info btn-lg mx-2 my-2" style="background-color: #1DA1F2; color: white;">
-                <i class="fab fa-twitter me-2"></i> Twitter / X
+            {% if colegio.url_tiktok %}
+            <a href="{{ colegio.url_tiktok }}" target="_blank" rel="noopener" class="btn btn-dark btn-lg mx-2 my-2" style="background-color: #000000; color: white;">
+                <i class="fab fa-tiktok me-2"></i> TikTok
             </a>
             {% endif %}
 
@@ -31,7 +31,7 @@
             </a>
             {% endif %}
 
-            {% if not colegio.url_facebook and not colegio.url_instagram and not colegio.url_twitter_x and not colegio.url_youtube %}
+            {% if not colegio.url_facebook and not colegio.url_instagram and not colegio.url_tiktok and not colegio.url_youtube %}
                 <p class="text-muted mt-4">Las redes sociales de este colegio aún no han sido configuradas.</p>
             {% endif %}
         </div>
