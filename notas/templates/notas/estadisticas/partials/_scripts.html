@@ -69,7 +69,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (boxplotChartEl) { boxplotChart = new ApexCharts(boxplotChartEl, { series: [], chart: { type: 'boxPlot', height: '100%' }, yaxis: { min: 1, max: 5, tickAmount: 4 } }); boxplotChart.render(); }
         
         // --- Gráficas de las vistas nuevas ---
-        const barrasPromedio = {
+        // Función y no objeto: structuredClone no copia funciones (formatter) y
+        // lanzaba un error que dejaba la página de estadísticas sin ningún gráfico.
+        const barrasPromedio = () => ({
             type: 'bar',
             data: {},
             options: {
@@ -82,13 +84,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     tooltip: { callbacks: { label: c => `Promedio: ${c.parsed.x.toFixed(2)}` } }
                 }
             }
-        };
+        });
         const elBarrasArea = document.getElementById('barrasAreaChart');
-        if (elBarrasArea) barrasAreaChart = new Chart(elBarrasArea.getContext('2d'), structuredClone(barrasPromedio));
+        if (elBarrasArea) barrasAreaChart = new Chart(elBarrasArea.getContext('2d'), barrasPromedio());
         const elBarrasAsig = document.getElementById('barrasAsignaturaChart');
-        if (elBarrasAsig) barrasAsignaturaChart = new Chart(elBarrasAsig.getContext('2d'), structuredClone(barrasPromedio));
+        if (elBarrasAsig) barrasAsignaturaChart = new Chart(elBarrasAsig.getContext('2d'), barrasPromedio());
 
-        const donaAprobacion = {
+        // Función y no objeto: structuredClone no copia funciones (formatter) y
+        // lanzaba un error que dejaba la página de estadísticas sin ningún gráfico.
+        const donaAprobacion = () => ({
             type: 'doughnut',
             data: {},
             options: {
@@ -104,13 +108,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             }
-        };
+        });
         const elDonaArea = document.getElementById('donaAreaChart');
-        if (elDonaArea) donaAreaChart = new Chart(elDonaArea.getContext('2d'), structuredClone(donaAprobacion));
+        if (elDonaArea) donaAreaChart = new Chart(elDonaArea.getContext('2d'), donaAprobacion());
         const elDonaAsig = document.getElementById('donaAsignaturaChart');
-        if (elDonaAsig) donaAsignaturaChart = new Chart(elDonaAsig.getContext('2d'), structuredClone(donaAprobacion));
+        if (elDonaAsig) donaAsignaturaChart = new Chart(elDonaAsig.getContext('2d'), donaAprobacion());
         const elDonaAnot = document.getElementById('donaAnotacionesChart');
-        if (elDonaAnot) donaAnotacionesChart = new Chart(elDonaAnot.getContext('2d'), structuredClone(donaAprobacion));
+        if (elDonaAnot) donaAnotacionesChart = new Chart(elDonaAnot.getContext('2d'), donaAprobacion());
 
         const elBarrasAnot = document.getElementById('barrasAnotacionesChart');
         if (elBarrasAnot) barrasAnotacionesChart = new Chart(elBarrasAnot.getContext('2d'), {
