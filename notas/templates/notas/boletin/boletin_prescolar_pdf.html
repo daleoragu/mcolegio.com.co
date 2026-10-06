@@ -195,6 +195,11 @@
                             <td>{{ materia.inasistencias|default_if_none:"0" }}</td>
                         </tr>
                     {% endif %}
+                    {% if materia.observacion %}
+                        <tr>
+                            <td colspan="5" style="text-align: left; padding-left: 15px; font-style: italic;"><strong>Observación ({{ materia.nombre }}):</strong> {{ materia.observacion }}</td>
+                        </tr>
+                    {% endif %}
                 {% endfor %}
             {% empty %}
                 <tr>

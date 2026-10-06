@@ -87,3 +87,37 @@ class ExcelIdaYVuelta(ColegioDePrueba):
         avisos = Notificacion.objects.filter(destinatario=self.u_docente, tipo='PLANILLA')
         self.assertEqual(avisos.count(), 1)
         self.assertTrue(avisos.first().mensaje.startswith('2 estudiantes nuevos'))
+
+
+class ObservacionDeLaAsignatura(ColegioDePrueba):
+
+    def obs(self, est):
+        return Calificacion.objects.get(estudiante=est, periodo=self.p1, tipo_nota='PROM_PERIODO').observacion
+
+    def test_se_guarda_y_es_opcional(self):
+        ana, beto, _ = self.estudiantes
+        guardar_estudiante(self.a, self.asig, self.p1, ana, {'SABER': [('Nota 1', '4')]},
+                           observacion='  Muy   participativa ')
+        guardar_estudiante(self.a, self.asig, self.p1, beto, {'SABER': [('Nota 1', '4')]})
+        self.assertEqual(self.obs(ana), 'Muy participativa')
+        self.assertEqual(self.obs(beto), '')
+
+    def test_subir_el_excel_no_la_borra(self):
+        ana = self.estudiantes[0]
+        guardar_estudiante(self.a, self.asig, self.p1, ana, {}, observacion='Refuerzo en casa')
+        libro = openpyxl.load_workbook(io.BytesIO(generar_libro(self.a, self.p1, [self.asig])))
+        salida = io.BytesIO(); libro.save(salida); salida.seek(0)
+        aplicar(a_sesion(leer_libro(salida, self.a, self.u_docente)), self.a, self.u_docente)
+        self.assertEqual(self.obs(ana), 'Refuerzo en casa')
+
+    def test_la_planilla_en_linea_la_guarda(self):
+        import json
+        from django.urls import reverse
+        ana = self.estudiantes[0]
+        c = self.cliente(self.u_docente)
+        r = c.post(reverse('notas:ingresar_notas_periodo'), json.dumps({'asignacion_id': self.asig.id, 'periodo_id': self.p1.id,
+                                    'estudiantes': [{'id': str(ana.id), 'notas': {'saber': [{'descripcion': 'Nota 1', 'valor': '4'}]},
+                                                     'inasistencias': '0', 'observacion': 'Excelente trabajo'}]}),
+                   content_type='application/json')
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(self.obs(ana), 'Excelente trabajo')

@@ -41,6 +41,14 @@ def a_decimal(valor):
         return None
 
 
+LARGO_OBSERVACION = 600
+
+
+def limpiar_observacion(texto):
+    """Sin espacios de sobra y con un tope razonable para el boletín."""
+    return ' '.join(str(texto or '').split())[:LARGO_OBSERVACION]
+
+
 def es_nota_valida(valor):
     v = a_decimal(valor)
     return v is not None and MINIMA <= v <= MAXIMA
@@ -77,11 +85,12 @@ def guardar_componente(colegio, estudiante, asignacion, periodo, codigo, notas):
 
 
 def guardar_estudiante(colegio, asignacion, periodo, estudiante, notas_por_componente,
-                       inasistencias=None, observacion_inclusion=None):
+                       inasistencias=None, observacion_inclusion=None, observacion=None):
     """Guarda todo lo de un estudiante y devuelve su definitiva del periodo.
 
     notas_por_componente: {'SER': [...], 'SABER': [...], 'HACER': [...]} (las
     claves también pueden venir en minúscula, como las manda la planilla en línea).
+    observacion: texto libre de la asignatura; None = no se toca (el Excel no la trae).
     """
     por_codigo = {k.upper(): v for k, v in (notas_por_componente or {}).items()}
     definitiva = Decimal('0')
@@ -97,6 +106,8 @@ def guardar_estudiante(colegio, asignacion, periodo, estudiante, notas_por_compo
                 'docente': asignacion.docente}
     if observacion_inclusion is not None:
         defaults['observacion_inclusion'] = observacion_inclusion
+    if observacion is not None:
+        defaults['observacion'] = limpiar_observacion(observacion)
     Calificacion.objects.update_or_create(
         colegio=colegio, estudiante=estudiante, materia=asignacion.materia, periodo=periodo,
         tipo_nota='PROM_PERIODO', defaults=defaults)

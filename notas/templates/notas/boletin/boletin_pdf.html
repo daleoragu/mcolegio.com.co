@@ -34,6 +34,7 @@
         .asignatura-row td { text-align: left; }
         .asignatura-row .nota { text-align: center; }
         .logro-descriptivo-row td { text-align: left; font-size: 0.95em; padding-left: 20px; border-top: none; }
+        .observacion-materia-row td { font-style: italic; }
         
         .tabla-resumen { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 1.1em; }
         .tabla-resumen th, .tabla-resumen td { border: 1px solid #999; padding: 4px; text-align: center; }
@@ -186,6 +187,11 @@
                         </td>
                     </tr>
                     {% endfor %}
+                {% endif %}
+                {% if materia.observacion %}
+                    <tr class="logro-descriptivo-row observacion-materia-row">
+                        <td colspan="9"><strong>Observación:</strong> {{ materia.observacion }}</td>
+                    </tr>
                 {% endif %}
 
                 {% endfor %}
