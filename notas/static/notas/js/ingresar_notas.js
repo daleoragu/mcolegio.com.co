@@ -109,6 +109,37 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // --- COMPONENTES QUE SE MUESTRAN ------------------------------------------
+    // Solo los que tienen porcentaje (> 0 %). Una materia programada con un
+    // solo componente al 100 % muestra solo ese. Si todos están en 0 %
+    // (materia informativa), se muestran los tres.
+    const TIPOS = ['ser', 'saber', 'hacer'];
+    let configMateria = {};
+    try {
+        const el = document.getElementById('config-materia-json');
+        configMateria = JSON.parse((el && el.textContent.trim()) || '{}');
+    } catch (e) { configMateria = {}; }
+
+    function porcentajesActuales() {
+        const salida = {};
+        TIPOS.forEach(tipo => {
+            const input = document.getElementById(`p-${tipo}`);
+            const dato = asignacionDetailsEl.dataset['p' + tipo.charAt(0).toUpperCase() + tipo.slice(1)];
+            salida[tipo] = (parseFloat(input ? input.value : dato) || 0) / 100;
+        });
+        return salida;
+    }
+    function tiposVisibles() {
+        const p = porcentajesActuales();
+        const activos = TIPOS.filter(t => p[t] > 0);
+        return activos.length ? activos : TIPOS.slice();
+    }
+    function etiquetaComponente(tipo) {
+        const propia = (configMateria['lbl_' + tipo] || '').trim();
+        return (propia || tipo).toUpperCase();
+    }
+    let tiposPintados = [];
+
     // Helper para reemplazar los alert() nativos
     function mostrarNotificacion(mensaje, esError = false) {
         const div = document.createElement('div');
@@ -143,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 // Guardar notas digitadas en memoria
-                for (const tipo of ['ser', 'saber', 'hacer']) {
+                for (const tipo of tiposPintados) {
                     const inputs = fila.querySelectorAll(`.input-nota[data-tipo="${tipo}"]`);
                     
                     if (!estudiante.notas[tipo]) {
@@ -186,13 +217,15 @@ document.addEventListener('DOMContentLoaded', function () {
             if (maxNotas[tipo] === 0) maxNotas[tipo] = 1;
         }
 
+        const visibles = tiposVisibles();
+        tiposPintados = visibles;
         let headerHtml = `<thead class="table-light"><tr><th rowspan="2" class="text-center align-middle">#</th><th rowspan="2" class="align-middle">Estudiante</th>`;
-        for (const tipo of ['ser', 'saber', 'hacer']) {
-            headerHtml += `<th colspan="${maxNotas[tipo] + 1}" class="text-center comp-${tipo}">${tipo.toUpperCase()} <button class="btn btn-outline-success btn-sm btn-add-col ms-1" data-tipo="${tipo}" title="Añadir columna de nota">+</button><button class="btn btn-outline-danger btn-sm btn-remove-col ms-1" data-tipo="${tipo}" title="Quitar última columna">-</button></th>`;
+        for (const tipo of visibles) {
+            headerHtml += `<th colspan="${maxNotas[tipo] + 1}" class="text-center comp-${tipo}">${escaparHtml(etiquetaComponente(tipo))} <button class="btn btn-outline-success btn-sm btn-add-col ms-1" data-tipo="${tipo}" title="Añadir columna de nota">+</button><button class="btn btn-outline-danger btn-sm btn-remove-col ms-1" data-tipo="${tipo}" title="Quitar última columna">-</button></th>`;
         }
         headerHtml += `<th rowspan="2" class="text-center align-middle">Definitiva</th><th rowspan="2" class="text-center align-middle">Inasistencias</th></tr><tr>`;
 
-        for (const tipo of ['ser', 'saber', 'hacer']) {
+        for (const tipo of visibles) {
             for (let i = 0; i < maxNotas[tipo]; i++) {
                 const desc = escaparHtml(descripcionesColumnas[tipo][i] || '');
                 headerHtml += `<th class="text-center th-nota" data-tipo="${tipo}" data-col-index="${i}" style="cursor: pointer;" title="Clic para describir esta columna">
@@ -206,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         let bodyHtml = `<tbody>`;
         if (estudiantesData.length === 0) {
-            const colspan = 4 + maxNotas.ser + maxNotas.saber + maxNotas.hacer;
+            const colspan = 4 + visibles.reduce((n, t) => n + maxNotas[t] + 1, 0);
             bodyHtml += `<tr><td colspan="${colspan}" class="text-center text-muted py-4">No hay estudiantes en este curso.</td></tr>`;
         } else {
             estudiantesData.forEach((estudiante, index) => {
@@ -219,7 +252,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     ${estudiante.nombre_completo}${badgeInclusion}
                                     <input type="hidden" class="input-observacion-inclusion" value="${estudiante.observacion_inclusion || ''}">
                                 </td>`;
-                for (const tipo of ['ser', 'saber', 'hacer']) {
+                for (const tipo of visibles) {
                     for (let i = 0; i < maxNotas[tipo]; i++) {
                         const nota = estudiante.notas[tipo]?.[i]?.valor || '';
                         bodyHtml += `<td><input type="text" class="form-control form-control-sm text-center input-nota" data-tipo="${tipo}" value="${nota}" inputmode="decimal"></td>`;
@@ -243,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function actualizarTodosLosPromedios(fila) {
-        ['ser', 'saber', 'hacer'].forEach(tipo => {
+        tiposPintados.forEach(tipo => {
             const inputs = fila.querySelectorAll(`.input-nota[data-tipo="${tipo}"]`);
             const promCelda = fila.querySelector(`.prom-celda[data-tipo="${tipo}"]`);
             let suma = 0, count = 0;
@@ -263,27 +296,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const defCelda = fila.querySelector('.def-celda');
         let definitiva = 0;
         
-        const pSerInput = document.getElementById('p-ser');
-        const pSaberInput = document.getElementById('p-saber');
-        const pHacerInput = document.getElementById('p-hacer');
-
-        let porcentajes;
-
-        if (pSerInput && pSaberInput && pHacerInput) {
-            porcentajes = {
-                ser: (parseFloat(pSerInput.value) || 0) / 100,
-                saber: (parseFloat(pSaberInput.value) || 0) / 100,
-                hacer: (parseFloat(pHacerInput.value) || 0) / 100,
-            };
-        } else {
-            porcentajes = {
-                ser: (parseFloat(asignacionDetailsEl.dataset.pSer) || 0) / 100,
-                saber: (parseFloat(asignacionDetailsEl.dataset.pSaber) || 0) / 100,
-                hacer: (parseFloat(asignacionDetailsEl.dataset.pHacer) || 0) / 100,
-            };
-        }
-
-        ['ser', 'saber', 'hacer'].forEach(tipo => {
+        // Misma regla del servidor: promedio de cada componente × su porcentaje.
+        const porcentajes = porcentajesActuales();
+        tiposPintados.forEach(tipo => {
             const prom = parseFloat(fila.querySelector(`.prom-celda[data-tipo="${tipo}"]`).textContent);
             if (!isNaN(prom)) definitiva += prom * porcentajes[tipo];
         });
@@ -356,9 +371,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const panelPonderacion = document.getElementById('panel-ponderacion');
     if (panelPonderacion) {
         panelPonderacion.addEventListener('input', () => {
-             tablaCalificaciones.querySelectorAll('tbody tr[data-estudiante-id]').forEach(fila => {
-                actualizarDefinitiva(fila);
-            });
+            if (tiposVisibles().join() !== tiposPintados.join()) {
+                sincronizarDatosDesdeDOM();
+                renderizarTabla();
+            } else {
+                tablaCalificaciones.querySelectorAll('tbody tr[data-estudiante-id]').forEach(fila => {
+                    actualizarDefinitiva(fila);
+                });
+            }
             window.actualizarStatus('pending');
         });
     }
@@ -467,7 +487,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
         // Las columnas tal como están en pantalla: se guardan como el plan de
         // notas, para que el Excel y la próxima apertura salgan iguales.
-        for (const tipo of ['ser', 'saber', 'hacer']) {
+        for (const tipo of tiposPintados) {
             const n = tablaCalificaciones.querySelectorAll(`thead .th-nota[data-tipo="${tipo}"]`).length;
             payload.plan[tipo] = Array.from({ length: n }, (_, i) => descripcionesColumnas[tipo][i] || `Nota ${i + 1}`);
         }
