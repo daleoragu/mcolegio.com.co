@@ -10,7 +10,7 @@ from .models import (
     Colegio, PeriodoAcademico, AreaConocimiento, Curso, Materia, Docente, Estudiante,
     AsignacionDocente, IndicadorLogroPeriodo, Calificacion, Asistencia,
     Observacion, PlanDeMejoramiento, ReporteParcial, InasistenciasManualesPeriodo,
-    ConfiguracionSistema, NotaDetallada, PonderacionAreaMateria
+    ConfiguracionSistema, NotaDetallada, PonderacionAreaMateria, HistorialMatricula
 )
 
 @admin.register(Colegio)
@@ -59,8 +59,8 @@ class PeriodoAcademicoAdmin(BaseColegioAdmin):
 
 @admin.register(Curso)
 class CursoAdmin(BaseColegioAdmin):
-    list_display = ('nombre', 'director_grado', 'colegio')
-    list_filter = ('colegio',)
+    list_display = ('nombre', 'grado', 'subgrupo', 'director_grado', 'colegio')
+    list_filter = ('colegio', 'grado')
     autocomplete_fields = ['director_grado']
     search_fields = ('nombre',)
 
@@ -137,3 +137,11 @@ admin.site.register(NotaDetallada)
 admin.site.site_header = "Administración de Plataforma Educativa"
 admin.site.site_title = "Administración de Plataforma"
 admin.site.index_title = "Bienvenido al Portal de Administración General"
+
+
+@admin.register(HistorialMatricula)
+class HistorialMatriculaAdmin(admin.ModelAdmin):
+    list_display = ('estudiante', 'ano_lectivo', 'curso_nombre', 'resultado', 'curso_destino', 'colegio')
+    list_filter = ('colegio', 'ano_lectivo', 'resultado')
+    search_fields = ('estudiante__user__last_name', 'estudiante__user__first_name', 'curso_nombre')
+    raw_id_fields = ('estudiante', 'curso', 'curso_destino', 'registrado_por')

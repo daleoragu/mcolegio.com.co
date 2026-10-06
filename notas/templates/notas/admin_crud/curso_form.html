@@ -1,0 +1,89 @@
+{% extends "notas/base.html" %}
+
+{% block page_title %}
+    <h1>{{ titulo }}</h1>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors or form.errors %}
+                        <div class="alert alert-danger">
+                            <p class="mb-1"><strong>Por favor, corrige los errores a continuación:</strong></p>
+                            <ul class="mb-0">
+                                {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+                                {% for field in form %}
+                                    {% if field.errors %}
+                                        <li>{{ field.label }}: {{ field.errors|striptags }}</li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        {% for field in form %}
+                            <div class="mb-3" id="caja-{{ field.name }}">
+                                {{ field.label_tag }}
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <small class="form-text text-muted">{{ field.help_text }}</small>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                        
+                        <hr>
+                        <div class="d-flex justify-content-end">
+                            <a href="{{ request.META.HTTP_REFERER|default:'/' }}" class="btn btn-secondary me-2">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Guardar Cambios
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    // El nombre que saldría si se deja vacío, en gris dentro de la casilla.
+    // Es la misma regla de notas/models/perfiles.py:nombre_curso_sugerido.
+    var grado = document.getElementById('id_grado');
+    var sub = document.getElementById('id_subgrupo');
+    var fmt = document.getElementById('id_formato_nombre');
+    var nombre = document.getElementById('id_nombre');
+    var cajaFmt = document.getElementById('caja-formato_nombre');
+    if (!grado || !sub || !nombre) return;
+
+    function sugerido() {
+        if (grado.value === '') return '';
+        var g = parseInt(grado.value, 10);
+        var nombreGrado = grado.options[grado.selectedIndex].text.trim().toUpperCase();
+        var s = sub.value.trim().replace(/^-+|-+$/g, '').trim().toUpperCase();
+        var f = fmt ? fmt.value : '701';
+        if (!s) return nombreGrado;
+        if (/^\d+$/.test(s)) s = (f === '701') ? String(parseInt(s, 10)).padStart(2, '0') : String(parseInt(s, 10));
+        if (g <= 0) return nombreGrado + ' ' + s;
+        return g + (f === '7-1' ? '-' : '') + s;
+    }
+    function pintar() {
+        var s = sugerido();
+        nombre.placeholder = s ? s : '';
+        // El formato solo importa si hay subgrupo.
+        if (cajaFmt) cajaFmt.style.display = sub.value.trim() ? '' : 'none';
+    }
+    [grado, sub, fmt].forEach(function (el) {
+        if (!el) return;
+        el.addEventListener('input', pintar);
+        el.addEventListener('change', pintar);
+    });
+    pintar();
+})();
+</script>
+{% endblock %}

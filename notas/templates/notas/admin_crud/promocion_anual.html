@@ -1,0 +1,257 @@
+{% extends "notas/base.html" %}
+
+{% block page_title %}
+    <h1>{{ titulo }}</h1>
+{% endblock %}
+
+{% block content %}
+<style>
+    .pr-curso { border:1px solid #e3e6ec; border-radius:10px; margin-bottom:14px; background:#fff; }
+    .pr-cab { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:12px 14px;
+              border-bottom:1px solid #eef0f3; }
+    .pr-cab h5 { margin:0; font-weight:700; }
+    .pr-destino { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; padding:12px 14px; }
+    .pr-destino select { max-width:260px; }
+    .pr-falta { border-color:#dc3545 !important; box-shadow:0 0 0 .15rem rgba(220,53,69,.18); }
+    .pr-lista summary { cursor:pointer; padding:8px 14px; color:#2d5ea8; font-size:.92rem; }
+    .pr-lista table { margin:0; font-size:.9rem; }
+    .pr-lista td { vertical-align:middle; }
+    .pr-chip { display:inline-block; border-radius:999px; padding:1px 9px; font-size:.75rem;
+               background:#eef1f5; color:#4b5563; white-space:nowrap; }
+    .pr-chip.ok { background:#e6f4ea; color:#1f7a3a; }
+    .pr-chip.mal { background:#fdecec; color:#a3161a; }
+    .pr-totales { display:flex; flex-wrap:wrap; gap:8px; }
+    .pr-totales span { background:#f6f9fd; border:1px solid #dbe5f1; border-radius:8px;
+                       padding:6px 12px; font-size:.9rem; }
+    .pr-totales strong { font-variant-numeric:tabular-nums; }
+    .pr-pie { position:sticky; bottom:0; background:#fff; border-top:1px solid #e3e6ec;
+              padding:12px 0; margin-top:10px; z-index:5; }
+</style>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+    <a href="{% url 'notas:gestion_cursos' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Volver a cursos
+    </a>
+    {% if anos|length > 1 %}
+    <form method="get" class="d-flex gap-2 align-items-center ms-auto">
+        <label for="pr-ano" class="mb-0 text-muted">Año</label>
+        <select name="ano" id="pr-ano" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+        </select>
+    </form>
+    {% endif %}
+</div>
+
+{% if modo == 'hecha' %}
+{# ===================== YA SE HIZO: RESUMEN ===================== #}
+<div class="alert alert-success">
+    La promoción {{ ano }} ya se hizo ({{ fecha|date:"d/m/Y H:i" }}). Los boletines de {{ ano }}
+    siguen saliendo con los estudiantes que estuvieron en cada curso ese año.
+</div>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light"><tr>
+                    <th>Curso {{ ano }}</th><th>Grado</th>
+                    <th class="text-center">Promovidos</th><th>Pasaron a</th>
+                    <th class="text-center">No promovidos</th>
+                    <th class="text-center">Graduados</th><th class="text-center">Retirados</th>
+                </tr></thead>
+                <tbody>
+                {% for f in resumen %}
+                    <tr>
+                        <td><strong>{{ f.curso }}</strong></td>
+                        <td>{{ f.grado|default:"—" }}</td>
+                        <td class="text-center">{{ f.PROMOVIDO }}</td>
+                        <td>{{ f.destinos|default:"—" }}</td>
+                        <td class="text-center">
+                            {{ f.NO_PROMOVIDO }}
+                            {% if f.no_promovidos %}<div class="small text-muted">{{ f.no_promovidos|join:", " }}</div>{% endif %}
+                        </td>
+                        <td class="text-center">{{ f.GRADUADO }}</td>
+                        <td class="text-center">{{ f.RETIRADO }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if puede_deshacer %}
+        <form method="post" class="mt-2"
+              onsubmit="return confirm('¿Deshacer la promoción {{ ano }}? Cada estudiante vuelve al curso donde estaba, y los graduados y retirados vuelven a quedar activos. Lo que ya se haya trabajado del año nuevo con los cursos nuevos no se borra, pero los estudiantes dejan de estar en ellos.');">
+            {% csrf_token %}
+            <input type="hidden" name="ano" value="{{ ano }}">
+            <button type="submit" name="accion" value="deshacer" class="btn btn-outline-danger">
+                <i class="fas fa-undo me-2"></i>Deshacer la promoción {{ ano }}
+            </button>
+        </form>
+        {% else %}
+        <p class="text-muted small mb-0">No se puede deshacer porque ya se hizo la promoción de un año posterior.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% else %}
+{# ===================== PLANEAR Y CONFIRMAR ===================== #}
+<div class="alert alert-info">
+    <strong>Cómo funciona.</strong> Cada estudiante sale marcado según su boletín final de {{ ano }}
+    (la regla de áreas reprobadas del colegio). Cámbielo si la comisión de evaluación decidió otra cosa.
+    Los <strong>promovidos</strong> pasan al curso que diga cada tarjeta; los <strong>no promovidos</strong>
+    se quedan en el mismo curso; Undécimo se <strong>gradúa</strong>.
+    Antes de mover a nadie se guarda en qué curso estuvo cada uno este año, así que los boletines
+    de {{ ano }} no cambian, y si algo sale mal se puede deshacer.
+</div>
+
+{% if sin_grado %}
+<div class="alert alert-warning">
+    <strong>{{ sin_grado|length }} curso(s) sin grado:</strong>
+    {% for c in sin_grado %}{{ c.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+    El sistema no sabe a qué grado pasan: escoja el curso destino en cada tarjeta.
+    Si les asigna el grado en <a href="{% url 'notas:gestion_cursos' %}">Cursos</a>, el año que viene se hace solo.
+</div>
+{% endif %}
+
+{% if not filas %}
+    <p class="text-muted">No hay estudiantes activos con curso para promover.</p>
+{% else %}
+<form method="post" id="pr-form">
+    {% csrf_token %}
+    <input type="hidden" name="ano" value="{{ ano }}">
+
+    <div class="pr-totales mb-3" id="pr-totales">
+        <span>Promovidos: <strong data-t="PROMOVIDO">0</strong></span>
+        <span>No promovidos: <strong data-t="NO_PROMOVIDO">0</strong></span>
+        <span>Se gradúan: <strong data-t="GRADUADO">0</strong></span>
+        <span>Retirados: <strong data-t="RETIRADO">0</strong></span>
+        <span>Total: <strong>{{ total_estudiantes }}</strong></span>
+    </div>
+
+    {% for f in filas %}
+    <div class="pr-curso" data-curso="{{ f.curso.id }}">
+        <div class="pr-cab">
+            <h5>{{ f.curso.nombre }}</h5>
+            {% if f.curso.grado is not None %}
+                <span class="badge bg-secondary">{{ f.curso.nombre_grado }}{% if f.curso.subgrupo %} · {{ f.curso.subgrupo }}{% endif %}</span>
+            {% else %}
+                <span class="badge bg-warning text-dark">Sin grado</span>
+            {% endif %}
+            <span class="text-muted small ms-auto">{{ f.estudiantes|length }} estudiante(s)</span>
+        </div>
+        <div class="pr-destino">
+            <label class="mb-0" for="destino_{{ f.curso.id }}">Los promovidos pasan a</label>
+            <select name="destino_{{ f.curso.id }}" id="destino_{{ f.curso.id }}"
+                    class="form-select form-select-sm pr-sel-destino{% if not f.destino_valor %} pr-falta{% endif %}">
+                <option value="" {% if not f.destino_valor %}selected{% endif %}>— Escoja el curso —</option>
+                <option value="{{ GRADUAR }}" {% if f.destino_valor == GRADUAR %}selected{% endif %}>Se gradúan (terminan el colegio)</option>
+                {% for c in cursos %}
+                    {% if c.id != f.curso.id %}
+                    <option value="{{ c.id }}" {% if f.destino_valor == c.id %}selected{% endif %}>
+                        {{ c.nombre }}{% if c.grado is not None %} · {{ c.nombre_grado }}{% endif %}
+                    </option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+            {% if f.destino_auto %}<span class="pr-chip ok">Sugerido por el grado</span>{% endif %}
+            <span class="text-muted small">Los no promovidos se quedan en {{ f.curso.nombre }}.</span>
+        </div>
+        <details class="pr-lista">
+            <summary>Ver y ajustar estudiantes</summary>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <tbody>
+                    {% for x in f.estudiantes %}
+                        <tr>
+                            <td>{{ x.e }}</td>
+                            <td>
+                                {% if x.sugerencia %}
+                                    {% if x.sugerencia.sin_notas %}
+                                        <span class="pr-chip">Sin notas</span>
+                                    {% elif x.sugerencia.resultado == 'PROMOVIDO' %}
+                                        <span class="pr-chip ok">Boletín: promovido</span>
+                                    {% else %}
+                                        <span class="pr-chip mal">Boletín: {{ x.sugerencia.areas_reprobadas }} área(s) perdida(s)</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td style="width:190px;">
+                                <select name="resultado_{{ x.e.id }}" class="form-select form-select-sm pr-sel-resultado">
+                                    <option value="PROMOVIDO" {% if x.resultado == 'PROMOVIDO' %}selected{% endif %}>Promovido</option>
+                                    <option value="NO_PROMOVIDO" {% if x.resultado == 'NO_PROMOVIDO' %}selected{% endif %}>No promovido</option>
+                                    <option value="RETIRADO" {% if x.resultado == 'RETIRADO' %}selected{% endif %}>Retirado del colegio</option>
+                                </select>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    </div>
+    {% endfor %}
+
+    <div class="pr-pie d-flex flex-wrap gap-2 align-items-center">
+        <span id="pr-aviso" class="text-danger small"></span>
+        <button type="submit" name="accion" value="promover" class="btn btn-primary ms-auto">
+            <i class="fas fa-graduation-cap me-2"></i>Hacer la promoción {{ ano }}
+        </button>
+    </div>
+</form>
+
+<script>
+(function () {
+    var form = document.getElementById('pr-form');
+    var aviso = document.getElementById('pr-aviso');
+    var GRADUAR = '{{ GRADUAR }}';
+
+    function contar() {
+        var t = {PROMOVIDO: 0, NO_PROMOVIDO: 0, GRADUADO: 0, RETIRADO: 0};
+        var faltan = [];
+        form.querySelectorAll('.pr-curso').forEach(function (tarjeta) {
+            var sel = tarjeta.querySelector('.pr-sel-destino');
+            var gradua = sel.value === GRADUAR;
+            var promovidos = 0;
+            tarjeta.querySelectorAll('.pr-sel-resultado').forEach(function (r) {
+                // La opción «Promovido» se lee «Se gradúa» cuando el curso se gradúa.
+                r.options[0].text = gradua ? 'Se gradúa' : 'Promovido';
+                if (r.value === 'PROMOVIDO') { promovidos++; t[gradua ? 'GRADUADO' : 'PROMOVIDO']++; }
+                else { t[r.value]++; }
+            });
+            var falta = promovidos > 0 && !sel.value;
+            sel.classList.toggle('pr-falta', falta);
+            if (falta) faltan.push(tarjeta.querySelector('h5').textContent);
+        });
+        Object.keys(t).forEach(function (k) {
+            var el = document.querySelector('#pr-totales [data-t="' + k + '"]');
+            if (el) el.textContent = t[k];
+        });
+        aviso.textContent = faltan.length
+            ? 'Falta escoger a dónde pasan: ' + faltan.join(', ') : '';
+        return {totales: t, faltan: faltan};
+    }
+    form.addEventListener('change', contar);
+    form.addEventListener('submit', function (ev) {
+        var r = contar();
+        if (r.faltan.length) { ev.preventDefault(); aviso.scrollIntoView({block: 'center'}); return; }
+        var t = r.totales;
+        var ok = confirm('¿Hacer la promoción {{ ano }}?\n\n' +
+            t.PROMOVIDO + ' pasan de curso, ' + t.NO_PROMOVIDO + ' se quedan, ' +
+            t.GRADUADO + ' se gradúan y ' + t.RETIRADO + ' salen del colegio.\n\n' +
+            'Se puede deshacer desde esta misma pantalla.');
+        if (!ok) ev.preventDefault();
+    });
+    contar();
+})();
+</script>
+{% endif %}
+{% endif %}
+{% endblock %}

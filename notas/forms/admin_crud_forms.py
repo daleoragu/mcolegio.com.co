@@ -176,19 +176,117 @@ class AdminEditarEstudianteForm(forms.ModelForm):
 # ==============================================================================
 
 class CursoForm(forms.ModelForm):
+    """Curso con dos etiquetas: el nombre que usa el colegio y el grado.
+
+    * Curso nuevo: el grado es obligatorio. El nivel sale solo del grado.
+    * El nombre es libre (7A, 701, 71, 7-1, SÉPTIMO…). Si se deja vacío se arma
+      con el grado, el subgrupo y el formato del colegio; sin subgrupo es grado
+      único y se llama como el grado.
+    * Curso que ya existía sin grado: se puede seguir guardando sin grado, para
+      no romper nada; en la promoción se pregunta a dónde pasan sus estudiantes.
+    """
+    formato_nombre = forms.ChoiceField(
+        label='Cómo nombra el colegio sus cursos', required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text='Solo se usa para armar el nombre cuando hay subgrupo y el nombre se deja vacío. '
+                  'Viene puesto el que ya usa el colegio.')
+
     class Meta:
         model = Curso
-        fields = ['nombre', 'nivel', 'director_grado']
+        fields = ['grado', 'subgrupo', 'formato_nombre', 'nombre', 'nivel', 'director_grado']
         widgets = {
-            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'grado': forms.Select(attrs={'class': 'form-select'}),
+            'subgrupo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1, 2… o A, B…',
+                                               'maxlength': 10, 'autocomplete': 'off'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
             'nivel': forms.Select(attrs={'class': 'form-select'}),
             'director_grado': forms.Select(attrs={'class': 'form-select'}),
         }
+
     def __init__(self, *args, **kwargs):
+        from ..models.perfiles import FORMATOS_NOMBRE, formato_del_colegio
         colegio = kwargs.pop('colegio', None)
         super().__init__(*args, **kwargs)
+        self.colegio = colegio
         if colegio:
             self.fields['director_grado'].queryset = Docente.objects.filter(colegio=colegio).order_by('user__last_name')
+
+        self.fields['formato_nombre'].choices = FORMATOS_NOMBRE
+        self.fields['formato_nombre'].initial = formato_del_colegio(colegio)
+
+        es_nuevo = self.instance.pk is None
+        self.fields['nombre'].required = False
+        self.fields['nivel'].required = False
+        self.fields['subgrupo'].help_text = ('Vacío = grado único: el curso se llama como el grado (SÉPTIMO). '
+                                             'Si el grado tiene varios grupos: 1, 2… o A, B…')
+        self.fields['nombre'].help_text = ('Escríbalo como lo usa el colegio: 7A, 701, 71, 7-1… '
+                                           'Si lo deja vacío se usa el que aparece en gris.')
+        if es_nuevo:
+            self.fields['grado'].required = True
+            # En un curso nuevo el nivel lo decide el grado: no se muestra.
+            del self.fields['nivel']
+        else:
+            self.fields['grado'].required = False
+            if self.instance.grado is None:
+                self.fields['grado'].help_text = (
+                    'Este curso todavía no tiene grado. Puede asignárselo ahora; si no, '
+                    'cuando llegue la promoción se le preguntará a qué curso pasan sus estudiantes.')
+                self.fields['nivel'].help_text = 'Si escoge un grado, el nivel se pone solo.'
+            else:
+                del self.fields['nivel']
+        self.fields['grado'].choices = [('', '— Escoja el grado —')] + list(self.fields['grado'].choices)[1:]
+
+    def clean_subgrupo(self):
+        from ..models.perfiles import normalizar_subgrupo
+        return normalizar_subgrupo(self.cleaned_data.get('subgrupo'))
+
+    def clean(self):
+        from ..models.perfiles import clave_subgrupo, nombre_curso_sugerido, FORMATO_POR_DEFECTO
+        datos = super().clean()
+        grado = datos.get('grado')
+        subgrupo = datos.get('subgrupo') or ''
+        nombre = (datos.get('nombre') or '').strip()
+        if grado in ('', None):
+            grado = None
+            datos['grado'] = None
+
+        if not nombre:
+            if grado is None:
+                # En un curso nuevo ya falta el grado, que es el error que importa.
+                if 'grado' not in self.errors:
+                    self.add_error('nombre', 'Escriba el nombre del curso o escoja un grado.')
+                return datos
+            nombre = nombre_curso_sugerido(grado, subgrupo,
+                                           datos.get('formato_nombre') or FORMATO_POR_DEFECTO)
+        datos['nombre'] = nombre.upper()
+
+        if self.colegio:
+            otros = Curso.objects.filter(colegio=self.colegio).exclude(pk=self.instance.pk)
+            if otros.filter(nombre=datos['nombre']).exists():
+                self.add_error('nombre', f'Ya existe un curso llamado «{datos["nombre"]}».')
+            if grado is not None:
+                mia = clave_subgrupo(subgrupo)
+                for c in otros.filter(grado=grado):
+                    if clave_subgrupo(c.subgrupo) == mia:
+                        if mia:
+                            self.add_error('subgrupo',
+                                           f'«{c.nombre}» ya es ese grado con ese subgrupo. Use otro '
+                                           f'subgrupo para que la promoción sepa a cuál mandar a cada '
+                                           f'estudiante.')
+                        else:
+                            self.add_error('subgrupo',
+                                           f'Ya existe «{c.nombre}» como grado único de '
+                                           f'{c.nombre_grado}. Si este grado va a tener varios grupos, '
+                                           f'póngale subgrupo a los dos.')
+                        break
+        return datos
+
+    def save(self, commit=True):
+        curso = super().save(commit=False)
+        curso.nombre = self.cleaned_data['nombre']
+        if commit:
+            curso.save()
+        return curso
 
 class AreaConocimientoForm(forms.ModelForm):
     class Meta:

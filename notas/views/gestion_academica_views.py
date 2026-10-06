@@ -283,7 +283,7 @@ def crear_curso_vista(request):
     else:
         form = CursoForm(colegio=request.colegio)
     context = {'form': form, 'titulo': 'Crear Nuevo Curso / Grado', 'colegio': request.colegio}
-    return render(request, 'notas/admin_crud/formulario_generico.html', context)
+    return render(request, 'notas/admin_crud/curso_form.html', context)
 
 @user_passes_test(es_personal_admin)
 def editar_curso_vista(request, curso_id):
@@ -300,7 +300,7 @@ def editar_curso_vista(request, curso_id):
     else:
         form = CursoForm(instance=curso, colegio=request.colegio)
     context = {'form': form, 'titulo': f'Editar Curso: {curso.nombre}', 'colegio': request.colegio}
-    return render(request, 'notas/admin_crud/formulario_generico.html', context)
+    return render(request, 'notas/admin_crud/curso_form.html', context)
 
 @user_passes_test(es_personal_admin)
 @require_POST

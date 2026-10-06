@@ -12,6 +12,29 @@ from ..models import (
 from .ponderacion import ajustes as ajustes_colegio, definitiva_anual
 from django.db.models import Prefetch
 
+
+def estudiantes_del_curso_en(colegio, curso, ano_lectivo):
+    """Los estudiantes que estuvieron en `curso` el año `ano_lectivo`.
+
+    Mientras el año no se ha promovido son los que hoy están en el curso,
+    como siempre. Después de la promoción, esos ya pasaron a otro curso (o se
+    graduaron), así que se toman del historial que la promoción dejó escrito.
+    Sin esto, el boletín de un año pasado saldría con los estudiantes de hoy.
+    """
+    from ..models import HistorialMatricula
+
+    historial = HistorialMatricula.objects.filter(
+        colegio=colegio, curso=curso, ano_lectivo=ano_lectivo)
+    if historial.exists():
+        return Estudiante.objects.filter(
+            # Todos los que terminaron el año ahí, también los que se
+            # graduaron o no siguen en el colegio: ese año sí lo cursaron.
+            id__in=historial.values('estudiante_id')
+        ).select_related('user').order_by('user__last_name', 'user__first_name')
+    return Estudiante.objects.filter(
+        curso=curso, colegio=colegio, is_active=True
+    ).select_related('user').order_by('user__last_name', 'user__first_name')
+
 def _get_valoracion(colegio, nota):
     """
     Devuelve la valoración cualitativa según la escala configurada para el colegio.
@@ -41,9 +64,7 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
     if estudiante_especifico:
         estudiantes = [estudiante_especifico]
     else:
-        estudiantes = Estudiante.objects.filter(
-            curso=curso, colegio=colegio, is_active=True
-        ).select_related('user').order_by('user__last_name', 'user__first_name')
+        estudiantes = estudiantes_del_curso_en(colegio, curso, periodo.ano_lectivo)
 
     materias_del_curso_ids = AsignacionDocente.objects.filter(curso=curso, colegio=colegio).values_list('materia_id', flat=True).distinct()
     materias_del_curso = Materia.objects.filter(id__in=materias_del_curso_ids, colegio=colegio)
@@ -206,7 +227,7 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
     if estudiante_especifico:
         estudiantes = [estudiante_especifico]
     else:
-        estudiantes = Estudiante.objects.filter(curso=curso, colegio=colegio, is_active=True).select_related('user').order_by('user__last_name', 'user__first_name')
+        estudiantes = estudiantes_del_curso_en(colegio, curso, ano_lectivo)
 
     asignaciones = AsignacionDocente.objects.filter(curso=curso, colegio=colegio).select_related('materia')
     materias_del_curso_ids = [a.materia_id for a in asignaciones]
