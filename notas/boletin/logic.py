@@ -162,7 +162,8 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
                     'logros': IndicadorLogroPeriodo.objects.filter(asignacion=asignacion, periodo=periodo, colegio=colegio),
                     'promedia': promedia_boletin,
                     # LA VARIABLE CLAVE QUE LE FALTABA AL BOLETÍN:
-                    'observacion_inclusion': lista_obs_inclusion
+                    'observacion_inclusion': lista_obs_inclusion,
+                    'observacion': (definitiva_obj.observacion if definitiva_obj else '') or '',
                 }
                 datos_area['materias'].append(datos_materia)
 

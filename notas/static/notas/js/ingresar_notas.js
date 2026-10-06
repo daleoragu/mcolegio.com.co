@@ -167,6 +167,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     estudiante.inasistencias = inasistInput.value;
                 }
 
+                // Observación de la asignatura (opcional)
+                const obsInput = fila.querySelector('.input-observacion');
+                if (obsInput) {
+                    estudiante.observacion = obsInput.value;
+                }
+
                 // Intentar leer el input oculto de inclusión si existe en la fila (como respaldo)
                 const inputInclusion = fila.querySelector('.input-observacion-inclusion');
                 if (inputInclusion) {
@@ -223,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function () {
         for (const tipo of visibles) {
             headerHtml += `<th colspan="${maxNotas[tipo] + 1}" class="text-center comp-${tipo}">${escaparHtml(etiquetaComponente(tipo))} <button class="btn btn-outline-success btn-sm btn-add-col ms-1" data-tipo="${tipo}" title="Añadir columna de nota">+</button><button class="btn btn-outline-danger btn-sm btn-remove-col ms-1" data-tipo="${tipo}" title="Quitar última columna">-</button></th>`;
         }
-        headerHtml += `<th rowspan="2" class="text-center align-middle">Definitiva</th><th rowspan="2" class="text-center align-middle">Inasistencias</th></tr><tr>`;
+        headerHtml += `<th rowspan="2" class="text-center align-middle">Definitiva</th><th rowspan="2" class="text-center align-middle">Inasistencias</th><th rowspan="2" class="text-center align-middle th-observacion">Observación<br><span class="small fw-normal text-muted">(opcional)</span></th></tr><tr>`;
 
         for (const tipo of visibles) {
             for (let i = 0; i < maxNotas[tipo]; i++) {
@@ -239,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         let bodyHtml = `<tbody>`;
         if (estudiantesData.length === 0) {
-            const colspan = 4 + visibles.reduce((n, t) => n + maxNotas[t] + 1, 0);
+            const colspan = 5 + visibles.reduce((n, t) => n + maxNotas[t] + 1, 0);
             bodyHtml += `<tr><td colspan="${colspan}" class="text-center text-muted py-4">No hay estudiantes en este curso.</td></tr>`;
         } else {
             estudiantesData.forEach((estudiante, index) => {
@@ -267,6 +273,11 @@ document.addEventListener('DOMContentLoaded', function () {
                                    <i class="fas fa-sync-alt"></i>
                                  </button>
                                </div>
+                             </td>
+                             <td class="align-middle td-observacion">
+                               <textarea class="form-control form-control-sm input-observacion" rows="2" maxlength="600"
+                                         placeholder="Escriba una observación si la necesita…"
+                                         title="Opcional. Sale en el boletín debajo de los indicadores de esta asignatura.">${escaparHtml(estudiante.observacion || '')}</textarea>
                              </td></tr>`;
             });
         }
@@ -360,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     tablaCalificaciones.addEventListener('input', e => {
-        if (e.target.classList.contains('input-nota') || e.target.classList.contains('input-inasistencia') || e.target.classList.contains('input-observacion-inclusion')) {
+        if (e.target.classList.contains('input-nota') || e.target.classList.contains('input-inasistencia') || e.target.classList.contains('input-observacion') || e.target.classList.contains('input-observacion-inclusion')) {
             if (e.target.classList.contains('input-nota')) {
                 actualizarTodosLosPromedios(e.target.closest('tr'));
             }
@@ -513,6 +524,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 id: est.id.toString(),
                 notas: { ser: [], saber: [], hacer: [] },
                 inasistencias: est.inasistencias || "0",
+                observacion: est.observacion || "",
                 observacion_inclusion: obsFinal // Enviamos el indicador PIAR actualizado
             };
             
@@ -613,6 +625,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 estudiantes: estudiantesData.map(est => ({
                     id: est.id,
                     inasistencias: est.inasistencias,
+                    observacion: est.observacion || '',
                     notas: Object.fromEntries(['ser', 'saber', 'hacer'].map(t =>
                         [t, (est.notas[t] || []).map(n => (n && n.valor) || '')]))
                 }))
@@ -647,6 +660,7 @@ document.addEventListener('DOMContentLoaded', function () {
         borrador.estudiantes.forEach(b => {
             const est = estudiantesData.find(e => String(e.id) === String(b.id));
             if (est && b.inasistencias !== undefined) est.inasistencias = b.inasistencias;
+            if (est && b.observacion !== undefined) est.observacion = b.observacion;
         });
         renderizarTabla();
         window.actualizarStatus('pending');

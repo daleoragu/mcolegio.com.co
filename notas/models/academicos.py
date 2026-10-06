@@ -125,6 +125,9 @@ class Calificacion(models.Model):
     
     # NUEVO CAMPO AÑADIDO PARA INCLUSIÓN
     observacion_inclusion = models.TextField(blank=True, null=True, verbose_name="Indicador de Inclusión", help_text="Indicador personalizado para estudiantes de inclusión")
+    # Observación libre del docente sobre el estudiante en la asignatura (opcional).
+    # Se guarda en la definitiva del periodo (PROM_PERIODO) y sale en el boletín.
+    observacion = models.TextField(blank=True, default='', verbose_name="Observación de la asignatura")
     
     class Meta:
         unique_together = ('estudiante', 'materia', 'periodo', 'tipo_nota', 'colegio')

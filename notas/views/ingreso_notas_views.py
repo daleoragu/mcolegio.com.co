@@ -89,7 +89,7 @@ class IngresoNotasView(LoginRequiredMixin, View):
 
             for estudiante in estudiantes_del_curso:
                 nombre_completo = f"{estudiante.user.last_name}, {estudiante.user.first_name}".strip()
-                data = {'id': estudiante.id, 'nombre_completo': nombre_completo, 'notas': {'ser': [], 'saber': [], 'hacer': []}, 'inasistencias': 0}
+                data = {'id': estudiante.id, 'nombre_completo': nombre_completo, 'notas': {'ser': [], 'saber': [], 'hacer': []}, 'inasistencias': 0, 'observacion': ''}
                 
                 calificaciones = Calificacion.objects.filter(estudiante=estudiante, materia=asignacion_seleccionada.materia, periodo=periodo_seleccionado, colegio=request.colegio).prefetch_related('notas_detalladas')
                 
@@ -101,6 +101,7 @@ class IngresoNotasView(LoginRequiredMixin, View):
                         data['notas'][key] = [{'descripcion': n.descripcion, 'valor': str(n.valor_nota)} for n in cal.notas_detalladas.all()]
                     elif cal.tipo_nota == 'PROM_PERIODO':
                         obs_inc = getattr(cal, 'observacion_inclusion', "")
+                        data['observacion'] = cal.observacion or ''
                 
                 inasistencia_manual, _ = InasistenciasManualesPeriodo.objects.get_or_create(estudiante=estudiante, asignacion=asignacion_seleccionada, periodo=periodo_seleccionado, colegio=request.colegio, defaults={'cantidad': 0})
                 data['inasistencias'] = inasistencia_manual.cantidad
@@ -199,6 +200,7 @@ class IngresoNotasView(LoginRequiredMixin, View):
                     request.colegio, asignacion, periodo, estudiante, est_data.get('notas', {}),
                     inasistencias=est_data.get('inasistencias', 0),
                     observacion_inclusion=est_data.get('observacion_inclusion') if 'observacion_inclusion' in est_data else None,
+                    observacion=est_data.get('observacion') if 'observacion' in est_data else None,
                 )
 
             return JsonResponse({'status': 'success', 'message': 'Calificaciones guardadas correctamente.'})
