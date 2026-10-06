@@ -1,7 +1,9 @@
 # notas/reportes/excel_generator.py
 import datetime
+from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Protection
+from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
 
 from .base_generator import BaseReportGenerator
@@ -41,7 +43,15 @@ class AsistenciaExcelGenerator(BaseReportGenerator):
             ws = wb.create_sheet(title=nombre_hoja)
             
             # El resumen va vacío, por lo que las celdas quedarán en blanco
-            self._write_sheet(ws, asignacion, estudiantes, fechas, resumen_vacio, nombre_completo)
+            # La plantilla trae lo que ya está registrado (X, T, AJ): así, al subirla,
+            # una casilla vacía significa «asistió» y no borra nada por error.
+            from ..planillas.asistencia import registros_de, codigo_de
+            resumen = defaultdict(dict)
+            for (est_id, fecha), reg in registros_de(asignacion, fechas).items():
+                codigo = codigo_de(reg)
+                if codigo:
+                    resumen[est_id][fecha] = codigo
+            self._write_sheet(ws, asignacion, estudiantes, fechas, resumen, nombre_completo)
                 
         return wb
 
@@ -70,6 +80,8 @@ class AsistenciaExcelGenerator(BaseReportGenerator):
         
         for col_idx, fecha in enumerate(fechas_del_mes, start=3):
             ws.cell(row=9, column=col_idx, value=f"{asignacion.id}|{fecha.strftime('%Y-%m-%d')}")
+        from ..planillas.asistencia import MARCA
+        ws.cell(row=9, column=1, value=MARCA)
         ws.row_dimensions[9].hidden = True
 
         ws.merge_cells('A10:B11')
@@ -103,6 +115,16 @@ class AsistenciaExcelGenerator(BaseReportGenerator):
                 cell_asistencia.alignment = center_align
                 cell_asistencia.protection = unlocked_protection
                 
+        fila_fin = start_data_row + max(len(estudiantes), 1) - 1
+        if fechas_del_mes and estudiantes:
+            dv = DataValidation(type='list', formula1='"X,T,AJ"', allow_blank=True, showErrorMessage=True,
+                                errorTitle='Asistencia', error='Escriba X (ausente), T (tarde) o AJ (ausente con excusa). Vacío = asistió.')
+            dv.add(f'{get_column_letter(3)}{start_data_row}:{get_column_letter(2 + len(fechas_del_mes))}{fila_fin}')
+            ws.add_data_validation(dv)
+        ws.cell(row=fila_fin + 2, column=1,
+                value='X = ausente   ·   T = tarde   ·   AJ = ausente con excusa   ·   vacío = asistió').font = Font(italic=True, size=9)
+        ws.cell(row=fila_fin + 3, column=1,
+                value='Ya trae lo registrado en la plataforma. Para subirla: Consultar asistencia › Cargar planilla.').font = Font(italic=True, size=9)
         ws.column_dimensions['A'].width = 35
         ws.column_dimensions['B'].hidden = True
         if fechas_del_mes:

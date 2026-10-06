@@ -83,17 +83,18 @@
     <div class="card-body">
         <h5 class="card-title">2. Cargar Planilla de Asistencia Completa</h5>
         <p class="card-text text-muted">
-            Una vez haya llenado la plantilla de Excel con las asistencias (X o T), súbala aquí para registrar los datos en la plataforma.
+            La plantilla trae lo que ya está registrado. Márquela con <strong>X</strong> (ausente), <strong>T</strong> (tarde) o
+            <strong>AJ</strong> (ausente con excusa); <strong>vacío = asistió</strong>. Al subirla le mostramos qué cambia antes de guardar.
         </p>
         <form action="{% url 'notas:importar_asistencia_excel' %}" method="post" enctype="multipart/form-data">
-            {% csrf_token %}
+            {% csrf_token %}<input type="hidden" name="accion" value="revisar">
             <div class="row align-items-center g-3">
                 <div class="col-md-8">
                     <input class="form-control" type="file" name="archivo_excel" id="archivo_excel" required accept=".xlsx">
                 </div>
                 <div class="col-md-4">
                     <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-upload me-2"></i>Subir y Procesar Archivo
+                        <i class="fas fa-search me-2"></i>Revisar antes de guardar
                     </button>
                 </div>
             </div>
