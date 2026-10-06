@@ -121,7 +121,9 @@ else:
 
 if USE_SPACES:
     # --- PRODUCCIÓN: DigitalOcean Spaces ---
-    print("✅ Usando DigitalOcean Spaces para almacenamiento de medios.")
+    # Sin emoji: la consola de Windows (cp1252) se cae al imprimirlo cuando la
+    # salida va a un archivo o a un «| findstr».
+    print("[mcolegio] Usando DigitalOcean Spaces para almacenamiento de medios.")
 
     AWS_ACCESS_KEY_ID = os.getenv('DO_SPACES_ACCESS_KEY')
     AWS_SECRET_ACCESS_KEY = os.getenv('DO_SPACES_SECRET_KEY')
@@ -155,7 +157,7 @@ if USE_SPACES:
 
 else:
     # --- DESARROLLO LOCAL ---
-    print("⚪️ Usando almacenamiento local para medios (carpeta 'media').")
+    print("[mcolegio] Usando almacenamiento local para medios (carpeta 'media').")
 
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
@@ -171,3 +173,44 @@ else:
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# --- Registro de errores y eventos ---
+# Todo va a la consola: en DigitalOcean App Platform eso aparece en la pestaña
+# «Runtime Logs», y en local sale en la terminal de runserver.
+#   mcolegio.seguridad -> suplantaciones, accesos rechazados
+#   mcolegio.colegio   -> fallas al identificar el colegio por el subdominio
+#   django.request     -> errores 500, con la dirección que los causó
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {'format': '[{asctime}] {levelname} {name}: {message}', 'style': '{'},
+    },
+    'handlers': {
+        'consola': {'class': 'logging.StreamHandler', 'formatter': 'simple'},
+    },
+    'loggers': {
+        'mcolegio': {'handlers': ['consola'], 'level': os.getenv('MCOLEGIO_LOG_LEVEL', 'INFO'),
+                     'propagate': False},
+        'django.request': {'handlers': ['consola'], 'level': 'ERROR', 'propagate': False},
+    },
+}
+
+# --- Sentry (opcional) ---
+# Avisa por correo de cada error en producción, con la línea exacta. Solo se
+# activa si existe la variable SENTRY_DSN (se saca gratis en sentry.io) y el
+# paquete sentry-sdk está instalado; si falta cualquiera de los dos, no pasa nada.
+SENTRY_DSN = os.getenv('SENTRY_DSN')
+if SENTRY_DSN:
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            environment='desarrollo' if DEBUG else 'produccion',
+            traces_sample_rate=0.0,
+            # Sin datos personales: nombres de estudiantes y notas no salen
+            # de la plataforma.
+            send_default_pii=False,
+        )
+    except ImportError:
+        print("[mcolegio] SENTRY_DSN está definido pero falta instalar sentry-sdk.")

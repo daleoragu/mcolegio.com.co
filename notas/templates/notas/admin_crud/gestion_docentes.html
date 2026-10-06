@@ -24,7 +24,7 @@
         <td class="text-end">
             
             {% if docente.user %}
-                <a href="{% url 'notas:iniciar_suplantacion' docente.user.id %}" class="btn btn-sm btn-outline-success" title="Ver como este docente"><i class="fas fa-user-secret"></i></a>
+                <form action="{% url 'notas:iniciar_suplantacion' docente.user.id %}" method="POST" class="d-inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-success" title="Ver como este docente"><i class="fas fa-user-secret"></i></button></form>
                 <a href="{% url 'notas:editar_docente' docente.id %}" class="btn btn-sm btn-outline-info" title="Editar Docente"><i class="fas fa-pencil-alt"></i></a>
                 <form action="{% url 'notas:eliminar_docente' docente.id %}" method="POST" class="d-inline" onsubmit="return confirm('¿Seguro que quieres eliminar a \'{{ docente.user.get_full_name|escapejs }}\'? Esta acción es permanente.')">
                     {% csrf_token %}

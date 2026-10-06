@@ -1,5 +1,9 @@
 # notas/middleware.py
+import logging
+
 from .models import Colegio
+
+logger = logging.getLogger('mcolegio.colegio')
 
 class ColegioMiddleware:
     """
@@ -37,12 +41,16 @@ class ColegioMiddleware:
                 request.colegio = Colegio.objects.get(slug=slug)
 
         except Colegio.DoesNotExist:
-            # Si el subdominio existe pero no hay un colegio con ese slug en la BD,
-            # request.colegio permanecerá como None.
-            pass
+            # Subdominio sin colegio con ese slug en la base: la página sale
+            # como la portada general. Se deja rastro, porque eso es justo lo
+            # que se ve cuando «no me deja entrar a un colegio».
+            logger.warning('No hay colegio con el subdominio de %s (¿slug mal escrito o base '
+                           'distinta?). La página se muestra sin colegio.', host)
         except Exception:
-            # Si ocurre cualquier otro error, se ignora para no romper el sitio.
-            pass
+            # Cualquier otro error (base caída, migración pendiente…) tampoco
+            # tumba el sitio, pero ya no se pierde: queda en el log con todo
+            # el detalle para poder arreglarlo.
+            logger.exception('Error identificando el colegio para %s', host)
         
         response = self.get_response(request)
         return response

@@ -20,3 +20,25 @@ __pycache__/
 
 # Archivos de sistema
 .DS_Store
+
+# --- Lo genera «collectstatic» al desplegar. No se versiona: una copia vieja
+# --- aquí es lo que hacía ver el landing sin estilos en local.
+/staticfiles/
+
+# --- Llaves y certificados: nunca en el repositorio
+/certs/
+*.pem
+*.key
+
+# --- Pruebas sueltas de conexión a Spaces y accesos directos de Windows
+/test_*.py
+/test_*.txt
+/prueba_storage.py
+/check_env.py
+/galeria_portal/
+*.lnk
+
+# --- Editores y sistema
+.vscode/
+.idea/
+Thumbs.db

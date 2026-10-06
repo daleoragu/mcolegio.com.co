@@ -69,9 +69,12 @@
                             <td>{{ estudiante.user.username }}</td>
                             <td class="text-end">
                                 {% if estudiante.user %}
-                                    <a href="{% url 'notas:iniciar_suplantacion' estudiante.user.id %}" class="btn btn-sm btn-outline-success" title="Ver como este estudiante">
-                                        <i class="fas fa-user-secret"></i>
-                                    </a>
+                                    <form action="{% url 'notas:iniciar_suplantacion' estudiante.user.id %}" method="POST" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-success" title="Ver como este estudiante">
+                                            <i class="fas fa-user-secret"></i>
+                                        </button>
+                                    </form>
 
                                     <a href="{% url 'notas:editar_estudiante' estudiante.id %}" class="btn btn-sm btn-outline-info" title="Editar Estudiante"><i class="fas fa-pencil-alt"></i></a>
                                     

@@ -1,75 +1,103 @@
 # notas/views/impersonation_views.py
+"""«Ver como»: el administrador entra a la plataforma como un docente o estudiante.
 
-from django.shortcuts import redirect, get_object_or_404
-# --- CORRECCIÓN: Se añaden 'logout' y 'login_required' ---
-from django.contrib.auth import login, logout
-from django.contrib.auth.models import User
-from django.contrib.auth.decorators import user_passes_test, login_required
+Reglas, porque antes no había ninguna sobre A QUIÉN se podía suplantar y
+bastaba cambiar el número en la dirección para entrar como cualquiera, incluso
+como un superusuario o como alguien de otro colegio:
+
+  * Solo se suplanta a docentes o estudiantes DEL COLEGIO en que se está.
+  * Nunca a un superusuario, a un usuario del personal, a otro administrador
+    ni a uno mismo.
+  * Solo por POST (botón), nunca por un enlace: así otra página no puede
+    disparar la suplantación con una imagen o un enlace escondido.
+  * Queda registrado en el log quién suplantó a quién.
+"""
+import logging
 
 from django.contrib import messages
+from django.contrib.auth import login, logout
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.models import User
+from django.shortcuts import redirect
+from django.views.decorators.http import require_POST
+
+logger = logging.getLogger('mcolegio.seguridad')
+
+GRUPOS_ADMIN = ('Administradores', 'Administrador de colegio')
+
 
 def es_personal_admin(user):
-    """
-    Verifica si el usuario es superusuario o pertenece al grupo 'Administradores'.
-    """
-    return user.is_superuser or user.groups.filter(name='Administradores').exists()
+    """Superusuario o miembro de un grupo de administración."""
+    return user.is_superuser or user.groups.filter(name__in=GRUPOS_ADMIN).exists()
 
+
+def motivo_para_no_suplantar(admin, objetivo, colegio):
+    """None si se puede suplantar; si no, el motivo en palabras."""
+    if objetivo is None:
+        return 'Ese usuario no existe.'
+    if objetivo.pk == admin.pk:
+        return 'No puede suplantarse a sí mismo.'
+    if not objetivo.is_active:
+        return 'Ese usuario está desactivado.'
+    if objetivo.is_superuser or objetivo.is_staff or es_personal_admin(objetivo):
+        return 'No se puede suplantar a un administrador.'
+    if colegio is None:
+        return 'No se identificó el colegio.'
+    docente = getattr(objetivo, 'docente', None)
+    estudiante = getattr(objetivo, 'estudiante', None)
+    if not ((docente and docente.colegio_id == colegio.id)
+            or (estudiante and estudiante.colegio_id == colegio.id)):
+        return 'Ese usuario no pertenece a este colegio.'
+    return None
+
+
+@require_POST
 @user_passes_test(es_personal_admin)
 def iniciar_suplantacion(request, user_id):
-    """
-    Inicia sesión como el usuario objetivo, guardando el ID del admin original
-    en la nueva sesión.
-    """
+    """Entra como el usuario objetivo y guarda quién era el administrador."""
     if 'original_user_id' in request.session:
-        messages.error(request, "Ya estás suplantando a un usuario. Por favor, detén la sesión actual primero.")
+        messages.error(request, 'Ya está viendo la plataforma como otro usuario. Vuelva primero a su cuenta.')
         return redirect('notas:dashboard')
 
-    try:
-        usuario_objetivo = get_object_or_404(User, id=user_id)
-        original_user_id = request.user.id
-        
-        # Se hace el login PRIMERO. Esto limpia la sesión anterior.
-        login(request, usuario_objetivo, backend='django.contrib.auth.backends.ModelBackend')
-        
-        # Ahora, en la NUEVA sesión, guardamos el ID del admin original.
-        request.session['original_user_id'] = original_user_id
-        
-        messages.success(request, f"Ahora estás viendo la plataforma como {usuario_objetivo.get_full_name()}.")
-        return redirect('notas:dashboard')
-        
-    except Exception as e:
-        messages.error(request, f"No se pudo suplantar al usuario. Error: {e}")
-        return redirect(request.META.get('HTTP_REFERER', 'notas:admin_dashboard'))
+    objetivo = User.objects.filter(id=user_id).select_related('docente', 'estudiante').first()
+    motivo = motivo_para_no_suplantar(request.user, objetivo, getattr(request, 'colegio', None))
+    if motivo:
+        logger.warning('Suplantación rechazada: %s (id=%s) intentó entrar como user_id=%s en %s. Motivo: %s',
+                       request.user.username, request.user.id, user_id,
+                       getattr(getattr(request, 'colegio', None), 'slug', '?'), motivo)
+        messages.error(request, motivo)
+        return redirect(request.META.get('HTTP_REFERER') or 'notas:dashboard')
+
+    original_user_id = request.user.id
+    logger.info('Suplantación: %s (id=%s) entra como %s (id=%s) en %s',
+                request.user.username, original_user_id, objetivo.username, objetivo.id,
+                request.colegio.slug)
+    # El login va PRIMERO porque limpia la sesión; después se guarda el original.
+    login(request, objetivo, backend='django.contrib.auth.backends.ModelBackend')
+    request.session['original_user_id'] = original_user_id
+    messages.success(request, f'Ahora está viendo la plataforma como {objetivo.get_full_name() or objetivo.username}.')
+    return redirect('notas:dashboard')
 
 
-# --- CORRECCIÓN: Se cambia el decorador a @login_required para permitir el acceso ---
 @login_required
 def detener_suplantacion(request):
-    """
-    Vuelve a la sesión del administrador original de forma segura.
-    """
+    """Vuelve a la cuenta del administrador original."""
     original_user_id = request.session.get('original_user_id')
-    
     if not original_user_id:
-        messages.warning(request, "No estabas suplantando a ningún usuario.")
+        messages.warning(request, 'No estaba viendo la plataforma como otro usuario.')
         return redirect('notas:dashboard')
 
-    try:
-        admin_user = get_object_or_404(User, id=original_user_id)
-        
-        # Verificación de seguridad: nos aseguramos de que el usuario original sea un admin.
-        if not es_personal_admin(admin_user):
-            messages.error(request, "Error de seguridad: La cuenta original no tiene permisos de administrador.")
-            logout(request) # Por seguridad, cerramos la sesión por completo.
-            return redirect('notas:portal')
+    admin_user = User.objects.filter(id=original_user_id).first()
+    if admin_user is None or not es_personal_admin(admin_user):
+        # La cuenta original ya no es administradora (o no existe): por
+        # seguridad se cierra todo en vez de devolverle un acceso que ya no tiene.
+        logger.warning('Fin de suplantación con cuenta original inválida (id=%s). Se cierra la sesión.',
+                       original_user_id)
+        logout(request)
+        messages.error(request, 'Su cuenta de administrador ya no tiene permisos. Inicie sesión de nuevo.')
+        return redirect('notas:portal')
 
-        # Volver a iniciar sesión como el admin. Esto limpia la sesión del estudiante.
-        login(request, admin_user, backend='django.contrib.auth.backends.ModelBackend')
-        
-        messages.info(request, "Has vuelto a tu cuenta de administrador.")
-        # Ahora el redirect al panel de admin funcionará correctamente.
-        return redirect('notas:admin_dashboard')
-
-    except Exception as e:
-        messages.error(request, f"No se pudo detener la suplantación. Error: {e}")
-        return redirect('notas:dashboard')
+    login(request, admin_user, backend='django.contrib.auth.backends.ModelBackend')
+    logger.info('Fin de suplantación: %s (id=%s) volvió a su cuenta.', admin_user.username, admin_user.id)
+    messages.info(request, 'Volvió a su cuenta de administrador.')
+    return redirect('notas:admin_dashboard')

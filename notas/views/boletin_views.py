@@ -16,7 +16,8 @@ except ImportError:
     PDF_SUPPORT = False
 
 # Se añade FichaEstudiante para poder obtener el número de documento y la foto
-from ..models import Curso, PeriodoAcademico, Docente, AsignacionDocente, Estudiante, FichaEstudiante
+from ..models import (Curso, PeriodoAcademico, Docente, AsignacionDocente, Estudiante, FichaEstudiante,
+                      HistorialMatricula)
 from ..boletin.logic import get_datos_boletin_curso, get_datos_boletin_final
 
 @login_required
@@ -58,6 +59,34 @@ def selector_boletin_vista(request):
     
     return render(request, 'notas/admin_tools/selector_boletin.html', context)
 
+def ano_del_reporte(colegio, reporte_id):
+    """El año lectivo de un reporte: 'FINAL_2026' -> 2026; un periodo -> su año."""
+    if reporte_id.startswith('FINAL_'):
+        try:
+            return int(reporte_id.split('_')[1])
+        except (ValueError, IndexError):
+            return None
+    if not str(reporte_id).isdigit():
+        return None
+    return (PeriodoAcademico.objects.filter(id=reporte_id, colegio=colegio)
+            .values_list('ano_lectivo', flat=True).first())
+
+
+def estudiante_estuvo_en(estudiante, curso, ano):
+    """¿El estudiante estuvo en `curso` el año `ano`?
+
+    Si ese año ya se promovió, lo dice el historial: así un estudiante que hoy
+    está en SEGUNDO puede abrir su boletín de PRIMERO del año pasado, y no
+    puede abrir el de SEGUNDO de un año en que no estuvo ahí. Si el año no se
+    ha promovido, vale su curso de hoy, como siempre.
+    """
+    if ano is not None:
+        h = HistorialMatricula.objects.filter(estudiante=estudiante, ano_lectivo=ano).first()
+        if h is not None:
+            return h.curso_id == curso.id
+    return estudiante.curso_id == curso.id
+
+
 @login_required
 def generar_boletin_vista(request):
     """
@@ -86,7 +115,8 @@ def generar_boletin_vista(request):
         es_docente_del_curso = AsignacionDocente.objects.filter(docente=user.docente, curso=curso).exists()
     
     if hasattr(user, 'estudiante') and user.estudiante.colegio == request.colegio:
-        es_estudiante_del_curso = user.estudiante.curso == curso
+        es_estudiante_del_curso = estudiante_estuvo_en(
+            user.estudiante, curso, ano_del_reporte(request.colegio, reporte_id))
 
     if not (user.is_superuser or es_docente_del_curso or es_estudiante_del_curso):
         return HttpResponseForbidden("No tiene permiso para ver los boletines de este curso.")
