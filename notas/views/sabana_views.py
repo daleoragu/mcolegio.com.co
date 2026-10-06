@@ -23,6 +23,7 @@ except ImportError:
 
 from ..models import Curso, PeriodoAcademico, Docente, AsignacionDocente, Estudiante, Materia, Calificacion, AreaConocimiento, PonderacionAreaMateria, EscalaValoracion
 from .sabana_exports import generar_excel_sabana
+from ..permisos import es_admin, es_admin_usuario
 
 def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
     """
@@ -313,7 +314,7 @@ def _preparar_y_validar_sabana(request):
             return None, None, None, "Debe seleccionar un periodo.", False
         periodo_ref = get_object_or_404(PeriodoAcademico, id=periodo_id, colegio=request.colegio)
 
-    if not request.user.is_superuser:
+    if not es_admin(request):
         try:
             docente = Docente.objects.get(user=request.user, colegio=request.colegio)
             if not (docente.es_director_de_grupo(curso) or AsignacionDocente.objects.filter(docente=docente, curso=curso).exists()):
@@ -393,7 +394,7 @@ def selector_sabana_vista(request):
     
     user = request.user
     cursos = []
-    if user.is_superuser:
+    if es_admin_usuario(user):
         cursos = Curso.objects.filter(colegio=request.colegio).order_by('nombre')
     else:
         try:

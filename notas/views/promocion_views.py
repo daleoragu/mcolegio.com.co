@@ -26,13 +26,14 @@ from django.urls import reverse
 
 from ..models import Curso, Estudiante, HistorialMatricula, PeriodoAcademico
 from ..models.perfiles import NOMBRE_GRADO
+from ..permisos import es_admin, es_admin_usuario
 
 GRADUAR = 'GRADUAR'
 ELEGIBLES = ('PROMOVIDO', 'NO_PROMOVIDO', 'RETIRADO')
 
 
 def es_personal_admin(user):
-    return user.is_superuser
+    return es_admin_usuario(user)
 
 
 # ---------------------------------------------------------------------------

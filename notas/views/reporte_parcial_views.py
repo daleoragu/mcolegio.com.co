@@ -6,6 +6,7 @@ from django.http import HttpResponseNotFound
 from django.db.models import Q # Importar Q para consultas OR
 
 from ..models import Docente, AsignacionDocente, PeriodoAcademico, Estudiante, ReporteParcial, Observacion, Notificacion, Calificacion, EscalaValoracion, Materia, Curso, Colegio
+from ..permisos import es_admin, es_admin_usuario
 
 # Función de ayuda para verificar si el usuario tiene permiso para ver el reporte
 def has_report_access(user, estudiante_id, colegio):
@@ -13,7 +14,7 @@ def has_report_access(user, estudiante_id, colegio):
     Verifica si el usuario tiene permiso para ver el acta de reporte parcial de un estudiante.
     Permite a superusuarios, al propio estudiante, y a docentes del mismo colegio.
     """
-    if user.is_superuser:
+    if es_admin_usuario(user):
         return True
     
     try:
@@ -48,7 +49,7 @@ def reporte_parcial_vista(request):
     asignacion_seleccionada_id = request.GET.get('asignacion_id')
     periodo_seleccionado_id = request.GET.get('periodo_id')
 
-    if user.is_superuser:
+    if es_admin_usuario(user):
         # Filtrar docentes y asignaciones por el colegio actual.
         context['todos_los_docentes'] = Docente.objects.filter(colegio=request.colegio).order_by('user__last_name', 'user__first_name')
         if docente_seleccionado_id:
@@ -232,7 +233,7 @@ def lista_estudiantes_reporte(request):
     estudiantes_query = Estudiante.objects.filter(colegio=request.colegio, is_active=True)
 
     # Si el usuario es un docente, filtrar por sus cursos asignados
-    if not request.user.is_superuser:
+    if not es_admin(request):
         try:
             docente_actual = Docente.objects.get(user=request.user, colegio=request.colegio)
             cursos_del_docente = AsignacionDocente.objects.filter(docente=docente_actual, colegio=request.colegio).values_list('curso', flat=True).distinct()

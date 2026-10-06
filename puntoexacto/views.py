@@ -26,6 +26,7 @@ from .forms import ExamenForm
 from .hojas import generar_pdf
 from .models import (COMPONENTES, LETRAS, METODOS, Bloque, Examen, Hoja, Pregunta,
                      Respuesta, limpiar_rotulos)
+from notas.permisos import es_admin
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +56,7 @@ def puede_censales(request):
     no es cosa de cualquier docente; pero tampoco hay que subirlo hasta rectoría,
     porque el que aplica la prueba en el salón es el director de grupo.
     """
-    return (request.user.is_superuser or _docente_de(request) is None
+    return (es_admin(request) or _docente_de(request) is None
             or _cursos_dirigidos(request).exists())
 
 
@@ -67,7 +68,7 @@ def _examenes_visibles(request):
     """
     base = Examen.objects.filter(colegio=request.colegio)
     docente = _docente_de(request)
-    if request.user.is_superuser or docente is None:
+    if es_admin(request) or docente is None:
         return base
     dirigidos = _cursos_dirigidos(request)
     if dirigidos.exists():

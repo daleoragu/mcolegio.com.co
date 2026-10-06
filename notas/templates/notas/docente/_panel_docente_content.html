@@ -14,6 +14,7 @@
     <!-- Enlaces, iconos y colores alineados idénticamente con dashboard_docente.html -->
     <a href="{% url 'notas:ingresar_notas_periodo' %}" class="app-icon"><div class="icon-container bg-notas"><i class="fas fa-edit"></i></div><span class="app-label">Ingresar Notas</span></a>
     <a href="{% url 'notas:mis_planillas' %}" class="app-icon"><div class="icon-container bg-planillas"><i class="fas fa-table-cells"></i></div><span class="app-label">Mis planillas</span></a>
+    {% if user.es_admin_colegio or user.docente.cursos_dirigidos.all %}<a href="{% url 'notas:alertas_tempranas' %}" class="app-icon"><div class="icon-container bg-alertas"><i class="fas fa-triangle-exclamation"></i></div><span class="app-label">Alertas tempranas</span></a>{% endif %}
     <a href="{% url 'puntoexacto:lista' %}" class="app-icon"><div class="icon-container bg-puntoexacto"><i class="fas fa-list-check"></i></div><span class="app-label">PuntoExacto</span></a>
     <a href="{% url 'notas:asistencia' %}" class="app-icon"><div class="icon-container bg-asistencia"><i class="fas fa-user-check"></i></div><span class="app-label">Asistencia</span></a>
     <a href="{% url 'notas:consulta_asistencia' %}" class="app-icon"><div class="icon-container bg-consulta"><i class="fas fa-clipboard-list"></i></div><span class="app-label">Consultar Asist.</span></a>

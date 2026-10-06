@@ -9,7 +9,7 @@
     <h5 class="card-title">Filtros de Consulta</h5>
     <form method="get" id="consultaForm" class="row g-3 align-items-end">
 
-        {% if user.is_superuser %}
+        {% if user.es_admin_colegio %}
         <div class="col-md-4">
             <label for="docente_id" class="form-label"><b>Filtrar por Docente</b></label>
             <select name="docente_id" id="docente_id" class="form-select" onchange="this.form.submit()">

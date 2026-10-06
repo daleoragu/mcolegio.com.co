@@ -33,6 +33,7 @@ from ..models.perfiles import Estudiante
 from .columnas import (columnas_del_plan, componentes_activos, configuracion, limpiar_columnas,
                        notas_guardadas, plan_completo)
 from .guardar import CENTESIMA, MAXIMA, MINIMA, a_decimal
+from ..permisos import es_admin_usuario
 
 MARCA = 'mcolegio-planilla'
 VERSION = 1
@@ -501,7 +502,7 @@ def _leer_hoja(ws, meta, colegio, usuario):
         return hoja
     hoja['nombre'] = f'{asignacion.curso.nombre} · {asignacion.materia.nombre}'
     hoja['periodo_nombre'] = f'{periodo.get_nombre_display()} {periodo.ano_lectivo}'
-    if not (usuario.is_superuser or (asignacion.docente_id and asignacion.docente.user_id == usuario.id)):
+    if not (es_admin_usuario(usuario) or (asignacion.docente_id and asignacion.docente.user_id == usuario.id)):
         hoja.update(estado='error', error='Esta asignatura no es suya.')
         return hoja
     if not periodo.esta_activo:
@@ -578,6 +579,11 @@ def _leer_hoja(ws, meta, colegio, usuario):
         hoja['cambian'] += 1 if cambia else 0
         hoja['estudiantes'].append(est)
         fila += 1
+    # Estudiantes que están hoy en el curso y no en este Excel: llegaron
+    # después de descargarlo. No se toca lo suyo, pero se avisa.
+    faltan = [f'{e.user.last_name} {e.user.first_name}'.strip().upper() or e.user.username
+              for eid, e in validos.items() if eid not in vistos]
+    hoja['faltan'] = faltan
     # Columnas renombradas o agregadas también son un cambio.
     for codigo in mapa:
         if hoja['columnas'][codigo] != columnas_del_plan(asignacion, periodo, codigo):
@@ -612,7 +618,7 @@ def aplicar(resultado, colegio, usuario):
         periodo = PeriodoAcademico.objects.filter(id=hoja['periodo'], colegio=colegio).first()
         if asignacion is None or periodo is None or not periodo.esta_activo:
             continue
-        if not (usuario.is_superuser or (asignacion.docente_id and asignacion.docente.user_id == usuario.id)):
+        if not (es_admin_usuario(usuario) or (asignacion.docente_id and asignacion.docente.user_id == usuario.id)):
             continue
         validos = {e.id: e for e in estudiantes_de(asignacion, periodo)}
         guardados = 0

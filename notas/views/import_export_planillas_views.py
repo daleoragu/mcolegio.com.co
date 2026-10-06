@@ -14,6 +14,7 @@ from django.shortcuts import get_object_or_404
 
 from ..models import AsignacionDocente, Docente, PeriodoAcademico
 from ..planillas.excel import generar_libro
+from ..permisos import es_admin, es_admin_usuario
 
 
 @login_required
@@ -23,7 +24,7 @@ def exportar_planillas_docente(request, docente_id, periodo_id):
     docente = get_object_or_404(Docente, id=docente_id, colegio=request.colegio)
     periodo = get_object_or_404(PeriodoAcademico, id=periodo_id, colegio=request.colegio)
     # Antes no se revisaba: cualquier usuario podía bajar las listas de otro docente.
-    if not (request.user.is_superuser or docente.user_id == request.user.id):
+    if not (es_admin(request) or docente.user_id == request.user.id):
         return HttpResponseForbidden("Solo puede descargar sus propias planillas.")
 
     asignaciones = list(AsignacionDocente.objects.filter(docente=docente, colegio=request.colegio)

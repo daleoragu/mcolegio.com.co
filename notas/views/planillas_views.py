@@ -20,6 +20,7 @@ from ..models import AsignacionDocente, Docente, PeriodoAcademico
 from ..planillas import excel as excel_mod
 from ..planillas.columnas import (TOPE_COLUMNAS, columnas_del_plan, componentes_activos, configuracion,
                                   guardar_plan, notas_guardadas)
+from ..permisos import es_admin, es_admin_usuario
 
 CLAVE_SESION = 'planilla_subida'
 
@@ -33,7 +34,7 @@ def _docente_y_asignaciones(request):
 
     El docente ve las suyas; el administrador escoge un docente con ?docente=.
     """
-    if request.user.is_superuser:
+    if es_admin(request):
         docente_id = request.GET.get('docente') or request.POST.get('docente')
         docente = Docente.objects.filter(id=docente_id, colegio=request.colegio).select_related('user').first() \
             if docente_id else None
@@ -59,7 +60,7 @@ def _periodo(request):
 
 
 def _puede_editar(request, asignacion):
-    return request.user.is_superuser or (asignacion.docente_id and asignacion.docente.user_id == request.user.id)
+    return es_admin(request) or (asignacion.docente_id and asignacion.docente.user_id == request.user.id)
 
 
 @login_required
@@ -89,7 +90,7 @@ def mis_planillas(request):
     return render(request, 'notas/docente/mis_planillas.html', {
         'docente': docente, 'filas': filas, 'periodo': periodo, 'periodos': periodos,
         'docentes': (Docente.objects.filter(colegio=request.colegio).select_related('user')
-                     .order_by('user__last_name') if request.user.is_superuser else None),
+                     .order_by('user__last_name') if es_admin(request) else None),
         'por_defecto': config.notas_por_componente, 'tope': TOPE_COLUMNAS,
         'colegio': request.colegio,
     })
@@ -121,7 +122,7 @@ def guardar_columnas(request, asignacion_id, periodo_id):
     messages.success(request, f'Columnas de {asignacion.curso.nombre} · {asignacion.materia.nombre} guardadas. '
                               f'Así salen en línea y en el Excel.')
     url = reverse('notas:mis_planillas') + f'?periodo={periodo.id}'
-    if request.user.is_superuser and asignacion.docente_id:
+    if es_admin(request) and asignacion.docente_id:
         url += f'&docente={asignacion.docente_id}'
     return redirect(url + f'#asig-{asignacion.id}')
 

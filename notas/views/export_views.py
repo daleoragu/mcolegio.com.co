@@ -15,12 +15,13 @@ except ImportError:
     EXCEL_SUPPORT = False
 
 from ..models import Curso, Estudiante, FichaEstudiante, Materia, AreaConocimiento
+from ..permisos import es_admin, es_admin_usuario
 
 def es_personal_admin(user):
     """
     Verifica si el usuario es superusuario o pertenece al grupo 'Administradores'.
     """
-    return user.is_superuser or user.groups.filter(name='Administradores').exists()
+    return es_admin_usuario(user)
 
 # ==============================================================================
 # VISTAS DE EXPORTACIÓN Y PLANTILLA DE ESTUDIANTES

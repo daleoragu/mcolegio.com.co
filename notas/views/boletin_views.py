@@ -19,6 +19,7 @@ except ImportError:
 from ..models import (Curso, PeriodoAcademico, Docente, AsignacionDocente, Estudiante, FichaEstudiante,
                       HistorialMatricula)
 from ..boletin.logic import get_datos_boletin_curso, get_datos_boletin_final
+from ..permisos import es_admin, es_admin_usuario
 
 @login_required
 def selector_boletin_vista(request):
@@ -33,7 +34,7 @@ def selector_boletin_vista(request):
     user = request.user
     docente_seleccionado_id = request.GET.get('docente_id')
 
-    if user.is_superuser:
+    if es_admin_usuario(user):
         # Filtra los docentes por el colegio actual
         context['todos_los_docentes'] = Docente.objects.filter(colegio=request.colegio).order_by('user__last_name', 'user__first_name')
         context['docente_seleccionado_id'] = docente_seleccionado_id
@@ -118,10 +119,10 @@ def generar_boletin_vista(request):
         es_estudiante_del_curso = estudiante_estuvo_en(
             user.estudiante, curso, ano_del_reporte(request.colegio, reporte_id))
 
-    if not (user.is_superuser or es_docente_del_curso or es_estudiante_del_curso):
+    if not (es_admin_usuario(user) or es_docente_del_curso or es_estudiante_del_curso):
         return HttpResponseForbidden("No tiene permiso para ver los boletines de este curso.")
 
-    estudiante_especifico = user.estudiante if es_estudiante_del_curso and not user.is_superuser else None
+    estudiante_especifico = user.estudiante if es_estudiante_del_curso and not es_admin_usuario(user) else None
 
     # --- NUEVO: SELECCIÓN DE PLANTILLA SEGÚN NIVEL DEL CURSO ---
     if curso.nivel == 'PRE':

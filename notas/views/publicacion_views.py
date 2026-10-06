@@ -9,9 +9,10 @@ from itertools import groupby
 from django.http import HttpResponseNotFound
 
 from ..models import PeriodoAcademico, PublicacionBoletin, Notificacion, Estudiante, PublicacionBoletinFinal
+from ..permisos import es_admin, es_admin_usuario
 
 def es_admin(user):
-    return user.is_superuser
+    return es_admin_usuario(user)
 
 @user_passes_test(es_admin)
 def panel_publicacion_vista(request):

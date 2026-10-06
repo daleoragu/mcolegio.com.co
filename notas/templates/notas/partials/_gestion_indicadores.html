@@ -16,7 +16,7 @@
             <input type="hidden" name="asignacion_id" value="{{ asignacion_seleccionada.id }}">
             <input type="hidden" name="periodo_id" value="{{ periodo_seleccionado.id }}">
             
-            {% if request.user.is_superuser and docente_seleccionado_id %}
+            {% if request.user.es_admin_colegio and docente_seleccionado_id %}
                 <input type="hidden" name="docente_id" value="{{ docente_seleccionado_id }}">
             {% endif %}
             

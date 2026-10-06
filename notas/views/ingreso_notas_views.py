@@ -20,6 +20,7 @@ from ..models.academicos import (
 from ..models.perfiles import Docente
 from ..planillas.columnas import columnas_del_plan, componentes_activos, guardar_plan
 from ..planillas.guardar import guardar_componente, guardar_estudiante
+from ..permisos import es_admin, es_admin_usuario
 
 class IngresoNotasView(LoginRequiredMixin, View):
     template_name = 'notas/docente/ingresar_notas_periodo.html'
@@ -36,7 +37,7 @@ class IngresoNotasView(LoginRequiredMixin, View):
         
         context_admin = {'todos_los_docentes': None, 'docente_seleccionado_id': docente_seleccionado_id}
 
-        if request.user.is_superuser:
+        if es_admin(request):
             context_admin['todos_los_docentes'] = Docente.objects.filter(colegio=request.colegio).select_related('user')
             if docente_seleccionado_id:
                 asignaciones_a_mostrar = AsignacionDocente.objects.filter(docente_id=docente_seleccionado_id, colegio=request.colegio).select_related('materia', 'curso')
@@ -159,7 +160,7 @@ class IngresoNotasView(LoginRequiredMixin, View):
             asignacion = get_object_or_404(AsignacionDocente, id=asignacion_id, colegio=request.colegio)
             periodo = get_object_or_404(PeriodoAcademico, id=periodo_id, colegio=request.colegio)
 
-            if not request.user.is_superuser and asignacion.docente.user != request.user:
+            if not es_admin(request) and asignacion.docente.user != request.user:
                 return JsonResponse({'status': 'error', 'message': 'No tiene permiso.'}, status=403)
 
             if not periodo.esta_activo:

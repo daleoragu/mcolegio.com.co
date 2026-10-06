@@ -15,6 +15,7 @@ from ..models import (
     DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, 
     Colegio
 )
+from ..permisos import pertenece_al_colegio
 
 # Extensiones que se aceptan para las imágenes de la portada. Así da igual si
 # el archivo quedó guardado como .png, .jpg o .webp: igual lo encuentra.
@@ -84,9 +85,9 @@ def portal_vista(request):
             user = authenticate(request, username=username, password=password)
             if user is not None:
                 # Se verifica que el usuario pertenezca al colegio correcto
-                if hasattr(user, 'docente') and user.docente.colegio == colegio_actual or \
-                   hasattr(user, 'estudiante') and user.estudiante.colegio == colegio_actual or \
-                   user.is_superuser:
+                # Docente, estudiante o administrador de ESTE colegio, o el
+                # superusuario. Un administrador de otro colegio no entra.
+                if pertenece_al_colegio(user, colegio_actual):
                     login(request, user)
                     return redirect('notas:dashboard')
                 else:

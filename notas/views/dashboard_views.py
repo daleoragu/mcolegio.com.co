@@ -5,6 +5,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from ..models import Estudiante, Docente
 from django.http import HttpResponseNotFound
+from ..permisos import es_admin, es_admin_usuario
 
 def es_admin_o_superusuario(user):
     """
@@ -13,7 +14,7 @@ def es_admin_o_superusuario(user):
     """
     if not user.is_authenticated:
         return False
-    return user.is_superuser or user.groups.filter(name='AdminColegio').exists()
+    return es_admin_usuario(user)
 
 @login_required
 def dashboard_vista(request):
@@ -68,7 +69,7 @@ def docente_dashboard_vista(request):
     if not request.colegio:
         return HttpResponseNotFound("<h1>Colegio no configurado.</h1>")
 
-    if not (request.user.is_superuser or Docente.objects.filter(user=request.user, colegio=request.colegio).exists()):
+    if not (es_admin(request) or Docente.objects.filter(user=request.user, colegio=request.colegio).exists()):
         # CORREGIDO: Se añade el namespace 'notas:'
         return redirect('notas:dashboard')
 

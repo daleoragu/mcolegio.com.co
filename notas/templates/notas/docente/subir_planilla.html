@@ -62,6 +62,7 @@
                 <span class="sp-chip">{{ h.notas }} nota{{ h.notas|pluralize }} válida{{ h.notas|pluralize }}</span>
                 {% if h.errores %}<span class="sp-chip mal">{{ h.errores|length }} aviso{{ h.errores|length|pluralize }}</span>{% endif %}
                 {% if h.plan_cambia %}<span class="sp-chip">Cambian los nombres de las notas</span>{% endif %}
+                {% if h.faltan %}<span class="sp-chip mal">{{ h.faltan|length }} estudiante{{ h.faltan|length|pluralize }} nuevo{{ h.faltan|length|pluralize }} sin incluir</span>{% endif %}
             {% else %}
                 <span class="sp-chip mal">No se guarda</span>
             {% endif %}
@@ -89,6 +90,13 @@
             </div>
             {% else %}
                 <div class="p-3 small text-muted">Ningún estudiante cambia frente a lo que ya está en la plataforma.</div>
+            {% endif %}
+            {% if h.faltan %}
+            <div class="sp-errores" style="background:#eef6ff;border-top-color:#cfe2ff;">
+                <strong>Estudiante{{ h.faltan|length|pluralize }} nuevo{{ h.faltan|length|pluralize }} que no está{{ h.faltan|length|pluralize:"n" }} en este Excel:</strong>
+                {{ h.faltan|join:", " }}. Llegaron después de que lo descargó. Lo demás se guarda bien; para
+                ponerle{{ h.faltan|length|pluralize:"s" }} notas, digítelas en línea o descargue el Excel otra vez.
+            </div>
             {% endif %}
             {% if h.errores %}
             <div class="sp-errores">

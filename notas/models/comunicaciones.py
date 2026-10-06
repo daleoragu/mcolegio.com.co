@@ -82,6 +82,7 @@ class Notificacion(models.Model):
         ('PERIODO', 'Cambio en Periodo'),
         ('RENDIMIENTO', 'Alerta de Rendimiento'),
         ('GENERAL', 'Aviso General'),
+        ('PLANILLA', 'Cambio en la planilla'),
     ]
     tipo = models.CharField(max_length=15, choices=TIPO_CHOICES, default='GENERAL')
 
