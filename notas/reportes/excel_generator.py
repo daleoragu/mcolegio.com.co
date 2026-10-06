@@ -2,7 +2,8 @@
 import datetime
 from collections import defaultdict
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill, Protection
+from openpyxl.styles import Font, Alignment, PatternFill, Protection, Border, Side
+from openpyxl.formatting.rule import FormulaRule
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
 
@@ -61,10 +62,20 @@ class AsistenciaExcelGenerator(BaseReportGenerator):
         las celdas de asistencia quedarán en blanco.
         """
         ws.protection.sheet = True
+        # Para imprimir: horizontal y todo el mes en una página de ancho.
+        ws.page_setup.orientation = 'landscape'
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 0
+        ws.sheet_properties.pageSetUpPr.fitToPage = True
+        ws.print_options.horizontalCentered = True
+        ws.page_margins.left = ws.page_margins.right = 0.4
         self._add_excel_header(ws)
 
         header_font = Font(bold=True, color="FFFFFF")
-        header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+        color = (getattr(self.colegio, 'color_primario', '') or '#1F3A68').lstrip('#').upper()
+        if len(color) != 6:
+            color = '1F3A68'
+        header_fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
         center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
         left_align = Alignment(horizontal='left', vertical='center')
 
@@ -116,6 +127,27 @@ class AsistenciaExcelGenerator(BaseReportGenerator):
                 cell_asistencia.protection = unlocked_protection
                 
         fila_fin = start_data_row + max(len(estudiantes), 1) - 1
+        # Cuadrícula, filas alternas y colores para X / T / AJ
+        borde = Side(style='thin', color='C9D2DE')
+        caja = Border(left=borde, right=borde, top=borde, bottom=borde)
+        zebra = PatternFill(start_color='F4F6FA', end_color='F4F6FA', fill_type='solid')
+        ultima_col = 2 + len(fechas_del_mes)
+        for fila in range(start_data_row, fila_fin + 1):
+            ws.row_dimensions[fila].height = 18
+            for col in [1] + list(range(3, ultima_col + 1)):
+                c = ws.cell(row=fila, column=col)
+                c.border = caja
+                if (fila - start_data_row) % 2:
+                    c.fill = zebra
+        if fechas_del_mes and estudiantes:
+            rango = f'{get_column_letter(3)}{start_data_row}:{get_column_letter(ultima_col)}{fila_fin}'
+            primera = f'{get_column_letter(3)}{start_data_row}'
+            for codigo, fondo, letra in (('X', 'F8D7DA', '9B1C1C'), ('T', 'FFF0C2', '8A5A00'), ('AJ', 'D6E6FA', '1D4F91')):
+                ws.conditional_formatting.add(rango, FormulaRule(
+                    formula=[f'UPPER(TRIM({primera}))="{codigo}"'],
+                    fill=PatternFill(start_color=fondo, end_color=fondo, fill_type='solid'),
+                    font=Font(bold=True, color=letra)))
+        ws.freeze_panes = ws.cell(row=start_data_row, column=3)
         if fechas_del_mes and estudiantes:
             dv = DataValidation(type='list', formula1='"X,T,AJ"', allow_blank=True, showErrorMessage=True,
                                 errorTitle='Asistencia', error='Escriba X (ausente), T (tarde) o AJ (ausente con excusa). Vacío = asistió.')
