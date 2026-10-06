@@ -108,9 +108,11 @@ def guardar_estudiante(colegio, asignacion, periodo, estudiante, notas_por_compo
         defaults['observacion_inclusion'] = observacion_inclusion
     if observacion is not None:
         defaults['observacion'] = limpiar_observacion(observacion)
-    Calificacion.objects.update_or_create(
+    definitiva_obj, _ = Calificacion.objects.update_or_create(
         colegio=colegio, estudiante=estudiante, materia=asignacion.materia, periodo=periodo,
         tipo_nota='PROM_PERIODO', defaults=defaults)
+    if definitiva_obj.observacion_inclusion is None:      # el boletín espera texto, no NULL
+        Calificacion.objects.filter(pk=definitiva_obj.pk).update(observacion_inclusion='')
 
     if inasistencias is not None:
         try:
