@@ -165,45 +165,9 @@
             if (lblHacerIn && configMat.lbl_hacer) lblHacerIn.textContent = configMat.lbl_hacer.toUpperCase() + ' (%):';
         }
 
-        const asigDetails = document.getElementById('asignacion-details');
-        const pSer = asigDetails ? parseFloat(asigDetails.dataset.pSer) || 0 : 33;
-        const pSaber = asigDetails ? parseFloat(asigDetails.dataset.pSaber) || 0 : 33;
-        const pHacer = asigDetails ? parseFloat(asigDetails.dataset.pHacer) || 0 : 34;
-
-        function hideColumn(table, colIndex) {
-            const ths = table.querySelectorAll('th');
-            if(ths[colIndex]) ths[colIndex].style.display = 'none';
-            const rows = table.querySelectorAll('tbody tr');
-            rows.forEach(row => {
-                const tds = row.querySelectorAll('td');
-                if(tds[colIndex]) tds[colIndex].style.display = 'none';
-            });
-        }
-
-        const timerEtiquetas = setInterval(() => {
-            const table = document.getElementById('tabla-calificaciones');
-            if(!table) return;
-            const theads = table.querySelectorAll('th');
-            if (theads.length > 0) {
-                theads.forEach((th, index) => {
-                    let txt = th.textContent.trim().toUpperCase();
-                    if (txt === 'SER' || txt.includes('SER ')) {
-                        if (configMat.lbl_ser) th.innerHTML = th.innerHTML.replace(/SER/i, configMat.lbl_ser.toUpperCase());
-                        if (pSer === 0) hideColumn(table, index);
-                    }
-                    if (txt === 'SABER' || txt.includes('SABER ')) {
-                        if (configMat.lbl_saber) th.innerHTML = th.innerHTML.replace(/SABER/i, configMat.lbl_saber.toUpperCase());
-                        if (pSaber === 0) hideColumn(table, index);
-                    }
-                    if (txt === 'HACER' || txt.includes('HACER ')) {
-                        if (configMat.lbl_hacer) th.innerHTML = th.innerHTML.replace(/HACER/i, configMat.lbl_hacer.toUpperCase());
-                        if (pHacer === 0) hideColumn(table, index);
-                    }
-                });
-            }
-        }, 300);
-
-        setTimeout(() => clearInterval(timerEtiquetas), 6000);
+        // Los componentes en 0 % ya no se pintan (lo decide ingresar_notas.js),
+        // con sus nombres propios. Antes se escondían después de dibujar la
+        // tabla y las columnas quedaban corridas.
 
         // --- 1. Lógica Ponderación Original ---
         const panelPonderacion = document.getElementById('panel-ponderacion');
