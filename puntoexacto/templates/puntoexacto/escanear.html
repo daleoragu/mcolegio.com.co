@@ -184,6 +184,18 @@
             }).join('');
             html += '</select>';
         }
+        if (d.formas) {
+            // Forma que marcó el estudiante: se califica con la clave de esa forma.
+            html += '<div class="mt-2 d-flex flex-wrap align-items-center gap-2" style="font-size:1rem;">' +
+                    '<strong>Forma:</strong>' + d.formas.split('').map(function (l) {
+                        return '<label class="me-1"><input type="radio" name="pe-forma" value="' + l + '"' +
+                               (d.forma === l ? ' checked' : '') + '> ' + l + '</label>';
+                    }).join('') + '</div>';
+            if (d.forma_duda) {
+                html += '<div class="alert alert-warning mt-2 mb-0" style="font-size:.88rem;">' +
+                        'Forma: ' + escapar(d.forma_duda) + '. Escoja cuál le tocó antes de guardar.</div>';
+            }
+        }
         elCabecera.innerHTML = html;
     }
 
@@ -277,18 +289,24 @@
             id = sel && sel.value;
             if (!id) { alert('Escoja de quién es esta hoja.'); return; }
         }
+        var forma = '';
+        if (lectura.formas) {
+            var marcada = document.querySelector('input[name="pe-forma"]:checked');
+            if (!marcada) { alert('Escoja la forma que le tocó al estudiante.'); return; }
+            forma = marcada.value;
+        }
         var limpias = {};
         Object.keys(respuestas).forEach(function (p) { limpias[p] = respuestas[p] || ''; });
         fetch(urlGuardar, {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
-            body: JSON.stringify({hoja_id: id, respuestas: limpias})
+            body: JSON.stringify({hoja_id: id, respuestas: limpias, forma: forma})
         }).then(function (r) { return r.json(); }).then(function (d) {
             if (!d.ok) { alert(d.error || 'No se pudo guardar.'); return; }
             elAviso.textContent = 'Guardada · nota ' + d.nota;
             elHistorial.style.display = '';
             var li = document.createElement('li');
-            li.textContent = d.nombre + ' — ' + d.nota + (d.recortada ? ' (ajustada a la escala)' : '');
+            li.textContent = d.nombre + (lectura.formas ? ' (forma ' + d.forma + ')' : '') + ' — ' + d.nota + (d.recortada ? ' (ajustada a la escala)' : '');
             elListaOk.appendChild(li);
             setTimeout(function () { elArchivo.value = ''; elArchivo.click(); }, 350);
         }).catch(function () { alert('No se pudo guardar. Revise la conexión.'); });

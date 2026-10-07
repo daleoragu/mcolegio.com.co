@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 
-from .models import Bloque, Examen, Hoja, Pregunta, Respuesta
+from .models import Bloque, Examen, Forma, Hoja, Pregunta, Respuesta
 
 
 class PreguntaEnLinea(admin.TabularInline):
@@ -33,3 +33,8 @@ class BloqueAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'examen', 'materia', 'orden', 'numero_opciones')
     list_filter = ('examen__colegio',)
     search_fields = ('nombre', 'examen__titulo')
+
+
+@admin.register(Forma)
+class FormaAdmin(admin.ModelAdmin):
+    list_display = ('examen', 'letra', 'creada')

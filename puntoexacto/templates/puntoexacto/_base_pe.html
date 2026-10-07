@@ -25,5 +25,14 @@
     .pe-opciones { display:flex; gap:6px; flex-wrap:wrap; }
     .pe-opciones label { cursor:pointer; }
     .pe-opciones input { margin-right:3px; }
+
+    .pe-claves { display:flex; flex-wrap:wrap; gap:6px; align-items:flex-end; margin-bottom:14px;
+                 border-bottom:2px solid #e3e6ec; }
+    .pe-clave-tab { padding:8px 16px; border:1px solid #e3e6ec; border-bottom:none; border-radius:8px 8px 0 0;
+                    background:#f6f7f9; color:#374151; font-weight:600; text-decoration:none; margin-bottom:-2px; }
+    .pe-clave-tab.activa { background:#fff; color:#193661; border-color:#193661; border-bottom:2px solid #fff; }
+    .pe-falta { display:inline-block; min-width:20px; padding:0 6px; border-radius:999px; background:#a4161a;
+                color:#fff; font-size:.72rem; text-align:center; }
+    .pe-clave-mas { margin-left:auto; font-size:.86rem; padding:8px 4px; }
 </style>
 {% endblock %}
