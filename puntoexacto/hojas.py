@@ -360,6 +360,7 @@ def _una_hoja(c, ox, oy, m, datos, preguntas, opciones, plan, escudo=None):
     """
     mg, mk = m['margen'], m['marca']
     f = m['fuente']
+    mapa_forma = {}
 
     # Marcas de registro propias de esta hoja
     c.setFillColorRGB(0, 0, 0)
@@ -413,23 +414,38 @@ def _una_hoja(c, ox, oy, m, datos, preguntas, opciones, plan, escudo=None):
     c.setLineWidth(0.6)
     c.rect(izq, base, ancho_cab, alto_caja, stroke=1, fill=0)
 
-    # Forma del examen (A, B, C, D), si el examen tiene varias: una letra
-    # grande a la derecha, para que quien cuida el examen vea de un vistazo que
-    # los de al lado tienen formas distintas. Va con borde y sin relleno: un
-    # bloque negro sólido se parecería a las marcas de registro de las esquinas
-    # y podría confundir al lector de fotos.
+    # Forma del examen, si tiene varias claves: el estudiante rellena la
+    # burbuja de la forma que le tocó (se la dicen en el examen impreso), igual
+    # que una pregunta más. Las burbujas son del mismo tamaño que las de las
+    # preguntas porque el lector mide todas con el mismo radio.
     ancho_forma = 0
-    if datos.get('forma'):
-        ancho_forma = f * 4.6
+    letras_forma = datos.get('formas') or ''
+    if len(letras_forma) > 1:
+        # Del tamaño de las de las preguntas, salvo en hojas chicas, donde se
+        # achican para caber en el recuadro. El lector mide con el radio de las
+        # preguntas y solo mira el centro de la burbuja, así que lee igual.
+        radio_f = min(plan['radio'], alto_caja / 2 - 1.1 * mm)
+        paso_f = min(plan['bloques'][0]['rej']['paso_x'], radio_f * 3.2)
+        c.setFont('Helvetica-Bold', f * .62)
+        ancho_txt = c.stringWidth('FORMA', 'Helvetica-Bold', f * .62)
+        ancho_forma = ancho_txt + 2.2 * mm + paso_f * len(letras_forma) + 1.0 * mm
         fx = izq + ancho_cab - ancho_forma
-        c.setLineWidth(1.4)
-        c.rect(fx, base, ancho_forma, alto_caja, stroke=1, fill=0)
+        yc = base + alto_caja / 2
         c.setLineWidth(0.6)
-        c.setFont('Helvetica-Bold', f * .55)
-        c.drawCentredString(fx + ancho_forma / 2, base + alto_caja * .72, 'FORMA')
-        c.setFont('Helvetica-Bold', f * 1.35)
-        c.drawCentredString(fx + ancho_forma / 2, base + alto_caja * .17, datos['forma'])
-        ancho_forma += 1.5 * mm
+        c.line(fx - 1.2 * mm, base, fx - 1.2 * mm, base + alto_caja)
+        c.drawString(fx, yc - f * .22, 'FORMA')
+        for i, letra in enumerate(letras_forma):
+            cx = fx + ancho_txt + 2.2 * mm + paso_f * (i + 0.5)
+            c.setLineWidth(0.8)
+            c.circle(cx, yc, radio_f, stroke=1, fill=0)
+            tam = min(f * .6, radio_f * 1.45)
+            c.setFont('Helvetica', tam)
+            c.setFillColorRGB(.5, .5, .5)
+            c.drawCentredString(cx, yc - tam * .3, letra)
+            c.setFillColorRGB(0, 0, 0)
+            mapa_forma[f'F{letra}'] = (round((cx - ox) / mm, 2), round((yc - oy) / mm, 2))
+        c.setLineWidth(0.6)
+        ancho_forma += 2.4 * mm
 
     c.setFont('Helvetica-Bold', f * .95)
     c.drawString(izq + 1.6 * mm, base + alto_caja * .55, _recortar(
@@ -536,6 +552,10 @@ def _una_hoja(c, ox, oy, m, datos, preguntas, opciones, plan, escudo=None):
                 sx = x0_bloque + col * paso_col - (paso_col - rej['ancho_col']) / 2
                 c.line(sx, tope - rej['alto_total'], sx, tope)
             c.setStrokeColorRGB(0, 0, 0)
+
+    # Las burbujas de forma van al final del mapa: el lector toma el radio de la
+    # primera burbuja, y esa debe ser una de pregunta.
+    mapa.update(mapa_forma)
 
     # Pie: a la izquierda la instrucción, a la derecha la firma de la plataforma.
     y_pie = oy + mg + mk * .25
@@ -697,6 +717,12 @@ def _escudo_del_colegio(colegio):
 _CACHE_MAPA = {}
 
 
+def letras_de_formas(examen):
+    """'ABC' si el examen tiene formas B y C; '' si solo tiene la A."""
+    otras = ''.join(examen.formas.order_by('letra').values_list('letra', flat=True))
+    return ('A' + otras) if otras else ''
+
+
 def mapa_de_examen(examen):
     """Dónde queda cada burbuja de ESTE examen, en milímetros de la hoja.
 
@@ -713,13 +739,14 @@ def mapa_de_examen(examen):
     firma = (examen.id, examen.numero_preguntas, examen.numero_opciones,
              por_pagina, repr(secciones),
              tuple(sorted((p.numero, p.numero_opciones or 0)
-                          for p in examen.preguntas.all())))
+                          for p in examen.preguntas.all())),
+             letras_de_formas(examen))
     if firma in _CACHE_MAPA:
         return _CACHE_MAPA[firma]
 
     datos = {'colegio': '', 'materia': '', 'curso': '', 'periodo': '',
              'titulo': '', 'estudiante': '', 'documento': '',
-             'docente': '', 'fecha': ''}
+             'docente': '', 'fecha': '', 'formas': letras_de_formas(examen)}
     info = generar(io.BytesIO(), [datos], preguntas=examen.numero_preguntas,
                    opciones=examen.opciones_maximas(), por_pagina=por_pagina,
                    secciones=secciones, devolver_mapa=True)
@@ -766,8 +793,8 @@ def generar_pdf(examen, hojas_examen, por_pagina=None):
     if examen.mostrar_fecha and examen.fecha:
         texto_fecha = examen.fecha.strftime('%d/%m/%Y')
 
-    # La forma solo se imprime si el examen tiene más de una.
-    con_formas = examen.formas.exists()
+    # Las burbujas de forma solo salen si el examen tiene más de una clave.
+    letras_forma = letras_de_formas(examen)
 
     datos = []
     identificadores = []
@@ -777,7 +804,7 @@ def generar_pdf(examen, hojas_examen, por_pagina=None):
             'periodo': periodo, 'titulo': examen.titulo,
             'estudiante': h.nombre, 'documento': h.documento or '',
             'docente': nombre_docente, 'fecha': texto_fecha,
-            'forma': (h.forma or 'A') if con_formas else '',
+            'formas': letras_forma,
         })
         identificadores.append(h.identificador)
 

@@ -1,0 +1,102 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% block title %}Clave {{ forma.letra }} - {{ block.super }}<script>
+// La columna «Es la pregunta de la A» solo se muestra si el docente abre esa
+// opción: la mayoría de las veces sobra y en el celular quita espacio.
+(function () {
+    var d = document.getElementById('pe-otro-orden');
+    function ver() {
+        document.querySelectorAll('.pe-col-a').forEach(function (el) { el.hidden = !d.open; });
+    }
+    d.addEventListener('toggle', ver); ver();
+})();
+</script>
+{% endblock %}
+{% block page_title %}Clave {{ forma.letra }} · {{ examen.titulo }}<script>
+// La columna «Es la pregunta de la A» solo se muestra si el docente abre esa
+// opción: la mayoría de las veces sobra y en el celular quita espacio.
+(function () {
+    var d = document.getElementById('pe-otro-orden');
+    function ver() {
+        document.querySelectorAll('.pe-col-a').forEach(function (el) { el.hidden = !d.open; });
+    }
+    d.addEventListener('toggle', ver); ver();
+})();
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="pe-barra">
+    <a href="{% url 'puntoexacto:editar' examen_id=examen.id %}" class="btn btn-outline-secondary">Datos del examen</a>
+    <a href="{% url 'puntoexacto:hojas' examen_id=examen.id %}" class="btn btn-outline-secondary">Hojas</a>
+    <a href="{% url 'puntoexacto:resultados' examen_id=examen.id %}" class="btn btn-outline-secondary">Resultados</a>
+</div>
+
+{% include 'puntoexacto/_pestanas_claves.html' %}
+
+<form method="post" class="pe-tarjeta">
+    {% csrf_token %}
+    <h5>Clave {{ forma.letra }} · respuesta correcta de cada pregunta</h5>
+    <p class="text-muted" style="font-size:.9rem;">
+        Marque la respuesta correcta de cada pregunta tal como está en su examen de la
+        forma {{ forma.letra }}. Los puntos, los temas y el componente son los de la clave A.
+        {% if faltan %}<br><strong class="pe-mal">Faltan {{ faltan }} por marcar.</strong>{% endif %}
+    </p>
+    <details class="mb-3" id="pe-otro-orden" {% if alguna_cambiada %}open{% endif %}>
+        <summary style="font-size:.88rem;cursor:pointer;">¿En la forma {{ forma.letra }} las preguntas van en otro orden?</summary>
+        <p class="text-muted mt-2 mb-0" style="font-size:.86rem;">
+            Diga en la última columna a qué pregunta de la A corresponde cada una. Así el análisis
+            por pregunta y por tema junta a los de las dos formas. Si no lo indica, se toma
+            que la 1 de la {{ forma.letra }} es la 1 de la A, la 2 es la 2, y así.</p>
+    </details>
+    <div class="table-responsive">
+        <table class="pe-tabla">
+            <thead><tr><th class="pe-num">#</th><th>Correcta en la {{ forma.letra }}</th>
+                <th class="pe-col-a">Es la pregunta de la A</th></tr></thead>
+            <tbody>
+            {% for f in filas %}
+                <tr{% if f.c.anulada %} style="opacity:.5;"{% endif %}>
+                    <td class="pe-num"><strong>{{ f.k }}</strong>
+                        {% if f.c.anulada %}<br><span class="pe-chip pe-gris">anulada</span>{% endif %}</td>
+                    <td>
+                        <div class="pe-opciones">
+                        {% for l, rot in f.opciones %}
+                            <label><input type="radio" name="correcta_{{ f.k }}" value="{{ l }}"
+                                   {% if f.c.correcta == l %}checked{% endif %}>{{ rot }}</label>
+                        {% endfor %}
+                        </div>
+                    </td>
+                    <td class="pe-col-a">
+                        <select name="a_{{ f.k }}" class="form-select form-select-sm" style="width:auto;min-width:80px;">
+                            {% for n in f.candidatas %}
+                                <option value="{{ n }}" {% if n == f.c.pregunta.numero %}selected{% endif %}>{{ n }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
+        <button class="btn btn-primary" name="accion" value="guardar">Guardar clave</button>
+        {% if puede_nueva %}
+        <button class="btn btn-outline-primary" name="accion" value="nueva_clave">
+            <i class="fas fa-plus me-1"></i> Nueva clave</button>
+        {% endif %}
+        <button class="btn btn-outline-danger ms-auto" name="accion" value="borrar" formnovalidate
+                onclick="return confirm('¿Borrar la clave {{ forma.letra }}?');">
+            <i class="fas fa-trash me-1"></i> Borrar clave {{ forma.letra }}</button>
+    </div>
+</form>
+<script>
+// La columna «Es la pregunta de la A» solo se muestra si el docente abre esa
+// opción: la mayoría de las veces sobra y en el celular quita espacio.
+(function () {
+    var d = document.getElementById('pe-otro-orden');
+    function ver() {
+        document.querySelectorAll('.pe-col-a').forEach(function (el) { el.hidden = !d.open; });
+    }
+    d.addEventListener('toggle', ver); ver();
+})();
+</script>
+{% endblock %}

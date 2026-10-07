@@ -32,9 +32,10 @@
         Para que los estudiantes de al lado no tengan el mismo examen: la forma
         <strong>A</strong> es el examen tal como está en la clave, y las formas
         <strong>B, C y D</strong> tienen las preguntas y/o las opciones en otro orden.
-        Cada estudiante recibe una forma al azar, impresa en su hoja; la cámara sabe cuál le
-        tocó por el código de barras y califica todo contra la forma A, así que la nota,
-        el análisis por pregunta y los temas salen igual que siempre.
+        En el examen impreso usted le dice a cada estudiante qué forma le tocó, y él la
+        rellena en las burbujas «FORMA» de su hoja de respuestas. La cámara lee esa burbuja
+        y califica con la clave de su forma; la nota, el análisis por pregunta y los temas
+        salen juntos, como si todos hubieran presentado la A.
     </p>
     {% if hay_bloques or hay_rotulos %}
     <p class="text-muted" style="font-size:.86rem;margin-bottom:0;">
@@ -52,10 +53,12 @@
         {% for letra, n in conteo %}
         <div class="d-flex align-items-center gap-2" style="border:1px solid #e3e6ec;border-radius:9px;padding:8px 12px;">
             <span class="pe-forma {% if letra == 'A' %}a{% endif %}">{{ letra }}</span>
-            <span style="font-size:.9rem;">{{ n }} hoja{{ n|pluralize }}</span>
+            <span style="font-size:.9rem;">{{ n }} calificada{{ n|pluralize }}</span>
             {% for f in formas %}{% if f.letra == letra %}
+                <a href="{% url 'puntoexacto:clave_forma' examen_id=examen.id letra=f.letra %}"
+                   class="btn btn-sm btn-outline-primary">Clave</a>
                 <a href="{% url 'puntoexacto:forma_editar' examen_id=examen.id letra=f.letra %}"
-                   class="btn btn-sm btn-outline-primary">Ver / editar</a>
+                   class="btn btn-sm btn-outline-secondary">Equivalencia</a>
                 <form method="post" class="d-inline"
                       onsubmit="return confirm('¿Borrar la forma {{ f.letra }}?');">
                     {% csrf_token %}
@@ -72,20 +75,6 @@
         <ul>{% for p in f.problemas %}<li>{{ p }}</li>{% endfor %}</ul></div>
     {% endif %}{% endfor %}
 
-    {% if total_hojas %}
-    <form method="post" class="d-flex flex-wrap gap-3 align-items-center"
-          style="background:#f4f7fb;border-radius:8px;padding:12px 14px;"
-          onsubmit="return confirm('Se sortea otra vez la forma de las hojas que no se han calificado. Si ya las imprimió, tendrá que imprimirlas de nuevo. ¿Seguir?');">
-        {% csrf_token %}
-        <input type="hidden" name="accion" value="repartir">
-        <span style="font-size:.9rem;">
-            Las hojas nuevas reciben su forma al azar solas. Si preparó hojas
-            antes de crear las formas, repártalas aquí ({{ libres }} sin calificar).
-        </span>
-        <button class="btn btn-sm btn-primary" {% if not libres %}disabled{% endif %}>
-            <i class="fas fa-random me-1"></i> Repartir formas al azar</button>
-    </form>
-    {% endif %}
 </div>
 {% endif %}
 
@@ -109,14 +98,13 @@
             </form>
         </div>
         <div class="col-md-6">
-            <form method="post">
+            <form method="post" action="{% url 'puntoexacto:clave' examen_id=examen.id %}">
                 {% csrf_token %}
-                <input type="hidden" name="accion" value="manual">
                 <h6><i class="fas fa-keyboard me-1"></i> Ya tengo la otra forma hecha</h6>
                 <p class="text-muted" style="font-size:.88rem;">
-                    Si ya tiene un examen B en Word, escriba a qué pregunta de la A corresponde
-                    cada una y su respuesta correcta.</p>
-                <button class="btn btn-outline-primary">Escribir la equivalencia</button>
+                    Si ya tiene un examen B en Word, solo marque su clave, igual que marcó la de la A.
+                    También puede hacerlo con el botón «Nueva clave» de la pantalla Clave.</p>
+                <a href="{% url 'puntoexacto:clave' examen_id=examen.id %}" class="btn btn-outline-primary">Ir a la clave</a>
             </form>
         </div>
     </div>

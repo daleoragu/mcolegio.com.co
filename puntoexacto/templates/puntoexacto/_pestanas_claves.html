@@ -1,0 +1,10 @@
+{% if formas %}
+<div class="pe-claves">
+    <a href="{% url 'puntoexacto:clave' examen_id=examen.id %}" class="pe-clave-tab{% if not forma %} activa{% endif %}">Clave A</a>
+    {% for l, faltan in formas %}
+    <a href="{% url 'puntoexacto:clave_forma' examen_id=examen.id letra=l %}"
+       class="pe-clave-tab{% if forma.letra == l %} activa{% endif %}">Clave {{ l }}{% if faltan %} <span class="pe-falta" title="Faltan {{ faltan }} por marcar">{{ faltan }}</span>{% endif %}</a>
+    {% endfor %}
+    <a href="{% url 'puntoexacto:formas' examen_id=examen.id %}" class="pe-clave-mas">Equivalencias y tabla para Word</a>
+</div>
+{% endif %}

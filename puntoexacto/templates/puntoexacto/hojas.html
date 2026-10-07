@@ -111,7 +111,7 @@
                 <tr>
                     <td>{{ h.nombre }}</td>
                     <td><code style="font-size:.82rem;">{{ h.identificador }}</code></td>
-                    {% if con_formas %}<td class="pe-num"><strong>{{ h.forma }}</strong></td>{% endif %}
+                    {% if con_formas %}<td class="pe-num"><strong>{% if h.lectura %}{{ h.forma }}{% else %}—{% endif %}</strong></td>{% endif %}
                     <td>
                         {% if h.estado == 'calificada' %}<span class="pe-chip pe-ok">Calificada</span>
                         {% elif h.estado == 'revisar' %}<span class="pe-chip pe-media">Revisar</span>

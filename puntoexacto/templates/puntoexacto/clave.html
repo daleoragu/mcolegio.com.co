@@ -18,9 +18,10 @@
 </div>
 {% endif %}
 
+{% include 'puntoexacto/_pestanas_claves.html' %}
 <form method="post" class="pe-tarjeta">
     {% csrf_token %}
-    <h5>Respuesta correcta, puntaje y qué evalúa cada pregunta</h5>
+    <h5>{% if formas %}Clave A · {% endif %}Respuesta correcta, puntaje y qué evalúa cada pregunta</h5>
     <p class="text-muted" style="font-size:.9rem;">
         Las etiquetas se repiten entre preguntas a propósito: así el análisis puede decir
         cómo va el curso en cada tema, no solo en cada pregunta.
@@ -195,7 +196,17 @@
         </span>
     </div>
     {% endif %}
-    <div class="mt-3"><button class="btn btn-primary">Guardar clave</button></div>
+    <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
+        <button class="btn btn-primary">Guardar clave</button>
+        {% if formas|length < 3 %}
+        <button type="submit" name="accion" value="nueva_clave" class="btn btn-outline-primary"
+                title="Otra forma del mismo examen (B, C, D), con su propia clave">
+            <i class="fas fa-plus me-1"></i> Nueva clave</button>
+        <span class="text-muted" style="font-size:.84rem;">
+            Para un examen con varias formas: en el examen impreso dígale a cada estudiante
+            su forma, y él la marca en su hoja.</span>
+        {% endif %}
+    </div>
 </form>
 
 <style>

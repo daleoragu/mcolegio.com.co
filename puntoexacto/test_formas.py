@@ -165,31 +165,100 @@ class FormasDelExamen(ColegioDePrueba):
         self.assertIn('repetida', r.content.decode())
         self.assertEqual(Forma.objects.get().orden, F.identidad(self.preguntas))
 
-    # --------------------------------------------------------------- repartir
-    def test_las_hojas_nuevas_reciben_formas_al_azar_y_parejas(self):
-        self.c.post(self.url('formas/'), {'accion': 'generar', 'mezclar_preguntas': 'on',
-                                          'mezclar_opciones': 'on'})
-        self.assertEqual(self.ex.formas.count(), 1)
-        for n in range(7):
-            self.crear_estudiante(f'extra{n}')
-        self.c.post(self.url('hojas/'), {'curso_ids': [self.curso.id], 'sueltas': '0'})
-        conteo = Counter(self.ex.hojas.values_list('forma', flat=True))
-        self.assertEqual(sum(conteo.values()), 10)
-        self.assertEqual(conteo, Counter({'A': 5, 'B': 5}))
+    # --------------------------------------------------------------- nueva clave
+    def clave_a(self, **extra):
+        datos = {'metodo': 'con_piso', **extra}
+        for p in self.preguntas:
+            datos.update({f'correcta_{p.numero}': p.correcta,
+                          f'opciones_{p.numero}': str(p.opciones_efectivas()),
+                          f'puntos_{p.numero}': '1', f'rotulos_{p.numero}': p.rotulos})
+        return datos
 
-    def test_repartir_no_toca_las_hojas_ya_calificadas(self):
-        self.c.post(self.url('hojas/'), {'curso_ids': [self.curso.id], 'sueltas': '1'})
-        self.assertEqual(set(self.ex.hojas.values_list('forma', flat=True)), {'A'})
-        calificada = self.ex.hojas.first()
-        self.c.post(self.url(f'hoja/{calificada.id}/digitar/'), {'p_1': 'A'})
+    def test_nueva_clave_desde_la_pantalla_de_la_clave(self):
+        r = self.c.post(self.url('clave/'), self.clave_a(accion='nueva_clave'))
+        self.assertRedirects(r, self.url('clave/B/'), fetch_redirect_response=False)
+        forma = Forma.objects.get()
+        self.assertEqual(F.faltantes(forma.orden), 6)
+        h = self.c.get(self.url('clave/B/')).content.decode()
+        self.assertIn('Faltan 6 por marcar', h)
+        self.assertIn('Clave A', h)
+        # El docente marca la clave de su forma B: D C B A D y F.
+        datos = {'accion': 'guardar'}
+        for k, letra in enumerate('DCBADB', start=1):
+            datos[f'correcta_{k}'] = letra
+        self.c.post(self.url('clave/B/'), datos)
+        forma.refresh_from_db()
+        self.assertEqual(F.faltantes(forma.orden), 0)
+        self.assertEqual([c['correcta'] for c in F.clave_de(forma.orden, self.preguntas)],
+                         list('DCBADB'))
+        # Un estudiante de la B que marca esa clave saca la máxima.
+        hoja = Hoja.objects.create(examen=self.ex, identificador='PE-1')
+        r = self.c.post(self.url(f'hoja/{hoja.id}/digitar/'),
+                        {'forma': 'B', **{f'p_{k}': l for k, l in enumerate('DCBADB', start=1)}})
+        hoja.refresh_from_db()
+        self.assertEqual((hoja.forma, hoja.nota), ('B', self.ex.nota_maxima))
+        # Y uno que marcó la clave de la A, diciendo que es de la B, no.
+        hoja2 = Hoja.objects.create(examen=self.ex, identificador='PE-2')
+        self.c.post(self.url(f'hoja/{hoja2.id}/digitar/'),
+                    {'forma': 'B', **{f'p_{k}': l for k, l in enumerate('ABCDAB', start=1)}})
+        hoja2.refresh_from_db()
+        self.assertLess(hoja2.nota, self.ex.nota_maxima)
+
+    def test_clave_b_con_preguntas_en_otro_orden(self):
+        self.c.post(self.url('clave/'), self.clave_a(accion='nueva_clave'))
+        # En la B la 1 es la 3 de la A y la 3 es la 1; la clave de la B es C B A D A F.
+        datos = {'accion': 'guardar', 'a_1': '3', 'a_3': '1'}
+        for k, letra in enumerate('CBADAB', start=1):
+            datos[f'correcta_{k}'] = letra
+        self.c.post(self.url('clave/B/'), datos)
+        orden = Forma.objects.get().orden
+        self.assertEqual([f['pregunta'] for f in orden], [3, 2, 1, 4, 5, 6])
+        # Como la 3 de la A tenía C y la 1 tenía A, no hizo falta mover opciones.
+        self.assertEqual(orden[0]['opciones'], 'ABCD')
+
+    def test_las_hojas_no_traen_forma_hasta_que_se_leen(self):
         self.crear_forma_b()
-        Forma.objects.create(examen=self.ex, letra='C', orden=F.identidad(self.preguntas))
-        Forma.objects.create(examen=self.ex, letra='D', orden=F.identidad(self.preguntas))
-        self.c.post(self.url('formas/'), {'accion': 'repartir'})
-        calificada.refresh_from_db()
-        self.assertEqual(calificada.forma, 'A')
-        libres = list(self.ex.hojas.exclude(id=calificada.id).values_list('forma', flat=True))
-        self.assertEqual(len(set(libres)), len(libres))      # 3 hojas, 3 formas distintas
+        self.c.post(self.url('hojas/'), {'curso_ids': [self.curso.id], 'sueltas': '0'})
+        self.assertEqual(set(self.ex.hojas.values_list('forma', flat=True)), {'A'})
+
+    def test_la_camara_lee_la_burbuja_de_forma(self):
+        """Hoja impresa -> imagen con las burbujas rellenas -> lector."""
+        import io, json, subprocess, tempfile
+        from PIL import Image, ImageDraw
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from . import hojas as H
+        forma = self.crear_forma_b()
+        hoja = Hoja.objects.create(examen=self.ex, identificador='PE-00001-0001', nombre_libre='Ana')
+        pdf = self.c.get(self.url('hojas/imprimir/')).content
+        with tempfile.TemporaryDirectory() as d:
+            open(f'{d}/h.pdf', 'wb').write(pdf)
+            try:
+                subprocess.run(['pdftoppm', '-r', '110', '-png', '-singlefile', f'{d}/h.pdf', f'{d}/h'],
+                               check=True)
+            except (OSError, subprocess.CalledProcessError):
+                self.skipTest('pdftoppm no está instalado')
+            img = Image.open(f'{d}/h.png').convert('L')
+        info = H.mapa_de_examen(self.ex)
+        esc = img.width / info['hoja_w_mm']
+        alto_mm = img.height / esc
+        r = info['radio_mm'] * esc * 0.8
+        dib = ImageDraw.Draw(img)
+        clave_b = self.respuestas_perfectas(forma.orden)
+        for clave in [f'{k}{l}' for k, l in clave_b.items()] + ['FB']:
+            x, y = info['mapa'][clave]
+            cx, cy = x * esc, (alto_mm - y) * esc
+            dib.ellipse([cx - r, cy - r, cx + r, cy + r], fill=20)
+        b = io.BytesIO(); img.save(b, 'PNG')
+        lect = self.c.post(self.url('escanear/foto/'),
+                           {'foto': SimpleUploadedFile('f.png', b.getvalue(), 'image/png')}).json()
+        self.assertTrue(lect['ok'], lect)
+        self.assertEqual((lect['formas'], lect['forma'], lect['forma_duda']), ('AB', 'B', None))
+        g = self.c.post(self.url('escanear/guardar/'), json.dumps(
+            {'hoja_id': lect['hoja_id'], 'respuestas': lect['respuestas'], 'forma': lect['forma']}),
+            content_type='application/json').json()
+        self.assertEqual(g['forma'], 'B')
+        hoja.refresh_from_db()
+        self.assertEqual(hoja.nota, self.ex.nota_maxima)
 
     def test_no_se_borra_una_forma_con_hojas_calificadas(self):
         forma = self.crear_forma_b()
@@ -225,9 +294,10 @@ class FormasDelExamen(ColegioDePrueba):
         self.assertEqual(sin.status_code, 200)
         self.assertNotIn(b'FORMA', texto_del_pdf(sin.content))
         self.crear_forma_b()
-        con = self.c.get(self.url('hojas/imprimir/'))
-        self.assertIn(b'(FORMA)', texto_del_pdf(con.content))
-        self.assertIn(b'(A)', texto_del_pdf(con.content))
+        con = texto_del_pdf(self.c.get(self.url('hojas/imprimir/')).content)
+        self.assertIn(b'(FORMA)', con)
+        from . import hojas as H
+        self.assertIn('FB', H.mapa_de_examen(self.ex)['mapa'])
 
     def test_pantallas_de_formas(self):
         self.crear_forma_b()

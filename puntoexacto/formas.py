@@ -248,9 +248,12 @@ def clave_de(orden, preguntas):
     salida = []
     for k, fila in enumerate(orden, start=1):
         p = por_numero.get(fila.get('pregunta'))
-        correcta = letra_en_hoja(fila, p.correcta) if p and p.correcta else ''
+        # «pendiente»: clave nueva en la que el docente aún no marcó esta respuesta.
+        correcta = (letra_en_hoja(fila, p.correcta) if p and p.correcta
+                    and not fila.get('pendiente') else '')
         ops = fila.get('opciones') or ''
         salida.append({'posicion': k, 'pregunta': p, 'correcta': correcta,
+                       'pendiente': bool(fila.get('pendiente')),
                        'correcta_ver': p.rotulo(correcta) if p and correcta else '',
                        'anulada': bool(p and p.anulada),
                        'opciones': ops,
@@ -283,36 +286,65 @@ def letras_del_examen(examen):
     return ['A'] + list(examen.formas.values_list('letra', flat=True))
 
 
-def sorteo(letras, cuantas, azar=None):
-    """Reparte al azar pero parejo: con 3 formas y 30 hojas, 10 de cada una."""
-    azar = azar or random.Random()
-    if len(letras) <= 1:
-        return ['A'] * cuantas
-    salida = [letras[i % len(letras)] for i in range(cuantas)]
-    azar.shuffle(salida)
-    return salida
-
-
-def hojas_sin_leer(examen):
-    """Las hojas a las que todavía se les puede cambiar la forma."""
-    return examen.hojas.filter(respuestas__isnull=True, lectura={}).exclude(
-        estado='calificada').distinct()
-
-
-def repartir(examen, azar=None):
-    """Sortea la forma de cada hoja que aún no se ha leído. Devuelve cuántas."""
-    hojas_libres = list(hojas_sin_leer(examen).order_by('identificador'))
-    letras = letras_del_examen(examen)
-    for h, letra in zip(hojas_libres, sorteo(letras, len(hojas_libres), azar)):
-        if h.forma != letra:
-            h.forma = letra
-            h.save(update_fields=['forma'])
-    return len(hojas_libres)
-
-
 def siguiente_letra(examen):
     usadas = set(examen.formas.values_list('letra', flat=True))
     for letra in Forma.LETRAS_FORMA:
         if letra not in usadas:
             return letra
     return None
+
+
+def nueva_clave(examen):
+    """Crea la siguiente forma (B, C o D) en blanco, para marcarle su clave.
+
+    Arranca con cada pregunta apuntando a la del mismo número en la A y sin
+    respuesta marcada: el docente llena la clave de su examen B como llenó la
+    de la A. Devuelve la Forma, o None si ya están las cuatro.
+    """
+    letra = siguiente_letra(examen)
+    if letra is None:
+        return None
+    preguntas = list(examen.preguntas.order_by('numero'))
+    orden = [dict(fila, pendiente=True) for fila in identidad(preguntas)]
+    return Forma.objects.create(examen=examen, letra=letra, orden=orden)
+
+
+def faltantes(orden):
+    """Cuántas respuestas de la clave de una forma faltan por marcar."""
+    return sum(1 for fila in orden if fila.get('pendiente'))
+
+
+def marcar_clave(orden, preguntas, posicion, letra_correcta, numero_a=None):
+    """Pone la respuesta correcta de una posición de la forma.
+
+    Si la pregunta de la A no cambia y la letra ya era la correcta, se respeta
+    el orden de opciones que tenía (por ejemplo, el que sorteó la plataforma).
+    Si no, se arma un orden que la cumpla cambiando dos opciones de lugar.
+    """
+    por_numero = {p.numero: p for p in preguntas}
+    fila = dict(orden[posicion - 1])
+    numero = numero_a or fila.get('pregunta')
+    p = por_numero.get(numero)
+    if p is None:
+        return fila
+    letras_p = LETRAS[:p.opciones_efectivas()]
+    if numero != fila.get('pregunta'):
+        fila = {'pregunta': numero, 'opciones': letras_p}
+    if not letra_correcta:
+        fila['pendiente'] = True
+        return fila
+    fila.pop('pendiente', None)
+    ops = fila.get('opciones') or letras_p
+    if sorted(ops) != sorted(letras_p):
+        ops = letras_p
+    if not p.correcta or p.correcta not in ops or letra_correcta not in letras_p:
+        fila['opciones'] = ops
+        return fila
+    if letra_en_hoja({'opciones': ops}, p.correcta) == letra_correcta:
+        fila['opciones'] = ops
+        return fila
+    lista = list(letras_p)
+    i, j = lista.index(letra_correcta), lista.index(p.correcta)
+    lista[i], lista[j] = lista[j], lista[i]
+    fila['opciones'] = ''.join(lista)
+    return fila
