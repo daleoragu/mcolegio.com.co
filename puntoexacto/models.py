@@ -433,6 +433,14 @@ class Hoja(models.Model):
     nota_recortada = models.BooleanField(
         default=False, help_text='La nota calculada se salía de la escala y se ajustó.')
     enviada_a_planilla = models.BooleanField(default=False)
+    # Qué forma del examen le tocó (A, B, C o D). La A es el examen tal como
+    # está en la clave; las demás reordenan preguntas u opciones (ver Forma).
+    forma = models.CharField(max_length=1, default='A')
+    # Lo que se marcó tal como está impreso en la hoja: {"1": "B", "2": ""}.
+    # Las Respuesta se guardan ya traducidas a la forma A; esto se guarda para
+    # poder traducir otra vez si el docente corrige la equivalencia de una forma
+    # después de calificar.
+    lectura = models.JSONField(default=dict, blank=True)
     actualizada = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -455,6 +463,37 @@ class Hoja(models.Model):
         if self.estudiante_id and hasattr(self.estudiante, 'ficha'):
             return self.estudiante.ficha.numero_documento or ''
         return self.documento_libre
+
+
+class Forma(models.Model):
+    """Otra versión del mismo examen: preguntas en otro orden y/o opciones en otro orden.
+
+    La forma A es el examen tal como está en la clave y no se guarda. Cada
+    forma B, C o D dice, posición por posición de la hoja, qué pregunta de la A
+    está ahí y en qué orden quedaron sus opciones:
+
+        orden = [{"pregunta": 7, "opciones": "CADB"}, ...]
+
+    El primer elemento es la pregunta 1 de la hoja: ahí va la pregunta 7 de la
+    A, y su opción A es la C de la A, su B es la A, etc. Así la nota, el
+    análisis por pregunta, los temas y los bloques se calculan siempre sobre la
+    forma A y no cambian.
+    """
+    LETRAS_FORMA = 'BCD'
+
+    examen = models.ForeignKey(Examen, on_delete=models.CASCADE, related_name='formas')
+    letra = models.CharField(max_length=1)
+    orden = models.JSONField(default=list)
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['letra']
+        unique_together = ('examen', 'letra')
+        verbose_name = 'Forma'
+        verbose_name_plural = 'Formas'
+
+    def __str__(self):
+        return f'{self.examen.titulo} · forma {self.letra}'
 
 
 class Respuesta(models.Model):

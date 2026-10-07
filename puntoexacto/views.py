@@ -21,10 +21,11 @@ from notas.models.perfiles import Curso, Docente, Estudiante
 
 from . import analisis as analisis_mod
 from . import calificacion as calif
+from . import formas as formas_mod
 from . import hojas as hojas_mod
 from .forms import ExamenForm
 from .hojas import generar_pdf
-from .models import (COMPONENTES, LETRAS, METODOS, Bloque, Examen, Hoja, Pregunta,
+from .models import (COMPONENTES, LETRAS, METODOS, Bloque, Examen, Forma, Hoja, Pregunta,
                      Respuesta, limpiar_rotulos)
 from notas.permisos import es_admin
 
@@ -136,6 +137,7 @@ def editar(request, examen_id):
             examen = form.save()
             _sincronizar_preguntas(examen)
             _aplicar_opciones(examen, request.POST.get('opciones_por_pregunta'))
+            _avisar_formas_ajustadas(request, examen)
             calif.calificar_examen(examen)
         messages.success(request, 'Examen actualizado y notas recalculadas.')
         return redirect('puntoexacto:clave', examen_id=examen.id)
@@ -180,6 +182,17 @@ def _aplicar_opciones(examen, crudo):
             cambiadas.append(p)
     if cambiadas:
         Pregunta.objects.bulk_update(cambiadas, ['numero_opciones'])
+
+
+def _avisar_formas_ajustadas(request, examen):
+    """Tras cambiar la clave o los bloques, deja las formas B, C, D coherentes."""
+    cambiadas = formas_mod.ajustar_formas(examen)
+    if cambiadas:
+        lista = ', '.join(cambiadas)
+        messages.warning(
+            request, f'Cambió la estructura del examen y se ajustó la forma {lista}. '
+                     f'Revise sus equivalencias en «Formas» y, si ya las imprimió, '
+                     f'vuelva a imprimir esas hojas.')
 
 
 def _sincronizar_preguntas(examen):
@@ -267,6 +280,7 @@ def clave(request, examen_id):
                 # Con fórmula, cada pregunta vale lo mismo y el valor lo pone el
                 # sistema: lo que se haya escrito en la casilla no cuenta.
                 examen.preguntas.update(puntos=examen.puntos_automaticos())
+            _avisar_formas_ajustadas(request, examen)
             calif.calificar_examen(examen)
 
         if not accion:
@@ -399,6 +413,7 @@ def hojas(request, examen_id):
         'repartos': repartos,
         'sugerido': sugerido,
         'sugerir': sugerido > (examen.hojas_por_pagina or 1) and not examen.secciones(),
+        'con_formas': examen.formas.exists(),
     })
 
 
@@ -414,16 +429,13 @@ def _crear_hojas(examen, curso_ids, sueltas=0):
         ).select_related('user')
         ya = set(examen.hojas.filter(estudiante__isnull=False)
                  .values_list('estudiante_id', flat=True))
+        nuevos = [est for est in estudiantes if est.id not in ya] + [None] * sueltas
+        # Si el examen tiene formas, a cada hoja le toca una al azar (parejo:
+        # con dos formas, la mitad A y la mitad B).
+        letras = formas_mod.sorteo(formas_mod.letras_del_examen(examen), len(nuevos))
         siguiente = examen.hojas.count() + 1
-        for est in estudiantes:
-            if est.id in ya:
-                continue
-            Hoja.objects.create(examen=examen, estudiante=est,
-                                identificador=f'PE-{examen.id:05d}-{siguiente:04d}')
-            siguiente += 1
-            creadas += 1
-        for _ in range(sueltas):
-            Hoja.objects.create(examen=examen,
+        for est, letra in zip(nuevos, letras):
+            Hoja.objects.create(examen=examen, estudiante=est, forma=letra,
                                 identificador=f'PE-{examen.id:05d}-{siguiente:04d}')
             siguiente += 1
             creadas += 1
@@ -477,12 +489,11 @@ def digitar(request, examen_id, hoja_id):
             messages.success(request, f'{hoja.nombre} quedó marcado como que no presentó.')
             return redirect('puntoexacto:hojas', examen_id=examen.id)
         with transaction.atomic():
-            for p in preguntas:
-                marca = (request.POST.get(f'p_{p.numero}') or '').strip().upper()[:1]
-                if marca and marca not in p.letras() and marca != Hoja.MARCA_DOBLE:
-                    marca = ''
-                Respuesta.objects.update_or_create(
-                    hoja=hoja, pregunta=p, defaults={'marcada': marca})
+            # Se guarda lo que dice la hoja impresa; formas_mod lo traduce a la
+            # forma A, que es contra la que se califica.
+            lectura = {str(p.numero): request.POST.get(f'p_{p.numero}') or ''
+                       for p in preguntas}
+            formas_mod.guardar_lectura(hoja, lectura, preguntas)
             if hoja.estado == 'ausente':
                 hoja.estado = 'pendiente'
                 hoja.save(update_fields=['estado'])
@@ -493,13 +504,16 @@ def digitar(request, examen_id, hoja_id):
             return redirect('puntoexacto:digitar', examen_id=examen.id, hoja_id=siguiente.id)
         return redirect('puntoexacto:hojas', examen_id=examen.id)
 
-    marcadas = {r.pregunta_id: r.marcada for r in hoja.respuestas.all()}
-    filas = [{'pregunta': p, 'marcada': marcadas.get(p.id, ''),
+    # Las preguntas se muestran como están en la hoja del estudiante: si le
+    # tocó la forma B, la 1 es la 1 de su hoja aunque sea la 7 de la A.
+    marcadas = formas_mod.lectura_de(hoja, preguntas)
+    filas = [{'pregunta': p, 'marcada': marcadas.get(str(p.numero), ''),
               # (letra interna, lo que se ve): se guarda la letra, se muestra V/F.
               'opciones': list(zip(p.letras(), p.lista_rotulos()))}
              for p in preguntas]
     return render(request, 'puntoexacto/digitar.html', {
         'examen': examen, 'hoja': hoja, 'filas': filas,
+        'con_formas': examen.formas.exists(),
     })
 
 
@@ -566,7 +580,9 @@ def exportar(request, examen_id):
     libro = openpyxl.Workbook()
     hoja_x = libro.active
     hoja_x.title = 'Resultados'
-    encabezado = ['Estudiante', 'Documento', 'Estado', 'Nota']
+    con_formas = examen.formas.exists()
+    encabezado = ['Estudiante', 'Documento', 'Estado', 'Nota'] + (['Forma'] if con_formas else [])
+    # Las respuestas van siempre en la numeración de la forma A.
     encabezado += [f'P{p.numero}' for p in preguntas]
     encabezado += ['Correctas', 'Incorrectas', 'En blanco']
     hoja_x.append(encabezado)
@@ -578,6 +594,8 @@ def exportar(request, examen_id):
         blancas = sum(1 for p in preguntas if not marcadas.get(p.id))
         fila = [h.nombre, h.documento, h.get_estado_display(),
                 float(h.nota) if h.nota is not None else '']
+        if con_formas:
+            fila.append(h.forma)
         fila += [marcadas.get(p.id, '') for p in preguntas]
         fila += [buenas, len(preguntas) - buenas - blancas, blancas]
         hoja_x.append(fila)
@@ -714,6 +732,7 @@ def bloques(request, examen_id):
             Bloque.objects.filter(examen=examen,
                                   id=request.POST.get('bloque_id')).delete()
             messages.success(request, 'Bloque eliminado. Sus preguntas quedaron sin área.')
+            _avisar_formas_ajustadas(request, examen)
             return redirect('puntoexacto:bloques', examen_id=examen.id)
 
         errores = []
@@ -753,6 +772,7 @@ def bloques(request, examen_id):
                                             numero__lte=int(h)).update(bloque=b)
 
             # Las notas dependen de los bloques y sus pesos: se recalculan.
+            _avisar_formas_ajustadas(request, examen)
             calif.calificar_examen(examen)
 
         for e in errores:
@@ -1209,6 +1229,7 @@ def procesar_foto(request, examen_id):
         'ok': True,
         'hoja_id': hoja.id if hoja else None,
         'hoja_nombre': hoja.nombre if hoja else None,
+        'hoja_forma': hoja.forma if hoja else None,
         'identificador': leido,
         'como_se_supo': como,
         'ya_calificada': bool(hoja and hoja.estado == 'calificada'),
@@ -1241,27 +1262,13 @@ def guardar_lectura(request, examen_id):
                             status=400)
 
     respuestas = datos.get('respuestas') or {}
-    preguntas = {p.numero: p for p in examen.preguntas.all()}
-    validas = set(hojas_mod.LETRAS)
+    if not isinstance(respuestas, dict):
+        respuestas = {}
 
     with transaction.atomic():
-        hoja.respuestas.all().delete()
-        nuevas = []
-        for clave, letra in respuestas.items():
-            try:
-                numero = int(clave)
-            except (TypeError, ValueError):
-                continue
-            p = preguntas.get(numero)
-            if p is None:
-                continue
-            letra = (letra or '').strip().upper()[:1]
-            if letra and letra not in validas:
-                letra = ''
-            if letra and hojas_mod.LETRAS.index(letra) >= p.opciones_efectivas():
-                letra = ''          # una letra que esa pregunta no tiene
-            nuevas.append(Respuesta(hoja=hoja, pregunta=p, marcada=letra))
-        Respuesta.objects.bulk_create(nuevas)
+        # Las respuestas vienen por posición en la hoja impresa; si la hoja es
+        # de la forma B se traducen a la A antes de guardarse.
+        formas_mod.guardar_lectura(hoja, respuestas)
         hoja.estado = 'calificada'
         hoja.save(update_fields=['estado'])
         calif.calificar_hoja(hoja)
@@ -1270,3 +1277,242 @@ def guardar_lectura(request, examen_id):
     return JsonResponse({'ok': True, 'nota': str(hoja.nota),
                          'recortada': hoja.nota_recortada,
                          'nombre': hoja.nombre})
+
+
+# ---------------------------------------------------------------------------
+# Formas del examen (A, B, C, D)
+# ---------------------------------------------------------------------------
+
+def _tabla_formas(examen, preguntas, lista_formas):
+    """Filas de la tabla de equivalencias: una por posición de la hoja."""
+    claves = {'A': formas_mod.clave_de(formas_mod.identidad(preguntas), preguntas)}
+    for f in lista_formas:
+        claves[f.letra] = formas_mod.clave_de(f.orden, preguntas)
+    filas = []
+    for k in range(len(preguntas)):
+        filas.append({'posicion': k + 1,
+                      'celdas': [claves[letra][k] if k < len(claves[letra]) else None
+                                 for letra in ['A'] + [f.letra for f in lista_formas]]})
+    return filas
+
+
+@login_required
+def formas(request, examen_id):
+    examen = _examen_o_404(request, examen_id)
+    preguntas = list(examen.preguntas.select_related('bloque').order_by('numero'))
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion') or ''
+        letra = (request.POST.get('letra') or '').strip().upper()[:1]
+        with transaction.atomic():
+            if accion in ('generar', 'manual'):
+                nueva = formas_mod.siguiente_letra(examen)
+                if nueva is None:
+                    messages.warning(request, 'El examen ya tiene las formas A, B, C y D.')
+                    return redirect('puntoexacto:formas', examen_id=examen.id)
+                if accion == 'generar':
+                    mezclar_p = request.POST.get('mezclar_preguntas') == 'on'
+                    mezclar_o = request.POST.get('mezclar_opciones') == 'on'
+                    if not (mezclar_p or mezclar_o):
+                        messages.warning(request, 'Escoja si se mezclan las preguntas, '
+                                                  'las opciones o ambas.')
+                        return redirect('puntoexacto:formas', examen_id=examen.id)
+                    orden = formas_mod.generar_orden(preguntas, mezclar_p, mezclar_o)
+                else:
+                    orden = formas_mod.identidad(preguntas)
+                Forma.objects.create(examen=examen, letra=nueva, orden=orden)
+                if accion == 'manual':
+                    messages.info(request, f'Escriba la equivalencia de la forma {nueva}.')
+                    return redirect('puntoexacto:forma_editar', examen_id=examen.id, letra=nueva)
+                messages.success(request, f'Se creó la forma {nueva}.')
+            elif accion == 'borrar':
+                forma = examen.formas.filter(letra=letra).first()
+                if forma is not None:
+                    leidas = examen.hojas.filter(forma=letra).exclude(lectura={}).count()
+                    if leidas:
+                        messages.error(request, f'La forma {letra} ya tiene {leidas} hoja(s) '
+                                                f'calificada(s); no se puede borrar.')
+                        return redirect('puntoexacto:formas', examen_id=examen.id)
+                    forma.delete()
+                    huerfanas = list(examen.hojas.filter(forma=letra))
+                    for h, nueva in zip(huerfanas, formas_mod.sorteo(
+                            formas_mod.letras_del_examen(examen), len(huerfanas))):
+                        h.forma = nueva
+                        h.save(update_fields=['forma'])
+                    messages.success(request, f'Se borró la forma {letra}.'
+                                     + (f' Sus {len(huerfanas)} hoja(s) pasaron a otras formas: '
+                                        f'vuelva a imprimirlas.' if huerfanas else ''))
+            elif accion == 'repartir':
+                n = formas_mod.repartir(examen)
+                messages.success(request, f'Se repartieron las formas al azar entre {n} hoja(s). '
+                                          f'Imprímalas de nuevo para que cada una salga con su forma.')
+        return redirect('puntoexacto:formas', examen_id=examen.id)
+
+    lista_formas = list(examen.formas.all())
+    for f in lista_formas:
+        f.problemas = formas_mod.problemas(f.orden, preguntas)
+    conteo = {}
+    for letra in examen.hojas.values_list('forma', flat=True):
+        conteo[letra] = conteo.get(letra, 0) + 1
+    letras = ['A'] + [f.letra for f in lista_formas]
+    return render(request, 'puntoexacto/formas.html', {
+        'examen': examen, 'formas': lista_formas,
+        'letras': letras,
+        'conteo': [(letra, conteo.get(letra, 0)) for letra in letras],
+        'filas': _tabla_formas(examen, preguntas, lista_formas),
+        'libres': formas_mod.hojas_sin_leer(examen).count(),
+        'total_hojas': examen.hojas.count(),
+        'puede_crear': len(lista_formas) < formas_mod.MAX_FORMAS - 1,
+        'hay_bloques': examen.bloques.exists(),
+        'hay_rotulos': any(not formas_mod.se_mezclan_opciones(p) for p in preguntas),
+    })
+
+
+@login_required
+def forma_editar(request, examen_id, letra):
+    """La equivalencia de una forma, pregunta por pregunta.
+
+    Sirve para dos cosas: revisar la que se sorteó, o escribir la de un examen
+    B que el docente ya tenía hecho en Word.
+    """
+    examen = _examen_o_404(request, examen_id)
+    forma = get_object_or_404(examen.formas, letra=(letra or '').upper())
+    preguntas = list(examen.preguntas.select_related('bloque').order_by('numero'))
+    por_numero = {p.numero: p for p in preguntas}
+    errores = []
+    orden = forma.orden
+
+    if request.method == 'POST':
+        if request.POST.get('accion') == 'sortear':
+            orden = formas_mod.generar_orden(
+                preguntas, request.POST.get('mezclar_preguntas') == 'on',
+                request.POST.get('mezclar_opciones') == 'on')
+        else:
+            orden = []
+            for k, en_hoja in enumerate(preguntas, start=1):
+                crudo = (request.POST.get(f'p_{k}') or '').strip()
+                numero = int(crudo) if crudo.isdigit() else en_hoja.numero
+                p = por_numero.get(numero, en_hoja)
+                letras_p = LETRAS[:p.opciones_efectivas()]
+                ops = ''.join(ch for ch in (request.POST.get(f'o_{k}') or '').upper()
+                              if ch.isalpha())
+                correcta_aqui = (request.POST.get(f'c_{k}') or '').strip().upper()[:1]
+                if not ops:
+                    # El docente solo sabe la respuesta de su forma B: se arma un
+                    # orden que la respete cambiando dos opciones de lugar.
+                    lista = list(letras_p)
+                    if correcta_aqui in lista and p.correcta in lista:
+                        i, j = lista.index(correcta_aqui), lista.index(p.correcta)
+                        lista[i], lista[j] = lista[j], lista[i]
+                    ops = ''.join(lista)
+                orden.append({'pregunta': numero, 'opciones': ops})
+        errores = formas_mod.problemas(orden, preguntas)
+        if not errores:
+            with transaction.atomic():
+                forma.orden = orden
+                forma.save(update_fields=['orden'])
+                n = formas_mod.retraducir(forma, examen)
+            messages.success(request, f'Forma {forma.letra} guardada.'
+                             + (f' Se recalificaron {n} hoja(s) de esa forma.' if n else ''))
+            return redirect('puntoexacto:formas', examen_id=examen.id)
+
+    # Qué preguntas de la A pueden ir en cada posición (mismo bloque, mismas opciones).
+    filas = []
+    for k, en_hoja in enumerate(preguntas, start=1):
+        fila = orden[k - 1] if k - 1 < len(orden) else {'pregunta': en_hoja.numero, 'opciones': ''}
+        p = por_numero.get(fila.get('pregunta'), en_hoja)
+        g = formas_mod.grupo(en_hoja)
+        filas.append({
+            'k': k, 'fila': fila, 'pregunta': p,
+            'candidatas': [q.numero for q in preguntas if formas_mod.grupo(q) == g],
+            'letras': list(LETRAS[:en_hoja.opciones_efectivas()]),
+            'correcta': formas_mod.letra_en_hoja(fila, p.correcta) if p.correcta else '',
+            'fija': not formas_mod.se_mezclan_opciones(en_hoja),
+            'bloque': en_hoja.bloque.nombre if en_hoja.bloque_id else '',
+        })
+    return render(request, 'puntoexacto/forma_editar.html', {
+        'examen': examen, 'forma': forma, 'filas': filas, 'errores': errores,
+        'hay_bloques': examen.bloques.exists(),
+        'leidas': examen.hojas.filter(forma=forma.letra).exclude(lectura={}).count(),
+    })
+
+
+@login_required
+def formas_exportar(request, examen_id):
+    """Tabla de equivalencias y claves en Excel, para armar el examen en Word."""
+    import openpyxl
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    examen = _examen_o_404(request, examen_id)
+    preguntas = list(examen.preguntas.select_related('bloque').order_by('numero'))
+    lista_formas = list(examen.formas.all())
+    letras = ['A'] + [f.letra for f in lista_formas]
+    claves = {'A': formas_mod.clave_de(formas_mod.identidad(preguntas), preguntas)}
+    for f in lista_formas:
+        claves[f.letra] = formas_mod.clave_de(f.orden, preguntas)
+
+    negrita = Font(bold=True, color='FFFFFF')
+    fondo = PatternFill('solid', fgColor='193661')
+    centro = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+    def encabezar(hoja_x, titulos, anchos):
+        hoja_x.append(titulos)
+        for i, celda in enumerate(hoja_x[hoja_x.max_row], start=1):
+            celda.font, celda.fill, celda.alignment = negrita, fondo, centro
+            hoja_x.column_dimensions[openpyxl.utils.get_column_letter(i)].width = anchos[i - 1] if i <= len(anchos) else 12
+        hoja_x.freeze_panes = hoja_x.cell(row=hoja_x.max_row + 1, column=1)
+
+    libro = openpyxl.Workbook()
+    resumen = libro.active
+    resumen.title = 'Claves'
+    resumen.append([f'{examen.titulo} · respuestas correctas por forma'])
+    resumen['A1'].font = Font(bold=True, size=13)
+    encabezar(resumen, ['Pregunta'] + [f'Forma {letra}' for letra in letras], [11] + [11] * len(letras))
+    for k in range(len(preguntas)):
+        fila = [k + 1]
+        for letra in letras:
+            c = claves[letra][k]
+            fila.append('ANULADA' if c['anulada'] else (c['pregunta'].rotulo(c['correcta']) if c['pregunta'] else ''))
+        resumen.append(fila)
+        for celda in resumen[resumen.max_row]:
+            celda.alignment = centro
+
+    max_op = max((p.opciones_efectivas() for p in preguntas), default=4)
+    for letra in letras[1:]:
+        hx = libro.create_sheet(f'Forma {letra}')
+        hx.append([f'Cómo armar la forma {letra} a partir de la forma A'])
+        hx['A1'].font = Font(bold=True, size=13)
+        hx.append(['En cada pregunta de la forma ' + letra + ': copie la pregunta indicada de la A '
+                   'y ponga sus opciones en el orden que dice la tabla.'])
+        encabezar(hx, [f'Pregunta en la {letra}', 'Es la pregunta de la A']
+                  + [f'Opción {LETRAS[i]} = opción de la A' for i in range(max_op)]
+                  + [f'Correcta en la {letra}'], [13, 13] + [12] * max_op + [13])
+        for c in claves[letra]:
+            p = c['pregunta']
+            ops = list(c['opciones'])
+            hx.append([c['posicion'], p.numero if p else '']
+                      + [p.rotulo(o) if p else o for o in ops] + [''] * (max_op - len(ops))
+                      + ['ANULADA' if c['anulada'] else (p.rotulo(c['correcta']) if p else '')])
+            for celda in hx[hx.max_row]:
+                celda.alignment = centro
+
+    respuesta = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    respuesta['Content-Disposition'] = f'attachment; filename="formas-examen-{examen.id}.xlsx"'
+    libro.save(respuesta)
+    return respuesta
+
+
+@login_required
+def formas_imprimir(request, examen_id):
+    """La misma tabla de equivalencias, en una página lista para imprimir."""
+    examen = _examen_o_404(request, examen_id)
+    preguntas = list(examen.preguntas.select_related('bloque').order_by('numero'))
+    lista_formas = list(examen.formas.all())
+    detalle = [{'letra': f.letra, 'claves': formas_mod.clave_de(f.orden, preguntas)}
+               for f in lista_formas]
+    return render(request, 'puntoexacto/formas_imprimir.html', {
+        'examen': examen, 'letras': ['A'] + [f.letra for f in lista_formas],
+        'filas': _tabla_formas(examen, preguntas, lista_formas),
+        'detalle': detalle,
+    })

@@ -6,6 +6,7 @@
 <div class="pe-barra">
     <a href="{% url 'puntoexacto:clave' examen_id=examen.id %}" class="btn btn-outline-secondary">Clave</a>
     <a href="{% url 'puntoexacto:resultados' examen_id=examen.id %}" class="btn btn-outline-secondary">Resultados</a>
+    <a href="{% url 'puntoexacto:formas' examen_id=examen.id %}" class="btn btn-outline-secondary">Formas{% if examen.formas.exists %} ({{ examen.formas.count|add:1 }}){% endif %}</a>
     {% if hojas %}
     <a href="{% url 'puntoexacto:escanear' examen_id=examen.id %}" class="btn btn-success crece">
         <i class="fas fa-camera me-1"></i> Calificar con la cámara
@@ -102,7 +103,7 @@
     <div class="table-responsive">
         <table class="pe-tabla">
             <thead><tr>
-                <th>Estudiante</th><th>Identificador</th><th>Estado</th>
+                <th>Estudiante</th><th>Identificador</th>{% if con_formas %}<th class="pe-num">Forma</th>{% endif %}<th>Estado</th>
                 <th class="pe-num">Nota</th><th></th>
             </tr></thead>
             <tbody>
@@ -110,6 +111,7 @@
                 <tr>
                     <td>{{ h.nombre }}</td>
                     <td><code style="font-size:.82rem;">{{ h.identificador }}</code></td>
+                    {% if con_formas %}<td class="pe-num"><strong>{{ h.forma }}</strong></td>{% endif %}
                     <td>
                         {% if h.estado == 'calificada' %}<span class="pe-chip pe-ok">Calificada</span>
                         {% elif h.estado == 'revisar' %}<span class="pe-chip pe-media">Revisar</span>

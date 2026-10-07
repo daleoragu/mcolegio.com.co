@@ -7,6 +7,7 @@
 <div class="pe-barra">
     <a href="{% url 'puntoexacto:editar' examen_id=examen.id %}" class="btn btn-outline-secondary">Datos del examen</a>
     <a href="{% url 'puntoexacto:hojas' examen_id=examen.id %}" class="btn btn-outline-secondary">Hojas</a>
+    <a href="{% url 'puntoexacto:formas' examen_id=examen.id %}" class="btn btn-outline-secondary">Formas{% if examen.formas.exists %} ({{ examen.formas.count|add:1 }}){% endif %}</a>
     <a href="{% url 'puntoexacto:resultados' examen_id=examen.id %}" class="btn btn-outline-secondary">Resultados</a>
 </div>
 

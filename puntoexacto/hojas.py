@@ -412,8 +412,29 @@ def _una_hoja(c, ox, oy, m, datos, preguntas, opciones, plan, escudo=None):
     base = y - alto_caja
     c.setLineWidth(0.6)
     c.rect(izq, base, ancho_cab, alto_caja, stroke=1, fill=0)
+
+    # Forma del examen (A, B, C, D), si el examen tiene varias: una letra
+    # grande a la derecha, para que quien cuida el examen vea de un vistazo que
+    # los de al lado tienen formas distintas. Va con borde y sin relleno: un
+    # bloque negro sólido se parecería a las marcas de registro de las esquinas
+    # y podría confundir al lector de fotos.
+    ancho_forma = 0
+    if datos.get('forma'):
+        ancho_forma = f * 4.6
+        fx = izq + ancho_cab - ancho_forma
+        c.setLineWidth(1.4)
+        c.rect(fx, base, ancho_forma, alto_caja, stroke=1, fill=0)
+        c.setLineWidth(0.6)
+        c.setFont('Helvetica-Bold', f * .55)
+        c.drawCentredString(fx + ancho_forma / 2, base + alto_caja * .72, 'FORMA')
+        c.setFont('Helvetica-Bold', f * 1.35)
+        c.drawCentredString(fx + ancho_forma / 2, base + alto_caja * .17, datos['forma'])
+        ancho_forma += 1.5 * mm
+
     c.setFont('Helvetica-Bold', f * .95)
-    c.drawString(izq + 1.6 * mm, base + alto_caja * .55, datos['estudiante'][:44])
+    c.drawString(izq + 1.6 * mm, base + alto_caja * .55, _recortar(
+        c, datos['estudiante'][:44], 'Helvetica-Bold', f * .95,
+        ancho_cab - ancho_forma - 3.2 * mm))
     c.setFont('Helvetica', f * .68)
     c.setFillColorRGB(.35, .35, .35)
     c.drawString(izq + 1.6 * mm, base + alto_caja * .18, f"Doc: {datos['documento']}"[:34])
@@ -425,8 +446,8 @@ def _una_hoja(c, ox, oy, m, datos, preguntas, opciones, plan, escudo=None):
     if extra:
         c.setFont('Helvetica', f * .68)
         c.setFillColorRGB(.35, .35, .35)
-        c.drawRightString(izq + ancho_cab - 1.6 * mm, base + alto_caja * .18,
-                          _recortar(c, extra, 'Helvetica', f * .68, ancho_cab * .5))
+        c.drawRightString(izq + ancho_cab - ancho_forma - 1.6 * mm, base + alto_caja * .18,
+                          _recortar(c, extra, 'Helvetica', f * .68, ancho_cab * .5 - ancho_forma))
     c.setFillColorRGB(0, 0, 0)
 
     # --- Bloques de burbujas ---
@@ -745,6 +766,9 @@ def generar_pdf(examen, hojas_examen, por_pagina=None):
     if examen.mostrar_fecha and examen.fecha:
         texto_fecha = examen.fecha.strftime('%d/%m/%Y')
 
+    # La forma solo se imprime si el examen tiene más de una.
+    con_formas = examen.formas.exists()
+
     datos = []
     identificadores = []
     for h in hojas_examen:
@@ -753,6 +777,7 @@ def generar_pdf(examen, hojas_examen, por_pagina=None):
             'periodo': periodo, 'titulo': examen.titulo,
             'estudiante': h.nombre, 'documento': h.documento or '',
             'docente': nombre_docente, 'fecha': texto_fecha,
+            'forma': (h.forma or 'A') if con_formas else '',
         })
         identificadores.append(h.identificador)
 

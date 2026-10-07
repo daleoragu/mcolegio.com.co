@@ -12,7 +12,11 @@
 
 <form method="post" class="pe-tarjeta" style="max-width:720px;">
     {% csrf_token %}
-    <h5>Respuestas</h5>
+    <h5>Respuestas{% if con_formas %} · forma {{ hoja.forma }}{% endif %}</h5>
+    {% if con_formas and hoja.forma != 'A' %}
+    <p style="font-size:.9rem;">Digite lo que marcó <strong>en su hoja</strong>, tal como está
+        numerada; la plataforma lo traduce a la forma A para calificar.</p>
+    {% endif %}
     <p class="text-muted" style="font-size:.9rem;">
         Deje en blanco la pregunta que el estudiante no marcó. Use «{{ hoja.MARCA_DOBLE }}»
         si marcó dos opciones: la hoja queda señalada para revisar.

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<title>Formas · {{ examen.titulo }}</title>
+<style>
+    body { font-family: Arial, Helvetica, sans-serif; color:#111; margin:24px; font-size:12px; }
+    h1 { font-size:18px; margin:0 0 4px; } h2 { font-size:15px; margin:22px 0 6px; }
+    p { margin:2px 0 10px; color:#444; }
+    table { border-collapse:collapse; margin-bottom:12px; }
+    th, td { border:1px solid #999; padding:3px 8px; text-align:center; }
+    th { background:#193661; color:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .resp { font-weight:bold; }
+    .salto { page-break-before: always; }
+    .boton { margin-bottom:14px; } @media print { .boton { display:none; } }
+</style></head>
+<body>
+<button class="boton" onclick="window.print()">Imprimir</button>
+<h1>{{ examen.titulo }}</h1>
+<p>Respuestas correctas por forma{% if examen.colegio %} · {{ examen.colegio.nombre }}{% endif %}</p>
+<table>
+    <tr><th>Pregunta</th>{% for l in letras %}<th>Forma {{ l }}</th>{% endfor %}</tr>
+    {% for fila in filas %}
+    <tr><td>{{ fila.posicion }}</td>
+        {% for c in fila.celdas %}<td class="resp">{% if c.anulada %}anulada{% else %}{{ c.correcta_ver|default:"—" }}{% endif %}</td>{% endfor %}</tr>
+    {% endfor %}
+</table>
+
+{% for d in detalle %}
+<div class="salto">
+<h2>Cómo armar la forma {{ d.letra }} a partir de la forma A</h2>
+<p>En cada pregunta de la forma {{ d.letra }}: copie la pregunta indicada de la A y ponga sus
+   opciones en el orden que dice la tabla (por ejemplo «C A D B»: la opción A de la forma {{ d.letra }}
+   es la C de la A, la B es la A, y así).</p>
+<table>
+    <tr><th>Pregunta en la {{ d.letra }}</th><th>Es la pregunta de la A</th><th>Opciones en este orden</th><th>Correcta en la {{ d.letra }}</th></tr>
+    {% for c in d.claves %}
+    <tr><td>{{ c.posicion }}</td><td>{{ c.pregunta.numero }}</td>
+        <td>{% if c.mezcladas %}{{ c.opciones_ver }}{% else %}igual{% endif %}</td>
+        <td class="resp">{% if c.anulada %}anulada{% else %}{{ c.correcta_ver|default:"—" }}{% endif %}</td></tr>
+    {% endfor %}
+</table>
+</div>
+{% endfor %}
+</body></html>

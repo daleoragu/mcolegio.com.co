@@ -1,0 +1,156 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% block title %}Formas - {{ block.super }}{% endblock %}
+{% block page_title %}Formas del examen · {{ examen.titulo }}{% endblock %}
+
+{% block content %}
+<style>
+    .pe-forma { display:inline-flex; align-items:center; justify-content:center;
+                width:30px; height:30px; border-radius:7px; font-weight:800;
+                background:#193661; color:#fff; font-size:.95rem; }
+    .pe-forma.a { background:#e9edf5; color:#193661; }
+    .pe-eq td { white-space:nowrap; }
+    .pe-eq .chico { font-size:.78rem; color:#6b7280; }
+    .pe-eq .resp { display:inline-block; min-width:22px; text-align:center; font-weight:700;
+                   border:1.5px solid #193661; border-radius:50%; padding:0 5px; }
+</style>
+
+<div class="pe-barra">
+    <a href="{% url 'puntoexacto:clave' examen_id=examen.id %}" class="btn btn-outline-secondary">Clave</a>
+    <a href="{% url 'puntoexacto:hojas' examen_id=examen.id %}" class="btn btn-outline-secondary">Hojas</a>
+    <a href="{% url 'puntoexacto:resultados' examen_id=examen.id %}" class="btn btn-outline-secondary">Resultados</a>
+    {% if formas %}
+    <a href="{% url 'puntoexacto:formas_imprimir' examen_id=examen.id %}" target="_blank"
+       class="btn btn-outline-primary crece"><i class="fas fa-print me-1"></i> Imprimir equivalencias</a>
+    <a href="{% url 'puntoexacto:formas_exportar' examen_id=examen.id %}" class="btn btn-outline-success">
+        <i class="fas fa-file-excel me-1"></i> Excel</a>
+    {% endif %}
+</div>
+
+<div class="pe-tarjeta">
+    <h5>Varias formas del mismo examen</h5>
+    <p class="text-muted" style="font-size:.92rem;margin-bottom:.4rem;">
+        Para que los estudiantes de al lado no tengan el mismo examen: la forma
+        <strong>A</strong> es el examen tal como está en la clave, y las formas
+        <strong>B, C y D</strong> tienen las preguntas y/o las opciones en otro orden.
+        Cada estudiante recibe una forma al azar, impresa en su hoja; la cámara sabe cuál le
+        tocó por el código de barras y califica todo contra la forma A, así que la nota,
+        el análisis por pregunta y los temas salen igual que siempre.
+    </p>
+    {% if hay_bloques or hay_rotulos %}
+    <p class="text-muted" style="font-size:.86rem;margin-bottom:0;">
+        {% if hay_bloques %}Las preguntas solo se mezclan dentro de su bloque. {% endif %}
+        {% if hay_rotulos %}Las preguntas con etiquetas propias (como V/F) cambian de lugar,
+        pero sus opciones no se mezclan.{% endif %}
+    </p>
+    {% endif %}
+</div>
+
+{% if formas %}
+<div class="pe-tarjeta">
+    <h5>Formas de este examen</h5>
+    <div class="d-flex flex-wrap gap-3 align-items-center mb-3">
+        {% for letra, n in conteo %}
+        <div class="d-flex align-items-center gap-2" style="border:1px solid #e3e6ec;border-radius:9px;padding:8px 12px;">
+            <span class="pe-forma {% if letra == 'A' %}a{% endif %}">{{ letra }}</span>
+            <span style="font-size:.9rem;">{{ n }} hoja{{ n|pluralize }}</span>
+            {% for f in formas %}{% if f.letra == letra %}
+                <a href="{% url 'puntoexacto:forma_editar' examen_id=examen.id letra=f.letra %}"
+                   class="btn btn-sm btn-outline-primary">Ver / editar</a>
+                <form method="post" class="d-inline"
+                      onsubmit="return confirm('¿Borrar la forma {{ f.letra }}?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="accion" value="borrar">
+                    <input type="hidden" name="letra" value="{{ f.letra }}">
+                    <button class="btn btn-sm btn-outline-danger" title="Borrar"><i class="fas fa-trash"></i></button>
+                </form>
+            {% endif %}{% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+    {% for f in formas %}{% if f.problemas %}
+    <div class="pe-aviso"><strong>La forma {{ f.letra }} tiene problemas:</strong>
+        <ul>{% for p in f.problemas %}<li>{{ p }}</li>{% endfor %}</ul></div>
+    {% endif %}{% endfor %}
+
+    {% if total_hojas %}
+    <form method="post" class="d-flex flex-wrap gap-3 align-items-center"
+          style="background:#f4f7fb;border-radius:8px;padding:12px 14px;"
+          onsubmit="return confirm('Se sortea otra vez la forma de las hojas que no se han calificado. Si ya las imprimió, tendrá que imprimirlas de nuevo. ¿Seguir?');">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="repartir">
+        <span style="font-size:.9rem;">
+            Las hojas nuevas reciben su forma al azar solas. Si preparó hojas
+            antes de crear las formas, repártalas aquí ({{ libres }} sin calificar).
+        </span>
+        <button class="btn btn-sm btn-primary" {% if not libres %}disabled{% endif %}>
+            <i class="fas fa-random me-1"></i> Repartir formas al azar</button>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if puede_crear %}
+<div class="pe-tarjeta">
+    <h5>Agregar una forma</h5>
+    <div class="row g-4">
+        <div class="col-md-6">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="generar">
+                <h6><i class="fas fa-random me-1"></i> Que la plataforma la arme</h6>
+                <p class="text-muted" style="font-size:.88rem;">
+                    Se mezcla al azar y le queda una tabla de equivalencias para armar
+                    el examen en Word.</p>
+                <label class="d-block" style="font-weight:400;">
+                    <input type="checkbox" name="mezclar_preguntas" checked> Mezclar el orden de las preguntas</label>
+                <label class="d-block mb-2" style="font-weight:400;">
+                    <input type="checkbox" name="mezclar_opciones" checked> Mezclar el orden de las opciones</label>
+                <button class="btn btn-primary">Crear forma al azar</button>
+            </form>
+        </div>
+        <div class="col-md-6">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="manual">
+                <h6><i class="fas fa-keyboard me-1"></i> Ya tengo la otra forma hecha</h6>
+                <p class="text-muted" style="font-size:.88rem;">
+                    Si ya tiene un examen B en Word, escriba a qué pregunta de la A corresponde
+                    cada una y su respuesta correcta.</p>
+                <button class="btn btn-outline-primary">Escribir la equivalencia</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if formas %}
+<div class="pe-tarjeta">
+    <h5>Tabla de equivalencias</h5>
+    <p class="text-muted" style="font-size:.88rem;">
+        Por cada pregunta de la hoja: qué pregunta de la A es, el orden de sus opciones
+        (en letras de la A) y la respuesta correcta <span class="resp" style="border:1.5px solid #193661;border-radius:50%;padding:0 5px;">B</span>
+        en esa forma.</p>
+    <div class="table-responsive">
+        <table class="pe-tabla pe-eq">
+            <thead><tr><th class="pe-num">#</th>
+                {% for letra in letras %}<th>Forma {{ letra }}</th>{% endfor %}</tr></thead>
+            <tbody>
+            {% for fila in filas %}
+                <tr><td class="pe-num"><strong>{{ fila.posicion }}</strong></td>
+                {% for c in fila.celdas %}
+                    <td>{% if c %}
+                        {% if not forloop.first %}Pregunta {{ c.pregunta.numero }}
+                            {% if c.mezcladas %}<span class="chico">· {{ c.opciones_ver }}</span>{% endif %}{% endif %}
+                        {% if c.anulada %}<span class="pe-chip pe-gris">anulada</span>
+                        {% elif c.correcta %}<span class="resp">{{ c.correcta_ver }}</span>
+                        {% else %}<span class="chico">sin clave</span>{% endif %}
+                    {% endif %}</td>
+                {% endfor %}
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
