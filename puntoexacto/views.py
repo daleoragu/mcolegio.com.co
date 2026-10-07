@@ -261,6 +261,7 @@ def clave(request, examen_id):
 
                 p.etiquetas = (request.POST.get(f'etiquetas_{p.numero}') or '').strip()[:200]
                 p.anulada = request.POST.get(f'anulada_{p.numero}') == 'on'
+                p.es_control = request.POST.get(f'control_{p.numero}') == 'on'
                 comp = (request.POST.get(f'componente_{p.numero}') or '').strip().upper()
                 p.componente = comp if comp in {c for c, _ in COMPONENTES} else ''
                 bruto = (request.POST.get(f'puntos_{p.numero}') or '').replace(',', '.')
@@ -623,9 +624,14 @@ def digitar(request, examen_id, hoja_id):
 def resultados(request, examen_id):
     examen = _examen_o_404(request, examen_id)
     datos = analisis_mod.analizar(examen)
-    lista_hojas = examen.hojas.select_related('estudiante__user').all()
+    lista_hojas = list(examen.hojas.select_related('estudiante__user').prefetch_related('respuestas'))
+    controles = list(examen.preguntas.filter(es_control=True).order_by('numero'))
+    for h in lista_hojas:
+        h.control = calif.control_de_hoja(h, controles) if h.estado in ('calificada', 'revisar') else None
     return render(request, 'puntoexacto/resultados.html', {
         'examen': examen, 'analisis': datos, 'hojas': lista_hojas,
+        'controles': controles,
+        'marcados_r': [h for h in lista_hojas if h.control and h.control['r']],
         'avisos': calif.revisar_configuracion(examen),
         'recortadas': [h for h in lista_hojas if h.nota_recortada],
         'resumen_bloques': _resumen_bloques(examen),
@@ -645,7 +651,7 @@ def _resumen_bloques(examen):
     from notas.boletin.ponderacion import nota_aprobacion
     minima = nota_aprobacion(examen.colegio)
     hojas_ok = list(examen.hojas.filter(estado='calificada').prefetch_related('respuestas'))
-    preguntas = list(examen.preguntas.filter(anulada=False))
+    preguntas = list(examen.preguntas.filter(anulada=False, es_control=False))
     acumulado = {b.id: [] for b in bloques}
     for h in hojas_ok:
         for bid, d in calif.notas_por_bloque(examen, h, preguntas).items():
@@ -682,7 +688,10 @@ def exportar(request, examen_id):
     encabezado = ['Estudiante', 'Documento', 'Estado', 'Nota'] + (['Forma'] if con_formas else [])
     # Las respuestas van siempre en la numeración de la forma A.
     encabezado += [f'P{p.numero}' for p in preguntas]
+    controles = [p for p in preguntas if p.es_control]
     encabezado += ['Correctas', 'Incorrectas', 'En blanco']
+    if controles:
+        encabezado += ['Control de lectura', 'Marca R']
     hoja_x.append(encabezado)
 
     for h in examen.hojas.select_related('estudiante__user').prefetch_related('respuestas'):
@@ -696,6 +705,9 @@ def exportar(request, examen_id):
             fila.append(h.forma)
         fila += [marcadas.get(p.id, '') for p in preguntas]
         fila += [buenas, len(preguntas) - buenas - blancas, blancas]
+        if controles:
+            ctl = calif.control_de_hoja(h, controles) if h.estado in ('calificada', 'revisar') else None
+            fila += [f"{ctl['aciertos']}/{ctl['total']}" if ctl else '', 'R' if ctl and ctl['r'] else '']
         hoja_x.append(fila)
 
     respuesta = HttpResponse(
@@ -731,7 +743,7 @@ def llevar_a_planilla(request, examen_id):
     hojas_ok = list(examen.hojas.filter(estado='calificada', estudiante__isnull=False)
                     .select_related('estudiante__user').prefetch_related('respuestas')
                     .order_by('estudiante__user__last_name', 'estudiante__user__first_name'))
-    preguntas = list(examen.preguntas.filter(anulada=False))
+    preguntas = list(examen.preguntas.filter(anulada=False, es_control=False))
     componentes = examen.componentes_usados()
 
     if request.method == 'POST':
@@ -879,7 +891,7 @@ def bloques(request, examen_id):
             messages.success(request, 'Bloques guardados y notas recalculadas.')
         return redirect('puntoexacto:bloques', examen_id=examen.id)
 
-    vigentes = list(examen.preguntas.filter(anulada=False))
+    vigentes = list(examen.preguntas.filter(anulada=False, es_control=False))
     pesos, avisos_pesos = calif.pesos_de_bloques(examen, vigentes)
     filas = []
     for b in examen.bloques.all():
@@ -891,7 +903,7 @@ def bloques(request, examen_id):
                       if efectivo is not None else None})
     # Lo que necesita la pantalla para recalcular en vivo, sin guardar: cada
     # pregunta con sus puntos, sus opciones y el bloque en que está hoy.
-    preguntas_js = [{'n': p.numero, 'pts': float(p.puntos), 'anulada': p.anulada,
+    preguntas_js = [{'n': p.numero, 'pts': float(p.puntos), 'anulada': p.anulada or p.es_control,
                      'op': p.numero_opciones, 'b': p.bloque_id}
                     for p in examen.preguntas.order_by('numero')]
     return render(request, 'puntoexacto/bloques.html', {
@@ -1061,7 +1073,7 @@ def planilla_bloque(request, examen_id, bloque_id):
                     .order_by('estudiante__curso__nombre',
                               'estudiante__user__last_name',
                               'estudiante__user__first_name'))
-    preguntas = list(examen.preguntas.filter(anulada=False, bloque=bloque))
+    preguntas = list(examen.preguntas.filter(anulada=False, es_control=False, bloque=bloque))
 
     # Para cada curso presente, ¿quién dicta esta materia?
     asignaciones = {}
@@ -1627,3 +1639,94 @@ def formas_imprimir(request, examen_id):
         'filas': _tabla_formas(examen, preguntas, lista_formas),
         'detalle': detalle,
     })
+
+
+# ---------------------------------------------------------------------------
+# Clave desde / hacia Excel o CSV
+# ---------------------------------------------------------------------------
+
+@login_required
+def importar_clave(request, examen_id):
+    """Sube la hoja de claves de un cuadernillo y arma el examen con ella."""
+    from . import importar_clave as imp
+
+    examen = _examen_o_404(request, examen_id)
+    if request.method != 'POST':
+        return redirect('puntoexacto:clave', examen_id=examen.id)
+    archivo = request.FILES.get('archivo')
+    if archivo is None:
+        messages.error(request, 'Escoja el archivo con la clave.')
+        return redirect('puntoexacto:clave', examen_id=examen.id)
+    if archivo.size > 2 * 1024 * 1024:
+        messages.error(request, 'El archivo pesa demasiado para ser una clave (máximo 2 MB).')
+        return redirect('puntoexacto:clave', examen_id=examen.id)
+    try:
+        preguntas = imp.leer(archivo)
+        with transaction.atomic():
+            r = imp.aplicar(examen, preguntas,
+                            control_cuenta=request.POST.get('control_cuenta') == 'on',
+                            crear_bloques=request.POST.get('crear_bloques') == 'on')
+            calif.calificar_examen(examen)
+    except imp.ClaveInvalida as e:
+        messages.error(request, f'No se cargó la clave: {e}')
+        return redirect('puntoexacto:clave', examen_id=examen.id)
+
+    partes = [f'Clave cargada: {r["preguntas"]} preguntas']
+    if r['bloques']:
+        partes.append('bloques ' + ', '.join(f'{a} ({n})' for a, n in r['bloques']))
+    if r['temas']:
+        partes.append(f'{r["temas"]} temas para el análisis')
+    if r['control']:
+        partes.append(f'{r["control"]} de control de lectura')
+    if r['formas']:
+        partes.append('claves de las formas ' + ', '.join(r['formas']))
+    messages.success(request, '; '.join(partes) + '.')
+    if r['sin_clave']:
+        messages.warning(request, f'{r["sin_clave"]} pregunta(s) venían sin clave: márquelas abajo.')
+    if examen.hojas.exclude(lectura={}).exists():
+        messages.info(request, 'Las hojas ya calificadas se recalificaron con esta clave.')
+    tope = hojas_mod.capacidad(examen.hojas_por_pagina or 1, examen.opciones_maximas())
+    if examen.numero_preguntas > tope:
+        messages.warning(request, f'Con {examen.hojas_por_pagina or 1} hoja(s) por página caben '
+                                  f'{tope} preguntas: al imprimir escoja menos hojas por página.')
+    return redirect('puntoexacto:clave', examen_id=examen.id)
+
+
+@login_required
+def exportar_clave(request, examen_id):
+    """La clave del examen en Excel o CSV, en el mismo formato que se importa."""
+    import csv
+    from . import importar_clave as imp
+
+    examen = _examen_o_404(request, examen_id)
+    encabezado, filas = imp.filas_para_exportar(examen)
+    nombre = f'clave-{examen.id}'
+    if request.GET.get('formato') == 'csv':
+        respuesta = HttpResponse(content_type='text/csv; charset=utf-8')
+        respuesta['Content-Disposition'] = f'attachment; filename="{nombre}.csv"'
+        respuesta.write('﻿')      # para que Excel abra bien las tildes
+        escritor = csv.writer(respuesta)
+        escritor.writerow(encabezado)
+        escritor.writerows(filas)
+        return respuesta
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    libro = openpyxl.Workbook()
+    hoja_x = libro.active
+    hoja_x.title = 'Clave'
+    hoja_x.append(encabezado)
+    for celda in hoja_x[1]:
+        celda.font = Font(bold=True, color='FFFFFF')
+        celda.fill = PatternFill('solid', fgColor='193661')
+        celda.alignment = Alignment(horizontal='center')
+    for fila in filas:
+        hoja_x.append(fila)
+    for letra, ancho in zip('ABCDEFGHIJ', [10, 8, 24, 48, 9, 8, 9, 9, 9, 9]):
+        hoja_x.column_dimensions[letra].width = ancho
+    hoja_x.freeze_panes = 'A2'
+    respuesta = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    respuesta['Content-Disposition'] = f'attachment; filename="{nombre}.xlsx"'
+    libro.save(respuesta)
+    return respuesta

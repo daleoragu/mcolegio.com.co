@@ -120,7 +120,7 @@ def calificar_hoja(hoja, preguntas=None, guardar=True):
     """Califica una hoja y devuelve el detalle de cómo salió."""
     examen = hoja.examen
     if preguntas is None:
-        preguntas = list(examen.preguntas.filter(anulada=False))
+        preguntas = list(examen.preguntas.filter(anulada=False, es_control=False))
     marcadas = {r.pregunta_id: r.marcada for r in hoja.respuestas.all()}
 
     posible = sum(p.puntos for p in preguntas) or Decimal('0')
@@ -188,7 +188,7 @@ def pesos_de_bloques(examen, preguntas=None):
     peso que les toque por sus puntos, para que no se pierdan de la nota.
     """
     if preguntas is None:
-        preguntas = list(examen.preguntas.filter(anulada=False))
+        preguntas = list(examen.preguntas.filter(anulada=False, es_control=False))
     puntos = {}
     for p in preguntas:
         puntos[p.bloque_id] = puntos.get(p.bloque_id, Decimal('0')) + p.puntos
@@ -200,7 +200,7 @@ def pesos_de_bloques(examen, preguntas=None):
 
 def calificar_examen(examen):
     """Recalifica todas las hojas. Se usa al cambiar la clave o anular una pregunta."""
-    preguntas = list(examen.preguntas.filter(anulada=False))
+    preguntas = list(examen.preguntas.filter(anulada=False, es_control=False))
     hojas = examen.hojas.exclude(estado='ausente').prefetch_related('respuestas')
     return [calificar_hoja(h, preguntas=preguntas) for h in hojas]
 
@@ -209,7 +209,7 @@ def revisar_configuracion(examen):
     """Avisos que el docente debería ver antes de aplicar el examen."""
     avisos = []
     preguntas = list(examen.preguntas.all())
-    vigentes = [p for p in preguntas if not p.anulada]
+    vigentes = [p for p in preguntas if not p.anulada and not p.es_control]
 
     sin_clave = [p.numero for p in vigentes if not p.correcta]
     if sin_clave:
@@ -270,7 +270,7 @@ def notas_por_componente(examen, hoja, preguntas=None):
     se evaluó ahí, en vez de repetir la misma nota en las tres.
     """
     if preguntas is None:
-        preguntas = list(examen.preguntas.filter(anulada=False))
+        preguntas = list(examen.preguntas.filter(anulada=False, es_control=False))
     marcadas = {r.pregunta_id: r.marcada for r in hoja.respuestas.all()}
     pen = examen.penalizaciones()
 
@@ -324,7 +324,7 @@ def notas_por_bloque(examen, hoja, preguntas=None):
     Devuelve {bloque_id: {...}}. Las preguntas sin bloque quedan bajo None.
     """
     if preguntas is None:
-        preguntas = list(examen.preguntas.filter(anulada=False))
+        preguntas = list(examen.preguntas.filter(anulada=False, es_control=False))
     marcadas = {r.pregunta_id: r.marcada for r in hoja.respuestas.all()}
     pen = examen.penalizaciones()
 
@@ -380,3 +380,19 @@ def notas_por_bloque(examen, hoja, preguntas=None):
             'preguntas': [p.numero for p in lista],
         }
     return salida
+
+
+def control_de_hoja(hoja, controles):
+    """Cómo le fue a una hoja en las preguntas de control de lectura.
+
+    controles: las preguntas con es_control. Devuelve None si el examen no
+    tiene, o {'aciertos', 'total', 'r'}; «r» es haberlas fallado todas, que en
+    el simulacro tipo Saber marca al estudiante para el plan de contingencia.
+    """
+    if not controles:
+        return None
+    marcadas = {r.pregunta_id: r.marcada for r in hoja.respuestas.all()}
+    aciertos = sum(1 for p in controles if p.correcta and marcadas.get(p.id) == p.correcta)
+    leida = bool(marcadas) or hoja.estado == 'calificada'
+    return {'aciertos': aciertos, 'total': len(controles),
+            'r': leida and aciertos == 0}

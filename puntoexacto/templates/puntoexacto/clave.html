@@ -18,6 +18,36 @@
 </div>
 {% endif %}
 
+<details class="pe-tarjeta pe-importar" {% if not examen.preguntas.exists %}open{% endif %}>
+    <summary><i class="fas fa-file-import me-1"></i> <strong>Cargar la clave desde Excel, CSV o Word</strong>
+        <span class="text-muted" style="font-size:.88rem;">· para cuadernillos que ya tienen su hoja de claves</span></summary>
+    <div class="mt-3">
+        <p class="text-muted" style="font-size:.9rem;">
+            Una fila por pregunta (en Word, una tabla con una fila por pregunta). Columnas: <code>pregunta</code>, <code>clave</code> y, si las tiene,
+            <code>area</code>, <code>competencia</code>, <code>componente</code>, <code>afirmacion</code>,
+            <code>control</code> (sí/no) y <code>clave_b</code>, <code>clave_c</code>… para otras formas.
+            Cada área queda como un bloque de la hoja, como en el ICFES, y competencia y componente
+            quedan como temas para el análisis. Reemplaza la clave que haya.
+        </p>
+        <form method="post" enctype="multipart/form-data"
+              action="{% url 'puntoexacto:importar_clave' examen_id=examen.id %}"
+              class="d-flex flex-wrap gap-3 align-items-center"
+              onsubmit="return confirm('Se reemplaza la clave del examen con la del archivo. ¿Seguir?');">
+            {% csrf_token %}
+            <input type="file" name="archivo" accept=".csv,.xlsx,.docx,.txt" class="form-control" style="max-width:340px;" required>
+            <label style="font-weight:400;"><input type="checkbox" name="crear_bloques" checked> Un bloque por área</label>
+            <label style="font-weight:400;" title="Normalmente las de control se leen y se informan, pero no suman">
+                <input type="checkbox" name="control_cuenta"> Las de control también suman al puntaje</label>
+            <button class="btn btn-primary"><i class="fas fa-upload me-1"></i> Cargar clave</button>
+        </form>
+        <div class="mt-2" style="font-size:.86rem;">
+            Descargar la clave actual en este formato:
+            <a href="{% url 'puntoexacto:exportar_clave' examen_id=examen.id %}">Excel</a> ·
+            <a href="{% url 'puntoexacto:exportar_clave' examen_id=examen.id %}?formato=csv">CSV</a>
+        </div>
+    </div>
+</details>
+
 {% include 'puntoexacto/_pestanas_claves.html' %}
 <form method="post" class="pe-tarjeta">
     {% csrf_token %}
@@ -88,7 +118,7 @@
         <table class="pe-tabla">
             <thead><tr>
                 <th class="pe-num">#</th><th>Correcta</th><th class="pe-num">Puntos</th>
-                <th>Crédito parcial</th><th>Bloque</th><th>Qué evalúa</th><th>Componente</th><th class="pe-num">Anular</th>
+                <th>Crédito parcial</th><th>Bloque</th><th>Qué evalúa</th><th>Componente</th><th class="pe-num" title="Pregunta de control de lectura: se informa quién la falló, pero no suma al puntaje">Control</th><th class="pe-num">Anular</th>
             </tr></thead>
             <tbody>
             {% for p in preguntas %}
@@ -177,6 +207,10 @@
                         </select>
                     </td>
                     <td class="pe-num">
+                        <input type="checkbox" name="control_{{ p.numero }}" class="pe-control"
+                               {% if p.es_control %}checked{% endif %}>
+                    </td>
+                    <td class="pe-num">
                         <input type="checkbox" name="anulada_{{ p.numero }}" class="pe-anulada"
                                {% if p.anulada %}checked{% endif %}>
                     </td>
@@ -239,6 +273,7 @@
     var sel = document.getElementById('pe-metodo');
     var cajas = Array.prototype.slice.call(document.querySelectorAll('.pe-puntos'));
     var anuladas = Array.prototype.slice.call(document.querySelectorAll('.pe-anulada'));
+    var controles = Array.prototype.slice.call(document.querySelectorAll('.pe-control'));
     var elSuma = document.getElementById('pe-suma');
     var elAuto = document.getElementById('pe-auto');
     var maxima = parseFloat('{{ examen.nota_maxima|stringformat:"s" }}');
@@ -247,7 +282,9 @@
     function coma(v) { return v.toFixed(2).replace('.', ','); }
     function numero(t) { var v = parseFloat(String(t || '').replace(',', '.')); return isNaN(v) ? 0 : v; }
     function vigentes() {
-        return cajas.filter(function (c, i) { return !(anuladas[i] && anuladas[i].checked); });
+        return cajas.filter(function (c, i) {
+            return !(anuladas[i] && anuladas[i].checked) && !(controles[i] && controles[i].checked);
+        });
     }
     function automatico() {
         var n = vigentes().length;
@@ -332,6 +369,7 @@
     sel.addEventListener('change', aplicar);
     cajas.forEach(function (c) { c.addEventListener('input', sumar); });
     anuladas.forEach(function (a) { a.addEventListener('change', aplicar); });
+    controles.forEach(function (a) { a.addEventListener('change', aplicar); });
     aplicar();
 })();
 </script>

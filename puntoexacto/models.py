@@ -126,7 +126,7 @@ class Examen(models.Model):
 
     @property
     def preguntas_vigentes(self):
-        return self.preguntas.filter(anulada=False)
+        return self.preguntas.filter(anulada=False, es_control=False)
 
     @property
     def es_manual(self):
@@ -346,6 +346,9 @@ class Pregunta(models.Model):
         max_length=40, blank=True, verbose_name='Etiquetas de las opciones',
         help_text='Separadas por coma, máximo 2 caracteres cada una. Ej.: V,F')
     anulada = models.BooleanField(default=False)
+    # Pregunta de control de lectura: se lee y se informa (quién la falló),
+    # pero no suma al puntaje de ningún área, igual que una anulada.
+    es_control = models.BooleanField(default=False, verbose_name='Pregunta de control')
 
     class Meta:
         ordering = ['numero']
