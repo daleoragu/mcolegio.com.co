@@ -22,10 +22,12 @@ def _enviar_correo_inasistencia(estudiante, asignacion, fecha):
 
     contexto_email = {'estudiante': estudiante, 'asignacion': asignacion, 'fecha': fecha}
     asunto = f"Reporte de Inasistencia - {estudiante.user.get_full_name()}"
-    html_mensaje = render_to_string('notas/emails/inasistencia_email.html', contexto_email)
-    texto_plano = render_to_string('notas/emails/inasistencia_email.txt', contexto_email)
-
     try:
+        # Todo dentro del try: antes la versión .txt no existía y el error
+        # hacía que guardar la asistencia respondiera con error 500.
+        from django.utils.html import strip_tags
+        html_mensaje = render_to_string('notas/emails/inasistencia_email.html', contexto_email)
+        texto_plano = strip_tags(html_mensaje)
         send_mail(asunto, texto_plano, settings.DEFAULT_FROM_EMAIL, [acudiente_email], html_message=html_mensaje)
     except Exception as e:
         print(f"ERROR al enviar correo de inasistencia para {estudiante}: {e}")

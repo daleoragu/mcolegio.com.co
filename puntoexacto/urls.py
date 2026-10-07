@@ -12,6 +12,8 @@ urlpatterns = [
     path('<int:examen_id>/editar/', views.editar, name='editar'),
     path('<int:examen_id>/archivar/', views.archivar, name='archivar'),
     path('<int:examen_id>/clave/', views.clave, name='clave'),
+    path('<int:examen_id>/clave/importar/', views.importar_clave, name='importar_clave'),
+    path('<int:examen_id>/clave/exportar/', views.exportar_clave, name='exportar_clave'),
     path('<int:examen_id>/clave/<str:letra>/', views.clave_forma, name='clave_forma'),
     path('<int:examen_id>/bloques/', views.bloques, name='bloques'),
     path('<int:examen_id>/bloques/vista-previa/', views.vista_previa_bloques,

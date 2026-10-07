@@ -52,7 +52,7 @@ def _interpretar_discriminacion(d):
 
 def analizar(examen):
     """Devuelve el análisis completo: por pregunta, por etiqueta y general."""
-    preguntas = list(examen.preguntas.filter(anulada=False).order_by('numero'))
+    preguntas = list(examen.preguntas.filter(anulada=False, es_control=False).order_by('numero'))
     hojas = list(examen.hojas.exclude(estado='ausente').prefetch_related('respuestas'))
     if not preguntas or not hojas:
         return {'preguntas': [], 'etiquetas': [], 'resumen': None, 'hojas': len(hojas)}

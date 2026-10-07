@@ -19,6 +19,7 @@ from ..models import (
     AsignacionDocente, RegistroObservador, Notificacion
 )
 from ..permisos import es_admin, es_admin_usuario
+from .. import avisos_familia
 
 def es_docente_o_superuser(user):
     return es_admin_usuario(user) or user.groups.filter(name='Docentes').exists()
@@ -119,7 +120,13 @@ def crear_registro_observador_vista(request, estudiante_id):
             )
 
             messages.success(request, f"Observación para {estudiante.user.get_full_name()} guardada correctamente.")
-            return redirect('notas:vista_detalle_observador', estudiante_id=estudiante.id)
+            # Aviso a la familia: el correo sale solo; el WhatsApp se envía
+            # desde la pantalla siguiente con un toque.
+            enviado, detalle = avisos_familia.enviar_correo(
+                nuevo_registro, request.build_absolute_uri('/'))
+            if enviado:
+                messages.info(request, f"Se envió un aviso al correo del acudiente ({detalle}).")
+            return redirect('notas:aviso_familia', registro_id=nuevo_registro.id)
         else:
             for field, errors in form.errors.items():
                 for error in errors:
@@ -261,3 +268,33 @@ def generar_observador_pdf_vista(request, estudiante_id):
         return response
     except Exception as e:
         return HttpResponse(f"Error técnico al generar el PDF: {str(e)}", status=500)
+
+@login_required
+@user_passes_test(es_docente_o_superuser)
+def aviso_familia_vista(request, registro_id):
+    """Avisar a la familia de una anotación: botones de WhatsApp y correo."""
+    if not request.colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    registro = get_object_or_404(RegistroObservador.objects.select_related('estudiante__user', 'colegio'),
+                                 id=registro_id, colegio=request.colegio)
+    url_portal = request.build_absolute_uri('/')
+    if request.method == 'POST' and request.POST.get('accion') == 'correo':
+        enviado, detalle = avisos_familia.enviar_correo(registro, url_portal)
+        if enviado:
+            messages.success(request, f"Aviso enviado al correo {detalle}.")
+        else:
+            messages.warning(request, f"No se envió el correo: {detalle}.")
+        return redirect('notas:aviso_familia', registro_id=registro.id)
+
+    texto = avisos_familia.texto_aviso(registro, url_portal)
+    contactos = avisos_familia.contactos(registro.estudiante)
+    for c in contactos:
+        c['enlace'] = avisos_familia.enlace_whatsapp(c['numero'], texto)
+    ficha = getattr(registro.estudiante, 'ficha', None)
+    return render(request, 'notas/observador/aviso_familia.html', {
+        'colegio': request.colegio, 'registro': registro, 'estudiante': registro.estudiante,
+        'texto': texto, 'contactos': contactos,
+        'correo_acudiente': getattr(ficha, 'email_acudiente', '') if ficha else '',
+        'correo_configurado': avisos_familia.correo_configurado(),
+        'page_title': 'Avisar a la familia',
+    })

@@ -146,10 +146,26 @@
     {% endif %}
 </div>
 
+{% if controles %}
+<div class="pe-tarjeta">
+    <h5>Preguntas de control de lectura</h5>
+    <p class="text-muted" style="font-size:.9rem;margin-bottom:.4rem;">
+        Pregunta{{ controles|length|pluralize }} {% for p in controles %}{{ p.numero }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+        No suman al puntaje; sirven para saber quién leyó con atención.
+        Quien las falla todas queda marcado <strong>R</strong>.</p>
+    {% if marcados_r %}
+        <div class="pe-aviso" style="margin-bottom:0;"><strong>{{ marcados_r|length }} marcado{{ marcados_r|length|pluralize }} R:</strong>
+            {% for h in marcados_r %}{{ h.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}.</div>
+    {% else %}
+        <p class="pe-ok mb-0" style="font-size:.92rem;">Nadie ha fallado todas las preguntas de control.</p>
+    {% endif %}
+</div>
+{% endif %}
+
 <div class="pe-tarjeta">
     <h5>Notas</h5>
     <table class="pe-tabla">
-        <thead><tr><th>Estudiante</th><th>Estado</th><th class="pe-num">Nota</th><th></th></tr></thead>
+        <thead><tr><th>Estudiante</th><th>Estado</th><th class="pe-num">Nota</th>{% if controles %}<th class="pe-num">Control</th>{% endif %}<th></th></tr></thead>
         <tbody>
         {% for h in hojas %}
             <tr>
@@ -162,6 +178,8 @@
                 </td>
                 <td class="pe-num"><strong>{{ h.nota|default:"—" }}</strong>
                     {% if h.nota_recortada %}<span class="pe-chip pe-media">ajustada</span>{% endif %}</td>
+                {% if controles %}<td class="pe-num">{% if h.control %}{{ h.control.aciertos }}/{{ h.control.total }}
+                    {% if h.control.r %}<span class="pe-chip pe-mal">R</span>{% endif %}{% else %}—{% endif %}</td>{% endif %}
                 <td class="text-end">
                     <a href="{% url 'puntoexacto:digitar' examen_id=examen.id hoja_id=h.id %}"
                        class="btn btn-sm btn-outline-secondary">Editar</a>
