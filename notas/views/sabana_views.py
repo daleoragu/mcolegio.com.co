@@ -21,7 +21,7 @@ try:
 except ImportError:
     PDF_SUPPORT = False
 
-from ..models import Curso, PeriodoAcademico, Docente, AsignacionDocente, Estudiante, Materia, Calificacion, AreaConocimiento, PonderacionAreaMateria, EscalaValoracion
+from ..models import Curso, Sede, PeriodoAcademico, Docente, AsignacionDocente, Estudiante, Materia, Calificacion, AreaConocimiento, PonderacionAreaMateria, EscalaValoracion
 from .sabana_exports import generar_excel_sabana
 from ..permisos import es_admin, es_admin_usuario
 
@@ -408,8 +408,10 @@ def selector_sabana_vista(request):
     ano_actual = timezone.now().year
     periodos = PeriodoAcademico.objects.filter(colegio=request.colegio, ano_lectivo=ano_actual).order_by('fecha_inicio')
     
+ 
     context = {
         'cursos': cursos, 
+        'sedes_filtro': list(Sede.objects.filter(colegio=request.colegio, activa=True)),
         'periodos': periodos, 
         'colegio': request.colegio,
         'ano_actual': ano_actual

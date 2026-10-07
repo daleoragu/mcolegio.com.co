@@ -16,7 +16,7 @@ except ImportError:
     PDF_SUPPORT = False
 
 # Se añade FichaEstudiante para poder obtener el número de documento y la foto
-from ..models import (Curso, PeriodoAcademico, Docente, AsignacionDocente, Estudiante, FichaEstudiante,
+from ..models import (Curso, Sede, PeriodoAcademico, Docente, AsignacionDocente, Estudiante, FichaEstudiante,
                       HistorialMatricula)
 from ..boletin.logic import get_datos_boletin_curso, get_datos_boletin_final
 from ..permisos import es_admin, es_admin_usuario
@@ -55,6 +55,7 @@ def selector_boletin_vista(request):
             return redirect('notas:dashboard')
 
     # Filtra periodos y años por el colegio actual
+    context['sedes_filtro'] = list(Sede.objects.filter(colegio=request.colegio, activa=True))
     context['periodos'] = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'nombre')
     context['anos_lectivos'] = PeriodoAcademico.objects.filter(colegio=request.colegio).values_list('ano_lectivo', flat=True).distinct().order_by('-ano_lectivo')
     

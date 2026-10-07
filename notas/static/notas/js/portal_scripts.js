@@ -166,6 +166,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'inicio': () => fetchAndShowJSON(DJANGO_URLS.carrusel, renderCarrusel),
         'noticias': () => fetchAndShowJSON(DJANGO_URLS.noticias, renderNoticias),
         'historia': () => fetchAndShow(DJANGO_URLS.historia),
+        'sedes': () => fetchAndShow(DJANGO_URLS.sedes),
         'mision': () => fetchAndShow(DJANGO_URLS.mision),
         'modelo': () => fetchAndShow(DJANGO_URLS.modelo),
         'directorio': () => fetchAndShowJSON(DJANGO_URLS.directorio, renderDirectorio), // <-- CORREGIDO

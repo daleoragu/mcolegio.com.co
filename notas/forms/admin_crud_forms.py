@@ -1,8 +1,9 @@
 # notas/forms/admin_crud_forms.py
 from django import forms
 from django.contrib.auth.models import User
+from django.db.models import Q
 from ..models.perfiles import (
-    Estudiante, FichaEstudiante, Curso, Docente, FichaDocente, Colegio
+    Estudiante, FichaEstudiante, Curso, Docente, FichaDocente, Colegio, Sede
 )
 from ..models.academicos import (
     AreaConocimiento, Materia, EscalaValoracion
@@ -193,7 +194,7 @@ class CursoForm(forms.ModelForm):
 
     class Meta:
         model = Curso
-        fields = ['grado', 'subgrupo', 'formato_nombre', 'nombre', 'nivel', 'director_grado']
+        fields = ['sede', 'grado', 'subgrupo', 'formato_nombre', 'nombre', 'nivel', 'director_grado']
         widgets = {
             'grado': forms.Select(attrs={'class': 'form-select'}),
             'subgrupo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1, 2… o A, B…',
@@ -201,15 +202,30 @@ class CursoForm(forms.ModelForm):
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
             'nivel': forms.Select(attrs={'class': 'form-select'}),
             'director_grado': forms.Select(attrs={'class': 'form-select'}),
+            'sede': forms.Select(attrs={'class': 'form-select'}),
         }
 
     def __init__(self, *args, **kwargs):
-        from ..models.perfiles import FORMATOS_NOMBRE, formato_del_colegio
+        from ..models.perfiles import FORMATOS_NOMBRE, Sede, formato_del_colegio
         colegio = kwargs.pop('colegio', None)
         super().__init__(*args, **kwargs)
         self.colegio = colegio
         if colegio:
             self.fields['director_grado'].queryset = Docente.objects.filter(colegio=colegio).order_by('user__last_name')
+        # La sede solo se pregunta si el colegio tiene sedes registradas.
+        sedes = Sede.objects.filter(colegio=colegio) if colegio else Sede.objects.none()
+        if self.instance.pk and self.instance.sede_id:
+            sedes = sedes.filter(Q(activa=True) | Q(pk=self.instance.sede_id))
+        else:
+            sedes = sedes.filter(activa=True)
+        if sedes.exists():
+            self.fields['sede'].queryset = sedes
+            self.fields['sede'].empty_label = '— Sin sede —'
+            self.fields['sede'].help_text = 'En qué sede funciona este curso.'
+            if not self.instance.pk and sedes.count() == 1:
+                self.fields['sede'].initial = sedes.first().pk
+        else:
+            del self.fields['sede']
 
         self.fields['formato_nombre'].choices = FORMATOS_NOMBRE
         self.fields['formato_nombre'].initial = formato_del_colegio(colegio)
@@ -266,7 +282,12 @@ class CursoForm(forms.ModelForm):
                 self.add_error('nombre', f'Ya existe un curso llamado «{datos["nombre"]}».')
             if grado is not None:
                 mia = clave_subgrupo(subgrupo)
-                for c in otros.filter(grado=grado):
+                # Grado y subgrupo se repiten entre sedes (Primero en la sede
+                # Norte y Primero en la Sur); dentro de una misma sede, no.
+                de_grado = otros.filter(grado=grado)
+                if 'sede' in self.fields:
+                    de_grado = de_grado.filter(sede=datos.get('sede'))
+                for c in de_grado:
                     if clave_subgrupo(c.subgrupo) == mia:
                         if mia:
                             self.add_error('subgrupo',
@@ -333,3 +354,59 @@ class EscalaValoracionForm(forms.ModelForm):
             'valor_maximo': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
             'mensaje_boletin': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+# ==============================================================================
+# SEDES
+# ==============================================================================
+
+class SedeForm(forms.ModelForm):
+    """Datos de una sede. Jornadas y niveles se marcan con casillas."""
+    jornadas = forms.MultipleChoiceField(
+        label='Jornadas', required=False, widget=forms.CheckboxSelectMultiple,
+        choices=[])
+    niveles = forms.MultipleChoiceField(
+        label='Niveles que ofrece', required=False, widget=forms.CheckboxSelectMultiple,
+        choices=[])
+
+    class Meta:
+        model = Sede
+        fields = ['nombre', 'es_principal', 'codigo_dane', 'encargado', 'direccion', 'barrio',
+                  'telefono', 'correo', 'jornadas', 'niveles', 'descripcion', 'foto',
+                  'enlace_mapa', 'activa']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'codigo_dane': forms.TextInput(attrs={'class': 'form-control'}),
+            'encargado': forms.TextInput(attrs={'class': 'form-control'}),
+            'direccion': forms.TextInput(attrs={'class': 'form-control'}),
+            'barrio': forms.TextInput(attrs={'class': 'form-control'}),
+            'telefono': forms.TextInput(attrs={'class': 'form-control'}),
+            'correo': forms.EmailInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'foto': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'enlace_mapa': forms.URLInput(attrs={'class': 'form-control',
+                                                 'placeholder': 'https://maps.app.goo.gl/…'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        from ..models.perfiles import Sede
+        self.colegio = kwargs.pop('colegio', None)
+        super().__init__(*args, **kwargs)
+        self.fields['jornadas'].choices = Sede.JORNADAS
+        self.fields['niveles'].choices = Sede.NIVELES
+        if self.instance.pk:
+            self.initial['jornadas'] = [j for j in self.instance.jornadas.split(',') if j]
+            self.initial['niveles'] = [n for n in self.instance.niveles.split(',') if n]
+
+    def clean_nombre(self):
+        from ..models.perfiles import Sede
+        nombre = ' '.join((self.cleaned_data.get('nombre') or '').split())
+        if self.colegio and Sede.objects.filter(colegio=self.colegio, nombre__iexact=nombre) \
+                .exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError(f'Ya hay una sede llamada «{nombre}».')
+        return nombre
+
+    def clean_jornadas(self):
+        return ','.join(self.cleaned_data.get('jornadas') or [])
+
+    def clean_niveles(self):
+        return ','.join(self.cleaned_data.get('niveles') or [])

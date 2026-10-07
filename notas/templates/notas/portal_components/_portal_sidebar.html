@@ -25,6 +25,7 @@
                 <li class="w-100"><a href="#" class="nav-link" data-action="historia"><i class="fas fa-book-open fa-fw me-2"></i> Historia</a></li>
                 <li><a href="#" class="nav-link" data-action="mision"><i class="fas fa-bullseye fa-fw me-2"></i> Misión y Visión</a></li>
                 <li><a href="#" class="nav-link" data-action="modelo"><i class="fas fa-lightbulb fa-fw me-2"></i> Modelo Pedagógico</a></li>
+                {% if colegio.sedes.exists %}<li><a href="#" class="nav-link" data-action="sedes"><i class="fas fa-school fa-fw me-2"></i> Nuestras Sedes</a></li>{% endif %}
                 <li><a href="#" class="nav-link" data-action="directorio"><i class="fas fa-users fa-fw me-2"></i> Directorio Docente</a></li>
             </ul>
         </li>

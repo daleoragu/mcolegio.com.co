@@ -266,6 +266,74 @@ def formato_del_colegio(colegio):
     return FORMATO_POR_DEFECTO
 
 
+class Sede(models.Model):
+    """Una sede del colegio: la principal, la de primaria, la rural…
+
+    Un colegio sin sedes registradas funciona como siempre. Cuando tiene, cada
+    curso puede pertenecer a una, y eso deja filtrar boletines, sábana, alertas
+    y estadísticas por sede. Las sedes activas salen en el portal.
+    """
+    JORNADAS = [
+        ('MANANA', 'Mañana'),
+        ('TARDE', 'Tarde'),
+        ('NOCHE', 'Noche'),
+        ('UNICA', 'Única'),
+        ('FIN_SEMANA', 'Fin de semana'),
+    ]
+    NIVELES = [
+        ('PRE', 'Preescolar'),
+        ('PRI', 'Básica primaria'),
+        ('SEC', 'Básica secundaria'),
+        ('MED', 'Media'),
+        ('ADU', 'Adultos'),
+    ]
+
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='sedes')
+    nombre = models.CharField(max_length=120, verbose_name='Nombre de la sede',
+                              help_text='Ej.: Sede Principal, Sede Simón Bolívar.')
+    es_principal = models.BooleanField(default=False, verbose_name='Es la sede principal')
+    codigo_dane = models.CharField(max_length=20, blank=True, verbose_name='Código DANE de la sede')
+    direccion = models.CharField(max_length=255, blank=True, verbose_name='Dirección')
+    barrio = models.CharField(max_length=120, blank=True, verbose_name='Barrio / vereda')
+    telefono = models.CharField(max_length=60, blank=True, verbose_name='Teléfono')
+    correo = models.EmailField(blank=True, verbose_name='Correo')
+    encargado = models.CharField(max_length=160, blank=True, verbose_name='Coordinador o encargado')
+    # Varias opciones guardadas como texto «MANANA,TARDE»: son pocas, no se
+    # consultan por separado y así no hace falta otra tabla.
+    jornadas = models.CharField(max_length=80, blank=True, verbose_name='Jornadas')
+    niveles = models.CharField(max_length=80, blank=True, verbose_name='Niveles que ofrece')
+    descripcion = models.TextField(blank=True, verbose_name='Descripción para el portal')
+    foto = models.ImageField(upload_to='sedes/', null=True, blank=True, verbose_name='Foto de la sede')
+    enlace_mapa = models.URLField(max_length=500, blank=True, verbose_name='Enlace de Google Maps',
+                                  help_text='Abra la sede en Google Maps, toque «Compartir» y pegue el enlace.')
+    activa = models.BooleanField(default=True, verbose_name='Activa',
+                                 help_text='Las inactivas no salen en el portal ni en los filtros.')
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['-es_principal', 'orden', 'nombre']
+        unique_together = ('colegio', 'nombre')
+        verbose_name = 'Sede'
+        verbose_name_plural = 'Sedes'
+
+    def __str__(self):
+        return self.nombre
+
+    def lista_jornadas(self):
+        nombres = dict(self.JORNADAS)
+        return [nombres[c] for c in self.jornadas.split(',') if c in nombres]
+
+    def lista_niveles(self):
+        nombres = dict(self.NIVELES)
+        return [nombres[c] for c in self.niveles.split(',') if c in nombres]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Solo una principal por colegio.
+        if self.es_principal:
+            Sede.objects.filter(colegio=self.colegio, es_principal=True).exclude(pk=self.pk).update(es_principal=False)
+
+
 class Curso(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="cursos")
     nombre = models.CharField(max_length=100, verbose_name="Nombre del Curso")
@@ -281,6 +349,8 @@ class Curso(models.Model):
         help_text="Solo si el grado tiene varios grupos: 01, 02… o A, B… "
                   "Déjelo vacío si hay un solo curso de ese grado.")
     director_grado = models.ForeignKey('Docente', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Director de Grado", related_name="cursos_dirigidos")
+    sede = models.ForeignKey(Sede, on_delete=models.SET_NULL, null=True, blank=True,
+                             related_name='cursos', verbose_name='Sede')
     
     orden = models.PositiveIntegerField(default=0, db_index=True)
 
@@ -333,6 +403,11 @@ class Curso(models.Model):
         candidatos = list(Curso.objects.filter(colegio=self.colegio, grado=siguiente))
         if not candidatos:
             return None
+        # Con sedes, se queda en su sede si allá hay grado siguiente.
+        if self.sede_id:
+            de_su_sede = [c for c in candidatos if c.sede_id == self.sede_id]
+            if de_su_sede:
+                candidatos = de_su_sede
         if self.subgrupo:
             mio = clave_subgrupo(self.subgrupo)
             for c in candidatos:
