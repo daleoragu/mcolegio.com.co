@@ -1,0 +1,42 @@
+{% comment %}
+Filtro por sede para cualquier selector de cursos.
+Uso: {% include 'notas/includes/_filtro_sede.html' with objetivo='id_del_select_o_contenedor' %}
+Cada <option> o casilla de curso lleva data-sede="{{ curso.sede_id|default:'' }}".
+En un <select> esconde los cursos de otras sedes; en casillas, marca solo los de la sede.
+Solo aparece si el colegio tiene dos o más sedes activas (sedes_filtro).
+{% endcomment %}
+{% if sedes_filtro|length > 1 %}
+<div class="form-group mb-3 filtro-sede">
+    <label for="sede-{{ objetivo }}" class="form-label fw-bold">Sede</label>
+    <select id="sede-{{ objetivo }}" class="form-select form-control" data-objetivo="{{ objetivo }}">
+        <option value="">Todas las sedes</option>
+        {% for s in sedes_filtro %}<option value="{{ s.id }}">{{ s.nombre }}</option>{% endfor %}
+    </select>
+</div>
+<script>
+(function () {
+    var sel = document.getElementById('sede-{{ objetivo }}');
+    var objetivo = document.getElementById(sel.dataset.objetivo);
+    if (!objetivo) return;
+    function aplicar() {
+        var sede = sel.value;
+        if (objetivo.tagName === 'SELECT') {
+            Array.prototype.forEach.call(objetivo.options, function (op) {
+                if (!op.value) return;
+                var ver = !sede || op.dataset.sede === sede;
+                op.hidden = !ver; op.disabled = !ver;
+                if (!ver && op.selected) objetivo.value = '';
+            });
+        } else {
+            objetivo.querySelectorAll('[data-sede]').forEach(function (el) {
+                var ver = !sede || el.dataset.sede === sede;
+                var caja = el.closest('li, .form-check') || el;
+                caja.style.display = ver ? '' : 'none';
+                if (el.type === 'checkbox' && sede) { el.checked = ver; el.dispatchEvent(new Event('change', {bubbles: true})); }
+            });
+        }
+    }
+    sel.addEventListener('change', aplicar);
+})();
+</script>
+{% endif %}

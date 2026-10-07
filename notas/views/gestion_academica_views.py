@@ -236,8 +236,10 @@ def gestion_cursos_vista(request):
     else:
         cursos = cursos_qs.select_related('director_grado__user')
     # --- FIN: CORRECCIÓN AUTOMÁTICA DEL ORDEN ---
-        
-    context = {'cursos': cursos, 'titulo': 'Gestión de Cursos y Grados', 'colegio': request.colegio}
+    cursos = cursos.select_related('sede')
+
+    context = {'cursos': cursos, 'titulo': 'Gestión de Cursos y Grados', 'colegio': request.colegio,
+               'hay_sedes': request.colegio.sedes.exists()}
     return render(request, 'notas/admin_crud/gestion_cursos.html', context)
 
 @user_passes_test(es_personal_admin)

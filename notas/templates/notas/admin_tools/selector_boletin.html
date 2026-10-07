@@ -95,12 +95,13 @@
             </div>
             {% endif %}
 
+            {% include 'notas/includes/_filtro_sede.html' with objetivo='curso_select_periodo' %}
             <div class="form-group">
                 <label for="curso_select_periodo">Seleccionar Curso</label>
                 <select id="curso_select_periodo" name="curso_id" required>
                     <option value="">-- Seleccione un curso --</option>
                     {% for curso in cursos %}
-                        <option value="{{ curso.id }}">{{ curso.nombre }}</option>
+                        <option value="{{ curso.id }}" data-sede="{{ curso.sede_id|default:'' }}">{{ curso.nombre }}</option>
                     {% endfor %}
                 </select>
             </div>

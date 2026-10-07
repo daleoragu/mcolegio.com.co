@@ -17,6 +17,9 @@
     <a href="{% url 'notas:crear_curso' %}" class="btn btn-primary">
         <i class="fas fa-plus me-2"></i>Añadir Nuevo Curso
     </a>
+    <a href="{% url 'notas:gestion_sedes' %}" class="btn btn-outline-primary">
+        <i class="fas fa-school me-2"></i>Sedes
+    </a>
     <a href="{% url 'notas:promocion_anual' %}" class="btn btn-success">
         <i class="fas fa-graduation-cap me-2"></i>Promoción de fin de año
     </a>
@@ -33,6 +36,7 @@
                         <!-- NUEVA COLUMNA DE ORDEN -->
                         <th style="width: 10%;" class="text-center">Orden</th>
                         <th>Nombre del Curso</th>
+                        {% if hay_sedes %}<th>Sede</th>{% endif %}
                         <th>Grado</th>
                         <th>Nivel Escolar</th>
                         <th>Director de Grado</th>
@@ -54,6 +58,7 @@
                             </form>
                         </td>
                         <td><strong>{{ curso.nombre }}</strong></td>
+                        {% if hay_sedes %}<td>{{ curso.sede.nombre|default:"—" }}</td>{% endif %}
                         <td>
                             {% if curso.grado is not None %}
                                 {{ curso.nombre_grado }}{% if curso.subgrupo %} <span class="text-muted">· {{ curso.subgrupo }}</span>{% endif %}
@@ -80,7 +85,7 @@
                 {% empty %}
                     <tr>
                         <!-- Colspan actualizado a 5 por la nueva columna -->
-                        <td colspan="6" class="text-center text-muted py-4">
+                        <td colspan="7" class="text-center text-muted py-4">
                             No hay cursos registrados.
                         </td>
                     </tr>

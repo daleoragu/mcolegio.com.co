@@ -35,3 +35,4 @@ from . import import_export_planillas_views
 from . import carnet_views
 from . import certificados_views
 from . import promocion_views
+from . import sedes_views

@@ -124,6 +124,16 @@ def ajax_galeria_vista(request):
     except Exception as e:
         return HttpResponse(f"<p class='text-center text-danger'>Error al cargar la galería: {e}</p>", status=500)
 
+def ajax_sedes_vista(request):
+    """Las sedes activas del colegio, para la sección «Nuestras sedes» del portal."""
+    if not request.colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    from ..models import Sede
+    sedes = Sede.objects.filter(colegio=request.colegio, activa=True)
+    return render(request, 'notas/portal_components/_contenido_sedes.html',
+                  {'sedes': sedes, 'colegio': request.colegio})
+
+
 def directorio_docentes_json(request):
     """
     Devuelve en formato JSON la lista de docentes del colegio con sus asignaturas.

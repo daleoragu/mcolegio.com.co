@@ -4,7 +4,7 @@
 # y los hace disponibles para que puedan ser importados desde 'notas.models'.
 
 from .perfiles import (Colegio, Curso, Docente, Estudiante, FichaEstudiante, FichaDocente,
-                       HistorialMatricula, AdministradorColegio)
+                       HistorialMatricula, AdministradorColegio, Sede)
 
 from .academicos import (
     AreaConocimiento, Materia, PeriodoAcademico, AsignacionDocente,
@@ -21,7 +21,7 @@ from .portal_models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarruse
 # Se ha corregido una coma faltante.
 __all__ = [
     'Colegio', 'Curso', 'Docente', 'Estudiante', 'FichaEstudiante', 'FichaDocente',
-    'HistorialMatricula', 'AdministradorColegio',
+    'HistorialMatricula', 'AdministradorColegio', 'Sede',
     'AreaConocimiento', 'Materia', 'PeriodoAcademico', 'AsignacionDocente', 'EscalaValoracion', 
     'Calificacion', 'NotaDetallada', 'IndicadorLogroPeriodo', 'ReporteParcial', 'Observacion',
     'PlanDeMejoramiento', 'Asistencia', 'InasistenciasManualesPeriodo','PonderacionAreaMateria',

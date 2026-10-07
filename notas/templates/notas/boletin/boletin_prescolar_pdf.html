@@ -90,7 +90,7 @@
             <tr>
                 <td><strong>Estudiante:</strong> {{ boletin.estudiante.user.last_name|upper }} {{ boletin.estudiante.user.first_name|upper }}</td>
                 <td><strong>Identificación:</strong> {{ boletin.identificacion|default:boletin.estudiante.user.username }}</td>
-                <td><strong>Grupo:</strong> {{ curso.nombre }}</td>
+                <td><strong>Grupo:</strong> {{ curso.nombre }}{% if curso.sede %} · <strong>Sede:</strong> {{ curso.sede.nombre }}{% endif %}</td>
             </tr>
             <tr>
                 <td><strong>Dirección:</strong> {{ colegio.direccion|default:'N/A' }}</td>

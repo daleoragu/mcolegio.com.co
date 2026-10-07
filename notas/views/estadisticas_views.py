@@ -14,7 +14,7 @@ except ImportError:
     HTML = None # Manejar el caso si no está instalado
 
 from ..models import (
-    Curso, PeriodoAcademico, Docente, AsignacionDocente, Materia,
+    Sede, Curso, PeriodoAcademico, Docente, AsignacionDocente, Materia,
     AreaConocimiento as Area, Estudiante
 )
 
@@ -416,6 +416,7 @@ def panel_estadisticas_vista(request):
 
     context = {
         'cursos': cursos,
+        'sedes_filtro': list(Sede.objects.filter(colegio=request.colegio, activa=True)),
         'periodos': periodos,
         'anos_lectivos': anos_lectivos,
         'ano_actual': datetime.date.today().year,

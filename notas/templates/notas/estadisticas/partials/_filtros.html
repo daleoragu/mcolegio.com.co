@@ -106,13 +106,14 @@
                     {% endfor %}
                 </select>
             </div>
+            {% include 'notas/includes/_filtro_sede.html' with objetivo='cursos_select' %}
             <div class="form-group">
                 <label>Cursos</label>
                 <div id="cursos_select" class="dropdown-check-list" tabindex="100">
                     <span class="anchor">Seleccionar Cursos...</span>
                     <ul class="items">
                         {% for curso in cursos %}
-                            <li><label><input type="checkbox" name="curso_ids[]" value="{{ curso.id }}" data-nombre="{{ curso.nombre }}" /> {{ curso.nombre }} </label></li>
+                            <li><label><input type="checkbox" name="curso_ids[]" value="{{ curso.id }}" data-nombre="{{ curso.nombre }}" data-sede="{{ curso.sede_id|default:'' }}" /> {{ curso.nombre }} </label></li>
                         {% endfor %}
                     </ul>
                 </div>

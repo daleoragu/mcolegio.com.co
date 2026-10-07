@@ -1,0 +1,56 @@
+<!-- notas/portal_components/_contenido_sedes.html -->
+<style>
+  .sedes-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(290px, 1fr)); gap:1.5rem; }
+  .sede-p { background:#fff; border-radius:.6rem; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,.08);
+            display:flex; flex-direction:column; }
+  .sede-p-foto { height:190px; background:#eef1f6 center/cover no-repeat; position:relative;
+                 display:flex; align-items:center; justify-content:center; color:#b4bcc8; font-size:3rem; }
+  .sede-p-principal { position:absolute; top:12px; left:12px; background:var(--color-primario, #0d6efd);
+                      color:var(--color-texto-primario, #fff); font-size:.75rem; font-weight:700;
+                      padding:3px 10px; border-radius:999px; }
+  .sede-p-cuerpo { padding:1.1rem 1.2rem; flex:1; }
+  .sede-p-cuerpo h4 { font-size:1.15rem; font-weight:700; margin-bottom:.4rem; }
+  .sede-p-desc { color:#555; font-size:.93rem; margin-bottom:.7rem; }
+  .sede-p-dato { font-size:.9rem; color:#444; margin-bottom:.3rem; display:flex; gap:.5rem; }
+  .sede-p-dato i { color:var(--color-primario, #0d6efd); width:16px; margin-top:3px; }
+  .sede-p-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:.6rem; }
+  .sede-p-chip { font-size:.75rem; border:1px solid #d5dbe4; border-radius:999px; padding:2px 9px; color:#555; }
+  .sede-p-pie { padding:0 1.2rem 1.1rem; }
+</style>
+
+<h2 class="card-title mb-4 border-bottom pb-3">Nuestras Sedes</h2>
+{% if sedes %}
+<div class="sedes-grid">
+  {% for s in sedes %}
+  <div class="sede-p">
+    <div class="sede-p-foto" {% if s.foto %}style="background-image:url('{{ s.foto.url }}')"{% endif %}>
+      {% if not s.foto %}<i class="fas fa-school"></i>{% endif %}
+      {% if s.es_principal %}<span class="sede-p-principal">Sede principal</span>{% endif %}
+    </div>
+    <div class="sede-p-cuerpo">
+      <h4>{{ s.nombre }}</h4>
+      {% if s.descripcion %}<div class="sede-p-desc">{{ s.descripcion|linebreaksbr }}</div>{% endif %}
+      {% if s.direccion %}<div class="sede-p-dato"><i class="fas fa-map-marker-alt"></i><span>{{ s.direccion }}{% if s.barrio %} · {{ s.barrio }}{% endif %}</span></div>{% endif %}
+      {% if s.telefono %}<div class="sede-p-dato"><i class="fas fa-phone"></i><a href="tel:{{ s.telefono|cut:' ' }}">{{ s.telefono }}</a></div>{% endif %}
+      {% if s.correo %}<div class="sede-p-dato"><i class="fas fa-envelope"></i><a href="mailto:{{ s.correo }}">{{ s.correo }}</a></div>{% endif %}
+      {% if s.encargado %}<div class="sede-p-dato"><i class="fas fa-user-tie"></i><span>{{ s.encargado }}</span></div>{% endif %}
+      {% if s.codigo_dane %}<div class="sede-p-dato"><i class="fas fa-hashtag"></i><span>Código DANE {{ s.codigo_dane }}</span></div>{% endif %}
+      {% if s.jornadas or s.niveles %}
+      <div class="sede-p-chips">
+        {% for j in s.lista_jornadas %}<span class="sede-p-chip"><i class="far fa-clock me-1"></i>{{ j }}</span>{% endfor %}
+        {% for n in s.lista_niveles %}<span class="sede-p-chip">{{ n }}</span>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% if s.enlace_mapa %}
+    <div class="sede-p-pie">
+      <a href="{{ s.enlace_mapa }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+        <i class="fas fa-route me-1"></i> Cómo llegar</a>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+  <p class="text-muted">Las sedes del colegio aún no han sido publicadas.</p>
+{% endif %}

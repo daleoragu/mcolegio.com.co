@@ -45,6 +45,15 @@
             {% for p in periodos %}<option value="{{ p.id }}" {% if periodo and p.id == periodo.id %}selected{% endif %}>{{ p.get_nombre_display }}</option>{% endfor %}
         </select>
     </div>
+    {% if sedes|length > 1 %}
+    <div>
+        <label class="form-label mb-1 small" for="at-sede">Sede</label>
+        <select name="sede" id="at-sede" class="form-select" onchange="this.form.curso.value='';this.form.submit()">
+            <option value="">Todas</option>
+            {% for s in sedes %}<option value="{{ s.id }}" {% if sede_sel and s.id == sede_sel.id %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}
+        </select>
+    </div>
+    {% endif %}
     <div>
         <label class="form-label mb-1 small" for="at-curso">Curso</label>
         <select name="curso" id="at-curso" class="form-select" onchange="this.form.submit()">

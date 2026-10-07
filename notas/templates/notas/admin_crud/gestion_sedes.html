@@ -1,0 +1,85 @@
+{% extends "notas/base.html" %}
+
+{% block page_title %}
+    <h1>Sedes del colegio</h1>
+{% endblock %}
+
+{% block content %}
+<style>
+    .sede-card { border:1px solid #e3e6ec; border-radius:12px; overflow:hidden; background:#fff;
+                 box-shadow:0 2px 8px rgba(16,24,40,.05); height:100%; display:flex; flex-direction:column; }
+    .sede-foto { height:150px; background:#eef1f6 center/cover no-repeat; display:flex;
+                 align-items:center; justify-content:center; color:#9aa3b2; font-size:2.4rem; }
+    .sede-cuerpo { padding:14px 16px; flex:1; font-size:.92rem; }
+    .sede-cuerpo h5 { font-weight:700; margin-bottom:4px; }
+    .sede-dato { color:#4b5563; margin-bottom:3px; }
+    .sede-dato i { width:18px; color:#9aa3b2; }
+    .sede-pie { padding:10px 16px; border-top:1px solid #eef0f3; display:flex; gap:6px; align-items:center; }
+</style>
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="mb-3 d-flex flex-wrap gap-2">
+    <a href="{% url 'notas:crear_sede' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Agregar sede</a>
+    <a href="{% url 'notas:gestion_cursos' %}" class="btn btn-outline-secondary"><i class="fas fa-layer-group me-2"></i>Cursos</a>
+</div>
+
+<p class="text-muted" style="max-width:820px;">
+    Cada curso puede pertenecer a una sede. Con eso, boletines, sábana, alertas y estadísticas
+    se pueden filtrar por sede, y el boletín dice la sede del estudiante. Las sedes activas
+    salen en el portal del colegio.
+</p>
+
+{% if sedes %}
+<div class="row g-3 mb-4">
+    {% for s in sedes %}
+    <div class="col-md-6 col-xl-4">
+        <div class="sede-card"{% if not s.activa %} style="opacity:.6;"{% endif %}>
+            <div class="sede-foto" {% if s.foto %}style="background-image:url('{{ s.foto.url }}')"{% endif %}>
+                {% if not s.foto %}<i class="fas fa-school"></i>{% endif %}
+            </div>
+            <div class="sede-cuerpo">
+                <h5>{{ s.nombre }}
+                    {% if s.es_principal %}<span class="badge bg-primary align-middle" style="font-size:.7rem;">Principal</span>{% endif %}
+                    {% if not s.activa %}<span class="badge bg-secondary align-middle" style="font-size:.7rem;">Inactiva</span>{% endif %}
+                </h5>
+                {% if s.direccion %}<div class="sede-dato"><i class="fas fa-map-marker-alt"></i> {{ s.direccion }}{% if s.barrio %} · {{ s.barrio }}{% endif %}</div>{% endif %}
+                {% if s.telefono %}<div class="sede-dato"><i class="fas fa-phone"></i> {{ s.telefono }}</div>{% endif %}
+                {% if s.encargado %}<div class="sede-dato"><i class="fas fa-user-tie"></i> {{ s.encargado }}</div>{% endif %}
+                {% if s.jornadas %}<div class="sede-dato"><i class="fas fa-clock"></i> {{ s.lista_jornadas|join:", " }}</div>{% endif %}
+                {% if s.codigo_dane %}<div class="sede-dato"><i class="fas fa-hashtag"></i> DANE {{ s.codigo_dane }}</div>{% endif %}
+            </div>
+            <div class="sede-pie">
+                <span class="text-muted" style="font-size:.88rem;"><strong>{{ s.n_cursos }}</strong> curso{{ s.n_cursos|pluralize }}</span>
+                <a href="{% url 'notas:editar_sede' s.id %}" class="btn btn-sm btn-outline-primary ms-auto"><i class="fas fa-pencil-alt me-1"></i>Editar</a>
+                <form action="{% url 'notas:eliminar_sede' s.id %}" method="post" class="d-inline"
+                      onsubmit="return confirm('¿Eliminar la sede «{{ s.nombre|escapejs }}»? Sus cursos no se borran: quedan sin sede.');">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="fas fa-trash"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if sin_sede %}
+<div class="alert alert-warning">
+    <strong>{{ sin_sede|length }} curso{{ sin_sede|length|pluralize }} sin sede:</strong>
+    {% for c in sin_sede %}{{ c.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+    Asígnelos editando la sede (al final del formulario) o desde cada curso.
+</div>
+{% endif %}
+{% else %}
+<div class="card"><div class="card-body text-center text-muted py-5">
+    <i class="fas fa-school fa-2x mb-3 d-block"></i>
+    Este colegio todavía no tiene sedes registradas. Si funciona en una sola, no hace falta crear ninguna.
+</div></div>
+{% endif %}
+{% endblock %}

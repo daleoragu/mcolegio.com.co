@@ -1,0 +1,81 @@
+{% extends "notas/base.html" %}
+
+{% block page_title %}
+    <h1>{{ titulo }}</h1>
+{% endblock %}
+
+{% block content %}
+<style>
+    .casillas ul, .casillas div > div { list-style:none; padding:0; margin:0; display:flex; flex-wrap:wrap; gap:6px 18px; }
+    .casillas label { font-weight:400; }
+    .casillas input { margin-right:5px; }
+    .curso-chip { display:inline-flex; align-items:center; gap:5px; border:1px solid #dee2e6; border-radius:8px;
+                  padding:4px 10px; margin:0 6px 6px 0; font-size:.9rem; cursor:pointer; }
+    .curso-chip small { color:#9aa3b2; }
+</style>
+<div class="container mt-4">
+<div class="row justify-content-center"><div class="col-lg-9">
+<form method="post" enctype="multipart/form-data" novalidate class="card shadow-sm">
+<div class="card-body p-4">
+    {% csrf_token %}
+    {% if form.errors %}
+    <div class="alert alert-danger">
+        <strong>Revise:</strong>
+        <ul class="mb-0">{% for field in form %}{% for e in field.errors %}<li>{{ field.label }}: {{ e }}</li>{% endfor %}{% endfor %}
+            {% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
+    <h5 class="mb-3">Datos de la sede</h5>
+    <div class="row g-3">
+        <div class="col-md-8">{{ form.nombre.label_tag }}{{ form.nombre }}<small class="text-muted">{{ form.nombre.help_text }}</small></div>
+        <div class="col-md-4">{{ form.codigo_dane.label_tag }}{{ form.codigo_dane }}</div>
+        <div class="col-md-6">{{ form.encargado.label_tag }}{{ form.encargado }}</div>
+        <div class="col-md-6">{{ form.telefono.label_tag }}{{ form.telefono }}</div>
+        <div class="col-md-8">{{ form.direccion.label_tag }}{{ form.direccion }}</div>
+        <div class="col-md-4">{{ form.barrio.label_tag }}{{ form.barrio }}</div>
+        <div class="col-md-6">{{ form.correo.label_tag }}{{ form.correo }}</div>
+        <div class="col-md-6">{{ form.enlace_mapa.label_tag }}{{ form.enlace_mapa }}<small class="text-muted">{{ form.enlace_mapa.help_text }}</small></div>
+        <div class="col-md-6 casillas"><label class="form-label">{{ form.jornadas.label }}</label>{{ form.jornadas }}</div>
+        <div class="col-md-6 casillas"><label class="form-label">{{ form.niveles.label }}</label>{{ form.niveles }}</div>
+    </div>
+
+    <h5 class="mt-4 mb-3">Para el portal</h5>
+    <div class="row g-3">
+        <div class="col-md-7">{{ form.descripcion.label_tag }}{{ form.descripcion }}</div>
+        <div class="col-md-5">
+            {{ form.foto.label_tag }}
+            {% if sede and sede.foto %}<img src="{{ sede.foto.url }}" alt="" class="d-block mb-2 rounded" style="max-height:110px;">{% endif %}
+            {{ form.foto }}
+        </div>
+        <div class="col-12 d-flex flex-wrap gap-4">
+            <label style="font-weight:400;">{{ form.es_principal }} {{ form.es_principal.label }}</label>
+            <label style="font-weight:400;">{{ form.activa }} {{ form.activa.label }}
+                <small class="text-muted">· {{ form.activa.help_text }}</small></label>
+        </div>
+    </div>
+
+    {% if cursos %}
+    <h5 class="mt-4 mb-1">Cursos de esta sede</h5>
+    <p class="text-muted" style="font-size:.88rem;">Marque los cursos que funcionan aquí. Si un curso estaba en otra sede, pasa a esta.</p>
+    <input type="hidden" name="cursos_enviados" value="1">
+    <div>
+        {% for c in cursos %}
+        <label class="curso-chip">
+            <input type="checkbox" name="cursos" value="{{ c.id }}" {% if sede and c.sede_id == sede.id %}checked{% endif %}>
+            {{ c.nombre }}{% if c.sede and c.sede != sede %} <small>({{ c.sede.nombre }})</small>{% endif %}
+        </label>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <hr>
+    <div class="d-flex justify-content-end gap-2">
+        <a href="{% url 'notas:gestion_sedes' %}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Guardar sede</button>
+    </div>
+</div>
+</form>
+</div></div>
+</div>
+{% endblock %}

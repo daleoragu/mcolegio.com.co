@@ -11,7 +11,7 @@ from django.shortcuts import render
 
 from ..alertas import alertas_de_curso, maximo_permitido, resumen
 from ..boletin.ponderacion import nota_aprobacion
-from ..models import Curso, Docente, PeriodoAcademico
+from ..models import Curso, Docente, PeriodoAcademico, Sede
 from ..permisos import es_admin, es_admin_usuario
 
 ORDEN_RIESGO = {'alto': 0, 'medio': 1, 'ok': 2, 'sin_notas': 3}
@@ -47,6 +47,13 @@ def alertas_tempranas(request):
         abiertos = [p for p in periodos if p.esta_activo]
         periodo = abiertos[-1] if abiertos else periodos[-1]
 
+    # Sede: deja ver solo los cursos de una sede (si el colegio tiene varias).
+    sedes = list(Sede.objects.filter(colegio=request.colegio, activa=True,
+                                     cursos__in=cursos).distinct())
+    sede_sel = next((s for s in sedes if str(s.id) == request.GET.get('sede')), None)
+    if sede_sel is not None:
+        cursos = [c for c in cursos if c.sede_id == sede_sel.id]
+
     curso_sel = next((c for c in cursos if str(c.id) == request.GET.get('curso')), None)
     aprobacion = nota_aprobacion(request.colegio)
     maximo = maximo_permitido(request.colegio)
@@ -66,6 +73,7 @@ def alertas_tempranas(request):
 
     return render(request, 'notas/alertas_tempranas.html', {
         'colegio': request.colegio, 'cursos': cursos, 'curso_sel': curso_sel,
+        'sedes': sedes, 'sede_sel': sede_sel,
         'anos': anos, 'ano': ano, 'periodos': periodos, 'periodo': periodo,
         'filas': visibles, 'total_filas': len(filas), 'resumen': resumen(filas), 'por_curso': por_curso,
         'aprobacion': aprobacion, 'maximo': maximo, 'ver': ver,

@@ -33,11 +33,12 @@
                 </div>
 
                 <div class="col-md-6 mb-3">
+                    {% include 'notas/includes/_filtro_sede.html' with objetivo='curso_id' %}
                     <label for="curso_id" class="form-label fw-bold">Paso 2: Seleccione el Curso</label>
                     <select name="curso_id" id="curso_id" class="form-select" required>
                         <option value="">-- Seleccione un curso --</option>
                         {% for curso in cursos %}
-                            <option value="{{ curso.id }}">{{ curso.nombre }}</option>
+                            <option value="{{ curso.id }}" data-sede="{{ curso.sede_id|default:'' }}">{{ curso.nombre }}</option>
                         {% endfor %}
                     </select>
                 </div>
