@@ -297,7 +297,10 @@
                 if (!urls[img.id]) urls[img.id] = URL.createObjectURL(blob);
                 cont.replaceWith(el('img', { src: urls[img.id], alt: img.nombre || '', class: compacta ? 'cu-mini' : '' }));
             } else if (img.proveedor !== 'local') {
-                cont.textContent = 'Conecte ' + NOMBRE_NUBE[img.proveedor] + ' para ver esta imagen.';
+                cont.textContent = '';
+                cont.appendChild(el('button', { type: 'button', class: 'btn btn-sm btn-outline-primary',
+                    text: 'Conectar ' + NOMBRE_NUBE[img.proveedor] + ' para verla',
+                    onclick: function () { conectar(img.proveedor); } }));
             } else {
                 cont.textContent = 'Esta imagen quedó en otro navegador. Abra el respaldo del examen.';
             }

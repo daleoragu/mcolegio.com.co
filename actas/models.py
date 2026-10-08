@@ -45,8 +45,8 @@ class Acta(models.Model):
     orden_del_dia = models.TextField(blank=True, verbose_name='Orden del día', help_text='Un punto por línea.')
     desarrollo = models.TextField(blank=True, verbose_name='Desarrollo de la reunión')
     decisiones = models.TextField(blank=True, verbose_name='Decisiones y compromisos', help_text='Uno por línea.')
-    asistentes = models.TextField(blank=True, verbose_name='Asistentes',
-                                  help_text='Uno por línea: Nombre — Cargo')
+    # [{'nombre': ..., 'cargo': ..., 'asistio': bool}] — en el acta sale con una X y su línea de firma.
+    asistencia = models.JSONField(default=list, blank=True, verbose_name='Asistentes')
 
     informe = models.JSONField(null=True, blank=True, editable=False)  # congelado al cerrar
     estado = models.CharField(max_length=10, choices=ESTADOS, default=BORRADOR)
@@ -80,10 +80,16 @@ class Acta(models.Model):
         return self.lista('orden_del_dia')
 
     def lista_asistentes(self):
-        """[(nombre, cargo)] de las líneas «Nombre — Cargo» (también acepta «-», «|» o «,»)."""
-        import re
+        """[{'nombre', 'cargo', 'asistio'}] limpios, sin filas vacías."""
         salida = []
-        for linea in self.lista('asistentes'):
-            partes = re.split(r'\s+[—–-]\s+|\s*\|\s*|\s*,\s*', linea, maxsplit=1)
-            salida.append((partes[0].strip(), partes[1].strip() if len(partes) > 1 else ''))
+        for a in self.asistencia or []:
+            if not isinstance(a, dict):
+                continue
+            nombre, cargo = str(a.get('nombre') or '').strip(), str(a.get('cargo') or '').strip()
+            if nombre or cargo:
+                salida.append({'nombre': nombre[:150], 'cargo': cargo[:150], 'asistio': bool(a.get('asistio'))})
         return salida
+
+    @property
+    def cuantos_asistieron(self):
+        return sum(1 for a in self.lista_asistentes() if a['asistio'])

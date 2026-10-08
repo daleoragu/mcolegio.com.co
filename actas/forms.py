@@ -10,7 +10,7 @@ class ActaForm(forms.ModelForm):
     class Meta:
         model = Acta
         fields = ['titulo', 'fecha', 'hora_inicio', 'hora_fin', 'lugar', 'periodo', 'alcance', 'sede', 'cursos',
-                  'mostrar_observador', 'orden_del_dia', 'desarrollo', 'decisiones', 'asistentes']
+                  'mostrar_observador', 'orden_del_dia', 'desarrollo', 'decisiones']
         widgets = {
             'fecha': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'hora_inicio': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
@@ -20,7 +20,6 @@ class ActaForm(forms.ModelForm):
             'orden_del_dia': forms.Textarea(attrs={'rows': 5}),
             'desarrollo': forms.Textarea(attrs={'rows': 12}),
             'decisiones': forms.Textarea(attrs={'rows': 5}),
-            'asistentes': forms.Textarea(attrs={'rows': 8}),
         }
 
     def __init__(self, *args, colegio=None, **kwargs):
@@ -46,6 +45,17 @@ class ActaForm(forms.ModelForm):
                 continue
             campo.widget.attrs.setdefault('class', 'form-select' if isinstance(campo.widget, forms.Select)
                                           else 'form-control')
+
+    def asistencia_de(self, post):
+        """Las filas de la tabla de asistentes: asis_nombre, asis_cargo y asis_x (índices marcados)."""
+        nombres, cargos = post.getlist('asis_nombre'), post.getlist('asis_cargo')
+        marcados = set(post.getlist('asis_x'))
+        filas = []
+        for i, (n, c) in enumerate(zip(nombres, cargos)):
+            n, c = n.strip()[:150], c.strip()[:150]
+            if n or c:
+                filas.append({'nombre': n, 'cargo': c, 'asistio': str(i) in marcados})
+        return filas[:80]
 
     def clean(self):
         datos = super().clean()

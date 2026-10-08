@@ -88,7 +88,10 @@ def editar(request, acta_id):
     if request.method == 'POST':
         form = ActaForm(request.POST, instance=acta, colegio=request.colegio)
         if form.is_valid():
-            form.save()
+            acta = form.save(commit=False)
+            acta.asistencia = form.asistencia_de(request.POST)
+            acta.save()
+            form.save_m2m()
             messages.success(request, 'Acta guardada.')
             if request.POST.get('siguiente') == 'pdf':
                 return redirect('actas:pdf', acta.id)
@@ -111,7 +114,8 @@ def editar(request, acta_id):
         grados = [{'grado': g, 'nombre': nombres[g], 'cursos': cs} for g, cs in sorted(por_grado.items(), key=lambda x: (x[0] is None, x[0]))]
     return render(request, 'actas/editar.html', {
         'acta': acta, 'form': form, 'informe': logica.informe_de(acta) if acta.es_comision else None,
-        'grados': grados, 'page_title': f'Acta {acta.numero} de {acta.ano}'})
+        'grados': grados, 'asistencia': (form.asistencia_de(request.POST) if form.is_bound else acta.lista_asistentes()),
+        'page_title': f'Acta {acta.numero} de {acta.ano}'})
 
 
 @login_required
@@ -121,7 +125,7 @@ def sugerir_asistentes(request, acta_id):
     # Los cursos marcados en pantalla, aunque todavía no se hayan guardado.
     ids = [int(x) for x in request.GET.get('cursos', '').split(',') if x.isdigit()]
     acta = _acta(request, acta_id)
-    return JsonResponse({'texto': logica.asistentes_sugeridos(acta, ids if 'cursos' in request.GET else None)})
+    return JsonResponse({'filas': logica.asistentes_sugeridos(acta, ids if 'cursos' in request.GET else None)})
 
 
 @login_required

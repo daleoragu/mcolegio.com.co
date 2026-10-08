@@ -18,5 +18,8 @@
 {% if acta.desarrollo %}<div class="ac-card"><h5>Desarrollo</h5>{{ acta.desarrollo|linebreaks }}</div>{% endif %}
 {% if informe %}<div class="ac-card"><h5>Informe de la comisión</h5>{% include 'actas/_informe.html' %}</div>{% endif %}
 {% if acta.decisiones %}<div class="ac-card"><h5>Decisiones y compromisos</h5>{{ acta.decisiones|linebreaks }}</div>{% endif %}
-{% if acta.asistentes %}<div class="ac-card"><h5>Asistentes</h5>{{ acta.asistentes|linebreaks }}</div>{% endif %}
+{% with asis=acta.lista_asistentes %}{% if asis %}<div class="ac-card"><h5>Asistentes <span class="small text-muted fw-normal">({{ acta.cuantos_asistieron }} de {{ asis|length }})</span></h5>
+    <table class="table table-sm mb-0"><thead class="table-light"><tr><th class="text-center" style="width:50px">X</th><th>Nombre</th><th>Cargo</th></tr></thead><tbody>
+    {% for a in asis %}<tr><td class="text-center fw-bold">{% if a.asistio %}X{% endif %}</td><td>{{ a.nombre|default:"—" }}</td><td>{{ a.cargo }}</td></tr>{% endfor %}
+    </tbody></table></div>{% endif %}{% endwith %}
 {% endblock %}

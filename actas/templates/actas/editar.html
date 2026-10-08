@@ -66,13 +66,30 @@
 
     <div class="ac-card">
         <h5><span class="num">{% if acta.es_comision %}4{% else %}3{% endif %}</span>Asistentes y firmas</h5>
-        <div class="d-flex justify-content-between align-items-end mb-1">
-            <label class="form-label fw-semibold mb-0" for="{{ form.asistentes.id_for_label }}">{{ form.asistentes.label }}</label>
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
+            <div class="form-text m-0">Marque con <strong>X</strong> a quienes asistieron. En el acta salen todos con su casilla y su línea de firma.</div>
             <button type="button" class="btn btn-outline-secondary btn-sm" id="ac-sugerir"
-                    data-url="{% url 'actas:sugerir_asistentes' acta.id %}"><i class="fas fa-user-plus me-1"></i>Traer directivos{% if acta.es_comision %} y docentes de los cursos{% endif %}</button>
+                    data-url="{% url 'actas:sugerir_asistentes' acta.id %}"><i class="fas fa-user-plus me-1"></i>{% if acta.es_comision %}Traer directores de grado y representantes{% else %}Traer directivos{% endif %}</button>
         </div>
-        {{ form.asistentes }}
-        <div class="form-text">{{ form.asistentes.help_text }}. Cada uno sale en el acta con su línea para firmar. Borre a quien no asistió.</div>
+        <div class="table-responsive">
+        <table class="table table-sm align-middle mb-2 ac-asis">
+            <thead class="table-light"><tr><th style="width:52px" class="text-center">X</th><th>Nombre</th><th>Cargo</th><th style="width:40px"></th></tr></thead>
+            <tbody id="ac-asis-filas">
+            {% for a in asistencia %}
+            <tr>
+                <td class="text-center"><input type="checkbox" class="form-check-input ac-x" name="asis_x" value="{{ forloop.counter0 }}" {% if a.asistio %}checked{% endif %}></td>
+                <td><input type="text" name="asis_nombre" class="form-control form-control-sm" value="{{ a.nombre }}" maxlength="150" placeholder="Nombre"></td>
+                <td><input type="text" name="asis_cargo" class="form-control form-control-sm" value="{{ a.cargo }}" maxlength="150" placeholder="Cargo"></td>
+                <td><button type="button" class="btn btn-link text-danger btn-sm p-0 ac-quitar" title="Quitar">✕</button></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <button type="button" class="btn btn-link btn-sm px-0" id="ac-otra"><i class="fas fa-plus me-1"></i>Agregar asistente</button>
+            <span class="small text-muted ms-auto" id="ac-cuenta"></span>
+        </div>
     </div>
 
     <div class="ac-barra">
@@ -129,18 +146,52 @@
         });
     }
     if (sede) { sede.addEventListener('change', filtrar); filtrar(); }
-    var boton = document.getElementById('ac-sugerir'), caja = document.getElementById('id_asistentes');
+    var cuerpo = document.getElementById('ac-asis-filas');
+    function renumerar() {
+        var filas = cuerpo.querySelectorAll('tr'), x = 0;
+        filas.forEach(function (tr, i) { var c = tr.querySelector('.ac-x'); c.value = i; if (c.checked) x++; });
+        document.getElementById('ac-cuenta').textContent = filas.length ? (x + ' de ' + filas.length + ' asistieron') : '';
+    }
+    function fila(a) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td class="text-center"><input type="checkbox" class="form-check-input ac-x" name="asis_x"></td>' +
+            '<td><input type="text" name="asis_nombre" class="form-control form-control-sm" maxlength="150" placeholder="Nombre"></td>' +
+            '<td><input type="text" name="asis_cargo" class="form-control form-control-sm" maxlength="150" placeholder="Cargo"></td>' +
+            '<td><button type="button" class="btn btn-link text-danger btn-sm p-0 ac-quitar" title="Quitar">✕</button></td>';
+        tr.querySelector('[name=asis_nombre]').value = a.nombre || '';
+        tr.querySelector('[name=asis_cargo]').value = a.cargo || '';
+        tr.querySelector('.ac-x').checked = !!a.asistio;
+        cuerpo.appendChild(tr);
+        return tr;
+    }
+    cuerpo.addEventListener('click', function (ev) {
+        if (ev.target.closest('.ac-quitar')) { ev.target.closest('tr').remove(); renumerar(); }
+    });
+    cuerpo.addEventListener('change', renumerar);
+    document.getElementById('ac-otra').addEventListener('click', function () {
+        fila({}).querySelector('[name=asis_nombre]').focus(); renumerar();
+    });
+    var boton = document.getElementById('ac-sugerir');
     boton.addEventListener('click', function () {
         var marcados = Array.prototype.map.call(document.querySelectorAll('input[name=cursos]:checked'), function (c) { return c.value; });
         var url = boton.dataset.url + (document.querySelector('input[name=cursos]') ? '?cursos=' + marcados.join(',') : '');
         fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(function (r) { return r.json(); })
             .then(function (d) {
-                var ya = caja.value.split('\n').map(function (l) { return l.trim().split(/\s+[—–-]\s+/)[0].toLowerCase(); });
-                var nuevos = d.texto.split('\n').filter(function (l) { return l && ya.indexOf(l.split(/\s+[—–-]\s+/)[0].toLowerCase()) < 0; });
-                caja.value = (caja.value.trim() ? caja.value.trim() + '\n' : '') + nuevos.join('\n');
+                var ya = Array.prototype.map.call(cuerpo.querySelectorAll('tr'), function (tr) {
+                    return tr.querySelector('[name=asis_cargo]').value.trim().toLowerCase() + '|' + tr.querySelector('[name=asis_nombre]').value.trim().toLowerCase();
+                });
+                var cargos = Array.prototype.map.call(cuerpo.querySelectorAll('[name=asis_cargo]'), function (i) { return i.value.trim().toLowerCase(); });
+                d.filas.forEach(function (a) {
+                    var clave = a.cargo.toLowerCase() + '|' + (a.nombre || '').toLowerCase();
+                    // Un representante sin nombre no se repite si ya está ese cargo.
+                    if (ya.indexOf(clave) >= 0 || (!a.nombre && cargos.indexOf(a.cargo.toLowerCase()) >= 0)) return;
+                    fila(a);
+                });
+                renumerar();
             });
     });
+    renumerar();
 })();
 </script>
 {% endblock %}

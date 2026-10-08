@@ -480,7 +480,7 @@ def generar_docx(examen, contenido, imagenes, lista_versiones):
                 elif tipo == 'sub':
                     r.font.subscript = True
 
-    def poner_imagen(img, base):
+    def poner_imagen(img, base, junto=False):
         if not img:
             return
         if img['id'] not in imagenes:
@@ -490,6 +490,7 @@ def generar_docx(examen, contenido, imagenes, lista_versiones):
             return
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.keep_with_next = junto
         try:
             p.add_run().add_picture(io.BytesIO(imagenes[img['id']][0]), width=int(base * img['ancho'] / 100))
         except Exception:
@@ -567,16 +568,18 @@ def generar_docx(examen, contenido, imagenes, lista_versiones):
             r.bold = True
             escribir(p, it['enunciado'])
             for img in it['imagenes']:
-                poner_imagen(img, base)
-            for letra, op in s['opciones']:
+                poner_imagen(img, base, junto=True)
+            ultima = len(s['opciones']) - 1
+            for j, (letra, op) in enumerate(s['opciones']):
                 p = doc.add_paragraph()
                 p.paragraph_format.left_indent = Cm(0.6)
-                p.paragraph_format.keep_with_next = True
+                # La pregunta no se parte entre páginas, pero tampoco se amarra a la siguiente.
+                p.paragraph_format.keep_with_next = j < ultima or bool(op.get('imagen'))
                 r = p.add_run(f'{letra}. ')
                 r.bold = True
                 escribir(p, op['texto'])
                 if op.get('imagen'):
-                    poner_imagen(op['imagen'], base * 0.9)
+                    poner_imagen(op['imagen'], base * 0.9, junto=j < ultima)
     salida = io.BytesIO()
     doc.save(salida)
     return salida.getvalue()

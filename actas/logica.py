@@ -109,29 +109,55 @@ def reabrir(acta):
     acta.save()
 
 
+def _nombres_anteriores(acta):
+    """{cargo: nombre} de las actas anteriores del colegio: los representantes se escriben una vez."""
+    nombres = {}
+    for previa in (Acta.objects.filter(colegio=acta.colegio).exclude(id=acta.id)
+                   .order_by('-ano', '-numero').only('asistencia')[:30]):
+        for a in previa.lista_asistentes():
+            if a['cargo'] and a['nombre'] and a['cargo'] not in nombres:
+                nombres[a['cargo']] = a['nombre']
+    return nombres
+
+
 def asistentes_sugeridos(acta, cursos_ids=None):
-    """Directivos del colegio y docentes de los cursos (director de grupo primero), sin repetir."""
-    from notas.models import AdministradorColegio, AsignacionDocente
+    """[{'nombre', 'cargo', 'asistio': False}] para marcar con X.
+
+    Comisión: por cada grado, el director de grado de cada curso, un
+    representante de los padres y uno de los estudiantes. Antes, los directivos.
+    Acta libre: los directivos. El nombre de un representante se toma de la
+    última acta en que se escribió para ese mismo cargo.
+    """
+    from notas.models import AdministradorColegio, Curso
+    previos = _nombres_anteriores(acta)
     vistos, salida = set(), []
 
-    def poner(user, cargo):
-        if user and user.id not in vistos:
-            vistos.add(user.id)
-            salida.append(f'{user.get_full_name() or user.username} — {cargo}')
+    def poner(nombre, cargo):
+        clave = (nombre.lower(), cargo.lower())
+        if clave in vistos:
+            return
+        vistos.add(clave)
+        salida.append({'nombre': nombre or previos.get(cargo, ''), 'cargo': cargo, 'asistio': False})
 
     for adm in (AdministradorColegio.objects.filter(colegio=acta.colegio, activo=True)
                 .select_related('user').order_by('id')):
-        poner(adm.user, adm.get_cargo_display() if hasattr(adm, 'get_cargo_display') else 'Directivo')
+        poner(adm.user.get_full_name() or adm.user.username, adm.get_cargo_display())
     if acta.es_comision:
-        from notas.models import Curso
         cursos = (Curso.objects.filter(colegio=acta.colegio, id__in=cursos_ids) if cursos_ids is not None
                   else acta.cursos.all())
-        cursos = list(cursos.select_related('director_grado__user'))
+        cursos = list(cursos.select_related('director_grado__user').order_by('grado', 'nombre'))
+        por_grado = {}
         for c in cursos:
-            if c.director_grado_id:
-                poner(c.director_grado.user, f'Director(a) de grupo {c.nombre}')
-        for a in (AsignacionDocente.objects.filter(colegio=acta.colegio, curso__in=cursos)
-                  .select_related('docente__user').order_by('docente__user__last_name')):
-            if a.docente_id:
-                poner(a.docente.user, 'Docente')
-    return '\n'.join(salida)
+            por_grado.setdefault((c.grado if c.grado is not None else 99,
+                                  c.get_grado_display() if c.grado is not None else ''), []).append(c)
+        for (_, nombre_grado), lista in sorted(por_grado.items()):
+            for c in lista:
+                if c.director_grado_id:
+                    poner(c.director_grado.user.get_full_name() or c.director_grado.user.username,
+                          f'Director(a) de grado {c.nombre}')
+                else:
+                    poner('', f'Director(a) de grado {c.nombre}')
+            sufijo = f' — {nombre_grado}' if nombre_grado else ''
+            poner('', f'Representante de padres{sufijo}')
+            poner('', f'Representante de estudiantes{sufijo}')
+    return salida

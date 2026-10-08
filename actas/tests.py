@@ -79,23 +79,33 @@ class Actas(ColegioDePrueba):
         datos = {'titulo': 'Comisión grado sexto', 'fecha': '2026-04-05', 'lugar': 'Biblioteca',
                  'periodo': self.p1.id, 'alcance': 'PERIODO', 'cursos': [self.curso.id], 'mostrar_observador': 'on',
                  'orden_del_dia': 'Saludo\nCasos', 'desarrollo': 'Se revisaron los casos.',
-                 'decisiones': 'Citar acudientes', 'asistentes': 'Rosa Rector — Rectora\nPedro Profe — Docente'}
+                 'decisiones': 'Citar acudientes',
+                 'asis_nombre': ['Rosa Rector', 'Pedro Profe', 'Marta Díaz'],
+                 'asis_cargo': ['Rectora', 'Director(a) de grado 601', 'Representante de padres — Sexto'],
+                 'asis_x': ['0', '2']}
         r = c.post(f'/actas/{acta.id}/', datos)
         self.assertEqual(r.status_code, 302)
         r = c.get(f'/actas/{acta.id}/')
         self.assertContains(r, 'PRUEBA ANA')
-        sugeridos = c.get(f'/actas/{acta.id}/sugerir-asistentes/').json()['texto']
-        self.assertIn('Rosa Rector', sugeridos)
-        self.assertIn('Pedro Profe', sugeridos)
+        acta.refresh_from_db()
+        self.assertEqual([a['asistio'] for a in acta.lista_asistentes()], [True, False, True])
+        # La siguiente acta trae el nombre del representante que ya se escribió.
+        otra = self._acta(numero=9)
+        filas = c.get(f'/actas/{otra.id}/sugerir-asistentes/').json()['filas']
+        cargos = {f['cargo']: f['nombre'] for f in filas}
+        self.assertEqual(cargos['Representante de padres — Sexto'], 'Marta Díaz')
+        self.assertEqual(cargos['Representante de estudiantes — Sexto'], '')
+        self.assertEqual(cargos['Director(a) de grado 601'], 'Pedro Profe')
+        self.assertIn('Rosa Rector', cargos.values())
         r = c.get(f'/actas/{acta.id}/pdf/')
         self.assertEqual(r['Content-Type'], 'application/pdf')
         c.post(f'/actas/{acta.id}/cerrar/')
         acta.refresh_from_db()
         self.assertTrue(acta.cerrada)
         self.assertContains(c.get(f'/actas/{acta.id}/'), 'PDF para firmar')
-        # La segunda del año es la N.º 2
+        # La siguiente del año toma el número que sigue (ya hay una N.º 9)
         c.post('/actas/nueva/LIBRE/')
-        self.assertEqual(Acta.objects.filter(colegio=self.a, tipo=Acta.LIBRE).get().numero, 2)
+        self.assertEqual(Acta.objects.filter(colegio=self.a, tipo=Acta.LIBRE).get().numero, 10)
 
     def test_comision_exige_cursos(self):
         acta = self._acta()
@@ -108,14 +118,17 @@ class Actas(ColegioDePrueba):
         acta = self._acta()
         acta.cursos.clear()
         c = self.cliente(self.rectora)
-        self.assertNotIn('Pedro Profe', c.get(f'/actas/{acta.id}/sugerir-asistentes/').json()['texto'])
-        texto = c.get(f'/actas/{acta.id}/sugerir-asistentes/?cursos={self.curso.id}').json()['texto']
-        self.assertIn('Pedro Profe — Director(a) de grupo 601', texto)
+        nombres = [f['nombre'] for f in c.get(f'/actas/{acta.id}/sugerir-asistentes/').json()['filas']]
+        self.assertNotIn('Pedro Profe', nombres)
+        filas = c.get(f'/actas/{acta.id}/sugerir-asistentes/?cursos={self.curso.id}').json()['filas']
+        self.assertIn({'nombre': 'Pedro Profe', 'cargo': 'Director(a) de grado 601', 'asistio': False}, filas)
 
     def test_asistentes_y_firmas(self):
-        acta = self._acta(asistentes='Rosa Rector — Rectora\nPedro Profe - Docente\nSin cargo')
-        self.assertEqual(acta.lista_asistentes(),
-                         [('Rosa Rector', 'Rectora'), ('Pedro Profe', 'Docente'), ('Sin cargo', '')])
+        acta = self._acta(asistencia=[{'nombre': 'Rosa', 'cargo': 'Rectora', 'asistio': True},
+                                      {'nombre': '', 'cargo': '', 'asistio': True}, 'basura',
+                                      {'nombre': 'Luis', 'cargo': 'Representante de estudiantes', 'asistio': False}])
+        self.assertEqual(len(acta.lista_asistentes()), 2)
+        self.assertEqual(acta.cuantos_asistieron, 1)
 
     def test_solo_administradores_y_de_su_colegio(self):
         acta = self._acta()
