@@ -6,6 +6,8 @@ from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django.db.models import Prefetch
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.formats import date_format
 from django.template.loader import render_to_string
 
 
@@ -70,6 +72,33 @@ def _buscar_estatico(nombre_sin_extension, carpeta='img'):
     return None, aviso
 
 
+def _contexto_diseno(request, colegio):
+    """Qué diseño se dibuja y, para los diseños nuevos, lo que va en la página de inicio.
+
+    Un administrador del colegio puede probar un diseño sin guardarlo con
+    ?diseno=portada; los visitantes siempre ven el que está guardado.
+    """
+    from ..permisos import es_admin_colegio
+    validos = {c for c, _ in Colegio.LAYOUT_CHOICES}
+    diseno = colegio.layout_portal if colegio.layout_portal in validos else 'topbar'
+    probando = request.GET.get('diseno')
+    vista_previa = False
+    if probando in validos and request.user.is_authenticated and es_admin_colegio(request.user, colegio):
+        diseno, vista_previa = probando, probando != colegio.layout_portal
+    ctx = {'diseno': diseno, 'vista_previa': vista_previa}
+    if diseno in Colegio.DISENOS_CON_INICIO:
+        noticias = list(Noticia.objects.filter(colegio=colegio, estado='PUBLICADO')
+                        .select_related('autor').order_by('-fecha_publicacion')[:6])
+        ctx['inicio'] = {
+            'carrusel': list(ImagenCarrusel.objects.filter(colegio=colegio, visible=True).order_by('orden')[:8]),
+            'noticias': noticias,
+            'fotos': list(FotoGaleria.objects.filter(colegio=colegio).order_by('-fecha_subida')[:8]),
+            'n_documentos': DocumentoPublico.objects.filter(colegio=colegio).count(),
+            'sedes': list(colegio.sedes.filter(activa=True)[:6]),
+        }
+    return ctx
+
+
 def portal_vista(request):
     """
     Renderiza el portal público.
@@ -95,7 +124,7 @@ def portal_vista(request):
             else:
                 messages.error(request, "Usuario o contraseña incorrectos.")
         
-        context = {'colegio': colegio_actual}
+        context = {'colegio': colegio_actual, **_contexto_diseno(request, colegio_actual)}
         return render(request, 'notas/portal.html', context)
     else:
         todos_los_colegios = Colegio.objects.all()
@@ -195,8 +224,11 @@ def noticias_json(request):
         return JsonResponse({'error': 'Colegio no encontrado'}, status=404)
     noticias = Noticia.objects.filter(colegio=request.colegio, estado='PUBLICADO').order_by('-fecha_publicacion')[:5]
     data = [
-        {'pk': n.pk, 'titulo': n.titulo, 'resumen': n.resumen, 'url_imagen': n.imagen_portada.url if n.imagen_portada else '', 'fecha': n.fecha_publicacion.strftime('%d de %B, %Y')}
-        for n in noticias
+        {'pk': n.pk, 'titulo': n.titulo, 'resumen': n.resumen, 'url_imagen': n.imagen_portada.url if n.imagen_portada else '',
+         # date_format usa el idioma del sitio (octubre, no October); strftime no.
+         'fecha': date_format(timezone.localtime(n.fecha_publicacion), 'j \\d\\e F \\d\\e Y'),
+         'autor': (n.autor.get_full_name() or n.autor.username) if n.autor_id else 'el colegio'}
+        for n in noticias.select_related('autor')
     ]
     return JsonResponse(data, safe=False)
 

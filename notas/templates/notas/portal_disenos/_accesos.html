@@ -1,0 +1,9 @@
+{# Accesos rápidos: los mismos en todos los diseños, cada uno los pinta a su manera. #}
+{% if colegio.prematricula.esta_abierta %}
+<a class="pd-acceso pd-acceso-fuerte" href="{% url 'prematricula:inicio' %}"><i class="fas fa-file-signature"></i><span>Prematrícula {{ colegio.prematricula.ano_lectivo }}</span></a>
+{% endif %}
+<a class="pd-acceso" href="#" data-action="noticias"><i class="fas fa-newspaper"></i><span>Noticias</span></a>
+<a class="pd-acceso" href="#" data-action="galeria"><i class="fas fa-images"></i><span>Galería</span></a>
+<a class="pd-acceso" href="#" data-action="documentos"><i class="fas fa-folder-open"></i><span>Documentos</span></a>
+{% if inicio.sedes %}<a class="pd-acceso" href="#" data-action="sedes"><i class="fas fa-school"></i><span>Sedes</span></a>{% endif %}
+<a class="pd-acceso" href="#" data-action="directorio"><i class="fas fa-chalkboard-teacher"></i><span>Docentes</span></a>

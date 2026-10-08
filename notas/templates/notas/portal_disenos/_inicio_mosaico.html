@@ -1,0 +1,43 @@
+<section class="pd-seccion"><div class="container">
+<div class="pd-bento">
+    {% with n=inicio.noticias.0 fondo=inicio.carrusel.0 %}
+    {% if n %}
+        <a href="#" class="pd-celda c-2x2 c-foto noticia-link" data-pk="{{ n.pk }}"
+           style="background-image:url('{% if n.imagen_portada %}{{ n.imagen_portada.url }}{% elif fondo %}{{ fondo.imagen.url }}{% endif %}');{% if not n.imagen_portada and not fondo %}background:var(--pd-top);{% endif %}">
+            <small class="text-uppercase fw-bold">Noticia destacada · {{ n.fecha_publicacion|date:"j M Y" }}</small>
+            <h3 style="font-size:1.6rem;">{{ n.titulo }}</h3>
+            <small>{{ n.resumen|truncatechars:120 }}</small>
+        </a>
+    {% elif fondo %}
+        <div class="pd-celda c-2x2 c-foto" style="background-image:url('{{ fondo.imagen.url }}')"><h3 style="font-size:1.6rem;">{{ fondo.titulo|default:colegio.nombre }}</h3><small>{{ fondo.subtitulo }}</small></div>
+    {% else %}
+        <div class="pd-celda c-2x2 c-t"><i class="fas fa-school pd-icono"></i><h3 style="font-size:1.6rem;">{{ colegio.nombre }}</h3><small>{{ colegio.lema|default:"" }}</small></div>
+    {% endif %}
+    {% endwith %}
+    <div class="pd-celda c-2x1 c-p">
+        <span class="pd-icono">{% include "notas/portal_disenos/_escudo.html" with clase="pd-escudo" %}</span>
+        <small>Bienvenidos a</small><h3 style="font-size:1.5rem;">{{ colegio.nombre }}</h3>{% if colegio.lema %}<small><em>«{{ colegio.lema }}»</em></small>{% endif %}
+    </div>
+    {% if colegio.prematricula.esta_abierta %}
+        <a href="{% url 'prematricula:inicio' %}" class="pd-celda c-s"><i class="fas fa-file-signature pd-icono"></i><small>Abierta</small><h3>Prematrícula {{ colegio.prematricula.ano_lectivo }}</h3></a>
+    {% else %}
+        <a href="#" data-action="historia" class="pd-celda c-s"><i class="fas fa-landmark pd-icono"></i><small>Conózcanos</small><h3>Nuestra historia</h3></a>
+    {% endif %}
+    <a href="#" data-action="documentos" class="pd-celda c-claro"><i class="fas fa-folder-open pd-icono" style="color:var(--pd-p)"></i>
+        <span class="pd-cifra" style="color:var(--pd-p)">{{ inicio.n_documentos }}</span><h3>Documentos</h3></a>
+    {% if inicio.fotos %}
+        <a href="#" data-action="galeria" class="pd-celda c-2x1 c-foto" style="padding:0;">
+            <div class="pd-mini-galeria">{% for f in inicio.fotos|slice:":4" %}<span style="background-image:url('{{ f.imagen.url }}')"></span>{% endfor %}</div>
+            <div class="pd-galeria-texto"><h3>Galería</h3><small>Vida escolar en imágenes</small></div></a>
+    {% else %}
+        <a href="#" data-action="galeria" class="pd-celda c-2x1 c-claro"><i class="fas fa-images pd-icono" style="color:var(--pd-p)"></i><h3>Galería</h3></a>
+    {% endif %}
+    <a href="#" data-action="mision" class="pd-celda c-t"><i class="fas fa-bullseye pd-icono"></i><h3>Misión y visión</h3></a>
+    <a href="#" data-action="{% if inicio.sedes %}sedes{% else %}directorio{% endif %}" class="pd-celda"><i class="fas fa-{% if inicio.sedes %}school{% else %}chalkboard-teacher{% endif %} pd-icono" style="color:var(--pd-p)"></i>
+        {% if inicio.sedes %}<span class="pd-cifra" style="color:var(--pd-p)">{{ inicio.sedes|length }}</span><h3>Sede{{ inicio.sedes|length|pluralize }}</h3>{% else %}<h3>Docentes</h3>{% endif %}</a>
+    {% for n in inicio.noticias|slice:"1:3" %}
+        <a href="#" class="pd-celda c-2x1 noticia-link" data-pk="{{ n.pk }}"><small style="color:var(--pd-p);font-weight:700;">{{ n.fecha_publicacion|date:"j M Y" }}</small>
+            <h3>{{ n.titulo|truncatechars:70 }}</h3><small style="color:#6b7280;">{{ n.resumen|truncatechars:90 }}</small></a>
+    {% endfor %}
+</div>
+</div></section>

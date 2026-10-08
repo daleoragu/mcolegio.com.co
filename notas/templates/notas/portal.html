@@ -3,8 +3,31 @@
 
 {% block portal_content %}
 
+{% if vista_previa %}
+<div class="pd-vista-previa"><div class="container d-flex flex-wrap align-items-center gap-2">
+    <span><i class="fas fa-eye me-1"></i> Vista previa de un diseño: solo usted la ve, el portal sigue con el diseño guardado.</span>
+    <form method="post" action="{% url 'notas:elegir_diseno_portal' %}" class="ms-auto d-flex gap-2">
+        {% csrf_token %}<input type="hidden" name="diseno" value="{{ diseno }}">
+        <a href="{% url 'notas:personalizacion_portal' %}" class="btn btn-sm btn-outline-light">Volver</a>
+        <button class="btn btn-sm btn-light fw-bold">Usar este diseño</button>
+    </form>
+</div></div>
+{% endif %}
+
+{% if inicio %}
+    {# Diseños nuevos: cabecera, inicio y pie propios; las secciones del menú se cargan igual que en los demás. #}
+    {% include "notas/portal_disenos/_cabecera_"|add:diseno|add:".html" %}
+    <main class="flex-grow-1">
+        {% if messages %}<div class="container mt-3">{% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">{{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>{% endfor %}</div>{% endif %}
+        {% include "notas/portal_disenos/_contenido.html" %}
+    </main>
+    {% include "notas/portal_disenos/_pie.html" %}
+{% else %}
+
     {# El header solo se muestra si el diseño es 'topbar'. Si es 'sidebar', el menú ya está en la base. #}
-    {% if colegio.layout_portal == 'topbar' or not colegio.layout_portal %}
+    {% if diseno == 'topbar' or not diseno %}
         {% include "notas/portal_components/_portal_header.html" %}
     {% else %}
         {# En modo sidebar, el header se convierte en un botón para abrir el menú en móviles #}
@@ -37,5 +60,6 @@
     </main>
     
     {% include "notas/portal_components/_portal_footer.html" %}
+{% endif %}
 
 {% endblock portal_content %}

@@ -1,0 +1,12 @@
+<nav class="navbar navbar-expand-lg pd-nav pd-minimal-nav sticky-top py-0">
+    <div class="container">
+        <a class="navbar-brand d-flex align-items-center gap-2 py-3" href="#" data-action="inicio">
+            {% include "notas/portal_disenos/_escudo.html" %}<span>{{ colegio.nombre|truncatewords:6 }}</span></a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#pdMenu" aria-controls="pdMenu" aria-expanded="false" aria-label="Menú">
+            <i class="fas fa-bars"></i></button>
+        <div class="collapse navbar-collapse" id="pdMenu">
+            <ul class="navbar-nav ms-auto align-items-lg-center">{% include "notas/portal_disenos/_menu.html" %}</ul>
+            <div class="ms-lg-3 my-2 my-lg-0">{% include "notas/portal_components/_portal_login_form.html" %}</div>
+        </div>
+    </div>
+</nav>

@@ -40,10 +40,14 @@ def personalizacion_portal_vista(request):
     else:
         form = ColegioPersonalizacionForm(instance=colegio)
 
+    from ..models import Colegio
     context = {
         'form': form,
         'page_title': 'Personalizar Apariencia y Contenido del Portal',
-        'colegio': colegio
+        'colegio': colegio,
+        # (valor, nombre corto, descripción) para el selector visual de diseños
+        'disenos': [(v, n.split(':')[0], n.split(':', 1)[1].strip() if ':' in n else '')
+                    for v, n in Colegio.LAYOUT_CHOICES],
     }
     return render(request, 'notas/admin_portal/personalizacion_portal.html', context)
 
@@ -259,3 +263,20 @@ def eliminar_imagen_carrusel_vista(request, pk):
         imagen.delete()
         messages.success(request, 'Imagen eliminada del carrusel.')
     return redirect('notas:gestion_carrusel')
+
+
+@user_passes_test(es_admin_usuario)
+def elegir_diseno_portal_vista(request):
+    """Guarda el diseño del portal desde la vista previa («Usar este diseño»)."""
+    from ..models import Colegio
+    from ..permisos import es_admin_colegio
+    colegio = request.colegio
+    if not colegio or request.method != 'POST' or not es_admin_colegio(request.user, colegio):
+        return redirect('notas:personalizacion_portal')
+    diseno = request.POST.get('diseno')
+    nombres = dict(Colegio.LAYOUT_CHOICES)
+    if diseno in nombres:
+        colegio.layout_portal = diseno
+        colegio.save(update_fields=['layout_portal'])
+        messages.success(request, f'El portal ahora usa el diseño «{nombres[diseno].split(":")[0]}».')
+    return redirect('notas:portal')

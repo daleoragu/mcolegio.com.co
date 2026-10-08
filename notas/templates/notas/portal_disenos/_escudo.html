@@ -1,0 +1,1 @@
+{% load static %}{% if colegio.escudo %}<img src="{{ colegio.escudo.url }}" alt="Escudo de {{ colegio.nombre }}" class="{{ clase|default:'pd-escudo' }}">{% else %}<span class="{{ clase|default:'pd-escudo' }} pd-escudo-vacio"><i class="fas fa-school"></i></span>{% endif %}

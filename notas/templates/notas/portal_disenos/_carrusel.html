@@ -1,0 +1,22 @@
+{# Carrusel del colegio (Configuración del portal → Carrusel). #}
+{% if inicio.carrusel %}
+<div id="pdCarrusel" class="carousel slide pd-carrusel {{ clase }}" data-bs-ride="carousel">
+    {% if inicio.carrusel|length > 1 %}<div class="carousel-indicators">
+        {% for img in inicio.carrusel %}<button type="button" data-bs-target="#pdCarrusel" data-bs-slide-to="{{ forloop.counter0 }}" {% if forloop.first %}class="active"{% endif %}></button>{% endfor %}
+    </div>{% endif %}
+    <div class="carousel-inner">
+        {% for img in inicio.carrusel %}
+        <div class="carousel-item {% if forloop.first %}active{% endif %}">
+            <div class="pd-carrusel-img" style="background-image:url('{{ img.imagen.url }}')"></div>
+            {% if img.titulo or img.subtitulo %}
+            <div class="pd-carrusel-texto"><h2>{{ img.titulo }}</h2>{% if img.subtitulo %}<p>{{ img.subtitulo }}</p>{% endif %}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% if inicio.carrusel|length > 1 %}
+    <button class="carousel-control-prev" type="button" data-bs-target="#pdCarrusel" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button>
+    <button class="carousel-control-next" type="button" data-bs-target="#pdCarrusel" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>
+    {% endif %}
+</div>
+{% endif %}

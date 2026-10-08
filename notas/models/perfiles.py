@@ -26,9 +26,16 @@ class Colegio(models.Model):
     ]
 
     LAYOUT_CHOICES = [
-        ('topbar', 'Diseño Clásico (Barra de Navegación Superior)'),
-        ('sidebar', 'Diseño Moderno (Barra de Navegación Lateral)'),
+        ('topbar', 'Clásico: barra de navegación superior'),
+        ('sidebar', 'Lateral: menú a la izquierda'),
+        ('franja', 'Institucional: franja de contacto y menú centrado'),
+        ('portada', 'Portada: imagen grande de bienvenida'),
+        ('mosaico', 'Mosaico: bloques de colores en la página de inicio'),
+        ('minimal', 'Minimalista: limpio y con mucho espacio'),
+        ('revista', 'Revista: noticias destacadas como un periódico'),
     ]
+    # Los diseños con página de inicio armada en el servidor (los nuevos).
+    DISENOS_CON_INICIO = ('franja', 'portada', 'mosaico', 'minimal', 'revista')
 
     # --- Campos de Identificación ---
     nombre = models.CharField(max_length=255, unique=True, verbose_name="Nombre del Colegio")

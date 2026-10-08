@@ -15,7 +15,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorAlert = (message) => `<div class="alert alert-danger text-center">${message}</div>`;
     
     // --- Funciones de Gestión de Vistas ---
+    // En los diseños nuevos la página de inicio viene armada desde el servidor:
+    // «Inicio» solo la vuelve a mostrar, sin pedir el carrusel.
+    const inicioDelServidor = defaultContentContainer.dataset.servidor === '1';
+    const envoltura = document.getElementById('portalWrapper');
+    function marcarInicio(enInicio) {
+        if (envoltura) envoltura.classList.toggle('pd-en-inicio', enInicio && inicioDelServidor);
+    }
+    function mostrarInicio() {
+        defaultContentContainer.classList.remove('d-none');
+        dynamicContentContainer.classList.add('d-none');
+        dynamicContentBody.innerHTML = '';
+        marcarInicio(true);
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
     function showDefaultView(content) {
+        marcarInicio(true);
         defaultContentContainer.innerHTML = content;
         defaultContentContainer.classList.remove('d-none');
         dynamicContentContainer.classList.add('d-none');
@@ -23,6 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showDynamicView(content) {
+        marcarInicio(false);
         defaultContentContainer.classList.add('d-none');
         dynamicContentContainer.classList.remove('d-none');
         dynamicContentBody.innerHTML = content;
@@ -163,7 +180,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Objeto de Acciones ---
     const actions = {
-        'inicio': () => fetchAndShowJSON(DJANGO_URLS.carrusel, renderCarrusel),
+        'inicio': () => inicioDelServidor ? mostrarInicio() : fetchAndShowJSON(DJANGO_URLS.carrusel, renderCarrusel),
         'noticias': () => fetchAndShowJSON(DJANGO_URLS.noticias, renderNoticias),
         'historia': () => fetchAndShow(DJANGO_URLS.historia),
         'sedes': () => fetchAndShow(DJANGO_URLS.sedes),
@@ -204,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // --- Carga Inicial ---
-    if (actions.inicio) {
+    if (actions.inicio && !inicioDelServidor) {
         actions.inicio();
     }
 });

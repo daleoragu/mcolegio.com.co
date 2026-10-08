@@ -1,0 +1,53 @@
+{# Selector visual del diseño del portal: miniaturas con los colores del colegio. #}
+<style>
+    .sd-lista { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
+    .sd-op { border:2px solid #e3e6ec; border-radius:12px; padding:10px; cursor:pointer; background:#fff; display:block; margin:0; transition:border-color .15s; }
+    .sd-op:hover { border-color:#b6c2d6; }
+    .sd-op input { position:absolute; opacity:0; }
+    .sd-op:has(input:checked) { border-color:{{ colegio.color_primario }}; box-shadow:0 0 0 3px color-mix(in srgb, {{ colegio.color_primario }} 25%, transparent); }
+    .sd-mini { height:116px; border-radius:7px; overflow:hidden; background:{{ colegio.color_fondo|default:'#f8f9fa' }}; border:1px solid #eef0f3;
+               display:flex; flex-direction:column; gap:3px; font-size:0; position:relative; }
+    .sd-mini i { display:block; }
+    .sd-t { background:{{ colegio.color_topbar }}; } .sd-p { background:{{ colegio.color_primario }}; }
+    .sd-s { background:{{ colegio.color_secundario }}; } .sd-f { background:{{ colegio.color_footer }}; }
+    .sd-w { background:#fff; } .sd-g { background:#dfe3ea; }
+    .sd-nombre { font-weight:700; font-size:.92rem; margin-top:8px; display:block; }
+    .sd-desc { font-size:.78rem; color:#6b7280; display:block; min-height:2.4em; }
+    .sd-prev { font-size:.8rem; }
+</style>
+<label class="form-label fw-bold">Diseño del portal</label>
+<p class="text-muted" style="font-size:.88rem;">Todos usan el escudo y los colores del colegio. Use «Ver» para probarlo en su portal antes de guardarlo.</p>
+<div class="sd-lista">
+{% for valor, nombre, desc in disenos %}
+    <label class="sd-op">
+        <input type="radio" name="layout_portal" value="{{ valor }}" {% if form.layout_portal.value == valor %}checked{% endif %}>
+        <div class="sd-mini">
+        {% if valor == 'topbar' %}
+            <i class="sd-w" style="height:16px"></i><i class="sd-t" style="height:10px"></i><i class="sd-g" style="height:46px;margin:6px 10px;border-radius:4px"></i><i class="sd-f" style="height:14px;margin-top:auto"></i>
+        {% elif valor == 'sidebar' %}
+            <div style="display:flex;height:100%"><i class="sd-t" style="width:34px"></i><div style="flex:1;padding:8px;display:flex;flex-direction:column;gap:5px"><i class="sd-g" style="height:40px;border-radius:4px"></i><i class="sd-w" style="height:22px;border-radius:4px"></i></div></div>
+        {% elif valor == 'franja' %}
+            <i class="sd-t" style="height:5px;filter:brightness(.7)"></i><i class="sd-w" style="height:22px"></i><i class="sd-t" style="height:8px"></i><i class="sd-p" style="height:30px"></i>
+            <div style="display:flex;gap:4px;padding:0 10px;margin-top:-10px"><i class="sd-w" style="flex:1;height:16px;border-radius:3px;box-shadow:0 1px 3px #0002"></i><i class="sd-w" style="flex:1;height:16px;border-radius:3px;box-shadow:0 1px 3px #0002"></i><i class="sd-w" style="flex:1;height:16px;border-radius:3px;box-shadow:0 1px 3px #0002"></i></div>
+            <i class="sd-f" style="height:12px;margin-top:auto"></i>
+        {% elif valor == 'portada' %}
+            <div class="sd-p" style="height:76px;position:relative;background:linear-gradient(135deg,{{ colegio.color_primario }},{{ colegio.color_topbar }})"><i class="sd-w" style="position:absolute;left:35%;top:22px;width:30%;height:8px;border-radius:4px;opacity:.9"></i><i class="sd-w" style="position:absolute;left:42%;top:38px;width:16%;height:8px;border-radius:4px;opacity:.6"></i></div>
+            <div style="display:flex;gap:4px;padding:0 10px;margin-top:-12px"><i class="sd-w" style="flex:1;height:22px;border-radius:3px;box-shadow:0 1px 3px #0002"></i><i class="sd-w" style="flex:1;height:22px;border-radius:3px;box-shadow:0 1px 3px #0002"></i><i class="sd-w" style="flex:1;height:22px;border-radius:3px;box-shadow:0 1px 3px #0002"></i></div>
+        {% elif valor == 'mosaico' %}
+            <i class="sd-t" style="height:10px"></i>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:26px;gap:4px;padding:6px"><i class="sd-g" style="grid-column:span 2;grid-row:span 2;border-radius:4px"></i><i class="sd-p" style="grid-column:span 2;border-radius:4px"></i><i class="sd-s" style="border-radius:4px"></i><i class="sd-w" style="border-radius:4px"></i><i class="sd-t" style="border-radius:4px"></i><i class="sd-w" style="grid-column:span 2;border-radius:4px"></i><i class="sd-w" style="border-radius:4px"></i></div>
+        {% elif valor == 'minimal' %}
+            <i class="sd-w" style="height:12px;border-bottom:1px solid #e5e7eb"></i>
+            <div style="padding:12px 12px 0;display:flex;flex-direction:column;gap:6px"><i class="sd-p" style="height:4px;width:22%"></i><i style="height:10px;width:80%;background:#374151"></i><i style="height:10px;width:60%;background:#374151"></i><i class="sd-g" style="height:5px;width:70%"></i><i class="sd-g" style="height:5px;width:62%"></i></div>
+        {% elif valor == 'revista' %}
+            <div class="sd-w" style="height:30px;display:flex;align-items:center;justify-content:center;border-bottom:3px double {{ colegio.color_primario }}"><i style="height:9px;width:62%;background:#111827"></i></div>
+            <i class="sd-p" style="height:6px"></i>
+            <div style="display:flex;gap:5px;padding:6px"><i class="sd-g" style="flex:2;height:50px"></i><div style="flex:1;display:flex;flex-direction:column;gap:4px"><i class="sd-w" style="height:14px"></i><i class="sd-w" style="height:14px"></i><i class="sd-w" style="height:14px"></i></div></div>
+        {% endif %}
+        </div>
+        <span class="sd-nombre">{{ nombre }}</span>
+        <span class="sd-desc">{{ desc }}</span>
+        <a class="sd-prev" href="{% url 'notas:portal' %}?diseno={{ valor }}" target="_blank" rel="noopener">Ver en mi portal <i class="fas fa-up-right-from-square"></i></a>
+    </label>
+{% endfor %}
+</div>

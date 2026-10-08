@@ -1,0 +1,28 @@
+<div class="pd-franja-top d-none d-md-block">
+    <div class="container d-flex justify-content-between align-items-center">
+        <div>
+            {% if colegio.telefono %}<span><i class="fas fa-phone me-1"></i>{{ colegio.telefono }}</span>{% endif %}
+            {% if colegio.email_contacto %}<span><i class="fas fa-envelope me-1"></i>{{ colegio.email_contacto }}</span>{% endif %}
+            {% if colegio.ciudad %}<span><i class="fas fa-location-dot me-1"></i>{{ colegio.ciudad }}{% if colegio.departamento %}, {{ colegio.departamento }}{% endif %}</span>{% endif %}
+        </div>
+        <div>{% include "notas/portal_disenos/_redes.html" %}</div>
+    </div>
+</div>
+<header class="pd-franja-cabeza">
+    <div class="container position-relative">
+        <a href="#" data-action="inicio" class="text-decoration-none">{% include "notas/portal_disenos/_escudo.html" %}
+            <h1>{{ colegio.nombre }}</h1></a>
+        {% if colegio.lema %}<em>«{{ colegio.lema }}»</em>{% endif %}
+        <div class="position-absolute top-0 end-0 d-none d-lg-block pe-3">{% include "notas/portal_components/_portal_login_form.html" %}</div>
+    </div>
+</header>
+<nav class="navbar navbar-expand-lg pd-nav pd-franja-nav sticky-top" data-bs-theme="dark">
+    <div class="container">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#pdMenu" aria-controls="pdMenu" aria-expanded="false" aria-label="Menú">
+            <i class="fas fa-bars me-1"></i> MENÚ</button>
+        <div class="d-lg-none">{% include "notas/portal_components/_portal_login_form.html" %}</div>
+        <div class="collapse navbar-collapse justify-content-center" id="pdMenu">
+            <ul class="navbar-nav align-items-lg-center">{% include "notas/portal_disenos/_menu.html" %}</ul>
+        </div>
+    </div>
+</nav>

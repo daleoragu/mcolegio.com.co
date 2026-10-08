@@ -26,8 +26,8 @@
                             <div class="row">
                                 <div class="col-md-6 mb-3">{{ form.escudo|as_crispy_field }}</div>
                                 <div class="col-md-6 mb-3">{{ form.favicon|as_crispy_field }}</div>
-                                <div class="col-md-6 mb-3">{{ form.layout_portal|as_crispy_field }}</div>
                                 <div class="col-md-6 mb-3 align-self-center">{{ form.portal_publico_activo|as_crispy_field }}</div>
+                                <div class="col-12 mb-3">{% include "notas/portal_disenos/_selector.html" %}</div>
                             </div>
                         </div>
                     </div>
