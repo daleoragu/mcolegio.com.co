@@ -59,6 +59,10 @@ class RegistroObservador(models.Model):
     descargo_estudiante = models.TextField(verbose_name="Descargo del Estudiante", blank=True, null=True)
     fecha_descargo = models.DateTimeField(null=True, blank=True)
     notificado_a_estudiante = models.BooleanField(default=False)
+    # Respuesta del acudiente desde el enlace del correo (sin usuario).
+    acudiente_enterado = models.DateTimeField(null=True, blank=True, verbose_name="Acudiente enterado el")
+    firma_acudiente = models.CharField(max_length=160, blank=True, default='', verbose_name="Quién firmó como enterado")
+    descargo_acudiente = models.TextField(blank=True, default='', verbose_name="Descargo o comentario del acudiente")
 
     def __str__(self):
         return f"Observación para {self.estudiante} del {self.fecha_suceso}"

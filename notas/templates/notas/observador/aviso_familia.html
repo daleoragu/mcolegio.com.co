@@ -25,12 +25,19 @@
             <p class="text-muted mb-3" style="font-size:.9rem;">
                 {{ registro.get_tipo_display }}{% if registro.subtipo %} · {{ registro.get_subtipo_display }}{% endif %}
                 · {{ registro.fecha_suceso|date:"d/m/Y" }}</p>
-            <label class="form-label fw-bold">Mensaje para la familia</label>
-            <div class="af-mensaje">{{ texto }}</div>
+            {% if registro.acudiente_enterado %}
+            <div class="alert alert-success py-2" style="font-size:.92rem;">
+                <i class="fas fa-check-circle me-1"></i><strong>{{ registro.firma_acudiente }}</strong> se dio por enterado(a)
+                el {{ registro.acudiente_enterado|date:"d/m/Y h:i a" }}.
+                {% if registro.descargo_acudiente %}<div class="mt-1"><em>«{{ registro.descargo_acudiente|linebreaksbr }}»</em></div>{% endif %}
+            </div>
+            {% endif %}
+            <label class="form-label fw-bold" for="af-texto">Mensaje para WhatsApp</label>
+            <textarea id="af-texto" class="form-control af-mensaje" rows="6" style="max-width:none;">{{ texto }}</textarea>
             <p class="text-muted mt-2 mb-0" style="font-size:.84rem;">
-                <i class="fas fa-lock me-1"></i>No incluye la descripción de lo ocurrido: un mensaje al celular
-                se reenvía y se ve en la pantalla bloqueada, y la descripción puede nombrar a otros estudiantes.
-                El acudiente la consulta en la plataforma.</p>
+                Puede ajustar el texto antes de enviarlo. Lleva el motivo que escribió el docente: revise que no
+                aparezcan nombres de otros estudiantes. El correo lleva además un enlace personal para que el
+                acudiente se dé por enterado y escriba su descargo.</p>
         </div>
     </div>
 
@@ -41,7 +48,7 @@
             <div class="af-contacto">
                 <span class="rol">{{ c.rol }}</span>
                 <span class="flex-grow-1">{{ c.nombre|default:"" }} <span class="text-muted">{{ c.visible }}</span></span>
-                <a href="{{ c.enlace }}" target="_blank" rel="noopener" class="btn btn-sm af-wa">
+                <a href="{{ c.enlace }}" data-numero="{{ c.numero }}" target="_blank" rel="noopener" class="btn btn-sm af-wa">
                     <i class="fab fa-whatsapp me-1"></i>Enviar</a>
             </div>
             {% empty %}
@@ -74,4 +81,15 @@
     <a href="{% url 'notas:vista_detalle_observador' estudiante.id %}" class="btn btn-secondary">
         <i class="fas fa-arrow-left me-1"></i> Volver al observador</a>
 </div>
+<script>
+// Los botones de WhatsApp toman el texto tal como quede en la casilla.
+(function () {
+    var caja = document.getElementById('af-texto');
+    document.querySelectorAll('a.af-wa').forEach(function (a) {
+        a.addEventListener('click', function () {
+            a.href = 'https://wa.me/' + a.dataset.numero + '?text=' + encodeURIComponent(caja.value.trim());
+        });
+    });
+})();
+</script>
 {% endblock %}
