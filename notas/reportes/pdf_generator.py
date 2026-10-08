@@ -5,6 +5,11 @@ from django.template.loader import render_to_string
 from .base_generator import BaseReportGenerator
 from .utils import get_meses_for_periodo, get_asistencia_data_for_report
 
+# El servidor no tiene locale en español: strftime('%B') saldría en inglés.
+MESES_ES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
+            'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+
 try:
     from weasyprint import HTML
     PDF_SUPPORT = True
@@ -35,7 +40,7 @@ class AsistenciaPDFGenerator(BaseReportGenerator):
             meses_a_procesar = [mes[0] for mes in meses_tuplas]
 
         for mes_num in meses_a_procesar:
-            nombre_mes_str = datetime.date(periodo.fecha_inicio.year, mes_num, 1).strftime('%B').capitalize()
+            nombre_mes_str = MESES_ES[mes_num]
             nombre_completo = f"{nombre_mes_str} {periodo.fecha_inicio.year}"
             
             estudiantes, fechas, resumen = get_asistencia_data_for_report(asignacion, periodo, mes_num)

@@ -11,6 +11,11 @@ from .base_generator import BaseReportGenerator
 # --- CORRECCIÓN: Se importa la función específica para la plantilla ---
 from .utils import get_meses_for_periodo, get_asistencia_data_for_template
 
+# El servidor no tiene locale en español: strftime('%B') saldría en inglés.
+MESES_ES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
+            'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+
 class AsistenciaExcelGenerator(BaseReportGenerator):
     """
     Genera una PLANTILLA de asistencia en Excel con encabezado dinámico.
@@ -23,7 +28,7 @@ class AsistenciaExcelGenerator(BaseReportGenerator):
         if mes_seleccionado and mes_seleccionado.lower() != 'todos':
             try:
                 mes_num = int(mes_seleccionado)
-                nombre_mes = datetime.date(periodo.fecha_inicio.year, mes_num, 1).strftime('%B %Y').capitalize()
+                nombre_mes = f'{MESES_ES[mes_num]} {periodo.fecha_inicio.year}'
                 meses_a_procesar.append((mes_num, nombre_mes))
             except (ValueError, TypeError):
                 pass
