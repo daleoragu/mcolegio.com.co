@@ -176,3 +176,32 @@ class CuadernilloDelExamen(ColegioDePrueba):
         self.u_docente.save()
         with self.settings(MICROSOFT_CLIENT_ID='abc', GOOGLE_CLIENT_ID='g-1'):
             self.assertEqual(self.c.get(self.url()).context['nube']['sugerida'], 'google')
+
+
+class HojasYaLeidas(CuadernilloDelExamen):
+    def test_no_deja_quitar_ni_mover_preguntas_con_respuestas(self):
+        from .models import Hoja, Respuesta
+        items = [pregunta('P uno', 'A'), pregunta('P dos', 'B'), pregunta('P tres', 'C')]
+        self.guardar(items)
+        hoja = Hoja.objects.create(examen=self.ex, estudiante=self.estudiantes[0], identificador='H1')
+        for p in self.ex.preguntas.all():
+            Respuesta.objects.create(hoja=hoja, pregunta=p, marcada='A')
+        r = self.guardar([items[0], items[2]])                       # quitar la del medio
+        self.assertEqual(r.status_code, 409)
+        self.assertEqual(Respuesta.objects.filter(hoja=hoja).count(), 3)
+        self.assertEqual(self.guardar([items[1], items[0], items[2]]).status_code, 409)   # mover
+        # Corregir textos y agregar al final sí se puede.
+        items[0]['enunciado'] = 'P uno corregida'
+        self.assertEqual(self.guardar(items + [pregunta('P cuatro', 'D')]).status_code, 200)
+        self.assertEqual(self.ex.preguntas.count(), 4)
+
+
+class EstudianteNoEntra(CuadernilloDelExamen):
+    def test_estudiante_no_ve_ni_cambia_la_clave(self):
+        est = self.cliente(self.estudiantes[0].user)
+        self.assertEqual(est.get(self.url()).status_code, 404)
+        self.assertEqual(est.post(self.url('guardar/'), '{}', content_type='application/json').status_code, 404)
+        self.assertEqual(est.get(f'/puntoexacto/{self.ex.id}/clave/').status_code, 404)
+        self.assertEqual(est.get('/puntoexacto/').status_code, 403)
+        self.assertEqual(est.post('/puntoexacto/nuevo/', {'titulo': 'X'}).status_code, 403)
+        self.assertEqual(est.get('/puntoexacto/nube/google/').status_code, 403)

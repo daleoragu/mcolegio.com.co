@@ -29,8 +29,13 @@ class FormNuevaClave(SetPasswordForm):
 
 
 def _ip(request):
-    return (request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
-            or request.META.get('REMOTE_ADDR', ''))
+    """La IP del visitante. Detrás de DigitalOcean la pone el proxy en DO-Connecting-IP; si no,
+    la ÚLTIMA de X-Forwarded-For (la que agregó el proxy; las primeras las puede inventar cualquiera)."""
+    do_ip = request.META.get('HTTP_DO_CONNECTING_IP', '').strip()
+    if do_ip:
+        return do_ip
+    reenviadas = [x.strip() for x in request.META.get('HTTP_X_FORWARDED_FOR', '').split(',') if x.strip()]
+    return reenviadas[-1] if reenviadas else request.META.get('REMOTE_ADDR', '')
 
 
 def pedir_enlace(request):
@@ -43,7 +48,7 @@ def pedir_enlace(request):
         dato = request.POST.get('dato', '').strip()
         if not dato:
             messages.error(request, 'Escriba su usuario o su correo.')
-        elif rc.demasiados_intentos(f'ip:{_ip(request)}') or rc.demasiados_intentos(f'dato:{dato.lower()}'):
+        elif rc.demasiados_intentos(f'ip:{_ip(request)}', rc.PEDIDOS_POR_IP_HORA):
             messages.error(request, 'Hizo muchos intentos seguidos. Espere una hora y vuelva a probar.')
         else:
             for user in rc.buscar_usuarios(colegio, dato):

@@ -30,16 +30,18 @@ from django.utils.http import urlsafe_base64_encode
 from .avisos_familia import correo_configurado
 from .permisos import pertenece_al_colegio
 
-INTENTOS_POR_HORA = 5
+PEDIDOS_POR_IP_HORA = 10       # cuántas veces se puede mandar el formulario desde una conexión
+CORREOS_POR_USUARIO_HORA = 3   # cuántos correos le llegan a una misma cuenta
 
 
-def demasiados_intentos(clave):
+def demasiados_intentos(clave, tope, sumar=True):
     """Freno sencillo contra quien manda el formulario cien veces."""
     llave = f'recuperar-clave:{clave}'
     n = cache.get(llave, 0)
-    if n >= INTENTOS_POR_HORA:
+    if n >= tope:
         return True
-    cache.set(llave, n + 1, 3600)
+    if sumar:
+        cache.set(llave, n + 1, 3600)
     return False
 
 
@@ -72,13 +74,30 @@ def buscar_usuarios(colegio, dato):
 def enlace(request, user):
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
-    return request.build_absolute_uri(reverse('notas:recuperar_clave_nueva', args=[uid, token]))
+    from .enlaces import enlace_absoluto
+    return enlace_absoluto(request, reverse('notas:recuperar_clave_nueva', args=[uid, token]))
+
+
+def _mandar(asunto, texto, correo, html):
+    try:
+        send_mail(asunto, texto, settings.DEFAULT_FROM_EMAIL, [correo], html_message=html, fail_silently=False)
+    except Exception:
+        pass
 
 
 def enviar_enlace(request, colegio, user):
-    """Manda el correo. Devuelve True si salió."""
+    """Arma y manda el correo. Devuelve True si se mandó (o quedó saliendo).
+
+    Por defecto sale en segundo plano: así la respuesta tarda lo mismo exista o no la
+    cuenta, y nadie averigua usuarios midiendo el tiempo. Una misma cuenta recibe a lo
+    sumo CORREOS_POR_USUARIO_HORA correos por hora; pasar de ahí no bloquea a nadie, solo
+    deja de mandar más.
+    """
+    import threading
     correo, de_acudiente = correo_destino(user)
     if not correo or not correo_configurado():
+        return False
+    if demasiados_intentos(f'usuario:{colegio.id}:{user.id}', CORREOS_POR_USUARIO_HORA):
         return False
     contexto = {
         'colegio': colegio, 'usuario': user, 'nombre': user.get_full_name() or user.username,
@@ -87,11 +106,11 @@ def enviar_enlace(request, colegio, user):
     }
     texto = render_to_string('notas/recuperar_clave/correo.txt', contexto)
     html = render_to_string('notas/recuperar_clave/correo.html', contexto)
-    try:
-        send_mail(f'{colegio.nombre}: recuperar contraseña', texto, settings.DEFAULT_FROM_EMAIL,
-                  [correo], html_message=html, fail_silently=False)
-    except Exception:
-        return False
+    asunto = f'{colegio.nombre}: recuperar contraseña'
+    if getattr(settings, 'CORREO_EN_SEGUNDO_PLANO', True):
+        threading.Thread(target=_mandar, args=(asunto, texto, correo, html), daemon=True).start()
+    else:
+        _mandar(asunto, texto, correo, html)
     return True
 
 

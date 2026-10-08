@@ -502,7 +502,19 @@
         enCurso = fetch(CFG.guardar, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CFG.csrf },
             body: JSON.stringify({ contenido: limpioParaGuardar() })
-        }).then(function (r) { if (!r.ok) throw new Error('No se pudo guardar (' + r.status + ')'); return r.json(); })
+        }).then(function (r) {
+            if (r.status === 409) {
+                return r.json().then(function (d) {
+                    cambios = false;
+                    alert(d.error + '\n\nLa página se recarga con lo último guardado.');
+                    window.removeEventListener('beforeunload', avisoSalida);
+                    location.reload();
+                    throw new Error(d.error);
+                });
+            }
+            if (!r.ok) throw new Error('No se pudo guardar (' + r.status + ')');
+            return r.json();
+        })
           .then(function (d) {
               var t = 'Guardado ' + d.hora + ' · ' + d.preguntas + ' preguntas · clave al día';
               if (d.sin_correcta && d.sin_correcta.length) {
@@ -516,7 +528,8 @@
         return enCurso;
     }
     $('#cu-guardar').addEventListener('click', guardar);
-    window.addEventListener('beforeunload', function (ev) { if (cambios) { ev.preventDefault(); ev.returnValue = ''; } });
+    function avisoSalida(ev) { if (cambios) { ev.preventDefault(); ev.returnValue = ''; } }
+    window.addEventListener('beforeunload', avisoSalida);
 
     // -----------------------------------------------------------------------
     // Word y PDF

@@ -39,8 +39,8 @@ def _avisar_familia(request, solicitud, asunto, cuerpo):
     """Correo al acudiente con el enlace para consultar la solicitud."""
     if not (solicitud.acudiente_correo and _correo_configurado()):
         return False
-    enlace = request.build_absolute_uri(
-        reverse('prematricula:estado', args=[logica.token_consulta(solicitud)]))
+    from notas.enlaces import enlace_absoluto
+    enlace = enlace_absoluto(request, reverse('prematricula:estado', args=[logica.token_consulta(solicitud)]))
     texto = (f'{solicitud.colegio.nombre}\n\n{cuerpo}\n\nRadicado: {solicitud.radicado}\n'
              f'Consulte su solicitud aquí: {enlace}\n')
     try:

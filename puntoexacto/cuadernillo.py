@@ -21,7 +21,6 @@ Contenido (JSON):
   img = {"id": "...", "proveedor": "local|google|onedrive", "ref": "...",
          "nombre": "...", "ancho": 10..100}
 """
-import base64
 import html
 import io
 import re
@@ -304,6 +303,9 @@ def a_html(texto):
 
 TIPOS_IMAGEN = {'image/png', 'image/jpeg', 'image/gif', 'image/webp'}
 MAX_BYTES_IMAGEN = 6 * 1024 * 1024
+MAX_BYTES_TOTAL = 40 * 1024 * 1024      # todas las imágenes de una petición
+MAX_ARCHIVOS = 300
+MAX_PIXELES = 25_000_000                # 5000 x 5000: el navegador ya las reduce a 1400 px
 
 
 def leer_imagenes(archivos, contenido):
@@ -311,19 +313,26 @@ def leer_imagenes(archivos, contenido):
     lo que no sea imagen se descarta, y las WEBP/GIF pasan a PNG porque Word no las lee."""
     from PIL import Image
     usadas = {img['id'] for img in todas_las_imagenes(contenido)}
-    salida = {}
-    for nombre, f in archivos.items():
+    salida, total = {}, 0
+    for k, (nombre, f) in enumerate(archivos.items()):
+        if k >= MAX_ARCHIVOS:
+            break
         if not nombre.startswith('img_'):
             continue
         iid = nombre[4:]
-        if iid not in usadas or f.size > MAX_BYTES_IMAGEN:
+        if iid not in usadas or f.size > MAX_BYTES_IMAGEN or total + f.size > MAX_BYTES_TOTAL:
             continue
         try:
             datos = f.read()
             im = Image.open(io.BytesIO(datos))
+            # Se mira el tamaño ANTES de decodificar: una imagen pequeña en bytes puede
+            # pedir gigas de memoria al abrirla.
+            if im.size[0] * im.size[1] > MAX_PIXELES:
+                continue
             im.load()
         except Exception:
             continue
+        total += len(datos)
         formato = (im.format or '').upper()
         if formato in ('PNG', 'JPEG'):
             salida[iid] = (datos, 'image/png' if formato == 'PNG' else 'image/jpeg')
@@ -334,43 +343,51 @@ def leer_imagenes(archivos, contenido):
     return salida
 
 
-def data_uri(imagenes, img):
-    if not img or img['id'] not in imagenes:
-        return None
-    datos, tipo = imagenes[img['id']]
-    return f'data:{tipo};base64,{base64.b64encode(datos).decode()}'
-
-
 # ---------------------------------------------------------------------------
 # PDF
 # ---------------------------------------------------------------------------
 
 def generar_pdf(request, examen, contenido, imagenes, lista_versiones):
+    """Cada imagen se escribe UNA vez en una carpeta temporal y el HTML la referencia por
+    archivo: así 40 cuadernillos con la misma figura no repiten la imagen 40 veces en memoria.
+    La carpeta se borra al terminar."""
+    import tempfile
+    from pathlib import Path
     from django.template.loader import render_to_string
     from weasyprint import HTML
 
-    def preparar(it):
-        return {'texto_html': a_html(it.get('texto') or it.get('enunciado') or ''),
-                'imagenes': [(data_uri(imagenes, img), img) for img in it.get('imagenes') or []]}
+    with tempfile.TemporaryDirectory(prefix='cuadernillo-') as carpeta:
+        rutas = {}
+        for iid, (datos, tipo) in imagenes.items():
+            ruta = Path(carpeta) / f'{iid}.{"png" if tipo == "image/png" else "jpg"}'
+            ruta.write_bytes(datos)
+            rutas[iid] = ruta.as_uri()
 
-    hojas = []
-    for v in lista_versiones:
-        filas = []
-        for s in v['secuencia']:
-            fila = {'tipo': s['tipo'], **preparar(s['item'])}
-            if s['tipo'] == 'pregunta':
-                fila['numero'] = s['numero']
-                fila['opciones'] = [{'letra': l, 'texto_html': a_html(op['texto']),
-                                     'imagen': data_uri(imagenes, op.get('imagen')),
-                                     'ancho': (op.get('imagen') or {}).get('ancho', 40)}
-                                    for l, op in s['opciones']]
-            filas.append(fila)
-        hojas.append({**v, 'filas': filas})
-    html_doc = render_to_string('puntoexacto/cuadernillo_pdf.html', {
-        'examen': examen, 'colegio': examen.colegio, 'contenido': contenido, 'versiones': hojas,
-        'instrucciones_html': a_html(contenido['instrucciones']),
-    }, request=request)
-    return HTML(string=html_doc, base_url=request.build_absolute_uri('/')).write_pdf()
+        def src(img):
+            return rutas.get(img['id']) if img else None
+
+        def preparar(it):
+            return {'texto_html': a_html(it.get('texto') or it.get('enunciado') or ''),
+                    'imagenes': [(src(img), img) for img in it.get('imagenes') or []]}
+
+        hojas = []
+        for v in lista_versiones:
+            filas = []
+            for s in v['secuencia']:
+                fila = {'tipo': s['tipo'], **preparar(s['item'])}
+                if s['tipo'] == 'pregunta':
+                    fila['numero'] = s['numero']
+                    fila['opciones'] = [{'letra': l, 'texto_html': a_html(op['texto']),
+                                         'imagen': src(op.get('imagen')),
+                                         'ancho': (op.get('imagen') or {}).get('ancho', 40)}
+                                        for l, op in s['opciones']]
+                filas.append(fila)
+            hojas.append({**v, 'filas': filas})
+        html_doc = render_to_string('puntoexacto/cuadernillo_pdf.html', {
+            'examen': examen, 'colegio': examen.colegio, 'contenido': contenido, 'versiones': hojas,
+            'instrucciones_html': a_html(contenido['instrucciones']),
+        }, request=request)
+        return HTML(string=html_doc, base_url=request.build_absolute_uri('/')).write_pdf()
 
 
 # ---------------------------------------------------------------------------

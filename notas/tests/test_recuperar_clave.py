@@ -10,7 +10,7 @@ from notas.models import Docente, FichaEstudiante
 
 from .base import CLAVE, ColegioDePrueba
 
-CORREO = override_settings(EMAIL_HOST='smtp.prueba.co',
+CORREO = override_settings(EMAIL_HOST='smtp.prueba.co', CORREO_EN_SEGUNDO_PLANO=False,
                            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
 
 
@@ -77,12 +77,30 @@ class RecuperarClave(ColegioDePrueba):
         self._pedir('dueno')
         self.assertEqual(len(mail.outbox), 0)
 
-    def test_freno_de_intentos(self):
+    def test_freno_de_correos_por_cuenta(self):
         for _ in range(5):
-            self._pedir('profe')
-        r = self._pedir('profe')
+            r = self._pedir('profe')
+        self.assertContains(r, 'en unos minutos le llega')      # misma respuesta
+        self.assertEqual(len(mail.outbox), 3)                   # pero solo 3 correos por hora
+
+    def test_otro_no_bloquea_mi_cuenta_mandando_su_nombre(self):
+        # Pedidos con un usuario inexistente o desde otras IP no cuentan contra «profe».
+        for i in range(8):
+            self.cliente().post('/recuperar-clave/', {'dato': 'profe-no-existe'}, HTTP_DO_CONNECTING_IP=f'10.0.0.{i}')
+        self._pedir('profe')
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_freno_por_ip_usa_la_ip_del_proxy(self):
+        c = self.cliente()
+        for i in range(10):
+            c.post('/recuperar-clave/', {'dato': 'x'}, HTTP_X_FORWARDED_FOR=f'1.1.1.{i}, 9.9.9.9')
+        r = c.post('/recuperar-clave/', {'dato': 'profe'}, HTTP_X_FORWARDED_FOR='2.2.2.2, 9.9.9.9')
         self.assertContains(r, 'muchos intentos')
-        self.assertEqual(len(mail.outbox), 5)
+
+    @override_settings(DEBUG=False, ALLOWED_HOSTS=['*'])
+    def test_enlace_https_fuera_de_desarrollo(self):
+        self.cliente(host='a.mcolegio.com.co').post('/recuperar-clave/', {'dato': 'profe'})
+        self.assertIn('https://a.mcolegio.com.co/recuperar-clave/', mail.outbox[0].body)
 
 
 class SinCorreo(ColegioDePrueba):

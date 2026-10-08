@@ -4,6 +4,7 @@ import datetime
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError, transaction
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -69,12 +70,20 @@ def nueva(request, tipo):
         return HttpResponseNotFound()
     periodo = _periodo_actual(request.colegio) if tipo == Acta.COMISION else None
     ano = periodo.ano_lectivo if periodo else datetime.date.today().year
-    acta = Acta.objects.create(
-        colegio=request.colegio, tipo=tipo, ano=ano, numero=logica.siguiente_numero(request.colegio, ano),
-        titulo=('Comisión de evaluación y promoción' if tipo == Acta.COMISION else 'Reunión'),
-        fecha=datetime.date.today(), periodo=periodo, creada_por=request.user,
-        orden_del_dia=ORDEN_COMISION if tipo == Acta.COMISION else ORDEN_LIBRE)
-    return redirect('actas:editar', acta.id)
+    # Si dos personas crean un acta al mismo tiempo, la segunda toma el número siguiente.
+    for _ in range(5):
+        try:
+            with transaction.atomic():
+                acta = Acta.objects.create(
+                    colegio=request.colegio, tipo=tipo, ano=ano, numero=logica.siguiente_numero(request.colegio, ano),
+                    titulo=('Comisión de evaluación y promoción' if tipo == Acta.COMISION else 'Reunión'),
+                    fecha=datetime.date.today(), periodo=periodo, creada_por=request.user,
+                    orden_del_dia=ORDEN_COMISION if tipo == Acta.COMISION else ORDEN_LIBRE)
+            return redirect('actas:editar', acta.id)
+        except IntegrityError:
+            continue
+    messages.error(request, 'No se pudo numerar el acta. Intente de nuevo.')
+    return redirect('actas:lista')
 
 
 @login_required
