@@ -302,8 +302,9 @@ def aviso_familia_vista(request, registro_id):
 
 
 def _url_respuesta(request, registro):
-    return request.build_absolute_uri(
-        reverse('notas:respuesta_acudiente', args=[avisos_familia.token_respuesta(registro)]))
+    from ..enlaces import enlace_absoluto
+    return enlace_absoluto(
+        request, reverse('notas:respuesta_acudiente', args=[avisos_familia.token_respuesta(registro)]))
 
 
 def respuesta_acudiente_vista(request, token):

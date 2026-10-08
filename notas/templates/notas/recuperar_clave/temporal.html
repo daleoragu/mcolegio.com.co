@@ -1,0 +1,30 @@
+{% extends 'notas/base.html' %}
+{% block title %}Contraseña temporal{% endblock %}
+{% block page_title %}Contraseña temporal{% endblock %}
+{% block content %}
+<div class="container" style="max-width:620px;">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <p class="mb-1">Usuario de <strong>{{ usuario.get_full_name|default:usuario.username }}</strong>:</p>
+            <p class="fs-5 mb-3"><code>{{ usuario.username }}</code></p>
+            <p class="mb-1">Contraseña temporal:</p>
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <code id="tmp" class="fs-3 px-3 py-1 border rounded bg-light" style="letter-spacing:2px;">{{ temporal }}</code>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="copiar"><i class="fas fa-copy me-1"></i>Copiar</button>
+            </div>
+            <div class="alert alert-warning" style="font-size:.92rem;">
+                Esta contraseña solo se muestra ahora. Désela a la persona y pídale que la cambie apenas entre,
+                en el menú de su foto → «Cambiar contraseña». La contraseña anterior ya no sirve.</div>
+            {% if correo %}<p class="text-muted" style="font-size:.88rem;">Si la olvida otra vez, puede usar «¿Olvidó su contraseña?»
+                en el portal: el enlace llega a {% if de_acudiente %}el correo del acudiente{% else %}su correo{% endif %}.</p>{% endif %}
+            {% if volver %}<a href="{{ volver }}" class="btn btn-secondary"><i class="fas fa-arrow-left me-1"></i>Volver</a>{% endif %}
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('copiar').addEventListener('click', function () {
+    var t = document.getElementById('tmp').textContent.trim(), b = this;
+    navigator.clipboard.writeText(t).then(function () { b.innerHTML = '<i class="fas fa-check me-1"></i>Copiada'; });
+});
+</script>
+{% endblock %}

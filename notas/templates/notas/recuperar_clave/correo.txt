@@ -1,0 +1,9 @@
+{% autoescape off %}Hola{% if not de_acudiente %}, {{ nombre }}{% endif %}:
+
+Alguien pidió recuperar la contraseña de {% if de_acudiente %}la cuenta del estudiante {{ nombre }}, usuario {{ usuario.username }},{% else %}su cuenta (usuario {{ usuario.username }}){% endif %} en {{ colegio.nombre }}.
+
+Para crear una contraseña nueva abra este enlace. Sirve una sola vez y vence en {{ minutos }} minutos:
+{{ enlace }}
+
+Si usted no lo pidió, ignore este correo: su contraseña sigue igual.
+{% endautoescape %}

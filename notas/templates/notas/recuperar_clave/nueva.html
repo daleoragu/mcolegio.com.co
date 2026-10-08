@@ -1,0 +1,32 @@
+{% extends 'prematricula/_base_publica.html' %}
+{% block title %}Nueva contraseña · {{ colegio.nombre }}{% endblock %}
+{% block etiqueta %}Recuperar contraseña{% endblock %}
+{% block contenido %}
+<div class="pm-tarjeta mx-auto" style="max-width:520px;">
+    {% if not valido %}
+        <h1 style="font-size:1.3rem;font-weight:800;">Este enlace ya no sirve</h1>
+        <p>Puede que ya lo haya usado, que haya vencido (dura una hora) o que esté incompleto.</p>
+        <a href="{% url 'notas:recuperar_clave' %}" class="btn btn-pm">Pedir un enlace nuevo</a>
+    {% elif listo %}
+        <h1 style="font-size:1.3rem;font-weight:800;"><i class="fas fa-check-circle me-2 text-success"></i>Contraseña cambiada</h1>
+        <p>Ya puede entrar con el usuario <strong>{{ usuario.username }}</strong> y su contraseña nueva.</p>
+        <a href="/" class="btn btn-pm">Ir al portal a ingresar</a>
+    {% else %}
+        <h1 style="font-size:1.3rem;font-weight:800;">Contraseña nueva</h1>
+        <p class="text-muted">Usuario: <strong>{{ usuario.username }}</strong>
+            {% if usuario.get_full_name %}({{ usuario.get_full_name }}){% endif %}</p>
+        <form method="post">
+            {% csrf_token %}
+            {% for campo in form %}
+            <div class="mb-3">
+                <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                {{ campo }}
+                {% if campo.errors %}<ul class="errorlist">{% for e in campo.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                {% if campo.help_text %}<div class="text-muted mt-1" style="font-size:.8rem;">{{ campo.help_text|safe }}</div>{% endif %}
+            </div>
+            {% endfor %}
+            <button class="btn btn-pm w-100">Guardar contraseña</button>
+        </form>
+    {% endif %}
+</div>
+{% endblock %}

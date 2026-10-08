@@ -25,6 +25,7 @@
             
             {% if docente.user %}
                 <form action="{% url 'notas:iniciar_suplantacion' docente.user.id %}" method="POST" class="d-inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-success" title="Ver como este docente"><i class="fas fa-user-secret"></i></button></form>
+                <form action="{% url 'notas:restablecer_clave' docente.user.id %}" method="POST" class="d-inline" onsubmit="return confirm('¿Dar una contraseña temporal a {{ docente.user.get_full_name|escapejs }}? La actual deja de servir.')">{% csrf_token %}<input type="hidden" name="volver" value="{{ request.get_full_path }}"><button type="submit" class="btn btn-sm btn-outline-warning" title="Contraseña temporal"><i class="fas fa-key"></i></button></form>
                 <a href="{% url 'notas:editar_docente' docente.id %}" class="btn btn-sm btn-outline-info" title="Editar Docente"><i class="fas fa-pencil-alt"></i></a>
                 <form action="{% url 'notas:eliminar_docente' docente.id %}" method="POST" class="d-inline" onsubmit="return confirm('¿Seguro que quieres eliminar a \'{{ docente.user.get_full_name|escapejs }}\'? Esta acción es permanente.')">
                     {% csrf_token %}

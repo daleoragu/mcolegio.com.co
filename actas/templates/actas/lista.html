@@ -1,0 +1,64 @@
+{% extends 'notas/base.html' %}
+{% block title %}Actas{% endblock %}
+{% block page_title %}Actas{% endblock %}
+{% block content %}
+<style>
+    .ac-nuevas { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:18px; }
+    .ac-nueva { border:1px solid #e3e6ec; border-radius:10px; padding:14px 16px; background:#fff; }
+    .ac-nueva h6 { font-weight:700; margin-bottom:4px; }
+    .ac-nueva p { font-size:.88rem; color:#6b7280; margin-bottom:10px; }
+    .ac-estado { border-radius:999px; padding:2px 10px; font-size:.78rem; font-weight:700; }
+    .ac-BORRADOR { background:#fff7e6; color:#b45309; }
+    .ac-CERRADA { background:#ecfdf3; color:#067647; }
+</style>
+<div class="ac-nuevas">
+    <div class="ac-nueva">
+        <h6><i class="fas fa-users-viewfinder me-2 text-primary"></i>Comisión de evaluación y promoción</h6>
+        <p>Con el informe de estudiantes y sus asignaturas pendientes, de más a menos, y si quiere sus anotaciones del observador.</p>
+        <form method="post" action="{% url 'actas:nueva' 'COMISION' %}">{% csrf_token %}
+            <button class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>Nueva acta de comisión</button></form>
+    </div>
+    <div class="ac-nueva">
+        <h6><i class="fas fa-file-pen me-2 text-secondary"></i>Acta libre</h6>
+        <p>Consejo académico, reunión de área, de padres… Orden del día, desarrollo, compromisos y firmas.</p>
+        <form method="post" action="{% url 'actas:nueva' 'LIBRE' %}">{% csrf_token %}
+            <button class="btn btn-outline-secondary btn-sm"><i class="fas fa-plus me-1"></i>Nueva acta libre</button></form>
+    </div>
+</div>
+
+{% if anos|length > 1 %}
+<form method="get" class="mb-2 d-flex gap-2 align-items-center">
+    <label class="small" for="ano">Año</label>
+    <select name="ano" id="ano" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+        <option value="">Todos</option>
+        {% for a in anos %}<option value="{{ a }}" {% if ano == a|stringformat:'s' %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+</form>
+{% endif %}
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>N.º</th><th>Título</th><th>Fecha</th><th>Tipo</th><th>Estado</th><th class="text-end"></th></tr></thead>
+        <tbody>
+        {% for a in actas %}
+            <tr>
+                <td class="text-nowrap"><strong>{{ a.numero }}</strong> <span class="text-muted small">/ {{ a.ano }}</span></td>
+                <td><a href="{% url 'actas:editar' a.id %}" class="text-decoration-none">{{ a.titulo }}</a>
+                    {% if a.es_comision %}<div class="small text-muted">{{ a.periodo|default:"" }}{% for c in a.cursos.all %}{% if forloop.first %} · {% endif %}{{ c.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}</td>
+                <td class="text-nowrap">{{ a.fecha|date:"d/m/Y" }}</td>
+                <td class="small">{{ a.get_tipo_display }}</td>
+                <td><span class="ac-estado ac-{{ a.estado }}">{{ a.get_estado_display }}</span></td>
+                <td class="text-end text-nowrap">
+                    <a href="{% url 'actas:editar' a.id %}" class="btn btn-sm btn-outline-primary" title="Abrir"><i class="fas fa-pen"></i></a>
+                    <a href="{% url 'actas:pdf' a.id %}" target="_blank" class="btn btn-sm btn-outline-danger" title="PDF"><i class="fas fa-file-pdf"></i></a>
+                </td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-4">Todavía no hay actas.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endblock %}

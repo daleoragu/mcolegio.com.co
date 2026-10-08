@@ -1,0 +1,124 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% load static %}
+{% block title %}Escribir examen - {{ block.super }}{% endblock %}
+{% block page_title %}Escribir el examen · {{ examen.titulo }}{% endblock %}
+
+{% block content %}
+<style>
+    .cu-barra { position: sticky; top: 66px; z-index: 20; background: rgba(248,249,250,.97); border-bottom: 1px solid #e3e6ec;
+                padding: 8px 0; margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .cu-estado { font-size: .85rem; color: #6b7280; margin-left: auto; }
+    .cu-estado.mal { color: #a4161a; }
+    .cu-nube { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .88rem; }
+    .cu-nube .pe-chip { font-size: .78rem; }
+    .cu-item { background: #fff; border: 1px solid #e3e6ec; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+               box-shadow: 0 1px 4px rgba(16,24,40,.04); }
+    .cu-item.texto { background: #fbfaf5; border-left: 4px solid #c9a227; }
+    .cu-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .cu-num { font-weight: 800; font-size: 1.05rem; min-width: 34px; }
+    .cu-cab .ms-auto button { padding: 2px 8px; }
+    .cu-op { display: flex; align-items: flex-start; gap: 8px; margin-top: 6px; }
+    .cu-op .letra { width: 34px; height: 34px; border-radius: 50%; border: 2px solid #c8d1dc; background: #fff; font-weight: 700;
+                    flex-shrink: 0; cursor: pointer; color: #374151; }
+    .cu-op .letra.ok { background: #0b6b4a; border-color: #0b6b4a; color: #fff; }
+    .cu-op textarea { min-height: 34px; }
+    .cu-op .cu-op-img { flex-shrink: 0; }
+    .cu-imgs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .cu-img { position: relative; border: 1px solid #e3e6ec; border-radius: 8px; padding: 4px; background: #fff; max-width: 240px; }
+    .cu-img img { max-width: 230px; max-height: 160px; display: block; }
+    .cu-img .falta { width: 160px; height: 90px; display: flex; align-items: center; justify-content: center; text-align: center;
+                     font-size: .78rem; color: #8a6d00; background: #fff8e6; border-radius: 6px; padding: 6px; }
+    .cu-img .acciones { display: flex; gap: 4px; align-items: center; margin-top: 4px; font-size: .75rem; }
+    .cu-img .acciones select { font-size: .75rem; padding: 0 4px; height: 24px; }
+    .cu-img .sube { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: .7rem;
+                    border-radius: 4px; padding: 1px 6px; }
+    .cu-mini { max-width: 120px; max-height: 70px; border: 1px solid #e3e6ec; border-radius: 6px; }
+    .cu-agregar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 4px 0 16px; }
+    .cu-sin { border-color: #f0b4b4; }
+    .cu-ayuda { font-size: .82rem; color: #6b7280; }
+    textarea.form-control { resize: vertical; }
+</style>
+
+<div class="pe-barra">
+    <a href="{% url 'puntoexacto:clave' examen_id=examen.id %}" class="btn btn-outline-secondary">Clave</a>
+    <a href="{% url 'puntoexacto:hojas' examen_id=examen.id %}" class="btn btn-outline-secondary">Hojas</a>
+    <a href="{% url 'puntoexacto:formas' examen_id=examen.id %}" class="btn btn-outline-secondary">Formas{% if con_formas %} ({{ letras_formas|length }}){% endif %}</a>
+    <a href="{% url 'puntoexacto:resultados' examen_id=examen.id %}" class="btn btn-outline-secondary">Resultados</a>
+</div>
+
+<div class="pe-tarjeta">
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <label class="form-label fw-semibold" for="cu-instrucciones">Instrucciones para el estudiante</label>
+            <textarea id="cu-instrucciones" class="form-control" rows="3"></textarea>
+            <div class="cu-ayuda mt-1">Para exponentes y subíndices escriba <code>x^2</code>, <code>x^{n+1}</code>, <code>a_1</code>: en el Word y el PDF salen como x², xⁿ⁺¹, a₁.</div>
+        </div>
+        <div class="col-lg-5">
+            <label class="form-label fw-semibold d-block">Nombre del estudiante</label>
+            <div class="pe-opciones flex-column" id="cu-nombre">
+                <label><input type="radio" name="nombre" value="linea"> Línea para que lo escriba</label>
+                <label><input type="radio" name="nombre" value="lista"> Impreso desde la lista (un cuadernillo por estudiante{% if con_formas %}, con su forma{% endif %})</label>
+                <label><input type="radio" name="nombre" value="no"> Sin nombre</label>
+            </div>
+            {% if not con_hojas %}<div class="cu-ayuda mt-1">Para imprimirlo desde la lista, use los cursos del examen o prepare antes las <a href="{% url 'puntoexacto:hojas' examen_id=examen.id %}">hojas</a>.</div>{% endif %}
+            <label class="form-label fw-semibold d-block mt-2">Columnas</label>
+            <div class="pe-opciones" id="cu-columnas">
+                <label><input type="radio" name="columnas" value="1"> Una</label>
+                <label><input type="radio" name="columnas" value="2"> Dos (ahorra papel)</label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="cu-barra">
+    <div class="cu-nube" id="cu-nube"></div>
+    <span class="cu-estado" id="cu-estado">{% if guardado %}Guardado {{ guardado|date:"d/m h:i a" }}{% else %}Sin guardar{% endif %}</span>
+    <button type="button" class="btn btn-sm btn-primary" id="cu-guardar"><i class="fas fa-save me-1"></i>Guardar</button>
+    <div class="btn-group">
+        <button type="button" class="btn btn-sm btn-success" data-formato="docx"><i class="fas fa-file-word me-1"></i>Word</button>
+        <button type="button" class="btn btn-sm btn-danger" data-formato="pdf"><i class="fas fa-file-pdf me-1"></i>PDF</button>
+    </div>
+    {% if con_formas %}
+    <label class="small ms-1"><input type="checkbox" id="cu-por-forma" checked> Una versión por forma ({{ letras_formas|join:", " }})</label>
+    {% endif %}
+</div>
+
+{% if tiene_bloques %}<div class="pe-aviso">Este examen tiene bloques: el número de preguntas y la respuesta correcta los pone el cuadernillo; los bloques, puntos y temas se siguen manejando en «Clave».</div>{% endif %}
+
+<div id="cu-items"></div>
+<div class="cu-agregar">
+    <button type="button" class="btn btn-outline-primary" id="cu-mas-pregunta"><i class="fas fa-plus me-1"></i>Pregunta</button>
+    <button type="button" class="btn btn-outline-secondary" id="cu-mas-texto"><i class="fas fa-align-left me-1"></i>Texto o lectura</button>
+</div>
+
+<details class="pe-tarjeta">
+    <summary><strong><i class="fas fa-images me-1"></i>Imágenes: dónde quedan</strong></summary>
+    <div class="mt-2" style="font-size:.92rem;">
+        <p>Las imágenes <strong>no se guardan en la plataforma</strong>. Quedan en su Google Drive o en su OneDrive (carpeta
+            <em>mcolegio-examenes</em>), según la nube que conecte, y una copia en este navegador para trabajar rápido.
+            Al pedir el Word o el PDF, el navegador las manda solo para armar el archivo.</p>
+        <p class="mb-2">Si no conecta ninguna nube, quedan solo en este navegador: descargue un respaldo para abrir el examen en otro equipo.</p>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="cu-respaldo"><i class="fas fa-download me-1"></i>Descargar respaldo</button>
+            <label class="btn btn-sm btn-outline-secondary mb-0"><i class="fas fa-upload me-1"></i>Abrir respaldo
+                <input type="file" id="cu-abrir-respaldo" accept=".json,application/json" hidden></label>
+        </div>
+    </div>
+</details>
+
+<input type="file" id="cu-archivo" accept="image/*" hidden>
+{{ contenido|json_script:"cu-contenido" }}
+{{ nube|json_script:"cu-nube-config" }}
+<script>
+window.CUADERNILLO = {
+    guardar: "{% url 'puntoexacto:cuadernillo_guardar' examen_id=examen.id %}",
+    generar: "{% url 'puntoexacto:cuadernillo_generar' examen_id=examen.id %}",
+    ayudante: "{% url 'puntoexacto:nube_ayudante' proveedor='PROV' %}",
+    examen: {{ examen.id }},
+    titulo: "{{ examen.titulo|escapejs }}",
+    opciones: {{ examen.numero_opciones|default:4 }},
+    csrf: "{{ csrf_token }}"
+};
+</script>
+<script src="{% static 'puntoexacto/cuadernillo.js' %}"></script>
+{% endblock %}

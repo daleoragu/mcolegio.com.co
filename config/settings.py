@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'salon_digital',   # <--- Salón Digital: herramientas para docentes
     'puntoexacto',     # <--- PuntoExacto: exámenes de selección múltiple
     'prematricula',    # <--- Prematrícula desde el portal
+    'actas',           # <--- Actas: comisión de evaluación y promoción, actas libres
 ]
 
 MIDDLEWARE = [
@@ -228,3 +229,13 @@ EMAIL_TIMEOUT = 15
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-responder@mcolegio.com.co')
 if not EMAIL_HOST:
     EMAIL_BACKEND = 'django.core.mail.backends.dummy.EmailBackend'
+
+# El enlace de «¿Olvidó su contraseña?» vence en una hora.
+PASSWORD_RESET_TIMEOUT = 3600
+
+# Nube del docente para las imágenes del constructor de exámenes (PuntoExacto).
+# Los ID de cliente NO son secretos. En Google Cloud y en Azure se registra, por
+# cada colegio, la dirección https://<colegio>.mcolegio.com.co/puntoexacto/nube/google/
+# (o /onedrive/). Sin estos valores, las imágenes quedan en el navegador del docente.
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
+MICROSOFT_CLIENT_ID = os.getenv('MICROSOFT_CLIENT_ID', '')

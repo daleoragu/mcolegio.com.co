@@ -67,6 +67,7 @@ def alertas_de_curso(colegio, curso, ano, periodo=None, aprobacion=None, maximo=
     salida = []
     for est in estudiantes:
         perdidas, perdidas_periodo, con_notas = [], 0, False
+        lista_periodo = []
         for materia_id, a in materias.items():
             por_periodo = {pid: v for pid, (_, v) in notas.get((est.id, materia_id), {}).items()}
             if not por_periodo:
@@ -76,6 +77,9 @@ def alertas_de_curso(colegio, curso, ano, periodo=None, aprobacion=None, maximo=
             del_periodo = por_periodo.get(actual.id)
             pierde_periodo = del_periodo is not None and del_periodo < aprobacion
             perdidas_periodo += 1 if pierde_periodo else 0
+            if pierde_periodo:
+                lista_periodo.append({'materia': a.materia.nombre, 'nota': del_periodo,
+                                      'docente': a.docente.user.get_full_name() if a.docente_id else ''})
             if acumulada is not None and acumulada < aprobacion:
                 perdidas.append({'materia': a.materia.nombre,
                                  'docente': a.docente.user.get_full_name() if a.docente_id else '',
@@ -85,7 +89,8 @@ def alertas_de_curso(colegio, curso, ano, periodo=None, aprobacion=None, maximo=
         n = len(perdidas)
         riesgo = 'alto' if n > maximo else ('medio' if n > 0 else ('sin_notas' if not con_notas else 'ok'))
         salida.append({'estudiante': est, 'curso': curso, 'perdidas': perdidas, 'n': n,
-                       'perdidas_periodo': perdidas_periodo, 'riesgo': riesgo})
+                       'perdidas_periodo': perdidas_periodo, 'riesgo': riesgo,
+                       'perdidas_periodo_lista': sorted(lista_periodo, key=lambda x: x['nota'])})
     return salida
 
 

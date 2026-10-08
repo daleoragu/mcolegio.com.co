@@ -33,6 +33,8 @@ urlpatterns = [
 
     # 6. PREMATRÍCULA: las familias desde el portal, la secretaría en /prematricula/gestion/
     path('prematricula/', include('prematricula.urls', namespace='prematricula')),
+    # 7. ACTAS del colegio (solo administradores)
+    path('actas/', include('actas.urls', namespace='actas')),
 
     # 5. RUTAS DE TU APLICACIÓN "NOTAS"
     #    Esta línea incluye todas las URLs de tu archivo 'notas/urls.py'.

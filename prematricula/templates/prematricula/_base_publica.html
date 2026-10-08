@@ -3,6 +3,7 @@
 <html lang="es">
 <head>
     {% include "notas/includes/_head.html" %}
+    {% block head_extra %}{% endblock %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <meta name="robots" content="noindex">
     <style>
@@ -41,7 +42,7 @@
             {% if colegio.escudo %}<img src="{{ colegio.escudo.url }}" alt="">{% endif %}
             <strong style="font-size:1.05rem;">{{ colegio.nombre }}</strong>
         </a>
-        <span class="ms-auto d-none d-sm-inline" style="opacity:.85;">Prematrícula</span>
+        <span class="ms-auto d-none d-sm-inline" style="opacity:.85;">{% block etiqueta %}Prematrícula{% endblock %}</span>
     </div>
 </header>
 <main class="pm-cont my-4">

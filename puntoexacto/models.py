@@ -511,3 +511,21 @@ class Respuesta(models.Model):
 
     def __str__(self):
         return f'{self.hoja_id} · P{self.pregunta.numero} = {self.marcada or "en blanco"}'
+
+
+class Cuadernillo(models.Model):
+    """El cuadernillo del examen escrito en la plataforma: preguntas, opciones y textos.
+
+    Solo se guarda TEXTO. Las imágenes viven en la nube del docente (Google
+    Drive u OneDrive) o en su navegador; aquí queda únicamente la referencia
+    (id del archivo), para no llenar el servidor de imágenes. Ver cuadernillo.py.
+    """
+    examen = models.OneToOneField(Examen, on_delete=models.CASCADE, related_name='cuadernillo')
+    contenido = models.JSONField(default=dict, blank=True)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Cuadernillo'
+
+    def __str__(self):
+        return f'Cuadernillo · {self.examen.titulo}'
