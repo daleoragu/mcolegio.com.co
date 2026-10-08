@@ -3,6 +3,7 @@
 import json
 
 from ..planillas.columnas import nombre_componente
+from .. import componentes as _comp
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.contrib.auth.decorators import login_required
@@ -76,13 +77,22 @@ class IngresoNotasView(LoginRequiredMixin, View):
             
             # Recolectar configuración de la materia para enviarla al Frontend
             materia = asignacion_seleccionada.materia
+            # Los componentes del colegio (pueden ser 1, 3, 5…), con su nombre y porcentaje.
+            pesos_vigentes = _comp.pesos(asignacion_seleccionada)
+            lista_componentes = [
+                {'tipo': codigo.lower(), 'codigo': codigo,
+                 'nombre': nombre_componente(asignacion_seleccionada, codigo),
+                 'peso': float(peso)}
+                for codigo, peso in pesos_vigentes.items()
+            ]
             config_materia = {
                 'promedia': getattr(materia, 'promedia_en_boletin', True),
-                # Los nombres del colegio (Componentes de evaluación), o los propios de la materia.
-                'lbl_ser': nombre_componente(asignacion_seleccionada, 'SER'),
-                'lbl_saber': nombre_componente(asignacion_seleccionada, 'SABER'),
-                'lbl_hacer': nombre_componente(asignacion_seleccionada, 'HACER'),
+                'componentes': lista_componentes,
             }
+            # Compatibilidad: lbl_ser, lbl_saber… (el nombre de cada uno).
+            for comp in lista_componentes:
+                config_materia['lbl_' + comp['tipo']] = comp['nombre']
+            context['componentes_tabla'] = lista_componentes
             context['config_materia_json'] = json.dumps(config_materia)
 
             estudiantes_del_curso = Estudiante.objects.filter(curso=asignacion_seleccionada.curso, colegio=request.colegio, is_active=True).select_related('user').order_by('user__last_name', 'user__first_name')
@@ -92,15 +102,14 @@ class IngresoNotasView(LoginRequiredMixin, View):
 
             for estudiante in estudiantes_del_curso:
                 nombre_completo = f"{estudiante.user.last_name}, {estudiante.user.first_name}".strip()
-                data = {'id': estudiante.id, 'nombre_completo': nombre_completo, 'notas': {'ser': [], 'saber': [], 'hacer': []}, 'inasistencias': 0, 'observacion': ''}
+                data = {'id': estudiante.id, 'nombre_completo': nombre_completo, 'notas': {c['tipo']: [] for c in lista_componentes}, 'inasistencias': 0, 'observacion': ''}
                 
                 calificaciones = Calificacion.objects.filter(estudiante=estudiante, materia=asignacion_seleccionada.materia, periodo=periodo_seleccionado, colegio=request.colegio).prefetch_related('notas_detalladas')
                 
                 obs_inc = ""
                 for cal in calificaciones:
-                    tipo_map = {'SER': 'ser', 'SABER': 'saber', 'HACER': 'hacer'}
-                    if cal.tipo_nota in tipo_map:
-                        key = tipo_map[cal.tipo_nota]
+                    if cal.tipo_nota in pesos_vigentes:
+                        key = cal.tipo_nota.lower()
                         data['notas'][key] = [{'descripcion': n.descripcion, 'valor': str(n.valor_nota)} for n in cal.notas_detalladas.all()]
                     elif cal.tipo_nota == 'PROM_PERIODO':
                         obs_inc = getattr(cal, 'observacion_inclusion', "")
@@ -122,7 +131,7 @@ class IngresoNotasView(LoginRequiredMixin, View):
             # Las columnas de cada componente (el plan de notas): la tabla las
             # usa para ubicar cada nota por su nombre y no por su posición.
             plan_columnas = {}
-            for codigo in ('SER', 'SABER', 'HACER'):
+            for codigo in pesos_vigentes:
                 plan_columnas[codigo.lower()] = columnas_del_plan(asignacion_seleccionada, periodo_seleccionado, codigo, config=config)
             context['plan_notas'] = plan_columnas
 
@@ -176,10 +185,13 @@ class IngresoNotasView(LoginRequiredMixin, View):
             config, _ = ConfiguracionCalificaciones.objects.get_or_create(colegio=request.colegio)
             if config.docente_puede_modificar and porcentajes_nuevos:
                 try:
-                    asignacion.porcentaje_saber = int(porcentajes_nuevos.get('saber', 0))
-                    asignacion.porcentaje_hacer = int(porcentajes_nuevos.get('hacer', 0))
-                    asignacion.porcentaje_ser = int(porcentajes_nuevos.get('ser', 0))
-                    asignacion.usar_ponderacion_equitativa = False
+                    valores = {}
+                    for codigo in _comp.codigos(request.colegio):
+                        valor = int(porcentajes_nuevos.get(codigo.lower(), 0) or 0)
+                        if not 0 <= valor <= 100:
+                            raise ValueError('cada porcentaje va de 0 a 100')
+                        valores[codigo] = valor
+                    _comp.fijar_pesos(asignacion, valores, equitativa=False)
                     asignacion.full_clean()
                     asignacion.save()
                 except (ValidationError, ValueError, TypeError) as e:
@@ -190,7 +202,7 @@ class IngresoNotasView(LoginRequiredMixin, View):
             # cómo se llama cada una): se guardan como el plan de notas, para que
             # el Excel y la próxima vez que se abra salgan iguales.
             plan_nuevo = data.get('plan') or {}
-            for codigo in ('SER', 'SABER', 'HACER'):
+            for codigo in _comp.codigos(request.colegio):
                 columnas = plan_nuevo.get(codigo.lower())
                 if isinstance(columnas, list) and columnas:
                     guardar_plan(asignacion, periodo, codigo, columnas)

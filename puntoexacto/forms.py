@@ -67,6 +67,20 @@ class ExamenForm(forms.ModelForm):
         self.fields['asignacion'].empty_label = 'Seleccione asignatura y curso'
         self.fields['periodo'].empty_label = 'Sin periodo'
 
+        # Los componentes del colegio (pueden ser 1, 3, 5…) con sus nombres.
+        from notas.componentes import componentes as componentes_colegio
+        if colegio:
+            opciones = [(c.codigo, c.nombre) for c in componentes_colegio(colegio)]
+        else:
+            opciones = [('SER', 'SER'), ('SABER', 'SABER'), ('HACER', 'HACER')]
+        actual = getattr(self.instance, 'componente', '') if self.instance.pk else ''
+        if actual and actual not in {c for c, _ in opciones}:
+            opciones.append((actual, actual))
+        self.fields['componente'].choices = opciones
+        if not self.instance.pk and not self.is_bound:
+            codigos = [c for c, _ in opciones]
+            self.initial['componente'] = 'SABER' if 'SABER' in codigos else codigos[0]
+
         # En un colegio la escala ya está definida en la plataforma (escala de
         # valoración): pedirla otra vez sobra y abre la puerta a que no cuadre
         # con el boletín. Solo el docente suelto, sin colegio, la escribe.

@@ -6,8 +6,12 @@
     .ce-card { background:#fff; border:1px solid #e3e6ec; border-radius:12px; padding:20px 22px; margin-bottom:16px; }
     .ce-card h5 { font-weight:700; font-size:1.05rem; margin-bottom:12px; }
     .ce-tabla th { font-size:.8rem; text-transform:uppercase; color:#6b7280; letter-spacing:.03em; }
-    .ce-cod { font-weight:700; color:#6b7280; font-size:.85rem; }
-    .ce-vista { width:100%; border-collapse:collapse; font-family: Arial, Helvetica, sans-serif; font-size:.78rem; }
+    .ce-num { font-weight:700; color:#6b7280; font-size:.9rem; width:36px; }
+    .ce-acciones { white-space:nowrap; width:1%; }
+    .ce-acciones .btn { padding:.2rem .45rem; }
+    .ce-nota { font-size:.75rem; color:#92400e; }
+    .ce-vista-caja { overflow-x:auto; }
+    .ce-vista { width:100%; min-width:560px; border-collapse:collapse; font-family: Arial, Helvetica, sans-serif; font-size:.78rem; }
     .ce-vista th { background: var(--color-primario, #193661); color:#fff; border:1px solid #9aa4b2; padding:5px 4px;
                    text-align:center; vertical-align:middle; word-break:break-word; }
     .ce-vista td { border:1px solid #c9ced6; padding:4px; text-align:center; color:#9ca3af; }
@@ -15,40 +19,74 @@
     .ce-donde li { margin-bottom:4px; }
 </style>
 <div class="container-fluid" style="max-width:980px;">
-    <p class="text-muted">No todos los colegios califican con SER, SABER y HACER. Escriba cómo se llaman en su colegio las
-        tres columnas de nota: así salen en el <strong>encabezado del boletín</strong> y son los nombres por defecto en las
-        <strong>planillas</strong> (en línea, Excel y PDF), el <strong>ingreso de notas</strong> y <strong>PuntoExacto</strong>.</p>
+    <p class="text-muted">Cada colegio califica a su manera: con un solo componente, con SER, SABER y HACER, o con cinco.
+        Agregue, quite, nombre y ordene aquí los componentes de su colegio. Así salen en el
+        <strong>encabezado del boletín</strong> y son las columnas de las <strong>planillas</strong> (en línea, Excel y PDF),
+        el <strong>ingreso de notas</strong> y <strong>PuntoExacto</strong>.</p>
 
-    <form method="post" class="ce-card">
+    <form method="post" class="ce-card" id="ce-form">
         {% csrf_token %}
-        <h5><i class="fas fa-tags me-2 text-primary"></i>Nombres</h5>
-        {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>{% endif %}
+        <h5><i class="fas fa-tags me-2 text-primary"></i>Componentes</h5>
+        {% if errores %}
+        <div class="alert alert-danger py-2">{% for e in errores %}<div>{{ e }}</div>{% endfor %}</div>
+        {% endif %}
         <div class="table-responsive">
         <table class="table align-middle ce-tabla mb-2">
-            <thead><tr><th style="width:110px">Columna</th><th>Nombre</th><th style="width:200px">Abreviatura para el boletín</th></tr></thead>
-            <tbody>
+            <thead><tr><th>#</th><th>Nombre</th><th style="width:190px">Abreviatura para el boletín</th><th></th></tr></thead>
+            <tbody id="ce-filas">
             {% for f in filas %}
-            <tr>
-                <td class="ce-cod">{{ forloop.counter }} · {{ f.codigo }}</td>
-                <td>{{ f.nombre }}{% for e in f.nombre.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</td>
-                <td>{{ f.abreviatura }}</td>
+            <tr class="ce-fila">
+                <td class="ce-num"></td>
+                <td>
+                    <input type="hidden" name="codigo" value="{{ f.codigo }}">
+                    <input type="text" name="nombre" class="form-control ce-nombre" value="{{ f.nombre }}" maxlength="{{ largo_nombre }}" required autocomplete="off" placeholder="Ej.: Cognitivo">
+                    {% if f.notas %}<div class="ce-nota mt-1"><i class="fas fa-lock me-1"></i>Tiene notas este año: se puede renombrar, no quitar.</div>{% endif %}
+                </td>
+                <td><input type="text" name="abreviatura" class="form-control ce-abrev" value="{{ f.abreviatura }}" maxlength="{{ largo_abreviatura }}" autocomplete="off" placeholder="Opcional"></td>
+                <td class="ce-acciones text-end">
+                    <button type="button" class="btn btn-sm btn-outline-secondary ce-subir" title="Subir"><i class="fas fa-arrow-up"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ce-bajar" title="Bajar"><i class="fas fa-arrow-down"></i></button>
+                    {% if f.notas %}
+                    <button type="button" class="btn btn-sm btn-outline-danger ce-quitar" disabled
+                            title="Ya tiene notas este año en {{ f.materias|join:', ' }}"><i class="fas fa-trash"></i></button>
+                    {% else %}
+                    <button type="button" class="btn btn-sm btn-outline-danger ce-quitar" title="Quitar"><i class="fas fa-trash"></i></button>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
         </div>
-        <p class="small text-muted">La abreviatura es opcional: se usa en el boletín, donde las columnas son angostas
+        <template id="ce-plantilla">
+            <tr class="ce-fila">
+                <td class="ce-num"></td>
+                <td><input type="hidden" name="codigo" value="">
+                    <input type="text" name="nombre" class="form-control ce-nombre" maxlength="{{ largo_nombre }}" required autocomplete="off" placeholder="Ej.: Cognitivo"></td>
+                <td><input type="text" name="abreviatura" class="form-control ce-abrev" maxlength="{{ largo_abreviatura }}" autocomplete="off" placeholder="Opcional"></td>
+                <td class="ce-acciones text-end">
+                    <button type="button" class="btn btn-sm btn-outline-secondary ce-subir" title="Subir"><i class="fas fa-arrow-up"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ce-bajar" title="Bajar"><i class="fas fa-arrow-down"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-danger ce-quitar" title="Quitar"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        </template>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="ce-agregar"><i class="fas fa-plus me-1"></i>Agregar componente</button>
+        <span class="small text-muted ms-2" id="ce-cuenta"></span>
+
+        <p class="small text-muted mt-3 mb-1">La abreviatura es opcional: se usa en el boletín, donde las columnas son angostas
             (por ejemplo «COGNITIVO» → «COG.»). Si la deja vacía, sale el nombre completo.</p>
+        <p class="small text-muted">Al quitar un componente, lo que pesaba se reparte entre los que quedan. Uno nuevo empieza en
+            0 %: póngale su porcentaje en <a href="{% url 'notas:configuracion_calificaciones' %}">Permisos de porcentajes</a>
+            (o use ponderación equitativa) para que aparezca en las planillas.</p>
 
         <h6 class="fw-bold mt-3 mb-2">Así se verá el encabezado del boletín</h6>
+        <div class="ce-vista-caja">
         <table class="ce-vista">
-            <thead><tr>
-                <th style="width:35%">AREA/ASIGNATURA</th><th style="width:5%">IH</th><th style="width:10%">V/N</th>
-                <th id="ce-v1"></th><th id="ce-v2"></th><th id="ce-v3"></th>
-                <th style="width:6%">DEF</th><th style="width:6%">ACUM</th><th style="width:6%">INAS</th>
-            </tr></thead>
-            <tbody><tr><td>MATEMÁTICAS</td><td>5</td><td>4.2</td><td>4.0</td><td>4.3</td><td>4.1</td><td>4.2</td><td>4.1</td><td>0</td></tr></tbody>
+            <thead><tr id="ce-vista-enc"></tr></thead>
+            <tbody><tr id="ce-vista-fila"></tr></tbody>
         </table>
+        </div>
 
         <button class="btn btn-primary mt-3"><i class="fas fa-save me-1"></i>Guardar</button>
     </form>
@@ -56,13 +94,14 @@
     <div class="ce-card">
         <h5><i class="fas fa-map-signs me-2 text-primary"></i>Dónde salen</h5>
         <ul class="ce-donde mb-0">
-            <li>Boletín de cada periodo: encabezado de las tres columnas (abreviatura o nombre).</li>
+            <li>Boletín de cada periodo: una columna por componente (abreviatura o nombre).</li>
             <li>Ingreso de notas en línea: títulos de las columnas y de los porcentajes.</li>
             <li>Planillas en Excel y en PDF, y la configuración de columnas en «Mis planillas».</li>
             <li>PuntoExacto: el componente al que va la nota de un examen.</li>
         </ul>
     </div>
 
+    {% if legado %}
     <div class="ce-card">
         <h5><i class="fas fa-book me-2 text-primary"></i>Asignaturas con nombres propios</h5>
         {% if propias %}
@@ -70,7 +109,7 @@
                 querer, puede volverlas a los del colegio.</p>
             <div class="table-responsive">
             <table class="table table-sm align-middle">
-                <thead class="table-light"><tr><th>Asignatura</th><th>Columna 1</th><th>Columna 2</th><th>Columna 3</th><th></th></tr></thead>
+                <thead class="table-light"><tr><th>Asignatura</th>{% for c in legado %}<th>{{ c.nombre }}</th>{% endfor %}<th></th></tr></thead>
                 <tbody>
                 {% for p in propias %}
                 <tr><td>{{ p.materia.nombre }}</td>{% for n in p.nombres %}<td>{{ n|default:"—" }}</td>{% endfor %}
@@ -87,20 +126,74 @@
             <p class="mb-0 text-muted">Ninguna: todas las asignaturas usan los nombres del colegio.</p>
         {% endif %}
     </div>
+    {% endif %}
 </div>
 <script>
 (function () {
-    var pares = [['id_etiqueta_ser', 'id_abreviatura_ser', 'ce-v1', 'SER'], ['id_etiqueta_saber', 'id_abreviatura_saber', 'ce-v2', 'SABER'],
-                 ['id_etiqueta_hacer', 'id_abreviatura_hacer', 'ce-v3', 'HACER']];
-    function pintar() {
-        pares.forEach(function (p) {
-            var nombre = document.getElementById(p[0]).value.trim(), abrev = document.getElementById(p[1]).value.trim();
-            document.getElementById(p[2]).textContent = (abrev || nombre || p[3]).toUpperCase();
-        });
+    var MAXIMO = {{ maximo }};
+    var cuerpo = document.getElementById('ce-filas');
+    var plantilla = document.getElementById('ce-plantilla');
+    var agregar = document.getElementById('ce-agregar');
+    var ejemplo = ['4,0', '4,3', '4,1', '3,8', '4,5', '4,2', '3,9', '4,4', '4,0', '4,1', '3,7', '4,6'];
+
+    function filas() { return Array.prototype.slice.call(cuerpo.querySelectorAll('tr.ce-fila')); }
+
+    function celda(etiqueta, texto, ancho) {
+        var c = document.createElement(etiqueta);
+        c.textContent = texto;
+        if (ancho) c.style.width = ancho;
+        return c;
     }
-    pares.forEach(function (p) {
-        document.getElementById(p[0]).addEventListener('input', pintar);
-        document.getElementById(p[1]).addEventListener('input', pintar);
+
+    function pintar() {
+        var lista = filas();
+        lista.forEach(function (f, i) {
+            f.querySelector('.ce-num').textContent = i + 1;
+            f.querySelector('.ce-subir').disabled = i === 0;
+            f.querySelector('.ce-bajar').disabled = i === lista.length - 1;
+        });
+        // Siempre queda al menos uno.
+        lista.forEach(function (f) {
+            var b = f.querySelector('.ce-quitar');
+            if (b.title.indexOf('Ya tiene notas') === 0) { b.setAttribute('data-bloqueado', '1'); return; }
+            b.disabled = lista.length <= 1;
+        });
+        agregar.disabled = lista.length >= MAXIMO;
+        document.getElementById('ce-cuenta').textContent = lista.length + (lista.length === 1 ? ' componente' : ' componentes');
+
+        var enc = document.getElementById('ce-vista-enc'), fila = document.getElementById('ce-vista-fila');
+        enc.innerHTML = ''; fila.innerHTML = '';
+        enc.appendChild(celda('th', 'AREA/ASIGNATURA', '35%'));
+        enc.appendChild(celda('th', 'IH', '5%'));
+        enc.appendChild(celda('th', 'V/N', '10%'));
+        fila.appendChild(celda('td', 'MATEMÁTICAS'));
+        fila.appendChild(celda('td', '5'));
+        fila.appendChild(celda('td', 'ALTO'));
+        lista.forEach(function (f, i) {
+            var nombre = f.querySelector('.ce-nombre').value.trim(), abrev = f.querySelector('.ce-abrev').value.trim();
+            enc.appendChild(celda('th', (abrev || nombre || ('COMPONENTE ' + (i + 1))).toUpperCase()));
+            fila.appendChild(celda('td', ejemplo[i % ejemplo.length]));
+        });
+        ['DEF', 'ACUM', 'INAS'].forEach(function (t) { enc.appendChild(celda('th', t, '6%')); });
+        ['4,2', '4,1', '0'].forEach(function (t) { fila.appendChild(celda('td', t)); });
+    }
+
+    cuerpo.addEventListener('click', function (e) {
+        var b = e.target.closest('button');
+        if (!b || b.disabled) return;
+        var f = b.closest('tr.ce-fila');
+        if (b.classList.contains('ce-subir') && f.previousElementSibling) cuerpo.insertBefore(f, f.previousElementSibling);
+        else if (b.classList.contains('ce-bajar') && f.nextElementSibling) cuerpo.insertBefore(f.nextElementSibling, f);
+        else if (b.classList.contains('ce-quitar')) f.remove();
+        pintar();
+    });
+    cuerpo.addEventListener('input', pintar);
+    agregar.addEventListener('click', function () {
+        if (filas().length >= MAXIMO) return;
+        cuerpo.appendChild(plantilla.content.cloneNode(true));
+        var lista = filas();
+        lista[lista.length - 1].querySelector('.ce-nombre').focus();
+        pintar();
     });
     pintar();
 })();

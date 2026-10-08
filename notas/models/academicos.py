@@ -20,6 +20,15 @@ class AreaConocimiento(models.Model):
         unique_together = ('nombre', 'colegio')
         verbose_name = "Área de Conocimiento"; verbose_name_plural = "Áreas de Conocimiento"; ordering = ['nombre']
 
+# Componentes de evaluación: los tres de siempre conservan su código (las notas
+# ya guardadas los usan) y los que el colegio agregue son C4, C5… Cómo se llama
+# cada uno lo decide el colegio (ComponenteEvaluacion).
+CODIGOS_LEGADO = ('SER', 'SABER', 'HACER')
+CODIGOS_EXTRA = tuple(f'C{n}' for n in range(4, 13))
+CODIGOS_COMPONENTE = CODIGOS_LEGADO + CODIGOS_EXTRA
+CHOICES_COMPONENTE = [(c, c) for c in CODIGOS_COMPONENTE]
+
+
 class Materia(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="materias", null=True)
     nombre = models.CharField(max_length=100, verbose_name="Nombre de la Materia")
@@ -34,13 +43,18 @@ class Materia(models.Model):
     etiqueta_ser = models.CharField(max_length=30, default="SER", verbose_name="Nombre Componente 1 (Ser)")
     etiqueta_saber = models.CharField(max_length=30, default="SABER", verbose_name="Nombre Componente 2 (Saber)")
     etiqueta_hacer = models.CharField(max_length=30, default="HACER", verbose_name="Nombre Componente 3 (Hacer)")
+    # {código: porcentaje} de cada componente del colegio. Los tres de siempre
+    # también quedan en porcentaje_ser/saber/hacer (ver notas/componentes.py).
+    pesos_componentes = models.JSONField(default=dict, blank=True, verbose_name="Porcentajes por componente")
 
     def __str__(self): return self.nombre
     def clean(self):
         super().clean()
-        if not self.usar_ponderacion_equitativa:
-            if (self.porcentaje_ser + self.porcentaje_saber + self.porcentaje_hacer) != 100:
-                raise ValidationError("La suma de los porcentajes manuales debe ser 100.")
+        if not self.usar_ponderacion_equitativa and self.colegio_id:
+            from ..componentes import suma_pesos
+            total = suma_pesos(self)
+            if total != 100:
+                raise ValidationError(f"La suma de los porcentajes manuales debe ser 100 (va en {total}).")
     class Meta:
         unique_together = ('nombre', 'colegio')
         verbose_name = "Materia"; verbose_name_plural = "Materias"; ordering = ['nombre']
@@ -77,6 +91,7 @@ class AsignacionDocente(models.Model):
     porcentaje_ser = models.PositiveIntegerField(default=30, validators=[MinValueValidator(0), MaxValueValidator(100)])
     porcentaje_saber = models.PositiveIntegerField(default=40, validators=[MinValueValidator(0), MaxValueValidator(100)])
     porcentaje_hacer = models.PositiveIntegerField(default=30, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    pesos_componentes = models.JSONField(default=dict, blank=True, verbose_name="Porcentajes por componente")
     class Meta:
         unique_together = ('docente', 'materia', 'curso', 'colegio')
         verbose_name = "Asignación Académica"; verbose_name_plural = "Asignaciones Académicas"; ordering = ['curso__nombre', 'materia__nombre']
@@ -84,33 +99,27 @@ class AsignacionDocente(models.Model):
     def clean(self):
         super().clean()
         if not self.usar_ponderacion_equitativa:
-            total_porcentaje = (self.porcentaje_ser or 0) + (self.porcentaje_saber or 0) + (self.porcentaje_hacer or 0)
+            from ..componentes import suma_pesos
+            total_porcentaje = suma_pesos(self)
             if total_porcentaje != 100 and total_porcentaje != 0:
                 raise ValidationError(f"La suma de porcentajes debe ser 100 (o 0 si no promedia). Actualmente es {total_porcentaje}.")
     
+    # Se conservan por compatibilidad: el porcentaje real lo calcula notas/componentes.py
+    # para todos los componentes del colegio (pueden ser 1, 3, 5…).
     @property
     def ser_calc(self):
-        config_global, _ = ConfiguracionCalificaciones.objects.get_or_create(colegio=self.colegio)
-        if config_global.docente_puede_modificar:
-            return Decimal('33.33') if self.usar_ponderacion_equitativa else Decimal(self.porcentaje_ser)
-        else:
-            return Decimal('33.33') if self.materia.usar_ponderacion_equitativa else Decimal(self.materia.porcentaje_ser)
+        from ..componentes import pesos
+        return pesos(self).get('SER', Decimal('0'))
 
     @property
     def saber_calc(self):
-        config_global, _ = ConfiguracionCalificaciones.objects.get_or_create(colegio=self.colegio)
-        if config_global.docente_puede_modificar:
-            return Decimal('33.33') if self.usar_ponderacion_equitativa else Decimal(self.porcentaje_saber)
-        else:
-            return Decimal('33.33') if self.materia.usar_ponderacion_equitativa else Decimal(self.materia.porcentaje_saber)
+        from ..componentes import pesos
+        return pesos(self).get('SABER', Decimal('0'))
 
     @property
     def hacer_calc(self):
-        config_global, _ = ConfiguracionCalificaciones.objects.get_or_create(colegio=self.colegio)
-        if config_global.docente_puede_modificar:
-            return Decimal('33.34') if self.usar_ponderacion_equitativa else Decimal(self.porcentaje_hacer)
-        else:
-            return Decimal('33.34') if self.materia.usar_ponderacion_equitativa else Decimal(self.materia.porcentaje_hacer)
+        from ..componentes import pesos
+        return pesos(self).get('HACER', Decimal('0'))
 
 class Calificacion(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="calificaciones", null=True)
@@ -118,7 +127,9 @@ class Calificacion(models.Model):
     materia = models.ForeignKey(Materia, on_delete=models.CASCADE)
     periodo = models.ForeignKey(PeriodoAcademico, on_delete=models.CASCADE)
     docente = models.ForeignKey(Docente, on_delete=models.SET_NULL, null=True)
-    TIPO_NOTA_CHOICES = [('SER', 'Promedio Ser'), ('SABER', 'Promedio Saber'), ('HACER', 'Promedio Hacer'), ('PROM_PERIODO', 'Promedio del Periodo'), ('NIVELACION', 'Nota de Nivelación')]
+    TIPO_NOTA_CHOICES = ([('SER', 'Promedio Ser'), ('SABER', 'Promedio Saber'), ('HACER', 'Promedio Hacer')]
+                         + [(c, f'Promedio componente {c[1:]}') for c in CODIGOS_EXTRA]
+                         + [('PROM_PERIODO', 'Promedio del Periodo'), ('NIVELACION', 'Nota de Nivelación')])
     tipo_nota = models.CharField(max_length=12, choices=TIPO_NOTA_CHOICES)
     valor_nota = models.DecimalField(max_digits=5, decimal_places=2, validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))])  # el rango real lo pone la escala del colegio
     es_recuperada = models.BooleanField(default=False, help_text="Indica si esta calificación de periodo fue recuperada con una nivelación.")
@@ -301,7 +312,7 @@ class PlanNotas(models.Model):
     los mismos nombres. Las notas siguen guardándose en NotaDetallada; su
     descripción es la que las amarra a su columna.
     """
-    COMPONENTES = [('SER', 'SER'), ('SABER', 'SABER'), ('HACER', 'HACER')]
+    COMPONENTES = CHOICES_COMPONENTE
 
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="planes_notas", null=True)
     asignacion = models.ForeignKey('AsignacionDocente', on_delete=models.CASCADE, related_name='planes_notas')
@@ -361,3 +372,30 @@ class EscalaValoracion(models.Model):
         ordering = ['valor_minimo']
         verbose_name = "Escala de Valoración"
         verbose_name_plural = "Escalas de Valoración"
+
+
+class ComponenteEvaluacion(models.Model):
+    """Un componente de evaluación del colegio: «Saber», «Cognitivo», «Nota»…
+
+    El colegio decide cuántos tiene (de 1 en adelante), cómo se llaman, su
+    abreviatura para el boletín y en qué orden salen. El código no cambia
+    nunca: es con lo que se guardan las notas (Calificacion.tipo_nota).
+    """
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='componentes_evaluacion')
+    codigo = models.CharField(max_length=6, choices=CHOICES_COMPONENTE)
+    nombre = models.CharField(max_length=30)
+    abreviatura = models.CharField(max_length=10, blank=True, default='')
+    orden = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        unique_together = ('colegio', 'codigo')
+        ordering = ['orden', 'id']
+        verbose_name = 'Componente de evaluación'
+        verbose_name_plural = 'Componentes de evaluación'
+
+    def __str__(self):
+        return f'{self.nombre} ({self.codigo})'
+
+    @property
+    def encabezado(self):
+        return (self.abreviatura or self.nombre).upper()

@@ -30,7 +30,7 @@
         .tabla-notas { width: 100%; border-collapse: collapse; font-size: 1em; }
         .tabla-notas th, .tabla-notas td { border: 1px solid #999; padding: 3px; text-align: center; vertical-align: middle; }
         .tabla-notas th { background-color: #E0E0E0; font-weight: bold; }
-        .tabla-notas th.th-comp { width: 9%; font-size: 7pt; word-break: break-word; }
+        .tabla-notas th.th-comp { font-size: 7pt; word-break: break-word; }
         .area-header { font-weight: bold; text-align: left; background-color: #f0f0f0; }
         .asignatura-row td { text-align: left; }
         .asignatura-row .nota { text-align: center; }
@@ -112,9 +112,7 @@
                     <th style="width: 35%;">AREA/ASIGNATURA</th>
                     <th style="width: 5%;">IH</th>
                     <th style="width: 10%;">V/N</th>
-                    <th class="th-comp">{% firstof ajustes.abreviatura_ser ajustes.etiqueta_ser "SER" as nom_ser %}{{ nom_ser|upper }}</th>
-                    <th class="th-comp">{% firstof ajustes.abreviatura_saber ajustes.etiqueta_saber "SABER" as nom_saber %}{{ nom_saber|upper }}</th>
-                    <th class="th-comp">{% firstof ajustes.abreviatura_hacer ajustes.etiqueta_hacer "HACER" as nom_hacer %}{{ nom_hacer|upper }}</th>
+                    {% for comp in componentes %}<th class="th-comp" style="width: {% widthratio 27 componentes|length 1 %}%;">{{ comp.encabezado }}</th>{% endfor %}
                     <th style="width: 5%;">DEF</th>
                     <th style="width: 5%;">ACUM</th>
                     <th style="width: 5%;">INAS</th>
@@ -128,7 +126,7 @@
                 {% if not area.colapsada %}
                 <tr class="{{ area.estado_color_css_class }}">
                     <td class="area-header">{{ area.nombre }}</td>
-                    <td class="area-header" style="text-align: center; font-weight: bold;" colspan="5">{{ area.desempeno_area }}</td>
+                    <td class="area-header" style="text-align: center; font-weight: bold;" colspan="{{ componentes|length|add:2 }}">{{ area.desempeno_area }}</td>
                     <td class="area-header" style="text-align: center;"><strong>{{ area.nota_final_area|coma_decimal|default_if_none:"" }}</strong></td>
                     <td class="area-header" style="text-align: center;"><strong>{{ area.nota_final_area_acumulada|coma_decimal|default_if_none:"" }}</strong></td>
                     <td class="area-header"></td>
@@ -147,9 +145,7 @@
                     </td>
                     <td class="nota">{{ materia.ih }}</td>
                     <td class="nota">{{ materia.v_n }}</td>
-                    <td class="nota">{{ materia.ser.valor_nota|coma_decimal|default_if_none:"" }}</td>
-                    <td class="nota">{{ materia.sab.valor_nota|coma_decimal|default_if_none:"" }}</td>
-                    <td class="nota">{{ materia.hac.valor_nota|coma_decimal|default_if_none:"" }}</td>
+                    {% for nota_comp in materia.comps %}<td class="nota">{{ nota_comp.valor_nota|coma_decimal|default_if_none:"" }}</td>{% endfor %}
                     <td class="nota"><strong>{{ materia.def|coma_decimal|default_if_none:"" }}</strong></td>
                     <td class="nota"><strong>{{ materia.def_acumulada|coma_decimal|default_if_none:"" }}</strong></td>
                     <td class="nota">{{ materia.inasistencias|default_if_none:"0" }}</td>
@@ -159,7 +155,7 @@
                     <!-- Indicador Especial de Inclusión -->
                     {% for obs in materia.observacion_inclusion %}
                     <tr class="logro-descriptivo-row">
-                        <td colspan="9">
+                        <td colspan="{{ componentes|length|add:6 }}">
                             • {{ obs }}
                         </td>
                     </tr>
@@ -168,7 +164,7 @@
                     <!-- Indicadores Normales -->
                     {% for logro in materia.logros %}
                     <tr class="logro-descriptivo-row">
-                        <td colspan="9">
+                        <td colspan="{{ componentes|length|add:6 }}">
                             • 
                             {% if colegio.formatear_logros_automatico %}
                                 {% if materia.v_n == 'SUPERIOR' %}
@@ -191,7 +187,7 @@
                 {% endif %}
                 {% if materia.observacion %}
                     <tr class="logro-descriptivo-row observacion-materia-row">
-                        <td colspan="9"><strong>Observación:</strong> {{ materia.observacion }}</td>
+                        <td colspan="{{ componentes|length|add:6 }}"><strong>Observación:</strong> {{ materia.observacion }}</td>
                     </tr>
                 {% endif %}
 

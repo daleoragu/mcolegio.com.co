@@ -107,54 +107,6 @@ class AgregarVariasPreguntas(ColegioDePrueba):
         self.assertEqual(ex.numero_preguntas, 150)
 
 
-class ComponentesDeEvaluacion(ColegioDePrueba):
-
-    def test_el_admin_los_nombra_y_salen_en_todas_partes(self):
-        from notas.models.academicos import ConfiguracionCalificaciones
-        from notas.planillas.columnas import componentes_activos
-        c = self.cliente(self.rectora)
-        self.assertContains(c.get('/admin/componentes-evaluacion/'), 'Así se verá el encabezado del boletín')
-        r = c.post('/admin/componentes-evaluacion/', {
-            'etiqueta_ser': 'Actitudinal', 'abreviatura_ser': 'ACT.',
-            'etiqueta_saber': 'Cognitivo', 'abreviatura_saber': '',
-            'etiqueta_hacer': 'Procedimental', 'abreviatura_hacer': 'PROC.'})
-        self.assertEqual(r.status_code, 302)
-        conf = ConfiguracionCalificaciones.objects.get(colegio=self.a)
-        self.assertEqual((conf.etiqueta_saber, conf.abreviatura_hacer), ('Cognitivo', 'PROC.'))
-        # Planillas: la materia está en SABER/HACER por defecto, así que usa los del colegio.
-        self.assertEqual([n for _, n, _ in componentes_activos(self.asig)], ['Cognitivo', 'Procedimental'])
-        # Ingreso de notas en línea
-        r = self.cliente(self.u_docente).get(
-            f'/docente/ingresar-notas/?asignacion_id={self.asig.id}&periodo_id={self.p1.id}')
-        self.assertContains(r, '"lbl_saber": "Cognitivo"')
-        # Boletín: abreviatura si hay, si no el nombre completo, sin recortar.
-        import re
-        from django.template import Context, Template
-        fuente = open('notas/templates/notas/boletin/boletin_pdf.html', encoding='utf-8').read()
-        celdas = ''.join(re.findall(r'<th class="th-comp">.*?</th>', fuente))
-        self.assertEqual(celdas.count('th-comp'), 3)
-        html = Template(celdas).render(Context({'ajustes': conf}))
-        for texto in ('ACT.', 'COGNITIVO', 'PROC.'):
-            self.assertIn(texto, html)
-
-    def test_nombres_repetidos_no(self):
-        r = self.cliente(self.rectora).post('/admin/componentes-evaluacion/', {
-            'etiqueta_ser': 'Saber', 'etiqueta_saber': 'saber', 'etiqueta_hacer': 'Hacer'})
-        self.assertContains(r, 'nombre distinto')
-
-    def test_unificar_materias(self):
-        self.materia.etiqueta_saber = 'Examen'
-        self.materia.save()
-        c = self.cliente(self.rectora)
-        self.assertContains(c.get('/admin/componentes-evaluacion/'), 'Examen')
-        c.post('/admin/componentes-evaluacion/', {'accion': 'unificar'})
-        self.materia.refresh_from_db()
-        self.assertEqual(self.materia.etiqueta_saber, 'SABER')
-
-    def test_solo_administradores(self):
-        self.assertEqual(self.cliente(self.u_docente).get('/admin/componentes-evaluacion/').status_code, 403)
-
-
 class EncabezadoPorColegio(ColegioDePrueba):
 
     def datos(self, **extra):

@@ -31,11 +31,7 @@ LETRAS = 'ABCDEFGHIJ'
 # A qué columna de la planilla va la nota. Son los tres componentes que maneja
 # el ingreso de notas; cada colegio puede llamarlos distinto, pero por dentro
 # se guardan así.
-COMPONENTES = [
-    ('SER', 'SER'),
-    ('SABER', 'SABER'),
-    ('HACER', 'HACER'),
-]
+from notas.models.academicos import CHOICES_COMPONENTE as COMPONENTES  # noqa: E402  (los del colegio salen de notas/componentes.py)
 
 
 def limpiar_rotulos(crudo):
@@ -154,19 +150,15 @@ class Examen(models.Model):
         return total or Decimal('0')
 
     def nombre_componente(self, codigo):
-        """Cómo llama este colegio a SER, SABER o HACER.
+        """Cómo llama este colegio a ese componente (Componentes de evaluación).
 
-        Hay colegios que les dicen distinto, y eso ya está configurado en
-        ConfiguracionCalificaciones. Se respeta para que el docente vea el
-        mismo nombre en PuntoExacto y en el boletín.
+        Se respeta para que el docente vea el mismo nombre en PuntoExacto y en
+        el boletín.
         """
         if not self.colegio_id:
             return codigo
-        from notas.models.academicos import ConfiguracionCalificaciones
-        config = ConfiguracionCalificaciones.objects.filter(colegio=self.colegio).first()
-        if not config:
-            return codigo
-        return getattr(config, f'etiqueta_{codigo.lower()}', codigo) or codigo
+        from notas.componentes import nombre
+        return nombre(self.colegio, codigo)
 
     def componentes_usados(self):
         """Los componentes a los que este examen va a mandar notas."""
