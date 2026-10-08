@@ -193,3 +193,24 @@ class Prematricula(ColegioDePrueba):
         h = self.familia.get('/prematricula/formulario/nuevo/').content.decode()
         self.assertIn('name="sede"', h)
         self.assertIn('name="jornada"', h)
+
+
+class Habilitar(ColegioDePrueba):
+
+    def test_arranca_deshabilitada_y_el_admin_la_habilita(self):
+        admin = self.cliente(self.rectora)
+        conf = logica.configuracion_de(self.a)
+        self.assertFalse(conf.abierta)                                 # nunca sale sola
+        self.assertNotIn('/prematricula/"', self.cliente().get('/').content.decode())
+        self.assertContains(admin.get('/prematricula/gestion/'), 'Habilitar en el portal')
+        # Un docente no puede habilitarla.
+        self.cliente(self.u_docente).post('/prematricula/gestion/habilitar/', {'abrir': '1'})
+        conf.refresh_from_db()
+        self.assertFalse(conf.abierta)
+        admin.post('/prematricula/gestion/habilitar/', {'abrir': '1'})
+        conf.refresh_from_db()
+        self.assertTrue(conf.abierta)
+        self.assertIn('/prematricula/', self.cliente().get('/').content.decode())
+        admin.post('/prematricula/gestion/habilitar/', {'abrir': '0'})
+        conf.refresh_from_db()
+        self.assertFalse(conf.abierta)

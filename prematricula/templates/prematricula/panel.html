@@ -2,27 +2,41 @@
 {% block page_title %}<h1>Prematrícula {{ ano }}</h1>{% endblock %}
 {% block content %}
 {% include 'prematricula/_estilos_gestion.html' %}
-{% if messages %}{% for m in messages %}<div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags }}{% endif %} alert-dismissible fade show">{{ m }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endif %}
 
 <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
     <a href="{% url 'prematricula:configuracion' %}" class="btn btn-outline-primary"><i class="fas fa-gear me-1"></i> Configurar</a>
     <a href="{% url 'prematricula:encuesta' %}?ano={{ ano }}" class="btn btn-outline-primary"><i class="fas fa-chart-bar me-1"></i> Resultados de la encuesta</a>
     <a href="{% url 'prematricula:exportar' %}?ano={{ ano }}" class="btn btn-outline-success"><i class="fas fa-file-excel me-1"></i> Excel</a>
-    <span class="ms-auto">
-        {% if conf.esta_abierta and conf.ano_lectivo == ano %}<span class="badge bg-success">Abierta en el portal</span>
-        {% else %}<span class="badge bg-secondary">Cerrada</span>{% endif %}
-    </span>
+    <span class="ms-auto"></span>
     {% if anos|length > 1 %}
     <form method="get"><select name="ano" class="form-select form-select-sm" onchange="this.form.submit()">
         {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}</select></form>
     {% endif %}
 </div>
 
-{% if conf.esta_abierta %}
-<div class="alert alert-light border" style="font-size:.9rem;">
-    Enlace para las familias (también sale en el portal): <a href="{{ url_portal }}" target="_blank">{{ url_portal }}</a>
-</div>
-{% endif %}
+<form method="post" action="{% url 'prematricula:alternar' %}" class="pg-tarjeta d-flex flex-wrap align-items-center gap-3"
+      style="border-left:5px solid {% if conf.esta_abierta %}#16a34a{% else %}#9ca3af{% endif %};">
+    {% csrf_token %}
+    <div>
+        {% if conf.esta_abierta %}
+            <strong style="color:#067647;"><i class="fas fa-circle-check me-1"></i>Prematrícula {{ conf.ano_lectivo }} habilitada en el portal</strong>
+            <div class="text-muted" style="font-size:.88rem;">Las familias la ven en el menú del portal{% if conf.fecha_cierre %} hasta el {{ conf.fecha_cierre|date:"d/m/Y" }}{% endif %}:
+                <a href="{{ url_portal }}" target="_blank">{{ url_portal }}</a></div>
+        {% else %}
+            <strong><i class="fas fa-circle-pause me-1 text-muted"></i>Prematrícula deshabilitada</strong>
+            <div class="text-muted" style="font-size:.88rem;">No sale en el portal. Revise requisitos y encuesta en «Configurar» y habilítela cuando esté lista.</div>
+        {% endif %}
+    </div>
+    {% if conf.abierta %}
+        <input type="hidden" name="abrir" value="0">
+        <button class="btn btn-outline-secondary ms-auto" onclick="return confirm('¿Deshabilitar la prematrícula? Deja de salir en el portal; lo recibido se conserva.');">
+            <i class="fas fa-toggle-on me-1"></i> Deshabilitar</button>
+    {% else %}
+        <input type="hidden" name="abrir" value="1">
+        <button class="btn btn-success ms-auto" onclick="return confirm('¿Habilitar la prematrícula {{ conf.ano_lectivo }}? Va a salir en el portal del colegio.');">
+            <i class="fas fa-toggle-off me-1"></i> Habilitar en el portal</button>
+    {% endif %}
+</form>
 
 <div class="d-flex flex-wrap gap-2 mb-3">
     <a class="pg-cifra" href="?ano={{ ano }}"><strong>{{ total }}</strong><span>Solicitudes</span></a>

@@ -18,6 +18,7 @@ urlpatterns = [
     path('gestion/encuesta/', views.encuesta, name='encuesta'),
     path('gestion/exportar/', views.exportar, name='exportar'),
     path('gestion/activar/', views.activar, name='activar'),
+    path('gestion/habilitar/', views.alternar, name='alternar'),
     path('gestion/<int:solicitud_id>/', views.detalle, name='detalle'),
     path('gestion/<int:solicitud_id>/documentos.zip', views.documentos_zip, name='documentos_zip'),
     path('gestion/documento/<int:documento_id>/', views.documento, name='documento'),

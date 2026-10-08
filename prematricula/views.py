@@ -458,3 +458,21 @@ def activar(request):
     n = Estudiante.objects.filter(colegio=colegio, is_active=False, id__in=ids).update(is_active=True)
     messages.success(request, f'Se activaron {n} estudiante(s) matriculados para {ano}.')
     return redirect(f"{reverse('prematricula:panel')}?ano={ano}")
+
+
+@admin_requerido
+@require_POST
+def alternar(request):
+    """Habilita o deshabilita la prematrícula en el portal con un clic."""
+    colegio = _colegio_o_404(request)
+    conf = logica.configuracion_de(colegio)
+    conf.abierta = request.POST.get('abrir') == '1'
+    conf.save(update_fields=['abierta'])
+    if conf.abierta and not conf.esta_abierta():
+        messages.warning(request, f'Quedó habilitada, pero la fecha de cierre ({conf.fecha_cierre:%d/%m/%Y}) ya pasó: '
+                                  f'cámbiela en «Configurar» para que salga en el portal.')
+    elif conf.abierta:
+        messages.success(request, f'Prematrícula {conf.ano_lectivo} habilitada: ya sale en el portal del colegio.')
+    else:
+        messages.info(request, 'Prematrícula deshabilitada: ya no sale en el portal. Las solicitudes recibidas se conservan.')
+    return redirect('prematricula:panel')
