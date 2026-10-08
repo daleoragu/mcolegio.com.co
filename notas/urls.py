@@ -190,6 +190,7 @@ urlpatterns = [
     path('observador/crear/<int:estudiante_id>/', observador_views.crear_registro_observador_vista, name='crear_registro_observador'),
     path('observador/ficha/<int:estudiante_id>/editar/', observador_views.editar_ficha_vista, name='editar_ficha'),
     path('observador/pdf/<int:estudiante_id>/', observador_views.generar_observador_pdf_vista, name='generar_observador_pdf'),
+    path('familia/observador/<str:token>/', observador_views.respuesta_acudiente_vista, name='respuesta_acudiente'),
     path('observador/registro/<int:registro_id>/avisar/', observador_views.aviso_familia_vista, name='aviso_familia'),
     path('observador/registro/<int:registro_id>/editar/', observador_views.editar_registro_observador_vista, name='editar_registro_observador'),
     path('observador/registro/<int:registro_id>/eliminar/', observador_views.eliminar_registro_observador_vista, name='eliminar_registro_observador'),

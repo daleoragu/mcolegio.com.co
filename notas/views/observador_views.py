@@ -123,7 +123,7 @@ def crear_registro_observador_vista(request, estudiante_id):
             # Aviso a la familia: el correo sale solo; el WhatsApp se envía
             # desde la pantalla siguiente con un toque.
             enviado, detalle = avisos_familia.enviar_correo(
-                nuevo_registro, request.build_absolute_uri('/'))
+                nuevo_registro, request.build_absolute_uri('/'), _url_respuesta(request, nuevo_registro))
             if enviado:
                 messages.info(request, f"Se envió un aviso al correo del acudiente ({detalle}).")
             return redirect('notas:aviso_familia', registro_id=nuevo_registro.id)
@@ -279,7 +279,8 @@ def aviso_familia_vista(request, registro_id):
                                  id=registro_id, colegio=request.colegio)
     url_portal = request.build_absolute_uri('/')
     if request.method == 'POST' and request.POST.get('accion') == 'correo':
-        enviado, detalle = avisos_familia.enviar_correo(registro, url_portal)
+        enviado, detalle = avisos_familia.enviar_correo(registro, url_portal,
+                                                        _url_respuesta(request, registro))
         if enviado:
             messages.success(request, f"Aviso enviado al correo {detalle}.")
         else:
@@ -298,3 +299,46 @@ def aviso_familia_vista(request, registro_id):
         'correo_configurado': avisos_familia.correo_configurado(),
         'page_title': 'Avisar a la familia',
     })
+
+
+def _url_respuesta(request, registro):
+    return request.build_absolute_uri(
+        reverse('notas:respuesta_acudiente', args=[avisos_familia.token_respuesta(registro)]))
+
+
+def respuesta_acudiente_vista(request, token):
+    """Página del enlace del correo: el acudiente ve la anotación, se da por
+    enterado y escribe su descargo. Sin usuario: el enlace firmado es la llave.
+    """
+    from django.db import transaction
+    from django.utils import timezone
+
+    registro, problema = avisos_familia.registro_de_token(token)
+    if registro is not None and getattr(request, 'colegio', None) and registro.colegio_id != request.colegio.id:
+        registro, problema = None, 'invalido'      # el enlace es de otro colegio
+    contexto = {'registro': registro, 'problema': problema,
+                'colegio': registro.colegio if registro else getattr(request, 'colegio', None)}
+    if registro is None:
+        return render(request, 'notas/observador/respuesta_acudiente.html', contexto, status=404)
+
+    if request.method == 'POST' and not registro.acudiente_enterado:
+        firma = ' '.join((request.POST.get('firma') or '').split())[:160]
+        descargo = (request.POST.get('descargo') or '').strip()[:2000]
+        if len(firma) < 5:
+            contexto.update(error='Escriba su nombre completo.', firma=firma, descargo=descargo)
+            return render(request, 'notas/observador/respuesta_acudiente.html', contexto)
+        with transaction.atomic():
+            registro.acudiente_enterado = timezone.now()
+            registro.firma_acudiente = firma
+            registro.descargo_acudiente = descargo
+            registro.save(update_fields=['acudiente_enterado', 'firma_acudiente', 'descargo_acudiente'])
+            # Le avisa a quien registró la anotación.
+            if registro.docente_reporta_id:
+                Notificacion.objects.create(
+                    colegio=registro.colegio, destinatario=registro.docente_reporta.user, tipo='OBSERVADOR',
+                    mensaje=(f"El acudiente de {registro.estudiante.user.get_full_name()} "
+                             f"{'respondió' if descargo else 'se dio por enterado de'} la anotación "
+                             f"del {registro.fecha_suceso:%d/%m/%Y}.")[:255],
+                    url=reverse('notas:vista_detalle_observador', args=[registro.estudiante_id]))
+        return redirect('notas:respuesta_acudiente', token=token)
+    return render(request, 'notas/observador/respuesta_acudiente.html', contexto)

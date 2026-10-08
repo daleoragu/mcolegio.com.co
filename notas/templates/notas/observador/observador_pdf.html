@@ -205,6 +205,12 @@
             <div class="registro-body">
                 <p class="registro-label" style="margin-top: 10px;">Descripción del suceso:</p>
                 <p>{{ registro.descripcion|linebreaksbr }}</p>
+                {% if registro.acudiente_enterado %}
+                    <div class="registro-descargo">
+                        <p class="registro-label">Acudiente enterado: {{ registro.firma_acudiente }} ({{ registro.acudiente_enterado|date:"d/m/Y" }})</p>
+                        {% if registro.descargo_acudiente %}<p><em>"{{ registro.descargo_acudiente|linebreaksbr }}"</em></p>{% endif %}
+                    </div>
+                {% endif %}
                 {% if registro.descargo_estudiante %}
                     <div class="registro-descargo">
                         <p class="registro-label">Descargo del estudiante (Fecha: {{ registro.fecha_descargo|date:"d/m/Y" }}):</p>

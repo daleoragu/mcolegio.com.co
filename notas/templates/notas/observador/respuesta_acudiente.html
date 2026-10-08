@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Observador · {{ colegio.nombre|default:"mcolegio" }}</title>
+<style>
+  :root { --c: {{ colegio.color_primario|default:'#193661' }}; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#f3f5f9; font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; color:#1f2937; }
+  header { background:var(--c); color:#fff; padding:16px 20px; display:flex; align-items:center; gap:12px; }
+  header img { height:44px; width:auto; background:#fff; border-radius:6px; padding:2px; }
+  header strong { font-size:1.05rem; }
+  main { max-width:640px; margin:22px auto; padding:0 16px; }
+  .tarjeta { background:#fff; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(16,24,40,.06); margin-bottom:16px; }
+  h1 { font-size:1.2rem; margin:0 0 6px; }
+  .meta { color:#6b7280; font-size:.92rem; margin-bottom:14px; }
+  .motivo { background:#f6f7fb; border-left:4px solid var(--c); padding:12px 14px; border-radius:0 8px 8px 0; line-height:1.5; white-space:pre-line; }
+  label { display:block; font-weight:600; margin:14px 0 6px; }
+  input[type=text], textarea { width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font:inherit; }
+  textarea { min-height:130px; resize:vertical; }
+  .ayuda { color:#6b7280; font-size:.85rem; margin-top:4px; }
+  button { margin-top:16px; background:var(--c); color:#fff; border:0; border-radius:8px; padding:12px 20px; font-size:1rem; font-weight:600; cursor:pointer; width:100%; }
+  .ok { background:#ecfdf3; border:1px solid #abefc6; color:#05603a; border-radius:10px; padding:14px 16px; }
+  .error { background:#fef3f2; border:1px solid #fecdca; color:#912018; border-radius:10px; padding:14px 16px; }
+  .respuesta { white-space:pre-line; line-height:1.5; }
+</style>
+</head>
+<body>
+<header>
+  {% if colegio.escudo %}<img src="{{ colegio.escudo.url }}" alt="">{% endif %}
+  <strong>{{ colegio.nombre|default:"mcolegio" }}</strong>
+</header>
+<main>
+{% if problema %}
+  <div class="tarjeta">
+    <div class="error">
+      {% if problema == 'vencido' %}Este enlace ya venció.{% else %}Este enlace no es válido o ya no corresponde.{% endif %}
+      Si necesita información sobre la anotación, comuníquese con coordinación del colegio.
+    </div>
+  </div>
+{% else %}
+  <div class="tarjeta">
+    <h1>Anotación en el observador</h1>
+    <div class="meta">
+      {{ registro.estudiante.user.get_full_name }} · {{ registro.get_tipo_display }}{% if registro.subtipo %} · {{ registro.get_subtipo_display }}{% endif %}
+      · {{ registro.fecha_suceso|date:"d/m/Y" }}{% if registro.docente_reporta %} · Registra: {{ registro.docente_reporta.user.get_full_name }}{% endif %}
+    </div>
+    <div class="motivo">{{ registro.descripcion }}</div>
+  </div>
+
+  {% if registro.acudiente_enterado %}
+  <div class="tarjeta">
+    <div class="ok">
+      <strong>Respuesta recibida.</strong> {{ registro.firma_acudiente }} se dio por enterado(a) el
+      {{ registro.acudiente_enterado|date:"d/m/Y \a \l\a\s h:i a" }} ¡Gracias!
+    </div>
+    {% if registro.descargo_acudiente %}
+      <label>Su descargo o comentario</label>
+      <div class="respuesta">{{ registro.descargo_acudiente }}</div>
+    {% endif %}
+  </div>
+  {% else %}
+  <form method="post" class="tarjeta">
+    {% csrf_token %}
+    <h1>Respuesta del acudiente</h1>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <label for="firma">Su nombre completo</label>
+    <input type="text" id="firma" name="firma" maxlength="160" required value="{{ firma }}"
+           placeholder="Nombre de quien firma como acudiente">
+    <label for="descargo">Descargo o comentario (opcional)</label>
+    <textarea id="descargo" name="descargo" maxlength="2000"
+              placeholder="Escriba aquí su versión, compromisos o lo que quiera que el colegio sepa.">{{ descargo }}</textarea>
+    <div class="ayuda">Queda registrado en el observador del estudiante, con la fecha y su nombre. Solo se puede enviar una vez.</div>
+    <button type="submit">Me doy por enterado(a) y envío</button>
+  </form>
+  {% endif %}
+{% endif %}
+</main>
+</body>
+</html>
