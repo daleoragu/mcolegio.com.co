@@ -22,6 +22,7 @@ urlpatterns = [
     path('<int:examen_id>/cuadernillo/guardar/', views.cuadernillo_guardar, name='cuadernillo_guardar'),
     path('<int:examen_id>/cuadernillo/generar/', views.cuadernillo_generar, name='cuadernillo_generar'),
     path('nube/<str:proveedor>/', views.nube_ayudante, name='nube_ayudante'),
+    path('nube-central/<str:proveedor>/', views.nube_central, name='nube_central'),
     path('<int:examen_id>/formas/', views.formas, name='formas'),
     path('<int:examen_id>/formas/<str:letra>/', views.forma_editar, name='forma_editar'),
     path('<int:examen_id>/formas-excel/', views.formas_exportar, name='formas_exportar'),

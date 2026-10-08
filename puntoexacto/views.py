@@ -1865,8 +1865,12 @@ def cuadernillo_generar(request, examen_id):
 @personal_requerido
 def nube_ayudante(request, proveedor):
     """Ventanita que conecta la nube del docente (Google Drive u OneDrive) y le pasa el permiso
-    a la pestaña del editor. Vive en el mismo subdominio del colegio, así el permiso viaja por un
-    canal del navegador (BroadcastChannel) y nunca pasa por el servidor."""
+    a la pestaña del editor por un canal del navegador (BroadcastChannel), en el mismo
+    subdominio del colegio. El permiso nunca pasa por el servidor.
+
+    Con NUBE_URL, el ida y vuelta con Google o Microsoft se hace por la página central
+    (nube_central), que es la única dirección registrada allá: así un colegio nuevo no
+    obliga a registrar nada."""
     from django.conf import settings
     if proveedor not in ('google', 'onedrive'):
         raise Http404
@@ -1874,4 +1878,41 @@ def nube_ayudante(request, proveedor):
         'proveedor': proveedor,
         'client_id': getattr(settings, 'GOOGLE_CLIENT_ID' if proveedor == 'google' else 'MICROSOFT_CLIENT_ID', ''),
         'correo': request.user.email or '',
+        'central': (getattr(settings, 'NUBE_URL', '') or '') + f'/puntoexacto/nube-central/{proveedor}/'
+                   if getattr(settings, 'NUBE_URL', '') else '',
+    })
+
+
+def _hosts_de_colegios():
+    """Los dominios a los que la página central puede devolver el permiso: los de ALLOWED_HOSTS
+    («.mcolegio.com.co» = cualquier subdominio). localhost solo en desarrollo."""
+    from django.conf import settings
+    salida = []
+    for h in settings.ALLOWED_HOSTS:
+        h = h.strip().lower()
+        if h == '*':
+            # Comodín: solo se acepta en desarrollo y solo para localhost.
+            if settings.DEBUG:
+                salida += ['localhost', '.localhost']
+            continue
+        if not h:
+            continue
+        if not settings.DEBUG and ('localhost' in h or h.startswith('127.')):
+            continue
+        salida.append(h)
+    return salida
+
+
+def nube_central(request, proveedor):
+    """La única dirección registrada en Google y Azure. Recibe la respuesta de Google o
+    Microsoft y la devuelve, por el fragmento de la dirección (que no llega a ningún
+    servidor), a la ventanita del colegio que la pidió. Solo devuelve a dominios de la
+    plataforma. No usa sesión ni guarda nada."""
+    from django.conf import settings
+    if proveedor not in ('google', 'onedrive'):
+        raise Http404
+    return render(request, 'puntoexacto/nube_central.html', {
+        'proveedor': proveedor,
+        'client_id': getattr(settings, 'GOOGLE_CLIENT_ID' if proveedor == 'google' else 'MICROSOFT_CLIENT_ID', ''),
+        'hosts': _hosts_de_colegios(), 'debug': settings.DEBUG,
     })
