@@ -1,0 +1,34 @@
+<footer class="pd-pie mt-auto">
+    <div class="container py-5">
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    {% include "notas/portal_disenos/_escudo.html" with clase="pd-pie-escudo" %}
+                    <div><strong class="d-block" style="font-size:1.1rem;">{{ colegio.nombre }}</strong>
+                        {% if colegio.lema %}<em style="opacity:.8;">«{{ colegio.lema }}»</em>{% endif %}</div>
+                </div>
+                {% if colegio.dane %}<p class="mb-1" style="opacity:.75;font-size:.9rem;">Código DANE {{ colegio.dane }}</p>{% endif %}
+                {% if colegio.resolucion_aprobacion %}<p class="mb-0" style="opacity:.75;font-size:.9rem;">{{ colegio.resolucion_aprobacion }}</p>{% endif %}
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <h4>Contacto</h4>
+                <ul class="list-unstyled pd-pie-lista">
+                    {% if colegio.direccion %}<li><i class="fas fa-map-marker-alt"></i>{{ colegio.direccion }}{% if colegio.ciudad %}, {{ colegio.ciudad }}{% endif %}{% if colegio.departamento %} ({{ colegio.departamento }}){% endif %}</li>{% endif %}
+                    {% if colegio.telefono %}<li><i class="fas fa-phone"></i>{{ colegio.telefono }}</li>{% endif %}
+                    {% if colegio.email_contacto %}<li><i class="fas fa-envelope"></i><a href="mailto:{{ colegio.email_contacto }}">{{ colegio.email_contacto }}</a></li>{% endif %}
+                </ul>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <h4>Enlaces</h4>
+                <ul class="list-unstyled pd-pie-lista">
+                    {% if colegio.prematricula.esta_abierta %}<li><a href="{% url 'prematricula:inicio' %}">Prematrícula {{ colegio.prematricula.ano_lectivo }}</a></li>{% endif %}
+                    <li><a href="#" data-action="noticias">Noticias</a></li>
+                    <li><a href="#" data-action="documentos">Documentos públicos</a></li>
+                    <li><a href="#" data-action="historia">Quiénes somos</a></li>
+                </ul>
+                <div class="pd-pie-redes">{% include "notas/portal_disenos/_redes.html" %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="pd-pie-final"><div class="container">&copy; {% now "Y" %} {{ colegio.nombre }} · Plataforma académica mcolegio</div></div>
+</footer>

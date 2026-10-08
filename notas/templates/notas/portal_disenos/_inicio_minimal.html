@@ -1,0 +1,28 @@
+<section class="pd-intro"><div class="container">
+    <small>{{ colegio.ciudad|default:"Bienvenidos" }}</small>
+    <h1>{{ colegio.lema|default:colegio.nombre }}</h1>
+    {% if colegio.historia %}<p>{{ colegio.historia|truncatewords:55 }}</p>{% endif %}
+    <div class="pd-enlaces-min mt-4">
+        {% if colegio.prematricula.esta_abierta %}<a href="{% url 'prematricula:inicio' %}" style="background:var(--pd-p);color:var(--pd-p-texto);border-color:var(--pd-p);"><i class="fas fa-file-signature"></i>Prematrícula {{ colegio.prematricula.ano_lectivo }}</a>{% endif %}
+        <a href="#" data-action="historia">Nuestra historia</a>
+        <a href="#" data-action="mision">Misión y visión</a>
+        <a href="#" data-action="documentos">Documentos</a>
+        {% if inicio.sedes %}<a href="#" data-action="sedes">Sedes</a>{% endif %}
+    </div>
+</div></section>
+<section class="pd-seccion pt-0"><div class="container">
+    <h2 class="pd-titulo">Noticias</h2>
+    <div class="pd-lista-noticias">
+    {% for n in inicio.noticias|slice:":5" %}
+        <article><time>{{ n.fecha_publicacion|date:"j M Y" }}</time>
+            <div><h3><a href="#" class="noticia-link" data-pk="{{ n.pk }}">{{ n.titulo }}</a></h3><p>{{ n.resumen|truncatechars:180 }}</p></div></article>
+    {% empty %}<div class="pd-vacio">Pronto publicaremos noticias del colegio.</div>{% endfor %}
+    </div>
+    {% if inicio.noticias %}<a href="#" data-action="noticias" class="pd-mas d-inline-block mt-3">Todas las noticias →</a>{% endif %}
+</div></section>
+{% if inicio.fotos %}
+<section class="pd-seccion pt-0"><div class="container">
+    <h2 class="pd-titulo">Galería</h2>
+    <div class="pd-galeria">{% for f in inicio.fotos|slice:":6" %}<a href="#" data-action="galeria" style="background-image:url('{{ f.imagen.url }}');border-radius:4px;" title="{{ f.titulo }}"></a>{% endfor %}</div>
+</div></section>
+{% endif %}

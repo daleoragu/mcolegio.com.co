@@ -86,12 +86,14 @@
         }
 
     </style>
+    {% if inicio %}{% include "notas/portal_disenos/_estilos.html" %}{% endif %}
 </head>
 <body>
 
-    <div class="portal-wrapper {% if colegio.layout_portal == 'sidebar' %}sidebar-layout{% endif %}">
+    {% with diseno=diseno|default:colegio.layout_portal %}
+    <div class="portal-wrapper {% if diseno == 'sidebar' %}sidebar-layout{% endif %} diseno-{{ diseno }}{% if inicio %} pd-en-inicio{% endif %}" id="portalWrapper">
         
-        {% if colegio.layout_portal == 'sidebar' %}
+        {% if diseno == 'sidebar' %}
             <div class="d-none d-lg-block">
                 {% include "notas/portal_components/_portal_sidebar.html" %}
             </div>
@@ -101,6 +103,7 @@
             {% block portal_content %}{% endblock portal_content %}
         </div>
     </div>
+    {% endwith %}
 
     <div class="floating-action-buttons">
         {% if colegio.whatsapp_numero %}

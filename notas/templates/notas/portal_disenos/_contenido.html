@@ -1,0 +1,11 @@
+{# Página de inicio armada en el servidor + el recuadro donde el menú carga cada sección. #}
+<div id="defaultMainContent" data-servidor="1">
+    {% include "notas/portal_disenos/_inicio_"|add:diseno|add:".html" %}
+</div>
+<div id="dynamicMainContent" class="d-none">
+    <div class="container py-5">
+        <div class="card shadow-sm pd-tarjeta-seccion">
+            <div class="card-body p-4 p-md-5"></div>
+        </div>
+    </div>
+</div>

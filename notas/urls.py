@@ -109,6 +109,7 @@ urlpatterns = [
     # --- Rutas para el Portal y su Administración ---
     path('admin/portal/configuracion/', portal_admin_views.configuracion_portal_vista, name='configuracion_portal'),
     path('admin/portal/personalizacion/', portal_admin_views.personalizacion_portal_vista, name='personalizacion_portal'),
+    path('admin/portal/diseno/', portal_admin_views.elegir_diseno_portal_vista, name='elegir_diseno_portal'),
     path('admin/portal/documentos/', portal_admin_views.gestion_documentos_vista, name='gestion_documentos'),
     path('admin/portal/documentos/eliminar/<int:pk>/', portal_admin_views.eliminar_documento_vista, name='eliminar_documento'),
     path('admin/portal/galeria/', portal_admin_views.gestion_galeria_vista, name='gestion_galeria'),
