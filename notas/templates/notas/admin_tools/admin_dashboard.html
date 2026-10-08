@@ -142,6 +142,17 @@
     .bg-puntoexacto { background: linear-gradient(135deg, #1e3a8a, #172554); }
     .bg-planillas { background: linear-gradient(135deg, #198754, #11603b); }
     .bg-alertas { background: linear-gradient(135deg, #dc3545, #a51d2a); }
+    .bg-actas { background: linear-gradient(135deg, #4b5563, #1f2937); }
+    .bg-componentes { background: linear-gradient(135deg, #7c3aed, #5b21b6); }
+    .bg-importar { background: linear-gradient(135deg, #059669, #047857); }
+    .bg-boletines { background: linear-gradient(135deg, #2563eb, #1e40af); }
+    .bg-sabana { background: linear-gradient(135deg, #0891b2, #0e7490); }
+    .bg-observador { background: linear-gradient(135deg, #d97706, #b45309); }
+    .bg-estadisticas { background: linear-gradient(135deg, #db2777, #9d174d); }
+    .bg-puntoexacto { background: linear-gradient(135deg, #16a34a, #166534); }
+    .bg-noticias { background: linear-gradient(135deg, #64748b, #334155); }
+    .app-grupo { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6b7280;
+                 margin: 22px 0 10px; }
     .bg-administradores { background: linear-gradient(135deg, #343a40, #1d2124); }
     .bg-promocion-anual { background: linear-gradient(135deg, #0f766e, #115e59); }
     .bg-portal-gestion { background: linear-gradient(135deg, #5f72bd, #435185); }
@@ -186,6 +197,7 @@
                 </a>
                 <a href="{% url 'prematricula:panel' %}" class="app-icon"><div class="icon-container bg-prematricula"><i class="fas fa-file-signature"></i></div><span class="app-label">Prematrícula</span></a>
                 <a href="{% url 'notas:gestion_sedes' %}" class="app-icon"><div class="icon-container bg-sedes"><i class="fas fa-school"></i></div><span class="app-label">Sedes</span></a>
+                <a href="{% url 'notas:importacion_datos' %}" class="app-icon"><div class="icon-container bg-importar"><i class="fas fa-file-import"></i></div><span class="app-label">Importar datos</span></a>
                 <a href="{% url 'notas:gestion_estudiantes' %}" class="app-icon"><div class="icon-container bg-estudiantes"><i class="fas fa-users"></i></div><span class="app-label">Gestión Estudiantes</span></a>
                 <a href="{% url 'notas:gestion_materias' %}" class="app-icon"><div class="icon-container bg-materias"><i class="fas fa-book-open"></i></div><span class="app-label">Gestión Materias</span></a>
                 <a href="{% url 'notas:gestion_docentes' %}" class="app-icon"><div class="icon-container bg-docentes"><i class="fas fa-chalkboard-teacher"></i></div><span class="app-label">Gestión de Docentes</span></a>
@@ -195,13 +207,24 @@
                 <a href="{% url 'notas:gestion_ponderacion_areas' %}" class="app-icon"><div class="icon-container bg-ponderacion"><i class="fas fa-balance-scale"></i></div><span class="app-label">Ponderación Áreas</span></a>
                 <a href="{% url 'notas:configuracion_calificaciones' %}" class="app-icon"><div class="icon-container bg-permisos"><i class="fas fa-percentage"></i></div><span class="app-label">Permisos Porcentajes</span></a>
                 <a href="{% url 'notas:configuracion_escala_valoracion' %}" class="app-icon"><div class="icon-container bg-escala-valoracion"><i class="fas fa-ruler-combined"></i></div><span class="app-label">Escala de Valoración</span></a>
+                <a href="{% url 'notas:componentes_evaluacion' %}" class="app-icon"><div class="icon-container bg-componentes"><i class="fas fa-tags"></i></div><span class="app-label">Componentes de evaluación</span></a>
                 <a href="{% url 'notas:personalizacion_portal' %}" class="app-icon"><div class="icon-container bg-personalizacion"><i class="fas fa-palette"></i></div><span class="app-label">Personalizar Portal</span></a>
                 <a href="{% url 'notas:lista_estudiantes_reporte' %}" class="app-icon"><div class="icon-container bg-admin-reporte-estudiantes"><i class="fas fa-user-times"></i></div><span class="app-label">Reporte Estudiantes</span></a>
                 <a href="{% url 'notas:impresion_masiva_carnets' %}" class="app-icon"><div class="icon-container bg-impresion-carnets"><i class="fas fa-id-card"></i></div><span class="app-label">Imprimir Carnets</span></a>
                 <a href="{% url 'notas:administradores_colegio' %}" class="app-icon"><div class="icon-container bg-administradores"><i class="fas fa-user-shield"></i></div><span class="app-label">Administradores</span></a>
                 <a href="{% url 'notas:promocion_anual' %}" class="app-icon"><div class="icon-container bg-promocion-anual"><i class="fas fa-graduation-cap"></i></div><span class="app-label">Promoción de fin de año</span></a>
                 <a href="{% url 'notas:alertas_tempranas' %}" class="app-icon"><div class="icon-container bg-alertas"><i class="fas fa-triangle-exclamation"></i></div><span class="app-label">Alertas tempranas</span></a>
+                <a href="{% url 'actas:lista' %}" class="app-icon"><div class="icon-container bg-actas"><i class="fas fa-file-contract"></i></div><span class="app-label">Actas</span></a>
                 <a href="{% url 'notas:selector_certificados' %}" class="app-icon"><div class="icon-container bg-certificado-de-estudios" ><i class="fas fa-award"></i></div><span class="app-label">Generar Certificados</span></a>
+            </div>
+            <div class="app-grupo">Seguimiento académico</div>
+            <div class="app-grid">
+                <a href="{% url 'notas:selector_boletin' %}" class="app-icon"><div class="icon-container bg-boletines"><i class="fas fa-file-invoice"></i></div><span class="app-label">Generar boletines</span></a>
+                <a href="{% url 'notas:selector_sabana' %}" class="app-icon"><div class="icon-container bg-sabana"><i class="fas fa-table"></i></div><span class="app-label">Sábana de notas</span></a>
+                <a href="{% url 'notas:observador_selector' %}" class="app-icon"><div class="icon-container bg-observador"><i class="fas fa-eye"></i></div><span class="app-label">Observador</span></a>
+                <a href="{% url 'notas:panel_estadisticas' %}" class="app-icon"><div class="icon-container bg-estadisticas"><i class="fas fa-chart-pie"></i></div><span class="app-label">Estadísticas</span></a>
+                <a href="{% url 'puntoexacto:lista' %}" class="app-icon"><div class="icon-container bg-puntoexacto"><i class="fas fa-bullseye"></i></div><span class="app-label">PuntoExacto</span></a>
+                <a href="{% url 'notas:configuracion_portal' %}" class="app-icon"><div class="icon-container bg-noticias"><i class="fas fa-newspaper"></i></div><span class="app-label">Noticias y portal</span></a>
             </div>
         </div>
 

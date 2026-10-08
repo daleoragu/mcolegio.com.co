@@ -31,6 +31,7 @@ from .views import (
     sedes_views,
     recuperar_clave_views,
     componentes_views,
+    importar_views,
     carnet_views,
     certificados_views,
     import_export_planillas_views,
@@ -130,7 +131,11 @@ urlpatterns = [
     path('admin/portal/carrusel/eliminar/<int:pk>/', portal_admin_views.eliminar_imagen_carrusel_vista, name='eliminar_imagen_carrusel'),
 
     # --- Rutas para Importación y Exportación ---
-    path('admin/importacion/', import_views.importacion_vista, name='importacion_datos'),
+    path('admin/importacion/', importar_views.importacion, name='importacion_datos'),
+    path('admin/importacion/<str:tipo>/plantilla/', importar_views.plantilla, name='importar_plantilla'),
+    path('admin/importacion/<str:tipo>/revisar/', importar_views.revisar, name='importar_revisar'),
+    path('admin/importacion/<str:tipo>/aplicar/', importar_views.aplicar, name='importar_aplicar'),
+    path('admin/importacion-credenciales/', importar_views.credenciales, name='importar_credenciales'),
     path('admin/exportar-estudiantes/', export_views.exportar_estudiantes_excel, name='exportar_estudiantes_excel'),
     path('admin/descargar-plantilla-estudiantes/', export_views.descargar_plantilla_estudiantes, name='descargar_plantilla_estudiantes'),
     path('admin/exportar-materias/', export_views.exportar_materias_excel, name='exportar_materias_excel'),

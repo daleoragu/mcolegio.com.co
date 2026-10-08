@@ -1,0 +1,23 @@
+<style>
+    .im-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px; }
+    .im-card { background:#fff; border:1px solid #e3e6ec; border-radius:12px; padding:18px; display:flex; flex-direction:column; }
+    .im-card h5 { font-weight:700; font-size:1.05rem; display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+    .im-paso { width:28px; height:28px; border-radius:50%; background:var(--color-primario,#193661); color:#fff;
+               display:inline-flex; align-items:center; justify-content:center; font-size:.85rem; flex-shrink:0; }
+    .im-card p { font-size:.88rem; color:#6b7280; margin-bottom:8px; }
+    .im-cuantos { font-size:.8rem; color:#374151; background:#f3f4f6; border-radius:999px; padding:2px 10px; display:inline-block; margin-bottom:10px; }
+    .im-obl { font-size:.78rem; color:#6b7280; margin-bottom:10px; }
+    .im-res { display:flex; flex-wrap:wrap; gap:10px; margin:12px 0; }
+    .im-res .n { border-radius:10px; padding:10px 16px; min-width:120px; background:#fff; border:1px solid #e3e6ec; cursor:pointer; }
+    .im-res .n strong { display:block; font-size:1.5rem; line-height:1.1; }
+    .im-res .n.activo { outline:2px solid var(--color-primario,#193661); }
+    .a-crear { color:#067647; } .a-actualizar { color:#1d4ed8; } .a-igual { color:#6b7280; } .a-error { color:#b42318; }
+    .im-tabla td { vertical-align:top; font-size:.88rem; }
+    .im-tabla tr.error { background:#fef3f2; }
+    .im-chip { display:inline-block; border-radius:999px; padding:1px 9px; font-size:.75rem; font-weight:700; white-space:nowrap; }
+    .c-crear { background:#ecfdf3; color:#067647; } .c-actualizar { background:#eef4ff; color:#1d4ed8; }
+    .c-igual { background:#f3f4f6; color:#6b7280; } .c-error { background:#fef3f2; color:#b42318; }
+    .im-lista { margin:0; padding-left:16px; }
+    .im-barra { position:sticky; bottom:0; background:rgba(248,249,250,.97); border-top:1px solid #e3e6ec; padding:10px 0;
+                display:flex; flex-wrap:wrap; gap:8px; align-items:center; z-index:5; }
+</style>

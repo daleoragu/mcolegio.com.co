@@ -1,0 +1,33 @@
+{% extends 'notas/base.html' %}
+{% block title %}Importar datos{% endblock %}
+{% block page_title %}Importar datos{% endblock %}
+{% block content %}
+{% include 'notas/importar/_estilos.html' %}
+<p class="text-muted">Descargue la plantilla, llénela en Excel y súbala. Antes de guardar le mostramos fila por fila qué se
+    crea, qué se actualiza y qué tiene errores. Volver a subir un archivo no duplica nada: lo que ya existe se actualiza.
+    Le conviene seguir el orden de los pasos, porque cada uno usa lo del anterior.</p>
+<div class="im-grid">
+    {% for t in tarjetas %}
+    <div class="im-card">
+        <h5><span class="im-paso">{{ t.paso }}</span><i class="fas {{ t.icono }} text-muted"></i>{{ t.titulo }}</h5>
+        <p>{{ t.descripcion }}</p>
+        <span class="im-cuantos">Hoy hay {{ t.cuantos }}</span>
+        <div class="im-obl">Obligatorias: {{ t.obligatorias|join:", " }}</div>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <a href="{% url 'notas:importar_plantilla' t.clave %}" class="btn btn-sm btn-outline-success">
+                <i class="fas fa-file-excel me-1"></i>Plantilla vacía</a>
+            {% if t.cuantos %}
+            <a href="{% url 'notas:importar_plantilla' t.clave %}?datos=1" class="btn btn-sm btn-outline-secondary"
+               title="Con lo que ya está en la plataforma, para corregir o completar">
+                <i class="fas fa-download me-1"></i>Con los datos actuales</a>
+            {% endif %}
+        </div>
+        <form method="post" action="{% url 'notas:importar_revisar' t.clave %}" enctype="multipart/form-data" class="mt-auto">
+            {% csrf_token %}
+            <input type="file" name="archivo" accept=".xlsx,.xlsm,.csv" class="form-control form-control-sm mb-2" required>
+            <button class="btn btn-primary btn-sm w-100"><i class="fas fa-search me-1"></i>Revisar antes de importar</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

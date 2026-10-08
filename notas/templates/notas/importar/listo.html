@@ -1,0 +1,39 @@
+{% extends 'notas/base.html' %}
+{% block title %}Importación lista{% endblock %}
+{% block page_title %}Importar {{ info.titulo|lower }}: listo{% endblock %}
+{% block content %}
+{% include 'notas/importar/_estilos.html' %}
+<div class="alert alert-success">
+    <i class="fas fa-check-circle me-1"></i><strong>{{ archivo }}</strong>: se crearon <strong>{{ resumen.crear }}</strong>
+    y se actualizaron <strong>{{ resumen.actualizar }}</strong>.
+    {% if resumen.igual %}{{ resumen.igual }} ya estaban igual.{% endif %}
+    {% if resumen.error %}<strong>{{ resumen.error }}</strong> fila(s) con errores no se importaron.{% endif %}
+</div>
+
+{% if credenciales %}
+<div class="card shadow-sm mb-3"><div class="card-body">
+    <h5 class="fw-bold"><i class="fas fa-key me-2 text-warning"></i>Usuarios nuevos ({{ credenciales|length }})</h5>
+    <p class="text-muted small">La contraseña inicial es igual al usuario. Descargue la lista para entregarla; pídales cambiar
+        la contraseña al entrar.</p>
+    <a href="{% url 'notas:importar_credenciales' %}" class="btn btn-sm btn-success mb-2"><i class="fas fa-file-excel me-1"></i>Descargar usuarios y contraseñas</a>
+    <div class="table-responsive" style="max-height:340px;">
+    <table class="table table-sm mb-0"><thead class="table-light"><tr><th>Nombre</th><th>Usuario</th><th>Contraseña inicial</th><th></th></tr></thead>
+        <tbody>{% for c in credenciales|slice:":50" %}<tr><td>{{ c.nombre }}</td><td><code>{{ c.usuario }}</code></td><td><code>{{ c.clave }}</code></td><td class="text-muted small">{{ c.detalle }}</td></tr>{% endfor %}</tbody>
+    </table>
+    </div>
+    {% if credenciales|length > 50 %}<p class="small text-muted mt-1">… y {{ credenciales|length|add:"-50" }} más en el Excel.</p>{% endif %}
+</div></div>
+{% endif %}
+
+{% if errores %}
+<div class="card shadow-sm mb-3"><div class="card-body">
+    <h5 class="fw-bold a-error">Filas que no se importaron</h5>
+    <ul class="mb-0">{% for r in errores %}<li>Fila {{ r.fila }} · {{ r.resumen }}: {{ r.errores|join:"; " }}</li>{% endfor %}</ul>
+</div></div>
+{% endif %}
+
+<div class="d-flex flex-wrap gap-2">
+    <a href="{% url 'notas:importacion_datos' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Importar datos</a>
+    {% if siguiente %}<a href="{% url 'notas:importacion_datos' %}#{{ siguiente.clave }}" class="btn btn-primary">Siguiente paso: {{ siguiente.titulo }}</a>{% endif %}
+</div>
+{% endblock %}
