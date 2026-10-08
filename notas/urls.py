@@ -29,6 +29,7 @@ from .views import (
     gestion_academica_views,
     promocion_views,
     sedes_views,
+    recuperar_clave_views,
     carnet_views,
     certificados_views,
     import_export_planillas_views,
@@ -50,6 +51,9 @@ urlpatterns = [
     path('logout/', auth_views.logout_vista, name='logout'),
     path('logout/confirmacion/', auth_views.logout_confirmacion_vista, name='logout_confirmacion'),
     path('cambiar-password/', auth_views.cambiar_password_vista, name='cambiar_password'),
+    path('recuperar-clave/', recuperar_clave_views.pedir_enlace, name='recuperar_clave'),
+    path('recuperar-clave/<uidb64>/<token>/', recuperar_clave_views.nueva_clave, name='recuperar_clave_nueva'),
+    path('admin/restablecer-clave/<int:user_id>/', recuperar_clave_views.restablecer_por_admin, name='restablecer_clave'),
 
     # --- Rutas de Paneles de Usuario ---
     path('dashboard/', dashboard_views.dashboard_vista, name='dashboard'),

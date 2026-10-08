@@ -76,7 +76,8 @@
                                         </button>
                                     </form>
 
-                                    <a href="{% url 'notas:editar_estudiante' estudiante.id %}" class="btn btn-sm btn-outline-info" title="Editar Estudiante"><i class="fas fa-pencil-alt"></i></a>
+                                    <form action="{% url 'notas:restablecer_clave' estudiante.user.id %}" method="POST" class="d-inline" onsubmit="return confirm('¿Dar una contraseña temporal a {{ estudiante.user.get_full_name|escapejs }}? La actual deja de servir.')">{% csrf_token %}<input type="hidden" name="volver" value="{{ request.get_full_path }}"><button type="submit" class="btn btn-sm btn-outline-warning" title="Contraseña temporal"><i class="fas fa-key"></i></button></form>
+                <a href="{% url 'notas:editar_estudiante' estudiante.id %}" class="btn btn-sm btn-outline-info" title="Editar Estudiante"><i class="fas fa-pencil-alt"></i></a>
                                     
                                     <form action="{% url 'notas:eliminar_estudiante' estudiante.id %}" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que quieres eliminar a {{ estudiante.user.last_name|escapejs }} {{ estudiante.user.first_name|escapejs }}?')">
                                         {% csrf_token %}

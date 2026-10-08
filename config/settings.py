@@ -228,3 +228,6 @@ EMAIL_TIMEOUT = 15
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-responder@mcolegio.com.co')
 if not EMAIL_HOST:
     EMAIL_BACKEND = 'django.core.mail.backends.dummy.EmailBackend'
+
+# El enlace de «¿Olvidó su contraseña?» vence en una hora.
+PASSWORD_RESET_TIMEOUT = 3600
