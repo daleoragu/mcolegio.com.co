@@ -421,27 +421,38 @@ def clave_forma(request, examen_id, letra):
 
 
 def _agregar_pregunta(request, examen, preguntas):
-    """Agrega una pregunta al final, copiando la forma de la última.
+    """Agrega al final las preguntas que pida el docente (casilla «cuántas»), copiando la forma
+    de la última.
 
-    Copia opciones, etiquetas, bloque y componente porque casi siempre la que
-    sigue es del mismo tipo: si la 20 era Verdadero/Falso, la 21 también.
+    Copia opciones, etiquetas, bloque y componente porque casi siempre las que
+    siguen son del mismo tipo: si la 20 era Verdadero/Falso, la 21 también.
     No copia la respuesta correcta ni lo que evalúa.
     """
-    if examen.numero_preguntas >= 150:
+    disponibles = 150 - examen.numero_preguntas
+    if disponibles <= 0:
         messages.warning(request, 'El examen ya tiene 150 preguntas, que es el máximo.')
         return ''
+    try:
+        cantidad = int(request.POST.get('cantidad_agregar') or 1)
+    except ValueError:
+        cantidad = 1
+    cantidad = max(1, min(cantidad, disponibles))
     ultima = preguntas[-1] if preguntas else None
-    examen.numero_preguntas += 1
-    examen.save(update_fields=['numero_preguntas'])
-    nueva = Pregunta.objects.create(
-        examen=examen, numero=examen.numero_preguntas,
+    primera = examen.numero_preguntas + 1
+    Pregunta.objects.bulk_create([Pregunta(
+        examen=examen, numero=n,
         numero_opciones=ultima.numero_opciones if ultima else None,
         rotulos=ultima.rotulos if ultima else '',
         bloque=ultima.bloque if ultima else None,
         componente=ultima.componente if ultima else '',
-        puntos=ultima.puntos if ultima else Decimal('1.00'))
-    messages.success(request, f'Se agregó la pregunta {nueva.numero}. Márquele la respuesta correcta.')
-
+        puntos=ultima.puntos if ultima else Decimal('1.00')) for n in range(primera, primera + cantidad)])
+    examen.numero_preguntas += cantidad
+    examen.save(update_fields=['numero_preguntas'])
+    if cantidad == 1:
+        messages.success(request, f'Se agregó la pregunta {primera}. Márquele la respuesta correcta.')
+    else:
+        messages.success(request, f'Se agregaron {cantidad} preguntas (de la {primera} a la '
+                                  f'{examen.numero_preguntas}). Márqueles la respuesta correcta.')
     tope = hojas_mod.capacidad(examen.hojas_por_pagina or 1, examen.opciones_maximas())
     if examen.numero_preguntas > tope:
         messages.warning(
@@ -451,7 +462,7 @@ def _agregar_pregunta(request, examen, preguntas):
     if examen.hojas.filter(respuestas__isnull=False).exists():
         messages.warning(request, 'Este examen ya tiene hojas impresas o calificadas: la '
                                   'pregunta nueva no está en esas hojas. Vuelva a imprimirlas.')
-    return f'p{nueva.numero}'
+    return f'p{primera}'
 
 
 def _quitar_pregunta(request, examen, preguntas):

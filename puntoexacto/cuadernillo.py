@@ -429,7 +429,7 @@ def encabezado_docx(doc, colegio, util):
             except Exception:
                 pass
     lineas = []
-    for k in range(1, 5):
+    for k in range(1, 6):
         texto = strip_tags(getattr(colegio, f'linea_encabezado_{k}', '') or '').strip()
         if texto:
             lineas.append((texto, k))

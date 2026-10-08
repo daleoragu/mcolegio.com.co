@@ -32,7 +32,7 @@ from ..models.academicos import (AsignacionDocente, EscalaValoracion, IndicadorL
 from ..models.perfiles import Estudiante
 from .columnas import (columnas_del_plan, componentes_activos, configuracion, limpiar_columnas,
                        notas_guardadas, plan_completo)
-from .guardar import CENTESIMA, MAXIMA, MINIMA, a_decimal
+from .guardar import CENTESIMA, a_decimal, rango
 from ..permisos import es_admin_usuario
 
 MARCA = 'mcolegio-planilla'
@@ -196,6 +196,8 @@ def generar_libro(colegio, periodo, asignaciones):
 
 def _dibujar_hoja(ws, colegio, periodo, asignacion, config, escala, fin_escala,
                   primario, texto_primario, secundario):
+    # La escala que declaró el colegio manda: de dónde a dónde van las notas.
+    MINIMA, MAXIMA = escala[0][0], max(b for _, b, _ in escala)
     estudiantes = estudiantes_de(asignacion, periodo)
     plan = plan_completo(asignacion, periodo, estudiantes, config)
     fallas = dict(InasistenciasManualesPeriodo.objects.filter(
@@ -292,8 +294,8 @@ def _dibujar_hoja(ws, colegio, periodo, asignacion, config, escala, fin_escala,
                 celda.alignment = Alignment(horizontal='center')
                 celda.protection = desbloqueada
             rango = f'{L(ini)}{f}:{L(fin)}{f}'
-            # Solo cuentan las notas entre 1 y 5, como en la plataforma: un 7
-            # pegado (la validación no frena lo pegado) no cambia la definitiva.
+            # Solo cuentan las notas dentro de la escala, como en la plataforma: una
+            # pegada fuera de rango (la validación no frena lo pegado) no cambia la definitiva.
             validas = f'{rango},">={MINIMA}",{rango},"<={MAXIMA}"'
             dfx = ws.cell(f, cdef, f'=IF(COUNTIFS({validas})=0,"",'
                                    f'ROUND(AVERAGEIFS({rango},{validas}),2))')
@@ -312,7 +314,7 @@ def _dibujar_hoja(ws, colegio, periodo, asignacion, config, escala, fin_escala,
         fin_c.alignment = Alignment(horizontal='center')
         letra_final = f'{L(c_final)}{f}'
         desempeno = ws.cell(f, c_desemp,
-                            f'=IF({letra_final}="","",IFERROR(LOOKUP({letra_final},Escala!$A$2:$A${fin_escala},'
+                            f'=IF({letra_final}="","",IFERROR(LOOKUP(ROUND({letra_final},1),Escala!$A$2:$A${fin_escala},'
                             f'Escala!$C$2:$C${fin_escala}),""))')
         desempeno.alignment = Alignment(horizontal='center')
         desempeno.font = Font(name=FUENTE, bold=True, size=9)
@@ -328,7 +330,7 @@ def _dibujar_hoja(ws, colegio, periodo, asignacion, config, escala, fin_escala,
             if celda.font is None or celda.font.name != FUENTE:
                 celda.font = Font(name=FUENTE, size=10, bold=celda.font.b if celda.font else False)
 
-    # --- Validación: solo notas de 1 a 5 y fallas enteras ---------------------
+    # --- Validación: solo notas dentro de la escala y fallas enteras ---------
     if n_est:
         dv = DataValidation(type='decimal', operator='between', formula1=str(MINIMA), formula2=str(MAXIMA),
                             allow_blank=True, showErrorMessage=True, errorTitle='Nota fuera de rango',
@@ -345,10 +347,17 @@ def _dibujar_hoja(ws, colegio, periodo, asignacion, config, escala, fin_escala,
         # --- Colores del desempeño, con la escala del colegio -----------------
         rango_final = f'{L(c_final)}{FILA_DATOS}:{L(c_desemp)}{fila_fin}'
         ref = f'${L(c_final)}{FILA_DATOS}'
+        # Con la nota a una décima, como se lee: 2,95 se ve «3,0» y va con el desempeño del 3,0.
+        # Así no quedan huecos entre un rango y el siguiente (2,9 → 3,0).
         for k, (a, b, _) in enumerate(escala):
             fondo, letra = _tono(k, len(escala))
+            condiciones = [f'ISNUMBER({ref})']
+            if k > 0:
+                condiciones.append(f'ROUND({ref},1)>={a}')
+            if k < len(escala) - 1:
+                condiciones.append(f'ROUND({ref},1)<{escala[k + 1][0]}')
             ws.conditional_formatting.add(rango_final, FormulaRule(
-                formula=[f'AND(ISNUMBER({ref}),{ref}>={a},{ref}<={b})'],
+                formula=[f'AND({",".join(condiciones)})'],
                 fill=_relleno(fondo), font=Font(color=letra, bold=True)))
         # Casillas de nota que la plataforma no va a aceptar: en rojo.
         for codigo in plan:
@@ -357,7 +366,8 @@ def _dibujar_hoja(ws, colegio, periodo, asignacion, config, escala, fin_escala,
             ws.conditional_formatting.add(f'{L(ini)}{FILA_DATOS}:{L(fin)}{fila_fin}', FormulaRule(
                 formula=[f'AND({primera}<>"",OR(NOT(ISNUMBER({primera})),{primera}<{MINIMA},{primera}>{MAXIMA}))'],
                 fill=_relleno('F8D7DA'), font=Font(color='842029', bold=True)))
-        aprobar = escala[1][0] if len(escala) >= 2 else Decimal('3.0')
+        from ..boletin.ponderacion import nota_aprobacion
+        aprobar = nota_aprobacion(colegio)
         for codigo in plan:
             cdef = mapa[codigo][2]
             ws.conditional_formatting.add(f'{L(cdef)}{FILA_DATOS}:{L(cdef)}{fila_fin}', CellIsRule(
@@ -432,7 +442,7 @@ def _meta_de(ws):
     return None
 
 
-def _a_nota(valor):
+def _a_nota(valor, limites=None):
     """(Decimal|None, error|None) para lo que haya en una casilla.
 
     Una nota escrita como texto («4,5» pegado desde otro lado) no se acepta:
@@ -448,8 +458,10 @@ def _a_nota(valor):
     v = a_decimal(valor)
     if v is None:
         return None, f'«{valor}» no es un número'
-    if not (MINIMA <= v <= MAXIMA):
-        return None, f'«{format(v.normalize(), "f")}» no está entre {MINIMA} y {MAXIMA}'
+    minima, maxima = limites or rango(None)
+    if not (minima <= v <= maxima):
+        return None, (f'«{format(v.normalize(), "f")}» no está entre {format(minima.normalize(), "f")} y '
+                      f'{format(maxima.normalize(), "f")}, la escala del colegio')
     return v.quantize(CENTESIMA, rounding=ROUND_HALF_UP), None
 
 
@@ -497,6 +509,7 @@ def _leer_hoja(ws, meta, colegio, usuario):
     asignacion = AsignacionDocente.objects.filter(id=meta.get('asignacion'), colegio=colegio) \
         .select_related('materia', 'curso', 'docente__user').first()
     periodo = PeriodoAcademico.objects.filter(id=meta.get('periodo'), colegio=colegio).first()
+    limites = rango(colegio)
     if asignacion is None or periodo is None:
         hoja.update(estado='error', error='Esta hoja es de otro colegio o de una asignatura que ya no existe.')
         return hoja
@@ -555,7 +568,7 @@ def _leer_hoja(ws, meta, colegio, usuario):
         for codigo, (ini, fin, _) in mapa.items():
             lista = []
             for k, c in enumerate(range(ini, fin + 1)):
-                v, error = _a_nota(ws.cell(fila, c).value)
+                v, error = _a_nota(ws.cell(fila, c).value, limites)
                 if error:
                     hoja['errores'].append(f'{ws.cell(fila, c).coordinate} ({est["nombre"]}): {error}; '
                                            f'no se guarda.')

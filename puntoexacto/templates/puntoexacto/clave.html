@@ -222,11 +222,16 @@
     </div>
     {% if preguntas|length < max_preguntas %}
     <div class="pe-agregar">
+        <label class="d-flex align-items-center gap-2 mb-0" for="pe-cuantas">
+            <span class="fw-semibold">¿Cuántas preguntas agregar?</span>
+            <input type="number" id="pe-cuantas" name="cantidad_agregar" value="1" min="1"
+                   max="{{ max_preguntas }}" class="form-control form-control-sm" style="width:80px">
+        </label>
         <button type="submit" name="accion" value="agregar" formnovalidate class="btn btn-outline-primary">
-            + Agregar pregunta
+            + Agregar
         </button>
         <span class="form-text">
-            Sale como la {{ preguntas|length|add:1 }}, con las mismas opciones y etiquetas de la
+            Salen desde la {{ preguntas|length|add:1 }}, con las mismas opciones y etiquetas de la
             última. Lo que haya escrito se guarda antes.
         </span>
     </div>

@@ -113,6 +113,16 @@ def nota_aprobacion(colegio):
     return Decimal('3.0')
 
 
+def rango_notas(colegio):
+    """(mínima, máxima) de las notas según la escala que declaró el colegio; (1, 5) si no tiene."""
+    from notas.models.academicos import EscalaValoracion
+
+    filas = list(EscalaValoracion.objects.filter(colegio=colegio).values_list('valor_minimo', 'valor_maximo'))
+    if not filas:
+        return Decimal('1'), Decimal('5')
+    return Decimal(min(a for a, _ in filas)), Decimal(max(b for _, b in filas))
+
+
 def nota_maxima(colegio):
     from notas.models.academicos import EscalaValoracion
 

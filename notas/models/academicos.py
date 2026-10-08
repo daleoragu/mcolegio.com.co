@@ -120,7 +120,7 @@ class Calificacion(models.Model):
     docente = models.ForeignKey(Docente, on_delete=models.SET_NULL, null=True)
     TIPO_NOTA_CHOICES = [('SER', 'Promedio Ser'), ('SABER', 'Promedio Saber'), ('HACER', 'Promedio Hacer'), ('PROM_PERIODO', 'Promedio del Periodo'), ('NIVELACION', 'Nota de Nivelación')]
     tipo_nota = models.CharField(max_length=12, choices=TIPO_NOTA_CHOICES)
-    valor_nota = models.DecimalField(max_digits=4, decimal_places=2, validators=[MinValueValidator(Decimal('1.0')), MaxValueValidator(Decimal('5.0'))])
+    valor_nota = models.DecimalField(max_digits=5, decimal_places=2, validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))])  # el rango real lo pone la escala del colegio
     es_recuperada = models.BooleanField(default=False, help_text="Indica si esta calificación de periodo fue recuperada con una nivelación.")
     
     # NUEVO CAMPO AÑADIDO PARA INCLUSIÓN
@@ -138,7 +138,7 @@ class NotaDetallada(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="notas_detalladas", null=True)
     calificacion_promedio = models.ForeignKey(Calificacion, on_delete=models.CASCADE, related_name='notas_detalladas')
     descripcion = models.CharField(max_length=100, help_text="Descripción de la nota (ej: 'Examen 1', 'Taller en clase')")
-    valor_nota = models.DecimalField(max_digits=4, decimal_places=2, validators=[MinValueValidator(Decimal('1.0')), MaxValueValidator(Decimal('5.0'))])
+    valor_nota = models.DecimalField(max_digits=5, decimal_places=2, validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))])  # el rango real lo pone la escala del colegio
     class Meta:
         verbose_name = "Nota Detallada"; verbose_name_plural = "Notas Detalladas"
     def __str__(self): return f"{self.descripcion}: {self.valor_nota}"
@@ -328,8 +328,8 @@ class PonderacionAreaMateria(models.Model):
 class EscalaValoracion(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="escala_valoracion")
     nombre_desempeno = models.CharField(max_length=50, verbose_name="Nombre del Desempeño (e.g., Bajo, Superior)")
-    valor_minimo = models.DecimalField(max_digits=3, decimal_places=1, verbose_name="Valor Mínimo")
-    valor_maximo = models.DecimalField(max_digits=3, decimal_places=1, verbose_name="Valor Máximo")
+    valor_minimo = models.DecimalField(max_digits=4, decimal_places=1, verbose_name="Valor Mínimo")
+    valor_maximo = models.DecimalField(max_digits=4, decimal_places=1, verbose_name="Valor Máximo")
     mensaje_boletin = models.TextField(blank=True, help_text="Mensaje opcional para mostrar en el boletín para este rango de notas.")
 
     def __str__(self):

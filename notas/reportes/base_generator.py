@@ -68,6 +68,7 @@ class BaseReportGenerator:
             self.colegio.linea_encabezado_2,
             self.colegio.linea_encabezado_3,
             self.colegio.linea_encabezado_4,
+            getattr(self.colegio, 'linea_encabezado_5', None),
         ]
         texto_completo = "\n".join(filter(None, lineas))
         

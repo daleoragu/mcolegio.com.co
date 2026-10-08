@@ -60,7 +60,7 @@
                     <td class="prom">{% if c.promedio is not None %}{{ c.promedio|floatformat:1 }}{% endif %}</td>
                 {% endfor %}
                 <td class="final">{% if f.final is not None %}{{ f.final|floatformat:1 }}{% endif %}</td>
-                <td class="{% if f.desempeno|upper == 'BAJO' %}bajo{% endif %}">{{ f.desempeno }}</td>
+                <td class="{% if f.pierde %}bajo{% endif %}">{{ f.desempeno }}</td>
                 <td>{{ f.fallas }}</td>
             </tr>
         {% empty %}
