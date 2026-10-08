@@ -27,6 +27,8 @@ def datos_planilla(colegio, periodo, asignacion, config=None, escala=None):
     """Todo lo de una asignación, listo para dibujar."""
     config = config or configuracion(colegio)
     escala = escala or escala_del_colegio(colegio)
+    from ..boletin.ponderacion import nota_aprobacion
+    aprobacion = nota_aprobacion(colegio)
     estudiantes = estudiantes_de(asignacion, periodo)
     plan = plan_completo(asignacion, periodo, estudiantes, config)
     fallas = dict(InasistenciasManualesPeriodo.objects.filter(
@@ -52,6 +54,8 @@ def datos_planilla(colegio, periodo, asignacion, config=None, escala=None):
             'n': i, 'nombre': f'{est.user.last_name} {est.user.first_name}'.strip().upper() or est.user.username,
             'componentes': celdas, 'final': final,
             'desempeno': _desempeno(final, escala) if final is not None else '',
+            # En rojo lo que queda por debajo de la nota de aprobación del colegio, se llame como se llame.
+            'pierde': final is not None and final.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP) < aprobacion,
             'fallas': fallas.get(est.id, ''), 'inclusion': getattr(est, 'es_inclusion', False),
         })
     total_columnas = sum(len(c['columnas']) + 1 for c in componentes)

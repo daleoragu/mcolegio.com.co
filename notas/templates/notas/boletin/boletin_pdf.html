@@ -30,6 +30,7 @@
         .tabla-notas { width: 100%; border-collapse: collapse; font-size: 1em; }
         .tabla-notas th, .tabla-notas td { border: 1px solid #999; padding: 3px; text-align: center; vertical-align: middle; }
         .tabla-notas th { background-color: #E0E0E0; font-weight: bold; }
+        .tabla-notas th.th-comp { width: 9%; font-size: 7pt; word-break: break-word; }
         .area-header { font-weight: bold; text-align: left; background-color: #f0f0f0; }
         .asignatura-row td { text-align: left; }
         .asignatura-row .nota { text-align: center; }
@@ -111,9 +112,9 @@
                     <th style="width: 35%;">AREA/ASIGNATURA</th>
                     <th style="width: 5%;">IH</th>
                     <th style="width: 10%;">V/N</th>
-                    <th>{{ ajustes.etiqueta_ser|default:"SER"|slice:":5" }}</th>
-                    <th>{{ ajustes.etiqueta_saber|default:"SABER"|slice:":5" }}</th>
-                    <th>{{ ajustes.etiqueta_hacer|default:"HACER"|slice:":5" }}</th>
+                    <th class="th-comp">{% firstof ajustes.abreviatura_ser ajustes.etiqueta_ser "SER" as nom_ser %}{{ nom_ser|upper }}</th>
+                    <th class="th-comp">{% firstof ajustes.abreviatura_saber ajustes.etiqueta_saber "SABER" as nom_saber %}{{ nom_saber|upper }}</th>
+                    <th class="th-comp">{% firstof ajustes.abreviatura_hacer ajustes.etiqueta_hacer "HACER" as nom_hacer %}{{ nom_hacer|upper }}</th>
                     <th style="width: 5%;">DEF</th>
                     <th style="width: 5%;">ACUM</th>
                     <th style="width: 5%;">INAS</th>

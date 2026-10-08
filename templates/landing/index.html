@@ -6,6 +6,9 @@
     <title>mColegios — Plataforma de Gestión Educativa</title>
     <meta name="description" content="La plataforma que unifica la gestión de tu colegio: calificaciones, portales públicos y administración centralizada, más Mi Salón Virtual para el aula.">
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="icon" href="{% static 'img/mcolegio-favicon-32.png' %}" sizes="32x32" type="image/png">
+    <link rel="icon" href="{% static 'img/mcolegio.ico' %}" sizes="any">
+    <link rel="apple-touch-icon" href="{% static 'img/mcolegio-apple-touch.png' %}">
 </head>
 <body>
 
@@ -216,17 +219,15 @@
     <!-- ===== BLOQUE 5: PIE (incluye el contacto) ===== -->
     <footer id="bloque-contacto" class="pie">
         <div class="pie-marca">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 3 1 8l11 5 9-4.09V17h2V8L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/>
-            </svg>
-            <span>mColegios <span class="pie-tenue">&amp; Mi Salón Virtual</span></span>
+            <img src="{% static 'img/mcolegio-logo-blanco.png' %}" alt="mcolegio.com.co" class="pie-logo-img">
+            <span class="pie-tenue">&amp; Mi Salón Virtual</span>
         </div>
         <p class="pie-contacto">
             <a href="mailto:davidlrg89@gmail.com">davidlrg89@gmail.com</a>
             <span class="pie-punto">·</span>+57 310 239 8080
         </p>
         <p class="pie-legal">
-            &copy; {% now "Y" %} mColegios
+            &copy; {% now "Y" %} mcolegio.com.co
             {# Tu acceso. Discreto a propósito: la portada no es para usuarios. #}
             <a href="/super-admin/" class="pie-admin">Administración</a>
         </p>

@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+{% load marca %}<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
 <style>
     @page { size: letter landscape; margin: 12mm 10mm 14mm;
             @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 8pt; color: #666; }
-            @bottom-left { content: "Generado con mcolegio · {{ generado|date:'d/m/Y h:i a' }}"; font-size: 8pt; color: #888; } }
+            @bottom-left { content: url("{% mcolegio_icono_uri 11 'mcolegio-logo.png' 45 %}") "  · {{ generado|date:'d/m/Y h:i a' }}"; font-size: 8pt; color: #888; vertical-align: middle; } }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 8.5pt; color: #111; }
     .planilla { page-break-after: always; }
     .planilla:last-child { page-break-after: auto; }
@@ -60,7 +60,7 @@
                     <td class="prom">{% if c.promedio is not None %}{{ c.promedio|floatformat:1 }}{% endif %}</td>
                 {% endfor %}
                 <td class="final">{% if f.final is not None %}{{ f.final|floatformat:1 }}{% endif %}</td>
-                <td class="{% if f.desempeno|upper == 'BAJO' %}bajo{% endif %}">{{ f.desempeno }}</td>
+                <td class="{% if f.pierde %}bajo{% endif %}">{{ f.desempeno }}</td>
                 <td>{{ f.fallas }}</td>
             </tr>
         {% empty %}

@@ -1,0 +1,66 @@
+{% extends 'notas/base.html' %}
+{% block title %}Revisar importación{% endblock %}
+{% block page_title %}Importar {{ info.titulo|lower }}: revisar{% endblock %}
+{% block content %}
+{% include 'notas/importar/_estilos.html' %}
+<p class="mb-1"><i class="fas fa-file-excel text-success me-1"></i><strong>{{ archivo }}</strong> · {{ resumen.total }} fila(s).
+    Todavía no se ha guardado nada.</p>
+<p class="small text-muted mb-1">Columnas reconocidas: {{ reconocidas|join:", " }}.
+    {% if no_reconocidas %}No vienen (se dejan como están): {{ no_reconocidas|join:", " }}.{% endif %}</p>
+
+<div class="im-res" id="im-filtros">
+    <div class="n activo" data-filtro=""><strong>{{ resumen.total }}</strong>todas</div>
+    <div class="n a-crear" data-filtro="crear"><strong>{{ resumen.crear }}</strong>se crean</div>
+    <div class="n a-actualizar" data-filtro="actualizar"><strong>{{ resumen.actualizar }}</strong>se actualizan</div>
+    <div class="n a-igual" data-filtro="igual"><strong>{{ resumen.igual }}</strong>quedan igual</div>
+    <div class="n a-error" data-filtro="error"><strong>{{ resumen.error }}</strong>con errores</div>
+</div>
+{% if resumen.error %}
+<div class="alert alert-warning py-2">Las filas con errores <strong>no se importan</strong>. Puede importar las demás ahora y
+    después corregir esas en el Excel y subirlo otra vez: lo que ya entró no se duplica.</div>
+{% endif %}
+
+<div class="card shadow-sm mb-3">
+    <div class="table-responsive">
+    <table class="table table-sm mb-0 im-tabla">
+        <thead class="table-light"><tr><th style="width:60px">Fila</th><th style="width:110px"></th><th>Registro</th><th>Detalle</th></tr></thead>
+        <tbody>
+        {% for r in resultados %}
+        <tr class="{{ r.accion }}" data-accion="{{ r.accion }}">
+            <td class="text-muted">{{ r.fila }}</td>
+            <td><span class="im-chip c-{{ r.accion }}">{% if r.accion == 'crear' %}Se crea{% elif r.accion == 'actualizar' %}Se actualiza{% elif r.accion == 'igual' %}Igual{% else %}Error{% endif %}</span></td>
+            <td>{{ r.resumen }}</td>
+            <td>
+                {% if r.errores %}<ul class="im-lista a-error">{% for e in r.errores %}<li>{{ e|capfirst }}</li>{% endfor %}</ul>{% endif %}
+                {% if r.cambios %}<ul class="im-lista">{% for c in r.cambios %}<li>{{ c|capfirst }}</li>{% endfor %}</ul>{% endif %}
+                {% if r.avisos %}<div class="small text-muted">{{ r.avisos|join:" · " }}</div>{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<div class="im-barra">
+    {% if resumen.aplicables %}
+    <form method="post" action="{% url 'notas:importar_aplicar' tipo %}">{% csrf_token %}
+        <button class="btn btn-success"><i class="fas fa-check me-1"></i>Importar {{ resumen.aplicables }} fila(s)</button></form>
+    {% else %}
+    <span class="text-muted">No hay nada nuevo que importar.</span>
+    {% endif %}
+    <a href="{% url 'notas:importacion_datos' %}" class="btn btn-outline-secondary">Corregir y subir otro archivo</a>
+</div>
+<script>
+document.querySelectorAll('#im-filtros .n').forEach(function (b) {
+    b.addEventListener('click', function () {
+        document.querySelectorAll('#im-filtros .n').forEach(function (x) { x.classList.remove('activo'); });
+        b.classList.add('activo');
+        var f = b.dataset.filtro;
+        document.querySelectorAll('.im-tabla tbody tr').forEach(function (tr) {
+            tr.style.display = !f || tr.dataset.accion === f ? '' : 'none';
+        });
+    });
+});
+</script>
+{% endblock %}

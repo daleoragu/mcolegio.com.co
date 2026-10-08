@@ -6,8 +6,12 @@ Esta versión hereda los colores del portal y hace que la barra superior sea fij
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}{{ colegio.nombre|default:"Plataforma Académica" }}{% endblock %}</title>
 
+{% load static %}
 {% if colegio.favicon %}
 <link rel="icon" href="{{ colegio.favicon.url }}" type="image/x-icon">
+{% else %}
+<link rel="icon" href="{% static 'img/mcolegio-favicon-32.png' %}" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="{% static 'img/mcolegio-apple-touch.png' %}">
 {% endif %}
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -142,6 +146,8 @@ Esta versión hereda los colores del portal y hace que la barra superior sea fij
         text-align: center;
         flex-shrink: 0;
     }
+    .pie-logo img { height: 34px; width: auto; opacity: .95; }
+    .pie-logo:hover img { opacity: 1; }
     .impersonation-banner {
         background-color: var(--color-secundario);
         color: var(--color-texto);

@@ -6,7 +6,8 @@ del Excel la use tal cual. Si mañana cambia la forma de calcular, cambia en
 un solo lugar y la planilla en línea y el Excel siguen dando lo mismo.
 
 La regla:
-  * Una nota vale si está entre 1 y 5. Las demás (vacías, 0, 7, texto) no se
+  * Una nota vale si está dentro de la escala de valoración del colegio (de 1 a
+    5 si no ha declarado ninguna). Las demás (vacías, fuera de rango, texto) no se
     guardan.
   * El promedio de cada componente es el de sus notas válidas, a 2 decimales;
     sin notas, 0.
@@ -18,8 +19,17 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from ..models.academicos import Calificacion, InasistenciasManualesPeriodo, NotaDetallada
 from .columnas import COMPONENTES, peso_componente
 
+# Solo para cuando no hay colegio a mano; lo normal es rango(colegio).
 MINIMA = Decimal('1')
 MAXIMA = Decimal('5')
+
+
+def rango(colegio):
+    """(mínima, máxima) de la escala que declaró el colegio."""
+    if colegio is None:
+        return MINIMA, MAXIMA
+    from ..boletin.ponderacion import rango_notas
+    return rango_notas(colegio)
 CENTESIMA = Decimal('0.01')
 
 
@@ -49,12 +59,13 @@ def limpiar_observacion(texto):
     return ' '.join(str(texto or '').split())[:LARGO_OBSERVACION]
 
 
-def es_nota_valida(valor):
+def es_nota_valida(valor, limites=None):
+    minima, maxima = limites or (MINIMA, MAXIMA)
     v = a_decimal(valor)
-    return v is not None and MINIMA <= v <= MAXIMA
+    return v is not None and minima <= v <= maxima
 
 
-def guardar_componente(colegio, estudiante, asignacion, periodo, codigo, notas):
+def guardar_componente(colegio, estudiante, asignacion, periodo, codigo, notas, limites=None):
     """Reemplaza las notas de un componente y devuelve su promedio.
 
     notas: [{'descripcion': 'Taller 1', 'valor': '4,5'}, …] o [(desc, valor), …]
@@ -63,12 +74,13 @@ def guardar_componente(colegio, estudiante, asignacion, periodo, codigo, notas):
         colegio=colegio, estudiante=estudiante, materia=asignacion.materia, periodo=periodo,
         tipo_nota=codigo, defaults={'valor_nota': Decimal('0.0'), 'docente': asignacion.docente})
     cal.notas_detalladas.all().delete()
+    minima, maxima = limites or rango(colegio)
 
     nuevas, total = [], Decimal('0')
     for n in notas:
         desc, valor = (n.get('descripcion'), n.get('valor')) if isinstance(n, dict) else n
         v = a_decimal(valor)
-        if v is None or not (MINIMA <= v <= MAXIMA):
+        if v is None or not (minima <= v <= maxima):
             continue
         nuevas.append(NotaDetallada(colegio=colegio, calificacion_promedio=cal,
                                     descripcion=(str(desc or '').strip() or f'Nota {len(nuevas) + 1}')[:100],
@@ -94,12 +106,13 @@ def guardar_estudiante(colegio, asignacion, periodo, estudiante, notas_por_compo
     """
     por_codigo = {k.upper(): v for k, v in (notas_por_componente or {}).items()}
     definitiva = Decimal('0')
+    limites = rango(colegio)
     for codigo in COMPONENTES:
         peso = peso_componente(asignacion, codigo) / Decimal(100)
         if peso <= 0:
             continue
         promedio = guardar_componente(colegio, estudiante, asignacion, periodo, codigo,
-                                      por_codigo.get(codigo, []))
+                                      por_codigo.get(codigo, []), limites)
         definitiva += promedio * peso
 
     defaults = {'valor_nota': definitiva.quantize(CENTESIMA, rounding=ROUND_HALF_UP),

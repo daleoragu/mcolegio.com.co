@@ -286,6 +286,31 @@ document.addEventListener('DOMContentLoaded', function () {
         tablaCalificaciones.querySelectorAll('tbody tr[data-estudiante-id]').forEach(actualizarTodosLosPromedios);
     }
 
+    // --- La escala de valoración que declaró el colegio manda -----------------
+    // Sin escala propia se usa la de siempre (1 a 5), la misma que usa el servidor.
+    const ESCALA = (escalaValoracion && escalaValoracion.length ? escalaValoracion : [
+        { nombre_desempeno: 'BAJO', valor_minimo: 1.0, valor_maximo: 2.9 },
+        { nombre_desempeno: 'BÁSICO', valor_minimo: 3.0, valor_maximo: 3.9 },
+        { nombre_desempeno: 'ALTO', valor_minimo: 4.0, valor_maximo: 4.5 },
+        { nombre_desempeno: 'SUPERIOR', valor_minimo: 4.6, valor_maximo: 5.0 },
+    ]).map(e => ({ nombre: e.nombre_desempeno, min: parseFloat(e.valor_minimo), max: parseFloat(e.valor_maximo) }))
+      .sort((a, b) => a.min - b.min);
+    const NOTA_MIN = Math.min(...ESCALA.map(e => e.min));
+    const NOTA_MAX = Math.max(...ESCALA.map(e => e.max));
+    // Colores por posición en la escala (el más bajo en rojo, el más alto en azul),
+    // así sirven para cualquier nombre de desempeño y cualquier número de niveles.
+    const COLORES = [['#dc3545', '#fff'], ['#ffc107', '#212529'], ['#28a745', '#fff'], ['#0d6efd', '#fff']];
+    function redondear(x, d) { const f = Math.pow(10, d); return Math.round((x + Number.EPSILON) * f) / f; }
+    function nivelDe(nota) {
+        // Con la nota a una décima (como se lee), el nivel es el último cuyo mínimo no la supera:
+        // así no hay huecos entre 2,9 y 3,0.
+        const n = redondear(nota, 1);
+        let k = -1;
+        ESCALA.forEach((e, i) => { if (n >= e.min) k = i; });
+        return k;
+    }
+    window.rangoNotas = { min: NOTA_MIN, max: NOTA_MAX };
+
     function actualizarTodosLosPromedios(fila) {
         tiposPintados.forEach(tipo => {
             const inputs = fila.querySelectorAll(`.input-nota[data-tipo="${tipo}"]`);
@@ -293,12 +318,17 @@ document.addEventListener('DOMContentLoaded', function () {
             let suma = 0, count = 0;
             inputs.forEach(input => {
                 const valor = parseFloat(input.value.replace(',', '.'));
-                if (!isNaN(valor) && valor >= 1.0 && valor <= 5.0) {
-                    suma += valor;
-                    count++;
-                }
+                const valida = !isNaN(valor) && valor >= NOTA_MIN && valor <= NOTA_MAX;
+                if (valida) { suma += valor; count++; }
+                // Lo escrito fuera de la escala no cuenta: se marca para que se note.
+                input.classList.toggle('is-invalid', input.value.trim() !== '' && !valida);
+                input.title = input.value.trim() !== '' && !valida
+                    ? `Fuera de la escala del colegio (${NOTA_MIN} a ${NOTA_MAX}): no cuenta` : '';
             });
-            promCelda.textContent = count > 0 ? (suma / count).toFixed(1) : '0.0';
+            // Igual que el servidor: promedio a 2 decimales; se muestra a 1.
+            const prom = count > 0 ? redondear(suma / count, 2) : 0;
+            promCelda.dataset.valor = prom;
+            promCelda.textContent = prom.toFixed(1);
         });
         actualizarDefinitiva(fila);
     }
@@ -306,41 +336,32 @@ document.addEventListener('DOMContentLoaded', function () {
     function actualizarDefinitiva(fila) {
         const defCelda = fila.querySelector('.def-celda');
         let definitiva = 0;
-        
+
         // Misma regla del servidor: promedio de cada componente × su porcentaje.
         const porcentajes = porcentajesActuales();
         tiposPintados.forEach(tipo => {
-            const prom = parseFloat(fila.querySelector(`.prom-celda[data-tipo="${tipo}"]`).textContent);
+            const celda = fila.querySelector(`.prom-celda[data-tipo="${tipo}"]`);
+            const prom = parseFloat(celda.dataset.valor !== undefined ? celda.dataset.valor : celda.textContent);
             if (!isNaN(prom)) definitiva += prom * porcentajes[tipo];
         });
-        
+        definitiva = redondear(definitiva, 2);
         defCelda.textContent = definitiva.toFixed(1);
-        
-        const notaFinal = parseFloat(defCelda.textContent);
-        let claseDesempeno = '';
-
-        if (escalaValoracion && escalaValoracion.length > 0) {
-            const escalaEncontrada = escalaValoracion.find(escala => 
-                notaFinal >= parseFloat(escala.valor_minimo) && notaFinal <= parseFloat(escala.valor_maximo)
-            );
-            if (escalaEncontrada) {
-                claseDesempeno = 'desempeno-' + escalaEncontrada.nombre_desempeno.toLowerCase().replace(' ', '-');
-            } else {
-                claseDesempeno = 'desempeno-default';
-            }
-        } else {
-            if (notaFinal < 3.0) claseDesempeno = 'text-danger';
-            else if (notaFinal < 4.0) claseDesempeno = 'text-warning text-dark';
-            else if (notaFinal < 4.6) claseDesempeno = 'text-success';
-            else claseDesempeno = 'text-primary';
-        }
 
         defCelda.className = 'text-center align-middle fw-bolder def-celda fs-6';
-        if(claseDesempeno) {
-            defCelda.classList.add(claseDesempeno);
+        defCelda.style.backgroundColor = '';
+        defCelda.style.color = '';
+        const k = nivelDe(definitiva);
+        if (k >= 0) {
+            const pos = ESCALA.length > 1 ? Math.round(k * (COLORES.length - 1) / (ESCALA.length - 1)) : COLORES.length - 1;
+            defCelda.style.backgroundColor = COLORES[pos][0];
+            defCelda.style.color = COLORES[pos][1];
+            defCelda.title = ESCALA[k].nombre;
+        } else {
+            defCelda.classList.add('desempeno-default');
+            defCelda.title = '';
         }
     }
-    
+
     // Exportar actualizarStatus globalmente para que el Modal PIAR lo pueda usar
     window.actualizarStatus = function(estado) {
         if (!statusIndicator) return;

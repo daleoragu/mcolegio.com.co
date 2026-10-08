@@ -1,0 +1,141 @@
+{% extends 'notas/base.html' %}
+{% block title %}Encabezado de documentos{% endblock %}
+{% block page_title %}Encabezado de documentos{% endblock %}
+{% block content %}
+<style>
+    .en-card { background:#fff; border:1px solid #e3e6ec; border-radius:12px; padding:18px 20px; margin-bottom:16px; }
+    .en-card h5 { font-weight:700; font-size:1.05rem; margin-bottom:12px; }
+    .en-vista-hoja { background:#fff; border:1px solid #d6dae1; box-shadow:0 2px 10px rgba(16,24,40,.08); padding:18px 22px;
+                     max-width:820px; margin:0 auto; }
+    .en-vista { width:100%; border-collapse:collapse; }
+    .en-vista.con-bordes td { border:1px solid #333; }
+    .en-vista td { padding:4px 6px; vertical-align:middle; }
+    .en-vista p { margin:2px 0; line-height:1.15; }
+    .en-vista img { max-width:100px; width:auto; height:auto; }
+    .en-pega { position:sticky; top:66px; z-index:10; background:#f8f9fa; padding:10px 0 12px; }
+    .en-linea { display:grid; grid-template-columns: 34px 1fr 150px 74px auto; gap:8px; align-items:center;
+                padding:8px 0; border-bottom:1px solid #f0f1f4; }
+    .en-linea:last-child { border-bottom:0; }
+    .en-num { font-weight:800; color:#6b7280; text-align:center; }
+    .en-estilos .btn { width:34px; padding:3px 0; font-family: Georgia, serif; }
+    .en-logos { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; }
+    .en-logo-actual { height:56px; display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+    .en-logo-actual img { max-height:56px; max-width:120px; border:1px solid #eee; border-radius:6px; padding:2px; background:#fff; }
+    @media (max-width: 700px) {
+        .en-linea { grid-template-columns: 26px 1fr; }
+        .en-linea > :nth-child(n+3) { grid-column: 2; }
+    }
+</style>
+
+<p class="text-muted">Este encabezado sale arriba en los boletines, actas, planillas, certificados, observador y en el
+    cuadernillo de PuntoExacto. Las líneas vacías no se imprimen.</p>
+
+<form method="post" enctype="multipart/form-data" id="en-form">
+    {% csrf_token %}
+    <div class="en-pega">
+        <div class="en-vista-hoja">
+            <table class="en-vista {% if not colegio.encabezado_pdf_sin_bordes %}con-bordes{% endif %}" id="en-vista">
+                <tr>
+                    <td style="width:20%;text-align:left"><img id="en-img-izq" alt="" {% if colegio.logo_izquierdo %}src="{{ colegio.logo_izquierdo.url }}"{% endif %}></td>
+                    <td style="width:60%;text-align:center" id="en-lineas"></td>
+                    <td style="width:20%;text-align:right"><img id="en-img-der" alt="" {% if colegio.logo_derecho %}src="{{ colegio.logo_derecho.url }}"{% endif %}></td>
+                </tr>
+            </table>
+        </div>
+        <p class="small text-muted text-center mt-2 mb-0">Vista previa aproximada. Para verlo exacto use «Guardar y ver PDF de prueba».</p>
+    </div>
+
+    <div class="en-card">
+        <h5><i class="fas fa-align-center me-2 text-primary"></i>Líneas de texto</h5>
+        {% for f in filas %}
+        <div class="en-linea" data-k="{{ f.k }}">
+            <span class="en-num">{{ f.k }}</span>
+            <div>{{ f.texto }}{% for e in f.texto.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div>{{ f.fuente }}</div>
+            <div title="Tamaño en puntos">{{ f.tamano }}{% for e in f.tamano.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="btn-group en-estilos" role="group" aria-label="Estilo">
+                {{ f.negrilla }}<label class="btn btn-sm btn-outline-secondary fw-bold" for="{{ f.negrilla.id_for_label }}" title="Negrilla">N</label>
+                {{ f.cursiva }}<label class="btn btn-sm btn-outline-secondary fst-italic" for="{{ f.cursiva.id_for_label }}" title="Cursiva">K</label>
+                {{ f.subrayado }}<label class="btn btn-sm btn-outline-secondary text-decoration-underline" for="{{ f.subrayado.id_for_label }}" title="Subrayado">S</label>
+            </div>
+        </div>
+        {% endfor %}
+        <p class="small text-muted mt-2 mb-0">Solo texto. La fuente Tahoma sale exacta en Word; en los PDF del servidor se reemplaza por una muy parecida.</p>
+    </div>
+
+    <div class="en-card">
+        <h5><i class="fas fa-image me-2 text-primary"></i>Logos</h5>
+        <div class="en-logos">
+            <div>
+                <label class="form-label fw-semibold">Logo izquierdo <span class="text-muted fw-normal">(escudo del colegio)</span></label>
+                <div class="en-logo-actual">{% if colegio.logo_izquierdo %}<img src="{{ colegio.logo_izquierdo.url }}" alt="">{% else %}<span class="text-muted small">Sin logo</span>{% endif %}</div>
+                {{ form.logo_izquierdo }}{% for e in form.logo_izquierdo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div>
+                <label class="form-label fw-semibold">Logo derecho <span class="text-muted fw-normal">(gobernación, secretaría…)</span></label>
+                <div class="en-logo-actual">{% if colegio.logo_derecho %}<img src="{{ colegio.logo_derecho.url }}" alt="">{% else %}<span class="text-muted small">Sin logo</span>{% endif %}</div>
+                {{ form.logo_derecho }}{% for e in form.logo_derecho.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div>
+                <label class="form-label fw-semibold" for="{{ form.alto_logos_pdf.id_for_label }}">Altura de los logos (px)</label>
+                {{ form.alto_logos_pdf }}{% for e in form.alto_logos_pdf.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                <div class="form-check form-switch mt-3">
+                    <input type="checkbox" class="form-check-input" name="encabezado_pdf_sin_bordes" id="id_encabezado_pdf_sin_bordes" {% if form.encabezado_pdf_sin_bordes.value %}checked{% endif %}>
+                    <label class="form-check-label" for="id_encabezado_pdf_sin_bordes">Sin bordes</label>
+                </div>
+            </div>
+        </div>
+        <p class="small text-muted mt-2 mb-0">PNG o JPG de máximo 2 MB. Para quitar un logo, marque «Borrar» junto al archivo.</p>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-primary"><i class="fas fa-save me-1"></i>Guardar</button>
+        <button class="btn btn-outline-danger" name="siguiente" value="pdf" formtarget="_blank"><i class="fas fa-file-pdf me-1"></i>Guardar y ver PDF de prueba</button>
+    </div>
+</form>
+
+<script>
+(function () {
+    var form = document.getElementById('en-form');
+    var cont = document.getElementById('en-lineas');
+    function campo(n) { return form.querySelector('[name="' + n + '"]'); }
+    function pintar() {
+        cont.innerHTML = '';
+        for (var k = 1; k <= 5; k++) {
+            var texto = campo('linea_encabezado_' + k).value.trim();
+            if (!texto) continue;
+            var p = document.createElement('p');
+            p.textContent = texto;
+            p.style.fontFamily = "'" + campo('linea_encabezado_' + k + '_fuente').value + "', sans-serif";
+            p.style.fontSize = (parseInt(campo('linea_encabezado_' + k + '_tamano').value, 10) || 8) * 1.33 + 'px';
+            p.style.fontWeight = campo('linea_encabezado_' + k + '_negrilla').checked ? 'bold' : 'normal';
+            p.style.fontStyle = campo('linea_encabezado_' + k + '_cursiva').checked ? 'italic' : 'normal';
+            p.style.textDecoration = campo('linea_encabezado_' + k + '_subrayado').checked ? 'underline' : 'none';
+            cont.appendChild(p);
+        }
+        var alto = (parseInt(campo('alto_logos_pdf').value, 10) || 65) + 'px';
+        document.querySelectorAll('#en-vista img').forEach(function (i) { i.style.maxHeight = alto; i.style.display = i.getAttribute('src') ? '' : 'none'; });
+        document.getElementById('en-vista').classList.toggle('con-bordes', !campo('encabezado_pdf_sin_bordes').checked);
+    }
+    function logo(nombre, img) {
+        var input = campo(nombre), limpiar = form.querySelector('[name="' + nombre + '-clear"]'), original = img.getAttribute('src');
+        input.addEventListener('change', function () {
+            var f = input.files[0];
+            if (!f) return;
+            var r = new FileReader();
+            r.onload = function () { img.src = r.result; pintar(); };
+            r.readAsDataURL(f);
+        });
+        if (limpiar) limpiar.addEventListener('change', function () {
+            if (limpiar.checked) img.removeAttribute('src'); else if (original) img.src = original;
+            pintar();
+        });
+    }
+    logo('logo_izquierdo', document.getElementById('en-img-izq'));
+    logo('logo_derecho', document.getElementById('en-img-der'));
+    form.addEventListener('input', pintar);
+    form.addEventListener('change', pintar);
+    pintar();
+})();
+</script>
+{% endblock %}

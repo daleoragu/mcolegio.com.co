@@ -22,6 +22,7 @@ class Colegio(models.Model):
         ('Verdana', 'Verdana'),
         ('Georgia', 'Georgia'),
         ('Garamond', 'Garamond'),
+        ('Tahoma', 'Tahoma'),
         ('Game On_PersonalUseOnly', 'Game On (Personalizada)'),
     ]
 
@@ -80,6 +81,13 @@ class Colegio(models.Model):
     linea_encabezado_4_negrilla = models.BooleanField(default=False, verbose_name="Negrilla L4")
     linea_encabezado_4_cursiva = models.BooleanField(default=False, verbose_name="Cursiva L4")
     linea_encabezado_4_subrayado = models.BooleanField(default=False, verbose_name="Subrayado L4")
+
+    linea_encabezado_5 = models.CharField(max_length=255, blank=True, null=True, verbose_name="Línea 5 del Encabezado")
+    linea_encabezado_5_fuente = models.CharField(max_length=100, choices=FONT_CHOICES, default='Helvetica', verbose_name="Fuente L5")
+    linea_encabezado_5_tamano = models.PositiveSmallIntegerField(default=8, verbose_name="Tamaño L5 (pt)")
+    linea_encabezado_5_negrilla = models.BooleanField(default=False, verbose_name="Negrilla L5")
+    linea_encabezado_5_cursiva = models.BooleanField(default=False, verbose_name="Cursiva L5")
+    linea_encabezado_5_subrayado = models.BooleanField(default=False, verbose_name="Subrayado L5")
     
     encabezado_pdf_sin_bordes = models.BooleanField(default=False, verbose_name="Quitar bordes del encabezado en PDF", help_text="Marcar si el encabezado debe ocupar todo el ancho sin bordes (diseño especial).")
 
