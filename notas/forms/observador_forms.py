@@ -63,6 +63,10 @@ class RegistroObservadorForm(forms.ModelForm):
             'tipo': forms.Select(attrs={'class': 'form-select'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 5, 'placeholder': 'Describa detalladamente el suceso...'}),
         }
+        help_texts = {
+            'descripcion': 'Este texto le llega a la familia por correo y WhatsApp. '
+                           'Evite escribir el nombre completo de otros estudiantes.',
+        }
 
 class EstudianteCompromisoForm(forms.ModelForm):
     compromiso_estudiante = forms.CharField(

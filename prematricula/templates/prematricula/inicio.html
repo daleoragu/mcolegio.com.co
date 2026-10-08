@@ -1,0 +1,39 @@
+{% extends 'prematricula/_base_publica.html' %}
+{% block title %}Prematrícula · {{ colegio.nombre }}{% endblock %}
+{% block contenido %}
+<div class="pm-tarjeta">
+    <h1 style="font-size:1.6rem;font-weight:800;">Prematrícula {% if conf %}{{ conf.ano_lectivo }}{% endif %}</h1>
+    {% if abierta %}
+        {% if conf.mensaje %}<p style="white-space:pre-line;">{{ conf.mensaje }}</p>{% endif %}
+        <p class="text-muted mb-0" style="font-size:.92rem;">
+            Tenga a mano el documento del estudiante, los datos de la familia y los documentos en PDF o foto.
+            Al terminar recibe un número de radicado para consultar el estado de su solicitud.
+            {% if conf.fecha_cierre %}<br>Se reciben solicitudes hasta el <strong>{{ conf.fecha_cierre|date:"d/m/Y" }}</strong>.{% endif %}
+        </p>
+    {% else %}
+        <p class="mb-0">En este momento la prematrícula no está abierta. Consulte las fechas con secretaría.</p>
+    {% endif %}
+</div>
+{% if abierta %}
+<div class="row g-3 mb-3">
+    <div class="col-md-{% if conf.permite_antiguos %}6{% else %}12{% endif %}">
+        <a href="{% url 'prematricula:formulario' 'nuevo' %}" class="pm-tarjeta d-block text-decoration-none text-reset h-100">
+            <h2><i class="fas fa-user-plus" style="color:var(--c1)"></i> Estudiante nuevo</h2>
+            <p class="text-muted mb-0">Quiere entrar por primera vez al colegio.</p>
+        </a>
+    </div>
+    {% if conf.permite_antiguos %}
+    <div class="col-md-6">
+        <a href="{% url 'prematricula:verificar' %}" class="pm-tarjeta d-block text-decoration-none text-reset h-100">
+            <h2><i class="fas fa-user-check" style="color:var(--c1)"></i> Ya estudia en el colegio</h2>
+            <p class="text-muted mb-0">Confirme el cupo para el próximo año y actualice sus datos.</p>
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+<div class="pm-tarjeta d-flex flex-wrap align-items-center gap-3">
+    <span><i class="fas fa-search me-2" style="color:var(--c1)"></i>¿Ya hizo su solicitud?</span>
+    <a href="{% url 'prematricula:consultar' %}" class="btn btn-outline-secondary ms-auto">Consultar con el radicado</a>
+</div>
+{% endblock %}

@@ -172,6 +172,13 @@
                             </div>
                         </div>
                         <p>{{ registro.descripcion|linebreaksbr }}</p>
+                        {% if registro.acudiente_enterado %}
+                        <div class="registro-descargo">
+                            <p class="mb-1"><strong><i class="fas fa-user-check me-2"></i>Acudiente enterado:</strong> {{ registro.firma_acudiente }}
+                                <small class="text-muted">({{ registro.acudiente_enterado|date:"d/m/Y, h:i a" }})</small></p>
+                            {% if registro.descargo_acudiente %}<p class="mb-0 fst-italic">«{{ registro.descargo_acudiente|linebreaksbr }}»</p>{% endif %}
+                        </div>
+                        {% endif %}
                         {% if registro.descargo_estudiante %}
                         <div class="registro-descargo">
                             <p class="mb-1"><strong><i class="fas fa-reply me-2"></i>Descargo del estudiante</strong> <small class="text-muted">({{ registro.fecha_descargo|date:"d/m/Y, h:i a" }})</small>:</p>

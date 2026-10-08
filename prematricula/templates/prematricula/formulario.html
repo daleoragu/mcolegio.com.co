@@ -1,0 +1,60 @@
+{% extends 'prematricula/_base_publica.html' %}
+{% block title %}Formulario · Prematrícula{% endblock %}
+{% block contenido %}
+<form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    <div class="pm-tarjeta">
+        <h1 style="font-size:1.4rem;font-weight:800;margin:0;">
+            Prematrícula {{ conf.ano_lectivo }} · {% if tipo == 'ANTIGUO' %}estudiante antiguo{% else %}estudiante nuevo{% endif %}</h1>
+        {% if antiguo %}<p class="text-muted mb-0 mt-1">Revise y actualice los datos de <strong>{{ antiguo.user.get_full_name }}</strong>.</p>{% endif %}
+        {% if form.non_field_errors %}<div class="alert alert-danger mt-3 mb-0">{{ form.non_field_errors }}</div>{% endif %}
+    </div>
+
+    <div class="pm-tarjeta">
+        <h2><span class="pm-num">1</span> Grado al que se matricula</h2>
+        <div class="row g-3">{% for campo in aspira %}{% include 'prematricula/_campo.html' with clase='col-md-4' %}{% endfor %}</div>
+    </div>
+
+    {% for titulo, campos in secciones %}
+    <div class="pm-tarjeta">
+        <h2><span class="pm-num">{{ forloop.counter|add:1 }}</span> {{ titulo }}</h2>
+        <div class="row g-3">{% for campo in campos %}{% include 'prematricula/_campo.html' %}{% endfor %}</div>
+    </div>
+    {% endfor %}
+
+    {% if documentos %}
+    <div class="pm-tarjeta">
+        <h2><span class="pm-num">5</span> Documentos</h2>
+        <p class="text-muted" style="font-size:.9rem;">En PDF o foto legible, máximo 6 MB cada uno. Los que no tenga ahora los puede subir después desde la consulta de su solicitud.</p>
+        <div class="row g-3">{% for campo in documentos %}{% include 'prematricula/_campo.html' with clase='col-12' %}{% endfor %}</div>
+    </div>
+    {% endif %}
+
+    {% if encuesta %}
+    <div class="pm-tarjeta">
+        <h2><span class="pm-num">6</span> Encuesta</h2>
+        <p class="text-muted" style="font-size:.9rem;">Nos ayuda a conocer mejor a las familias.</p>
+        <div class="row g-3">{% for campo in encuesta %}{% include 'prematricula/_campo.html' with clase='col-12' %}{% endfor %}</div>
+    </div>
+    {% endif %}
+
+    <div class="pm-tarjeta">
+        <h2><span class="pm-num">7</span> Autorización</h2>
+        <p style="font-size:.9rem;white-space:pre-line;">{{ tratamiento }}</p>
+        <div class="form-check">
+            {{ form.acepta }} <label class="form-check-label" for="{{ form.acepta.id_for_label }}">Acepto y declaro que la información es verídica.</label>
+        </div>
+        {{ form.acepta.errors }}
+        <button class="btn btn-pm btn-lg w-100 mt-3"><i class="fas fa-paper-plane me-2"></i>Enviar solicitud</button>
+    </div>
+</form>
+<script>
+// Apoyo: el detalle solo se pide si marcan que lo necesita.
+(function () {
+    var c = document.getElementById('id_necesita_apoyo'), d = document.getElementById('id_apoyo_detalle');
+    if (!c || !d) return;
+    function ver() { d.closest('[class^="col"]').style.display = c.checked ? '' : 'none'; }
+    c.addEventListener('change', ver); ver();
+})();
+</script>
+{% endblock %}

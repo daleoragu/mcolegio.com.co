@@ -17,6 +17,13 @@
                 <i class="fas fa-home fa-fw me-2"></i>Inicio
             </a>
         </li>
+        {% if colegio.prematricula.esta_abierta %}
+        <li class="nav-item">
+            <a class="nav-link fw-bold" href="{% url 'prematricula:inicio' %}">
+                <i class="fas fa-file-signature fa-fw me-2"></i>Prematrícula {{ colegio.prematricula.ano_lectivo }}
+            </a>
+        </li>
+        {% endif %}
         <li class="nav-item">
             <a href="#institucion-submenu" data-bs-toggle="collapse" class="nav-link dropdown-toggle-custom">
                 <i class="fas fa-university fa-fw me-2"></i>Institución

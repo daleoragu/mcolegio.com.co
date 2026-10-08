@@ -1,0 +1,48 @@
+{% extends 'prematricula/_base_publica.html' %}
+{% block title %}{{ s.radicado }} · Prematrícula{% endblock %}
+{% block contenido %}
+<div class="pm-tarjeta">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <h1 style="font-size:1.35rem;font-weight:800;margin:0;">Solicitud {{ s.radicado }}</h1>
+        <span class="pm-estado e-{{ s.estado }} ms-auto">{{ s.get_estado_display }}</span>
+    </div>
+    <p class="mb-1"><strong>{{ s.nombres }} {{ s.apellidos }}</strong> · {{ s.nombre_grado }} de {{ s.ano_lectivo }}
+        {% if s.sede %}· {{ s.sede }}{% endif %}</p>
+    <p class="text-muted mb-0" style="font-size:.88rem;">Recibida el {{ s.creada|date:"d/m/Y" }} a las {{ s.creada|date:"h:i a" }}<br>
+        Guarde este enlace o el número de radicado para volver a consultar.</p>
+    {% if s.estado == 'APROBADA' %}
+        <div class="alert alert-success mt-3 mb-0">¡Matrícula aprobada!{% if s.curso_asignado %} Curso: <strong>{{ s.curso_asignado }}</strong>.{% endif %}</div>
+    {% endif %}
+    {% if s.mensaje_familia %}
+        <div class="alert alert-info mt-3 mb-0" style="white-space:pre-line;"><strong>Mensaje del colegio:</strong> {{ s.mensaje_familia }}</div>
+    {% endif %}
+</div>
+
+<div class="pm-tarjeta">
+    <h2><i class="fas fa-list-check" style="color:var(--c1)"></i> Requisitos</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <ul class="list-unstyled mb-0">
+        {% for r, doc, cumple in filas %}
+            <li class="py-2" style="border-bottom:1px solid #eef0f3;">
+                <div class="d-flex align-items-start gap-2">
+                    {% if cumple %}<i class="fas fa-circle-check text-success mt-1"></i>
+                    {% elif doc %}<i class="fas fa-clock text-primary mt-1" title="Recibido, por revisar"></i>
+                    {% else %}<i class="far fa-circle text-muted mt-1"></i>{% endif %}
+                    <div class="flex-grow-1">
+                        {{ r.nombre }}{% if not r.obligatorio %} <span class="text-muted">(opcional)</span>{% endif %}
+                        <div class="text-muted" style="font-size:.84rem;">
+                            {% if cumple %}Revisado{% elif doc %}Recibido, por revisar{% elif r.pide_archivo %}Falta subirlo{% else %}Se revisa en secretaría{% endif %}
+                        </div>
+                        {% if puede_subir and r.pide_archivo and not cumple and not doc or puede_subir and r.pide_archivo and not cumple and s.estado == 'PENDIENTE' %}
+                            <input type="file" name="doc_{{ r.id }}" accept=".pdf,image/*" class="form-control form-control-sm mt-1" style="max-width:380px;">
+                        {% endif %}
+                    </div>
+                </div>
+            </li>
+        {% endfor %}
+        </ul>
+        {% if puede_subir %}<button class="btn btn-pm mt-3"><i class="fas fa-upload me-1"></i> Subir documentos</button>{% endif %}
+    </form>
+</div>
+{% endblock %}

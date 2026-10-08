@@ -1,0 +1,14 @@
+{% extends 'prematricula/_base_publica.html' %}
+{% block title %}Consultar solicitud · Prematrícula{% endblock %}
+{% block contenido %}
+<form method="post" action="{% url 'prematricula:consultar' %}" class="pm-tarjeta" style="max-width:520px;margin:0 auto;">
+    {% csrf_token %}
+    <h2><i class="fas fa-search" style="color:var(--c1)"></i> Consultar mi solicitud</h2>
+    {% if error %}<div class="alert alert-warning">{{ error }}</div>{% endif %}
+    <label class="form-label" for="radicado">Radicado</label>
+    <input class="form-control mb-3" id="radicado" name="radicado" required placeholder="PM1-2027-0001" style="text-transform:uppercase;">
+    <label class="form-label" for="documento">Documento del estudiante</label>
+    <input class="form-control mb-3" id="documento" name="documento" required inputmode="numeric">
+    <button class="btn btn-pm w-100">Consultar</button>
+</form>
+{% endblock %}

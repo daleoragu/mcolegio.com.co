@@ -1,0 +1,15 @@
+{% extends 'prematricula/_base_publica.html' %}
+{% block title %}Estudiante antiguo · Prematrícula{% endblock %}
+{% block contenido %}
+<form method="post" class="pm-tarjeta" style="max-width:520px;margin:0 auto;">
+    {% csrf_token %}
+    <h2><i class="fas fa-user-check" style="color:var(--c1)"></i> Estudiante antiguo</h2>
+    <p class="text-muted" style="font-size:.92rem;">Para buscar sus datos, escriba el documento y la fecha de nacimiento del estudiante.</p>
+    {% if error %}<div class="alert alert-warning">{{ error }}</div>{% endif %}
+    <label class="form-label" for="documento">Número de documento del estudiante</label>
+    <input class="form-control mb-3" id="documento" name="documento" required inputmode="numeric" value="{{ request.POST.documento }}">
+    <label class="form-label" for="fecha">Fecha de nacimiento</label>
+    <input class="form-control mb-3" id="fecha" type="date" name="fecha_nacimiento" required value="{{ request.POST.fecha_nacimiento }}">
+    <button class="btn btn-pm w-100">Continuar</button>
+</form>
+{% endblock %}
