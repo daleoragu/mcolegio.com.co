@@ -1,0 +1,146 @@
+{% extends 'notas/base.html' %}
+{% block title %}Acta {{ acta.numero }} de {{ acta.ano }}{% endblock %}
+{% block page_title %}Acta {{ acta.numero }} de {{ acta.ano }} <span class="fs-6 text-muted fw-normal">· {{ acta.get_tipo_display }} · borrador</span>{% endblock %}
+{% block content %}
+{% include 'actas/_estilos.html' %}
+<p><a href="{% url 'actas:lista' %}" class="text-decoration-none"><i class="fas fa-arrow-left me-1"></i>Todas las actas</a></p>
+
+<form method="post" id="ac-form">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+    <div class="ac-card">
+        <h5><span class="num">1</span>Datos de la reunión</h5>
+        <div class="row g-3">
+            <div class="col-md-12"><label class="form-label fw-semibold" for="{{ form.titulo.id_for_label }}">{{ form.titulo.label }}</label>{{ form.titulo }}{{ form.titulo.errors }}</div>
+            <div class="col-sm-4"><label class="form-label fw-semibold" for="{{ form.fecha.id_for_label }}">{{ form.fecha.label }}</label>{{ form.fecha }}{{ form.fecha.errors }}</div>
+            <div class="col-sm-4"><label class="form-label fw-semibold" for="{{ form.hora_inicio.id_for_label }}">{{ form.hora_inicio.label }}</label>{{ form.hora_inicio }}</div>
+            <div class="col-sm-4"><label class="form-label fw-semibold" for="{{ form.hora_fin.id_for_label }}">{{ form.hora_fin.label }}</label>{{ form.hora_fin }}</div>
+            <div class="col-md-12"><label class="form-label fw-semibold" for="{{ form.lugar.id_for_label }}">{{ form.lugar.label }}</label>{{ form.lugar }}</div>
+        </div>
+    </div>
+
+    {% if acta.es_comision %}
+    <div class="ac-card">
+        <h5><span class="num">2</span>Qué se revisa</h5>
+        <div class="row g-3">
+            <div class="col-md-5"><label class="form-label fw-semibold" for="{{ form.periodo.id_for_label }}">{{ form.periodo.label }}</label>{{ form.periodo }}{{ form.periodo.errors }}</div>
+            <div class="col-md-7 ac-alcance"><label class="form-label fw-semibold d-block">{{ form.alcance.label }}</label>{{ form.alcance }}
+                <div class="form-text">Del periodo: las que perdió en ese periodo. Acumulado: las que va perdiendo en el año hasta ese periodo (comisión final).</div></div>
+            {% if form.sede.field.queryset.exists %}
+            <div class="col-md-5"><label class="form-label fw-semibold" for="{{ form.sede.id_for_label }}">{{ form.sede.label }}</label>{{ form.sede }}</div>
+            {% endif %}
+            <div class="col-12">
+                <label class="form-label fw-semibold d-block">Cursos</label>
+                {% for g in grados %}
+                <div class="ac-grado">
+                    <div class="ac-grado-cab">{{ g.nombre }}
+                        <button type="button" class="btn btn-link btn-sm p-0 ac-todos">marcar todos</button></div>
+                    <div class="ac-cursos">
+                        {% for c in g.cursos %}
+                        <label data-sede="{{ c.sede }}"><input type="checkbox" name="cursos" value="{{ c.id }}" class="form-check-input me-1" {% if c.marcado %}checked{% endif %}>{{ c.nombre }}</label>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% empty %}<p class="text-muted">El colegio no tiene cursos.</p>{% endfor %}
+                {{ form.cursos.errors }}
+            </div>
+            <div class="col-12">
+                <div class="form-check form-switch">
+                    {{ form.mostrar_observador }}
+                    <label class="form-check-label" for="{{ form.mostrar_observador.id_for_label }}">{{ form.mostrar_observador.label }}</label>
+                </div>
+                <div class="form-text">{{ form.mostrar_observador.help_text }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="ac-card">
+        <h5><span class="num">{% if acta.es_comision %}3{% else %}2{% endif %}</span>Lo que se dijo</h5>
+        <div class="mb-3"><label class="form-label fw-semibold" for="{{ form.orden_del_dia.id_for_label }}">{{ form.orden_del_dia.label }}</label>{{ form.orden_del_dia }}<div class="form-text">{{ form.orden_del_dia.help_text }}</div></div>
+        <div class="mb-3"><label class="form-label fw-semibold" for="{{ form.desarrollo.id_for_label }}">{{ form.desarrollo.label }}</label>{{ form.desarrollo }}
+            <div class="form-text">Escriba lo tratado en cada punto. {% if acta.es_comision %}El informe de estudiantes se agrega solo al acta, después del desarrollo.{% endif %}</div></div>
+        <div><label class="form-label fw-semibold" for="{{ form.decisiones.id_for_label }}">{{ form.decisiones.label }}</label>{{ form.decisiones }}<div class="form-text">{{ form.decisiones.help_text }}</div></div>
+    </div>
+
+    <div class="ac-card">
+        <h5><span class="num">{% if acta.es_comision %}4{% else %}3{% endif %}</span>Asistentes y firmas</h5>
+        <div class="d-flex justify-content-between align-items-end mb-1">
+            <label class="form-label fw-semibold mb-0" for="{{ form.asistentes.id_for_label }}">{{ form.asistentes.label }}</label>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="ac-sugerir"
+                    data-url="{% url 'actas:sugerir_asistentes' acta.id %}"><i class="fas fa-user-plus me-1"></i>Traer directivos{% if acta.es_comision %} y docentes de los cursos{% endif %}</button>
+        </div>
+        {{ form.asistentes }}
+        <div class="form-text">{{ form.asistentes.help_text }}. Cada uno sale en el acta con su línea para firmar. Borre a quien no asistió.</div>
+    </div>
+
+    <div class="ac-barra">
+        <button class="btn btn-primary"><i class="fas fa-save me-1"></i>Guardar</button>
+        <button class="btn btn-outline-danger" name="siguiente" value="pdf" formtarget="_blank"><i class="fas fa-file-pdf me-1"></i>Guardar y ver PDF</button>
+        <button type="button" class="btn btn-success ms-auto" data-bs-toggle="modal" data-bs-target="#ac-cerrar"><i class="fas fa-lock me-1"></i>Cerrar acta</button>
+    </div>
+</form>
+
+{% if acta.es_comision %}
+<div class="ac-card mt-3">
+    <h5><i class="fas fa-list-ol me-2 text-muted"></i>Informe de la comisión <span class="small text-muted fw-normal">(vista previa: se actualiza al guardar)</span></h5>
+    {% if acta.periodo and acta.cursos.exists %}{% include 'actas/_informe.html' %}{% else %}<p class="text-muted mb-0">Escoja el periodo y los cursos, y guarde.</p>{% endif %}
+</div>
+{% endif %}
+
+<form method="post" action="{% url 'actas:eliminar' acta.id %}" class="mt-2" onsubmit="return confirm('¿Eliminar este borrador?')">{% csrf_token %}
+    <button class="btn btn-link text-danger btn-sm px-0"><i class="fas fa-trash me-1"></i>Eliminar borrador</button></form>
+
+<div class="modal fade" id="ac-cerrar" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content">
+        <form method="post" action="{% url 'actas:cerrar' acta.id %}">{% csrf_token %}
+        <div class="modal-header"><h5 class="modal-title">Cerrar el acta</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+            <p>Guarde primero los cambios. Al cerrar el acta ya no se puede editar{% if acta.es_comision %} y el informe de estudiantes queda tal como está hoy, aunque después cambien las notas{% endif %}.</p>
+            <p class="mb-0 small text-muted">Si hace falta corregir algo, el administrador puede reabrirla.</p>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button class="btn btn-success"><i class="fas fa-lock me-1"></i>Cerrar acta</button></div>
+        </form>
+    </div></div>
+</div>
+
+<script>
+(function () {
+    document.querySelectorAll('.ac-todos').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var cajas = Array.prototype.filter.call(b.closest('.ac-grado').querySelectorAll('label'), function (l) { return l.style.display !== 'none'; })
+                .map(function (l) { return l.querySelector('input'); });
+            var todos = cajas.every(function (c) { return c.checked; });
+            cajas.forEach(function (c) { c.checked = !todos; });
+        });
+    });
+    var sede = document.getElementById('id_sede');
+    function filtrar() {
+        if (!sede) return;
+        document.querySelectorAll('.ac-cursos label').forEach(function (l) {
+            var ve = !sede.value || l.dataset.sede === sede.value;
+            l.style.display = ve ? '' : 'none';
+            if (!ve) l.querySelector('input').checked = false;
+        });
+        document.querySelectorAll('.ac-grado').forEach(function (g) {
+            g.style.display = Array.prototype.some.call(g.querySelectorAll('label'), function (l) { return l.style.display !== 'none'; }) ? '' : 'none';
+        });
+    }
+    if (sede) { sede.addEventListener('change', filtrar); filtrar(); }
+    var boton = document.getElementById('ac-sugerir'), caja = document.getElementById('id_asistentes');
+    boton.addEventListener('click', function () {
+        var marcados = Array.prototype.map.call(document.querySelectorAll('input[name=cursos]:checked'), function (c) { return c.value; });
+        var url = boton.dataset.url + (document.querySelector('input[name=cursos]') ? '?cursos=' + marcados.join(',') : '');
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var ya = caja.value.split('\n').map(function (l) { return l.trim().split(/\s+[—–-]\s+/)[0].toLowerCase(); });
+                var nuevos = d.texto.split('\n').filter(function (l) { return l && ya.indexOf(l.split(/\s+[—–-]\s+/)[0].toLowerCase()) < 0; });
+                caja.value = (caja.value.trim() ? caja.value.trim() + '\n' : '') + nuevos.join('\n');
+            });
+    });
+})();
+</script>
+{% endblock %}

@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'salon_digital',   # <--- Salón Digital: herramientas para docentes
     'puntoexacto',     # <--- PuntoExacto: exámenes de selección múltiple
     'prematricula',    # <--- Prematrícula desde el portal
+    'actas',           # <--- Actas: comisión de evaluación y promoción, actas libres
 ]
 
 MIDDLEWARE = [

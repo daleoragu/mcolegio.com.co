@@ -1,0 +1,22 @@
+{% extends 'notas/base.html' %}
+{% block title %}Acta {{ acta.numero }} de {{ acta.ano }}{% endblock %}
+{% block page_title %}Acta {{ acta.numero }} de {{ acta.ano }} <span class="fs-6 text-muted fw-normal">· cerrada</span>{% endblock %}
+{% block content %}
+{% include 'actas/_estilos.html' %}
+<p><a href="{% url 'actas:lista' %}" class="text-decoration-none"><i class="fas fa-arrow-left me-1"></i>Todas las actas</a></p>
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="{% url 'actas:pdf' acta.id %}" target="_blank" class="btn btn-danger"><i class="fas fa-file-pdf me-1"></i>PDF para firmar</a>
+    <form method="post" action="{% url 'actas:reabrir' acta.id %}" onsubmit="return confirm('¿Volver a borrador? Al cerrarla otra vez, el informe se recalcula con las notas de ese momento.')">{% csrf_token %}
+        <button class="btn btn-outline-secondary"><i class="fas fa-lock-open me-1"></i>Reabrir</button></form>
+</div>
+<div class="ac-card">
+    <h5>{{ acta.titulo }}</h5>
+    <p class="mb-1">{{ acta.fecha|date:"l j \d\e F \d\e Y"|lower|capfirst }}{% if acta.hora_inicio %}, {{ acta.hora_inicio|time:"g:i a" }}{% endif %}{% if acta.hora_fin %} a {{ acta.hora_fin|time:"g:i a" }}{% endif %}{% if acta.lugar %} · {{ acta.lugar }}{% endif %}</p>
+    <p class="small text-muted mb-0">Cerrada el {{ acta.cerrada_en|date:"d/m/Y h:i a" }}</p>
+</div>
+{% if acta.orden_del_dia %}<div class="ac-card"><h5>Orden del día</h5><ol class="mb-0">{% for p in acta.lista_orden %}<li>{{ p }}</li>{% endfor %}</ol></div>{% endif %}
+{% if acta.desarrollo %}<div class="ac-card"><h5>Desarrollo</h5>{{ acta.desarrollo|linebreaks }}</div>{% endif %}
+{% if informe %}<div class="ac-card"><h5>Informe de la comisión</h5>{% include 'actas/_informe.html' %}</div>{% endif %}
+{% if acta.decisiones %}<div class="ac-card"><h5>Decisiones y compromisos</h5>{{ acta.decisiones|linebreaks }}</div>{% endif %}
+{% if acta.asistentes %}<div class="ac-card"><h5>Asistentes</h5>{{ acta.asistentes|linebreaks }}</div>{% endif %}
+{% endblock %}

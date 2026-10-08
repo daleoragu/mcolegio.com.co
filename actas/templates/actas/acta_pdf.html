@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+    @page { size: letter; margin: 14mm 16mm 16mm;
+            @bottom-right { content: "Acta {{ acta.numero }} de {{ acta.ano }} · página " counter(page) " de " counter(pages); font-size: 8pt; color: #666; } }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; color: #111; line-height: 1.35; }
+    h1 { text-align: center; font-size: 13pt; margin: 8px 0 2px; letter-spacing: .5px; }
+    h2.sub { text-align: center; font-size: 11pt; font-weight: normal; margin: 0 0 10px; }
+    h3 { font-size: 10.5pt; text-transform: uppercase; color: {{ colegio.color_primario|default:'#193661' }};
+         border-bottom: 1.5px solid {{ colegio.color_primario|default:'#193661' }}; padding-bottom: 2px; margin: 14px 0 6px; }
+    .datos { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+    .datos td { border: 1px solid #c9ced6; padding: 3px 7px; vertical-align: top; }
+    .datos td.e { width: 22%; font-weight: bold; background: #f3f5f8; }
+    ol { margin: 0; padding-left: 20px; }
+    .texto p { margin: 0 0 6px; text-align: justify; }
+    table.inf { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+    .inf th { background: {{ colegio.color_primario|default:'#193661' }}; color: {{ colegio.color_texto_primario|default:'#fff' }};
+              padding: 3px 4px; border: 1px solid #9aa4b2; }
+    .inf td { border: 1px solid #9aa4b2; padding: 2px 4px; vertical-align: top; }
+    .inf tr { page-break-inside: avoid; }
+    .inf td.c { text-align: center; }
+    .inf .n { font-weight: bold; text-align: center; font-size: 10pt; }
+    .pend { white-space: nowrap; }
+    .resumen { font-size: 8.5pt; color: #444; margin: 0 0 5px; }
+    .obs { height: 100%; }
+    .firmas { width: 100%; border-collapse: separate; border-spacing: 18px 0; margin-top: 10px; }
+    .firmas td { width: 50%; padding-top: 34px; vertical-align: top; page-break-inside: avoid; }
+    .firmas .linea { border-top: 1px solid #111; padding-top: 3px; font-size: 9pt; }
+    .firmas .cargo { color: #555; font-size: 8.5pt; }
+    .constancia { margin-top: 14px; font-size: 9.5pt; }
+</style></head>
+<body>
+{% include 'notas/fragmentos/encabezado_pdf.html' %}
+<h1>ACTA N.º {{ acta.numero }} DE {{ acta.ano }}</h1>
+<h2 class="sub">{{ acta.titulo }}</h2>
+
+<table class="datos">
+    <tr><td class="e">Fecha</td><td>{{ acta.fecha|date:"l j \d\e F \d\e Y"|lower|capfirst }}</td></tr>
+    {% if acta.hora_inicio or acta.hora_fin %}<tr><td class="e">Hora</td><td>{% if acta.hora_inicio %}{{ acta.hora_inicio|time:"g:i a" }}{% endif %}{% if acta.hora_fin %} a {{ acta.hora_fin|time:"g:i a" }}{% endif %}</td></tr>{% endif %}
+    {% if acta.lugar %}<tr><td class="e">Lugar</td><td>{{ acta.lugar }}</td></tr>{% endif %}
+    {% if acta.es_comision %}
+    <tr><td class="e">Periodo</td><td>{{ acta.periodo|default:"" }}{% if acta.sede %} · {{ acta.sede.nombre }}{% endif %}</td></tr>
+    <tr><td class="e">Cursos</td><td>{% for c in acta.cursos.all %}{{ c.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}</td></tr>
+    {% endif %}
+</table>
+
+{% if orden %}<h3>Orden del día</h3><ol>{% for p in orden %}<li>{{ p }}</li>{% endfor %}</ol>{% endif %}
+
+{% if acta.desarrollo %}<h3>Desarrollo</h3><div class="texto">{{ acta.desarrollo|linebreaks }}</div>{% endif %}
+
+{% if informe %}
+<h3>Estudiantes con asignaturas pendientes</h3>
+<p class="resumen">{{ informe.alcance }} · nota mínima aprobatoria {{ informe.aprobacion }} ·
+    {{ informe.con_pendientes }} de {{ informe.analizados }} estudiantes
+    {% if informe.cursos|length > 1 %}({% for c in informe.cursos %}{{ c.curso }}: {{ c.con_pendientes }}/{{ c.analizados }}{% if not forloop.last %}; {% endif %}{% endfor %}){% endif %}.
+    Ordenados de más a menos asignaturas pendientes.{% if acta.cerrada %} Datos al cierre del acta ({{ informe.generado }}).{% endif %}</p>
+{% if informe.filas %}
+<table class="inf">
+    <thead><tr>
+        <th style="width:5%">N.</th><th style="width:{% if informe.observador %}27{% else %}30{% endif %}%">Estudiante</th>
+        <th style="width:7%">Curso</th><th style="width:6%">Pend.</th><th>Asignaturas pendientes (nota)</th>
+        {% if informe.observador %}<th style="width:7%">Anot. obs.</th>{% endif %}
+        <th style="width:18%">Recomendación</th>
+    </tr></thead>
+    <tbody>
+    {% for f in informe.filas %}
+    <tr>
+        <td class="c">{{ forloop.counter }}</td>
+        <td>{{ f.estudiante }}</td>
+        <td class="c">{{ f.curso }}</td>
+        <td class="n">{{ f.n }}</td>
+        <td>{% for a in f.asignaturas %}<span class="pend">{{ a.materia }}{% if a.nota %} ({{ a.nota }}){% endif %}</span>{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+        {% if informe.observador %}<td class="c">{{ f.anotaciones }}</td>{% endif %}
+        <td></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>Ningún estudiante de los cursos revisados tiene asignaturas pendientes.</p>
+{% endif %}
+{% endif %}
+
+{% if decisiones %}<h3>Decisiones y compromisos</h3><ol>{% for d in decisiones %}<li>{{ d }}</li>{% endfor %}</ol>{% endif %}
+
+<p class="constancia">Para constancia se firma por quienes asistieron{% if acta.hora_fin %}, y se da por terminada la reunión a las {{ acta.hora_fin|time:"g:i a" }}{% else %}.{% endif %}</p>
+
+{% if asistentes %}
+<table class="firmas">
+    {% for nombre, cargo in asistentes %}
+    {% if forloop.counter0|divisibleby:2 %}<tr>{% endif %}
+        <td><div class="linea">{{ nombre }}{% if cargo %}<div class="cargo">{{ cargo }}</div>{% endif %}</div></td>
+    {% if not forloop.counter0|divisibleby:2 or forloop.last %}{% if forloop.last and forloop.counter0|divisibleby:2 %}<td></td>{% endif %}</tr>{% endif %}
+    {% endfor %}
+</table>
+{% else %}
+<table class="firmas"><tr><td><div class="linea">Presidente(a)</div></td><td><div class="linea">Secretario(a)</div></td></tr></table>
+{% endif %}
+</body></html>
