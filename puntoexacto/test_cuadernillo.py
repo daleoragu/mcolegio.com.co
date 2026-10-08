@@ -205,3 +205,22 @@ class EstudianteNoEntra(CuadernilloDelExamen):
         self.assertEqual(est.get('/puntoexacto/').status_code, 403)
         self.assertEqual(est.post('/puntoexacto/nuevo/', {'titulo': 'X'}).status_code, 403)
         self.assertEqual(est.get('/puntoexacto/nube/google/').status_code, 403)
+
+
+class NubeCentral(CuadernilloDelExamen):
+    """Una sola dirección registrada en Google y Azure para todos los colegios."""
+
+    def test_colegio_pasa_por_la_central(self):
+        with self.settings(GOOGLE_CLIENT_ID='g1', NUBE_URL='https://mcolegio.com.co'):
+            r = self.c.get('/puntoexacto/nube/google/')
+        self.assertContains(r, "var CENTRAL = 'https://mcolegio.com.co/puntoexacto/nube\\u002Dcentral/google/'")
+
+    def test_central_sin_sesion_y_solo_dominios_de_la_plataforma(self):
+        from django.test import Client
+        with self.settings(MICROSOFT_CLIENT_ID='m1', DEBUG=False,
+                           ALLOWED_HOSTS=['mcolegio.com.co', '.mcolegio.com.co', 'localhost', 'integradoapr.edu.co']):
+            r = Client(HTTP_HOST='mcolegio.com.co').get('/puntoexacto/nube-central/onedrive/')
+        self.assertEqual(r.status_code, 200)
+        hosts = json.loads(r.content.decode().split('id="hosts" type="application/json">')[1].split('</script>')[0])
+        self.assertEqual(hosts, ['mcolegio.com.co', '.mcolegio.com.co', 'integradoapr.edu.co'])   # sin localhost
+        self.assertContains(r, 'Pedido no válido')

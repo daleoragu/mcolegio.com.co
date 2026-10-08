@@ -234,8 +234,12 @@ if not EMAIL_HOST:
 PASSWORD_RESET_TIMEOUT = 3600
 
 # Nube del docente para las imágenes del constructor de exámenes (PuntoExacto).
-# Los ID de cliente NO son secretos. En Google Cloud y en Azure se registra, por
-# cada colegio, la dirección https://<colegio>.mcolegio.com.co/puntoexacto/nube/google/
-# (o /onedrive/). Sin estos valores, las imágenes quedan en el navegador del docente.
+# Los ID de cliente NO son secretos. En Google Cloud y en Azure se registra UNA vez
+# https://mcolegio.com.co/puntoexacto/nube-central/google/ (o /onedrive/).
+# Sin estos valores, las imágenes quedan en el navegador del docente.
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
 MICROSOFT_CLIENT_ID = os.getenv('MICROSOFT_CLIENT_ID', '')
+# Dirección única registrada en Google y Azure. Todos los colegios (y los que se
+# creen después) se conectan a través de ella; vacía = cada colegio con su propia
+# dirección registrada (útil en desarrollo).
+NUBE_URL = os.getenv('NUBE_URL', 'https://mcolegio.com.co').rstrip('/')

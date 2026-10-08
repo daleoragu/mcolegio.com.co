@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
+<title>Conectando…</title>
+<style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2937; display: flex;
+           align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f4f6fa; }
+    .caja { background: #fff; border-radius: 14px; padding: 28px; max-width: 380px; text-align: center;
+            box-shadow: 0 2px 12px rgba(16,24,40,.08); }
+    .error { color: #b42318; }
+</style></head>
+<body>
+<div class="caja"><p id="msg">Conectando con {% if proveedor == 'google' %}Google Drive{% else %}OneDrive{% endif %}…</p></div>
+{{ hosts|json_script:"hosts" }}
+<script>
+/* Página central: la ÚNICA dirección registrada en Google y Azure. Hace el ida y vuelta y
+ * devuelve el permiso a la ventanita del colegio que lo pidió, en el fragmento (#…) de la
+ * dirección, que no viaja a ningún servidor. Solo devuelve a dominios de la plataforma. */
+(function () {
+    'use strict';
+    var PROVEEDOR = '{{ proveedor|escapejs }}';
+    var CLIENTE = '{{ client_id|escapejs }}';
+    var DEBUG = {{ debug|yesno:"true,false" }};
+    var HOSTS = JSON.parse(document.getElementById('hosts').textContent);
+    var REGRESO = location.origin + location.pathname;
+    var msg = document.getElementById('msg');
+    var AUTORIDAD = 'https://login.microsoftonline.com/common/oauth2/v2.0/';
+    var ALCANCE = 'Files.ReadWrite offline_access';
+
+    function fallo(texto) { msg.textContent = texto; msg.className = 'error'; }
+    function azar(n) {
+        var a = new Uint8Array(n); crypto.getRandomValues(a);
+        return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+    }
+    function b64url(buf) {
+        return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+    function permitido(origen) {
+        var u;
+        try { u = new URL(origen); } catch (e) { return false; }
+        if (u.origin !== origen) return false;                         // sin rutas ni nada extra
+        var local = /(^|\.)localhost$|^127\./.test(u.hostname);
+        if (u.protocol !== 'https:' && !(DEBUG && local)) return false;
+        var h = u.hostname.toLowerCase();
+        return HOSTS.some(function (p) {
+            return p.charAt(0) === '.' ? (h === p.slice(1) || h.slice(-p.length) === p) : h === p;
+        });
+    }
+    function devolver(viaje, datos) {
+        sessionStorage.removeItem('nube-central');
+        datos.state = viaje.estado;
+        location.replace(viaje.origen + '/puntoexacto/nube/' + PROVEEDOR + '/#' + new URLSearchParams(datos).toString());
+    }
+    if (!CLIENTE) { fallo('Esta nube todavía no está configurada en la plataforma.'); return; }
+
+    var hash = new URLSearchParams(location.hash.slice(1));
+    var query = new URLSearchParams(location.search);
+    var viaje = null;
+    try { viaje = JSON.parse(sessionStorage.getItem('nube-central') || 'null'); } catch (e) {}
+
+    // 1) Llega desde un colegio: se anota a dónde volver y se va a Google / Microsoft.
+    if (query.get('origen')) {
+        var origen = query.get('origen'), estado = query.get('estado') || '';
+        if (!permitido(origen) || !/^[0-9a-f]{16,64}$/.test(estado)) { fallo('Pedido no válido.'); return; }
+        var interno = azar(16);
+        var nuevo = { origen: origen, estado: estado, interno: interno };
+        var correo = query.get('correo') || '';
+        if (PROVEEDOR === 'google') {
+            sessionStorage.setItem('nube-central', JSON.stringify(nuevo));
+            var g = new URLSearchParams({ client_id: CLIENTE, redirect_uri: REGRESO, response_type: 'token',
+                scope: 'https://www.googleapis.com/auth/drive.file', state: interno, include_granted_scopes: 'true',
+                prompt: 'select_account' });
+            if (correo) g.set('login_hint', correo);
+            location.replace('https://accounts.google.com/o/oauth2/v2/auth?' + g.toString());
+            return;
+        }
+        nuevo.verificador = azar(48);
+        sessionStorage.setItem('nube-central', JSON.stringify(nuevo));
+        crypto.subtle.digest('SHA-256', new TextEncoder().encode(nuevo.verificador)).then(function (h) {
+            var q = new URLSearchParams({ client_id: CLIENTE, response_type: 'code', redirect_uri: REGRESO, response_mode: 'query',
+                scope: ALCANCE, state: interno, code_challenge: b64url(h), code_challenge_method: 'S256', prompt: 'select_account' });
+            if (correo) q.set('login_hint', correo);
+            location.replace(AUTORIDAD + 'authorize?' + q.toString());
+        });
+        return;
+    }
+
+    // 2) Vuelve de Google o Microsoft: se verifica y se devuelve al colegio.
+    history.replaceState(null, '', REGRESO);
+    if (!viaje || !permitido(viaje.origen)) { fallo('Esta ventana se abrió sin un pedido válido. Ciérrela e intente de nuevo desde el examen.'); return; }
+    if (PROVEEDOR === 'google') {
+        if (hash.get('state') !== viaje.interno) { fallo('La respuesta de Google no coincide. Intente de nuevo.'); return; }
+        if (hash.get('error')) { devolver(viaje, { error: hash.get('error') }); return; }
+        devolver(viaje, { access_token: hash.get('access_token') || '', expires_in: hash.get('expires_in') || '3600' });
+        return;
+    }
+    if (query.get('state') !== viaje.interno) { fallo('La respuesta de Microsoft no coincide. Intente de nuevo.'); return; }
+    if (query.get('error')) {
+        devolver(viaje, { error: query.get('error'), error_description: query.get('error_description') || '' });
+        return;
+    }
+    fetch(AUTORIDAD + 'token', {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ client_id: CLIENTE, grant_type: 'authorization_code', code: query.get('code') || '',
+                                    redirect_uri: REGRESO, code_verifier: viaje.verificador, scope: ALCANCE })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+        if (!d.access_token) { devolver(viaje, { error: d.error || 'sin_permiso', error_description: d.error_description || '' }); return; }
+        devolver(viaje, { access_token: d.access_token, expires_in: String(d.expires_in || 3600) });
+    }).catch(function () { devolver(viaje, { error: 'conexion', error_description: 'No se pudo terminar la conexión con Microsoft.' }); });
+})();
+</script>
+</body></html>
