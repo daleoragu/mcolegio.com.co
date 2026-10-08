@@ -1,6 +1,8 @@
 # notas/views/ingreso_notas_views.py
 
 import json
+
+from ..planillas.columnas import nombre_componente
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.contrib.auth.decorators import login_required
@@ -76,9 +78,10 @@ class IngresoNotasView(LoginRequiredMixin, View):
             materia = asignacion_seleccionada.materia
             config_materia = {
                 'promedia': getattr(materia, 'promedia_en_boletin', True),
-                'lbl_ser': getattr(materia, 'etiqueta_ser', 'SER'),
-                'lbl_saber': getattr(materia, 'etiqueta_saber', 'SABER'),
-                'lbl_hacer': getattr(materia, 'etiqueta_hacer', 'HACER'),
+                # Los nombres del colegio (Componentes de evaluación), o los propios de la materia.
+                'lbl_ser': nombre_componente(asignacion_seleccionada, 'SER'),
+                'lbl_saber': nombre_componente(asignacion_seleccionada, 'SABER'),
+                'lbl_hacer': nombre_componente(asignacion_seleccionada, 'HACER'),
             }
             context['config_materia_json'] = json.dumps(config_materia)
 

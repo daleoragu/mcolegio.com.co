@@ -259,6 +259,10 @@ class ConfiguracionCalificaciones(models.Model):
     etiqueta_ser = models.CharField(max_length=30, default="SER", verbose_name="Nombre de la columna 1")
     etiqueta_saber = models.CharField(max_length=30, default="SABER", verbose_name="Nombre de la columna 2")
     etiqueta_hacer = models.CharField(max_length=30, default="HACER", verbose_name="Nombre de la columna 3")
+    # Para las columnas angostas del boletín (vacío = el nombre completo).
+    abreviatura_ser = models.CharField(max_length=10, blank=True, default='', verbose_name="Abreviatura de la columna 1")
+    abreviatura_saber = models.CharField(max_length=10, blank=True, default='', verbose_name="Abreviatura de la columna 2")
+    abreviatura_hacer = models.CharField(max_length=10, blank=True, default='', verbose_name="Abreviatura de la columna 3")
 
     # --- Planilla de notas ---
     notas_por_componente = models.PositiveSmallIntegerField(

@@ -25,6 +25,7 @@ class AjustesPorDefecto:
     etiqueta_ser = 'SER'
     etiqueta_saber = 'SABER'
     etiqueta_hacer = 'HACER'
+    abreviatura_ser = abreviatura_saber = abreviatura_hacer = ''
     colapsar_area_unica = True
 
 

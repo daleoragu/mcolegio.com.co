@@ -1,0 +1,108 @@
+{% extends 'notas/base.html' %}
+{% block title %}Componentes de evaluación{% endblock %}
+{% block page_title %}Componentes de evaluación{% endblock %}
+{% block content %}
+<style>
+    .ce-card { background:#fff; border:1px solid #e3e6ec; border-radius:12px; padding:20px 22px; margin-bottom:16px; }
+    .ce-card h5 { font-weight:700; font-size:1.05rem; margin-bottom:12px; }
+    .ce-tabla th { font-size:.8rem; text-transform:uppercase; color:#6b7280; letter-spacing:.03em; }
+    .ce-cod { font-weight:700; color:#6b7280; font-size:.85rem; }
+    .ce-vista { width:100%; border-collapse:collapse; font-family: Arial, Helvetica, sans-serif; font-size:.78rem; }
+    .ce-vista th { background: var(--color-primario, #193661); color:#fff; border:1px solid #9aa4b2; padding:5px 4px;
+                   text-align:center; vertical-align:middle; word-break:break-word; }
+    .ce-vista td { border:1px solid #c9ced6; padding:4px; text-align:center; color:#9ca3af; }
+    .ce-vista td:first-child { text-align:left; color:#374151; }
+    .ce-donde li { margin-bottom:4px; }
+</style>
+<div class="container-fluid" style="max-width:980px;">
+    <p class="text-muted">No todos los colegios califican con SER, SABER y HACER. Escriba cómo se llaman en su colegio las
+        tres columnas de nota: así salen en el <strong>encabezado del boletín</strong> y son los nombres por defecto en las
+        <strong>planillas</strong> (en línea, Excel y PDF), el <strong>ingreso de notas</strong> y <strong>PuntoExacto</strong>.</p>
+
+    <form method="post" class="ce-card">
+        {% csrf_token %}
+        <h5><i class="fas fa-tags me-2 text-primary"></i>Nombres</h5>
+        {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="table-responsive">
+        <table class="table align-middle ce-tabla mb-2">
+            <thead><tr><th style="width:110px">Columna</th><th>Nombre</th><th style="width:200px">Abreviatura para el boletín</th></tr></thead>
+            <tbody>
+            {% for f in filas %}
+            <tr>
+                <td class="ce-cod">{{ forloop.counter }} · {{ f.codigo }}</td>
+                <td>{{ f.nombre }}{% for e in f.nombre.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</td>
+                <td>{{ f.abreviatura }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        <p class="small text-muted">La abreviatura es opcional: se usa en el boletín, donde las columnas son angostas
+            (por ejemplo «COGNITIVO» → «COG.»). Si la deja vacía, sale el nombre completo.</p>
+
+        <h6 class="fw-bold mt-3 mb-2">Así se verá el encabezado del boletín</h6>
+        <table class="ce-vista">
+            <thead><tr>
+                <th style="width:35%">AREA/ASIGNATURA</th><th style="width:5%">IH</th><th style="width:10%">V/N</th>
+                <th id="ce-v1"></th><th id="ce-v2"></th><th id="ce-v3"></th>
+                <th style="width:6%">DEF</th><th style="width:6%">ACUM</th><th style="width:6%">INAS</th>
+            </tr></thead>
+            <tbody><tr><td>MATEMÁTICAS</td><td>5</td><td>4.2</td><td>4.0</td><td>4.3</td><td>4.1</td><td>4.2</td><td>4.1</td><td>0</td></tr></tbody>
+        </table>
+
+        <button class="btn btn-primary mt-3"><i class="fas fa-save me-1"></i>Guardar</button>
+    </form>
+
+    <div class="ce-card">
+        <h5><i class="fas fa-map-signs me-2 text-primary"></i>Dónde salen</h5>
+        <ul class="ce-donde mb-0">
+            <li>Boletín de cada periodo: encabezado de las tres columnas (abreviatura o nombre).</li>
+            <li>Ingreso de notas en línea: títulos de las columnas y de los porcentajes.</li>
+            <li>Planillas en Excel y en PDF, y la configuración de columnas en «Mis planillas».</li>
+            <li>PuntoExacto: el componente al que va la nota de un examen.</li>
+        </ul>
+    </div>
+
+    <div class="ce-card">
+        <h5><i class="fas fa-book me-2 text-primary"></i>Asignaturas con nombres propios</h5>
+        {% if propias %}
+            <p class="small text-muted">Estas asignaturas tienen sus propios nombres y no usan los del colegio. Si fue sin
+                querer, puede volverlas a los del colegio.</p>
+            <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead class="table-light"><tr><th>Asignatura</th><th>Columna 1</th><th>Columna 2</th><th>Columna 3</th><th></th></tr></thead>
+                <tbody>
+                {% for p in propias %}
+                <tr><td>{{ p.materia.nombre }}</td>{% for n in p.nombres %}<td>{{ n|default:"—" }}</td>{% endfor %}
+                    <td class="text-end"><a href="{% url 'notas:editar_materia' p.materia.id %}" class="btn btn-sm btn-outline-secondary">Editar</a></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            <form method="post" onsubmit="return confirm('¿Todas las asignaturas pasan a usar los nombres del colegio?')">
+                {% csrf_token %}<input type="hidden" name="accion" value="unificar">
+                <button class="btn btn-sm btn-outline-primary"><i class="fas fa-equals me-1"></i>Usar los nombres del colegio en todas</button>
+            </form>
+        {% else %}
+            <p class="mb-0 text-muted">Ninguna: todas las asignaturas usan los nombres del colegio.</p>
+        {% endif %}
+    </div>
+</div>
+<script>
+(function () {
+    var pares = [['id_etiqueta_ser', 'id_abreviatura_ser', 'ce-v1', 'SER'], ['id_etiqueta_saber', 'id_abreviatura_saber', 'ce-v2', 'SABER'],
+                 ['id_etiqueta_hacer', 'id_abreviatura_hacer', 'ce-v3', 'HACER']];
+    function pintar() {
+        pares.forEach(function (p) {
+            var nombre = document.getElementById(p[0]).value.trim(), abrev = document.getElementById(p[1]).value.trim();
+            document.getElementById(p[2]).textContent = (abrev || nombre || p[3]).toUpperCase();
+        });
+    }
+    pares.forEach(function (p) {
+        document.getElementById(p[0]).addEventListener('input', pintar);
+        document.getElementById(p[1]).addEventListener('input', pintar);
+    });
+    pintar();
+})();
+</script>
+{% endblock %}

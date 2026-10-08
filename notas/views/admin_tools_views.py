@@ -205,13 +205,9 @@ class ConfiguracionGlobalForm(forms.ModelForm):
         fields = [
             'docente_puede_modificar',
             'ponderar_periodos', 'exigir_periodos_completos',
-            'etiqueta_ser', 'etiqueta_saber', 'etiqueta_hacer',
             'colapsar_area_unica',
         ]
         widgets = {
-            'etiqueta_ser': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
-            'etiqueta_saber': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
-            'etiqueta_hacer': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
             'ponderar_periodos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'exigir_periodos_completos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'colapsar_area_unica': forms.CheckboxInput(attrs={'class': 'form-check-input'}),

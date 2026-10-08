@@ -331,7 +331,7 @@ class MateriaForm(forms.ModelForm):
             'abreviatura': forms.TextInput(attrs={'class': 'form-control'}),
             'promedia_en_boletin': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'usar_ponderacion_equitativa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'etiqueta_ser': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: SER, EXAMEN...'}),
+            'etiqueta_ser': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'SER = el nombre del colegio'}),
             'etiqueta_saber': forms.TextInput(attrs={'class': 'form-control'}),
             'etiqueta_hacer': forms.TextInput(attrs={'class': 'form-control'}),
             'porcentaje_ser': forms.NumberInput(attrs={'class': 'form-control'}),
