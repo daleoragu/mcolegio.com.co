@@ -137,3 +137,37 @@ class BoletinConNotasDelExcel(ColegioDePrueba):
         beto = self.estudiantes[1]
         guardar_estudiante(self.a, self.asig, self.p1, beto, {'SABER': [('Nota 1', '4')]})
         self.assertEqual(Calificacion.objects.get(estudiante=beto, tipo_nota='PROM_PERIODO').observacion_inclusion, '')
+
+
+class PlanillasPDFyAsistencia(ColegioDePrueba):
+    """Mis planillas: notas y asistencia, cada una en línea, Excel y PDF."""
+
+    def test_mis_planillas_trae_notas_y_asistencia(self):
+        h = self.cliente(self.u_docente).get(f'/docente/planillas/?periodo={self.p1.id}').content.decode()
+        a = self.asig.id
+        self.assertIn(f'/docente/planillas/{self.p1.id}/pdf/{a}/', h)                       # notas PDF
+        self.assertIn(f'asistencia/?asignacion_id={a}', h)                                    # asistencia en línea
+        self.assertIn(f'reportes/asistencia/excel/?asignacion_id={a}', h)                     # asistencia Excel
+        self.assertIn(f'reportes/asistencia/pdf/?asignacion_id={a}', h)                       # asistencia PDF
+        self.assertIn(f'/docente/planillas/{self.p1.id}/pdf/', h)                             # todas en PDF
+
+    def test_datos_del_pdf_de_notas(self):
+        from decimal import Decimal
+        from notas.planillas import pdf as pdf_mod
+        est = self.estudiantes[0]
+        guardar_estudiante(self.a, self.asig, self.p1, est, {'SABER': [('Taller', '4'), ('Quiz', '3')],
+                                                             'HACER': [('Proyecto', '5')]})
+        d = pdf_mod.datos_planilla(self.a, self.p1, self.asig)
+        fila = next(f for f in d['filas'] if f['nombre'].startswith('PRUEBA ANA'))
+        # SABER 60 % (prom. 3.5) + HACER 40 % (5.0) = 4.1
+        self.assertEqual(fila['final'], Decimal('4.10'))
+        self.assertEqual(fila['desempeno'], 'ALTO')
+        self.assertEqual([c['nombre'] for c in d['componentes']][:2], ['SABER', 'HACER'][:2])
+
+    def test_pdf_de_otro_docente_no(self):
+        from notas.models import Docente
+        from django.contrib.auth.models import User
+        otro = User.objects.create_user('otro', password='x')
+        Docente.objects.create(colegio=self.a, user=otro)
+        r = self.cliente(otro).get(f'/docente/planillas/{self.p1.id}/pdf/{self.asig.id}/')
+        self.assertEqual(r.status_code, 403)

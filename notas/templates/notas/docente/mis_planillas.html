@@ -19,7 +19,10 @@
     .mp-asig-cab h5 { margin:0; font-weight:700; font-size:1.05rem; }
     .mp-chip { display:inline-block; border-radius:999px; padding:2px 10px; font-size:.78rem;
                background:#eef1f5; color:#374151; white-space:nowrap; }
-    .mp-acciones { margin-left:auto; display:flex; flex-wrap:wrap; gap:6px; }
+    .mp-tipos { border-top:1px solid #eef0f3; padding:10px 14px; display:flex; flex-direction:column; gap:8px; }
+    .mp-tipo { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+    .mp-tipo-nombre { min-width:110px; font-weight:700; font-size:.88rem; color:#374151; }
+    .mp-tipo-nombre i { width:20px; color:#6b7280; }
     .mp-config { border-top:1px solid #eef0f3; padding:14px; background:#fafbfc; border-radius:0 0 10px 10px; }
     .mp-comp { margin-bottom:14px; }
     .mp-comp-cab { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
@@ -75,19 +78,26 @@
 <div class="mp-modos">
     <div class="mp-modo">
         <h6><i class="fas fa-globe me-2 text-primary"></i>En línea</h6>
-        <p>Digite las notas en la plataforma; la definitiva se ve al instante. Use «Abrir en línea» en cada asignatura.</p>
+        <p>Notas y asistencia directo en la plataforma; la definitiva se ve al instante. Use los botones «En línea» de cada asignatura.</p>
     </div>
     <div class="mp-modo">
-        <h6><i class="fas fa-file-excel me-2 text-success"></i>Sin internet (Excel)</h6>
-        <p>Descargue el Excel con los colores del colegio, llénelo donde quiera y súbalo después.</p>
+        <h6><i class="fas fa-file-excel me-2 text-success"></i>En Excel, sin internet</h6>
+        <p>Descargue la planilla de notas o de asistencia con los colores del colegio, llénela donde quiera y súbala: antes de guardar le mostramos qué cambia.</p>
         <div class="d-flex flex-wrap gap-2">
             <a class="btn btn-success btn-sm" href="{% url 'notas:descargar_planillas' periodo.id %}{% if docentes %}?docente={{ docente.id }}{% endif %}">
-                <i class="fas fa-download me-1"></i>Descargar todas
+                <i class="fas fa-download me-1"></i>Notas: todas
             </a>
             <a class="btn btn-outline-success btn-sm" href="{% url 'notas:subir_planilla' %}">
-                <i class="fas fa-upload me-1"></i>Subir Excel
+                <i class="fas fa-upload me-1"></i>Subir notas
             </a>
         </div>
+    </div>
+    <div class="mp-modo">
+        <h6><i class="fas fa-file-pdf me-2 text-danger"></i>En PDF, para imprimir</h6>
+        <p>Planilla de notas y de asistencia con el encabezado del colegio, lista para imprimir, firmar o archivar.</p>
+        <a class="btn btn-danger btn-sm" target="_blank" href="{% url 'notas:descargar_planillas_pdf' periodo.id %}{% if docentes %}?docente={{ docente.id }}{% endif %}">
+            <i class="fas fa-file-pdf me-1"></i>Notas: todas en un PDF
+        </a>
     </div>
 </div>
 
@@ -104,18 +114,31 @@
         {% empty %}
             <span class="mp-chip">Informativa (sin porcentajes)</span>
         {% endfor %}
-        <div class="mp-acciones">
+    </div>
+    <div class="mp-tipos">
+        <div class="mp-tipo">
+            <span class="mp-tipo-nombre"><i class="fas fa-pen-to-square"></i>Notas</span>
             <a class="btn btn-primary btn-sm" href="{% url 'notas:ingresar_notas_periodo' %}?asignacion_id={{ f.a.id }}&periodo_id={{ periodo.id }}{% if docentes %}&docente_id={{ docente.id }}{% endif %}">
-                <i class="fas fa-globe me-1"></i>Abrir en línea
-            </a>
+                <i class="fas fa-globe me-1"></i>En línea</a>
             <a class="btn btn-outline-success btn-sm" href="{% url 'notas:descargar_planilla' periodo.id f.a.id %}">
-                <i class="fas fa-file-excel me-1"></i>Excel
-            </a>
+                <i class="fas fa-file-excel me-1"></i>Excel</a>
+            <a class="btn btn-outline-danger btn-sm" target="_blank" href="{% url 'notas:descargar_planilla_pdf' periodo.id f.a.id %}">
+                <i class="fas fa-file-pdf me-1"></i>PDF</a>
             {% if f.componentes %}
             <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#cfg-{{ f.a.id }}" aria-expanded="false">
-                <i class="fas fa-sliders-h me-1"></i>Configurar notas
-            </button>
+                <i class="fas fa-sliders-h me-1"></i>Configurar notas</button>
             {% endif %}
+        </div>
+        <div class="mp-tipo">
+            <span class="mp-tipo-nombre"><i class="fas fa-user-check"></i>Asistencia</span>
+            <a class="btn btn-primary btn-sm" href="{% url 'notas:asistencia' %}?asignacion_id={{ f.a.id }}">
+                <i class="fas fa-globe me-1"></i>En línea</a>
+            <a class="btn btn-outline-success btn-sm" href="{% url 'notas:generar_reporte_individual_excel' %}?asignacion_id={{ f.a.id }}&periodo_id={{ periodo.id }}&mes=todos">
+                <i class="fas fa-file-excel me-1"></i>Excel</a>
+            <a class="btn btn-outline-danger btn-sm" target="_blank" href="{% url 'notas:generar_reporte_individual_pdf' %}?asignacion_id={{ f.a.id }}&periodo_id={{ periodo.id }}&mes=todos">
+                <i class="fas fa-file-pdf me-1"></i>PDF</a>
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'notas:consulta_asistencia' %}?asignacion_id={{ f.a.id }}{% if docentes %}&docente_id={{ docente.id }}{% endif %}#subir">
+                <i class="fas fa-upload me-1"></i>Subir Excel</a>
         </div>
     </div>
     {% if f.componentes %}

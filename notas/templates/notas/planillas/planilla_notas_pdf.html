@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+    @page { size: letter landscape; margin: 12mm 10mm 14mm;
+            @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 8pt; color: #666; }
+            @bottom-left { content: "Generado con mcolegio · {{ generado|date:'d/m/Y h:i a' }}"; font-size: 8pt; color: #888; } }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 8.5pt; color: #111; }
+    .planilla { page-break-after: always; }
+    .planilla:last-child { page-break-after: auto; }
+    .datos { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 9pt; }
+    .datos td { padding: 3px 6px; border: 1px solid #c9ced6; }
+    .datos strong { color: {{ colegio.color_primario|default:'#193661' }}; }
+    table.notas { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .notas th, .notas td { border: 1px solid #9aa4b2; padding: 2px 3px; text-align: center; }
+    .notas thead th { background: {{ colegio.color_primario|default:'#193661' }}; color: {{ colegio.color_texto_primario|default:'#fff' }};
+                      font-size: 7.5pt; font-weight: bold; }
+    .notas thead tr.nombres th { background: #eef1f6; color: #111; font-weight: normal; font-size: 7pt; height: 62px; vertical-align: bottom; }
+    .notas thead tr.nombres th span { display: block; transform: rotate(-90deg); white-space: nowrap; width: 10px; margin: 0 auto 4px; }
+    .notas td.nombre { text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .notas td.prom, .notas th.prom { background: #f3f5f9; font-weight: bold; }
+    .notas td.final { font-weight: bold; background: #e8edf5; }
+    .notas tbody tr:nth-child(even) td { background-color: #fafbfc; }
+    .notas tbody tr:nth-child(even) td.prom { background: #eef1f6; }
+    .bajo { color: #b42318; font-weight: bold; }
+    .firmas { margin-top: 26px; width: 100%; }
+    .firmas td { width: 50%; padding-top: 30px; text-align: center; font-size: 8.5pt; }
+    .firmas span { display: inline-block; border-top: 1px solid #333; padding-top: 3px; min-width: 220px; }
+    .escala { margin-top: 6px; font-size: 7.5pt; color: #444; }
+</style></head>
+<body>
+{% for p in planillas %}
+<div class="planilla">
+    {% include "notas/fragmentos/encabezado_pdf.html" %}
+    <table class="datos"><tr>
+        <td><strong>Planilla de notas</strong></td>
+        <td><strong>Docente:</strong> {{ p.docente }}</td>
+        <td><strong>Asignatura:</strong> {{ p.asignacion.materia.nombre }}</td>
+        <td><strong>Curso:</strong> {{ p.asignacion.curso.nombre }}{% if p.asignacion.curso.sede %} · {{ p.asignacion.curso.sede }}{% endif %}</td>
+        <td><strong>Periodo:</strong> {{ periodo.get_nombre_display }} {{ periodo.ano_lectivo }}</td>
+    </tr></table>
+    <table class="notas">
+        <colgroup><col style="width:22px"><col style="width:190px">
+            {% for c in p.componentes %}{% for n in c.columnas %}<col>{% endfor %}<col style="width:34px">{% endfor %}
+            <col style="width:36px"><col style="width:66px"><col style="width:34px"></colgroup>
+        <thead>
+            <tr><th rowspan="2">N.</th><th rowspan="2">Estudiante</th>
+                {% for c in p.componentes %}<th colspan="{{ c.columnas|length|add:1 }}">{{ c.nombre }} ({{ c.peso }}%)</th>{% endfor %}
+                <th rowspan="2">Final</th><th rowspan="2">Desempeño</th><th rowspan="2">Fallas</th></tr>
+            <tr class="nombres">
+                {% for c in p.componentes %}{% for n in c.columnas %}<th><span>{{ n|truncatechars:14 }}</span></th>{% endfor %}<th class="prom"><span>Prom.</span></th>{% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for f in p.filas %}
+            <tr>
+                <td>{{ f.n }}</td>
+                <td class="nombre">{{ f.nombre }}{% if f.inclusion %} *{% endif %}</td>
+                {% for c in f.componentes %}
+                    {% for v in c.notas %}<td>{% if v is not None %}{{ v|floatformat:1 }}{% endif %}</td>{% endfor %}
+                    <td class="prom">{% if c.promedio is not None %}{{ c.promedio|floatformat:1 }}{% endif %}</td>
+                {% endfor %}
+                <td class="final">{% if f.final is not None %}{{ f.final|floatformat:1 }}{% endif %}</td>
+                <td class="{% if f.desempeno|upper == 'BAJO' %}bajo{% endif %}">{{ f.desempeno }}</td>
+                <td>{{ f.fallas }}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="{{ p.total_columnas|add:5 }}">No hay estudiantes en este curso.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <div class="escala">Escala: {% for a, b, n in escala %}{{ n }} {{ a|floatformat:1 }}–{{ b|floatformat:1 }}{% if not forloop.last %} · {% endif %}{% endfor %}
+        {% if p.filas %} · * Estudiante de inclusión{% endif %}</div>
+    <table class="firmas"><tr>
+        <td><span>{{ p.docente|default:"Docente" }}<br>Docente</span></td>
+        <td><span>Coordinación académica</span></td>
+    </tr></table>
+</div>
+{% endfor %}
+</body></html>

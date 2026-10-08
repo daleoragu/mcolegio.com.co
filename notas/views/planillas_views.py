@@ -156,6 +156,39 @@ def descargar_excel(request, periodo_id, asignacion_id=None):
     return respuesta
 
 
+def _asignaciones_a_descargar(request, periodo, asignacion_id):
+    """(asignaciones, nombre de archivo) o (None, respuesta de error)."""
+    if asignacion_id:
+        a = get_object_or_404(AsignacionDocente.objects.select_related('materia', 'curso', 'docente__user'),
+                              id=asignacion_id, colegio=request.colegio)
+        if not _puede_editar(request, a):
+            return None, HttpResponseForbidden('Esta asignatura no es suya.')
+        return [a], f'Planilla {a.curso.nombre} {a.materia.nombre} {periodo.get_nombre_display()} {periodo.ano_lectivo}'
+    docente, qs = _docente_y_asignaciones(request)
+    if docente is None:
+        return None, HttpResponseForbidden('Escoja un docente.')
+    return list(qs), f'Planillas {docente.user.get_full_name()} {periodo.get_nombre_display()} {periodo.ano_lectivo}'
+
+
+@login_required
+def descargar_pdf(request, periodo_id, asignacion_id=None):
+    """La planilla de notas en PDF (una asignatura o todas las del docente)."""
+    from ..planillas import pdf as pdf_mod
+    if not request.colegio:
+        return HttpResponseNotFound('<h1>Colegio no configurado</h1>')
+    periodo = get_object_or_404(PeriodoAcademico, id=periodo_id, colegio=request.colegio)
+    asignaciones, nombre = _asignaciones_a_descargar(request, periodo, asignacion_id)
+    if asignaciones is None:
+        return nombre
+    try:
+        datos = pdf_mod.generar(request, request.colegio, periodo, asignaciones)
+    except ImportError:
+        return HttpResponse('El servidor no tiene instalada la librería para PDF (WeasyPrint).', status=500)
+    respuesta = HttpResponse(datos, content_type='application/pdf')
+    respuesta['Content-Disposition'] = f'inline; filename="{_nombre_archivo(nombre)}.pdf"'
+    return respuesta
+
+
 @login_required
 def subir_excel(request):
     """Paso 1: subir y ver qué cambiaría. Paso 2: confirmar y guardar."""
