@@ -232,3 +232,10 @@ if not EMAIL_HOST:
 
 # El enlace de «¿Olvidó su contraseña?» vence en una hora.
 PASSWORD_RESET_TIMEOUT = 3600
+
+# Nube del docente para las imágenes del constructor de exámenes (PuntoExacto).
+# Los ID de cliente NO son secretos. En Google Cloud y en Azure se registra, por
+# cada colegio, la dirección https://<colegio>.mcolegio.com.co/puntoexacto/nube/google/
+# (o /onedrive/). Sin estos valores, las imágenes quedan en el navegador del docente.
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
+MICROSOFT_CLIENT_ID = os.getenv('MICROSOFT_CLIENT_ID', '')

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+    @page { size: letter; margin: 14mm 16mm 16mm;
+            @bottom-center { content: "{{ examen.titulo|escapejs }} · página " counter(page); font-size: 8pt; color: #777; } }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; color: #111; line-height: 1.35; }
+    .version { page-break-after: always; }
+    .version:last-child { page-break-after: auto; }
+    .cab { width: 100%; border-collapse: collapse; border-bottom: 2px solid {{ colegio.color_primario|default:'#193661' }}; margin-bottom: 8px; }
+    .cab td { vertical-align: middle; padding: 0 0 6px; }
+    .titulo { font-weight: bold; font-size: 13pt; margin-top: 2px; }
+    .datos { font-size: 9pt; color: #444; }
+    .forma { border: 2px solid #111; border-radius: 6px; padding: 4px 10px; font-weight: bold; font-size: 14pt; text-align: center; }
+    .forma small { display: block; font-size: 7pt; font-weight: normal; }
+    .alumno { margin: 6px 0; font-size: 10pt; }
+    .alumno .linea { display: inline-block; border-bottom: 1px solid #111; min-width: 300px; }
+    .alumno .linea.c { min-width: 70px; }
+    .instr { font-size: 9.5pt; background: #f4f6f9; border-radius: 4px; padding: 5px 8px; margin: 6px 0 10px; }
+    .cuerpo.dos { column-count: 2; column-gap: 9mm; column-rule: 0.5px solid #ccc; }
+    .texto { margin: 10px 0 6px; padding: 6px 8px; border-left: 3px solid #c9a227; background: #fbfaf5; }
+    .pregunta { margin: 9px 0 4px; break-inside: avoid; page-break-inside: avoid; }
+    .enun { margin-bottom: 3px; }
+    .enun b { margin-right: 2px; }
+    .op { margin: 2px 0 2px 14px; }
+    .op b { display: inline-block; width: 16px; }
+    .img { text-align: center; margin: 4px 0; }
+    .img img { max-width: 100%; }
+    .op .img { text-align: left; margin: 2px 0 2px 16px; }
+    .falta { color: #8a6d00; font-style: italic; font-size: 8.5pt; }
+</style></head>
+<body>
+{% for v in versiones %}
+<div class="version">
+    {% include 'notas/fragmentos/encabezado_pdf.html' %}
+    <table class="cab"><tr>
+        <td>
+            <div class="titulo">{{ examen.titulo }}</div>
+            <div class="datos">{% if examen.asignacion %}{{ examen.asignacion.materia.nombre }} · {% endif %}{{ examen.fecha|date:"d/m/Y" }}</div>
+        </td>
+        {% if v.forma %}<td style="width:70px"><div class="forma"><small>FORMA</small>{{ v.forma }}</div></td>{% endif %}
+    </tr></table>
+
+    {% if v.estudiante %}
+        <div class="alumno"><b>Estudiante:</b> {{ v.estudiante }}{% if v.curso %} &nbsp; <b>Curso:</b> {{ v.curso }}{% endif %}</div>
+    {% elif contenido.nombre == 'linea' %}
+        <div class="alumno"><b>Nombre:</b> <span class="linea">&nbsp;</span> &nbsp; <b>Curso:</b> <span class="linea c">&nbsp;</span></div>
+    {% endif %}
+    {% if v.forma %}<div class="alumno" style="font-size:9pt"><b>Rellene la burbuja de la FORMA {{ v.forma }} en su hoja de respuestas.</b></div>{% endif %}
+    {% if contenido.instrucciones %}<div class="instr"><b>Instrucciones:</b> {{ instrucciones_html|safe }}</div>{% endif %}
+
+    <div class="cuerpo{% if contenido.columnas == 2 %} dos{% endif %}">
+    {% for f in v.filas %}
+        {% if f.tipo == 'texto' %}
+            <div class="texto">{{ f.texto_html|safe }}
+                {% for uri, img in f.imagenes %}<div class="img">{% if uri %}<img src="{{ uri }}" style="width:{{ img.ancho }}%">{% else %}<span class="falta">[imagen no disponible]</span>{% endif %}</div>{% endfor %}
+            </div>
+        {% else %}
+            <div class="pregunta">
+                <div class="enun"><b>{{ f.numero }}.</b> {{ f.texto_html|safe }}</div>
+                {% for uri, img in f.imagenes %}<div class="img">{% if uri %}<img src="{{ uri }}" style="width:{{ img.ancho }}%">{% else %}<span class="falta">[imagen no disponible]</span>{% endif %}</div>{% endfor %}
+                {% for op in f.opciones %}
+                    <div class="op"><b>{{ op.letra }}.</b> {{ op.texto_html|safe }}
+                        {% if op.imagen %}<div class="img"><img src="{{ op.imagen }}" style="width:{{ op.ancho }}%"></div>{% endif %}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endfor %}
+    </div>
+</div>
+{% endfor %}
+</body></html>

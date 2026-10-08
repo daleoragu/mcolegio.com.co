@@ -6,6 +6,7 @@ las hojas, digita las respuestas y obtiene las notas y el análisis. El lector
 de fotos se conecta después sin cambiar nada de lo que hay aquí.
 """
 import datetime
+import re
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django.contrib import messages
@@ -1730,3 +1731,115 @@ def exportar_clave(request, examen_id):
     respuesta['Content-Disposition'] = f'attachment; filename="{nombre}.xlsx"'
     libro.save(respuesta)
     return respuesta
+
+
+# ---------------------------------------------------------------------------
+# Cuadernillo: escribir el examen en la plataforma (ver cuadernillo.py)
+# ---------------------------------------------------------------------------
+
+def _nube_config(request):
+    """Qué nubes hay configuradas y cuál se le sugiere a este docente según su correo."""
+    from django.conf import settings
+    google = getattr(settings, 'GOOGLE_CLIENT_ID', '') or ''
+    microsoft = getattr(settings, 'MICROSOFT_CLIENT_ID', '') or ''
+    correo = (request.user.email or '').lower()
+    dominio = correo.split('@')[-1] if '@' in correo else ''
+    if dominio in ('gmail.com', 'googlemail.com') and google:
+        sugerida = 'google'
+    elif microsoft:
+        sugerida = 'onedrive'        # Office 365 institucional, Outlook, Hotmail…
+    elif google:
+        sugerida = 'google'
+    else:
+        sugerida = 'local'
+    return {'google': bool(google), 'onedrive': bool(microsoft), 'sugerida': sugerida, 'correo': correo}
+
+
+@login_required
+def cuadernillo(request, examen_id):
+    from . import cuadernillo as cmod
+    from .models import Cuadernillo
+    examen = _examen_o_404(request, examen_id)
+    obj = Cuadernillo.objects.filter(examen=examen).first()
+    contenido = cmod.limpiar(obj.contenido) if obj else cmod.vacio(examen)
+    return render(request, 'puntoexacto/cuadernillo.html', {
+        'examen': examen, 'contenido': contenido, 'nube': _nube_config(request),
+        'con_formas': examen.formas.exists(), 'letras_formas': ['A'] + [f.letra for f in examen.formas.all()],
+        'con_hojas': examen.hojas.filter(estudiante__isnull=False).exists(),
+        'tiene_bloques': examen.bloques.exists(), 'guardado': obj.actualizado if obj else None,
+    })
+
+
+@login_required
+def cuadernillo_guardar(request, examen_id):
+    import json
+    from . import cuadernillo as cmod
+    from .models import Cuadernillo
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Use POST.'}, status=405)
+    examen = _examen_o_404(request, examen_id)
+    try:
+        datos = json.loads(request.body.decode('utf-8') or '{}')
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({'ok': False, 'error': 'No se entendió lo enviado.'}, status=400)
+    contenido = cmod.limpiar(datos.get('contenido'))
+    with transaction.atomic():
+        obj, _ = Cuadernillo.objects.get_or_create(examen=examen)
+        obj.contenido = contenido
+        obj.save()
+        cambio, ajustadas = cmod.sincronizar_clave(examen, contenido)
+    from django.utils import timezone
+    return JsonResponse({
+        'ok': True, 'hora': timezone.localtime(obj.actualizado).strftime('%I:%M %p').lower(),
+        'preguntas': len(cmod.preguntas_de(contenido)), 'cambio_numero': cambio, 'formas_ajustadas': ajustadas,
+        'sin_correcta': [n for n, it in enumerate(cmod.preguntas_de(contenido), start=1) if not it['correcta']],
+    })
+
+
+@login_required
+def cuadernillo_generar(request, examen_id):
+    """Word o PDF. Las imágenes llegan en la misma petición y no se guardan."""
+    from . import cuadernillo as cmod
+    from .models import Cuadernillo
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+    examen = _examen_o_404(request, examen_id)
+    obj = Cuadernillo.objects.filter(examen=examen).first()
+    if obj is None:
+        return HttpResponse('Primero guarde el cuadernillo.', status=400)
+    contenido = cmod.limpiar(obj.contenido)
+    modo = request.POST.get('nombre') if request.POST.get('nombre') in cmod.MODOS_NOMBRE else contenido['nombre']
+    por_forma = request.POST.get('por_forma', '1') == '1'
+    imagenes = cmod.leer_imagenes(request.FILES, contenido)
+    versiones = cmod.versiones(examen, contenido, modo=modo, por_forma=por_forma)
+    if not versiones:
+        return HttpResponse('No hay estudiantes: prepare las hojas del examen o escoja «línea para el nombre».',
+                            status=400)
+    base = re.sub(r'[^A-Za-z0-9_-]+', '_', examen.titulo)[:50] or 'examen'
+    if request.POST.get('formato') == 'pdf':
+        try:
+            datos = cmod.generar_pdf(request, examen, contenido, imagenes, versiones)
+        except ImportError:
+            return HttpResponse('Falta WeasyPrint en el servidor.', status=500)
+        r = HttpResponse(datos, content_type='application/pdf')
+        r['Content-Disposition'] = f'attachment; filename="{base}.pdf"'
+        return r
+    datos = cmod.generar_docx(examen, contenido, imagenes, versiones)
+    r = HttpResponse(datos, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    r['Content-Disposition'] = f'attachment; filename="{base}.docx"'
+    return r
+
+
+@login_required
+def nube_ayudante(request, proveedor):
+    """Ventanita que conecta la nube del docente (Google Drive u OneDrive) y le pasa el permiso
+    a la pestaña del editor. Vive en el mismo subdominio del colegio, así el permiso viaja por un
+    canal del navegador (BroadcastChannel) y nunca pasa por el servidor."""
+    from django.conf import settings
+    if proveedor not in ('google', 'onedrive'):
+        raise Http404
+    return render(request, 'puntoexacto/nube_ayudante.html', {
+        'proveedor': proveedor,
+        'client_id': getattr(settings, 'GOOGLE_CLIENT_ID' if proveedor == 'google' else 'MICROSOFT_CLIENT_ID', ''),
+        'correo': request.user.email or '',
+    })

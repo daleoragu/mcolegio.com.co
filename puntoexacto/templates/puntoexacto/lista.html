@@ -40,6 +40,7 @@
                     <td class="pe-num">{{ e.hojas.count }}</td>
                     <td class="text-end">
                         <a href="{% url 'puntoexacto:clave' examen_id=e.id %}" class="btn btn-sm btn-outline-primary">Clave</a>
+                        <a href="{% url 'puntoexacto:cuadernillo' examen_id=e.id %}" class="btn btn-sm btn-outline-primary" title="Escribir el examen y sacarlo en Word o PDF"><i class="fas fa-pen-nib"></i></a>
                         <a href="{% url 'puntoexacto:hojas' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary">Hojas</a>
                         <a href="{% url 'puntoexacto:escanear' examen_id=e.id %}" class="btn btn-sm btn-outline-success">Cámara</a>
                         <a href="{% url 'puntoexacto:resultados' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary">Revisar</a>

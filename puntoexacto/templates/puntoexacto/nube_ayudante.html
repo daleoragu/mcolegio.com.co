@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
+<title>Conectar {% if proveedor == 'google' %}Google Drive{% else %}OneDrive{% endif %}</title>
+<style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2937; display: flex;
+           align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f4f6fa; }
+    .caja { background: #fff; border-radius: 14px; padding: 28px; max-width: 380px; text-align: center;
+            box-shadow: 0 2px 12px rgba(16,24,40,.08); }
+    .error { color: #b42318; }
+    button { margin-top: 12px; padding: 8px 16px; border-radius: 8px; border: 1px solid #c8d1dc; background: #fff; cursor: pointer; }
+</style></head>
+<body>
+<div class="caja"><p id="msg">Conectando con {% if proveedor == 'google' %}Google Drive{% else %}OneDrive{% endif %}…</p>
+    <button id="cerrar" hidden onclick="window.close()">Cerrar esta ventana</button></div>
+<script>
+(function () {
+    'use strict';
+    var PROVEEDOR = '{{ proveedor|escapejs }}';
+    var CLIENTE = '{{ client_id|escapejs }}';
+    var CORREO = '{{ correo|escapejs }}';
+    var REGRESO = location.origin + location.pathname;      // esta misma página
+    var msg = document.getElementById('msg');
+    var CANAL = 'mcolegio-nube';
+
+    function fallo(texto) {
+        msg.textContent = texto; msg.className = 'error';
+        document.getElementById('cerrar').hidden = false;
+        avisar({ tipo: 'error', proveedor: PROVEEDOR, error: texto });
+    }
+    function avisar(dato) {
+        // Mismo origen que el editor: el permiso viaja dentro del navegador, no pasa por el servidor.
+        try { var c = new BroadcastChannel(CANAL); c.postMessage(dato); c.close(); } catch (e) {}
+        try { if (window.opener) window.opener.postMessage(dato, location.origin); } catch (e) {}
+    }
+    function listo(token, segundos) {
+        avisar({ tipo: 'token', proveedor: PROVEEDOR, token: token, expira: Date.now() + (segundos - 60) * 1000 });
+        msg.textContent = '¡Listo! Ya puede volver al examen.';
+        setTimeout(function () { window.close(); }, 600);
+        document.getElementById('cerrar').hidden = false;
+    }
+    function azar(n) {
+        var a = new Uint8Array(n); crypto.getRandomValues(a);
+        return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+    }
+    function b64url(buf) {
+        return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+    if (!CLIENTE) { fallo('Esta nube todavía no está configurada en la plataforma.'); return; }
+
+    var hash = new URLSearchParams(location.hash.slice(1));
+    var query = new URLSearchParams(location.search);
+    var guardado = sessionStorage.getItem('nube-estado');
+
+    // ---- Google: flujo para aplicaciones de navegador (token en el fragmento) ----
+    if (PROVEEDOR === 'google') {
+        if (hash.get('access_token') || hash.get('error')) {
+            history.replaceState(null, '', REGRESO);
+            if (hash.get('error')) { fallo('Google no dio el permiso (' + hash.get('error') + ').'); return; }
+            if (!guardado || hash.get('state') !== guardado) { fallo('La respuesta de Google no coincide. Intente de nuevo.'); return; }
+            sessionStorage.removeItem('nube-estado');
+            listo(hash.get('access_token'), parseInt(hash.get('expires_in') || '3600', 10));
+            return;
+        }
+        var estado = azar(16);
+        sessionStorage.setItem('nube-estado', estado);
+        var p = new URLSearchParams({ client_id: CLIENTE, redirect_uri: REGRESO, response_type: 'token',
+            scope: 'https://www.googleapis.com/auth/drive.file', state: estado, include_granted_scopes: 'true',
+            prompt: 'select_account' });
+        if (CORREO) p.set('login_hint', CORREO);
+        location.replace('https://accounts.google.com/o/oauth2/v2/auth?' + p.toString());
+        return;
+    }
+
+    // ---- Microsoft (OneDrive / Office 365): código + PKCE, sin secreto ----
+    var AUTORIDAD = 'https://login.microsoftonline.com/common/oauth2/v2.0/';
+    var ALCANCE = 'Files.ReadWrite offline_access';
+    if (query.get('code') || query.get('error')) {
+        history.replaceState(null, '', REGRESO);
+        if (query.get('error')) { fallo('Microsoft no dio el permiso: ' + (query.get('error_description') || query.get('error'))); return; }
+        var verificador = sessionStorage.getItem('nube-verificador');
+        if (!guardado || query.get('state') !== guardado || !verificador) { fallo('La respuesta de Microsoft no coincide. Intente de nuevo.'); return; }
+        sessionStorage.removeItem('nube-estado'); sessionStorage.removeItem('nube-verificador');
+        fetch(AUTORIDAD + 'token', {
+            method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ client_id: CLIENTE, grant_type: 'authorization_code', code: query.get('code'),
+                                        redirect_uri: REGRESO, code_verifier: verificador, scope: ALCANCE })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (!d.access_token) { fallo('Microsoft no entregó el permiso: ' + (d.error_description || d.error || 'error')); return; }
+            listo(d.access_token, d.expires_in || 3600);
+        }).catch(function () { fallo('No se pudo terminar la conexión con Microsoft.'); });
+        return;
+    }
+    var verif = azar(48), est = azar(16);
+    sessionStorage.setItem('nube-verificador', verif);
+    sessionStorage.setItem('nube-estado', est);
+    crypto.subtle.digest('SHA-256', new TextEncoder().encode(verif)).then(function (h) {
+        var q = new URLSearchParams({ client_id: CLIENTE, response_type: 'code', redirect_uri: REGRESO, response_mode: 'query',
+            scope: ALCANCE, state: est, code_challenge: b64url(h), code_challenge_method: 'S256', prompt: 'select_account' });
+        if (CORREO) q.set('login_hint', CORREO);
+        location.replace(AUTORIDAD + 'authorize?' + q.toString());
+    });
+})();
+</script>
+</body></html>
