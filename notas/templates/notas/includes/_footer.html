@@ -3,7 +3,12 @@ Este archivo contiene el pie de página principal de la plataforma.
 Es incluido por la plantilla base (base.html).
 {% endcomment %}
 
+{% load static %}
 <footer class="page-footer">
-    <p class="mb-1">&copy; {% now "Y" %} mcolegio - Plataforma Académica</p>
+    <p class="mb-2">
+        <a href="https://mcolegio.com.co" target="_blank" rel="noopener" title="mcolegio.com.co" class="pie-logo">
+            <img src="{% static 'img/mcolegio-logo-blanco.png' %}" alt="mcolegio.com.co" height="34"></a>
+    </p>
+    <p class="mb-1">&copy; {% now "Y" %} Plataforma Académica</p>
     <p class="mb-0">Desarrollado con ❤️ por docentes para docentes</p>
 </footer>

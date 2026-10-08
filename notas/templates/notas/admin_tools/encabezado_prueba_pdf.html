@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+    @page { size: letter; margin: 14mm 16mm; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; color: #111; }
+    .encabezado-con-bordes td { border: 1px solid #333; }
+    .muestra { margin-top: 18px; color: #555; }
+    .muestra h1 { font-size: 13pt; text-align: center; color: #111; }
+    .raya { height: 9px; background: #eceef2; border-radius: 3px; margin: 9px 0; }
+</style></head>
+<body>
+{% include 'notas/fragmentos/encabezado_pdf.html' %}
+<div class="muestra">
+    <h1>DOCUMENTO DE PRUEBA</h1>
+    <p>Así sale el encabezado en los boletines, actas, planillas y certificados de {{ colegio.nombre }}.</p>
+    {% for i in "1234567890" %}<div class="raya" style="width: {% cycle '100%' '92%' '97%' '85%' %}"></div>{% endfor %}
+</div>
+</body></html>

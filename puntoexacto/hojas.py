@@ -572,25 +572,46 @@ def _una_hoja(c, ox, oy, m, datos, preguntas, opciones, plan, escudo=None):
 
 
 def _firma(c, x_der, y, f):
-    """«Generado con mcolegio.com.co», abajo a la derecha.
+    """«Generado con» + el logo de mcolegio.com.co, abajo a la derecha.
 
-    El dominio va en negrita y más oscuro que el resto: un docente de otro
-    colegio que recoja una hoja del piso tiene que poder leer de dónde salió
-    sin acercarse. Esa es la razón de que esta línea exista, así que se escribe
-    el dominio completo y no solo el nombre.
+    El logo trae el dominio completo: un docente de otro colegio que recoja una
+    hoja del piso tiene que poder leer de dónde salió sin acercarse. Si el
+    archivo del logo no estuviera, se escribe el dominio como antes.
     """
-    dominio = 'mcolegio.com.co'
     previo = 'Generado con '
-    t_dom, t_prev = f * .74, f * .62
-    ancho_dom = c.stringWidth(dominio, 'Helvetica-Bold', t_dom)
-
+    t_prev = f * .62
+    logo = _logo_mcolegio()
+    if logo is not None:
+        alto = f * 1.25
+        ancho = alto * logo[1]
+        c.drawImage(logo[0], x_der - ancho, y - alto * .28, width=ancho, height=alto, mask='auto')
+        ocupado = ancho
+    else:
+        dominio, t_dom = 'mcolegio.com.co', f * .74
+        c.setFont('Helvetica-Bold', t_dom)
+        c.setFillColorRGB(.17, .28, .42)
+        c.drawRightString(x_der, y, dominio)
+        ocupado = c.stringWidth(dominio, 'Helvetica-Bold', t_dom)
     c.setFont('Helvetica', t_prev)
     c.setFillColorRGB(.55, .58, .63)
-    c.drawRightString(x_der - ancho_dom - 1.0 * mm, y, previo)
+    c.drawRightString(x_der - ocupado - 1.0 * mm, y, previo)
 
-    c.setFont('Helvetica-Bold', t_dom)
-    c.setFillColorRGB(.17, .28, .42)
-    c.drawRightString(x_der, y, dominio)
+
+_LOGO = []
+
+
+def _logo_mcolegio():
+    """(ImageReader, ancho/alto) del logo horizontal, o None si no se encuentra."""
+    if not _LOGO:
+        try:
+            from django.contrib.staticfiles import finders
+            from reportlab.lib.utils import ImageReader
+            ruta = finders.find('img/mcolegio-logo.png')
+            img = ImageReader(ruta) if ruta else None
+            _LOGO.append((img, img.getSize()[0] / img.getSize()[1]) if img else None)
+        except Exception:
+            _LOGO.append(None)
+    return _LOGO[0]
 
 
 def generar(ruta, lista_datos, preguntas=10, opciones=4, por_pagina=1,

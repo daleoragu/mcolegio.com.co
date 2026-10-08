@@ -153,3 +153,46 @@ class ComponentesDeEvaluacion(ColegioDePrueba):
 
     def test_solo_administradores(self):
         self.assertEqual(self.cliente(self.u_docente).get('/admin/componentes-evaluacion/').status_code, 403)
+
+
+class EncabezadoPorColegio(ColegioDePrueba):
+
+    def datos(self, **extra):
+        d = {'alto_logos_pdf': '65'}
+        for k in range(1, 6):
+            d.update({f'linea_encabezado_{k}': '', f'linea_encabezado_{k}_fuente': 'Arial',
+                      f'linea_encabezado_{k}_tamano': '9'})
+        d.update(extra)
+        return d
+
+    def test_el_admin_lo_edita_y_se_guarda_como_texto(self):
+        c = self.cliente(self.rectora)
+        self.assertContains(c.get('/admin/encabezado-documentos/'), 'Líneas de texto')
+        r = c.post('/admin/encabezado-documentos/', self.datos(
+            linea_encabezado_1='Institución Educativa <b>A</b>', linea_encabezado_1_negrilla='on',
+            linea_encabezado_5='<img src="http://169.254.169.254/x">Resolución 0123', linea_encabezado_5_fuente='Tahoma'))
+        self.assertEqual(r.status_code, 302)
+        self.a.refresh_from_db()
+        self.assertEqual(self.a.linea_encabezado_1, 'Institución Educativa A')
+        self.assertEqual(self.a.linea_encabezado_5, 'Resolución 0123')       # sin etiquetas ni enlaces
+        self.assertTrue(self.a.linea_encabezado_1_negrilla)
+        self.assertEqual(self.a.linea_encabezado_5_fuente, 'Tahoma')
+        r = c.get('/admin/encabezado-documentos/prueba.pdf')
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+
+    def test_tamanos_fuera_de_rango(self):
+        r = self.cliente(self.rectora).post('/admin/encabezado-documentos/', self.datos(linea_encabezado_2_tamano='90'))
+        self.assertContains(r, 'Entre 5 y 28 puntos')
+
+    def test_logo_pesado_no(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        grande = SimpleUploadedFile('logo.png', b'0' * (2 * 1024 * 1024 + 10), content_type='image/png')
+        r = self.cliente(self.rectora).post('/admin/encabezado-documentos/', {**self.datos(), 'logo_izquierdo': grande})
+        self.assertEqual(r.status_code, 200)
+        self.a.refresh_from_db()
+        self.assertFalse(self.a.logo_izquierdo)
+
+    def test_solo_el_admin_de_ese_colegio(self):
+        self.assertEqual(self.cliente(self.u_docente).get('/admin/encabezado-documentos/').status_code, 403)
+        # La rectora de A entrando por el subdominio de B no es administradora allá.
+        self.assertEqual(self.cliente(self.rectora, host='b.localhost').get('/admin/encabezado-documentos/').status_code, 403)
