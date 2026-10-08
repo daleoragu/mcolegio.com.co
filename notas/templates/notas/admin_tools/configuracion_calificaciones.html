@@ -118,7 +118,9 @@
             <h4><i class="fas fa-book me-2"></i>Porcentajes por Defecto de las Materias</h4>
         </div>
         <div class="card-body">
-            <p class="text-muted">Estos son los porcentajes que se usarán por defecto para cada materia. La suma de SER, SABER y HACER debe ser 100, a menos que se marque la opción "Ponderación Equitativa".</p>
+            <p class="text-muted">Estos son los porcentajes que se usarán por defecto para cada materia. La suma de los componentes debe ser 100, a menos que se marque la opción "Ponderación Equitativa" (todos pesan lo mismo). Los componentes se agregan o quitan en <a href="{% url 'notas:componentes_evaluacion' %}">Componentes de evaluación</a>.</p>
+            {% if formset.non_form_errors %}<div class="alert alert-danger py-2">{{ formset.non_form_errors }}</div>{% endif %}
+            {% for form in formset %}{% for e in form.non_field_errors %}<div class="alert alert-danger py-2 mb-2">{{ e }}</div>{% endfor %}{% endfor %}
             
             {{ formset.management_form }}
             <div class="table-responsive">
@@ -126,9 +128,7 @@
                     <thead>
                         <tr>
                             <th>Materia</th>
-                            <th class="text-center">Ser (%)</th>
-                            <th class="text-center">Saber (%)</th>
-                            <th class="text-center">Hacer (%)</th>
+                            {% for c in componentes %}<th class="text-center">{{ c.nombre }} (%)</th>{% endfor %}
                             <th class="text-center">Ponderación Equitativa</th>
                         </tr>
                     </thead>
@@ -139,9 +139,7 @@
                                 {{ form.instance.nombre }}
                                 {{ form.id }}
                             </td>
-                            <td>{{ form.porcentaje_ser }}</td>
-                            <td>{{ form.porcentaje_saber }}</td>
-                            <td>{{ form.porcentaje_hacer }}</td>
+                            {% for campo in form.campos_componentes %}<td>{{ campo }}</td>{% endfor %}
                             <td class="text-center">
                                 <div class="form-check d-flex justify-content-center">
                                     {{ form.usar_ponderacion_equitativa }}

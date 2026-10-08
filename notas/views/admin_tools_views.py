@@ -189,15 +189,51 @@ def panel_control_promocion_vista(request):
 
 
 class MateriaPorcentajeForm(forms.ModelForm):
+    """Porcentaje de cada componente del colegio (pueden ser 1, 3, 5…) para una materia."""
     class Meta:
         model = Materia
-        fields = ['porcentaje_ser', 'porcentaje_saber', 'porcentaje_hacer', 'usar_ponderacion_equitativa']
+        fields = ['usar_ponderacion_equitativa']
         widgets = {
-            'porcentaje_ser': forms.NumberInput(attrs={'class': 'form-control form-control-sm'}),
-            'porcentaje_saber': forms.NumberInput(attrs={'class': 'form-control form-control-sm'}),
-            'porcentaje_hacer': forms.NumberInput(attrs={'class': 'form-control form-control-sm'}),
             'usar_ponderacion_equitativa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+    def __init__(self, *args, componentes=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        from ..componentes import pesos_de
+        self.componentes = list(componentes)
+        actuales = pesos_de(self.instance, [c.codigo for c in self.componentes]) \
+            if not self.instance.usar_ponderacion_equitativa else \
+            {c.codigo: (self.instance.pesos_componentes or {}).get(
+                c.codigo, getattr(self.instance, f'porcentaje_{c.codigo.lower()}', 0))
+             for c in self.componentes}
+        for c in self.componentes:
+            self.fields[f'p_{c.codigo}'] = forms.IntegerField(
+                label=c.nombre, min_value=0, max_value=100, required=False,
+                initial=int(actuales.get(c.codigo) or 0),
+                widget=forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'min': 0, 'max': 100}))
+
+    @property
+    def campos_componentes(self):
+        return [self[f'p_{c.codigo}'] for c in self.componentes]
+
+    def clean(self):
+        datos = super().clean()
+        from ..componentes import fijar_pesos
+        valores = {c.codigo: datos.get(f'p_{c.codigo}') or 0 for c in self.componentes}
+        equitativa = bool(datos.get('usar_ponderacion_equitativa'))
+        if not equitativa and sum(valores.values()) != 100:
+            raise forms.ValidationError(
+                f'{self.instance.nombre}: los porcentajes suman {sum(valores.values())} y deben sumar 100 '
+                f'(o marque «Ponderación equitativa»).')
+        fijar_pesos(self.instance, valores, equitativa=equitativa)
+        return datos
+
+    def save(self, commit=True):
+        materia = super().save(commit=False)
+        if commit:
+            materia.save()
+        return materia
+
 
 class ConfiguracionGlobalForm(forms.ModelForm):
     class Meta:
@@ -235,6 +271,8 @@ def configuracion_calificaciones_vista(request):
     PesosFormSet = modelformset_factory(PeriodoAcademico, form=PesoPeriodoForm, extra=0)
 
     config_global, _ = ConfiguracionCalificaciones.objects.get_or_create(colegio=request.colegio)
+    from ..componentes import componentes as componentes_colegio
+    lista_componentes = componentes_colegio(request.colegio)
 
     ano_actual = PeriodoAcademico.objects.filter(colegio=request.colegio).aggregate(
         maximo=Max('ano_lectivo'))['maximo']
@@ -242,7 +280,7 @@ def configuracion_calificaciones_vista(request):
         colegio=request.colegio, ano_lectivo=ano_actual).order_by('fecha_inicio')
 
     if request.method == 'POST':
-        formset = MateriaFormSet(request.POST, queryset=materias_colegio)
+        formset = MateriaFormSet(request.POST, queryset=materias_colegio, form_kwargs={'componentes': lista_componentes})
         form_global = ConfiguracionGlobalForm(request.POST, instance=config_global)
         formset_pesos = PesosFormSet(request.POST, queryset=periodos_colegio, prefix='pesos')
         
@@ -279,7 +317,8 @@ def configuracion_calificaciones_vista(request):
                             usar_ponderacion_equitativa=True, 
                             porcentaje_ser=materia.porcentaje_ser,
                             porcentaje_saber=materia.porcentaje_saber,
-                            porcentaje_hacer=materia.porcentaje_hacer
+                            porcentaje_hacer=materia.porcentaje_hacer,
+                            pesos_componentes=materia.pesos_componentes or {},
                         )
                 messages.success(request, 'Configuración guardada y sincronizada forzosamente con todas las asignaciones.')
             else:
@@ -292,11 +331,12 @@ def configuracion_calificaciones_vista(request):
             messages.error(request, 'Por favor, corrija los errores en el formulario.')
 
     else:
-        formset = MateriaFormSet(queryset=materias_colegio.order_by('nombre'))
+        formset = MateriaFormSet(queryset=materias_colegio.order_by('nombre'), form_kwargs={'componentes': lista_componentes})
         form_global = ConfiguracionGlobalForm(instance=config_global)
         formset_pesos = PesosFormSet(queryset=periodos_colegio, prefix='pesos')
 
     context = {
+        'componentes': lista_componentes,
         'formset': formset,
         'form_global': form_global,
         'formset_pesos': formset_pesos,

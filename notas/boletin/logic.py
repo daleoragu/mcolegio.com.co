@@ -10,6 +10,7 @@ from ..models import (
     PeriodoAcademico, FichaEstudiante, PonderacionAreaMateria, EscalaValoracion
 )
 from .ponderacion import ajustes as ajustes_colegio, definitiva_anual
+from .. import componentes as _comp
 from django.db.models import Prefetch
 
 
@@ -61,6 +62,7 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
     Calcula los datos de los boletines para un curso y periodo, incluyendo
     el promedio acumulado por materia y por área.
     """
+    codigos_boletin = _comp.codigos(colegio)   # los componentes del colegio, en su orden
     if estudiante_especifico:
         estudiantes = [estudiante_especifico]
     else:
@@ -157,6 +159,8 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
                     'nombre': materia.nombre, 'ih': asignacion.intensidad_horaria_semanal, 'docente': asignacion.docente,
                     'ser': notas_materia_periodo.filter(tipo_nota='SER').first(), 'sab': notas_materia_periodo.filter(tipo_nota='SABER').first(),
                     'hac': notas_materia_periodo.filter(tipo_nota='HACER').first(), 'def': definitiva_valor_periodo,
+                    # Una nota por cada componente del colegio, en el orden del encabezado.
+                    'comps': [notas_materia_periodo.filter(tipo_nota=c).first() for c in codigos_boletin],
                     'def_acumulada': definitiva_acumulada,
                     'v_n': valoracion_cualitativa, 'inasistencias': inasistencias,
                     'logros': IndicadorLogroPeriodo.objects.filter(asignacion=asignacion, periodo=periodo, colegio=colegio),

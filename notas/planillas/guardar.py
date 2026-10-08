@@ -17,7 +17,7 @@ La regla:
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from ..models.academicos import Calificacion, InasistenciasManualesPeriodo, NotaDetallada
-from .columnas import COMPONENTES, peso_componente
+from .. import componentes as _comp
 
 # Solo para cuando no hay colegio a mano; lo normal es rango(colegio).
 MINIMA = Decimal('1')
@@ -100,15 +100,15 @@ def guardar_estudiante(colegio, asignacion, periodo, estudiante, notas_por_compo
                        inasistencias=None, observacion_inclusion=None, observacion=None):
     """Guarda todo lo de un estudiante y devuelve su definitiva del periodo.
 
-    notas_por_componente: {'SER': [...], 'SABER': [...], 'HACER': [...]} (las
+    notas_por_componente: {código: [...]} con los componentes del colegio (las
     claves también pueden venir en minúscula, como las manda la planilla en línea).
     observacion: texto libre de la asignatura; None = no se toca (el Excel no la trae).
     """
     por_codigo = {k.upper(): v for k, v in (notas_por_componente or {}).items()}
     definitiva = Decimal('0')
     limites = rango(colegio)
-    for codigo in COMPONENTES:
-        peso = peso_componente(asignacion, codigo) / Decimal(100)
+    for codigo, porcentaje in _comp.pesos(asignacion).items():
+        peso = Decimal(porcentaje) / Decimal(100)
         if peso <= 0:
             continue
         promedio = guardar_componente(colegio, estudiante, asignacion, periodo, codigo,

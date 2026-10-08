@@ -67,7 +67,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     let hayCambiosSinGuardar = false;
-    let descripcionesColumnas = { ser: {}, saber: {}, hacer: {} };
+    // --- COMPONENTES DEL COLEGIO -------------------------------------------
+    // Ya no son fijos (SER, SABER, HACER): cada colegio tiene los suyos (1, 3,
+    // 5…). Vienen del servidor con su nombre y porcentaje.
+    let configMateria = {};
+    try {
+        const el = document.getElementById('config-materia-json');
+        configMateria = JSON.parse((el && el.textContent.trim()) || '{}');
+    } catch (e) { configMateria = {}; }
+    const COMPONENTES = Array.isArray(configMateria.componentes) && configMateria.componentes.length
+        ? configMateria.componentes
+        : [{ tipo: 'ser', nombre: 'SER', peso: 0 }, { tipo: 'saber', nombre: 'SABER', peso: 0 }, { tipo: 'hacer', nombre: 'HACER', peso: 0 }];
+    const TIPOS = COMPONENTES.map(c => c.tipo);
+    const porTipo = () => Object.fromEntries(TIPOS.map(t => [t, {}]));
+    const listasPorTipo = () => Object.fromEntries(TIPOS.map(t => [t, []]));
+
+    let descripcionesColumnas = porTipo();
 
     // --- PLAN DE NOTAS: columnas de cada componente, con su nombre ---------
     // Las notas se guardan sin huecos (si falta la nota 2, se guarda [1, 3]).
@@ -85,7 +100,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
     if (planNotas) {
-        for (const tipo of ['ser', 'saber', 'hacer']) {
+        for (const tipo of TIPOS) {
             const columnas = Array.isArray(planNotas[tipo]) ? planNotas[tipo] : [];
             if (!columnas.length) continue;
             columnas.forEach((nombre, i) => { descripcionesColumnas[tipo][i] = nombre; });
@@ -103,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const i = usadas.indexOf(false);
                     if (i >= 0) { ubicadas[i].valor = nota.valor; usadas[i] = true; }
                 });
-                if (!est.notas) est.notas = { ser: [], saber: [], hacer: [] };
+                if (!est.notas) est.notas = listasPorTipo();
                 est.notas[tipo] = ubicadas;
             });
         }
@@ -112,19 +127,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- COMPONENTES QUE SE MUESTRAN ------------------------------------------
     // Solo los que tienen porcentaje (> 0 %). Una materia programada con un
     // solo componente al 100 % muestra solo ese. Si todos están en 0 %
-    // (materia informativa), se muestran los tres.
-    const TIPOS = ['ser', 'saber', 'hacer'];
-    let configMateria = {};
-    try {
-        const el = document.getElementById('config-materia-json');
-        configMateria = JSON.parse((el && el.textContent.trim()) || '{}');
-    } catch (e) { configMateria = {}; }
+    // (materia informativa), se muestran todos.
 
     function porcentajesActuales() {
         const salida = {};
         TIPOS.forEach(tipo => {
             const input = document.getElementById(`p-${tipo}`);
-            const dato = asignacionDetailsEl.dataset['p' + tipo.charAt(0).toUpperCase() + tipo.slice(1)];
+            const comp = COMPONENTES.find(c => c.tipo === tipo);
+            const dato = comp ? comp.peso : 0;
             salida[tipo] = (parseFloat(input ? input.value : dato) || 0) / 100;
         });
         return salida;
@@ -204,9 +214,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const hayIndicadores = tablaCalificaciones.dataset.hayIndicadores === 'true';
         if (!hayIndicadores) return;
 
-        const maxNotas = { ser: 0, saber: 0, hacer: 0 };
+        const maxNotas = Object.fromEntries(TIPOS.map(t => [t, 0]));
         estudiantesData.forEach(est => {
             for (const tipo in maxNotas) {
+                if (!est.notas) est.notas = listasPorTipo();
+                if (!est.notas[tipo]) est.notas[tipo] = [];
                 const notasCount = est.notas[tipo]?.length || 0;
                 if (notasCount > maxNotas[tipo]) maxNotas[tipo] = notasCount;
                 est.notas[tipo]?.forEach((nota, i) => {
@@ -524,13 +536,11 @@ document.addEventListener('DOMContentLoaded', function () {
             payload.plan[tipo] = Array.from({ length: n }, (_, i) => descripcionesColumnas[tipo][i] || `Nota ${i + 1}`);
         }
         
-        const pSerInput = document.getElementById('p-ser');
-        if (pSerInput) {
-            payload.porcentajes = {
-                ser: document.getElementById('p-ser').value,
-                saber: document.getElementById('p-saber').value,
-                hacer: document.getElementById('p-hacer').value
-            }
+        if (document.getElementById('panel-ponderacion')) {
+            TIPOS.forEach(tipo => {
+                const input = document.getElementById(`p-${tipo}`);
+                if (input) payload.porcentajes[tipo] = input.value;
+            });
         }
 
         estudiantesData.forEach(est => {
@@ -543,13 +553,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const datosEst = {
                 id: est.id.toString(),
-                notas: { ser: [], saber: [], hacer: [] },
+                notas: listasPorTipo(),
                 inasistencias: est.inasistencias || "0",
                 observacion: est.observacion || "",
                 observacion_inclusion: obsFinal // Enviamos el indicador PIAR actualizado
             };
             
-            for (const tipo of ['ser', 'saber', 'hacer']) {
+            for (const tipo of TIPOS) {
                 if (est.notas[tipo]) {
                     est.notas[tipo].forEach((nota, index) => {
                         const valor = (nota.valor || '').replace(',', '.').trim();
@@ -647,7 +657,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     id: est.id,
                     inasistencias: est.inasistencias,
                     observacion: est.observacion || '',
-                    notas: Object.fromEntries(['ser', 'saber', 'hacer'].map(t =>
+                    notas: Object.fromEntries(TIPOS.map(t =>
                         [t, (est.notas[t] || []).map(n => (n && n.valor) || '')]))
                 }))
             };
@@ -661,7 +671,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function recuperarBorrador(borrador) {
         // Las columnas se emparejan por su nombre: si el plan cambió, cada nota
         // vuelve a la columna que se llama igual.
-        for (const tipo of ['ser', 'saber', 'hacer']) {
+        for (const tipo of TIPOS) {
             const viejas = borrador.columnas?.[tipo] || {};
             const actuales = descripcionesColumnas[tipo];
             borrador.estudiantes.forEach(b => {

@@ -26,7 +26,7 @@ from . import formas as formas_mod
 from . import hojas as hojas_mod
 from .forms import ExamenForm
 from .hojas import generar_pdf
-from .models import (COMPONENTES, LETRAS, METODOS, Bloque, Examen, Forma, Hoja, Pregunta,
+from .models import (LETRAS, METODOS, Bloque, Examen, Forma, Hoja, Pregunta,
                      Respuesta, limpiar_rotulos)
 from notas.permisos import es_admin
 
@@ -253,6 +253,7 @@ def clave(request, examen_id):
     if request.method == 'POST':
         accion = request.POST.get('accion') or ''
         ancla = ''
+        validos = {c for c, _ in _componentes_del_examen(examen)}
         with transaction.atomic():
             # Cómo se puntúa: a mano, pregunta por pregunta, o con una fórmula.
             metodo = (request.POST.get('metodo') or '').strip()
@@ -284,7 +285,7 @@ def clave(request, examen_id):
                 p.anulada = request.POST.get(f'anulada_{p.numero}') == 'on'
                 p.es_control = request.POST.get(f'control_{p.numero}') == 'on'
                 comp = (request.POST.get(f'componente_{p.numero}') or '').strip().upper()
-                p.componente = comp if comp in {c for c, _ in COMPONENTES} else ''
+                p.componente = comp if comp in validos else ''
                 bruto = (request.POST.get(f'puntos_{p.numero}') or '').replace(',', '.')
                 try:
                     p.puntos = Decimal(bruto) if bruto else Decimal('1.00')
@@ -324,7 +325,7 @@ def clave(request, examen_id):
     return render(request, 'puntoexacto/clave.html', {
         'examen': examen, 'preguntas': preguntas,
         'letras_todas': list(LETRAS),
-        'componentes': [(c, examen.nombre_componente(c)) for c, _ in COMPONENTES],
+        'componentes': _componentes_del_examen(examen),
         'bloques': list(bloques_del_examen.values()),
         'sin_bloque': examen.preguntas_sin_bloque(),
         'bloques_partidos': [b for b in bloques_del_examen.values() if not b.es_continuo()],
@@ -837,6 +838,16 @@ def llevar_a_planilla(request, examen_id):
     })
 
 
+def _componentes_del_examen(examen):
+    """[(código, nombre)] que el docente puede elegir: los del colegio (y el del
+    examen, si es uno que el colegio ya quitó)."""
+    from notas.componentes import codigos as codigos_colegio
+    lista = codigos_colegio(examen.colegio) if examen.colegio_id else ['SER', 'SABER', 'HACER']
+    if examen.componente and examen.componente not in lista:
+        lista = lista + [examen.componente]
+    return [(c, examen.nombre_componente(c)) for c in lista]
+
+
 def _recalcular_componente(calificacion):
     """Deja el promedio del componente como lo dejaría la planilla.
 
@@ -1133,7 +1144,9 @@ def planilla_bloque(request, examen_id, bloque_id):
             return redirect('puntoexacto:planilla_bloque', examen_id=examen.id,
                             bloque_id=bloque.id)
 
-        componente = (request.POST.get('componente') or examen.componente)
+        componente = (request.POST.get('componente') or examen.componente).strip().upper()
+        if componente not in {c for c, _ in _componentes_del_examen(examen)}:
+            componente = examen.componente
         etiqueta = (request.POST.get('etiqueta') or f'{examen.titulo} · {bloque.nombre}')[:100]
         creadas, saltadas = 0, 0
         with transaction.atomic():
@@ -1166,7 +1179,7 @@ def planilla_bloque(request, examen_id, bloque_id):
     return render(request, 'puntoexacto/planilla_bloque.html', {
         'examen': examen, 'bloque': bloque, 'filas': filas,
         'sin_asignacion': sorted(sin_asignacion),
-        'componentes': [(c, examen.nombre_componente(c)) for c, _ in COMPONENTES],
+        'componentes': _componentes_del_examen(examen),
         'etiqueta_sugerida': f'{examen.titulo} · {bloque.nombre}'[:100],
     })
 

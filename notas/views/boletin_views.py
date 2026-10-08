@@ -1,4 +1,5 @@
 # notas/views/boletin_views.py
+from ..componentes import componentes as componentes_colegio
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required
@@ -155,7 +156,8 @@ def generar_boletin_vista(request):
 
             template_path = 'notas/boletin/boletin_prescolar_pdf.html'
             pdf_filename = f'boletines_pre_{curso.nombre}_{periodo.get_nombre_display()}.pdf'
-            context = { "boletines": boletines_data, "curso": curso, "periodo": periodo, "colegio": request.colegio, "ajustes": ajustes_colegio(request.colegio) }
+            context = { "boletines": boletines_data, "curso": curso, "periodo": periodo, "colegio": request.colegio, "ajustes": ajustes_colegio(request.colegio),
+                        "componentes": componentes_colegio(request.colegio) }
 
     # --- Cursos normales (primaria, básica, media) ---
     else:
@@ -185,7 +187,8 @@ def generar_boletin_vista(request):
 
             template_path = 'notas/boletin/boletin_pdf.html'
             pdf_filename = f'boletines_{curso.nombre}_{periodo.get_nombre_display()}.pdf'
-            context = { "boletines": boletines_data, "curso": curso, "periodo": periodo, "colegio": request.colegio, "ajustes": ajustes_colegio(request.colegio) }
+            context = { "boletines": boletines_data, "curso": curso, "periodo": periodo, "colegio": request.colegio, "ajustes": ajustes_colegio(request.colegio),
+                        "componentes": componentes_colegio(request.colegio) }
 
     # --- INICIO: CORRECCIÓN FOTO E IDENTIFICACIÓN SEGURA ---
     for boletin in boletines_data:

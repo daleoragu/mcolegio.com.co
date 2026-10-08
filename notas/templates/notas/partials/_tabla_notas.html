@@ -32,20 +32,14 @@
             <p class="card-text text-muted small">
                 Puedes ajustar los porcentajes para esta asignatura. La suma debe ser exactamente 100%. (Si pones un componente en 0%, se ocultará de la tabla).
             </p>
-            <div class="row align-items-center">
-                <div class="col-md-3" id="bloque-ser">
-                    <label for="p-ser" class="form-label mb-0 fw-bold text-primary" id="lbl-ser-input">Ser (%):</label>
-                    <input type="number" class="form-control form-control-sm porcentaje-input" id="p-ser" value="{{ asignacion_seleccionada.ser_calc|floatformat:0 }}" min="0" max="100">
+            <div class="row align-items-end">
+                {% for comp in componentes_tabla %}
+                <div class="col-6 col-md-3 col-lg-2 mb-2" id="bloque-{{ comp.tipo }}">
+                    <label for="p-{{ comp.tipo }}" class="form-label mb-0 fw-bold text-primary" id="lbl-{{ comp.tipo }}-input">{{ comp.nombre|upper }} (%):</label>
+                    <input type="number" class="form-control form-control-sm porcentaje-input" id="p-{{ comp.tipo }}" value="{{ comp.peso|floatformat:0 }}" min="0" max="100">
                 </div>
-                <div class="col-md-3" id="bloque-saber">
-                    <label for="p-saber" class="form-label mb-0 fw-bold text-success" id="lbl-saber-input">Saber (%):</label>
-                    <input type="number" class="form-control form-control-sm porcentaje-input" id="p-saber" value="{{ asignacion_seleccionada.saber_calc|floatformat:0 }}" min="0" max="100">
-                </div>
-                <div class="col-md-3" id="bloque-hacer">
-                    <label for="p-hacer" class="form-label mb-0 fw-bold text-danger" id="lbl-hacer-input">Hacer (%):</label>
-                    <input type="number" class="form-control form-control-sm porcentaje-input" id="p-hacer" value="{{ asignacion_seleccionada.hacer_calc|floatformat:0 }}" min="0" max="100">
-                </div>
-                <div class="col-md-3">
+                {% endfor %}
+                <div class="col-6 col-md-3 col-lg-2 mb-2">
                     <label class="form-label mb-0">Suma Total:</label>
                     <div id="suma-porcentajes" class="fw-bold fs-5 p-1 border rounded text-center bg-white">100%</div>
                 </div>
@@ -93,9 +87,7 @@
 
     <div id="asignacion-details" 
          data-usar-ponderacion-equitativa="{{ asignacion_seleccionada.usar_ponderacion_equitativa|yesno:'true,false' }}"
-         data-p-ser="{{ asignacion_seleccionada.ser_calc|floatformat:0 }}"
-         data-p-saber="{{ asignacion_seleccionada.saber_calc|floatformat:0 }}"
-         data-p-hacer="{{ asignacion_seleccionada.hacer_calc|floatformat:0 }}">
+         data-componentes="{{ componentes_tabla|length }}">
     </div>
 
     <!-- MODAL DE INCLUSIÓN MEJORADO (DISEÑO IDÉNTICO AL INDICADOR GENERAL) -->
@@ -161,12 +153,6 @@
                 }
             }
 
-            const lblSerIn = document.getElementById('lbl-ser-input');
-            if (lblSerIn && configMat.lbl_ser) lblSerIn.textContent = configMat.lbl_ser.toUpperCase() + ' (%):';
-            const lblSaberIn = document.getElementById('lbl-saber-input');
-            if (lblSaberIn && configMat.lbl_saber) lblSaberIn.textContent = configMat.lbl_saber.toUpperCase() + ' (%):';
-            const lblHacerIn = document.getElementById('lbl-hacer-input');
-            if (lblHacerIn && configMat.lbl_hacer) lblHacerIn.textContent = configMat.lbl_hacer.toUpperCase() + ' (%):';
         }
 
         // Los componentes en 0 % ya no se pintan (lo decide ingresar_notas.js),

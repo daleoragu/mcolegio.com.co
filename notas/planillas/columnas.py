@@ -12,7 +12,8 @@ from decimal import Decimal
 from ..models.academicos import (Calificacion, ConfiguracionCalificaciones, NotaDetallada,
                                   PlanNotas)
 
-COMPONENTES = ('SER', 'SABER', 'HACER')
+# Los componentes ya no son fijos: cada colegio tiene los suyos (notas/componentes.py).
+from .. import componentes as _comp  # noqa: E402
 LARGO_MAXIMO = 60   # NotaDetallada.descripcion admite 100; 60 se lee en un encabezado
 TOPE_COLUMNAS = 15
 
@@ -23,27 +24,21 @@ def configuracion(colegio):
 
 
 def nombre_componente(asignacion, codigo, config=None):
-    """Cómo se llama el componente: el de la materia, el del colegio o el código."""
-    propio = (getattr(asignacion.materia, f'etiqueta_{codigo.lower()}', '') or '').strip()
-    if propio and propio.upper() != codigo:
-        return propio
-    config = config or configuracion(asignacion.colegio)
-    return (getattr(config, f'etiqueta_{codigo.lower()}', '') or codigo).strip() or codigo
+    """Cómo se llama el componente: el de la materia (si tiene nombre propio) o el del colegio."""
+    return _comp.nombre(asignacion.colegio, codigo, asignacion.materia)
 
 
 def peso_componente(asignacion, codigo):
     """Porcentaje del componente (Decimal, 0–100), el mismo que usa la plataforma."""
-    return Decimal(getattr(asignacion, f'{codigo.lower()}_calc'))
+    return Decimal(_comp.pesos(asignacion).get(codigo, 0))
 
 
 def componentes_activos(asignacion, config=None):
-    """[(codigo, nombre, peso%)] de los componentes que cuentan (peso > 0)."""
-    config = config or configuracion(asignacion.colegio)
+    """[(codigo, nombre, peso%)] de los componentes del colegio que cuentan (peso > 0), en su orden."""
     salida = []
-    for codigo in COMPONENTES:
-        peso = peso_componente(asignacion, codigo)
+    for codigo, peso in _comp.pesos(asignacion).items():
         if peso > 0:
-            salida.append((codigo, nombre_componente(asignacion, codigo, config), peso))
+            salida.append((codigo, nombre_componente(asignacion, codigo), Decimal(peso)))
     return salida
 
 

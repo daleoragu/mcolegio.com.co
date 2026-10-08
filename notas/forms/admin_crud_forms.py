@@ -322,9 +322,7 @@ class MateriaForm(forms.ModelForm):
         fields = [
             'nombre', 'abreviatura', 'area', 'usar_ponderacion_equitativa', 
             'promedia_en_boletin', 
-            'etiqueta_ser', 'porcentaje_ser', 
-            'etiqueta_saber', 'porcentaje_saber', 
-            'etiqueta_hacer', 'porcentaje_hacer'
+            'etiqueta_ser', 'etiqueta_saber', 'etiqueta_hacer',
         ]
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
@@ -334,15 +332,58 @@ class MateriaForm(forms.ModelForm):
             'etiqueta_ser': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'SER = el nombre del colegio'}),
             'etiqueta_saber': forms.TextInput(attrs={'class': 'form-control'}),
             'etiqueta_hacer': forms.TextInput(attrs={'class': 'form-control'}),
-            'porcentaje_ser': forms.NumberInput(attrs={'class': 'form-control'}),
-            'porcentaje_saber': forms.NumberInput(attrs={'class': 'form-control'}),
-            'porcentaje_hacer': forms.NumberInput(attrs={'class': 'form-control'}),
         }
     def __init__(self, *args, **kwargs):
         colegio = kwargs.pop('colegio', None)
         super().__init__(*args, **kwargs)
         if colegio:
             self.fields['area'].queryset = AreaConocimiento.objects.filter(colegio=colegio).order_by('nombre')
+            if not self.instance.colegio_id:
+                self.instance.colegio = colegio
+        # Un porcentaje por cada componente del colegio (pueden ser 1, 3, 5…).
+        from ..componentes import _guardado, _repartir, componentes
+        self.componentes = componentes(colegio) if colegio else []
+        codigos = [c.codigo for c in self.componentes]
+        actuales = {c: int(_guardado(self.instance, c)) for c in codigos}
+        if not self.instance.pk and codigos and sum(actuales.values()) != 100:
+            actuales = _repartir({c: 0 for c in codigos}, 100)
+        for c in self.componentes:
+            self.fields[f'p_{c.codigo}'] = forms.IntegerField(
+                label=f'{c.nombre} (%)', min_value=0, max_value=100, required=False,
+                initial=actuales.get(c.codigo, 0), widget=forms.NumberInput(attrs={'class': 'form-control'}))
+        # El nombre propio solo aplica a los tres de siempre, si el colegio los tiene.
+        activos = set(codigos)
+        for codigo in ('SER', 'SABER', 'HACER'):
+            campo = f'etiqueta_{codigo.lower()}'
+            if colegio and codigo not in activos:
+                self.fields.pop(campo, None)
+            elif campo in self.fields:
+                nombre = next((c.nombre for c in self.componentes if c.codigo == codigo), codigo)
+                self.fields[campo].label = f'Nombre propio para «{nombre}»'
+                self.fields[campo].required = False
+
+    @property
+    def campos_componentes(self):
+        return [self[f'p_{c.codigo}'] for c in self.componentes]
+
+    @property
+    def campos_etiquetas(self):
+        return [self[f] for f in ('etiqueta_ser', 'etiqueta_saber', 'etiqueta_hacer') if f in self.fields]
+
+    def clean(self):
+        datos = super().clean()
+        for f in ('etiqueta_ser', 'etiqueta_saber', 'etiqueta_hacer'):
+            if f in self.fields and not (datos.get(f) or '').strip():
+                datos[f] = f.split('_')[1].upper()      # vacío = usa el nombre del colegio
+        if self.componentes:
+            from ..componentes import fijar_pesos
+            valores = {c.codigo: datos.get(f'p_{c.codigo}') or 0 for c in self.componentes}
+            equitativa = bool(datos.get('usar_ponderacion_equitativa'))
+            if not equitativa and sum(valores.values()) != 100:
+                raise forms.ValidationError(
+                    f'Los porcentajes suman {sum(valores.values())} y deben sumar 100 (o marque la ponderación equitativa).')
+            fijar_pesos(self.instance, valores, equitativa=equitativa)
+        return datos
 
 class EscalaValoracionForm(forms.ModelForm):
     class Meta:

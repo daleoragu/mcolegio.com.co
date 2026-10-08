@@ -55,20 +55,16 @@
                             <small class="form-text text-muted d-block">{{ form.promedia_en_boletin.help_text }}</small>
                         </div>
 
-                        <p class="text-muted small mb-2">Personaliza cómo se llamarán las columnas de calificación para esta materia (Por defecto: Ser, Saber, Hacer). Útil para materias que solo tienen un Examen o nombres distintos.</p>
+                        <p class="text-muted small mb-2">Los componentes y sus nombres se definen para todo el colegio en «Componentes de evaluación». Aquí puede darle a esta materia un nombre propio (déjelo igual para usar el del colegio).</p>
                         <div class="row bg-light p-2 rounded border mx-0 mb-4">
+                            {% for campo in form.campos_etiquetas %}
                             <div class="col-md-4 mb-2">
-                                {{ form.etiqueta_ser.label_tag }}
-                                {{ form.etiqueta_ser }}
+                                {{ campo.label_tag }}
+                                {{ campo }}
                             </div>
-                            <div class="col-md-4 mb-2">
-                                {{ form.etiqueta_saber.label_tag }}
-                                {{ form.etiqueta_saber }}
-                            </div>
-                            <div class="col-md-4 mb-2">
-                                {{ form.etiqueta_hacer.label_tag }}
-                                {{ form.etiqueta_hacer }}
-                            </div>
+                            {% empty %}
+                            <div class="col-12 small text-muted py-1">Esta materia usa los nombres de <a href="{% url 'notas:componentes_evaluacion' %}">Componentes de evaluación</a>.</div>
+                            {% endfor %}
                         </div>
                         <!-- 👆 FIN NUEVA SECCIÓN 👆 -->
 
@@ -84,18 +80,13 @@
                         </div>
                         
                         <div class="row" id="porcentajes-manuales">
+                            {% for campo in form.campos_componentes %}
                             <div class="col-md-4 mb-3">
-                                {{ form.porcentaje_ser.label_tag }}
-                                {{ form.porcentaje_ser }}
+                                {{ campo.label_tag }}
+                                {{ campo }}
+                                {% for e in campo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                             </div>
-                            <div class="col-md-4 mb-3">
-                                {{ form.porcentaje_saber.label_tag }}
-                                {{ form.porcentaje_saber }}
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                {{ form.porcentaje_hacer.label_tag }}
-                                {{ form.porcentaje_hacer }}
-                            </div>
+                            {% endfor %}
                         </div>
 
                         <hr>
