@@ -1,0 +1,120 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h1>{{ s.apellidos }} {{ s.nombres }}</h1>{% endblock %}
+{% block content %}
+{% include 'prematricula/_estilos_gestion.html' %}
+{% if messages %}{% for m in messages %}<div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags }}{% endif %} alert-dismissible fade show">{{ m }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endif %}
+<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+    <a href="{% url 'prematricula:panel' %}?ano={{ s.ano_lectivo }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Solicitudes</a>
+    <code class="ms-2">{{ s.radicado }}</code>
+    <span class="pg-estado e-{{ s.estado }}">{{ s.get_estado_display }}</span>
+    <span class="text-muted" style="font-size:.88rem;">{% if s.tipo == 'ANTIGUO' %}Antiguo{% if s.estudiante_antiguo.curso %} · hoy en {{ s.estudiante_antiguo.curso }}{% endif %}{% else %}Nuevo{% endif %}
+        · recibida {{ s.creada|date:"d/m/Y h:i a" }}</span>
+    {% if s.documentos.exists %}<a href="{% url 'prematricula:documentos_zip' s.id %}" class="btn btn-sm btn-outline-primary ms-auto"><i class="fas fa-file-zipper me-1"></i> Documentos (.zip)</a>{% endif %}
+</div>
+
+<div class="row g-3">
+<div class="col-lg-7">
+    <div class="pg-tarjeta">
+        <h5>Aspira a</h5>
+        <dl class="row pg-dato mb-0">
+            <div class="col-sm-4"><dt>Grado</dt><dd>{{ s.nombre_grado }} · {{ s.ano_lectivo }}</dd></div>
+            <div class="col-sm-4"><dt>Sede</dt><dd>{{ s.sede|default:"Cualquiera" }}</dd></div>
+            <div class="col-sm-4"><dt>Jornada</dt><dd>{{ s.jornada|default:"Cualquiera" }}</dd></div>
+        </dl>
+    </div>
+    <div class="pg-tarjeta">
+        <h5>Estudiante</h5>
+        <dl class="row pg-dato mb-0">
+            <div class="col-sm-6"><dt>Documento</dt><dd>{{ s.get_tipo_documento_display }} {{ s.numero_documento }}</dd></div>
+            <div class="col-sm-6"><dt>Nacimiento</dt><dd>{{ s.fecha_nacimiento|date:"d/m/Y" }}{% if s.lugar_nacimiento %} · {{ s.lugar_nacimiento }}{% endif %}</dd></div>
+            <div class="col-sm-6"><dt>Sexo</dt><dd>{{ s.get_genero_display|default:"—" }}</dd></div>
+            <div class="col-sm-6"><dt>Teléfono</dt><dd>{{ s.telefono|default:"—" }}</dd></div>
+            <div class="col-sm-12"><dt>Dirección</dt><dd>{{ s.direccion|default:"—" }}{% if s.barrio %} · {{ s.barrio }}{% endif %}</dd></div>
+            {% if s.tipo == 'NUEVO' %}<div class="col-sm-12"><dt>Viene de</dt><dd>{{ s.colegio_procedencia|default:"—" }}{% if s.ultimo_grado %} · último grado {{ s.ultimo_grado }}{% endif %}</dd></div>{% endif %}
+        </dl>
+    </div>
+    <div class="pg-tarjeta">
+        <h5>Salud y emergencia</h5>
+        <dl class="row pg-dato mb-0">
+            <div class="col-sm-6"><dt>EPS</dt><dd>{{ s.eps|default:"—" }}</dd></div>
+            <div class="col-sm-6"><dt>RH</dt><dd>{{ s.rh|default:"—" }}</dd></div>
+            <div class="col-sm-12"><dt>Enfermedades, alergias, medicamentos</dt><dd>{{ s.alergias|default:"—"|linebreaksbr }}</dd></div>
+            {% if s.necesita_apoyo %}<div class="col-sm-12"><dt>Requiere apoyo</dt><dd><span class="badge bg-info text-dark">Sí</span> {{ s.apoyo_detalle }}</dd></div>{% endif %}
+            <div class="col-sm-12"><dt>Contacto de emergencia</dt><dd>{{ s.emergencia_nombre|default:"—" }} {{ s.emergencia_telefono }}{% if s.emergencia_parentesco %} ({{ s.emergencia_parentesco }}){% endif %}</dd></div>
+        </dl>
+    </div>
+    <div class="pg-tarjeta">
+        <h5>Familia</h5>
+        <dl class="row pg-dato mb-0">
+            <div class="col-sm-6"><dt>Acudiente</dt><dd>{{ s.acudiente_nombre }}{% if s.acudiente_parentesco %} ({{ s.acudiente_parentesco }}){% endif %}<br>
+                <span class="text-muted">{{ s.acudiente_documento }}</span></dd></div>
+            <div class="col-sm-6"><dt>Contacto</dt><dd>{{ s.acudiente_celular }}<br>{{ s.acudiente_correo }}</dd></div>
+            <div class="col-sm-6"><dt>Madre</dt><dd>{{ s.madre_nombre|default:"—" }} {{ s.madre_celular }}</dd></div>
+            <div class="col-sm-6"><dt>Padre</dt><dd>{{ s.padre_nombre|default:"—" }} {{ s.padre_celular }}</dd></div>
+            {% if s.acudiente_ocupacion %}<div class="col-sm-6"><dt>Ocupación</dt><dd>{{ s.acudiente_ocupacion }}</dd></div>{% endif %}
+        </dl>
+    </div>
+    {% if respuestas %}
+    <div class="pg-tarjeta">
+        <h5>Encuesta</h5>
+        <dl class="pg-dato mb-0">{% for p, r in respuestas %}<dt>{{ p }}</dt><dd>{{ r }}</dd>{% endfor %}</dl>
+    </div>
+    {% endif %}
+</div>
+
+<div class="col-lg-5">
+<form method="post" class="pg-tarjeta" style="position:sticky;top:80px;">
+    {% csrf_token %}
+    <h5>Revisión</h5>
+    <p class="text-muted mb-2" style="font-size:.85rem;">Marque lo que cumple.</p>
+    {% for r, doc, cumple in filas %}
+        <div class="d-flex align-items-start gap-2 py-1" style="border-bottom:1px solid #f0f1f4;">
+            <input class="form-check-input mt-1" type="checkbox" name="req_{{ r.id }}" id="req_{{ r.id }}" {% if cumple %}checked{% endif %}
+                   {% if s.estado == 'APROBADA' %}disabled{% endif %}>
+            <label for="req_{{ r.id }}" class="flex-grow-1" style="font-size:.9rem;">
+                {{ r.nombre }}{% if not r.obligatorio %} <span class="text-muted">(opcional)</span>{% endif %}
+                {% if doc %}<br><a href="{% url 'prematricula:documento' doc.id %}" target="_blank" style="font-size:.84rem;"><i class="fas fa-paperclip me-1"></i>{{ doc.nombre_original|truncatechars:40 }}</a>
+                {% elif r.pide_archivo %}<br><span class="{% if r.obligatorio %}text-danger{% else %}text-muted{% endif %}" style="font-size:.82rem;">No subió el archivo</span>{% endif %}
+            </label>
+        </div>
+    {% endfor %}
+    {% for d in otros_docs %}<div style="font-size:.85rem;"><a href="{% url 'prematricula:documento' d.id %}" target="_blank"><i class="fas fa-paperclip me-1"></i>{{ d }}</a></div>{% endfor %}
+
+    <label class="form-label fw-bold mt-3" for="curso">Curso asignado</label>
+    <select name="curso_asignado" id="curso" class="form-select" {% if s.estado == 'APROBADA' %}disabled{% endif %}>
+        <option value="">— Sin asignar —</option>
+        {% if sugeridos %}<optgroup label="Del grado {{ s.nombre_grado }}{% if s.sede %} · {{ s.sede }}{% endif %}">
+            {% for c in sugeridos %}<option value="{{ c.id }}" {% if s.curso_asignado_id == c.id %}selected{% endif %}>{{ c.nombre }}{% if c.sede %} · {{ c.sede }}{% endif %}</option>{% endfor %}
+        </optgroup>{% endif %}
+        <optgroup label="Todos los cursos">
+            {% for c in cursos %}<option value="{{ c.id }}" {% if s.curso_asignado_id == c.id and c not in sugeridos %}selected{% endif %}>{{ c.nombre }}{% if c.sede %} · {{ c.sede }}{% endif %}</option>{% endfor %}
+        </optgroup>
+    </select>
+    {% if s.tipo == 'ANTIGUO' %}<div class="form-text">Para antiguos es informativo: el curso del próximo año lo pone la promoción.</div>{% endif %}
+
+    <label class="form-label fw-bold mt-3" for="mf">Mensaje para la familia</label>
+    <textarea name="mensaje_familia" id="mf" rows="2" class="form-control" placeholder="Lo ve la familia al consultar y va en el correo">{{ s.mensaje_familia }}</textarea>
+    <label class="form-label fw-bold mt-3" for="ni">Notas internas</label>
+    <textarea name="nota_interna" id="ni" rows="2" class="form-control" placeholder="Solo las ve el colegio">{{ s.nota_interna }}</textarea>
+
+    {% if s.estado == 'APROBADA' %}
+        <div class="alert alert-success mt-3 mb-0" style="font-size:.9rem;">Aprobada el {{ s.decidida|date:"d/m/Y" }}{% if s.revisada_por %} por {{ s.revisada_por.get_full_name|default:s.revisada_por.username }}{% endif %}.
+            {% if s.estudiante_creado %}<br>Estudiante: {{ s.estudiante_creado }} ({{ s.estudiante_creado.user.username }}){% if not s.estudiante_creado.is_active %} · inactivo hasta que empiece el año{% endif %}.{% endif %}</div>
+        <button class="btn btn-outline-primary mt-3" name="accion" value="guardar">Guardar notas</button>
+    {% else %}
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <button class="btn btn-outline-primary" name="accion" value="guardar">Guardar revisión</button>
+            <button class="btn btn-outline-warning" name="accion" value="pendiente" title="Se le avisa a la familia qué falta">Falta algo</button>
+            <button class="btn btn-outline-danger" name="accion" value="rechazar" onclick="return confirm('¿Marcar la solicitud como no aprobada?');">No aprobar</button>
+        </div>
+        <hr>
+        <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="aprobar_igual" id="ai">
+            <label class="form-check-label" for="ai" style="font-size:.88rem;">Aprobar aunque falten requisitos</label></div>
+        <button class="btn btn-success w-100" name="accion" value="aprobar"
+                onclick="return confirm('{% if s.tipo == 'NUEVO' %}Se crea el estudiante con su usuario en el curso asignado.{% else %}Se actualiza la ficha del estudiante.{% endif %} ¿Aprobar la matrícula?');">
+            <i class="fas fa-check me-1"></i> Aprobar matrícula</button>
+    {% endif %}
+</form>
+</div>
+</div>
+{% endblock %}

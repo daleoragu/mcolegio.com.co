@@ -1,0 +1,25 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h1>Encuesta de prematrícula {{ ano }}</h1>{% endblock %}
+{% block content %}
+{% include 'prematricula/_estilos_gestion.html' %}
+<style>.barra { height:18px; background:#193661; border-radius:4px; min-width:2px; }</style>
+<div class="mb-3"><a href="{% url 'prematricula:panel' %}?ano={{ ano }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Solicitudes</a>
+    <span class="text-muted ms-2">{{ total }} solicitud{{ total|pluralize:"es" }}</span></div>
+<div class="row g-3">
+{% for r in resumen %}
+<div class="col-lg-6">
+    <div class="pg-tarjeta h-100">
+        <h5 style="font-size:1rem;">{{ r.pregunta.texto }}</h5>
+        <p class="text-muted" style="font-size:.82rem;">{{ r.total }} respuesta{{ r.total|pluralize }}</p>
+        {% if r.abiertas is not None %}
+            <ul style="font-size:.9rem;max-height:260px;overflow:auto;">{% for a in r.abiertas %}<li>{{ a }}</li>{% empty %}<li class="text-muted">Sin respuestas.</li>{% endfor %}</ul>
+        {% else %}
+            <table class="pg-tabla">{% for o, n, pct in r.filas %}
+                <tr><td style="width:40%;">{{ o }}</td><td><div class="barra" style="width:{{ pct }}%;"></div></td>
+                    <td class="text-end" style="width:70px;">{{ n }} · {{ pct }}%</td></tr>{% endfor %}</table>
+        {% endif %}
+    </div>
+</div>
+{% empty %}<p class="text-muted">No hay preguntas en la encuesta.</p>{% endfor %}
+</div>
+{% endblock %}

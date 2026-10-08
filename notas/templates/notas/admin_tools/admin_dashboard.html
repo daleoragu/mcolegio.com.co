@@ -111,6 +111,7 @@
     /* Colores de los iconos (Administrador) */
     .bg-estudiantes { background-color: #0d6efd; }
     .bg-sedes { background-color: #0f766e; }
+    .bg-prematricula { background-color: #b45309; }
     .bg-materias { background-color: #ffc107; }
     .bg-docentes { background-color: #6f42c1; }
     .bg-periodos { background-color: #dc3545; }
@@ -183,6 +184,7 @@
                     <div class="icon-container bg-asignacion"><i class="fas fa-sitemap"></i></div>
                     <span class="app-label">Asignación Académica</span>
                 </a>
+                <a href="{% url 'prematricula:panel' %}" class="app-icon"><div class="icon-container bg-prematricula"><i class="fas fa-file-signature"></i></div><span class="app-label">Prematrícula</span></a>
                 <a href="{% url 'notas:gestion_sedes' %}" class="app-icon"><div class="icon-container bg-sedes"><i class="fas fa-school"></i></div><span class="app-label">Sedes</span></a>
                 <a href="{% url 'notas:gestion_estudiantes' %}" class="app-icon"><div class="icon-container bg-estudiantes"><i class="fas fa-users"></i></div><span class="app-label">Gestión Estudiantes</span></a>
                 <a href="{% url 'notas:gestion_materias' %}" class="app-icon"><div class="icon-container bg-materias"><i class="fas fa-book-open"></i></div><span class="app-label">Gestión Materias</span></a>

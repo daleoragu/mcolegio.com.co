@@ -31,6 +31,9 @@ urlpatterns = [
     #    Exámenes de selección múltiple: hojas, clave y análisis.
     path('puntoexacto/', include('puntoexacto.urls', namespace='puntoexacto')),
 
+    # 6. PREMATRÍCULA: las familias desde el portal, la secretaría en /prematricula/gestion/
+    path('prematricula/', include('prematricula.urls', namespace='prematricula')),
+
     # 5. RUTAS DE TU APLICACIÓN "NOTAS"
     #    Esta línea incluye todas las URLs de tu archivo 'notas/urls.py'.
     path('', include('notas.urls', namespace='notas')),

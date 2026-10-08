@@ -1,0 +1,90 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h1>Prematrícula {{ ano }}</h1>{% endblock %}
+{% block content %}
+{% include 'prematricula/_estilos_gestion.html' %}
+{% if messages %}{% for m in messages %}<div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags }}{% endif %} alert-dismissible fade show">{{ m }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endif %}
+
+<div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+    <a href="{% url 'prematricula:configuracion' %}" class="btn btn-outline-primary"><i class="fas fa-gear me-1"></i> Configurar</a>
+    <a href="{% url 'prematricula:encuesta' %}?ano={{ ano }}" class="btn btn-outline-primary"><i class="fas fa-chart-bar me-1"></i> Resultados de la encuesta</a>
+    <a href="{% url 'prematricula:exportar' %}?ano={{ ano }}" class="btn btn-outline-success"><i class="fas fa-file-excel me-1"></i> Excel</a>
+    <span class="ms-auto">
+        {% if conf.esta_abierta and conf.ano_lectivo == ano %}<span class="badge bg-success">Abierta en el portal</span>
+        {% else %}<span class="badge bg-secondary">Cerrada</span>{% endif %}
+    </span>
+    {% if anos|length > 1 %}
+    <form method="get"><select name="ano" class="form-select form-select-sm" onchange="this.form.submit()">
+        {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}</select></form>
+    {% endif %}
+</div>
+
+{% if conf.esta_abierta %}
+<div class="alert alert-light border" style="font-size:.9rem;">
+    Enlace para las familias (también sale en el portal): <a href="{{ url_portal }}" target="_blank">{{ url_portal }}</a>
+</div>
+{% endif %}
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="pg-cifra" href="?ano={{ ano }}"><strong>{{ total }}</strong><span>Solicitudes</span></a>
+    {% for c, nombre, n in por_estado %}
+        <a class="pg-cifra" href="?ano={{ ano }}&estado={{ c }}"><strong>{{ n }}</strong><span class="pg-estado e-{{ c }}">{{ nombre }}</span></a>
+    {% endfor %}
+</div>
+
+{% if pendientes_activar %}
+<form method="post" action="{% url 'prematricula:activar' %}" class="alert alert-warning d-flex flex-wrap align-items-center gap-2"
+      onsubmit="return confirm('Los estudiantes nuevos aprobados para {{ ano }} empezarán a aparecer en cursos, planillas y listas. ¿Activarlos?');">
+    {% csrf_token %}<input type="hidden" name="ano" value="{{ ano }}">
+    <span>{{ pendientes_activar }} estudiante{{ pendientes_activar|pluralize }} nuevo{{ pendientes_activar|pluralize }} aprobado{{ pendientes_activar|pluralize }} para {{ ano }}
+        espera{{ pendientes_activar|pluralize:"n" }} a que empiece el año (no salen todavía en las planillas).</span>
+    <button class="btn btn-sm btn-warning ms-auto">Activar matriculados de {{ ano }}</button>
+</form>
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-lg-9">
+        <div class="pg-tarjeta">
+            <form method="get" class="row g-2 mb-3">
+                <input type="hidden" name="ano" value="{{ ano }}">
+                <div class="col-md-4"><input name="q" value="{{ filtros.q }}" class="form-control form-control-sm" placeholder="Nombre, documento o radicado"></div>
+                <div class="col-md-3"><select name="estado" class="form-select form-select-sm"><option value="">Todos los estados</option>
+                    {% for c, n in estados %}<option value="{{ c }}" {% if filtros.estado == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+                <div class="col-md-3"><select name="tipo" class="form-select form-select-sm"><option value="">Nuevos y antiguos</option>
+                    {% for c, n in tipos %}<option value="{{ c }}" {% if filtros.tipo == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+                <div class="col-md-2"><button class="btn btn-sm btn-primary w-100">Filtrar</button></div>
+            </form>
+            <div class="table-responsive">
+            <table class="pg-tabla">
+                <thead><tr><th>Radicado</th><th>Estudiante</th><th>Grado</th><th>Tipo</th><th>Estado</th><th>Recibida</th></tr></thead>
+                <tbody>
+                {% for s in solicitudes %}
+                    <tr style="cursor:pointer;" onclick="location='{% url 'prematricula:detalle' s.id %}'">
+                        <td><code>{{ s.radicado }}</code></td>
+                        <td><a href="{% url 'prematricula:detalle' s.id %}"><strong>{{ s.apellidos }} {{ s.nombres }}</strong></a>
+                            <div class="text-muted" style="font-size:.8rem;">{{ s.get_tipo_documento_display }} {{ s.numero_documento }}</div></td>
+                        <td>{{ s.nombre_grado }}{% if s.sede %}<div class="text-muted" style="font-size:.8rem;">{{ s.sede }}</div>{% endif %}</td>
+                        <td>{% if s.tipo == 'ANTIGUO' %}Antiguo{% else %}Nuevo{% endif %}</td>
+                        <td><span class="pg-estado e-{{ s.estado }}">{{ s.get_estado_display }}</span></td>
+                        <td style="font-size:.85rem;">{{ s.creada|date:"d/m/Y" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">No hay solicitudes{% if filtros.estado or filtros.q or filtros.tipo %} con esos filtros{% endif %}.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="pg-tarjeta">
+            <h5>Por grado</h5>
+            <table class="pg-tabla">
+                <thead><tr><th>Grado</th><th class="text-end">Solic.</th><th class="text-end">Aprob.</th></tr></thead>
+                <tbody>{% for g in por_grado %}<tr><td><a href="?ano={{ ano }}&grado={{ g.grado }}">{{ g.nombre }}</a></td>
+                    <td class="text-end">{{ g.n }}</td><td class="text-end">{{ g.aprobadas }}</td></tr>
+                {% empty %}<tr><td colspan="3" class="text-muted">Sin solicitudes.</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
