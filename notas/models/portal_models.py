@@ -76,3 +76,36 @@ class ImagenCarrusel(models.Model):
         verbose_name = "Imagen del Carrusel"
         verbose_name_plural = "Imágenes del Carrusel"
         ordering = ['orden']
+
+
+EXTENSIONES_RECURSO = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'odt', 'odp', 'ods',
+                       'jpg', 'jpeg', 'png', 'mp3', 'mp4', 'zip', 'ggb']
+
+
+class RecursoEducativo(models.Model):
+    """Un recurso de la sección «Recursos educativos» del portal: un enlace
+    (Khan Academy, un video, una plataforma) o un archivo (guía, taller…)."""
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='recursos_educativos')
+    titulo = models.CharField(max_length=150, verbose_name='Título')
+    descripcion = models.CharField(max_length=300, blank=True, verbose_name='Descripción breve')
+    categoria = models.CharField(max_length=80, blank=True, verbose_name='Categoría',
+                                 help_text='Agrupa los recursos en el portal. Ej.: Plataformas gratuitas, Guías de grado 6.°')
+    enlace = models.URLField(max_length=500, blank=True, verbose_name='Enlace (opcional)')
+    archivo = models.FileField(upload_to='recursos_portal/', blank=True, verbose_name='Archivo (opcional)')
+    orden = models.PositiveSmallIntegerField(default=0, verbose_name='Orden')
+    visible = models.BooleanField(default=True, verbose_name='Visible en el portal')
+    creado = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = 'Recurso educativo'
+        verbose_name_plural = 'Recursos educativos'
+        ordering = ['categoria', 'orden', 'titulo']
+
+    def __str__(self):
+        return self.titulo
+
+    @property
+    def url(self):
+        if self.archivo:
+            return self.archivo.url
+        return self.enlace

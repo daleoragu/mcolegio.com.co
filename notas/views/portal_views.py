@@ -270,21 +270,18 @@ def ajax_modelo_pedagogico(request):
     return render(request, 'notas/portal_components/_contenido_modelo.html', {'colegio': request.colegio})
 
 def ajax_recursos_educativos(request):
-    """
-    Placeholder para la vista de recursos educativos.
-    """
-    return HttpResponse("<p class='text-center'>Sección de Recursos Educativos en construcción.</p>")
+    """Los recursos educativos que el colegio publicó, agrupados por categoría.
+    Si todavía no ha publicado ninguno, se muestran unos sugeridos."""
+    from ..models import RecursoEducativo
+    grupos = {}
+    if request.colegio:
+        for r in RecursoEducativo.objects.filter(colegio=request.colegio, visible=True):
+            grupos.setdefault(r.categoria or 'Recursos', []).append(r)
+    return render(request, 'notas/portal_components/_contenido_recursos_educativos.html',
+                  {'colegio': request.colegio, 'grupos': list(grupos.items())})
 
 def ajax_redes_sociales(request):
-    """
-    Devuelve las redes sociales del colegio en formato JSON para ser usadas por JS.
-    """
+    """La sección «Redes sociales» del portal (antes devolvía JSON y el portal lo mostraba crudo)."""
     if not request.colegio:
-        return JsonResponse({'error': 'Colegio no encontrado'}, status=404)
-    data = {
-        'facebook': request.colegio.url_facebook,
-        'instagram': request.colegio.url_instagram,
-        'tiktok': request.colegio.url_tiktok,
-        'youtube': request.colegio.url_youtube,
-    }
-    return JsonResponse(data)
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    return render(request, 'notas/portal_components/_contenido_redes_sociales.html', {'colegio': request.colegio})

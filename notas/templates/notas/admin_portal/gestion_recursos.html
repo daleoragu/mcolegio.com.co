@@ -1,0 +1,77 @@
+{% extends "notas/base.html" %}
+
+{% block page_title %}
+    <h1>Recursos educativos</h1>
+    <a href="{% url 'notas:configuracion_portal' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-2"></i>Volver al Panel</a>
+{% endblock %}
+
+{% block content %}
+<p class="text-muted">Lo que agregue aquí sale en el portal, en <strong>Comunidad → Recursos educativos</strong>, agrupado por categoría.
+    Puede pegar un enlace (una plataforma, un video, una carpeta de Drive) o subir un archivo (guía, taller, presentación).
+    {% if not recursos %}Mientras no agregue ninguno, el portal muestra unos recursos sugeridos (Khan Academy, Colombia Aprende…).{% endif %}</p>
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card" id="formulario-recurso">
+            <div class="card-header"><h5 class="mb-0">{% if recurso %}Editar «{{ recurso.titulo }}»{% else %}<i class="fas fa-plus me-1"></i>Agregar recurso{% endif %}</h5></div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data"{% if recurso %} action="{% url 'notas:editar_recurso' recurso.pk %}"{% else %} action="{% url 'notas:gestion_recursos' %}"{% endif %}>
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>{% endif %}
+                    {% for campo in form %}
+                        {% if campo.name == 'visible' %}
+                        <div class="form-check mb-3">{{ campo }} <label class="form-check-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label></div>
+                        {% else %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                            {{ campo }}
+                            {% if campo.help_text %}<div class="form-text">{{ campo.help_text }}</div>{% endif %}
+                            {% for e in campo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    <datalist id="categorias-recursos">{% for c in categorias %}<option value="{{ c }}">{% endfor %}</datalist>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success flex-grow-1"><i class="fas fa-save me-1"></i>Guardar recurso</button>
+                        {% if recurso %}<a href="{% url 'notas:gestion_recursos' %}" class="btn btn-outline-secondary">Cancelar</a>{% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Publicados ({{ recursos|length }})</h5>
+                <a href="{% url 'notas:portal' %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">Ver portal <i class="fas fa-up-right-from-square ms-1"></i></a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light"><tr><th>Recurso</th><th>Categoría</th><th class="text-center">Tipo</th><th></th></tr></thead>
+                    <tbody>
+                    {% for r in recursos %}
+                    <tr{% if not r.visible %} class="text-muted"{% endif %}>
+                        <td><a href="{{ r.url }}" target="_blank" rel="noopener noreferrer">{{ r.titulo }}</a>
+                            {% if not r.visible %}<span class="badge bg-secondary ms-1">Oculto</span>{% endif %}
+                            {% if r.descripcion %}<div class="small text-muted">{{ r.descripcion|truncatechars:80 }}</div>{% endif %}</td>
+                        <td>{{ r.categoria|default:"Recursos" }}</td>
+                        <td class="text-center">{% if r.archivo %}<i class="fas fa-file" title="Archivo"></i>{% else %}<i class="fas fa-link" title="Enlace"></i>{% endif %}</td>
+                        <td class="text-end text-nowrap">
+                            <a href="{% url 'notas:editar_recurso' r.pk %}" class="btn btn-sm btn-outline-secondary" title="Editar"><i class="fas fa-pen"></i></a>
+                            <form action="{% url 'notas:eliminar_recurso' r.pk %}" method="POST" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar" onclick="return confirm('¿Eliminar este recurso?');"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-4">Aún no hay recursos. Agregue el primero con el formulario.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

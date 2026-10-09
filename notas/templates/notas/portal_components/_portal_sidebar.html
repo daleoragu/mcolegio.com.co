@@ -1,14 +1,14 @@
 {% load static %}
 <div class="sidebar-container d-flex flex-column flex-shrink-0 p-3">
     
-    <a href="#" data-action="inicio" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-decoration-none sidebar-brand">
+    <a href="#" data-action="inicio" class="d-flex align-items-center text-decoration-none sidebar-brand">
         {% if colegio.escudo %}
             <img src="{{ colegio.escudo.url }}" alt="Escudo de {{ colegio.nombre }}" class="sidebar-logo">
         {% else %}
             <!-- Icono de fallback si no hay escudo -->
-            <i class="fas fa-school fa-2x me-2"></i>
+            <i class="fas fa-school fa-3x"></i>
         {% endif %}
-        <span class="fs-5 sidebar-title">{{ colegio.nombre|truncatewords:4 }}</span>
+        <span class="sidebar-title">{{ colegio.nombre }}</span>
     </a>
     <hr class="sidebar-divider">
     <ul class="nav nav-pills flex-column mb-auto">
@@ -41,7 +41,7 @@
                 <i class="fas fa-users fa-fw me-2"></i>Comunidad
             </a>
             <ul class="collapse nav flex-column ms-1" id="comunidad-submenu" data-bs-parent="#menu">
-                <li><a class="nav-link" href="#" data-action="recursos"><i class="fas fa-book fa-fw me-2"></i> Recursos</a></li>
+                <li><a class="nav-link" href="#" data-action="recursos"><i class="fas fa-book fa-fw me-2"></i> Recursos educativos</a></li>
                 <li><a class="nav-link" href="#" data-action="galeria"><i class="fas fa-images fa-fw me-2"></i> Galería</a></li>
                 <li><a class="nav-link" href="#" data-action="documentos"><i class="fas fa-file-alt fa-fw me-2"></i> Documentos</a></li>
                 <li><a class="nav-link" href="#" data-action="redes"><i class="fas fa-share-alt fa-fw me-2"></i> Redes Sociales</a></li>
