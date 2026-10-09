@@ -1,0 +1,7 @@
+{# El campo «…o pegue un enlace» de los formularios que aceptan archivo o enlace. #}
+<div class="mt-2">
+    <label for="{{ form.enlace_pegado.id_for_label }}" class="form-label small fw-semibold mb-1">{{ form.enlace_pegado.label }}</label>
+    {{ form.enlace_pegado }}
+    <div class="form-text">{{ form.enlace_pegado.help_text }}</div>
+    {% for e in form.enlace_pegado.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+</div>

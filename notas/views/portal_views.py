@@ -225,7 +225,7 @@ def documentos_publicos_json(request):
     if not request.colegio:
         return JsonResponse({'error': 'Colegio no encontrado'}, status=404)
     documentos = DocumentoPublico.objects.filter(colegio=request.colegio).order_by('-fecha_publicacion')
-    data = [{'titulo': doc.titulo, 'descripcion': doc.descripcion, 'url_archivo': doc.archivo.url, 'fecha': doc.fecha_publicacion.strftime('%d de %B, %Y')} for doc in documentos]
+    data = [{'titulo': doc.titulo, 'descripcion': doc.descripcion, 'url_archivo': doc.url, 'fecha': doc.fecha_publicacion.strftime('%d de %B, %Y')} for doc in documentos]
     return JsonResponse(data, safe=False)
 
 def noticias_json(request):
@@ -236,7 +236,7 @@ def noticias_json(request):
         return JsonResponse({'error': 'Colegio no encontrado'}, status=404)
     noticias = Noticia.objects.filter(colegio=request.colegio, estado='PUBLICADO').order_by('-fecha_publicacion')[:5]
     data = [
-        {'pk': n.pk, 'titulo': n.titulo, 'resumen': n.resumen, 'url_imagen': n.imagen_portada.url if n.imagen_portada else '',
+        {'pk': n.pk, 'titulo': n.titulo, 'resumen': n.resumen, 'url_imagen': n.url_portada,
          # date_format usa el idioma del sitio (octubre, no October); strftime no.
          'fecha': date_format(timezone.localtime(n.fecha_publicacion), 'j \\d\\e F \\d\\e Y'),
          'autor': (n.autor.get_full_name() or n.autor.username) if n.autor_id else 'el colegio'}
@@ -251,7 +251,7 @@ def carrusel_imagenes_json(request):
     if not request.colegio:
         return JsonResponse({'error': 'Colegio no encontrado'}, status=404)
     imagenes = ImagenCarrusel.objects.filter(colegio=request.colegio, visible=True).order_by('orden')
-    data = [{'url_imagen': img.imagen.url, 'titulo': img.titulo, 'subtitulo': img.subtitulo} for img in imagenes]
+    data = [{'url_imagen': img.url_imagen, 'titulo': img.titulo, 'subtitulo': img.subtitulo} for img in imagenes]
     return JsonResponse(data, safe=False)
 
 def ajax_noticia_detalle(request, pk):

@@ -69,11 +69,12 @@
             <div class="mb-3">
                 <label for="{{ form.imagen_portada.id_for_label }}" class="form-label">{{ form.imagen_portada.label }}</label>
                 {{ form.imagen_portada }}
-                {% if form.instance.imagen_portada %}
+                {% if form.instance.url_portada %}
                     <div class="mt-2">
-                        <small>Imagen actual: <a href="{{ form.instance.imagen_portada.url }}" target="_blank">{{ form.instance.imagen_portada.name }}</a></small>
+                        <img src="{{ form.instance.url_portada }}" alt="" class="rounded" style="max-height:90px;" referrerpolicy="no-referrer">
                     </div>
                 {% endif %}
+                {% include "notas/portal_components/_campo_enlace.html" %}
                 <!-- INICIO DE LA CORRECCIÓN: Mostrar errores de este campo -->
                 {% if form.imagen_portada.errors %}
                     <div class="text-danger small mt-1">

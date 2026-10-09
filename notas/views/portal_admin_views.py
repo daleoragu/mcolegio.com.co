@@ -250,7 +250,7 @@ def editar_imagen_carrusel_vista(request, pk):
     context = {
         'form': form,
         'page_title': f'Editando Imagen: {imagen.titulo}',
-        'colegio': colegio
+        'colegio': request.colegio
     }
     return render(request, 'notas/admin_portal/editar_imagen_carrusel.html', context)
 

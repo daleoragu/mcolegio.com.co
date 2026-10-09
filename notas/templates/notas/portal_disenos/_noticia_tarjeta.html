@@ -1,6 +1,6 @@
 <article class="pd-noticia">
-    <a href="#" class="noticia-link pd-noticia-img" data-pk="{{ n.pk }}" {% if n.imagen_portada %}style="background-image:url('{{ n.imagen_portada.url }}')"{% endif %}>
-        {% if not n.imagen_portada %}<i class="fas fa-newspaper"></i>{% endif %}
+    <a href="#" class="noticia-link pd-noticia-img" data-pk="{{ n.pk }}" {% if n.url_portada %}style="background-image:url('{{ n.url_portada }}')"{% endif %}>
+        {% if not n.url_portada %}<i class="fas fa-newspaper"></i>{% endif %}
     </a>
     <div class="pd-noticia-cuerpo">
         <time>{{ n.fecha_publicacion|date:"j \d\e F, Y" }}</time>

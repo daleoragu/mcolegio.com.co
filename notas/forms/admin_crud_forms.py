@@ -400,8 +400,12 @@ class EscalaValoracionForm(forms.ModelForm):
 # SEDES
 # ==============================================================================
 
-class SedeForm(forms.ModelForm):
-    """Datos de una sede. Jornadas y niveles se marcan con casillas."""
+from .portal_forms import ArchivoOEnlaceMixin  # noqa: E402
+
+
+class SedeForm(ArchivoOEnlaceMixin, forms.ModelForm):
+    """Datos de una sede. Jornadas y niveles se marcan con casillas. La foto se sube o se enlaza."""
+    campo_archivo, campo_enlace, tipo, obligatorio = 'foto', 'foto_enlace', 'imagen', False
     jornadas = forms.MultipleChoiceField(
         label='Jornadas', required=False, widget=forms.CheckboxSelectMultiple,
         choices=[])
@@ -437,6 +441,17 @@ class SedeForm(forms.ModelForm):
         if self.instance.pk:
             self.initial['jornadas'] = [j for j in self.instance.jornadas.split(',') if j]
             self.initial['niveles'] = [n for n in self.instance.niveles.split(',') if n]
+        self._preparar_enlace()
+
+    def clean(self):
+        return self._limpiar_enlace(super().clean())
+
+    def save(self, commit=True):
+        obj = self._guardar_enlace(super().save(commit=False))
+        if commit:
+            obj.save()
+            self.save_m2m()
+        return obj
 
     def clean_nombre(self):
         from ..models.perfiles import Sede

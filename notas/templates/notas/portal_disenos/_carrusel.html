@@ -7,7 +7,7 @@
     <div class="carousel-inner">
         {% for img in inicio.carrusel %}
         <div class="carousel-item {% if forloop.first %}active{% endif %}">
-            <div class="pd-carrusel-img" style="background-image:url('{{ img.imagen.url }}')"></div>
+            <div class="pd-carrusel-img" style="background-image:url('{{ img.url_imagen }}')"></div>
             {% if img.titulo or img.subtitulo %}
             <div class="pd-carrusel-texto"><h2>{{ img.titulo }}</h2>{% if img.subtitulo %}<p>{{ img.subtitulo }}</p>{% endif %}</div>
             {% endif %}

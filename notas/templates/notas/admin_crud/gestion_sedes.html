@@ -41,8 +41,8 @@
     {% for s in sedes %}
     <div class="col-md-6 col-xl-4">
         <div class="sede-card"{% if not s.activa %} style="opacity:.6;"{% endif %}>
-            <div class="sede-foto" {% if s.foto %}style="background-image:url('{{ s.foto.url }}')"{% endif %}>
-                {% if not s.foto %}<i class="fas fa-school"></i>{% endif %}
+            <div class="sede-foto" {% if s.url_foto %}style="background-image:url('{{ s.url_foto }}')"{% endif %}>
+                {% if not s.url_foto %}<i class="fas fa-school"></i>{% endif %}
             </div>
             <div class="sede-cuerpo">
                 <h5>{{ s.nombre }}

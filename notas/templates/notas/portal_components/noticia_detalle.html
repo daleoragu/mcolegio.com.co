@@ -28,8 +28,8 @@ de la imagen de portada ajustado.
             <i class="fas fa-calendar-alt me-1"></i> {{ noticia.fecha_publicacion|date:"d \d\e F \d\e Y" }}
         </p>
 
-        {% if noticia.imagen_portada %}
-            <img src="{{ noticia.imagen_portada.url }}" class="img-fluid rounded shadow-sm my-4" alt="{{ noticia.titulo }}" style="max-height: 200px; width: 100%; object-fit: cover;">
+        {% if noticia.url_portada %}
+            <img src="{{ noticia.url_portada }}" class="img-fluid rounded shadow-sm my-4" alt="{{ noticia.titulo }}" style="max-height: 200px; width: 100%; object-fit: cover;">
         {% endif %}
         
         <div class="cuerpo-noticia">

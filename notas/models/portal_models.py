@@ -11,11 +11,16 @@ class DocumentoPublico(models.Model):
     titulo = models.CharField(max_length=200, verbose_name="Título del Documento")
     descripcion = models.TextField(blank=True, verbose_name="Descripción Breve")
     # RUTA CORREGIDA: Se elimina 'media/'.
-    archivo = models.FileField(upload_to='documentos_publicos/', verbose_name="Archivo (PDF, Word, etc.)")
+    archivo = models.FileField(upload_to='documentos_publicos/', verbose_name="Archivo (PDF, Word, etc.)", blank=True)
+    enlace = models.URLField(max_length=500, blank=True, verbose_name='Enlace')   # en vez del archivo: Drive, OneDrive…
     fecha_publicacion = models.DateTimeField(default=timezone.now, verbose_name="Fecha de Publicación")
     
     def __str__(self):
         return self.titulo
+
+    @property
+    def url(self):
+        return self.archivo.url if self.archivo else self.enlace
 
     class Meta:
         verbose_name = "Documento Público"
@@ -64,12 +69,17 @@ class Noticia(models.Model):
     cuerpo = models.TextField(verbose_name="Contenido Completo de la Noticia")
     # RUTA CORREGIDA:
     imagen_portada = models.ImageField(upload_to='noticias_portal/', verbose_name="Imagen de Portada", null=True, blank=True)
+    imagen_enlace = models.URLField(max_length=500, blank=True)   # en vez de subirla: Drive o enlace directo
     fecha_publicacion = models.DateTimeField(default=timezone.now)
     autor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='BORRADOR')
 
     def __str__(self):
         return self.titulo
+
+    @property
+    def url_portada(self):
+        return self.imagen_portada.url if self.imagen_portada else self.imagen_enlace
 
     class Meta:
         verbose_name = "Noticia"
@@ -82,12 +92,17 @@ class ImagenCarrusel(models.Model):
     titulo = models.CharField(max_length=100, blank=True)
     subtitulo = models.CharField(max_length=200, blank=True)
     # RUTA CORREGIDA:
-    imagen = models.ImageField(upload_to='carrusel_portal/', verbose_name="Imagen de fondo")
+    imagen = models.ImageField(upload_to='carrusel_portal/', verbose_name="Imagen de fondo", blank=True)
+    imagen_enlace = models.URLField(max_length=500, blank=True)   # en vez de subirla: Drive o enlace directo
     orden = models.PositiveIntegerField(default=0)
     visible = models.BooleanField(default=True)
     
     def __str__(self):
         return self.titulo or f"Imagen {self.id}"
+
+    @property
+    def url_imagen(self):
+        return self.imagen.url if self.imagen else self.imagen_enlace
 
     class Meta:
         verbose_name = "Imagen del Carrusel"

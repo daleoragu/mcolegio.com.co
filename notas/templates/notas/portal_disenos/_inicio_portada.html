@@ -23,6 +23,6 @@
 {% if inicio.fotos %}
 <section class="pd-seccion pt-0"><div class="container">
     <h2 class="pd-titulo">Vida escolar</h2>
-    <div class="pd-galeria">{% for f in inicio.fotos|slice:":6" %}<a href="#" data-action="galeria" style="background-image:url('{{ f.imagen.url }}')" title="{{ f.titulo }}"></a>{% endfor %}</div>
+    <div class="pd-galeria">{% for f in inicio.fotos|slice:":6" %}<a href="#" data-action="galeria" style="background-image:url('{{ f.url_imagen }}')" title="{{ f.titulo }}"></a>{% endfor %}</div>
 </div></section>
 {% endif %}

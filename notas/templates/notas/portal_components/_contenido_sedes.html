@@ -23,8 +23,8 @@
 <div class="sedes-grid">
   {% for s in sedes %}
   <div class="sede-p">
-    <div class="sede-p-foto" {% if s.foto %}style="background-image:url('{{ s.foto.url }}')"{% endif %}>
-      {% if not s.foto %}<i class="fas fa-school"></i>{% endif %}
+    <div class="sede-p-foto" {% if s.url_foto %}style="background-image:url('{{ s.url_foto }}')"{% endif %}>
+      {% if not s.url_foto %}<i class="fas fa-school"></i>{% endif %}
       {% if s.es_principal %}<span class="sede-p-principal">Sede principal</span>{% endif %}
     </div>
     <div class="sede-p-cuerpo">
