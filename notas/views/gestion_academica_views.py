@@ -7,6 +7,8 @@ from django.db import transaction, IntegrityError
 from django.db.models import Sum, Prefetch, OuterRef, Subquery
 from django.views.decorators.http import require_POST
 from django.http import HttpResponseNotFound
+from django.urls import reverse
+from decimal import Decimal
 
 from ..models import (
     Curso, AreaConocimiento, Materia, Docente, AsignacionDocente,
@@ -472,36 +474,93 @@ def eliminar_materia_vista(request, materia_id):
         messages.error(request, f"No se pudo eliminar la materia. Puede que esté asignada a un docente o tenga notas registradas.")
     return redirect('notas:gestion_materias')
 
+def _grado_pedido(valor, grados):
+    try:
+        g = int(valor)
+    except (TypeError, ValueError):
+        return None
+    return g if g in grados else None
+
+
 @user_passes_test(es_personal_admin)
 @transaction.atomic
 def gestion_ponderacion_areas_vista(request):
-    if not request.colegio:
+    """Peso de cada materia en su área: los generales y, si hace falta, los de cada grado.
+
+    Ej.: en Ciencias Naturales, 6.° puede ser Biología 60 / Química 20 / Física 20 y
+    10.° Biología 20 / Química 40 / Física 40. Un grado sin porcentajes propios usa
+    los generales.
+    """
+    from ..models.perfiles import GRADOS
+    from ..pesos_area import grados_con_pesos_propios, guardar_grado, pesos_areas, volver_al_general
+    colegio = request.colegio
+    if not colegio:
         return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    nombres_grado = {g: n for g, n, _ in GRADOS}
+    grados = sorted(set(Curso.objects.filter(colegio=colegio).exclude(grado__isnull=True).values_list('grado', flat=True)))
+    grado = _grado_pedido(request.POST.get('grado') if request.method == 'POST' else request.GET.get('grado'), grados)
+    url = reverse('notas:gestion_ponderacion_areas') + (f'?grado={grado}' if grado is not None else '')
+
     if request.method == 'POST':
-        for key, value in request.POST.items():
-            if key.startswith('peso-'):
-                try:
-                    ponderacion_id = int(key.split('-')[1])
-                    peso = float(value.replace(',', '.'))
-                    ponderacion = get_object_or_404(PonderacionAreaMateria, id=ponderacion_id, colegio=request.colegio)
-                    ponderacion.peso_porcentual = peso
-                    ponderacion.save()
-                except (ValueError, IndexError, PonderacionAreaMateria.DoesNotExist):
-                    continue
-        messages.success(request, '¡Ponderaciones actualizadas correctamente!')
-        return redirect('notas:gestion_ponderacion_areas')
+        if request.POST.get('accion') == 'general' and grado is not None:
+            n = volver_al_general(colegio, grado)
+            messages.success(request, f'{nombres_grado[grado]} vuelve a usar los porcentajes generales ({n} porcentaje(s) propios borrados).')
+            return redirect(url)
+        valores = {}
+        for clave, valor in request.POST.items():
+            if not clave.startswith('peso-'):
+                continue
+            try:
+                _, area_id, materia_id = clave.split('-')
+                peso = Decimal(str(valor).replace(',', '.'))
+            except (ValueError, ArithmeticError):
+                continue
+            if Decimal('0') <= peso <= Decimal('100'):
+                valores[(int(area_id), int(materia_id))] = peso
+        if grado is None:
+            for (area_id, materia_id), peso in valores.items():
+                PonderacionAreaMateria.objects.filter(colegio=colegio, area_id=area_id, materia_id=materia_id).update(
+                    peso_porcentual=peso)
+            messages.success(request, 'Porcentajes generales guardados. Los usan todos los grados que no tienen los suyos.')
+        else:
+            destinos = [grado] + [g for g in (_grado_pedido(x, grados) for x in request.POST.getlist('copiar_a'))
+                                  if g is not None and g != grado]
+            for g in destinos:
+                guardar_grado(colegio, g, valores)
+            messages.success(request, 'Porcentajes guardados para ' + ', '.join(nombres_grado[g] for g in destinos) + '.')
+        return redirect(url)
 
-    ponderaciones_prefetch = Prefetch(
-        'ponderacionareamateria_set',
-        queryset=PonderacionAreaMateria.objects.filter(colegio=request.colegio).select_related('materia').order_by('materia__nombre'),
-        to_attr='ponderaciones'
-    )
-    
-    areas = AreaConocimiento.objects.filter(colegio=request.colegio).prefetch_related(ponderaciones_prefetch).order_by('nombre')
+    generales = pesos_areas(colegio)
+    actuales = pesos_areas(colegio, grado) if grado is not None else generales
+    propios = set()
+    dictadas = None
+    if grado is not None:
+        from ..models.academicos import PonderacionGrado
+        propios = set(PonderacionGrado.objects.filter(colegio=colegio, grado=grado).values_list('area_id', 'materia_id'))
+        dictadas = set(AsignacionDocente.objects.filter(colegio=colegio, curso__grado=grado).values_list('materia_id', flat=True))
 
+    areas = []
+    for area in AreaConocimiento.objects.filter(colegio=colegio).order_by('nombre'):
+        filas = []
+        for p in (PonderacionAreaMateria.objects.filter(colegio=colegio, area=area).select_related('materia')
+                  .order_by('materia__nombre')):
+            if dictadas and p.materia_id not in dictadas:
+                continue
+            clave = (area.id, p.materia_id)
+            filas.append({'materia': p.materia, 'peso': actuales.get(clave, p.peso_porcentual),
+                          'general': generales.get(clave), 'propio': clave in propios,
+                          'nombre_campo': f'peso-{area.id}-{p.materia_id}'})
+        if filas or grado is None:
+            areas.append({'area': area, 'filas': filas, 'propio': any(f['propio'] for f in filas)})
+
+    con_propios = grados_con_pesos_propios(colegio)
     context = {
-        'areas_con_ponderaciones': areas,
+        'areas': areas,
+        'grado': grado,
+        'nombre_grado': nombres_grado.get(grado, ''),
+        'grados': [{'valor': g, 'nombre': nombres_grado.get(g, g), 'propios': g in con_propios} for g in grados],
+        'sin_asignacion': grado is not None and not dictadas,
         'titulo': "Gestión de Ponderación por Áreas",
-        'colegio': request.colegio,
+        'colegio': colegio,
     }
     return render(request, 'notas/admin_crud/ponderacion_areas.html', context)

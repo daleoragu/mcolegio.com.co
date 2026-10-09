@@ -5,166 +5,144 @@
 
 {% block extra_css %}
 <style>
-    /* Estilos para la tabla principal */
-    .table-ponderacion {
-        border: 1px solid #dee2e6;
-    }
-    .table-ponderacion thead th {
-        background-color: #343a40; /* Fondo oscuro para la cabecera */
-        color: white;
-        text-align: center;
-        vertical-align: middle;
-    }
-    /* Estilo para la celda del nombre del Área y Acciones que usan rowspan */
-    .area-cell {
-        background-color: #f8f9fa; /* Un fondo gris claro para destacar el área */
-        font-weight: bold;
-        vertical-align: middle !important;
-        text-align: center;
-        border-right: 1px solid #dee2e6;
-    }
-    .actions-cell {
-        background-color: #f8f9fa;
-        vertical-align: middle !important;
-        text-align: center;
-        border-left: 1px solid #dee2e6;
-    }
-    /* Estilo para la fila de la suma total de un área */
-    .total-row td {
-        background-color: #f8f9fa;
-        border-top: 2px solid #dee2e6; /* Línea más gruesa para separar áreas */
-    }
-    .table th, .table td {
-        vertical-align: middle;
-    }
-    /* Estilos para el div que muestra la suma */
-    .sum-total {
-        font-weight: bold;
-        font-size: 1.1rem;
-        padding: 0.5rem;
-        border-radius: 0.25rem;
-        transition: all 0.3s ease;
-    }
-    .sum-ok {
-        color: #198754;
-        background-color: #d1e7dd;
-    }
-    .sum-error {
-        color: #dc3545;
-        background-color: #f8d7da;
-    }
+    .table-ponderacion { border: 1px solid #dee2e6; }
+    .table-ponderacion thead th { background-color: #343a40; color: white; text-align: center; vertical-align: middle; }
+    .area-cell { background-color: #f8f9fa; font-weight: bold; vertical-align: middle !important; text-align: center; border-right: 1px solid #dee2e6; }
+    .actions-cell { background-color: #f8f9fa; vertical-align: middle !important; text-align: center; border-left: 1px solid #dee2e6; }
+    .total-row td { background-color: #f8f9fa; border-top: 2px solid #dee2e6; }
+    .table th, .table td { vertical-align: middle; }
+    .sum-total { font-weight: bold; font-size: 1.05rem; padding: .4rem; border-radius: .25rem; transition: all .3s ease; }
+    .sum-ok { color: #198754; background-color: #d1e7dd; }
+    .sum-error { color: #dc3545; background-color: #f8d7da; }
+    .pg-barra { background:#fff; border:1px solid #e3e6ec; border-radius:12px; padding:14px 18px; }
+    .pg-barra .form-select { max-width: 280px; }
+    .pg-general { font-size: .76rem; color: #6b7280; }
+    .pg-propio { font-size: .7rem; }
+    .pg-copiar label { margin-right: .9rem; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container py-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
             <h1 class="mb-0">Gestión de Ponderación por Áreas</h1>
-            <p class="lead text-muted mb-0">
-                Asigne el peso porcentual y añada materias a cada área.
-            </p>
+            <p class="lead text-muted mb-0">Cuánto pesa cada materia dentro de su área. Puede ser igual para todos los grados o distinto en algunos.</p>
         </div>
-        <div>
-            <a href="{% url 'notas:admin_dashboard' %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left me-2"></i>Volver
-            </a>
-            <a href="{% url 'notas:crear_area' %}" class="btn btn-primary">
-                <i class="fas fa-plus me-2"></i>Crear Área
-            </a>
+        <div class="text-nowrap">
+            <a href="{% url 'notas:admin_dashboard' %}" class="btn btn-secondary"><i class="fas fa-arrow-left me-2"></i>Volver</a>
+            <a href="{% url 'notas:crear_area' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Crear Área</a>
         </div>
     </div>
 
-    <form method="POST">
+    <form method="get" class="pg-barra d-flex flex-wrap align-items-center gap-3 mb-3">
+        <label for="pg-grado" class="fw-bold mb-0"><i class="fas fa-layer-group me-1"></i>Porcentajes de</label>
+        <select name="grado" id="pg-grado" class="form-select" onchange="this.form.submit()">
+            <option value="">Todos los grados (generales)</option>
+            {% for g in grados %}
+            <option value="{{ g.valor }}" {% if g.valor == grado %}selected{% endif %}>{{ g.nombre }}{% if g.propios %} · propios{% endif %}</option>
+            {% endfor %}
+        </select>
+        <noscript><button class="btn btn-outline-primary btn-sm">Ver</button></noscript>
+        <span class="text-muted small">
+            {% if grado is None %}
+                Los usan todos los grados que no tienen porcentajes propios. Si en un grado las materias pesan distinto (por ejemplo Física y Química en la media), escójalo arriba.
+            {% else %}
+                Solo salen las materias que se dictan en {{ nombre_grado }}. Lo que guarde aquí aplica únicamente a este grado.
+            {% endif %}
+        </span>
+        <a href="{% url 'notas:importacion_datos' %}" class="ms-auto small"><i class="fas fa-file-excel me-1"></i>Importar desde Excel</a>
+    </form>
+
+    {% if sin_asignacion %}
+    <div class="alert alert-warning py-2">{{ nombre_grado }} todavía no tiene asignación académica: se muestran todas las materias de cada área.</div>
+    {% endif %}
+
+    <form method="POST" id="pg-form">
         {% csrf_token %}
+        <input type="hidden" name="grado" value="{% if grado is not None %}{{ grado }}{% endif %}">
         <div class="card shadow-sm">
             <div class="card-body p-0">
+                <div class="table-responsive">
                 <table class="table table-bordered table-hover table-ponderacion mb-0">
                     <thead>
                         <tr>
-                            <th style="width: 25%;">Área de Conocimiento</th>
+                            <th style="width: 28%;">Área de Conocimiento</th>
                             <th>Materia</th>
-                            <th style="width: 150px;">Ponderación (%)</th>
+                            <th style="width: 170px;">Ponderación (%){% if grado is not None %}<div class="fw-normal small">en {{ nombre_grado }}</div>{% endif %}</th>
                             <th style="width: 180px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for area in areas_con_ponderaciones %}
-                            {% if area.ponderaciones %}
-                                {% for p in area.ponderaciones %}
-                                <tr>
-                                    {% if forloop.first %}
-                                    <td class="area-cell" rowspan="{{ area.ponderaciones|length|add:1 }}">
-                                        {{ area.nombre }}
-                                    </td>
-                                    {% endif %}
-                                    <td>{{ p.materia.nombre }}</td>
-                                    <td>
-                                        <input type="number" 
-                                               class="form-control form-control-sm porcentaje-input"
-                                               name="peso-{{ p.id }}" 
-                                               value="{{ p.peso_porcentual|stringformat:"g" }}" 
-                                               min="0" 
-                                               max="100" 
-                                               step="0.01"
-                                               data-area-id="{{ area.id }}"
-                                               required>
-                                    </td>
-                                    {% if forloop.first %}
-                                    <td class="actions-cell" rowspan="{{ area.ponderaciones|length|add:1 }}">
-                                        <!-- 👇 BOTÓN CORREGIDO 👇 -->
-                                        <a href="{% url 'notas:gestion_materias' %}" class="btn btn-sm btn-outline-info">
-                                            <i class="fas fa-tasks me-1"></i> Gestionar Materias
-                                        </a>
-                                    </td>
-                                    {% endif %}
-                                </tr>
-                                {% endfor %}
-                                <tr class="total-row">
-                                    <td colspan="2" class="text-end fw-bold px-3">Suma Total:</td>
-                                    <td>
-                                        <div class="sum-total text-center" id="sum-area-{{ area.id }}"></div>
-                                    </td>
-                                </tr>
-                            {% else %}
-                                <!-- Caso para un área sin materias -->
-                                <tr>
-                                    <td class="area-cell">{{ area.nombre }}</td>
-                                    <td colspan="2" class="text-center text-muted fst-italic">
-                                        No hay materias asignadas.
-                                    </td>
-                                    <td class="actions-cell">
-                                        <!-- 👇 BOTÓN CORREGIDO 👇 -->
-                                        <a href="{% url 'notas:gestion_materias' %}" class="btn btn-sm btn-info">
-                                            <i class="fas fa-tasks me-1"></i> Gestionar Materias
-                                        </a>
-                                    </td>
-                                </tr>
-                            {% endif %}
-                        {% empty %}
-                        <!-- Mensaje si no hay áreas creadas -->
-                        <tr>
-                            <td colspan="4" class="text-center p-5">
-                                <div class="alert alert-info mb-0">
-                                    <h4 class="alert-heading">¡No se encontraron áreas de conocimiento!</h4>
-                                    <p>Para comenzar, por favor, crea tu primera área de conocimiento.</p>
-                                    <a href="{% url 'notas:crear_area' %}" class="btn btn-primary">
-                                        <i class="fas fa-plus me-2"></i>Crear la primera Área
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
+                    {% for a in areas %}
+                        {% if a.filas %}
+                            {% for f in a.filas %}
+                            <tr>
+                                {% if forloop.first %}
+                                <td class="area-cell" rowspan="{{ a.filas|length|add:1 }}">
+                                    {{ a.area.nombre }}
+                                    {% if grado is not None %}<div class="mt-1">{% if a.propio %}<span class="badge bg-primary pg-propio">Propios de {{ nombre_grado }}</span>{% else %}<span class="badge bg-light text-dark border pg-propio">Usa los generales</span>{% endif %}</div>{% endif %}
+                                </td>
+                                {% endif %}
+                                <td>{{ f.materia.nombre }}</td>
+                                <td>
+                                    <input type="number" class="form-control form-control-sm porcentaje-input" name="{{ f.nombre_campo }}"
+                                           value="{{ f.peso|stringformat:'g' }}" min="0" max="100" step="0.01" data-area-id="{{ a.area.id }}" required>
+                                    {% if grado is not None %}<div class="pg-general">General: {{ f.general|stringformat:'g' }} %</div>{% endif %}
+                                </td>
+                                {% if forloop.first %}
+                                <td class="actions-cell" rowspan="{{ a.filas|length|add:1 }}">
+                                    <a href="{% url 'notas:gestion_materias' %}" class="btn btn-sm btn-outline-info"><i class="fas fa-tasks me-1"></i> Gestionar Materias</a>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                            <tr class="total-row">
+                                <td class="text-end fw-bold px-3">Suma Total:</td>
+                                <td><div class="sum-total text-center" id="sum-area-{{ a.area.id }}"></div></td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td class="area-cell">{{ a.area.nombre }}</td>
+                                <td colspan="2" class="text-center text-muted fst-italic">No hay materias asignadas.</td>
+                                <td class="actions-cell"><a href="{% url 'notas:gestion_materias' %}" class="btn btn-sm btn-info"><i class="fas fa-tasks me-1"></i> Gestionar Materias</a></td>
+                            </tr>
+                        {% endif %}
+                    {% empty %}
+                        <tr><td colspan="4" class="text-center p-5">
+                            <div class="alert alert-info mb-0">
+                                <h4 class="alert-heading">¡No se encontraron áreas de conocimiento!</h4>
+                                <p>Para comenzar, cree la primera área de conocimiento.</p>
+                                <a href="{% url 'notas:crear_area' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Crear la primera Área</a>
+                            </div>
+                        </td></tr>
+                    {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
 
-        {% if areas_con_ponderaciones %}
-        <div class="mt-4 text-center">
+        {% if areas %}
+        {% if grado is not None and grados|length > 1 %}
+        <div class="pg-barra mt-3 pg-copiar">
+            <div class="fw-bold mb-1"><i class="fas fa-copy me-1"></i>Usar estos mismos porcentajes también en:</div>
+            {% for g in grados %}{% if g.valor != grado %}
+            <label class="form-check-label"><input type="checkbox" class="form-check-input me-1" name="copiar_a" value="{{ g.valor }}">{{ g.nombre }}</label>
+            {% endif %}{% endfor %}
+            <div class="small text-muted mt-1">Por ejemplo, si 10.° y 11.° tienen la misma distribución, márquelo aquí y no tiene que repetirla.</div>
+        </div>
+        {% endif %}
+        <div class="mt-4 d-flex flex-wrap justify-content-center gap-2">
             <button type="submit" class="btn btn-primary btn-lg" id="guardar-todo-btn">
-                <i class="fas fa-save me-2"></i>Guardar Todos los Cambios
+                <i class="fas fa-save me-2"></i>{% if grado is None %}Guardar porcentajes generales{% else %}Guardar porcentajes de {{ nombre_grado }}{% endif %}
             </button>
+            {% if grado is not None %}
+            <button type="submit" name="accion" value="general" class="btn btn-outline-secondary btn-lg" formnovalidate
+                    onclick="return confirm('¿{{ nombre_grado }} vuelve a usar los porcentajes generales?');">
+                <i class="fas fa-rotate-left me-2"></i>Volver a los generales
+            </button>
+            {% endif %}
         </div>
         {% endif %}
     </form>
@@ -172,65 +150,29 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- El script JS no necesita cambios -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const inputs = document.querySelectorAll('.porcentaje-input');
     const guardarBtn = document.getElementById('guardar-todo-btn');
 
     function calcularSuma(areaId) {
-        const areaInputs = document.querySelectorAll(`.porcentaje-input[data-area-id="${areaId}"]`);
         let suma = 0;
-        areaInputs.forEach(input => {
-            suma += parseFloat(input.value) || 0;
-        });
-        
+        document.querySelectorAll(`.porcentaje-input[data-area-id="${areaId}"]`).forEach(i => { suma += parseFloat(i.value) || 0; });
         const sumaDiv = document.getElementById(`sum-area-${areaId}`);
         if (!sumaDiv) return;
-
         sumaDiv.textContent = suma.toFixed(2) + '%';
-        
-        if (Math.abs(suma - 100) < 0.01) { 
-            sumaDiv.classList.remove('sum-error');
-            sumaDiv.classList.add('sum-ok');
-        } else {
-            sumaDiv.classList.remove('sum-ok');
-            sumaDiv.classList.add('sum-error');
-        }
-        validarEstadoBotonGuardar();
+        const ok = Math.abs(suma - 100) < 0.01;
+        sumaDiv.classList.toggle('sum-ok', ok);
+        sumaDiv.classList.toggle('sum-error', !ok);
+        validar();
     }
-
-    function validarEstadoBotonGuardar() {
+    function validar() {
         if (!guardarBtn) return;
-        let todosValidos = true;
-        const areas = new Set(Array.from(inputs).map(i => i.dataset.areaId));
-        
-        if (areas.size === 0) {
-            todosValidos = false;
-        } else {
-            areas.forEach(areaId => {
-                const sumaDiv = document.getElementById(`sum-area-${areaId}`);
-                // Si el área no tiene materias, no tiene sumaDiv, por lo que no la validamos
-                if (sumaDiv && sumaDiv.classList.contains('sum-error')) {
-                    todosValidos = false;
-                }
-            });
-        }
-        guardarBtn.disabled = !todosValidos;
+        guardarBtn.disabled = !inputs.length || !!document.querySelector('.sum-total.sum-error');
     }
-
-    const initialAreas = new Set(Array.from(inputs).map(i => i.dataset.areaId));
-    initialAreas.forEach(areaId => {
-        calcularSuma(areaId);
-    });
-
-    inputs.forEach(input => {
-        input.addEventListener('input', function() {
-            calcularSuma(this.dataset.areaId);
-        });
-    });
-
-    validarEstadoBotonGuardar();
+    new Set(Array.from(inputs).map(i => i.dataset.areaId)).forEach(calcularSuma);
+    inputs.forEach(i => i.addEventListener('input', () => calcularSuma(i.dataset.areaId)));
+    validar();
 });
 </script>
 {% endblock %}

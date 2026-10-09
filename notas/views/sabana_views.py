@@ -1,5 +1,6 @@
 # notas/views/sabana_views.py
 
+from ..pesos_area import pesos_areas
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseNotFound
@@ -66,7 +67,7 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
 
     ultimo_periodo = periodos_del_ano.last()
     
-    ponderaciones_map = {(p.area_id, p.materia_id): p.peso_porcentual for p in PonderacionAreaMateria.objects.filter(colegio=colegio, materia__in=materias_del_curso)}
+    ponderaciones_map = pesos_areas(colegio, curso.grado, materias_del_curso)   # los del grado, si tiene
 
     estudiantes = Estudiante.objects.filter(curso=curso, is_active=True, colegio=colegio).select_related('user')
     
