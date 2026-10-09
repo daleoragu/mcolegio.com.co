@@ -1,0 +1,11 @@
+{# Un video: en YouTube se muestra la miniatura y el video carga al darle clic (la página no se pone lenta). #}
+<div class="pv-marco">
+    {% if v.proveedor == 'youtube' and v.miniatura %}
+    <button type="button" class="pv-play" data-embed="{{ v.embed }}" aria-label="Reproducir {{ v.titulo }}"
+            style="background-image:url('{{ v.miniatura }}')"><span class="pv-boton"><i class="fas fa-play"></i></span></button>
+    {% else %}
+    <iframe src="{{ v.embed }}" title="{{ v.titulo }}" loading="lazy" allowfullscreen
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    {% endif %}
+</div>

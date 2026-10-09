@@ -14,7 +14,7 @@ from django.template.loader import render_to_string
 # Se importan todos los modelos necesarios
 from ..models import (
     Docente, Estudiante, Curso, AsignacionDocente, 
-    DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, 
+    DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, VideoPortal, 
     Colegio
 )
 from ..permisos import pertenece_al_colegio
@@ -83,11 +83,6 @@ def _contexto_diseno(request, colegio):
     diseno = colegio.layout_portal if colegio.layout_portal in validos else 'topbar'
     probando = request.GET.get('diseno')
     vista_previa = False
-<<<<<<< HEAD
-    if probando in validos and request.user.is_authenticated and es_admin_colegio(request.user, colegio):
-        diseno, vista_previa = probando, probando != colegio.layout_portal
-    ctx = {'diseno': diseno, 'vista_previa': vista_previa}
-=======
     admin = request.user.is_authenticated and es_admin_colegio(request.user, colegio)
     if probando in validos and admin:
         diseno, vista_previa = probando, probando != colegio.layout_portal
@@ -96,27 +91,22 @@ def _contexto_diseno(request, colegio):
     portada = {
         'carrusel': list(ImagenCarrusel.objects.filter(colegio=colegio, visible=True).order_by('orden')[:8]),
         'sedes': list(colegio.sedes.filter(activa=True)[:6]),
+        'videos': list(VideoPortal.objects.filter(colegio=colegio, visible=True, destacado=True)[:2]),
     }
+    ctx['hay_videos'] = VideoPortal.objects.filter(colegio=colegio, visible=True).exists()
     if diseno not in Colegio.DISENOS_CON_INICIO:
         ctx['portada'] = portada        # diseños clásicos: la portada también sale armada desde el servidor
->>>>>>> origin/portal-inicio
     if diseno in Colegio.DISENOS_CON_INICIO:
         noticias = list(Noticia.objects.filter(colegio=colegio, estado='PUBLICADO')
                         .select_related('autor').order_by('-fecha_publicacion')[:6])
         ctx['inicio'] = {
-<<<<<<< HEAD
-            'carrusel': list(ImagenCarrusel.objects.filter(colegio=colegio, visible=True).order_by('orden')[:8]),
-            'noticias': noticias,
-            'fotos': list(FotoGaleria.objects.filter(colegio=colegio).order_by('-fecha_subida')[:8]),
-            'n_documentos': DocumentoPublico.objects.filter(colegio=colegio).count(),
-            'sedes': list(colegio.sedes.filter(activa=True)[:6]),
-=======
             'carrusel': portada['carrusel'],
             'noticias': noticias,
-            'fotos': list(FotoGaleria.objects.filter(colegio=colegio).order_by('-fecha_subida')[:8]),
+            # Para las tiras de fotos del inicio solo sirven las que son imagen (no las publicaciones incrustadas).
+            'fotos': list(FotoGaleria.objects.filter(colegio=colegio, fuente__in=('archivo', 'drive')).order_by('-fecha_subida')[:8]),
             'n_documentos': DocumentoPublico.objects.filter(colegio=colegio).count(),
             'sedes': portada['sedes'],
->>>>>>> origin/portal-inicio
+            'videos': portada['videos'],
         }
     return ctx
 
@@ -301,6 +291,15 @@ def ajax_recursos_educativos(request):
             grupos.setdefault(r.categoria or 'Recursos', []).append(r)
     return render(request, 'notas/portal_components/_contenido_recursos_educativos.html',
                   {'colegio': request.colegio, 'grupos': list(grupos.items())})
+
+def ajax_videos(request):
+    """La sección «Videos» del portal."""
+    from ..models import VideoPortal
+    if not request.colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    videos = VideoPortal.objects.filter(colegio=request.colegio, visible=True)
+    return render(request, 'notas/portal_components/_contenido_videos.html', {'colegio': request.colegio, 'videos': videos})
+
 
 def ajax_redes_sociales(request):
     """La sección «Redes sociales» del portal (antes devolvía JSON y el portal lo mostraba crudo)."""

@@ -1,17 +1,5 @@
-<<<<<<< HEAD
-{% if inicio.carrusel %}
-    {% include "notas/portal_disenos/_carrusel.html" %}
-{% else %}
-    <section class="pd-banner"><div class="container">
-        <h2>Bienvenidos a {{ colegio.nombre }}</h2>
-        {% if colegio.lema %}<p class="lead mb-0">{{ colegio.lema }}</p>{% endif %}
-    </div></section>
-{% endif %}
-<div class="container pd-accesos-flotan {% if inicio.carrusel %}mt-4{% endif %}">
-=======
 {% include "notas/portal_disenos/_portada.html" %}
 <div class="container pd-accesos-flotan mt-4">
->>>>>>> origin/portal-inicio
     <div class="pd-accesos">{% include "notas/portal_disenos/_accesos.html" %}</div>
 </div>
 <section class="pd-seccion"><div class="container">
@@ -28,11 +16,12 @@
     <a href="#" data-action="mision" class="pd-btn-borde">Conózcanos</a>
 </div></section>
 {% endif %}
+{% include "notas/portal_disenos/_videos_inicio.html" %}
 {% if inicio.fotos %}
 <section class="pd-seccion"><div class="container">
     <div class="d-flex justify-content-between align-items-baseline"><h2 class="pd-titulo">Galería</h2>
         <a href="#" data-action="galeria" class="pd-mas">Ver galería →</a></div>
-    <div class="pd-galeria">{% for f in inicio.fotos|slice:":6" %}<a href="#" data-action="galeria" style="background-image:url('{{ f.imagen.url }}')" title="{{ f.titulo }}"></a>{% endfor %}</div>
+    <div class="pd-galeria">{% for f in inicio.fotos|slice:":6" %}<a href="#" data-action="galeria" style="background-image:url('{{ f.url_imagen }}')" title="{{ f.titulo }}"></a>{% endfor %}</div>
 </div></section>
 {% endif %}
 {% if inicio.sedes %}

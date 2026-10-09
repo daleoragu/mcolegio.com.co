@@ -14,7 +14,7 @@ from .academicos import (
     PlanNotas, ComponenteEvaluacion, PonderacionGrado
 )
 from .comunicaciones import Mensaje, RegistroObservador, Notificacion
-from .portal_models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, RecursoEducativo
+from .portal_models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, RecursoEducativo, VideoPortal
 
 # La variable __all__ es una buena práctica que define qué nombres
 # se exportan cuando se hace 'from .models import *'.
@@ -26,6 +26,6 @@ __all__ = [
     'Calificacion', 'NotaDetallada', 'IndicadorLogroPeriodo', 'ReporteParcial', 'Observacion',
     'PlanDeMejoramiento', 'Asistencia', 'InasistenciasManualesPeriodo','PonderacionAreaMateria',
     'ConfiguracionSistema', 'PublicacionBoletin', 'PublicacionBoletinFinal', 'PlanNotas', 'ComponenteEvaluacion', 'PonderacionGrado',
-    'RecursoEducativo', 'Mensaje', 'RegistroObservador', 'Notificacion',
+    'RecursoEducativo', 'VideoPortal', 'Mensaje', 'RegistroObservador', 'Notificacion',
     'DocumentoPublico', 'FotoGaleria', 'Noticia', 'ImagenCarrusel',
 ]

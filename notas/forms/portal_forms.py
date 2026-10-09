@@ -1,7 +1,7 @@
 # notas/forms/portal_forms.py
 from django import forms
 # Se importan todos los modelos necesarios desde su ubicación correcta
-from ..models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, Colegio, RecursoEducativo
+from ..models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, Colegio, RecursoEducativo, VideoPortal
 from ..models.portal_models import EXTENSIONES_RECURSO
 
 class DocumentoPublicoForm(forms.ModelForm):
@@ -15,13 +15,47 @@ class DocumentoPublicoForm(forms.ModelForm):
         }
 
 class FotoGaleriaForm(forms.ModelForm):
+    """Una foto de la galería: se sube el archivo o se pega un enlace (Drive, Instagram, Facebook)."""
+    enlace = forms.CharField(
+        label='…o pegue un enlace', required=False, max_length=3000,
+        help_text='Google Drive (compartido con «Cualquier persona con el enlace»), o una publicación de Instagram o Facebook. No ocupa espacio en la plataforma.',
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'https://www.instagram.com/p/…'}))
+
     class Meta:
         model = FotoGaleria
         fields = ['titulo', 'imagen']
         widgets = {
             'titulo': forms.TextInput(attrs={'class': 'form-control'}),
-            'imagen': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'imagen': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
         }
+        labels = {'imagen': 'Suba la foto…'}
+
+    def clean(self):
+        from ..videos import VideoNoReconocido, analizar_foto
+        datos = super().clean()
+        enlace = (datos.get('enlace') or '').strip()
+        self.externa = None
+        if datos.get('imagen') and enlace:
+            raise forms.ValidationError('Suba la foto o pegue un enlace, no las dos cosas.')
+        if not datos.get('imagen') and not enlace:
+            raise forms.ValidationError('Suba la foto o pegue un enlace.')
+        if enlace:
+            try:
+                self.externa = analizar_foto(enlace)
+            except VideoNoReconocido as e:
+                self.add_error('enlace', str(e))
+        return datos
+
+    def save(self, commit=True):
+        foto = super().save(commit=False)
+        if self.externa:
+            foto.fuente = self.externa['fuente']
+            foto.enlace = self.externa['enlace'][:500]
+            foto.imagen_externa = self.externa['imagen_externa']
+            foto.embed = self.externa['embed']
+        if commit:
+            foto.save()
+        return foto
 
 class NoticiaForm(forms.ModelForm):
     class Meta:
@@ -149,3 +183,39 @@ class RecursoEducativoForm(forms.ModelForm):
             raise forms.ValidationError('Pegue un enlace o suba un archivo.')
         datos['categoria'] = ' '.join((datos.get('categoria') or '').split())
         return datos
+
+
+class VideoPortalForm(forms.ModelForm):
+    """Un video para el portal: se pega el enlace o el código de inserción."""
+    enlace = forms.CharField(
+        label='Enlace o código del video', max_length=3000,
+        help_text='Pegue el enlace de YouTube, Vimeo, Google Drive o Facebook (o el código «Insertar» que dan esas páginas).',
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2,
+                                     'placeholder': 'https://www.youtube.com/watch?v=…'}))
+
+    class Meta:
+        model = VideoPortal
+        fields = ['titulo', 'enlace', 'descripcion', 'destacado', 'visible']
+        widgets = {
+            'titulo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Izada de bandera: Día de la Independencia'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'destacado': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'visible': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def clean_enlace(self):
+        from ..videos import VideoNoReconocido, analizar
+        texto = self.cleaned_data.get('enlace', '')
+        try:
+            self.video = analizar(texto)
+        except VideoNoReconocido as e:
+            raise forms.ValidationError(str(e))
+        return texto.strip()[:500] if '<' not in texto else self.video['embed'][:500]
+
+    def save(self, commit=True):
+        video = super().save(commit=False)
+        for campo in ('proveedor', 'video_id', 'embed', 'miniatura'):
+            setattr(video, campo, self.video[campo])
+        if commit:
+            video.save()
+        return video

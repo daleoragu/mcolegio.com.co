@@ -1,0 +1,15 @@
+{# Videos destacados en la página de inicio (hasta dos). #}
+{% if inicio.videos %}
+{% include "notas/portal_components/_video_estilos.html" %}
+<section class="pd-seccion pt-0"><div class="container">
+    <div class="d-flex justify-content-between align-items-baseline mb-3">
+        <h2 class="pd-titulo mb-0">Videos</h2>
+        <a href="#" data-action="videos" class="pd-mas">Ver todos →</a>
+    </div>
+    <div class="pv-lista">
+        {% for v in inicio.videos %}
+        <article>{% include "notas/portal_components/_video_reproductor.html" %}<h3>{{ v.titulo }}</h3></article>
+        {% endfor %}
+    </div>
+</div></section>
+{% endif %}

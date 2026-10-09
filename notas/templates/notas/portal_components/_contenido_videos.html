@@ -1,0 +1,17 @@
+<!-- Sección «Videos» del portal: los que publican docentes y administrativos. -->
+{% include "notas/portal_components/_video_estilos.html" %}
+<h2 class="card-title mb-4 border-bottom pb-3">Videos</h2>
+{% if videos %}
+<div class="pv-lista">
+    {% for v in videos %}
+    <article>
+        {% include "notas/portal_components/_video_reproductor.html" %}
+        <h3>{{ v.titulo }}</h3>
+        <time>{{ v.creado|date:"j \d\e F \d\e Y" }}</time>
+        {% if v.descripcion %}<p class="mt-1">{{ v.descripcion|linebreaksbr }}</p>{% endif %}
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-muted mb-0">Pronto publicaremos videos del colegio.</p>
+{% endif %}

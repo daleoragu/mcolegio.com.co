@@ -122,10 +122,7 @@
 
     </style>
     {% if inicio %}{% include "notas/portal_disenos/_estilos.html" %}{% endif %}
-<<<<<<< HEAD
-=======
     {% include "notas/portal_disenos/_portada_estilos.html" %}
->>>>>>> origin/portal-inicio
 </head>
 <body>
 
@@ -181,6 +178,7 @@
             mision: "{% url 'notas:ajax_mision_vision' %}",
             modelo: "{% url 'notas:ajax_modelo_pedagogico' %}",
             recursos: "{% url 'notas:ajax_recursos_educativos' %}",
+            videos: "{% url 'notas:ajax_videos' %}",
             redes: "{% url 'notas:ajax_redes_sociales' %}",
             noticia_detalle: "{% url 'notas:ajax_noticia_detalle' 0 %}",
         };

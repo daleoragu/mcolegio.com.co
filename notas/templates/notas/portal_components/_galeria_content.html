@@ -38,6 +38,8 @@
     object-fit: contain; /* <-- Esta línea hace que la imagen se vea completa */
     /* ===== FIN DE LA CORRECCIÓN ===== */
   }
+  .foto-card .pub-container { width: 100%; height: 520px; background: #fff; }
+  .foto-card .pub-container iframe { width: 100%; height: 100%; border: 0; }
   .foto-card .titulo {
     padding: 1rem;
     font-weight: 600;
@@ -52,9 +54,14 @@
   <div class="galeria-grid">
     {% for foto in fotos %}
       <div class="foto-card">
+        {% if foto.es_publicacion %}
+        <div class="pub-container"><iframe src="{{ foto.embed }}" title="{{ foto.titulo }}" loading="lazy" scrolling="no"
+                allowtransparency="true" allow="encrypted-media; clipboard-write; picture-in-picture; web-share"></iframe></div>
+        {% else %}
         <div class="img-container">
-            <img src="{{ foto.imagen.url }}" alt="{{ foto.titulo }}" loading="lazy">
+            <img src="{{ foto.url_imagen }}" alt="{{ foto.titulo }}" loading="lazy" referrerpolicy="no-referrer">
         </div>
+        {% endif %}
         <div class="titulo">
           {{ foto.titulo }}
         </div>
