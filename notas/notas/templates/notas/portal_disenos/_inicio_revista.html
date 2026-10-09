@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-=======
 {% include "notas/portal_disenos/_portada.html" %}
->>>>>>> origin/portal-inicio
 <section class="pd-seccion pt-4"><div class="container">
 <div class="row g-4">
     <div class="col-lg-8">
@@ -15,12 +12,7 @@
                 <a href="#" class="noticia-link pd-mas" data-pk="{{ n.pk }}">Leer la noticia completa →</a></div>
         </article>
         {% else %}
-<<<<<<< HEAD
-            {% if inicio.carrusel %}{% include "notas/portal_disenos/_carrusel.html" %}{% endif %}
-            <div class="pd-vacio mt-3">Pronto publicaremos noticias del colegio.</div>
-=======
             <div class="pd-vacio">Pronto publicaremos noticias del colegio.</div>
->>>>>>> origin/portal-inicio
         {% endif %}
         {% endwith %}
     </div>

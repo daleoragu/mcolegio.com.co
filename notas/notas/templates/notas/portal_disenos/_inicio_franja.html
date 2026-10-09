@@ -1,17 +1,5 @@
-<<<<<<< HEAD
-{% if inicio.carrusel %}
-    {% include "notas/portal_disenos/_carrusel.html" %}
-{% else %}
-    <section class="pd-banner"><div class="container">
-        <h2>Bienvenidos a {{ colegio.nombre }}</h2>
-        {% if colegio.lema %}<p class="lead mb-0">{{ colegio.lema }}</p>{% endif %}
-    </div></section>
-{% endif %}
-<div class="container pd-accesos-flotan {% if inicio.carrusel %}mt-4{% endif %}">
-=======
 {% include "notas/portal_disenos/_portada.html" %}
 <div class="container pd-accesos-flotan mt-4">
->>>>>>> origin/portal-inicio
     <div class="pd-accesos">{% include "notas/portal_disenos/_accesos.html" %}</div>
 </div>
 <section class="pd-seccion"><div class="container">

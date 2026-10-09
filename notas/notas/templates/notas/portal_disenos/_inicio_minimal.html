@@ -1,12 +1,6 @@
-<<<<<<< HEAD
-<section class="pd-intro"><div class="container">
-    <small>{{ colegio.ciudad|default:"Bienvenidos" }}</small>
-    <h1>{{ colegio.lema|default:colegio.nombre }}</h1>
-=======
 {% include "notas/portal_disenos/_portada.html" %}
 <section class="pd-intro"><div class="container">
     <small>{{ colegio.ciudad|default:"Bienvenidos" }}</small>
->>>>>>> origin/portal-inicio
     {% if colegio.historia %}<p>{{ colegio.historia|truncatewords:55 }}</p>{% endif %}
     <div class="pd-enlaces-min mt-4">
         {% if colegio.prematricula.esta_abierta %}<a href="{% url 'prematricula:inicio' %}" style="background:var(--pd-p);color:var(--pd-p-texto);border-color:var(--pd-p);"><i class="fas fa-file-signature"></i>Prematrícula {{ colegio.prematricula.ano_lectivo }}</a>{% endif %}

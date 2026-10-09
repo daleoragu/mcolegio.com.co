@@ -86,8 +86,6 @@ class PieYMenuLateral(ColegioDePrueba):
         self.assertIn('pf-datos', h)
         self.assertIn('.sidebar-logo {', h)
         self.assertIn('Recursos educativos', h)
-<<<<<<< HEAD
-=======
 
 
 class PortadaYSedes(ColegioDePrueba):
@@ -104,4 +102,3 @@ class PortadaYSedes(ColegioDePrueba):
             self.assertNotIn('class="pd-portada-ayuda"', visitante, valor)            # la recomendación es solo para el admin
             admin = self.cliente(self.rectora).get('/').content.decode()
             self.assertIn('1920 × 800', admin, valor)
->>>>>>> origin/portal-inicio
