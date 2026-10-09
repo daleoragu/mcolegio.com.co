@@ -319,6 +319,7 @@ class Sede(models.Model):
     niveles = models.CharField(max_length=80, blank=True, verbose_name='Niveles que ofrece')
     descripcion = models.TextField(blank=True, verbose_name='Descripción para el portal')
     foto = models.ImageField(upload_to='sedes/', null=True, blank=True, verbose_name='Foto de la sede')
+    foto_enlace = models.URLField(max_length=500, blank=True)   # en vez de subirla: Drive o enlace directo
     enlace_mapa = models.URLField(max_length=500, blank=True, verbose_name='Enlace de Google Maps',
                                   help_text='Abra la sede en Google Maps, toque «Compartir» y pegue el enlace.')
     activa = models.BooleanField(default=True, verbose_name='Activa',
@@ -333,6 +334,10 @@ class Sede(models.Model):
 
     def __str__(self):
         return self.nombre
+
+    @property
+    def url_foto(self):
+        return self.foto.url if self.foto else self.foto_enlace
 
     def lista_jornadas(self):
         nombres = dict(self.JORNADAS)

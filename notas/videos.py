@@ -183,3 +183,50 @@ def analizar_foto(texto):
         raise VideoNoReconocido('Google Fotos no deja mostrar sus fotos en otras páginas. Súbala a Google Drive, '
                                 'compártala con «Cualquier persona con el enlace» y pegue ese enlace.')
     raise VideoNoReconocido('Se aceptan enlaces de Google Drive, Instagram y Facebook.')
+
+
+# ---------------------------------------------------------------------------
+# Una imagen o un documento por enlace (noticias, carrusel, sedes, documentos)
+# ---------------------------------------------------------------------------
+
+_URL_SEGURA = re.compile(r"^https://[A-Za-z0-9._~:/?#\[\]@!$&*+,;=%-]+$")
+
+
+def imagen_desde_enlace(texto):
+    """La dirección de una imagen que se pueda mostrar sola (portada, foto de sede…).
+
+    Google Drive se convierte en su miniatura grande; también vale el enlace
+    directo a una imagen (https://…/foto.jpg). Instagram y Facebook no sirven aquí:
+    sus fotos caducan a los pocos días.
+    """
+    texto = (texto or '').strip()
+    if not texto:
+        raise VideoNoReconocido('Pegue el enlace de la imagen.')
+    if '<' in texto:
+        texto = _del_iframe(texto)
+    if not re.match(r'^https?://', texto, re.I):
+        texto = 'https://' + texto.lstrip('/')
+    host = (urlparse(texto).hostname or '').lower()
+    if host.endswith('drive.google.com'):
+        return analizar_foto(texto)['imagen_externa']
+    if any(host.endswith(h) for h in ('instagram.com', 'facebook.com', 'fbcdn.net', 'cdninstagram.com', 'fb.com')):
+        raise VideoNoReconocido('Las fotos de Instagram y Facebook dejan de verse a los pocos días. Súbala aquí o '
+                                'póngala en Google Drive y pegue ese enlace. (En la Galería sí se puede pegar la publicación.)')
+    if host in ('photos.google.com', 'photos.app.goo.gl'):
+        raise VideoNoReconocido('Google Fotos no deja mostrar sus fotos en otras páginas. Súbala a Google Drive, '
+                                'compártala con «Cualquier persona con el enlace» y pegue ese enlace.')
+    texto = re.sub(r'^http://', 'https://', texto, flags=re.I)
+    if not _URL_SEGURA.match(texto) or not re.search(r'\.(jpe?g|png|webp|gif)(\?|$)', texto, re.I):
+        raise VideoNoReconocido('Pegue un enlace de Google Drive o el enlace directo de una imagen (que termine en .jpg, .png o .webp).')
+    return texto
+
+
+def documento_desde_enlace(texto):
+    """Enlace a un documento guardado en otra parte (Drive, OneDrive, Dropbox, la página de la Secretaría…)."""
+    texto = (texto or '').strip()
+    if not re.match(r'^https?://', texto, re.I):
+        texto = 'https://' + texto.lstrip('/')
+    texto = re.sub(r'^http://', 'https://', texto, flags=re.I)
+    if not _URL_SEGURA.match(texto) or not urlparse(texto).hostname or '.' not in urlparse(texto).hostname:
+        raise VideoNoReconocido('Ese enlace no es válido. Cópielo completo desde el navegador (empieza por https://).')
+    return texto

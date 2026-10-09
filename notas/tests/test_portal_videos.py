@@ -120,3 +120,56 @@ class FotosPorEnlace(ColegioDePrueba):
         self.assertEqual(FotoGaleria.objects.get().fuente, 'archivo')
         r = c.post(self.URL, {'titulo': 'Nada'})
         self.assertContains(r, 'Suba la foto o pegue un enlace')
+
+
+DRIVE = 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view?usp=sharing'
+MINI = 'https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOp&sz=w1600'
+
+
+class ArchivoOEnlaceEnTodoElPortal(ColegioDePrueba):
+
+    def setUp(self):
+        self.c = self.cliente(self.rectora)
+
+    def test_convertidores(self):
+        from notas.videos import documento_desde_enlace, imagen_desde_enlace
+        self.assertEqual(imagen_desde_enlace(DRIVE), MINI)
+        self.assertEqual(imagen_desde_enlace('http://colegio.edu.co/fotos/fachada.JPG'), 'https://colegio.edu.co/fotos/fachada.JPG')
+        for malo in ('https://www.instagram.com/p/C1a2B3c4D5e/', "https://x.co/a.jpg');background:url(x",
+                     'https://x.co/pagina', 'javascript:alert(1)'):
+            with self.assertRaises(VideoNoReconocido, msg=malo):
+                imagen_desde_enlace(malo)
+        self.assertEqual(documento_desde_enlace('onedrive.live.com/doc?id=1'), 'https://onedrive.live.com/doc?id=1')
+        with self.assertRaises(VideoNoReconocido):
+            documento_desde_enlace('javascript:alert(1)')
+
+    def test_documento_por_enlace(self):
+        from notas.models import DocumentoPublico
+        r = self.c.post('/admin/portal/documentos/', {'titulo': 'Manual de convivencia', 'descripcion': '',
+                                                      'enlace_pegado': DRIVE})
+        self.assertEqual(r.status_code, 302)
+        d = DocumentoPublico.objects.get()
+        self.assertEqual((d.url, bool(d.archivo)), (DRIVE, False))
+        self.assertContains(self.cliente().get('/ajax/documentos-publicos/'), DRIVE)
+        self.assertContains(self.c.post('/admin/portal/documentos/', {'titulo': 'Nada'}), 'Suba el archivo o pegue un enlace')
+
+    def test_carrusel_noticia_y_sede_por_enlace(self):
+        from notas.models import ImagenCarrusel, Noticia, Sede
+        r = self.c.post('/admin/portal/carrusel/', {'titulo': 'Fachada', 'subtitulo': '', 'orden': '1', 'visible': 'on',
+                                                    'enlace_pegado': DRIVE})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(ImagenCarrusel.objects.get().url_imagen, MINI)
+        self.assertIn(MINI.replace('&', '&amp;'), self.cliente().get('/').content.decode())                # sale en la portada
+        self.c.post('/admin/portal/noticias/crear/', {'titulo': 'Feria', 'resumen': 'r', 'cuerpo': 'c', 'estado': 'PUBLICADO',
+                                                      'enlace_pegado': DRIVE})
+        n = Noticia.objects.get()
+        self.assertEqual(n.url_portada, MINI)
+        self.assertContains(self.cliente().get('/ajax/noticias/'), MINI)
+        # La noticia puede no tener imagen.
+        self.c.post('/admin/portal/noticias/crear/', {'titulo': 'Sin foto', 'resumen': 'r', 'cuerpo': 'c', 'estado': 'BORRADOR'})
+        self.assertEqual(Noticia.objects.get(titulo='Sin foto').url_portada, '')
+        # Instagram no sirve como imagen suelta: se avisa.
+        r = self.c.post('/admin/portal/carrusel/', {'titulo': 'IG', 'orden': '2', 'enlace_pegado': 'https://www.instagram.com/p/C1a2B3c4D5e/'})
+        self.assertContains(r, 'dejan de verse')
+        sede = Sede.objects.create(colegio=self.a, nombre='Sede Norte')
+        self.assertEqual(sede.url_foto, '')

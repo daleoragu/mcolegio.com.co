@@ -5,7 +5,7 @@
         <div class="carousel-inner">
             {% for img in inicio.carrusel %}
             <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                <div class="pd-portada-img" style="background-image:url('{{ img.imagen.url }}')"></div>
+                <div class="pd-portada-img" style="background-image:url('{{ img.url_imagen }}')"></div>
                 <div class="pd-portada-sombra"></div>
                 {% if img.titulo %}<div class="pd-portada-pie">{{ img.titulo }}{% if img.subtitulo %} · {{ img.subtitulo }}{% endif %}</div>{% endif %}
             </div>

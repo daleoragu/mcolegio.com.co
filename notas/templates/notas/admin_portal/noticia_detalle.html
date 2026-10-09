@@ -10,8 +10,8 @@
                 <span class="mx-2">|</span>
                 <i class="fas fa-calendar-alt me-1"></i> {{ noticia.fecha_publicacion|date:"d \d\e F \d\e Y" }}
             </p>
-            {% if noticia.imagen_portada %}
-                <img src="{{ noticia.imagen_portada.url }}" class="img-fluid rounded my-4" alt="{{ noticia.titulo }}">
+            {% if noticia.url_portada %}
+                <img src="{{ noticia.url_portada }}" class="img-fluid rounded my-4" alt="{{ noticia.titulo }}">
             {% endif %}
             
             <div class="cuerpo-noticia fs-5">

@@ -4,7 +4,70 @@ from django import forms
 from ..models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, Colegio, RecursoEducativo, VideoPortal
 from ..models.portal_models import EXTENSIONES_RECURSO
 
-class DocumentoPublicoForm(forms.ModelForm):
+class ArchivoOEnlaceMixin:
+    """Un campo de archivo que también se puede llenar pegando un enlace.
+
+    La subclase define: campo_archivo (el FileField/ImageField), campo_enlace (el
+    URLField del modelo donde queda el enlace), tipo ('imagen' o 'documento') y
+    obligatorio. El formulario muestra el campo «enlace_pegado».
+    """
+    campo_archivo = ''
+    campo_enlace = ''
+    tipo = 'imagen'
+    obligatorio = True
+
+    AYUDA = {
+        'imagen': 'Google Drive (compartido con «Cualquier persona con el enlace») o el enlace directo de una imagen. No ocupa espacio en la plataforma.',
+        'documento': 'Drive, OneDrive, Dropbox o cualquier página donde esté el documento. No ocupa espacio en la plataforma.',
+    }
+
+    def _preparar_enlace(self):
+        self.fields['enlace_pegado'] = forms.CharField(
+            label='…o pegue un enlace', required=False, max_length=3000, help_text=self.AYUDA[self.tipo],
+            initial=getattr(self.instance, self.campo_enlace, ''),
+            widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'https://drive.google.com/file/d/…'}))
+        self.fields[self.campo_archivo].required = False
+
+    def _limpiar_enlace(self, datos):
+        from django.core.files.uploadedfile import UploadedFile
+        from ..videos import VideoNoReconocido, documento_desde_enlace, imagen_desde_enlace
+        archivo = datos.get(self.campo_archivo)
+        nuevo = isinstance(archivo, UploadedFile)
+        texto = (datos.get('enlace_pegado') or '').strip()
+        anterior = getattr(self.instance, self.campo_enlace, '') or ''
+        self._enlace = None
+        if nuevo and texto and texto != anterior:
+            raise forms.ValidationError('Suba el archivo o pegue un enlace, no las dos cosas.')
+        if nuevo:
+            self._enlace = ''                       # el archivo nuevo reemplaza el enlace
+        elif texto:
+            if texto == anterior:
+                self._enlace = anterior
+            else:
+                try:
+                    self._enlace = (imagen_desde_enlace if self.tipo == 'imagen' else documento_desde_enlace)(texto)
+                except VideoNoReconocido as e:
+                    self.add_error('enlace_pegado', str(e))
+                    return datos
+        else:
+            self._enlace = ''
+        tiene_archivo = nuevo or (archivo not in (None, False, '') and not self._enlace)
+        if self.obligatorio and not tiene_archivo and not self._enlace:
+            raise forms.ValidationError('Suba el archivo o pegue un enlace.')
+        return datos
+
+    def _guardar_enlace(self, obj):
+        if self._enlace is None:
+            return obj
+        setattr(obj, self.campo_enlace, self._enlace)
+        if self._enlace:                            # el enlace reemplaza el archivo que hubiera
+            setattr(obj, self.campo_archivo, None)
+        return obj
+
+
+class DocumentoPublicoForm(ArchivoOEnlaceMixin, forms.ModelForm):
+    campo_archivo, campo_enlace, tipo = 'archivo', 'enlace', 'documento'
+
     class Meta:
         model = DocumentoPublico
         fields = ['titulo', 'descripcion', 'archivo']
@@ -13,6 +76,20 @@ class DocumentoPublicoForm(forms.ModelForm):
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'archivo': forms.FileInput(attrs={'class': 'form-control'}),
         }
+        labels = {'archivo': 'Suba el archivo…'}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._preparar_enlace()
+
+    def clean(self):
+        return self._limpiar_enlace(super().clean())
+
+    def save(self, commit=True):
+        obj = self._guardar_enlace(super().save(commit=False))
+        if commit:
+            obj.save()
+        return obj
 
 class FotoGaleriaForm(forms.ModelForm):
     """Una foto de la galería: se sube el archivo o se pega un enlace (Drive, Instagram, Facebook)."""
@@ -57,7 +134,22 @@ class FotoGaleriaForm(forms.ModelForm):
             foto.save()
         return foto
 
-class NoticiaForm(forms.ModelForm):
+class NoticiaForm(ArchivoOEnlaceMixin, forms.ModelForm):
+    campo_archivo, campo_enlace, tipo, obligatorio = 'imagen_portada', 'imagen_enlace', 'imagen', False
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._preparar_enlace()
+
+    def clean(self):
+        return self._limpiar_enlace(super().clean())
+
+    def save(self, commit=True):
+        obj = self._guardar_enlace(super().save(commit=False))
+        if commit:
+            obj.save()
+        return obj
+
     class Meta:
         model = Noticia
         fields = ['titulo', 'resumen', 'cuerpo', 'imagen_portada', 'estado']
@@ -69,7 +161,22 @@ class NoticiaForm(forms.ModelForm):
             'estado': forms.Select(attrs={'class': 'form-select'}),
         }
 
-class ImagenCarruselForm(forms.ModelForm):
+class ImagenCarruselForm(ArchivoOEnlaceMixin, forms.ModelForm):
+    campo_archivo, campo_enlace, tipo = 'imagen', 'imagen_enlace', 'imagen'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._preparar_enlace()
+
+    def clean(self):
+        return self._limpiar_enlace(super().clean())
+
+    def save(self, commit=True):
+        obj = self._guardar_enlace(super().save(commit=False))
+        if commit:
+            obj.save()
+        return obj
+
     class Meta:
         model = ImagenCarrusel
         fields = ['titulo', 'subtitulo', 'imagen', 'orden', 'visible']

@@ -44,7 +44,7 @@
                             {% for doc in documentos %}
                             <tr>
                                 <td>{{ doc.titulo }}</td>
-                                <td><a href="{{ doc.archivo.url }}" target="_blank">{{ doc.archivo.name|truncatechars:25 }}</a></td>
+                                <td><a href="{{ doc.url }}" target="_blank" rel="noopener">{% if doc.archivo %}{{ doc.archivo.name|truncatechars:25 }}{% else %}<i class="fas fa-link me-1"></i>Enlace{% endif %}</a></td>
                                 <td>{{ doc.fecha_publicacion|date:"d/m/Y" }}</td>
                                 <td>
                                     <form action="{% url 'notas:eliminar_documento' doc.pk %}" method="POST" class="d-inline">

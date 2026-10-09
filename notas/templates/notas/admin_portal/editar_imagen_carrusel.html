@@ -15,7 +15,16 @@
                 <form method="POST" enctype="multipart/form-data">
                     {% csrf_token %}
                     
-                    {{ form.as_p }}
+                    {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>{% endif %}
+                    {% if form.instance.url_imagen %}<img src="{{ form.instance.url_imagen }}" alt="" class="rounded mb-3" style="max-height:120px;" referrerpolicy="no-referrer">{% endif %}
+                    {% for campo in form %}{% if campo.name != 'enlace_pegado' %}
+                    <div class="mb-3">
+                        {% if campo.name == 'visible' %}<div class="form-check">{{ campo }} <label class="form-check-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label></div>
+                        {% else %}<label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}{% endif %}
+                        {% for e in campo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                        {% if campo.name == 'imagen' %}{% include "notas/portal_components/_campo_enlace.html" %}{% endif %}
+                    </div>
+                    {% endif %}{% endfor %}
 
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">Guardar Cambios</button>

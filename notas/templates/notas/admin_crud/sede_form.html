@@ -45,8 +45,9 @@
         <div class="col-md-7">{{ form.descripcion.label_tag }}{{ form.descripcion }}</div>
         <div class="col-md-5">
             {{ form.foto.label_tag }}
-            {% if sede and sede.foto %}<img src="{{ sede.foto.url }}" alt="" class="d-block mb-2 rounded" style="max-height:110px;">{% endif %}
+            {% if sede and sede.url_foto %}<img src="{{ sede.url_foto }}" alt="" class="d-block mb-2 rounded" style="max-height:110px;">{% endif %}
             {{ form.foto }}
+            {% include "notas/portal_components/_campo_enlace.html" %}
         </div>
         <div class="col-12 d-flex flex-wrap gap-4">
             <label style="font-weight:400;">{{ form.es_principal }} {{ form.es_principal.label }}</label>

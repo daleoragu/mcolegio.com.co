@@ -4,13 +4,13 @@
     {% with n=inicio.noticias.0 fondo=inicio.carrusel.0 %}
     {% if n %}
         <a href="#" class="pd-celda c-2x2 c-foto noticia-link" data-pk="{{ n.pk }}"
-           style="background-image:url('{% if n.imagen_portada %}{{ n.imagen_portada.url }}{% elif fondo %}{{ fondo.imagen.url }}{% endif %}');{% if not n.imagen_portada and not fondo %}background:var(--pd-top);{% endif %}">
+           style="background-image:url('{% if n.url_portada %}{{ n.url_portada }}{% elif fondo %}{{ fondo.url_imagen }}{% endif %}');{% if not n.url_portada and not fondo %}background:var(--pd-top);{% endif %}">
             <small class="text-uppercase fw-bold">Noticia destacada · {{ n.fecha_publicacion|date:"j M Y" }}</small>
             <h3 style="font-size:1.6rem;">{{ n.titulo }}</h3>
             <small>{{ n.resumen|truncatechars:120 }}</small>
         </a>
     {% elif fondo %}
-        <div class="pd-celda c-2x2 c-foto" style="background-image:url('{{ fondo.imagen.url }}')"><h3 style="font-size:1.6rem;">{{ fondo.titulo|default:colegio.nombre }}</h3><small>{{ fondo.subtitulo }}</small></div>
+        <div class="pd-celda c-2x2 c-foto" style="background-image:url('{{ fondo.url_imagen }}')"><h3 style="font-size:1.6rem;">{{ fondo.titulo|default:colegio.nombre }}</h3><small>{{ fondo.subtitulo }}</small></div>
     {% else %}
         <div class="pd-celda c-2x2 c-t"><i class="fas fa-school pd-icono"></i><h3 style="font-size:1.6rem;">{{ colegio.nombre }}</h3><small>{{ colegio.lema|default:"" }}</small></div>
     {% endif %}
