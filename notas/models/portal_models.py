@@ -27,11 +27,28 @@ class FotoGaleria(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="fotos_galeria", null=True)
     titulo = models.CharField(max_length=150, verbose_name="Título de la Foto", help_text="Un título o descripción corta.")
     # RUTA CORREGIDA:
-    imagen = models.ImageField(upload_to='galeria_portal/', verbose_name="Fotografía")
+    imagen = models.ImageField(upload_to='galeria_portal/', verbose_name="Fotografía", blank=True)
     fecha_subida = models.DateTimeField(default=timezone.now)
+    # En vez de subir el archivo se puede enlazar (notas/videos.py: analizar_foto). No ocupa espacio.
+    FUENTES = [('archivo', 'Archivo subido'), ('drive', 'Google Drive'), ('instagram', 'Instagram'), ('facebook', 'Facebook')]
+    fuente = models.CharField(max_length=10, choices=FUENTES, default='archivo')
+    enlace = models.CharField(max_length=500, blank=True, verbose_name='Enlace')
+    imagen_externa = models.URLField(max_length=500, blank=True)     # Drive: la foto se muestra como cualquier otra
+    embed = models.URLField(max_length=600, blank=True)              # Instagram / Facebook: la publicación incrustada
 
     def __str__(self):
         return self.titulo
+
+    @property
+    def url_imagen(self):
+        """La dirección de la foto ('' si es una publicación incrustada)."""
+        if self.imagen:
+            return self.imagen.url
+        return self.imagen_externa
+
+    @property
+    def es_publicacion(self):
+        return self.fuente in ('instagram', 'facebook')
     
     class Meta:
         verbose_name = "Foto de la Galería"
@@ -109,3 +126,33 @@ class RecursoEducativo(models.Model):
         if self.archivo:
             return self.archivo.url
         return self.enlace
+
+
+class VideoPortal(models.Model):
+    """Un video del portal (YouTube, Vimeo, Drive o Facebook). Lo publican docentes y administrativos.
+
+    Solo se guarda lo que sale de notas/videos.py (el identificador y la dirección
+    armada allí), nunca el código que pegó la persona.
+    """
+    PROVEEDORES = [('youtube', 'YouTube'), ('vimeo', 'Vimeo'), ('drive', 'Google Drive'), ('facebook', 'Facebook')]
+
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='videos_portal')
+    titulo = models.CharField(max_length=150, verbose_name='Título')
+    descripcion = models.TextField(max_length=600, blank=True, verbose_name='Descripción (opcional)')
+    enlace = models.CharField(max_length=500, verbose_name='Enlace del video')
+    proveedor = models.CharField(max_length=10, choices=PROVEEDORES)
+    video_id = models.CharField(max_length=200)
+    embed = models.URLField(max_length=600)
+    miniatura = models.URLField(max_length=300, blank=True)
+    destacado = models.BooleanField(default=True, verbose_name='Mostrar en la página de inicio')
+    visible = models.BooleanField(default=True, verbose_name='Publicado')
+    autor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    creado = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = 'Video del portal'
+        verbose_name_plural = 'Videos del portal'
+        ordering = ['-creado']
+
+    def __str__(self):
+        return self.titulo

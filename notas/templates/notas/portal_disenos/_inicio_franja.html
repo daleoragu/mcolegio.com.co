@@ -16,11 +16,12 @@
     <a href="#" data-action="mision" class="pd-btn-borde">Conózcanos</a>
 </div></section>
 {% endif %}
+{% include "notas/portal_disenos/_videos_inicio.html" %}
 {% if inicio.fotos %}
 <section class="pd-seccion"><div class="container">
     <div class="d-flex justify-content-between align-items-baseline"><h2 class="pd-titulo">Galería</h2>
         <a href="#" data-action="galeria" class="pd-mas">Ver galería →</a></div>
-    <div class="pd-galeria">{% for f in inicio.fotos|slice:":6" %}<a href="#" data-action="galeria" style="background-image:url('{{ f.imagen.url }}')" title="{{ f.titulo }}"></a>{% endfor %}</div>
+    <div class="pd-galeria">{% for f in inicio.fotos|slice:":6" %}<a href="#" data-action="galeria" style="background-image:url('{{ f.url_imagen }}')" title="{{ f.titulo }}"></a>{% endfor %}</div>
 </div></section>
 {% endif %}
 {% if inicio.sedes %}

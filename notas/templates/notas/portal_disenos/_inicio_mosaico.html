@@ -26,9 +26,10 @@
     {% endif %}
     <a href="#" data-action="documentos" class="pd-celda c-claro"><i class="fas fa-folder-open pd-icono" style="color:var(--pd-p)"></i>
         <span class="pd-cifra" style="color:var(--pd-p)">{{ inicio.n_documentos }}</span><h3>Documentos</h3></a>
-    {% if inicio.fotos %}
+    {% include "notas/portal_disenos/_videos_inicio.html" %}
+{% if inicio.fotos %}
         <a href="#" data-action="galeria" class="pd-celda c-2x1 c-foto" style="padding:0;">
-            <div class="pd-mini-galeria">{% for f in inicio.fotos|slice:":4" %}<span style="background-image:url('{{ f.imagen.url }}')"></span>{% endfor %}</div>
+            <div class="pd-mini-galeria">{% for f in inicio.fotos|slice:":4" %}<span style="background-image:url('{{ f.url_imagen }}')"></span>{% endfor %}</div>
             <div class="pd-galeria-texto"><h3>Galería</h3><small>Vida escolar en imágenes</small></div></a>
     {% else %}
         <a href="#" data-action="galeria" class="pd-celda c-2x1 c-claro"><i class="fas fa-images pd-icono" style="color:var(--pd-p)"></i><h3>Galería</h3></a>

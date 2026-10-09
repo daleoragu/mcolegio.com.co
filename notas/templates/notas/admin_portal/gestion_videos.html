@@ -1,0 +1,85 @@
+{% extends "notas/base.html" %}
+
+{% block page_title %}
+    <h1>Videos del portal</h1>
+    <a href="{% url 'notas:configuracion_portal' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-2"></i>Volver al Panel</a>
+{% endblock %}
+
+{% block content %}
+{% include "notas/portal_components/_video_estilos.html" %}
+<p class="text-muted">Pegue el enlace de un video de <strong>YouTube, Vimeo, Google Drive o Facebook</strong> (o el código que da el botón «Insertar»)
+    y el portal lo reproduce en <strong>Comunidad → Videos</strong>; los marcados para el inicio salen también en la página principal.
+    El video sigue guardado en esa página, así que no ocupa espacio en la plataforma.</p>
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">{% if video %}Editar «{{ video.titulo }}»{% else %}<i class="fas fa-plus me-1"></i>Agregar video{% endif %}</h5></div>
+            <div class="card-body">
+                <form method="POST" action="{% if video %}{% url 'notas:editar_video' video.pk %}{% else %}{% url 'notas:gestion_videos' %}{% endif %}">
+                    {% csrf_token %}
+                    {% for campo in form %}
+                        {% if campo.name == 'destacado' or campo.name == 'visible' %}
+                        <div class="form-check mb-2">{{ campo }} <label class="form-check-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label></div>
+                        {% else %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                            {{ campo }}
+                            {% if campo.help_text %}<div class="form-text">{{ campo.help_text }}</div>{% endif %}
+                            {% for e in campo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="submit" class="btn btn-success flex-grow-1"><i class="fas fa-save me-1"></i>Guardar video</button>
+                        {% if video %}<a href="{% url 'notas:gestion_videos' %}" class="btn btn-outline-secondary">Cancelar</a>{% endif %}
+                    </div>
+                </form>
+                <div class="small text-muted mt-3"><strong>Para que se vea:</strong> en YouTube el video debe estar como «Público» u «Oculto» (no «Privado»);
+                    en Drive, compartido con «Cualquier persona con el enlace»; en Facebook, publicado como público.</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Publicados ({{ videos|length }})</h5>
+                <a href="{% url 'notas:portal' %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">Ver portal <i class="fas fa-up-right-from-square ms-1"></i></a>
+            </div>
+            <div class="card-body">
+                {% for v in videos %}
+                <div class="d-flex gap-3 align-items-start {% if not forloop.last %}border-bottom pb-3 mb-3{% endif %}">
+                    <div style="width:180px;flex:none;">{% include "notas/portal_components/_video_reproductor.html" %}</div>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold">{{ v.titulo }}</div>
+                        <div class="small text-muted">{{ v.get_proveedor_display }} · {{ v.creado|date:"d/m/Y" }}{% if v.autor %} · {{ v.autor.get_full_name|default:v.autor.username }}{% endif %}</div>
+                        <div class="mt-1">
+                            {% if not v.visible %}<span class="badge bg-secondary">Sin publicar</span>{% endif %}
+                            {% if v.destacado and v.visible %}<span class="badge bg-success">En el inicio</span>{% endif %}
+                        </div>
+                    </div>
+                    {% if v.editable %}
+                    <div class="text-nowrap">
+                        <a href="{% url 'notas:editar_video' v.pk %}" class="btn btn-sm btn-outline-secondary" title="Editar"><i class="fas fa-pen"></i></a>
+                        <form action="{% url 'notas:eliminar_video' v.pk %}" method="POST" class="d-inline">{% csrf_token %}
+                            <button class="btn btn-sm btn-outline-danger" title="Eliminar" onclick="return confirm('¿Eliminar este video del portal?');"><i class="fas fa-trash"></i></button></form>
+                    </div>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <p class="text-muted text-center my-4">Aún no hay videos. Pegue el enlace del primero en el formulario.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('click', function (e) {
+    const play = e.target.closest('.pv-play');
+    if (!play) return;
+    const f = document.createElement('iframe');
+    f.src = play.dataset.embed + (play.dataset.embed.includes('?') ? '&' : '?') + 'autoplay=1';
+    f.allow = 'autoplay; encrypted-media; picture-in-picture'; f.allowFullscreen = true;
+    play.replaceWith(f);
+});
+</script>
+{% endblock %}

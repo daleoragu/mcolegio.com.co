@@ -190,11 +190,24 @@ document.addEventListener('DOMContentLoaded', function() {
         'galeria': () => fetchAndShow(DJANGO_URLS.galeria),
         'documentos': () => fetchAndShowJSON(DJANGO_URLS.documentos, renderDocumentos),
         'recursos': () => fetchAndShow(DJANGO_URLS.recursos),
+        'videos': () => fetchAndShow(DJANGO_URLS.videos),
         'redes': () => fetchAndShow(DJANGO_URLS.redes),
     };
 
     // --- Detector de Eventos Principal (Delegado) ---
     document.body.addEventListener('click', function(e) {
+        // Videos de YouTube: la miniatura se cambia por el reproductor al darle clic.
+        const play = e.target.closest('.pv-play');
+        if (play && play.dataset.embed) {
+            const marco = document.createElement('iframe');
+            marco.src = play.dataset.embed + (play.dataset.embed.includes('?') ? '&' : '?') + 'autoplay=1';
+            marco.title = play.getAttribute('aria-label') || 'Video';
+            marco.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+            marco.allowFullscreen = true;
+            marco.referrerPolicy = 'strict-origin-when-cross-origin';
+            play.replaceWith(marco);
+            return;
+        }
         const actionTarget = e.target.closest('[data-action]');
         const noticiaLink = e.target.closest('.noticia-link');
         const volverBtn = e.target.closest('.volver-noticias-btn');

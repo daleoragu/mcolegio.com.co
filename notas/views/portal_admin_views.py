@@ -5,10 +5,10 @@ from django.contrib import messages
 from django.http import HttpResponseNotFound
 
 # Se importan los modelos y formularios necesarios
-from ..models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, RecursoEducativo
+from ..models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, RecursoEducativo, VideoPortal
 from ..forms import (
     DocumentoPublicoForm, FotoGaleriaForm, NoticiaForm, ImagenCarruselForm,
-    ColegioPersonalizacionForm, RecursoEducativoForm
+    ColegioPersonalizacionForm, RecursoEducativoForm, VideoPortalForm
 )
 from ..permisos import es_admin, es_admin_usuario
 
@@ -319,3 +319,64 @@ def eliminar_recurso_vista(request, pk):
         recurso.delete()
         messages.success(request, 'Recurso eliminado.')
     return redirect('notas:gestion_recursos')
+
+
+# --- Videos del portal ---
+def _personal_del_colegio(request):
+    """Administrativos y docentes de ESTE colegio (no basta con ser docente de otro)."""
+    from ..models import Docente
+    if not request.user.is_authenticated or not request.colegio:
+        return False
+    return es_admin(request) or Docente.objects.filter(user=request.user, colegio=request.colegio).exists()
+
+
+def _puede_editar_video(request, video):
+    return es_admin(request) or video.autor_id == request.user.id
+
+
+def gestion_videos_vista(request, pk=None):
+    """Publicar videos en el portal pegando el enlace (YouTube, Vimeo, Drive o Facebook)."""
+    from django.core.exceptions import PermissionDenied
+    colegio = request.colegio
+    if not colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    if not _personal_del_colegio(request):
+        raise PermissionDenied
+    video = get_object_or_404(VideoPortal, pk=pk, colegio=colegio) if pk else None
+    if video and not _puede_editar_video(request, video):
+        raise PermissionDenied
+
+    if request.method == 'POST':
+        form = VideoPortalForm(request.POST, instance=video)
+        if form.is_valid():
+            nuevo = form.save(commit=False)
+            nuevo.colegio = colegio
+            if not nuevo.autor_id:
+                nuevo.autor = request.user
+            nuevo.save()
+            messages.success(request, f'Video «{nuevo.titulo}» guardado.' +
+                             (' Ya se ve en el portal.' if nuevo.visible else ' Quedó sin publicar.'))
+            return redirect('notas:gestion_videos')
+    else:
+        form = VideoPortalForm(instance=video)
+
+    videos = VideoPortal.objects.filter(colegio=colegio).select_related('autor')
+    for v in videos:
+        v.editable = _puede_editar_video(request, v)
+    return render(request, 'notas/admin_portal/gestion_videos.html', {
+        'form': form, 'video': video, 'videos': videos, 'page_title': 'Videos del portal', 'colegio': colegio})
+
+
+def eliminar_video_vista(request, pk):
+    from django.core.exceptions import PermissionDenied
+    if not request.colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    if not _personal_del_colegio(request):
+        raise PermissionDenied
+    video = get_object_or_404(VideoPortal, pk=pk, colegio=request.colegio)
+    if not _puede_editar_video(request, video):
+        raise PermissionDenied
+    if request.method == 'POST':
+        video.delete()
+        messages.success(request, 'Video eliminado.')
+    return redirect('notas:gestion_videos')

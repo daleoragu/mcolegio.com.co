@@ -39,9 +39,10 @@
     </aside>
 </div>
 </div></section>
+{% include "notas/portal_disenos/_videos_inicio.html" %}
 {% if inicio.fotos %}
 <section class="pd-seccion pt-0"><div class="container">
     <h2 class="pd-titulo">En imágenes</h2>
-    <div class="pd-galeria">{% for f in inicio.fotos|slice:":6" %}<a href="#" data-action="galeria" style="background-image:url('{{ f.imagen.url }}');border-radius:2px;" title="{{ f.titulo }}"></a>{% endfor %}</div>
+    <div class="pd-galeria">{% for f in inicio.fotos|slice:":6" %}<a href="#" data-action="galeria" style="background-image:url('{{ f.url_imagen }}');border-radius:2px;" title="{{ f.titulo }}"></a>{% endfor %}</div>
 </div></section>
 {% endif %}

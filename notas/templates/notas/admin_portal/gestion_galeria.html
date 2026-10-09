@@ -7,26 +7,51 @@
 
 {% block content %}
 <div class="card mb-4">
-    <div class="card-header"><h5>Añadir Nueva Foto</h5></div>
+    <div class="card-header"><h5 class="mb-0">Añadir foto</h5></div>
     <div class="card-body">
+        <p class="small text-muted">Puede subir la foto o, para no ocupar espacio, pegar un enlace:
+            <strong>Google Drive</strong> (se ve como una foto normal; compártala con «Cualquier persona con el enlace»),
+            o una publicación de <strong>Instagram</strong> o <strong>Facebook</strong> (se ve la publicación completa, como en esas páginas; debe ser pública).</p>
         <form method="POST" enctype="multipart/form-data">
             {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn btn-success mt-3">Subir Foto</button>
+            {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold" for="{{ form.titulo.id_for_label }}">{{ form.titulo.label }}</label>{{ form.titulo }}
+                    {% for e in form.titulo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold" for="{{ form.imagen.id_for_label }}">{{ form.imagen.label }}</label>{{ form.imagen }}
+                    {% for e in form.imagen.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold" for="{{ form.enlace.id_for_label }}">{{ form.enlace.label }}</label>{{ form.enlace }}
+                    <div class="form-text">{{ form.enlace.help_text }}</div>
+                    {% for e in form.enlace.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+            </div>
+            <button type="submit" class="btn btn-success mt-3"><i class="fas fa-plus me-1"></i>Agregar a la galería</button>
         </form>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-header"><h5>Fotos Publicadas</h5></div>
+    <div class="card-header"><h5 class="mb-0">Fotos publicadas ({{ fotos|length }})</h5></div>
     <div class="card-body">
         <div class="row g-3">
             {% for foto in fotos %}
             <div class="col-6 col-md-4 col-lg-3">
                 <div class="card h-100 shadow-sm">
-                    <img src="{{ foto.foto.url }}" class="card-img-top" style="height: 150px; object-fit: cover;" alt="{{ foto.titulo }}">
+                    {% if foto.es_publicacion %}
+                    <a href="{{ foto.enlace }}" target="_blank" rel="noopener" class="d-flex flex-column align-items-center justify-content-center text-decoration-none"
+                       style="height:150px;background:#f3f4f6;color:#374151;">
+                        <i class="fab fa-{{ foto.fuente }} fa-2x mb-1"></i><small>Publicación de {{ foto.get_fuente_display }}</small></a>
+                    {% else %}
+                    <img src="{{ foto.url_imagen }}" class="card-img-top" style="height: 150px; object-fit: cover;" alt="{{ foto.titulo }}" referrerpolicy="no-referrer">
+                    {% endif %}
                     <div class="card-body">
-                        <p class="card-text small">{{ foto.titulo|default:"Sin título" }}</p>
+                        <p class="card-text small mb-1">{{ foto.titulo|default:"Sin título" }}</p>
+                        {% if foto.fuente != 'archivo' %}<span class="badge bg-light text-dark border"><i class="fas fa-link me-1"></i>{{ foto.get_fuente_display }}</span>{% endif %}
                     </div>
                     <div class="card-footer">
                         <form action="{% url 'notas:eliminar_foto' foto.pk %}" method="POST">
