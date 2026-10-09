@@ -24,6 +24,7 @@ import io
 import re
 import unicodedata
 from collections import namedtuple
+from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.models import Group, User
 from django.core.validators import validate_email
@@ -85,6 +86,20 @@ TIPOS = {
             Col('abreviatura', 'Abreviatura', False, ['sigla', 'abrev'], 'Hasta 10 letras.', 'MAT'),
         ],
     },
+    'ponderacion': {
+        'titulo': 'Ponderación de áreas', 'icono': 'fa-balance-scale',
+        'descripcion': 'Cuánto pesa cada materia en su área: general o distinto por grado (opcional).',
+        'columnas': [
+            Col('area', 'Área', True, ['area de conocimiento', 'nombre area'], 'Un área ya creada.',
+                'Ciencias Naturales y Educación Ambiental'),
+            Col('materia', 'Materia', True, ['asignatura'], 'Una materia de esa área.', 'Física'),
+            Col('grado', 'Grado', False, ['grados', 'nivel'],
+                'Vacío = general (todos los grados). Un grado (6, Décimo…), varios (10, 11) o un nivel: '
+                'Preescolar, Primaria, Secundaria, Media.', '10, 11'),
+            Col('peso', 'Peso (%)', True, ['porcentaje', 'ponderacion', 'peso porcentual', 'peso'],
+                'De 0 a 100. Los de una misma área y grado deben sumar 100.', '40'),
+        ],
+    },
     'asignacion': {
         'titulo': 'Asignación académica', 'icono': 'fa-sitemap',
         'descripcion': 'Qué docente dicta qué materia en qué curso, con su intensidad horaria.',
@@ -127,7 +142,7 @@ TIPOS = {
         ],
     },
 }
-ORDEN = ['cursos', 'docentes', 'materias', 'asignacion', 'estudiantes']
+ORDEN = ['cursos', 'docentes', 'materias', 'ponderacion', 'asignacion', 'estudiantes']
 
 
 def columnas(tipo):
@@ -358,7 +373,8 @@ def _duplicado(vistos, clave, fila, que):
 def revisar(tipo, filas, colegio):
     """Lista de resultados, uno por fila (o por curso, en la asignación)."""
     return {'cursos': _revisar_cursos, 'docentes': _revisar_docentes, 'materias': _revisar_materias,
-            'asignacion': _revisar_asignacion, 'estudiantes': _revisar_estudiantes}[tipo](filas, colegio)
+            'ponderacion': _revisar_ponderacion, 'asignacion': _revisar_asignacion,
+            'estudiantes': _revisar_estudiantes}[tipo](filas, colegio)
 
 
 def resumen(resultados):
@@ -526,6 +542,102 @@ def _revisar_materias(filas, colegio):
             cambios.append(f'abreviatura: {m.abreviatura or "—"} → {abrev}')
         datos['id'] = m.id
         salida.append(_resultado(n, 'actualizar' if cambios else 'igual', nombre, datos, cambios=cambios))
+    return salida
+
+
+NIVELES_GRADO = {'preescolar': [-2, -1, 0], 'primaria': [1, 2, 3, 4, 5], 'basica primaria': [1, 2, 3, 4, 5],
+                 'secundaria': [6, 7, 8, 9], 'basica secundaria': [6, 7, 8, 9], 'basica': [6, 7, 8, 9],
+                 'media': [10, 11], 'media tecnica': [10, 11], 'media academica': [10, 11]}
+
+
+def grados_de(v):
+    """'' -> [None] (general); '10, 11' -> [10, 11]; 'Media' -> [10, 11]. None si algo no se entiende."""
+    t = norm(v)
+    if t in ('', 'general', 'todos', 'todos los grados', 'todo'):
+        return [None]
+    salida = []
+    for trozo in re.split(r'[,;/]|\s+y\s+', _texto(v)):
+        k = norm(trozo)
+        if not k:
+            continue
+        if k in NIVELES_GRADO:
+            salida += NIVELES_GRADO[k]
+            continue
+        g = parse_grado(trozo)
+        if g is None:
+            return None
+        salida.append(g)
+    return sorted(set(salida)) or [None]
+
+
+def _nombre_grados(grados):
+    if grados == [None]:
+        return 'general'
+    nombres = dict(_grados())
+    return ', '.join(nombres.get(g, str(g)) for g in grados)
+
+
+def _revisar_ponderacion(filas, colegio):
+    from .models.academicos import AreaConocimiento, PonderacionAreaMateria, PonderacionGrado
+    areas = {norm(a.nombre): a for a in AreaConocimiento.objects.filter(colegio=colegio)}
+    generales = {(p.area_id, p.materia_id): p for p in
+                 PonderacionAreaMateria.objects.filter(colegio=colegio).select_related('materia')}
+    materias_de_area = {}
+    for (area_id, _), p in generales.items():
+        materias_de_area.setdefault(area_id, {})[norm(p.materia.nombre)] = p.materia
+    propios = {(p.area_id, p.materia_id, p.grado): p.peso_porcentual
+               for p in PonderacionGrado.objects.filter(colegio=colegio)}
+    vistos, salida, sumas = {}, [], {}
+    for n, d in filas:
+        errores = []
+        area = areas.get(norm(d.get('area'))) if _texto(d.get('area')) else None
+        if area is None:
+            errores.append(f'no hay un área «{_texto(d.get("area"))}»' if _texto(d.get('area')) else 'falta el área')
+        materia = None
+        if area is not None:
+            materia = materias_de_area.get(area.id, {}).get(norm(d.get('materia')))
+            if materia is None:
+                errores.append(f'«{_texto(d.get("materia"))}» no es una materia del área {area.nombre} '
+                               '(únala al área en Materias)' if _texto(d.get('materia')) else 'falta la materia')
+        grados = grados_de(d.get('grado'))
+        if grados is None:
+            errores.append(f'el grado «{_texto(d.get("grado"))}» no se reconoce (deje vacío para el general)')
+        peso = None
+        try:
+            peso = Decimal(_texto(d.get('peso')).replace('%', '').replace(',', '.').strip())
+            if not Decimal('0') <= peso <= Decimal('100'):
+                raise InvalidOperation
+        except (InvalidOperation, ValueError):
+            errores.append(f'el peso «{_texto(d.get("peso"))}» debe ser un número de 0 a 100')
+        if area and materia and grados:
+            for g in grados:
+                dup = _duplicado(vistos, (area.id, materia.id, g), n,
+                                 f'{materia.nombre} en {area.nombre} ({_nombre_grados([g])})')
+                if dup:
+                    errores.append(dup)
+                    break
+        resumen_fila = (f'{materia.nombre if materia else _texto(d.get("materia"))} en '
+                        f'{area.nombre if area else _texto(d.get("area"))} · {_nombre_grados(grados or [None])}')
+        datos = {'area': area.id if area else None, 'materia': materia.id if materia else None,
+                 'grados': grados, 'peso': str(peso) if peso is not None else None}
+        if errores:
+            salida.append(_resultado(n, 'error', resumen_fila, datos, errores=errores))
+            continue
+        cambios = []
+        for g in grados:
+            antes = generales[(area.id, materia.id)].peso_porcentual if g is None else propios.get((area.id, materia.id, g))
+            if antes is None or Decimal(antes) != peso:
+                cambios.append(f'{_nombre_grados([g])}: {"—" if antes is None else f"{Decimal(antes):g} %"} → {peso:g} %')
+            sumas.setdefault((area.id, g), [Decimal('0'), area.nombre, n])
+            sumas[(area.id, g)][0] += peso
+            sumas[(area.id, g)][2] = n
+        salida.append(_resultado(n, 'actualizar' if cambios else 'igual', resumen_fila, datos,
+                                 cambios=cambios))
+    # Aviso cuando las materias de un área (en un grado) no suman 100 en el archivo.
+    por_fila = {r['fila']: r for r in salida}
+    for (area_id, g), (total, nombre_area, fila) in sumas.items():
+        if abs(total - 100) > Decimal('0.01'):
+            por_fila[fila]['avisos'].append(f'{nombre_area} ({_nombre_grados([g])}) suma {total:g} % en este archivo, no 100 %')
     return salida
 
 
@@ -735,7 +847,8 @@ def aplicar(tipo, filas, colegio):
     resultados = revisar(tipo, filas, colegio)
     credenciales = []
     hacer = {'cursos': _aplicar_curso, 'docentes': _aplicar_docente, 'materias': _aplicar_materia,
-             'asignacion': _aplicar_asignacion, 'estudiantes': _aplicar_estudiante}[tipo]
+             'ponderacion': _aplicar_ponderacion, 'asignacion': _aplicar_asignacion,
+             'estudiantes': _aplicar_estudiante}[tipo]
     usuarios = Usuarios()
     for r in resultados:
         if r['accion'] in ('crear', 'actualizar'):
@@ -802,6 +915,19 @@ def _aplicar_materia(r, colegio, usuarios):
     area, _ = AreaConocimiento.objects.get_or_create(colegio=colegio, nombre=d['area'])
     PonderacionAreaMateria.objects.get_or_create(colegio=colegio, area=area, materia=materia,
                                                  defaults={'peso_porcentual': 0})
+
+
+def _aplicar_ponderacion(r, colegio, usuarios):
+    from .models.academicos import PonderacionAreaMateria, PonderacionGrado
+    d = r['datos']
+    peso = Decimal(d['peso'])
+    for g in d['grados']:
+        if g is None:
+            PonderacionAreaMateria.objects.filter(colegio=colegio, area_id=d['area'], materia_id=d['materia']).update(
+                peso_porcentual=peso)
+        else:
+            PonderacionGrado.objects.update_or_create(colegio=colegio, area_id=d['area'], materia_id=d['materia'],
+                                                      grado=g, defaults={'peso_porcentual': peso})
 
 
 def _aplicar_asignacion(r, colegio, usuarios):
@@ -882,6 +1008,15 @@ def _filas_actuales(tipo, colegio):
             areas.setdefault(p.materia_id, p.area.nombre)
         for m in Materia.objects.filter(colegio=colegio).order_by('nombre'):
             yield [m.nombre, areas.get(m.id, ''), m.abreviatura or '']
+    elif tipo == 'ponderacion':
+        from .models.academicos import PonderacionGrado
+        nombres = dict(_grados())
+        for p in (PonderacionAreaMateria.objects.filter(colegio=colegio).select_related('area', 'materia')
+                  .order_by('area__nombre', 'materia__nombre')):
+            yield [p.area.nombre, p.materia.nombre, '', f'{p.peso_porcentual:g}']
+        for p in (PonderacionGrado.objects.filter(colegio=colegio).select_related('area', 'materia')
+                  .order_by('grado', 'area__nombre', 'materia__nombre')):
+            yield [p.area.nombre, p.materia.nombre, nombres.get(p.grado, p.grado), f'{p.peso_porcentual:g}']
     elif tipo == 'asignacion':
         for a in (AsignacionDocente.objects.filter(colegio=colegio)
                   .select_related('docente__user', 'docente__ficha', 'materia', 'curso')
@@ -909,6 +1044,7 @@ def plantilla(tipo, colegio, con_datos=False):
     from openpyxl.utils import get_column_letter
     from openpyxl.worksheet.datavalidation import DataValidation
     from .models import Curso, Docente, Materia, Sede
+    from .models.academicos import AreaConocimiento
 
     color = (getattr(colegio, 'color_primario', '') or '#193661').lstrip('#')[:6].upper()
     if not re.fullmatch(r'[0-9A-F]{6}', color):
@@ -943,6 +1079,8 @@ def plantilla(tipo, colegio, con_datos=False):
         'Docentes (documento)': [],
         'Grados': [f'{g} - {n}' for g, n in _grados()],
         'Tipos de documento': ['TI', 'RC', 'CC', 'CE', 'OT'],
+        'Áreas': [a.nombre for a in AreaConocimiento.objects.filter(colegio=colegio).order_by('nombre')],
+        'Grado o nivel': ['', 'Preescolar', 'Primaria', 'Secundaria', 'Media'] + [n for _, n in _grados()],
     }
     for dct in Docente.objects.filter(colegio=colegio).select_related('user', 'ficha').order_by('user__last_name'):
         f = getattr(dct, 'ficha', None)
@@ -960,7 +1098,10 @@ def plantilla(tipo, colegio, con_datos=False):
         letra = get_column_letter(j)
         return f'=Listas!${letra}$2:${letra}${max(n, 1) + 1}' if n else None
 
-    desplegables = {'curso': 'Cursos', 'materia': 'Materias', 'sede': 'Sedes', 'tipo_documento': 'Tipos de documento'}
+    desplegables = {'curso': 'Cursos', 'materia': 'Materias', 'sede': 'Sedes', 'tipo_documento': 'Tipos de documento',
+                    'area': 'Áreas'}
+    if tipo == 'ponderacion':
+        desplegables['grado'] = 'Grado o nivel'
     if tipo == 'cursos':
         desplegables.pop('curso')
     for i, c in enumerate(cols, start=1):

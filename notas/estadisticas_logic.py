@@ -67,6 +67,9 @@ def _get_rendimiento_estudiantes_bulk(filtros):
         ponderaciones_map[p.area_id].append({'materia_id': p.materia_id, 'peso': p.peso_porcentual})
         if p.area_id not in areas_info:
             areas_info[p.area_id] = p.area.nombre
+    # Los grados con porcentajes propios (Física y Química no pesan igual en 6.° que en 10.°).
+    from .pesos_area import grados_con_pesos_propios, pesos_areas
+    pesos_por_grado = {g: pesos_areas(colegio, g) for g in grados_con_pesos_propios(colegio)}
 
     resultados_finales = {}
     for estudiante in estudiantes_qs.select_related('user', 'curso'):
@@ -75,11 +78,13 @@ def _get_rendimiento_estudiantes_bulk(filtros):
             suma_ponderada_area = Decimal('0.0')
             suma_pesos_area = Decimal('0.0')
 
+            propios = pesos_por_grado.get(estudiante.curso.grado if estudiante.curso_id else None)
             for p_info in materias_ponderadas:
                 nota = calificaciones_map.get((estudiante.id, p_info['materia_id']))
                 if nota is not None:
-                    suma_ponderada_area += (nota * p_info['peso'])
-                    suma_pesos_area += p_info['peso']
+                    peso = propios.get((area_id, p_info['materia_id']), p_info['peso']) if propios else p_info['peso']
+                    suma_ponderada_area += (nota * peso)
+                    suma_pesos_area += peso
 
             if suma_pesos_area > 0:
                 promedio_area = (suma_ponderada_area / suma_pesos_area).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)

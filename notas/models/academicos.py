@@ -340,6 +340,29 @@ class PonderacionAreaMateria(models.Model):
         verbose_name = "Ponderación de Materia en Área"; verbose_name_plural = "Ponderaciones de Materias en Áreas"
     def __str__(self): return f"{self.materia.nombre} en {self.area.nombre} ({self.peso_porcentual}%)"
 
+
+class PonderacionGrado(models.Model):
+    """El peso de una materia en su área para UN grado, cuando no es el general.
+
+    Ej.: Ciencias Naturales en 6.° es Biología 60 %, Química 20 %, Física 20 %, y
+    en 10.° Biología 20 %, Química 40 %, Física 40 %. Un grado sin filas aquí usa
+    los porcentajes generales (PonderacionAreaMateria). Ver notas/pesos_area.py.
+    """
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='ponderaciones_grado')
+    area = models.ForeignKey('AreaConocimiento', on_delete=models.CASCADE)
+    materia = models.ForeignKey('Materia', on_delete=models.CASCADE)
+    grado = models.SmallIntegerField()
+    peso_porcentual = models.DecimalField(max_digits=5, decimal_places=2,
+                                          validators=[MinValueValidator(Decimal('0.00')), MaxValueValidator(Decimal('100.00'))])
+
+    class Meta:
+        unique_together = ('colegio', 'area', 'materia', 'grado')
+        verbose_name = 'Ponderación por grado'
+        verbose_name_plural = 'Ponderaciones por grado'
+
+    def __str__(self):
+        return f'{self.materia.nombre} en {self.area.nombre}, grado {self.grado} ({self.peso_porcentual}%)'
+
 class EscalaValoracion(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="escala_valoracion")
     nombre_desempeno = models.CharField(max_length=50, verbose_name="Nombre del Desempeño (e.g., Bajo, Superior)")

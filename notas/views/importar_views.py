@@ -7,7 +7,7 @@ from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
 from .. import importar as imp
-from ..models import AsignacionDocente, Curso, Docente, Estudiante, Materia
+from ..models import AsignacionDocente, Curso, Docente, Estudiante, Materia, PonderacionAreaMateria
 from ..permisos import admin_requerido
 
 XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -28,6 +28,7 @@ def importacion(request):
         'cursos': Curso.objects.filter(colegio=colegio).count(),
         'docentes': Docente.objects.filter(colegio=colegio).count(),
         'materias': Materia.objects.filter(colegio=colegio).count(),
+        'ponderacion': PonderacionAreaMateria.objects.filter(colegio=colegio).count(),
         'asignacion': AsignacionDocente.objects.filter(colegio=colegio).count(),
         'estudiantes': Estudiante.objects.filter(colegio=colegio, is_active=True).count(),
     }

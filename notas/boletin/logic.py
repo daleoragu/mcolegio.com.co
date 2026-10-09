@@ -11,6 +11,7 @@ from ..models import (
 )
 from .ponderacion import ajustes as ajustes_colegio, definitiva_anual
 from .. import componentes as _comp
+from ..pesos_area import pesos_areas
 from django.db.models import Prefetch
 
 
@@ -76,7 +77,8 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
         Prefetch('materias', queryset=materias_del_curso.order_by('nombre'), to_attr='materias_del_area_ordenadas')
     ).order_by('nombre')
 
-    ponderaciones_map = {(p.area_id, p.materia_id): p.peso_porcentual for p in PonderacionAreaMateria.objects.filter(colegio=colegio, materia__in=materias_del_curso)}
+    # Pesos de cada materia en su área: los del grado del curso, si los tiene; si no, los generales.
+    ponderaciones_map = pesos_areas(colegio, curso.grado, materias_del_curso)
 
     periodos_transcurridos = PeriodoAcademico.objects.filter(
         colegio=colegio, ano_lectivo=periodo.ano_lectivo, fecha_inicio__lte=periodo.fecha_inicio
@@ -239,13 +241,14 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
     asignaciones_map = {a.materia_id: a for a in asignaciones}
 
     ponderaciones = PonderacionAreaMateria.objects.filter(colegio=colegio, materia_id__in=materias_del_curso_ids).select_related('area')
+    pesos_del_grado = pesos_areas(colegio, curso.grado, materias_del_curso_ids)
 
     areas_data = defaultdict(lambda: {'nombre': '', 'materias': [], 'pesos': {}})
     for p in ponderaciones:
         if p.materia_id in materias_del_curso_ids:
             areas_data[p.area_id]['nombre'] = p.area.nombre
             areas_data[p.area_id]['materias'].append(p.materia_id)
-            areas_data[p.area_id]['pesos'][p.materia_id] = p.peso_porcentual
+            areas_data[p.area_id]['pesos'][p.materia_id] = pesos_del_grado.get((p.area_id, p.materia_id), p.peso_porcentual)
 
     sorted_area_ids = sorted(areas_data.keys(), key=lambda k: areas_data[k]['nombre'])
 
