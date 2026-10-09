@@ -1,7 +1,8 @@
 # notas/forms/portal_forms.py
 from django import forms
 # Se importan todos los modelos necesarios desde su ubicación correcta
-from ..models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, Colegio
+from ..models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, Colegio, RecursoEducativo
+from ..models.portal_models import EXTENSIONES_RECURSO
 
 class DocumentoPublicoForm(forms.ModelForm):
     class Meta:
@@ -105,3 +106,46 @@ class ColegioPersonalizacionForm(forms.ModelForm):
             'favicon': "Icono pequeño para la pestaña del navegador (ej: 32x32px)."
         }
 # --- FIN: FORMULARIO DEFINITIVO Y CORREGIDO ---
+
+
+class RecursoEducativoForm(forms.ModelForm):
+    """Un enlace o un archivo para la sección «Recursos educativos» del portal."""
+    TAMANO_MAXIMO = 15 * 1024 * 1024
+
+    class Meta:
+        model = RecursoEducativo
+        fields = ['titulo', 'categoria', 'descripcion', 'enlace', 'archivo', 'orden', 'visible']
+        widgets = {
+            'titulo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Khan Academy'}),
+            'categoria': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Plataformas gratuitas',
+                                                'list': 'categorias-recursos'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 2,
+                                                 'placeholder': 'Cursos gratuitos de matemáticas y ciencias'}),
+            'enlace': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://…'}),
+            'archivo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'orden': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'visible': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def clean_enlace(self):
+        enlace = (self.cleaned_data.get('enlace') or '').strip()
+        if enlace and not enlace.lower().startswith(('http://', 'https://')):
+            raise forms.ValidationError('El enlace debe empezar por http:// o https://')
+        return enlace
+
+    def clean_archivo(self):
+        archivo = self.cleaned_data.get('archivo')
+        if archivo and hasattr(archivo, 'size'):
+            extension = archivo.name.rsplit('.', 1)[-1].lower() if '.' in archivo.name else ''
+            if extension not in EXTENSIONES_RECURSO:
+                raise forms.ValidationError('Tipo de archivo no permitido. Use: ' + ', '.join(EXTENSIONES_RECURSO) + '.')
+            if archivo.size > self.TAMANO_MAXIMO:
+                raise forms.ValidationError('El archivo pesa más de 15 MB. Súbalo a Drive y pegue el enlace.')
+        return archivo
+
+    def clean(self):
+        datos = super().clean()
+        if not datos.get('enlace') and not datos.get('archivo'):
+            raise forms.ValidationError('Pegue un enlace o suba un archivo.')
+        datos['categoria'] = ' '.join((datos.get('categoria') or '').split())
+        return datos

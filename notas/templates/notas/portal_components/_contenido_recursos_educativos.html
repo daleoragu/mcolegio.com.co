@@ -1,7 +1,33 @@
-<!-- Fragmento de HTML para Recursos Educativos -->
-<div class="card shadow-sm">
-    <div class="card-body p-4 p-md-5">
-        <h2 class="card-title mb-4 border-bottom pb-3">Recursos Educativos</h2>
+<!-- Recursos educativos: los que publica el colegio desde «Gestionar portal → Recursos educativos». -->
+<style>
+    .re-grupo { margin-top: 1.75rem; }
+    .re-grupo h4 { color: var(--color-primario); font-size: 1.15rem; font-weight: 700; }
+    .re-item { display: flex; gap: 14px; align-items: flex-start; }
+    .re-icono { width: 40px; height: 40px; flex: none; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+                background: color-mix(in srgb, var(--color-primario) 12%, #fff); color: var(--color-primario); font-size: 1.1rem; }
+</style>
+<h2 class="card-title mb-3 border-bottom pb-3">Recursos Educativos</h2>
+{% if grupos %}
+    <p class="lead mb-0">Herramientas, guías y plataformas que recomienda {{ colegio.nombre }}.</p>
+    {% for categoria, recursos in grupos %}
+    <div class="re-grupo">
+        <h4>{{ categoria }}</h4>
+        <div class="list-group">
+        {% for r in recursos %}
+            <a href="{{ r.url }}" target="_blank" rel="noopener noreferrer" class="list-group-item list-group-item-action py-3">
+                <div class="re-item">
+                    <span class="re-icono"><i class="fas {% if r.archivo %}fa-file-arrow-down{% else %}fa-arrow-up-right-from-square{% endif %}"></i></span>
+                    <div>
+                        <h5 class="mb-1">{{ r.titulo }}</h5>
+                        {% if r.descripcion %}<p class="mb-0 text-muted">{{ r.descripcion }}</p>{% endif %}
+                    </div>
+                </div>
+            </a>
+        {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
         <p class="lead">Un espacio con herramientas y plataformas para enriquecer el aprendizaje de toda nuestra comunidad educativa.</p>
 
         <!-- Sección de Plataformas Gratuitas -->
@@ -40,5 +66,4 @@
                 <p class="mb-1">Uno de los mayores portales bibliográficos del mundo, centrado en el ámbito de las ciencias humanas y sociales.</p>
             </a>
         </div>
-    </div>
-</div>
+{% endif %}

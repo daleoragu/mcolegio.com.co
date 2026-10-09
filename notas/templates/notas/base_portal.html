@@ -76,6 +76,41 @@
         .email-float { background-color: #B23121; }
         .documents-float { background-color: #6c757d; }
 
+        /* --- Diseño clásico: barra superior --- */
+        .header-nav .nav-link, .header-nav .navbar-toggler { color: var(--color-topbar-texto); opacity: .92; }
+        .header-nav .nav-link:hover, .header-nav .nav-link:focus, .header-nav .nav-link.show { color: var(--color-topbar-texto); opacity: 1; }
+        .header-nav .navbar-toggler { border-color: color-mix(in srgb, var(--color-topbar-texto) 45%, transparent); }
+
+        /* --- Diseño clásico: menú lateral --- */
+        .sidebar-container { position: sticky; top: 0; height: 100vh; overflow-y: auto; width: 100%; }
+        .offcanvas .sidebar-container { position: static; height: 100%; }
+        .sidebar-brand { flex-direction: column; justify-content: center; text-align: center; gap: .6rem;
+                         width: 100%; margin: 0 !important; padding: .25rem 0 .5rem; color: var(--color-topbar-texto) !important; }
+        .sidebar-logo { display: block; width: auto; height: auto; max-width: 110px; max-height: 120px; object-fit: contain;
+                        filter: drop-shadow(0 2px 4px rgba(0,0,0,.18)); }
+        .sidebar-title { font-size: 1rem !important; font-weight: 700; line-height: 1.25; white-space: normal; overflow-wrap: anywhere; }
+        .sidebar-divider { border-color: currentColor; opacity: .25; margin: .75rem 0; }
+        .sidebar-container .nav-link { color: var(--color-topbar-texto); opacity: .9; border-radius: 8px; padding: .5rem .75rem; }
+        .sidebar-container .nav-link:hover, .sidebar-container .nav-link:focus { color: var(--color-topbar-texto); opacity: 1;
+                                                                                  background: rgba(255,255,255,.14); }
+        .sidebar-container .collapse .nav-link { font-size: .92rem; padding-left: 1.4rem; }
+        .sidebar-container .dropdown-toggle-custom::after { content: "\f107"; font-family: "Font Awesome 6 Free"; font-weight: 900;
+                                                            float: right; opacity: .7; }
+
+        /* --- Pie de página compacto (diseños clásicos) --- */
+        .portal-footer { font-size: .88rem; }
+        .portal-footer .pf-fila { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .35rem 1.5rem; }
+        .portal-footer .pf-datos { display: flex; flex-wrap: wrap; gap: .25rem 1.1rem; margin: 0; padding: 0; list-style: none; opacity: .9; }
+        .portal-footer .pf-datos i { margin-right: .35rem; opacity: .8; }
+        .portal-footer a { color: inherit; }
+        @media (min-width: 768px) { .portal-footer .pf-fila { padding-right: 96px; } }   /* no queda debajo de los botones flotantes */
+        @media (max-width: 767.98px) {
+            .portal-footer .pf-fila { padding-right: 72px; flex-direction: column; align-items: flex-start; }
+            .portal-footer .pf-datos { flex-direction: column; }
+            .floating-action-buttons { right: 14px; bottom: 14px; gap: 9px; }
+            .floating-action-buttons a { width: 46px; height: 46px; font-size: 20px; }
+        }
+
         .carousel-item img {
             object-fit: contain !important;
             object-position: center;

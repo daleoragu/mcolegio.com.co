@@ -5,10 +5,10 @@ from django.contrib import messages
 from django.http import HttpResponseNotFound
 
 # Se importan los modelos y formularios necesarios
-from ..models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel
+from ..models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, RecursoEducativo
 from ..forms import (
     DocumentoPublicoForm, FotoGaleriaForm, NoticiaForm, ImagenCarruselForm,
-    ColegioPersonalizacionForm
+    ColegioPersonalizacionForm, RecursoEducativoForm
 )
 from ..permisos import es_admin, es_admin_usuario
 
@@ -280,3 +280,42 @@ def elegir_diseno_portal_vista(request):
         colegio.save(update_fields=['layout_portal'])
         messages.success(request, f'El portal ahora usa el diseño «{nombres[diseno].split(":")[0]}».')
     return redirect('notas:portal')
+
+
+# --- Recursos educativos del portal ---
+@user_passes_test(es_admin_o_docente)
+def gestion_recursos_vista(request, pk=None):
+    """Agregar, editar, ocultar y quitar los recursos de «Recursos educativos»."""
+    colegio = request.colegio
+    if not colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    recurso = get_object_or_404(RecursoEducativo, pk=pk, colegio=colegio) if pk else None
+
+    if request.method == 'POST':
+        form = RecursoEducativoForm(request.POST, request.FILES, instance=recurso)
+        if form.is_valid():
+            nuevo = form.save(commit=False)
+            nuevo.colegio = colegio
+            nuevo.save()
+            messages.success(request, f'Recurso «{nuevo.titulo}» guardado. Ya sale en el portal.' if nuevo.visible
+                             else f'Recurso «{nuevo.titulo}» guardado (oculto en el portal).')
+            return redirect('notas:gestion_recursos')
+    else:
+        form = RecursoEducativoForm(instance=recurso)
+
+    recursos = RecursoEducativo.objects.filter(colegio=colegio)
+    categorias = sorted({r.categoria for r in recursos if r.categoria})
+    return render(request, 'notas/admin_portal/gestion_recursos.html', {
+        'form': form, 'recurso': recurso, 'recursos': recursos, 'categorias': categorias,
+        'page_title': 'Recursos educativos', 'colegio': colegio})
+
+
+@user_passes_test(es_admin_o_docente)
+def eliminar_recurso_vista(request, pk):
+    if not request.colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    recurso = get_object_or_404(RecursoEducativo, pk=pk, colegio=request.colegio)
+    if request.method == 'POST':
+        recurso.delete()
+        messages.success(request, 'Recurso eliminado.')
+    return redirect('notas:gestion_recursos')

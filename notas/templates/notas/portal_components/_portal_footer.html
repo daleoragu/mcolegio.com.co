@@ -1,19 +1,11 @@
-<!-- notas/portal_components/_portal_footer.html -->
-<footer class="portal-footer py-4 mt-auto">
-    <div class="container">
-        <div class="row">
-            <div class="col-12 text-center">
-                <p class="mb-1">&copy; {% now "Y" %} {{ colegio.nombre }}. Todos los derechos reservados.</p>
-                 <div class="contact-info mb-3">
-                    {% if colegio.telefono %}<i class="fas fa-phone-alt me-2"></i> {{ colegio.telefono }}{% endif %}
-                    {% if colegio.email_contacto %}<i class="fas fa-envelope ms-3 me-2"></i> {{ colegio.email_contacto }} {% endif %}
-                    <p class="col-12 text-center">{{ colegio.ciudad }}-{{ colegio.departamento}}</p>
-                    <p class="col-12 text-center">{{ colegio.direccion }}</p>
-                </div>
-                
-                <div>
-                </div>
-            </div>
-        </div>
+<!-- notas/portal_components/_portal_footer.html: pie compacto de los diseños clásicos -->
+<footer class="portal-footer mt-auto">
+    <div class="container py-3 pf-fila">
+        <div class="fw-semibold">&copy; {% now "Y" %} {{ colegio.nombre }}</div>
+        <ul class="pf-datos">
+            {% if colegio.direccion or colegio.ciudad %}<li><i class="fas fa-map-marker-alt"></i>{{ colegio.direccion }}{% if colegio.direccion and colegio.ciudad %}, {% endif %}{{ colegio.ciudad }}{% if colegio.departamento %} ({{ colegio.departamento }}){% endif %}</li>{% endif %}
+            {% if colegio.telefono %}<li><i class="fas fa-phone-alt"></i>{{ colegio.telefono }}</li>{% endif %}
+            {% if colegio.email_contacto %}<li><i class="fas fa-envelope"></i><a href="mailto:{{ colegio.email_contacto }}">{{ colegio.email_contacto }}</a></li>{% endif %}
+        </ul>
     </div>
 </footer>

@@ -1,5 +1,5 @@
 <footer class="pd-pie mt-auto">
-    <div class="container py-5">
+    <div class="container py-4">
         <div class="row g-4">
             <div class="col-lg-5">
                 <div class="d-flex align-items-center gap-3 mb-3">
@@ -24,6 +24,7 @@
                     {% if colegio.prematricula.esta_abierta %}<li><a href="{% url 'prematricula:inicio' %}">Prematrícula {{ colegio.prematricula.ano_lectivo }}</a></li>{% endif %}
                     <li><a href="#" data-action="noticias">Noticias</a></li>
                     <li><a href="#" data-action="documentos">Documentos públicos</a></li>
+                    <li><a href="#" data-action="recursos">Recursos educativos</a></li>
                     <li><a href="#" data-action="historia">Quiénes somos</a></li>
                 </ul>
                 <div class="pd-pie-redes">{% include "notas/portal_disenos/_redes.html" %}</div>

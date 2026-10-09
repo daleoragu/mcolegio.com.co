@@ -1,6 +1,5 @@
 <!-- Fragmento de HTML para Redes Sociales (Versión Dinámica) -->
-<div class="card shadow-sm">
-    <div class="card-body p-4 p-md-5 text-center">
+<div class="text-center">
         <h2 class="card-title mb-4 border-bottom pb-3">Conéctate con Nosotros</h2>
         <p class="lead">
             Sigue nuestras redes sociales para estar al día con las últimas noticias, eventos y actividades de nuestra institución.
@@ -8,13 +7,13 @@
         <div class="mt-4">
             
             {% if colegio.url_facebook %}
-            <a href="{{ colegio.url_facebook }}" target="_blank" class="btn btn-primary btn-lg mx-2 my-2" style="background-color: #1877F2;">
+            <a href="{{ colegio.url_facebook }}" target="_blank" rel="noopener" class="btn btn-primary btn-lg mx-2 my-2" style="background-color: #1877F2;">
                 <i class="fab fa-facebook-f me-2"></i> Facebook
             </a>
             {% endif %}
 
             {% if colegio.url_instagram %}
-            <a href="{{ colegio.url_instagram }}" target="_blank" class="btn btn-danger btn-lg mx-2 my-2" style="background: #d6249f; background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%,#d6249f 60%,#285AEB 90%);">
+            <a href="{{ colegio.url_instagram }}" target="_blank" rel="noopener" class="btn btn-danger btn-lg mx-2 my-2" style="background: #d6249f; background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%,#d6249f 60%,#285AEB 90%);">
                 <i class="fab fa-instagram me-2"></i> Instagram
             </a>
             {% endif %}
@@ -26,7 +25,7 @@
             {% endif %}
 
             {% if colegio.url_youtube %}
-            <a href="{{ colegio.url_youtube }}" target="_blank" class="btn btn-danger btn-lg mx-2 my-2" style="background-color: #FF0000; color: white;">
+            <a href="{{ colegio.url_youtube }}" target="_blank" rel="noopener" class="btn btn-danger btn-lg mx-2 my-2" style="background-color: #FF0000; color: white;">
                 <i class="fab fa-youtube me-2"></i> YouTube
             </a>
             {% endif %}
@@ -36,4 +35,3 @@
             {% endif %}
         </div>
     </div>
-</div>
