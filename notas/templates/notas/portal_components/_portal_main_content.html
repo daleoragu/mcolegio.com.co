@@ -1,7 +1,9 @@
 <main>
-    <div class="container py-5">
-        <div id="defaultMainContent">
-            </div>
+    <div class="container py-4 py-lg-5">
+        {# La portada (nombre del colegio sobre las fotos) sale armada desde el servidor. #}
+        <div id="defaultMainContent"{% if portada %} data-servidor="1" class="portal-clasico-portada"{% endif %}>
+            {% if portada %}{% include "notas/portal_disenos/_portada.html" with inicio=portada %}{% endif %}
+        </div>
 
         <div id="dynamicMainContent" class="d-none">
             <div class="card shadow-sm">

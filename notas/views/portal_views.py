@@ -83,18 +83,26 @@ def _contexto_diseno(request, colegio):
     diseno = colegio.layout_portal if colegio.layout_portal in validos else 'topbar'
     probando = request.GET.get('diseno')
     vista_previa = False
-    if probando in validos and request.user.is_authenticated and es_admin_colegio(request.user, colegio):
+    admin = request.user.is_authenticated and es_admin_colegio(request.user, colegio)
+    if probando in validos and admin:
         diseno, vista_previa = probando, probando != colegio.layout_portal
-    ctx = {'diseno': diseno, 'vista_previa': vista_previa}
+    # admin_portal: el administrador ve en la portada la recomendación de qué foto subir.
+    ctx = {'diseno': diseno, 'vista_previa': vista_previa, 'admin_portal': admin}
+    portada = {
+        'carrusel': list(ImagenCarrusel.objects.filter(colegio=colegio, visible=True).order_by('orden')[:8]),
+        'sedes': list(colegio.sedes.filter(activa=True)[:6]),
+    }
+    if diseno not in Colegio.DISENOS_CON_INICIO:
+        ctx['portada'] = portada        # diseños clásicos: la portada también sale armada desde el servidor
     if diseno in Colegio.DISENOS_CON_INICIO:
         noticias = list(Noticia.objects.filter(colegio=colegio, estado='PUBLICADO')
                         .select_related('autor').order_by('-fecha_publicacion')[:6])
         ctx['inicio'] = {
-            'carrusel': list(ImagenCarrusel.objects.filter(colegio=colegio, visible=True).order_by('orden')[:8]),
+            'carrusel': portada['carrusel'],
             'noticias': noticias,
             'fotos': list(FotoGaleria.objects.filter(colegio=colegio).order_by('-fecha_subida')[:8]),
             'n_documentos': DocumentoPublico.objects.filter(colegio=colegio).count(),
-            'sedes': list(colegio.sedes.filter(activa=True)[:6]),
+            'sedes': portada['sedes'],
         }
     return ctx
 

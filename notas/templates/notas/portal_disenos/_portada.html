@@ -1,0 +1,43 @@
+{# Portada del inicio: el nombre del colegio en grande sobre las fotos del carrusel (se van turnando). #}
+<section class="pd-portada{% if not inicio.carrusel %} pd-portada-sin-foto{% endif %}">
+    {% if inicio.carrusel %}
+    <div id="pdPortada" class="carousel slide carousel-fade pd-portada-fotos" data-bs-ride="carousel" data-bs-interval="6000">
+        <div class="carousel-inner">
+            {% for img in inicio.carrusel %}
+            <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                <div class="pd-portada-img" style="background-image:url('{{ img.imagen.url }}')"></div>
+                <div class="pd-portada-sombra"></div>
+                {% if img.titulo %}<div class="pd-portada-pie">{{ img.titulo }}{% if img.subtitulo %} · {{ img.subtitulo }}{% endif %}</div>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% if inicio.carrusel|length > 1 %}
+        <div class="carousel-indicators">
+            {% for img in inicio.carrusel %}<button type="button" data-bs-target="#pdPortada" data-bs-slide-to="{{ forloop.counter0 }}" {% if forloop.first %}class="active"{% endif %} aria-label="Foto {{ forloop.counter }}"></button>{% endfor %}
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#pdPortada" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button>
+        <button class="carousel-control-next" type="button" data-bs-target="#pdPortada" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>
+        {% endif %}
+    </div>
+    {% endif %}
+    <div class="pd-portada-capa"><div class="container">
+        {% include "notas/portal_disenos/_escudo.html" with clase="pd-portada-escudo" %}
+        <h1 class="pd-portada-nombre">{{ colegio.nombre }}</h1>
+        {% if colegio.lema %}<p class="pd-portada-lema">«{{ colegio.lema }}»</p>{% endif %}
+        <div class="pd-portada-botones">
+            {% if colegio.prematricula.esta_abierta %}
+            <a href="{% url 'prematricula:inicio' %}" class="pd-portada-btn pd-portada-btn-fuerte"><i class="fas fa-file-signature"></i> Prematrícula {{ colegio.prematricula.ano_lectivo }}</a>
+            {% endif %}
+            <a href="#" data-action="historia" class="pd-portada-btn">Conózcanos</a>
+            {% if inicio.sedes %}<a href="#" data-action="sedes" class="pd-portada-btn"><i class="fas fa-school"></i> Nuestras sedes</a>{% endif %}
+        </div>
+    </div></div>
+    {% if admin_portal %}
+    <a class="pd-portada-ayuda" href="{% url 'notas:gestion_carrusel' %}" title="Solo usted ve este aviso">
+        <strong><i class="fas fa-lightbulb me-1"></i>{% if inicio.carrusel %}Fotos de la portada{% else %}Agregue una foto de portada{% endif %}</strong>
+        Horizontal, de 1920 × 800 px (o más), menos de 2 MB. Que se vea el colegio o los estudiantes en actividad, sin collages ni texto encima:
+        el nombre del colegio ya va escrito sobre la foto. Lo importante, en el centro.
+        <span class="pd-portada-ayuda-ir">{% if inicio.carrusel %}Cambiar fotos{% else %}Subir fotos{% endif %} →</span>
+    </a>
+    {% endif %}
+</section>

@@ -86,3 +86,19 @@ class PieYMenuLateral(ColegioDePrueba):
         self.assertIn('pf-datos', h)
         self.assertIn('.sidebar-logo {', h)
         self.assertIn('Recursos educativos', h)
+
+
+class PortadaYSedes(ColegioDePrueba):
+
+    def test_portada_con_el_nombre_en_todos_los_disenos(self):
+        from notas.models import Sede
+        Sede.objects.create(colegio=self.a, nombre='Sede Norte', direccion='Calle 1')
+        for valor, _ in Colegio.LAYOUT_CHOICES:
+            Colegio.objects.filter(pk=self.a.pk).update(layout_portal=valor)
+            visitante = self.cliente().get('/').content.decode()
+            self.assertIn('class="pd-portada-nombre">Colegio A</h1>', visitante, valor)
+            self.assertIn('data-action="sedes">Sedes</a>', visitante.replace('<i class="fas fa-school fa-fw me-2"></i>', ''), valor)
+            self.assertIn('Nuestras sedes', visitante, valor)
+            self.assertNotIn('class="pd-portada-ayuda"', visitante, valor)            # la recomendación es solo para el admin
+            admin = self.cliente(self.rectora).get('/').content.decode()
+            self.assertIn('1920 × 800', admin, valor)

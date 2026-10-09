@@ -1,19 +1,4 @@
-{% with fondo=inicio.carrusel.0 %}
-<section class="pd-heroe" {% if fondo %}style="background-image:url('{{ fondo.imagen.url }}')"{% endif %}>
-    <div class="container">
-        {% include "notas/portal_disenos/_escudo.html" %}
-        <h1>{{ colegio.nombre }}</h1>
-        {% if colegio.lema %}<p class="pd-lema">«{{ colegio.lema }}»</p>{% endif %}
-        <div class="d-flex flex-wrap justify-content-center gap-3 mt-4">
-            {% if colegio.prematricula.esta_abierta %}
-                <a href="{% url 'prematricula:inicio' %}" class="pd-btn" style="background:#fff;color:var(--pd-p);border-color:#fff;"><i class="fas fa-file-signature"></i> Prematrícula {{ colegio.prematricula.ano_lectivo }}</a>
-            {% endif %}
-            <a href="#" data-action="historia" class="pd-btn-borde">Conózcanos</a>
-            <a href="#" data-action="noticias" class="pd-btn-borde">Noticias</a>
-        </div>
-    </div>
-</section>
-{% endwith %}
+{% include "notas/portal_disenos/_portada.html" %}
 <div class="container">
     <div class="pd-pilares">
         <div class="pd-pilar"><i class="fas fa-bullseye"></i><h3>Misión</h3><p>{{ colegio.mision|default:"Formamos personas íntegras, con sentido crítico y compromiso con su comunidad."|truncatewords:32 }}</p>
