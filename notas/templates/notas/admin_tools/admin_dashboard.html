@@ -159,6 +159,9 @@
     .bg-portal-gestion { background: linear-gradient(135deg, #5f72bd, #435185); }
     .bg-reporte-estudiantes { background: linear-gradient(135deg, #a0522d, #8b4513); }
 
+    .vc-caja { background:#fff; border:1px solid #e3e6ec; border-radius:12px; padding:14px 18px; margin:6px 20px 20px; }
+    .vc-muestra .app-icon { cursor:default; opacity:.85; }
+    .vc-muestra .app-icon:hover { transform:none; }
 </style>
 {% endblock %}
 
@@ -167,11 +170,9 @@
     
     <nav>
         <div class="nav nav-tabs dashboard-nav" id="nav-tab" role="tablist">
-            <button class="nav-link active" id="nav-admin-tab" data-bs-toggle="tab" data-bs-target="#nav-admin" type="button" role="tab">Panel de Administración</button>
-            
-            {% if user_is_also_docente %}
-            <button class="nav-link" id="nav-docente-tab" data-bs-toggle="tab" data-bs-target="#nav-docente" type="button" role="tab">Vista de Docente</button>
-            {% endif %}
+            <button class="nav-link active" id="nav-admin-tab" data-bs-toggle="tab" data-bs-target="#nav-admin" type="button" role="tab"><i class="fas fa-user-shield me-1"></i>Panel de Administración</button>
+            <button class="nav-link" id="nav-docente-tab" data-bs-toggle="tab" data-bs-target="#nav-docente" type="button" role="tab"><i class="fas fa-chalkboard-teacher me-1"></i>Panel Docente</button>
+            <button class="nav-link" id="nav-estudiante-tab" data-bs-toggle="tab" data-bs-target="#nav-estudiante" type="button" role="tab"><i class="fas fa-user-graduate me-1"></i>Panel Estudiante</button>
         </div>
     </nav>
     <div class="tab-content pt-3" id="nav-tabContent">
@@ -201,6 +202,7 @@
                 <a href="{% url 'notas:importacion_datos' %}" class="app-icon"><div class="icon-container bg-importar"><i class="fas fa-file-import"></i></div><span class="app-label">Importar datos</span></a>
                 <a href="{% url 'notas:gestion_estudiantes' %}" class="app-icon"><div class="icon-container bg-estudiantes"><i class="fas fa-users"></i></div><span class="app-label">Gestión Estudiantes</span></a>
                 <a href="{% url 'notas:gestion_materias' %}" class="app-icon"><div class="icon-container bg-materias"><i class="fas fa-book-open"></i></div><span class="app-label">Gestión Materias</span></a>
+                <a href="{% url 'notas:gestion_areas' %}" class="app-icon"><div class="icon-container bg-materias" style="filter:hue-rotate(40deg)"><i class="fas fa-layer-group"></i></div><span class="app-label">Áreas</span></a>
                 <a href="{% url 'notas:gestion_docentes' %}" class="app-icon"><div class="icon-container bg-docentes"><i class="fas fa-chalkboard-teacher"></i></div><span class="app-label">Gestión de Docentes</span></a>
                 <a href="{% url 'notas:panel_control_periodos' %}" class="app-icon"><div class="icon-container bg-periodos"><i class="fas fa-calendar-alt"></i></div><span class="app-label">Control de Plazos</span></a>
                 <a href="{% url 'notas:panel_publicacion' %}" class="app-icon"><div class="icon-container bg-publicar"><i class="fas fa-paper-plane"></i></div><span class="app-label">Publicar Boletines</span></a>
@@ -230,12 +232,103 @@
             </div>
         </div>
 
-        {% if user_is_also_docente %}
         <div class="tab-pane fade" id="nav-docente" role="tabpanel">
-            {# Este include asume que tienes una plantilla con los iconos para el panel de docente #}
             {% include "notas/docente/_panel_docente_content.html" %}
+            <div class="vc-caja">
+                <div class="fw-bold mb-1"><i class="fas fa-user-secret me-1"></i>Ver la plataforma como un docente</div>
+                <p class="small text-muted mb-2">Entra exactamente como lo ve ese docente (sus cursos, sus planillas, su menú). Arriba le sale una franja para volver a su cuenta.</p>
+                <form method="post" class="d-flex flex-wrap gap-2 vc-form" data-tipo="docentes">{% csrf_token %}
+                    <input type="search" class="form-control vc-buscar" placeholder="Buscar docente…" style="max-width:260px">
+                    <select class="form-select vc-persona" style="max-width:340px" required><option value="">Escoja un docente</option></select>
+                    <button class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>Ver como este docente</button>
+                </form>
+            </div>
         </div>
-        {% endif %}
+
+        <div class="tab-pane fade" id="nav-estudiante" role="tabpanel">
+            <div class="welcome-header" style="background: linear-gradient(135deg, #0f7180, #17a2b8);">
+                <div class="welcome-text">
+                    <h2>Panel Estudiante</h2>
+                    <p>Lo que ve un estudiante al entrar: su observador, sus boletines y el correo interno.</p>
+                </div>
+                <div class="welcome-illustration"><i class="fas fa-user-graduate"></i></div>
+            </div>
+            <div class="app-grid vc-muestra" title="Así le aparecen al estudiante. Para abrirlas, use «Ver como» abajo.">
+                <span class="app-icon"><div class="icon-container" style="background:linear-gradient(135deg,#17a2b8,#0f7180)"><i class="fas fa-user-graduate"></i></div><span class="app-label">Mi Observador</span></span>
+                <span class="app-icon"><div class="icon-container" style="background:linear-gradient(135deg,#6f42c1,#532c9c)"><i class="fas fa-file-pdf"></i></div><span class="app-label">Mis Boletines</span></span>
+                <span class="app-icon"><div class="icon-container" style="background:linear-gradient(135deg,#dc3545,#b02130)"><i class="fas fa-envelope"></i></div><span class="app-label">CofraMail</span></span>
+            </div>
+            <div class="vc-caja">
+                <div class="fw-bold mb-1"><i class="fas fa-user-secret me-1"></i>Ver la plataforma como un estudiante</div>
+                <p class="small text-muted mb-2">Escoja el curso y el estudiante: entra con su panel, su observador y sus boletines. Arriba le sale una franja para volver a su cuenta.</p>
+                <form method="post" class="d-flex flex-wrap gap-2 vc-form" data-tipo="estudiantes">{% csrf_token %}
+                    <select class="form-select vc-curso" style="max-width:200px"><option value="">Curso</option></select>
+                    <input type="search" class="form-control vc-buscar" placeholder="Buscar estudiante…" style="max-width:240px">
+                    <select class="form-select vc-persona" style="max-width:340px" required><option value="">Escoja un estudiante</option></select>
+                    <button class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>Ver como este estudiante</button>
+                </form>
+            </div>
+            <div class="app-grupo">Lo de los estudiantes, desde la administración</div>
+            <div class="app-grid">
+                <a href="{% url 'notas:observador_selector' %}" class="app-icon"><div class="icon-container bg-observador"><i class="fas fa-eye"></i></div><span class="app-label">Observador</span></a>
+                <a href="{% url 'notas:selector_boletin' %}" class="app-icon"><div class="icon-container bg-boletines"><i class="fas fa-file-invoice"></i></div><span class="app-label">Boletines</span></a>
+                <a href="{% url 'notas:gestion_estudiantes' %}" class="app-icon"><div class="icon-container bg-estudiantes"><i class="fas fa-users"></i></div><span class="app-label">Gestión Estudiantes</span></a>
+                <a href="{% url 'notas:impresion_masiva_carnets' %}" class="app-icon"><div class="icon-container bg-impresion-carnets"><i class="fas fa-id-card"></i></div><span class="app-label">Carnets</span></a>
+                <a href="{% url 'notas:selector_certificados' %}" class="app-icon"><div class="icon-container bg-certificado-de-estudios"><i class="fas fa-award"></i></div><span class="app-label">Certificados</span></a>
+            </div>
+        </div>
     </div>
 </div>
+<script id="vc-datos" type="application/json">{{ ver_como|safe }}</script>
+<script>
+(function () {
+    // Abrir la pestaña que pida la dirección (#docente, #estudiante), p. ej. desde el menú.
+    var pestanas = {'#docente': 'nav-docente-tab', '#estudiante': 'nav-estudiante-tab', '#administracion': 'nav-admin-tab'};
+    function abrir() {
+        var id = pestanas[location.hash];
+        if (id && window.bootstrap) bootstrap.Tab.getOrCreateInstance(document.getElementById(id)).show();
+    }
+    document.addEventListener('DOMContentLoaded', abrir);
+    window.addEventListener('hashchange', abrir);
+    document.querySelectorAll('#nav-tab .nav-link').forEach(function (b) {
+        b.addEventListener('shown.bs.tab', function () {
+            var h = Object.keys(pestanas).filter(function (k) { return pestanas[k] === b.id; })[0];
+            if (h && history.replaceState) history.replaceState(null, '', h === '#administracion' ? location.pathname : h);
+        });
+    });
+
+    // «Ver como»: el botón manda un POST a la suplantación de ese usuario.
+    var datos = JSON.parse(document.getElementById('vc-datos').textContent || '{}');
+    var urlBase = "{% url 'notas:iniciar_suplantacion' 0 %}".replace(/0\/$/, '');
+    document.querySelectorAll('.vc-form').forEach(function (f) {
+        var sel = f.querySelector('.vc-persona'), buscar = f.querySelector('.vc-buscar'), curso = f.querySelector('.vc-curso');
+        function lista() {
+            if (f.dataset.tipo === 'docentes') return datos.docentes || [];
+            var c = (datos.cursos || []).filter(function (x) { return !curso.value || x.c === curso.value; });
+            return c.reduce(function (a, x) { return a.concat(x.e.map(function (e) { return {id: e.id, n: e.n + ' · ' + x.c}; })); }, []);
+        }
+        function llenar() {
+            var t = (buscar.value || '').trim().toLowerCase();
+            var gente = lista().filter(function (p) { return !t || p.n.toLowerCase().indexOf(t) >= 0; });
+            sel.innerHTML = '<option value="">' + (gente.length ? 'Escoja (' + gente.length + ')' : 'Nadie coincide') + '</option>' +
+                gente.slice(0, 400).map(function (p) {
+                    var o = document.createElement('option'); o.value = p.id; o.textContent = p.n; return o.outerHTML;
+                }).join('');
+            if (gente.length === 1) sel.value = gente[0].id;
+        }
+        if (curso) {
+            (datos.cursos || []).forEach(function (x) {
+                var o = document.createElement('option'); o.value = x.c; o.textContent = x.c + ' (' + x.e.length + ')'; curso.appendChild(o);
+            });
+            curso.addEventListener('change', llenar);
+        }
+        buscar.addEventListener('input', llenar);
+        llenar();
+        f.addEventListener('submit', function (ev) {
+            if (!sel.value) { ev.preventDefault(); return; }
+            f.action = urlBase + sel.value + '/';
+        });
+    });
+})();
+</script>
 {% endblock %}

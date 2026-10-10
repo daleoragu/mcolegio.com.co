@@ -382,11 +382,11 @@ from notas.estadisticas_logic import (
     conclusiones_resumen, conclusiones_anotaciones,
 )
 from notas.estadisticas_observador import contar_observador, contar_automaticas
-from ..permisos import es_admin, es_admin_usuario
+from ..permisos import es_admin, es_admin_usuario, es_docente_usuario
 
 
 def es_docente_o_superuser(user):
-    return es_admin_usuario(user) or user.groups.filter(name='Docentes').exists()
+    return es_admin_usuario(user) or es_docente_usuario(user)
 
 @user_passes_test(es_docente_o_superuser)
 def panel_estadisticas_vista(request):

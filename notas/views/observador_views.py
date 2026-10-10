@@ -18,11 +18,11 @@ from ..models import (
     Docente, Estudiante, Curso, FichaEstudiante, 
     AsignacionDocente, RegistroObservador, Notificacion
 )
-from ..permisos import es_admin, es_admin_usuario
+from ..permisos import es_admin, es_admin_usuario, es_docente_usuario
 from .. import avisos_familia
 
 def es_docente_o_superuser(user):
-    return es_admin_usuario(user) or user.groups.filter(name='Docentes').exists()
+    return es_admin_usuario(user) or es_docente_usuario(user)
 
 @login_required
 @user_passes_test(es_docente_o_superuser)
