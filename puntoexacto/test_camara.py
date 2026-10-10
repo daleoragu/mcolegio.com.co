@@ -152,3 +152,36 @@ class UnaSolaIdaAlServidor(CamaraEnVivo):
         self.assertIsNone(d['guardada'])
         self.hoja.refresh_from_db()
         self.assertEqual(self.hoja.estado, 'pendiente')
+
+
+class HojaDeOtroExamen(UnaSolaIdaAlServidor):
+    """Una hoja impresa para un examen no se califica con la clave de otro."""
+
+    def test_la_hoja_de_otro_examen_se_rechaza(self):
+        foto = self.foto_llena({n: l for n, l in zip(range(1, 9), 'ABCDABCD')})
+        # Otro examen del mismo docente, con las mismas preguntas.
+        otro = Examen.objects.create(colegio=self.a, docente=self.docente, titulo='Quiz', fecha='2026-10-07',
+                                     numero_preguntas=8)
+        Hoja.objects.create(examen=otro, identificador=f'PE-{otro.id:05d}-0001', nombre_libre='Beto')
+        d = self.c.post(f'/puntoexacto/{otro.id}/escanear/foto/', {'foto': foto, 'auto': '1'}).json()
+        self.assertFalse(d['ok'])
+        self.assertTrue(d['otro_examen'])
+        self.assertIn('«Parcial»', d['error'])
+        self.assertEqual(d['url_otro'], f'/puntoexacto/{self.ex.id}/escanear/')
+        self.hoja.refresh_from_db()
+        self.assertEqual(self.hoja.estado, 'pendiente')
+        self.assertFalse(otro.hojas.filter(estado='calificada').exists())
+
+    def test_la_hoja_impresa_dice_el_numero_del_examen(self):
+        from .test_formas import texto_del_pdf
+        pdf = self.c.get(self.url('hojas/imprimir/')).content
+        # reportlab escribe la «º» en octal (\\272).
+        self.assertIn(f'Examen N.\\272 {self.ex.id} '.encode(), texto_del_pdf(pdf))
+
+    def test_tambien_si_el_otro_examen_no_tiene_hojas(self):
+        foto = self.foto_llena({n: l for n, l in zip(range(1, 9), 'ABCDABCD')})
+        vacio = Examen.objects.create(colegio=self.a, docente=self.docente, titulo='Sin hojas',
+                                      fecha='2026-10-07', numero_preguntas=8)
+        d = self.c.post(f'/puntoexacto/{vacio.id}/escanear/foto/', {'foto': foto}).json()
+        self.assertFalse(d['ok'])
+        self.assertTrue(d.get('otro_examen'), d)

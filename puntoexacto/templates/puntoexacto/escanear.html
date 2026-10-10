@@ -1,6 +1,6 @@
 {% extends 'puntoexacto/_base_pe.html' %}
 {% block title %}Calificar con la cámara - {{ block.super }}{% endblock %}
-{% block page_title %}Calificar con la cámara · {{ examen.titulo }}{% endblock %}
+{% block page_title %}Calificar con la cámara · {{ examen.titulo }} <span class="fs-6 text-muted fw-normal">(Examen N.º {{ examen.id }})</span>{% endblock %}
 
 {% block content %}
 <style>
@@ -444,7 +444,7 @@
                 // se espera a que salga del cuadro antes de volver a disparar.
                 dibujar(null);
                 if (!quad) { perdidas++; if (perdidas >= 2) esperarRetiro = false; }
-                if (esperarRetiro) estado(avisoGuardado, 'bien');
+                if (esperarRetiro) estado(avisoGuardado, avisoGuardado.charAt(0) === '⚠' ? 'mal' : 'bien');
                 else { ocultarNotaCamara(); estado('Apunte a la siguiente hoja.'); }
             } else if (quad) {
                 var ancho = Math.hypot(quad[1][0] - quad[0][0], quad[1][1] - quad[0][1]);
@@ -667,6 +667,7 @@
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 restaurarBotonSubir();
+                if (!d.ok && d.otro_examen) { hojaAjena(d); return; }
                 if (!d.ok) { fallo(d.error || 'No se pudo leer la foto.'); return; }
                 lectura = d;
                 respuestas = Object.assign({}, d.respuestas);
@@ -745,6 +746,20 @@
         ocultarNotaCamara();
         abrirRevision();
     });
+
+    function hojaAjena(d) {
+        try { if (navigator.vibrate) navigator.vibrate([80, 60, 80]); } catch (e) {}
+        if (modoCamara && flujo) {
+            elLeyendo.classList.remove('si');
+            estado('⚠ ' + d.error, 'mal');
+            // Hasta que la hoja salga del cuadro no se vuelve a intentar con ella.
+            esperarRetiro = true; perdidas = 0; avisoGuardado = '⚠ ' + d.error;
+            setTimeout(function () { if (flujo && !elResultado.classList.contains('abierta')) arrancarBusqueda(); }, 1500);
+        } else {
+            if (d.url_otro && confirm(d.error + '\n\n¿Abrir la cámara de ese examen?')) location.href = d.url_otro;
+            else if (!d.url_otro) alert(d.error);
+        }
+    }
 
     function fallo(msg) {
         if (modoCamara && flujo) {
@@ -825,6 +840,8 @@
                         ? 'El código dice <strong>' + escapar(d.identificador) +
                           '</strong>, que no es de este examen. '
                         : 'No se pudo leer el código de barras. ') +
+                    'Antes de escoger, mire que la hoja diga <strong>«Examen N.º {{ examen.id }}»</strong> arriba a la derecha: ' +
+                    'si dice otro número, es de otro examen y no se debe calificar aquí. ' +
                     'Escoja de quién es esta hoja.</div>';
             extra += '<select class="form-select" id="pe-quien"><option value="">Seleccione el estudiante</option>';
             extra += HOJAS.map(function (h) {
