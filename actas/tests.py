@@ -7,7 +7,7 @@ from notas.models import AsignacionDocente, Calificacion, Materia, RegistroObser
 from notas.tests.base import ColegioDePrueba
 
 from . import logica
-from .models import Acta
+from .models import Acta, RedactorActas
 
 
 class Actas(ColegioDePrueba):
@@ -141,3 +141,102 @@ class Actas(ColegioDePrueba):
         logica.cerrar(acta)
         self.cliente(self.rectora).post(f'/actas/{acta.id}/eliminar/')
         self.assertTrue(Acta.objects.filter(id=acta.id).exists())
+
+
+class ActasDeDocentes(ColegioDePrueba):
+    """El rol de generar actas, el número que pone el administrador, firmas y «todos los docentes»."""
+
+    def setUp(self):
+        self.admin = self.cliente(self.rectora)
+        self.profe = self.cliente(self.u_docente)
+
+    def dar_rol(self):
+        r = self.admin.post('/actas/redactores/', {'docentes': [self.docente.id]})
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(RedactorActas.objects.filter(docente=self.docente).exists())
+
+    def test_sin_rol_el_docente_no_entra_y_no_ve_el_menu(self):
+        self.assertEqual(self.profe.get('/actas/').status_code, 403)
+        self.assertEqual(self.profe.post('/actas/redactores/', {'docentes': [self.docente.id]}).status_code, 403)
+
+    def test_con_rol_redacta_las_suyas_y_le_salen_al_administrador(self):
+        self.dar_rol()
+        otra = Acta.objects.create(colegio=self.a, tipo=Acta.LIBRE, numero=1, ano=2026, titulo='Consejo directivo',
+                                   fecha=datetime.date(2026, 4, 5), creada_por=self.rectora)
+        r = self.profe.post('/actas/nueva/LIBRE/')
+        mia = Acta.objects.get(creada_por=self.u_docente)
+        self.assertRedirects(r, f'/actas/{mia.id}/', fetch_redirect_response=False)
+        self.assertEqual(mia.numero, 2)                     # número provisional, el que sigue
+        lista = self.profe.get('/actas/')
+        self.assertContains(lista, 'Reunión')
+        self.assertNotContains(lista, 'Consejo directivo')  # solo ve las suyas
+        self.assertEqual(self.profe.get(f'/actas/{otra.id}/').status_code, 404)
+        # Edita la suya, pero el número no lo puede tocar.
+        r = self.profe.post(f'/actas/{mia.id}/', {'numero': '50', 'titulo': 'Reunión de área', 'fecha': '2026-04-06',
+                                                  'estilo_firma': 'LINEAS', 'asis_nombre': ['Pedro Profe'],
+                                                  'asis_cargo': ['Docente'], 'asis_x': ['0']})
+        self.assertEqual(r.status_code, 302)
+        mia.refresh_from_db()
+        self.assertEqual((mia.numero, mia.titulo, mia.estilo_firma), (2, 'Reunión de área', 'LINEAS'))
+        self.assertEqual(self.profe.post(f'/actas/{mia.id}/numero/', {'numero': '7'}).status_code, 403)
+        # Al administrador le sale, marcada como de docente, y le cambia el número.
+        lista = self.admin.get('/actas/')
+        self.assertContains(lista, 'Reunión de área')
+        self.assertContains(lista, 'ac-docente">docente')
+        r = self.admin.post(f'/actas/{mia.id}/numero/', {'numero': '1'})   # ya existe la 1
+        mia.refresh_from_db()
+        self.assertEqual(mia.numero, 2)
+        self.admin.post(f'/actas/{mia.id}/numero/', {'numero': '15'})
+        mia.refresh_from_db()
+        self.assertEqual(mia.numero, 15)
+        # El PDF con firmas en líneas.
+        r = self.profe.get(f'/actas/{mia.id}/pdf/')
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        # Cerrada: el docente no la reabre; el administrador sí, y aun cerrada le cambia el número.
+        self.profe.post(f'/actas/{mia.id}/cerrar/')
+        mia.refresh_from_db()
+        self.assertTrue(mia.cerrada)
+        self.assertEqual(self.profe.post(f'/actas/{mia.id}/reabrir/').status_code, 403)
+        self.admin.post(f'/actas/{mia.id}/numero/', {'numero': '16'})
+        mia.refresh_from_db()
+        self.assertEqual((mia.numero, mia.cerrada), (16, True))
+
+    def test_el_administrador_cambia_el_numero_desde_el_formulario(self):
+        acta = Acta.objects.create(colegio=self.a, tipo=Acta.LIBRE, numero=3, ano=2026, titulo='X',
+                                   fecha=datetime.date(2026, 4, 5))
+        Acta.objects.create(colegio=self.a, tipo=Acta.LIBRE, numero=4, ano=2026, titulo='Otra',
+                            fecha=datetime.date(2026, 4, 5))
+        r = self.admin.post(f'/actas/{acta.id}/', {'numero': '4', 'titulo': 'X', 'fecha': '2026-04-05',
+                                                   'estilo_firma': 'CUADRO'})
+        self.assertContains(r, 'Ya existe el acta N.º 4')
+        self.admin.post(f'/actas/{acta.id}/', {'numero': '9', 'titulo': 'X', 'fecha': '2026-04-05',
+                                               'estilo_firma': 'CUADRO'})
+        acta.refresh_from_db()
+        self.assertEqual(acta.numero, 9)
+
+    def test_agregar_a_todos_los_docentes_solo_administrador(self):
+        self.dar_rol()
+        acta = Acta.objects.create(colegio=self.a, tipo=Acta.LIBRE, numero=1, ano=2026, titulo='Reunión',
+                                   fecha=datetime.date(2026, 4, 5), creada_por=self.u_docente)
+        filas = self.admin.get(f'/actas/{acta.id}/sugerir-asistentes/?todos=docentes').json()['filas']
+        self.assertIn({'nombre': 'Pedro Profe', 'cargo': 'Docente', 'asistio': False}, filas)
+        self.assertContains(self.admin.get(f'/actas/{acta.id}/'), 'Agregar a todos los docentes')
+        self.assertEqual(self.profe.get(f'/actas/{acta.id}/sugerir-asistentes/?todos=docentes').status_code, 403)
+        self.assertNotContains(self.profe.get(f'/actas/{acta.id}/'), 'Agregar a todos los docentes')
+
+    def test_firmantes_en_lineas(self):
+        acta = Acta(asistencia=[{'nombre': 'Rosa', 'cargo': 'Rectora', 'asistio': True},
+                                {'nombre': 'Luis', 'cargo': 'Docente', 'asistio': False}])
+        self.assertEqual([f['nombre'] for f in logica.firmantes(acta)], ['Rosa'])
+        acta.asistencia[0]['asistio'] = False
+        self.assertEqual([f['nombre'] for f in logica.firmantes(acta)], ['Rosa', 'Luis'])
+
+    def test_sedes_solo_el_administrador(self):
+        from django.contrib.auth.models import Group
+        self.u_docente.groups.add(Group.objects.get_or_create(name='Docentes')[0])
+        self.assertEqual(self.profe.get('/admin/sedes/').status_code, 403)
+        self.assertEqual(self.profe.get('/admin/sedes/crear/').status_code, 403)
+        r = self.profe.get('/admin/portal/configuracion/')
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, '/admin/sedes/')
+        self.assertContains(self.admin.get('/admin/portal/configuracion/'), '/admin/sedes/')

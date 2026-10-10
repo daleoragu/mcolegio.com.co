@@ -47,6 +47,12 @@
                     <li><a class="dropdown-item {% if 'configuracion-portal' in request.path %}active{% endif %}" href="{% url 'notas:configuracion_portal' %}"><i class="fas fa-newspaper fa-fw me-2 text-muted"></i>Gestionar Portal</a></li>
                 {% endif %}
             
+                {# Docente con el rol de generar actas (lo da el administrador en Actas). #}
+                {% if not user.es_admin_colegio and user.docente.rol_actas %}
+                    {% if not user|has_group:"Docentes" %}<li><hr class="dropdown-divider"></li>{% endif %}
+                    <li><a class="dropdown-item {% if request.resolver_match.app_name == 'actas' %}active{% endif %}" href="{% url 'actas:lista' %}"><i class="fas fa-file-contract fa-fw me-2 text-muted"></i>Actas</a></li>
+                {% endif %}
+
                 {# --- 4. PANEL DE ADMINISTRACIÓN --- #}
                 {% if user.es_admin_colegio %}
                     <li><hr class="dropdown-divider"></li>

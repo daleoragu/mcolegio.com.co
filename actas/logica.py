@@ -161,3 +161,26 @@ def asistentes_sugeridos(acta, cursos_ids=None):
             poner('', f'Representante de padres{sufijo}')
             poner('', f'Representante de estudiantes{sufijo}')
     return salida
+
+
+def todos_los_docentes(colegio):
+    """[{'nombre', 'cargo': 'Docente', 'asistio': False}] de todos los docentes activos, por apellido.
+
+    Para las reuniones de profesores: el administrador los trae de una vez y
+    después marca quién asistió.
+    """
+    from notas.models import Docente
+    salida = []
+    for d in (Docente.objects.filter(colegio=colegio, user__is_active=True).select_related('user')
+              .order_by('user__last_name', 'user__first_name')):
+        u = d.user
+        nombre = f'{u.first_name} {u.last_name}'.strip() or u.username
+        salida.append({'nombre': nombre, 'cargo': 'Docente', 'asistio': False})
+    return salida
+
+
+def firmantes(acta):
+    """Quiénes firman en el estilo de líneas: los que asistieron; si no se marcó a nadie, todos."""
+    lista = acta.lista_asistentes()
+    marcados = [a for a in lista if a['asistio']]
+    return marcados or lista

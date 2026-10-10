@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Actas: el administrador del colegio las redacta, las cierra y las imprime para firmar."""
+"""Actas: se redactan, se cierran y se imprimen para firmar.
+
+Las redacta el administrador del colegio o un docente al que el administrador
+le dio el rol de generar actas. El docente ve solo las suyas; al administrador
+le salen todas, y solo él cambia el número, reabre una cerrada y reparte el rol.
+"""
 import datetime
 
 from django.contrib import messages
@@ -11,11 +16,14 @@ from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
 from notas.models import PeriodoAcademico
+from notas.models import AdministradorColegio
 from notas.permisos import es_admin
 
 from . import logica
 from .forms import ActaForm
-from .models import Acta
+from notas.models import Docente
+
+from .models import Acta, RedactorActas
 
 ORDEN_COMISION = """Saludo y verificación del quórum.
 Lectura y aprobación del acta anterior.
@@ -28,16 +36,35 @@ Lectura y aprobación del acta anterior.
 Proposiciones y varios."""
 
 
-def _guardia(request):
-    if getattr(request, 'colegio', None) is None:
-        return HttpResponseNotFound('<h1>Colegio no configurado</h1>')
-    if not es_admin(request):
-        return HttpResponseForbidden('Solo el administrador del colegio.')
+def _docente_redactor(request):
+    """El Docente con rol de generar actas en este colegio, o None."""
+    if not request.user.is_authenticated:
+        return None
+    docente = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
+    if docente and RedactorActas.objects.filter(docente=docente, colegio=request.colegio).exists():
+        return docente
     return None
 
 
+def _guardia(request, solo_admin=False):
+    """None si puede seguir. Deja en request.actas_admin si ve todas o solo las suyas."""
+    if getattr(request, 'colegio', None) is None:
+        return HttpResponseNotFound('<h1>Colegio no configurado</h1>')
+    if es_admin(request):
+        request.actas_admin = True
+        return None
+    if not solo_admin and _docente_redactor(request):
+        request.actas_admin = False
+        return None
+    return HttpResponseForbidden('Solo el administrador del colegio o los docentes con el rol de generar actas.'
+                                 if not solo_admin else 'Solo el administrador del colegio.')
+
+
 def _acta(request, acta_id):
-    return get_object_or_404(Acta, id=acta_id, colegio=request.colegio)
+    qs = Acta.objects.filter(colegio=request.colegio)
+    if not getattr(request, 'actas_admin', False):
+        qs = qs.filter(creada_por=request.user)
+    return get_object_or_404(qs, id=acta_id)
 
 
 def _periodo_actual(colegio):
@@ -52,13 +79,40 @@ def _periodo_actual(colegio):
 def lista(request):
     if (r := _guardia(request)):
         return r
-    actas = Acta.objects.filter(colegio=request.colegio).prefetch_related('cursos')
+    actas = Acta.objects.filter(colegio=request.colegio).prefetch_related('cursos').select_related('creada_por')
+    if not request.actas_admin:
+        actas = actas.filter(creada_por=request.user)
     ano = request.GET.get('ano')
     anos = sorted(set(actas.values_list('ano', flat=True)), reverse=True)
     if ano and ano.isdigit():
         actas = actas.filter(ano=int(ano))
-    return render(request, 'actas/lista.html', {'actas': actas, 'anos': anos, 'ano': ano,
-                                                'page_title': 'Actas'})
+    contexto = {'actas': actas, 'anos': anos, 'ano': ano, 'page_title': 'Actas', 'es_admin_actas': request.actas_admin}
+    if request.actas_admin:
+        con_rol = set(RedactorActas.objects.filter(colegio=request.colegio).values_list('docente_id', flat=True))
+        contexto['docentes'] = [
+            {'id': d.id, 'nombre': d.user.get_full_name() or d.user.username, 'marcado': d.id in con_rol}
+            for d in Docente.objects.filter(colegio=request.colegio, user__is_active=True).select_related('user')
+            .order_by('user__last_name', 'user__first_name')]
+        contexto['n_redactores'] = len(con_rol)
+        admins = set(AdministradorColegio.objects.filter(colegio=request.colegio).values_list('user_id', flat=True))
+        for a in actas:
+            a.de_docente = bool(a.creada_por_id and a.creada_por_id not in admins and not a.creada_por.is_superuser)
+    return render(request, 'actas/lista.html', contexto)
+
+
+@login_required
+@require_POST
+def redactores(request):
+    """El administrador marca qué docentes tienen el rol de generar actas."""
+    if (r := _guardia(request, solo_admin=True)):
+        return r
+    ids = {int(x) for x in request.POST.getlist('docentes') if x.isdigit()}
+    docentes = Docente.objects.filter(colegio=request.colegio, id__in=ids)
+    RedactorActas.objects.filter(colegio=request.colegio).exclude(docente__in=docentes).delete()
+    for d in docentes:
+        RedactorActas.objects.get_or_create(docente=d, defaults={'colegio': request.colegio})
+    messages.success(request, f'Listo: {docentes.count()} docente(s) pueden generar actas.')
+    return redirect('actas:lista')
 
 
 @login_required
@@ -93,9 +147,10 @@ def editar(request, acta_id):
     acta = _acta(request, acta_id)
     if acta.cerrada:
         return render(request, 'actas/ver.html', {'acta': acta, 'informe': logica.informe_de(acta),
+                                                  'es_admin_actas': request.actas_admin,
                                                   'page_title': f'Acta {acta.numero} de {acta.ano}'})
     if request.method == 'POST':
-        form = ActaForm(request.POST, instance=acta, colegio=request.colegio)
+        form = ActaForm(request.POST, instance=acta, colegio=request.colegio, es_admin=request.actas_admin)
         if form.is_valid():
             acta = form.save(commit=False)
             acta.asistencia = form.asistencia_de(request.POST)
@@ -106,7 +161,7 @@ def editar(request, acta_id):
                 return redirect('actas:pdf', acta.id)
             return redirect('actas:editar', acta.id)
     else:
-        form = ActaForm(instance=acta, colegio=request.colegio)
+        form = ActaForm(instance=acta, colegio=request.colegio, es_admin=request.actas_admin)
     grados = []
     if acta.es_comision:
         if form.is_bound:
@@ -123,7 +178,7 @@ def editar(request, acta_id):
         grados = [{'grado': g, 'nombre': nombres[g], 'cursos': cs} for g, cs in sorted(por_grado.items(), key=lambda x: (x[0] is None, x[0]))]
     return render(request, 'actas/editar.html', {
         'acta': acta, 'form': form, 'informe': logica.informe_de(acta) if acta.es_comision else None,
-        'grados': grados, 'asistencia': (form.asistencia_de(request.POST) if form.is_bound else acta.lista_asistentes()),
+        'grados': grados, 'es_admin_actas': request.actas_admin, 'asistencia': (form.asistencia_de(request.POST) if form.is_bound else acta.lista_asistentes()),
         'page_title': f'Acta {acta.numero} de {acta.ano}'})
 
 
@@ -134,6 +189,10 @@ def sugerir_asistentes(request, acta_id):
     # Los cursos marcados en pantalla, aunque todavía no se hayan guardado.
     ids = [int(x) for x in request.GET.get('cursos', '').split(',') if x.isdigit()]
     acta = _acta(request, acta_id)
+    if request.GET.get('todos') == 'docentes':
+        if not request.actas_admin:
+            return HttpResponseForbidden('Solo el administrador.')
+        return JsonResponse({'filas': logica.todos_los_docentes(request.colegio)})
     return JsonResponse({'filas': logica.asistentes_sugeridos(acta, ids if 'cursos' in request.GET else None)})
 
 
@@ -154,11 +213,30 @@ def cerrar(request, acta_id):
 @login_required
 @require_POST
 def reabrir(request, acta_id):
-    if (r := _guardia(request)):
+    if (r := _guardia(request, solo_admin=True)):
         return r
     logica.reabrir(_acta(request, acta_id))
     messages.info(request, 'El acta volvió a borrador. Al cerrarla de nuevo, el informe se recalcula.')
     return redirect('actas:editar', acta_id)
+
+
+@login_required
+@require_POST
+def cambiar_numero(request, acta_id):
+    """El administrador corrige el número de un acta (también cerrada: el número no es parte del informe)."""
+    if (r := _guardia(request, solo_admin=True)):
+        return r
+    acta = _acta(request, acta_id)
+    valor = request.POST.get('numero', '').strip()
+    if not valor.isdigit() or int(valor) < 1:
+        messages.error(request, 'Escriba un número válido.')
+    elif Acta.objects.filter(colegio=acta.colegio, ano=acta.ano, numero=int(valor)).exclude(id=acta.id).exists():
+        messages.error(request, f'Ya existe el acta N.º {valor} de {acta.ano}.')
+    else:
+        acta.numero = int(valor)
+        acta.save(update_fields=['numero', 'actualizada_en'])
+        messages.success(request, f'Ahora es el acta N.º {acta.numero} de {acta.ano}.')
+    return redirect('actas:editar', acta.id)
 
 
 @login_required
@@ -183,7 +261,7 @@ def pdf(request, acta_id):
     html = render_to_string('actas/acta_pdf.html', {
         'acta': acta, 'colegio': request.colegio, 'informe': logica.informe_de(acta),
         'orden': acta.lista('orden_del_dia'), 'decisiones': acta.lista('decisiones'),
-        'asistentes': acta.lista_asistentes(),
+        'asistentes': acta.lista_asistentes(), 'firmantes': logica.firmantes(acta),
     }, request=request)
     try:
         from weasyprint import HTML

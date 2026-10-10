@@ -13,5 +13,19 @@
     .ac-alcance label { font-weight:400; }
     .ac-barra { position:sticky; bottom:0; background:rgba(248,249,250,.96); border-top:1px solid #e3e6ec;
                 padding:10px 0; display:flex; flex-wrap:wrap; gap:8px; z-index:5; }
+    .ac-estilos { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:10px; }
+    .ac-estilo { border:2px solid #e3e6ec; border-radius:10px; padding:10px 12px; cursor:pointer; display:flex;
+                 flex-direction:column; gap:8px; position:relative; }
+    .ac-estilo:has(input:checked) { border-color:var(--color-primario, #193661); background:#f5f8ff; }
+    .ac-estilo input { position:absolute; top:12px; right:12px; }
+    .ac-estilo-nombre { font-weight:600; font-size:.92rem; padding-right:22px; }
+    .ac-muestra { display:block; background:#fff; border:1px solid #eef0f3; border-radius:6px; padding:8px; }
+    .mc-tabla { display:grid; grid-template-columns:1.4fr 1fr 1fr; font-size:.66rem; }
+    .mc-tabla b, .mc-tabla i { border:1px solid #9aa4b2; padding:2px 4px; height:18px; margin:-1px 0 0 -1px; }
+    .mc-tabla b { background:#f3f5f8; font-weight:600; }
+    .mc-lineas { display:flex; gap:12px; }
+    .mc-lineas span { flex:1; text-align:center; font-size:.7rem; font-weight:600; padding-top:16px; }
+    .mc-lineas em { display:block; border-top:1px solid #111; margin-bottom:2px; }
+    .mc-lineas small { display:block; color:#6b7280; font-weight:400; }
     .errorlist { color:#b42318; font-size:.85rem; list-style:none; padding:0; margin:4px 0 0; }
 </style>

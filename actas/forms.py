@@ -9,22 +9,31 @@ from .models import Acta
 class ActaForm(forms.ModelForm):
     class Meta:
         model = Acta
-        fields = ['titulo', 'fecha', 'hora_inicio', 'hora_fin', 'lugar', 'periodo', 'alcance', 'sede', 'cursos',
-                  'mostrar_observador', 'orden_del_dia', 'desarrollo', 'decisiones']
+        fields = ['numero', 'titulo', 'fecha', 'hora_inicio', 'hora_fin', 'lugar', 'periodo', 'alcance', 'sede', 'cursos',
+                  'mostrar_observador', 'orden_del_dia', 'desarrollo', 'decisiones', 'estilo_firma']
         widgets = {
             'fecha': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'hora_inicio': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
             'hora_fin': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
             'cursos': forms.CheckboxSelectMultiple,
             'alcance': forms.RadioSelect,
+            'estilo_firma': forms.RadioSelect,
+            'numero': forms.NumberInput(attrs={'min': 1}),
             'orden_del_dia': forms.Textarea(attrs={'rows': 5}),
             'desarrollo': forms.Textarea(attrs={'rows': 12}),
             'decisiones': forms.Textarea(attrs={'rows': 5}),
         }
 
-    def __init__(self, *args, colegio=None, **kwargs):
+    def __init__(self, *args, colegio=None, es_admin=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.colegio = colegio
+        # El número lo pone la plataforma; solo el administrador lo corrige.
+        if not es_admin:
+            del self.fields['numero']
+        else:
+            self.fields['numero'].required = False
+        self.fields['estilo_firma'].choices = Acta.ESTILOS_FIRMA
+        self.fields['estilo_firma'].required = False
         comision = self.instance.tipo == Acta.COMISION
         if comision:
             self.fields['periodo'].queryset = PeriodoAcademico.objects.filter(colegio=colegio).order_by(
@@ -56,6 +65,17 @@ class ActaForm(forms.ModelForm):
             if n or c:
                 filas.append({'nombre': n, 'cargo': c, 'asistio': str(i) in marcados})
         return filas[:80]
+
+    def clean_estilo_firma(self):
+        return self.cleaned_data.get('estilo_firma') or self.instance.estilo_firma or Acta.CUADRO
+
+    def clean_numero(self):
+        numero = self.cleaned_data.get('numero') or self.instance.numero
+        otra = (Acta.objects.filter(colegio=self.instance.colegio, ano=self.instance.ano, numero=numero)
+                .exclude(id=self.instance.id).first())
+        if otra:
+            raise forms.ValidationError(f'Ya existe el acta N.º {numero} de {self.instance.ano} («{otra.titulo}»).')
+        return numero
 
     def clean(self):
         datos = super().clean()

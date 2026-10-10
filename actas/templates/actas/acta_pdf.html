@@ -24,8 +24,8 @@
     .resumen { font-size: 8.5pt; color: #444; margin: 0 0 5px; }
     .obs { height: 100%; }
     .firmas { width: 100%; border-collapse: separate; border-spacing: 18px 0; margin-top: 10px; }
-    .firmas td { width: 50%; padding-top: 34px; vertical-align: top; page-break-inside: avoid; }
-    .firmas .linea { border-top: 1px solid #111; padding-top: 3px; font-size: 9pt; }
+    .firmas td { width: 50%; padding-top: 46px; vertical-align: top; page-break-inside: avoid; }
+    .firmas .linea { border-top: 1px solid #111; padding-top: 3px; font-size: 9pt; text-align: center; }
     .firmas .cargo { color: #555; font-size: 8.5pt; }
     .constancia { margin-top: 14px; font-size: 9.5pt; }
     table.asis { width: 100%; border-collapse: collapse; font-size: 9pt; }
@@ -91,6 +91,14 @@
 
 <p class="constancia">Para constancia se firma por quienes asistieron{% if acta.hora_fin %}, y se da por terminada la reunión a las {{ acta.hora_fin|time:"g:i a" }}{% else %}.{% endif %}</p>
 
+{% if acta.estilo_firma == 'LINEAS' and firmantes %}
+<h3>Firmas</h3>
+<table class="firmas">
+    {% for f in firmantes %}{% if forloop.counter0|divisibleby:2 %}<tr>{% endif %}
+        <td><div class="linea"><strong>{{ f.nombre|default:"&nbsp;" }}</strong>{% if f.cargo %}<div class="cargo">{{ f.cargo }}</div>{% endif %}</div></td>
+    {% if forloop.counter|divisibleby:2 or forloop.last %}{% if forloop.last and not forloop.counter|divisibleby:2 %}<td></td>{% endif %}</tr>{% endif %}{% endfor %}
+</table>
+{% else %}
 <h3>Asistentes</h3>
 {% if asistentes %}
 <table class="asis">
@@ -105,5 +113,6 @@
 </table>
 {% else %}
 <table class="firmas"><tr><td><div class="linea">Presidente(a)</div></td><td><div class="linea">Secretario(a)</div></td></tr></table>
+{% endif %}
 {% endif %}
 </body></html>
