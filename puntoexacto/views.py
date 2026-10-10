@@ -15,6 +15,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseForbidden, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from notas.models.academicos import Materia
@@ -1383,8 +1384,12 @@ def _curso_y_sede(hoja):
 
 
 def _geometria_de_examen(examen, identificadores):
+    # Todos los códigos tienen la misma forma (PE-00012-0007), así que el ancho
+    # de las barras es el mismo; sin hojas todavía, se calcula con uno así.
+    # Sin esto, un examen sin hojas no lograba leer ningún código (ni siquiera
+    # para avisar que la hoja es de otro examen).
     return hojas_mod.geometria(examen.hojas_por_pagina or 1,
-                               identificadores[0] if identificadores else None)
+                               identificadores[0] if identificadores else f'PE-{examen.id:05d}-0001')
 
 
 @login_required
@@ -1446,6 +1451,26 @@ def procesar_foto(request, examen_id):
     except Exception as e:
         return JsonResponse({'ok': False,
                              'error': f'No se pudo leer la foto ({type(e).__name__}).'})
+
+    # Cada hoja es de UN examen: el código de barras lleva el número del examen
+    # (PE-00012-0007 = hoja 7 del examen 12). Si es de otro, no se califica
+    # aquí aunque las burbujas se puedan leer: sería poner notas con otra clave.
+    if leido and leido not in identificadores:
+        m = re.match(r'^PE-(\d{5})-\d{4}$', leido)
+        if m:
+            otro = _examenes_visibles(request).filter(id=int(m.group(1))).first()
+            if otro is not None:
+                error = (f'Esta hoja es del examen «{otro.titulo}» (N.º {otro.id}), no de este '
+                         f'(N.º {examen.id}). No se calificó: ábrala en ese examen.')
+            else:
+                error = (f'Esta hoja es de otro examen (N.º {int(m.group(1))}), no de este '
+                         f'(N.º {examen.id}). No se calificó.')
+            return JsonResponse({'ok': False, 'otro_examen': True, 'error': error,
+                                 'url_otro': (reverse('puntoexacto:escanear', args=[otro.id])
+                                              if otro is not None else '')})
+        # Lo decodificado no tiene la forma de un código de PuntoExacto: es una
+        # mala lectura, no una hoja ajena. Se trata como código ilegible.
+        leido, como = None, 'el código de barras no se pudo leer'
 
     hoja = None
     if leido:

@@ -402,8 +402,11 @@ def _una_hoja(c, ox, oy, m, datos, preguntas, opciones, plan, escudo=None):
     c.setFont('Helvetica', f * .7)
     c.setFillColorRGB(.45, .45, .45)
     tope_op = max([rej['opciones'] for rej in (b['rej'] for b in plan['bloques'])] or [opciones])
+    # El número del examen a la vista: si el código de barras no se deja leer,
+    # el docente comprueba con los ojos que la hoja sea de este examen.
+    num = f"Examen N.º {datos['examen']} · " if datos.get('examen') else ''
     c.drawRightString(izq + ancho_cab, y,
-                      f'{preguntas} preguntas · hasta {LETRAS[tope_op - 1]}')
+                      f'{num}{preguntas} preguntas · hasta {LETRAS[tope_op - 1]}')
     c.setFillColorRGB(0, 0, 0)
     y -= f * 1.2
 
@@ -851,7 +854,7 @@ def generar_pdf(examen, hojas_examen, por_pagina=None):
             'colegio': colegio, 'materia': materia,
             'curso': curso_h.nombre if curso_h else '',
             'sede': curso_h.sede.nombre if curso_h and curso_h.sede_id else '',
-            'periodo': periodo, 'titulo': examen.titulo,
+            'periodo': periodo, 'titulo': examen.titulo, 'examen': examen.id,
             'estudiante': h.nombre, 'documento': h.documento or '',
             'docente': nombre_docente, 'fecha': texto_fecha,
             'formas': letras_forma,
