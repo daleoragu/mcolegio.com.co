@@ -393,7 +393,7 @@ def _una_hoja(c, ox, oy, m, datos, preguntas, opciones, plan, escudo=None):
     y -= f * 1.35
     c.setFont('Helvetica', f * .82)
     c.drawString(texto_izq, y, _recortar(
-        c, f"{datos['materia']} · {datos['curso']} · {datos['periodo']}",
+        c, ' · '.join(x for x in (datos['materia'], datos['periodo']) if x),
         'Helvetica', f * .82, ancho_cab - (texto_izq - izq)))
     y -= f * 1.3
     c.setFont('Helvetica-Bold', f * .95)
@@ -451,14 +451,21 @@ def _una_hoja(c, ox, oy, m, datos, preguntas, opciones, plan, escudo=None):
     c.drawString(izq + 1.6 * mm, base + alto_caja * .55, _recortar(
         c, datos['estudiante'][:44], 'Helvetica-Bold', f * .95,
         ancho_cab - ancho_forma - 3.2 * mm))
+    # Documento, curso y sede del estudiante, en la línea de abajo del recuadro.
+    extra = ' · '.join(x for x in (datos.get('docente'), datos.get('fecha')) if x)
+    linea = ' · '.join(x for x in (
+        f"Doc: {datos['documento']}" if datos['documento'] else '',
+        f"Curso {datos['curso']}" if datos.get('curso') else '',
+        nombre_sede(datos.get('sede'))) if x)
     c.setFont('Helvetica', f * .68)
     c.setFillColorRGB(.35, .35, .35)
-    c.drawString(izq + 1.6 * mm, base + alto_caja * .18, f"Doc: {datos['documento']}"[:34])
+    tope_linea = (ancho_cab * .5 if extra else ancho_cab - ancho_forma) - 3.2 * mm
+    c.drawString(izq + 1.6 * mm, base + alto_caja * .18,
+                 _recortar(c, linea, 'Helvetica', f * .68, tope_linea))
 
     # Docente y fecha, si el examen pidió imprimirlos. Van dentro del mismo
     # recuadro, a la derecha: así no le quitan una línea a las burbujas, que es
     # lo único de la hoja que no se puede encoger.
-    extra = ' · '.join(x for x in (datos.get('docente'), datos.get('fecha')) if x)
     if extra:
         c.setFont('Helvetica', f * .68)
         c.setFillColorRGB(.35, .35, .35)
@@ -765,7 +772,7 @@ def mapa_de_examen(examen):
     if firma in _CACHE_MAPA:
         return _CACHE_MAPA[firma]
 
-    datos = {'colegio': '', 'materia': '', 'curso': '', 'periodo': '',
+    datos = {'colegio': '', 'materia': '', 'curso': '', 'sede': '', 'periodo': '',
              'titulo': '', 'estudiante': '', 'documento': '',
              'docente': '', 'fecha': '', 'formas': letras_de_formas(examen)}
     info = generar(io.BytesIO(), [datos], preguntas=examen.numero_preguntas,
@@ -775,6 +782,20 @@ def mapa_de_examen(examen):
         _CACHE_MAPA.clear()
     _CACHE_MAPA[firma] = info
     return info
+
+
+def nombre_sede(nombre):
+    """«Sede Principal» tal cual; «Principal» -> «Sede Principal»."""
+    nombre = (nombre or '').strip()
+    if not nombre:
+        return ''
+    return nombre if nombre.lower().startswith('sede') else f'Sede {nombre}'
+
+
+def curso_de_hoja(hoja):
+    """El curso del estudiante de la hoja (o None si es una hoja suelta)."""
+    est = hoja.estudiante if hoja.estudiante_id else None
+    return est.curso if est is not None and est.curso_id else None
 
 
 def generar_pdf(examen, hojas_examen, por_pagina=None):
@@ -800,10 +821,11 @@ def generar_pdf(examen, hojas_examen, por_pagina=None):
 
     colegio = examen.colegio.nombre if examen.colegio_id else ''
     imagen = _escudo_del_colegio(examen.colegio if examen.colegio_id else None)
-    materia = curso = ''
+    materia = ''
+    curso_asignacion = None
     if examen.asignacion_id:
         materia = examen.asignacion.materia.nombre
-        curso = examen.asignacion.curso.nombre
+        curso_asignacion = examen.asignacion.curso
     periodo = str(examen.periodo) if examen.periodo_id else ''
 
     nombre_docente = ''
@@ -820,8 +842,15 @@ def generar_pdf(examen, hojas_examen, por_pagina=None):
     datos = []
     identificadores = []
     for h in hojas_examen:
+        # El curso y la sede salen del propio estudiante: en una prueba censal
+        # (sin asignatura) cada hoja dice de qué curso y sede es, y en una de
+        # varios cursos cada uno lleva el suyo. Sin estudiante (hoja suelta),
+        # los de la asignatura, si la hay.
+        curso_h = curso_de_hoja(h) or curso_asignacion
         datos.append({
-            'colegio': colegio, 'materia': materia, 'curso': curso,
+            'colegio': colegio, 'materia': materia,
+            'curso': curso_h.nombre if curso_h else '',
+            'sede': curso_h.sede.nombre if curso_h and curso_h.sede_id else '',
             'periodo': periodo, 'titulo': examen.titulo,
             'estudiante': h.nombre, 'documento': h.documento or '',
             'docente': nombre_docente, 'fecha': texto_fecha,

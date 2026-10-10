@@ -604,7 +604,12 @@ def _crear_hojas(examen, curso_ids, sueltas=0):
 @login_required
 def imprimir(request, examen_id):
     examen = _examen_o_404(request, examen_id)
-    lista_hojas = list(examen.hojas.select_related('estudiante__user').all())
+    # Agrupadas por curso (y luego por apellido): en una prueba censal salen
+    # en el orden en que se reparten, salón por salón.
+    lista_hojas = list(examen.hojas.select_related('estudiante__user', 'estudiante__curso__sede')
+                       .order_by('estudiante__curso__grado', 'estudiante__curso__nombre',
+                                 'estudiante__user__last_name', 'estudiante__user__first_name',
+                                 'nombre_libre', 'identificador'))
     if not lista_hojas:
         messages.error(request, 'Primero prepare las hojas de los estudiantes.')
         return redirect('puntoexacto:hojas', examen_id=examen.id)
@@ -1349,11 +1354,12 @@ def escanear(request, examen_id):
     import json
 
     examen = _examen_o_404(request, examen_id)
-    hojas_lista = list(examen.hojas.select_related('estudiante__user')
-                       .order_by('identificador'))
+    hojas_lista = list(examen.hojas.select_related('estudiante__user', 'estudiante__curso__sede')
+                       .order_by('estudiante__curso__grado', 'estudiante__curso__nombre',
+                                 'estudiante__user__last_name', 'identificador'))
     # La lista va al navegador para cuando el código de barras no se deje leer
     # y al docente le toque escoger al estudiante a mano.
-    datos = [{'id': h.id, 'nombre': h.nombre,
+    datos = [{'id': h.id, 'nombre': h.nombre, 'curso': _curso_y_sede(h),
               'calificada': h.estado == 'calificada'} for h in hojas_lista]
     # La cámara del navegador busca las cuatro marcas en vivo y necesita saber
     # dónde quedan en la hoja (y su tamaño) para dibujar los recuadros guía.
@@ -1366,6 +1372,14 @@ def escanear(request, examen_id):
         'hojas_json': json.dumps(datos, ensure_ascii=False),
         'geo_json': json.dumps(guia),
     })
+
+
+def _curso_y_sede(hoja):
+    """«601 · Sede Principal» del estudiante de la hoja, o '' si es una hoja suelta."""
+    curso = hojas_mod.curso_de_hoja(hoja)
+    if curso is None:
+        return ''
+    return curso.nombre + (' · ' + hojas_mod.nombre_sede(curso.sede.nombre) if curso.sede_id else '')
 
 
 def _geometria_de_examen(examen, identificadores):
@@ -1436,7 +1450,7 @@ def procesar_foto(request, examen_id):
     hoja = None
     if leido:
         hoja = examen.hojas.filter(identificador=leido).select_related(
-            'estudiante__user').first()
+            'estudiante__user', 'estudiante__curso__sede').first()
 
     respuestas_txt = {str(k): v for k, v in respuestas.items()}
     # Todo en una sola ida al servidor: lo leído, la nota y, si todo está claro
@@ -1457,6 +1471,7 @@ def procesar_foto(request, examen_id):
         'guardada': guardada,
         'hoja_id': hoja.id if hoja else None,
         'hoja_nombre': hoja.nombre if hoja else None,
+        'hoja_curso': _curso_y_sede(hoja) if hoja else '',
         'formas': letras_forma,
         'forma': forma,
         'forma_duda': forma_duda,
@@ -1522,6 +1537,7 @@ def _guardar_hoja(examen, hoja, respuestas, forma):
     hoja.refresh_from_db()
     return {'ok': True, 'nota': str(hoja.nota), 'forma': hoja.forma,
             'recortada': hoja.nota_recortada, 'nombre': hoja.nombre, 'hoja_id': hoja.id,
+            'curso': _curso_y_sede(hoja),
             'buenas': r['buenas'], 'malas': r['malas'], 'blancas': r['blancas']}
 
 
