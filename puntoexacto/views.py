@@ -1323,12 +1323,22 @@ def escanear(request, examen_id):
     # y al docente le toque escoger al estudiante a mano.
     datos = [{'id': h.id, 'nombre': h.nombre,
               'calificada': h.estado == 'calificada'} for h in hojas_lista]
+    # La cámara del navegador busca las cuatro marcas en vivo y necesita saber
+    # dónde quedan en la hoja (y su tamaño) para dibujar los recuadros guía.
+    geo = _geometria_de_examen(examen, [h.identificador for h in hojas_lista])
+    guia = {k: geo[k] for k in ('ancho_mm', 'alto_mm', 'marca_mm', 'marcas_mm')}
     return render(request, 'puntoexacto/escanear.html', {
         'examen': examen,
         'pendientes': sum(1 for h in hojas_lista if h.estado != 'calificada'),
         'total': len(hojas_lista),
         'hojas_json': json.dumps(datos, ensure_ascii=False),
+        'geo_json': json.dumps(guia),
     })
+
+
+def _geometria_de_examen(examen, identificadores):
+    return hojas_mod.geometria(examen.hojas_por_pagina or 1,
+                               identificadores[0] if identificadores else None)
 
 
 @login_required
@@ -1358,8 +1368,7 @@ def procesar_foto(request, examen_id):
     letras = lambda n: hojas_mod.LETRAS[:opciones.get(n, examen.numero_opciones)]
 
     identificadores = list(examen.hojas.values_list('identificador', flat=True))
-    geo = hojas_mod.geometria(examen.hojas_por_pagina or 1,
-                              identificadores[0] if identificadores else None)
+    geo = _geometria_de_examen(examen, identificadores)
 
     try:
         gris = lector_mod._a_gris(archivo)

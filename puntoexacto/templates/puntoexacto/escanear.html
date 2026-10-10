@@ -5,26 +5,73 @@
 {% block content %}
 <style>
     .pe-escaner { max-width:900px; }
-    .pe-tomar { display:block; width:100%; padding:18px; font-size:1.1rem; }
-    .pe-lienzo { position:relative; display:inline-block; line-height:0;
-                 border:1px solid #e3e6ec; border-radius:8px; overflow:hidden; }
-    .pe-marco { overflow:auto; max-height:70vh; background:#f4f5f7;
-                border-radius:8px; -webkit-overflow-scrolling:touch; }
+    .pe-tomar { display:block; width:100%; padding:18px; font-size:1.15rem; }
+
+    /* ---- Cámara en vivo (pantalla completa, como un escáner de documentos) ---- */
+    .pe-camara { position:fixed; inset:0; z-index:2000; background:#000; color:#fff;
+                 display:none; flex-direction:column; touch-action:manipulation; }
+    .pe-camara.abierta { display:flex; }
+    .pe-cam-arriba, .pe-cam-abajo { display:flex; align-items:center; gap:10px;
+                 padding:10px 14px; background:rgba(0,0,0,.55); }
+    .pe-cam-arriba { justify-content:space-between; font-size:.9rem; }
+    .pe-cam-boton { background:rgba(255,255,255,.14); color:#fff; border:0; border-radius:999px;
+                    min-width:44px; height:44px; padding:0 14px; font-size:1rem; }
+    .pe-cam-boton.activo { background:#f5c400; color:#000; }
+    .pe-visor { position:relative; flex:1; display:flex; align-items:center; justify-content:center;
+                overflow:hidden; }
+    .pe-visor-caja { position:relative; max-width:100%; max-height:100%; }
+    .pe-visor video { display:block; width:100%; height:100%; }
+    .pe-visor svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+    .pe-cam-estado { text-align:center; padding:8px 14px 2px; font-size:1rem; min-height:2.6em;
+                     background:rgba(0,0,0,.55); }
+    .pe-cam-estado.bien { color:#7dff9b; } .pe-cam-estado.mal { color:#ffb4a8; }
+    .pe-cam-abajo { justify-content:space-around; padding-bottom:max(14px, env(safe-area-inset-bottom)); }
+    .pe-disparador { width:70px; height:70px; border-radius:50%; border:5px solid #fff;
+                     background:rgba(255,255,255,.25); }
+    .pe-disparador:active { background:#fff; }
+    .pe-leyendo { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+                  background:rgba(0,0,0,.55); font-size:1.2rem; font-weight:600; }
+    .pe-leyendo.si { display:flex; }
+    .pe-destello { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none;
+                   transition:opacity .25s; }
+
+    /* ---- Revisión (pantalla completa) ---- */
+    .pe-revision { position:fixed; inset:0; z-index:2010; background:#f4f5f7; display:none;
+                   flex-direction:column; }
+    .pe-revision.abierta { display:flex; }
+    .pe-rev-cuerpo { flex:1; overflow:auto; padding:12px; -webkit-overflow-scrolling:touch; }
+    .pe-rev-pie { display:flex; gap:8px; padding:10px 12px; background:#fff;
+                  border-top:1px solid #e3e6ec; padding-bottom:max(10px, env(safe-area-inset-bottom)); }
+    .pe-rev-pie .btn { flex:1; padding:12px 6px; font-size:1rem; }
+    .pe-rev-bloque { background:#fff; border:1px solid #e3e6ec; border-radius:10px; padding:12px;
+                     margin-bottom:12px; }
+    .pe-lienzo { position:relative; display:inline-block; line-height:0; }
+    .pe-marco { overflow:auto; max-height:62vh; background:#e9ebef; border-radius:8px;
+                -webkit-overflow-scrolling:touch; }
     .pe-lienzo img { display:block; width:100%; height:auto; }
     .pe-burbuja { position:absolute; transform:translate(-50%,-50%);
                   border-radius:50%; box-sizing:border-box; cursor:pointer;
                   border:2px solid rgba(90,100,115,.35); background:transparent; }
-    .pe-burbuja.marcada { background:rgba(13,110,60,.55);
-                          border-color:#0b6b4a; }
-    .pe-burbuja.duda { border-color:#c77800; border-width:3px;
-                       box-shadow:0 0 0 3px rgba(199,120,0,.25); }
+    .pe-burbuja.marcada { background:rgba(13,110,60,.55); border-color:#0b6b4a; }
+    .pe-burbuja.duda { border-color:#c77800; border-width:3px; box-shadow:0 0 0 3px rgba(199,120,0,.25); }
     .pe-burbuja.tocada { outline:3px solid #1b5fa8; }
-    .pe-lista-dudas { font-size:.9rem; }
-    .pe-fila-duda { display:inline-block; margin:0 8px 6px 0; padding:3px 10px;
-                    border:1px solid #c77800; border-radius:999px; color:#8a5200;
-                    cursor:pointer; background:#fff8e6; }
-    .pe-barra-zoom { display:flex; gap:10px; align-items:center; margin:10px 0; }
+    .pe-barra-zoom { display:flex; gap:10px; align-items:center; margin:8px 0; }
     .pe-estado-grande { font-size:1.05rem; font-weight:600; }
+    .pe-fila-duda { display:inline-block; margin:0 6px 6px 0; padding:4px 11px;
+                    border:1px solid #c77800; border-radius:999px; color:#8a5200;
+                    cursor:pointer; background:#fff8e6; font-size:.88rem; }
+
+    /* Rejilla de respuestas: botones grandes para el dedo */
+    .pe-rejilla { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:6px 14px; }
+    .pe-renglon { display:flex; align-items:center; gap:5px; padding:3px 4px; border-radius:8px; }
+    .pe-renglon.duda { background:#fff3d6; box-shadow:inset 0 0 0 2px #e0a100; }
+    .pe-renglon.tocado { background:#e3eefc; }
+    .pe-renglon .n { width:30px; text-align:right; font-weight:700; font-variant-numeric:tabular-nums;
+                     color:#374151; margin-right:3px; }
+    .pe-op { width:38px; height:38px; border-radius:50%; border:2px solid #9aa3b2; background:#fff;
+             font-weight:700; color:#4b5563; padding:0; font-size:.92rem; }
+    .pe-op.si { background:#0b6b4a; border-color:#0b6b4a; color:#fff; }
+    .pe-leyenda { font-size:.82rem; color:#6b7280; }
 </style>
 
 <div class="pe-escaner">
@@ -35,47 +82,25 @@
 
 <div class="pe-tarjeta">
     <p class="text-muted" style="font-size:.92rem;">
-        Tome la foto con las <strong>cuatro esquinas negras</strong> visibles y la hoja
-        lo más plana posible. El código de barras dice de quién es la hoja; si no se
-        deja leer, usted escoge al estudiante. Después puede
-        <strong>tocar cualquier burbuja</strong> para corregir lo que el lector haya
-        entendido mal.
+        Abra la cámara y apunte a la hoja: cuando las <strong>cuatro esquinas negras</strong>
+        queden dentro de los recuadros, la foto se toma sola. Después puede
+        <strong>tocar con el dedo</strong> cualquier respuesta que el lector haya entendido mal
+        y, al guardar, la cámara vuelve a quedar lista para la siguiente hoja.
     </p>
     <p class="text-muted" style="font-size:.86rem;">
         La foto no se guarda en el servidor: entra, se mide y se descarta.
     </p>
     {% csrf_token %}
     <input type="file" accept="image/*" capture="environment" id="pe-archivo" hidden>
-    <button type="button" class="btn btn-primary pe-tomar" id="pe-tomar">
-        <i class="fas fa-camera me-2"></i> Tomar foto de una hoja
+    <button type="button" class="btn btn-primary pe-tomar" id="pe-abrir-camara">
+        <i class="fas fa-camera me-2"></i> Escanear hojas con la cámara
     </button>
+    <button type="button" class="btn btn-link w-100 mt-1" id="pe-tomar">
+        <i class="fas fa-image me-1"></i> o subir una foto ya tomada
+    </button>
+    <div id="pe-sin-camara" class="alert alert-warning mt-2 mb-0" style="display:none;font-size:.9rem;"></div>
     <div class="form-text text-center mt-2">
-        {{ pendientes }} de {{ total }} hoja{{ total|pluralize }} sin calificar.
-    </div>
-</div>
-
-<div class="pe-tarjeta" id="pe-resultado" style="display:none;">
-    <div id="pe-cabecera" class="mb-2"></div>
-    <div id="pe-dudas" class="pe-lista-dudas mb-2"></div>
-
-    <div class="pe-barra-zoom">
-        <label for="pe-zoom" style="font-size:.86rem;white-space:nowrap;">Acercar</label>
-        <input type="range" id="pe-zoom" class="form-range" min="100" max="320" value="100">
-        <button type="button" class="btn btn-sm btn-outline-secondary" id="pe-limpiar">
-            Volver a lo leído
-        </button>
-    </div>
-
-    <div class="pe-marco">
-        <div class="pe-lienzo" id="pe-lienzo">
-            <img id="pe-img" alt="Hoja fotografiada">
-        </div>
-    </div>
-
-    <div class="mt-3 d-flex gap-2 flex-wrap align-items-center">
-        <button type="button" class="btn btn-success" id="pe-guardar">Guardar esta hoja</button>
-        <button type="button" class="btn btn-outline-secondary" id="pe-otra">Tomar otra</button>
-        <span id="pe-aviso" class="pe-estado-grande"></span>
+        <span id="pe-pendientes">{{ pendientes }}</span> de {{ total }} hoja{{ total|pluralize }} sin calificar.
     </div>
 </div>
 
@@ -85,78 +110,473 @@
 </div>
 </div>
 
+<!-- Cámara en vivo -->
+<div class="pe-camara" id="pe-camara" aria-label="Cámara">
+    <div class="pe-cam-arriba">
+        <button type="button" class="pe-cam-boton" id="pe-cerrar-camara" aria-label="Cerrar la cámara">
+            <i class="fas fa-xmark"></i>
+        </button>
+        <span><span id="pe-contador">0</span> calificada<span id="pe-contador-s">s</span></span>
+        <button type="button" class="pe-cam-boton" id="pe-linterna" aria-label="Linterna" style="visibility:hidden;">
+            <i class="fas fa-bolt"></i>
+        </button>
+    </div>
+    <div class="pe-visor" id="pe-visor">
+        <div class="pe-visor-caja" id="pe-visor-caja">
+            <video id="pe-video" playsinline muted autoplay></video>
+            <svg id="pe-guias" preserveAspectRatio="none"></svg>
+            <div class="pe-destello" id="pe-destello"></div>
+            <div class="pe-leyendo" id="pe-leyendo"><span><i class="fas fa-spinner fa-spin me-2"></i>Leyendo la hoja…</span></div>
+        </div>
+    </div>
+    <div class="pe-cam-estado" id="pe-cam-estado">Abriendo la cámara…</div>
+    <div class="pe-cam-abajo">
+        <span style="width:70px;font-size:.75rem;text-align:center;opacity:.8;">Se toma sola</span>
+        <button type="button" class="pe-disparador" id="pe-disparar" aria-label="Tomar la foto ahora"></button>
+        <span style="width:70px;"></span>
+    </div>
+</div>
+
+<!-- Revisión de lo leído -->
+<div class="pe-revision" id="pe-resultado">
+    <div class="pe-rev-cuerpo">
+        <div class="pe-rev-bloque">
+            <div id="pe-cabecera"></div>
+        </div>
+        <div class="pe-rev-bloque" id="pe-bloque-dudas">
+            <div id="pe-dudas"></div>
+        </div>
+        <div class="pe-rev-bloque">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong>Respuestas leídas</strong>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="pe-limpiar">Volver a lo leído</button>
+            </div>
+            <div class="pe-leyenda mb-2">Toque una letra para marcarla; tóquela otra vez para dejar la pregunta en blanco.
+                Las de fondo amarillo son las que el lector no vio claras.</div>
+            <div class="pe-rejilla" id="pe-rejilla"></div>
+        </div>
+        <div class="pe-rev-bloque">
+            <strong>La foto</strong>
+            <div class="pe-barra-zoom">
+                <label for="pe-zoom" style="font-size:.86rem;white-space:nowrap;">Acercar</label>
+                <input type="range" id="pe-zoom" class="form-range" min="100" max="320" value="100">
+            </div>
+            <div class="pe-marco">
+                <div class="pe-lienzo" id="pe-lienzo" style="width:100%;">
+                    <img id="pe-img" alt="Hoja fotografiada">
+                </div>
+            </div>
+            <div class="pe-leyenda mt-1">También puede tocar las burbujas sobre la foto.</div>
+        </div>
+    </div>
+    <div class="pe-rev-pie">
+        <button type="button" class="btn btn-outline-secondary" id="pe-otra">
+            <i class="fas fa-rotate-left me-1"></i> Repetir foto
+        </button>
+        <button type="button" class="btn btn-success" id="pe-guardar">
+            <i class="fas fa-check me-1"></i> <span id="pe-guardar-txt">Guardar y seguir</span>
+        </button>
+    </div>
+</div>
+
+<script id="pe-datos-hojas" type="application/json">{{ hojas_json|safe }}</script>
+<script id="pe-datos-geo" type="application/json">{{ geo_json|safe }}</script>
 <script>
 (function () {
     var urlFoto = "{% url 'puntoexacto:procesar_foto' examen_id=examen.id %}";
     var urlGuardar = "{% url 'puntoexacto:guardar_lectura' examen_id=examen.id %}";
     var csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    var GEO = JSON.parse(document.getElementById('pe-datos-geo').textContent);
+    var HOJAS = JSON.parse(document.getElementById('pe-datos-hojas').textContent);
 
-    var elArchivo = document.getElementById('pe-archivo');
-    var elTomar = document.getElementById('pe-tomar');
-    var elResultado = document.getElementById('pe-resultado');
-    var elCabecera = document.getElementById('pe-cabecera');
-    var elDudas = document.getElementById('pe-dudas');
-    var elLienzo = document.getElementById('pe-lienzo');
-    var elImg = document.getElementById('pe-img');
-    var elZoom = document.getElementById('pe-zoom');
-    var elAviso = document.getElementById('pe-aviso');
-    var elHistorial = document.getElementById('pe-historial');
-    var elListaOk = document.getElementById('pe-lista-ok');
+    var $ = function (id) { return document.getElementById(id); };
+    var elArchivo = $('pe-archivo'), elTomar = $('pe-tomar');
+    var elResultado = $('pe-resultado'), elCabecera = $('pe-cabecera'), elDudas = $('pe-dudas');
+    var elLienzo = $('pe-lienzo'), elImg = $('pe-img'), elZoom = $('pe-zoom');
+    var elRejilla = $('pe-rejilla'), elHistorial = $('pe-historial'), elListaOk = $('pe-lista-ok');
+    var elCamara = $('pe-camara'), elVideo = $('pe-video'), elGuias = $('pe-guias');
+    var elCaja = $('pe-visor-caja'), elVisor = $('pe-visor'), elEstado = $('pe-cam-estado');
+    var elLeyendo = $('pe-leyendo'), elDestello = $('pe-destello'), elLinterna = $('pe-linterna');
 
     var lectura = null;      // lo que devolvió el servidor
     var respuestas = {};     // lo que vale ahora, ya con las correcciones
     var urlObjeto = null;
+    var modoCamara = false;  // si la foto vino de la cámara en vivo
+    var calificadas = 0;
+    var pendientes = parseInt($('pe-pendientes').textContent, 10) || 0;
 
-    elTomar.addEventListener('click', function () { elArchivo.click(); });
-    document.getElementById('pe-otra').addEventListener('click', function () {
-        elArchivo.value = ''; elArchivo.click();
+    // =====================================================================
+    // 1. Cámara en vivo
+    // =====================================================================
+    // Las marcas, en mm con el origen arriba a la izquierda (el generador
+    // las da desde abajo). Orden: sup. izq., sup. der., inf. der., inf. izq.
+    var MARCAS = GEO.marcas_mm.map(function (p) { return [p[0], GEO.alto_mm - p[1]]; });
+    var SPAN_W = MARCAS[1][0] - MARCAS[0][0];
+    var SPAN_H = MARCAS[3][1] - MARCAS[0][1];
+
+    var flujo = null, pista = null, linternaPrendida = false;
+    var analisis = document.createElement('canvas');
+    var ctxA = analisis.getContext('2d', {willReadFrequently: true});
+    var ANCHO_ANALISIS = 360;
+    var guia = null;          // recuadros en píxeles del video
+    var buscando = false, temporizador = null;
+    var anteriores = null, estables = 0;
+    var esperarRetiro = false; // después de guardar: no repetir la misma hoja
+    var perdidas = 0;
+    var avisoGuardado = '';
+
+    $('pe-abrir-camara').addEventListener('click', abrirCamara);
+    $('pe-cerrar-camara').addEventListener('click', cerrarCamara);
+    $('pe-disparar').addEventListener('click', function () {
+        if (buscando) capturar(anteriores && anteriores.length === 4 ? anteriores : null);
     });
-    document.getElementById('pe-limpiar').addEventListener('click', function () {
-        if (!lectura) return;
-        respuestas = Object.assign({}, lectura.respuestas);
-        pintar();
+    elLinterna.addEventListener('click', function () {
+        if (!pista) return;
+        linternaPrendida = !linternaPrendida;
+        pista.applyConstraints({advanced: [{torch: linternaPrendida}]}).catch(function () {});
+        elLinterna.classList.toggle('activo', linternaPrendida);
     });
 
+    function sinCamara(msg) {
+        var el = $('pe-sin-camara');
+        el.innerHTML = msg + ' Puede usar <strong>«subir una foto ya tomada»</strong>.';
+        el.style.display = '';
+    }
+
+    function abrirCamara() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            sinCamara('Este navegador no deja usar la cámara en vivo (se necesita una conexión https).');
+            return;
+        }
+        elCamara.classList.add('abierta');
+        document.body.style.overflow = 'hidden';
+        estado('Abriendo la cámara…');
+        if (flujo) { arrancarBusqueda(); return; }
+        navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {facingMode: {ideal: 'environment'}, width: {ideal: 3840}, height: {ideal: 2160}}
+        }).then(function (s) {
+            flujo = s;
+            pista = s.getVideoTracks()[0];
+            try {
+                var cap = pista.getCapabilities ? pista.getCapabilities() : {};
+                if (cap.torch) elLinterna.style.visibility = 'visible';
+                if (cap.focusMode && cap.focusMode.indexOf('continuous') >= 0) {
+                    pista.applyConstraints({advanced: [{focusMode: 'continuous'}]}).catch(function () {});
+                }
+            } catch (e) { /* no todos los navegadores lo tienen */ }
+            elVideo.srcObject = s;
+            elVideo.onloadedmetadata = function () {
+                elVideo.play();
+                ajustarVisor();
+                arrancarBusqueda();
+            };
+        }).catch(function (e) {
+            cerrarCamara();
+            sinCamara(e && e.name === 'NotAllowedError'
+                ? 'No se dio permiso para usar la cámara. Actívelo en la configuración del navegador.'
+                : 'No se pudo abrir la cámara.');
+        });
+    }
+
+    function cerrarCamara() {
+        pararBusqueda();
+        if (flujo) flujo.getTracks().forEach(function (t) { t.stop(); });
+        flujo = null; pista = null; linternaPrendida = false;
+        elLinterna.classList.remove('activo');
+        elCamara.classList.remove('abierta');
+        document.body.style.overflow = '';
+    }
+
+    function estado(texto, clase) {
+        elEstado.textContent = texto;
+        elEstado.className = 'pe-cam-estado' + (clase ? ' ' + clase : '');
+    }
+
+    // El video se muestra completo (sin recortar) para que lo que se ve en
+    // pantalla sea exactamente lo que se analiza.
+    function ajustarVisor() {
+        var vw = elVideo.videoWidth, vh = elVideo.videoHeight;
+        if (!vw || !vh) return;
+        var W = elVisor.clientWidth, H = elVisor.clientHeight;
+        var k = Math.min(W / vw, H / vh);
+        elCaja.style.width = Math.round(vw * k) + 'px';
+        elCaja.style.height = Math.round(vh * k) + 'px';
+        // Recuadro de las marcas: lo más grande posible, con aire para el borde de la hoja.
+        var mm = Math.min(vw * 0.80 / SPAN_W, vh * 0.84 / SPAN_H);
+        var fw = SPAN_W * mm, fh = SPAN_H * mm, x0 = (vw - fw) / 2, y0 = (vh - fh) / 2;
+        guia = {
+            mm: mm, fw: fw, fh: fh, lado: GEO.marca_mm * mm,
+            esquinas: [[x0, y0], [x0 + fw, y0], [x0 + fw, y0 + fh], [x0, y0 + fh]]
+        };
+        elGuias.setAttribute('viewBox', '0 0 ' + vw + ' ' + vh);
+        dibujarGuias(null);
+    }
+    window.addEventListener('resize', function () { if (flujo) ajustarVisor(); });
+
+    function dibujarGuias(halladas) {
+        if (!guia) return;
+        var vw = elVideo.videoWidth;
+        var L = guia.lado * 1.9, g = Math.max(3, vw / 220);
+        var html = '';
+        // Contorno de la hoja, tenue, para orientar.
+        var e = guia.esquinas;
+        html += '<polygon points="' + e.map(function (p) { return p.join(','); }).join(' ') +
+                '" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="' + (g / 2) +
+                '" stroke-dasharray="' + (g * 4) + ' ' + (g * 3) + '"/>';
+        e.forEach(function (p, i) {
+            var ok = halladas && halladas[i];
+            html += '<rect x="' + (p[0] - L / 2) + '" y="' + (p[1] - L / 2) + '" width="' + L +
+                    '" height="' + L + '" rx="' + (L / 8) + '" fill="' +
+                    (ok ? 'rgba(40,200,90,.18)' : 'none') + '" stroke="' +
+                    (ok ? '#2ee26b' : '#ffffff') + '" stroke-width="' + g + '"/>';
+        });
+        if (halladas) {
+            halladas.forEach(function (h) {
+                if (h) html += '<circle cx="' + h[0] + '" cy="' + h[1] + '" r="' + (g * 2) +
+                               '" fill="#2ee26b"/>';
+            });
+        }
+        elGuias.innerHTML = html;
+    }
+
+    function arrancarBusqueda() {
+        buscando = true;
+        anteriores = null; estables = 0;
+        elLeyendo.classList.remove('si');
+        if (!esperarRetiro) {
+            estado('Acerque la hoja hasta que las cuatro esquinas negras queden dentro de los recuadros.');
+        }
+        clearTimeout(temporizador);
+        temporizador = setTimeout(cuadro, 120);
+    }
+
+    function pararBusqueda() {
+        buscando = false;
+        clearTimeout(temporizador);
+    }
+
+    // Un cuadro: se reduce el video, se buscan las cuatro marcas cerca de su
+    // recuadro y, si quedan quietas unos instantes, se toma la foto.
+    function cuadro() {
+        if (!buscando) return;
+        if (elVideo.readyState >= 2 && guia && !document.hidden) {
+            var halladas = buscarMarcas();
+            var todas = halladas.every(Boolean) && forma_razonable(halladas);
+            dibujarGuias(halladas);
+            if (esperarRetiro) {
+                // Tras guardar, la hoja calificada suele seguir debajo de la cámara:
+                // se espera a que salga del cuadro antes de volver a disparar.
+                if (!todas) { perdidas++; if (perdidas >= 2) { esperarRetiro = false; } }
+                if (esperarRetiro) estado(avisoGuardado, 'bien');
+                else estado('Acerque la hoja hasta que las cuatro esquinas negras queden dentro de los recuadros.');
+            } else if (todas) {
+                var quieto = anteriores && anteriores.length === 4 && halladas.every(function (h, i) {
+                    return Math.hypot(h[0] - anteriores[i][0], h[1] - anteriores[i][1]) < guia.fw * 0.012;
+                });
+                estables = quieto ? estables + 1 : 1;
+                anteriores = halladas;
+                if (estables >= 4) { capturar(halladas); return; }
+                estado('¡Ahí está! No mueva el celular…', 'bien');
+            } else {
+                estables = 0; anteriores = null;
+                var n = halladas.filter(Boolean).length;
+                estado(n === 0 ? 'Acerque la hoja hasta que las cuatro esquinas negras queden dentro de los recuadros.'
+                               : 'Van ' + n + ' de 4 esquinas. Ajuste la hoja dentro de los recuadros.');
+            }
+        }
+        temporizador = setTimeout(cuadro, 110);
+    }
+
+    function forma_razonable(p) {
+        var d = function (a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); };
+        var arriba = d(p[0], p[1]), abajo = d(p[3], p[2]), izq = d(p[0], p[3]), der = d(p[1], p[2]);
+        var ancho = (arriba + abajo) / 2, alto = (izq + der) / 2;
+        if (Math.min(arriba, abajo) / Math.max(arriba, abajo) < 0.8) return false;
+        if (Math.min(izq, der) / Math.max(izq, der) < 0.8) return false;
+        var prop = (alto / ancho) / (SPAN_H / SPAN_W);
+        return prop > 0.85 && prop < 1.18 && ancho > guia.fw * 0.62 && ancho < guia.fw * 1.3;
+    }
+
+    // Busca un cuadrado oscuro rodeado de papel cerca de cada recuadro. Es la
+    // misma idea del lector del servidor (centro oscuro menos anillo claro),
+    // en pequeño, para que corra varias veces por segundo en el celular.
+    function buscarMarcas() {
+        var vw = elVideo.videoWidth, vh = elVideo.videoHeight;
+        var s = ANCHO_ANALISIS / vw;
+        var W = ANCHO_ANALISIS, H = Math.round(vh * s);
+        if (analisis.width !== W || analisis.height !== H) { analisis.width = W; analisis.height = H; }
+        ctxA.drawImage(elVideo, 0, 0, W, H);
+        var px = ctxA.getImageData(0, 0, W, H).data;
+        // Imagen integral del gris.
+        var W1 = W + 1, integ = new Float64Array(W1 * (H + 1));
+        for (var y = 0; y < H; y++) {
+            var fila = 0;
+            for (var x = 0; x < W; x++) {
+                var i = (y * W + x) * 4;
+                fila += px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
+                integ[(y + 1) * W1 + x + 1] = integ[y * W1 + x + 1] + fila;
+            }
+        }
+        function suma(x0, y0, x1, y1) { // [x0,x1) x [y0,y1), ya recortado
+            return integ[y1 * W1 + x1] - integ[y0 * W1 + x1] - integ[y1 * W1 + x0] + integ[y0 * W1 + x0];
+        }
+        var L = guia.lado * s;
+        var c = Math.max(2, Math.round(L * 0.35));      // medio lado del centro
+        var ri = Math.max(c + 1, Math.round(L * 0.78)); // medio lado interno del anillo
+        var ro = Math.max(ri + 2, Math.round(L * 1.25)); // medio lado externo del anillo
+        var R = guia.fw * s * 0.2;                       // cuánto se aleja del recuadro
+        var paso = L > 14 ? 2 : 1;
+        return guia.esquinas.map(function (p) {
+            var ex = p[0] * s, ey = p[1] * s;
+            var xa = Math.max(ro, Math.round(ex - R)), xb = Math.min(W - ro - 1, Math.round(ex + R));
+            var ya = Math.max(ro, Math.round(ey - R)), yb = Math.min(H - ro - 1, Math.round(ey + R));
+            var mejor = -1e9, bx = 0, by = 0, bcen = 0, banillo = 0;
+            var areaC = (2 * c) * (2 * c), areaR = (2 * ro) * (2 * ro) - (2 * ri) * (2 * ri);
+            for (var y = ya; y <= yb; y += paso) {
+                for (var x = xa; x <= xb; x += paso) {
+                    var cen = suma(x - c, y - c, x + c, y + c) / areaC;
+                    var anillo = (suma(x - ro, y - ro, x + ro, y + ro) - suma(x - ri, y - ri, x + ri, y + ri)) / areaR;
+                    var v = anillo - cen;
+                    if (v > mejor) { mejor = v; bx = x; by = y; bcen = cen; banillo = anillo; }
+                }
+            }
+            if (!(mejor > 38 && bcen < banillo * 0.62)) return null;
+            // Centro fino: centroide de lo oscuro alrededor.
+            var r = Math.round(L * 0.9), umbral = (bcen + banillo) / 2, sx = 0, sy = 0, n = 0;
+            for (var yy = Math.max(0, by - r); yy < Math.min(H, by + r); yy++) {
+                for (var xx = Math.max(0, bx - r); xx < Math.min(W, bx + r); xx++) {
+                    var j = (yy * W + xx) * 4;
+                    if (px[j] * 0.299 + px[j + 1] * 0.587 + px[j + 2] * 0.114 <= umbral) { sx += xx; sy += yy; n++; }
+                }
+            }
+            if (n >= 4) { bx = sx / n; by = sy / n; }
+            return [bx / s, by / s];
+        });
+    }
+
+    function sonar() {
+        try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) {}
+        try {
+            var A = window.AudioContext || window.webkitAudioContext;
+            if (!A) return;
+            sonar.ctx = sonar.ctx || new A();
+            var o = sonar.ctx.createOscillator(), g = sonar.ctx.createGain();
+            o.frequency.value = 1150; g.gain.value = 0.08;
+            o.connect(g); g.connect(sonar.ctx.destination);
+            o.start(); o.stop(sonar.ctx.currentTime + 0.09);
+        } catch (e) {}
+    }
+
+    // Foto a resolución completa, recortada a la hoja: el lector del servidor
+    // busca una marca por cuadrante y supone que la hoja llena la foto.
+    function capturar(marcas) {
+        pararBusqueda();
+        sonar();
+        elDestello.style.opacity = '0.85';
+        setTimeout(function () { elDestello.style.opacity = '0'; }, 120);
+        var vw = elVideo.videoWidth, vh = elVideo.videoHeight;
+        var x0 = 0, y0 = 0, x1 = vw, y1 = vh;
+        if (marcas) {
+            var xs = marcas.map(function (p) { return p[0]; }), ys = marcas.map(function (p) { return p[1]; });
+            var kx = ((marcas[1][0] - marcas[0][0]) + (marcas[2][0] - marcas[3][0])) / 2 / SPAN_W;
+            var ky = ((marcas[3][1] - marcas[0][1]) + (marcas[2][1] - marcas[1][1])) / 2 / SPAN_H;
+            var hol = 1.25;
+            x0 = Math.max(0, Math.min.apply(null, xs) - MARCAS[0][0] * kx * hol);
+            x1 = Math.min(vw, Math.max.apply(null, xs) + (GEO.ancho_mm - MARCAS[1][0]) * kx * hol);
+            y0 = Math.max(0, Math.min.apply(null, ys) - MARCAS[0][1] * ky * hol);
+            y1 = Math.min(vh, Math.max.apply(null, ys) + (GEO.alto_mm - MARCAS[3][1]) * ky * hol);
+        }
+        var lienzo = document.createElement('canvas');
+        lienzo.width = Math.round(x1 - x0); lienzo.height = Math.round(y1 - y0);
+        lienzo.getContext('2d').drawImage(elVideo, x0, y0, x1 - x0, y1 - y0, 0, 0, lienzo.width, lienzo.height);
+        elLeyendo.classList.add('si');
+        estado('Leyendo la hoja…');
+        lienzo.toBlob(function (blob) {
+            enviarFoto(blob, true);
+        }, 'image/jpeg', 0.92);
+    }
+
+    // =====================================================================
+    // 2. Subir una foto (si no hay cámara en vivo)
+    // =====================================================================
+    elTomar.addEventListener('click', function () { elArchivo.value = ''; elArchivo.click(); });
     elArchivo.addEventListener('change', function () {
         var archivo = elArchivo.files && elArchivo.files[0];
         if (!archivo) return;
-        elAviso.textContent = '';
         elTomar.disabled = true;
         elTomar.innerHTML = 'Leyendo la hoja…';
+        enviarFoto(archivo, false);
+    });
 
+    function restaurarBotonSubir() {
+        elTomar.disabled = false;
+        elTomar.innerHTML = '<i class="fas fa-image me-1"></i> o subir una foto ya tomada';
+    }
+
+    function enviarFoto(archivo, deCamara) {
+        modoCamara = deCamara;
         // La imagen que se muestra es la del teléfono, no una copia del
         // servidor: no hay segunda descarga y la foto no viaja de vuelta.
         if (urlObjeto) URL.revokeObjectURL(urlObjeto);
         urlObjeto = URL.createObjectURL(archivo);
-
         var cuerpo = new FormData();
-        cuerpo.append('foto', archivo);
+        cuerpo.append('foto', archivo, 'hoja.jpg');
         fetch(urlFoto, {method: 'POST', body: cuerpo, headers: {'X-CSRFToken': csrf}})
             .then(function (r) { return r.json(); })
             .then(function (d) {
-                elTomar.disabled = false;
-                elTomar.innerHTML = '<i class="fas fa-camera me-2"></i> Tomar foto de una hoja';
-                if (!d.ok) {
-                    elResultado.style.display = 'none';
-                    elAviso.textContent = '';
-                    alert(d.error || 'No se pudo leer la foto.');
-                    return;
-                }
+                restaurarBotonSubir();
+                if (!d.ok) { fallo(d.error || 'No se pudo leer la foto.'); return; }
                 lectura = d;
                 respuestas = Object.assign({}, d.respuestas);
-                elImg.src = urlObjeto;
-                elResultado.style.display = '';
-                elZoom.value = 100;
-                elLienzo.style.width = '100%';
-                pintarCabecera();
-                pintar();
-                elResultado.scrollIntoView({behavior: 'smooth', block: 'start'});
+                abrirRevision();
             })
             .catch(function () {
-                elTomar.disabled = false;
-                elTomar.innerHTML = '<i class="fas fa-camera me-2"></i> Tomar foto de una hoja';
-                alert('No se pudo enviar la foto. Revise la conexión.');
+                restaurarBotonSubir();
+                fallo('No se pudo enviar la foto. Revise la conexión.');
             });
+    }
+
+    function fallo(msg) {
+        if (modoCamara && flujo) {
+            elLeyendo.classList.remove('si');
+            // El mensaje se deja leer antes de que la búsqueda lo reemplace.
+            estado(msg + ' Intente otra vez.', 'mal');
+            setTimeout(function () { if (flujo && !elResultado.classList.contains('abierta')) arrancarBusqueda(); }, 2200);
+        } else {
+            alert(msg);
+        }
+    }
+
+    // =====================================================================
+    // 3. Revisión: corregir con el dedo
+    // =====================================================================
+    function abrirRevision() {
+        elImg.src = urlObjeto;
+        elZoom.value = 100;
+        elLienzo.style.width = '100%';
+        $('pe-guardar-txt').textContent = modoCamara ? 'Guardar y seguir' : 'Guardar';
+        pintarCabecera();
+        pintar();
+        elResultado.classList.add('abierta');
+        elResultado.querySelector('.pe-rev-cuerpo').scrollTop = 0;
+        document.body.style.overflow = 'hidden';
+    }
+
+    function cerrarRevision() {
+        elResultado.classList.remove('abierta');
+        if (!elCamara.classList.contains('abierta')) document.body.style.overflow = '';
+    }
+
+    $('pe-otra').addEventListener('click', function () {
+        cerrarRevision();
+        if (modoCamara && flujo) { esperarRetiro = false; arrancarBusqueda(); }
+        else { elArchivo.value = ''; elArchivo.click(); }
+    });
+    $('pe-limpiar').addEventListener('click', function () {
+        if (!lectura) return;
+        respuestas = Object.assign({}, lectura.respuestas);
+        pintar();
     });
 
     function pintarCabecera() {
@@ -178,7 +598,7 @@
                         : 'No se pudo leer el código de barras. ') +
                     'Escoja de quién es esta hoja.</div>';
             html += '<select class="form-select" id="pe-quien"><option value="">Seleccione el estudiante</option>';
-            html += window.PE_HOJAS.map(function (h) {
+            html += HOJAS.map(function (h) {
                 return '<option value="' + h.id + '">' + escapar(h.nombre) +
                        (h.calificada ? ' (ya calificada)' : '') + '</option>';
             }).join('');
@@ -199,17 +619,25 @@
         elCabecera.innerHTML = html;
     }
 
+    function dudosas() {
+        var r = {};
+        (lectura.dudas || []).forEach(function (d) { r[d.pregunta] = d; });
+        return r;
+    }
+
+    function letrasDe(p) {
+        var n = (lectura.opciones && lectura.opciones[p]) || 4;
+        var todas = Array.isArray(lectura.letras) ? lectura.letras.join('') : String(lectura.letras || 'ABCDEFGHIJ');
+        return todas.slice(0, n).split('');
+    }
+
     function pintar() {
-        // Se borran y se vuelven a crear: son pocas y así no hay estado viejo.
+        var dud = dudosas();
+        // --- Burbujas sobre la foto ---
         Array.prototype.slice.call(elLienzo.querySelectorAll('.pe-burbuja'))
             .forEach(function (b) { b.remove(); });
-
-        var dudosas = {};
-        (lectura.dudas || []).forEach(function (d) { dudosas[d.pregunta] = d; });
-
         var W = lectura.ancho_foto, H = lectura.alto_foto;
         var diametro = (lectura.radio_px * 2 / W) * 100;   // en % del ancho
-
         Object.keys(lectura.posiciones).forEach(function (clave) {
             var m = clave.match(/^(\d+)([A-J])$/);
             if (!m) return;
@@ -226,66 +654,77 @@
             b.dataset.letra = letra;
             b.title = 'Pregunta ' + pregunta + ', opción ' + letra;
             if (respuestas[pregunta] === letra) b.classList.add('marcada');
-            if (dudosas[pregunta]) b.classList.add('duda');
+            if (dud[pregunta]) b.classList.add('duda');
             b.addEventListener('click', function () { tocar(pregunta, letra); });
             elLienzo.appendChild(b);
         });
+        // --- Rejilla para el dedo ---
+        var preguntas = Object.keys(lectura.respuestas).sort(function (a, b) { return a - b; });
+        elRejilla.innerHTML = preguntas.map(function (p) {
+            return '<div class="pe-renglon' + (dud[p] ? ' duda' : '') + '" id="pe-r-' + p + '">' +
+                   '<span class="n">' + p + '</span>' +
+                   letrasDe(p).map(function (l) {
+                       return '<button type="button" class="pe-op' + (respuestas[p] === l ? ' si' : '') +
+                              '" data-p="' + p + '" data-l="' + l + '" aria-label="Pregunta ' + p +
+                              ', ' + l + '">' + l + '</button>';
+                   }).join('') + '</div>';
+        }).join('');
         resumen();
     }
+
+    elRejilla.addEventListener('click', function (ev) {
+        var b = ev.target.closest('.pe-op');
+        if (b) tocar(b.dataset.p, b.dataset.l);
+    });
 
     function tocar(pregunta, letra) {
         // Tocar la que ya está marcada la deja en blanco: así se corrige tanto
         // "marcó otra" como "no marcó nada".
         respuestas[pregunta] = (respuestas[pregunta] === letra) ? '' : letra;
+        var scroll = elResultado.querySelector('.pe-rev-cuerpo').scrollTop;
         pintar();
+        elResultado.querySelector('.pe-rev-cuerpo').scrollTop = scroll;
     }
 
     function resumen() {
-        var pendientes = (lectura.dudas || []).filter(function (d) {
-            return !respuestas[d.pregunta];
-        });
-        var html = (lectura.dudas || []).map(function (d) {
+        var dudas = lectura.dudas || [];
+        var pendientesDuda = dudas.filter(function (d) { return !respuestas[d.pregunta]; });
+        var html = dudas.map(function (d) {
             var resuelta = !!respuestas[d.pregunta];
             return '<span class="pe-fila-duda" data-p="' + d.pregunta + '"' +
                    (resuelta ? ' style="opacity:.45;text-decoration:line-through;"' : '') +
                    '>' + d.pregunta + ': ' + escapar(d.motivo) + '</span>';
         }).join('');
         if (html) {
-            html = '<strong>Revise estas:</strong><br>' + html;
-            if (pendientes.length === 0) {
-                html += '<div class="text-success mt-1">Todas resueltas.</div>';
-            }
+            html = '<strong>Revise estas</strong> <span class="pe-leyenda">(toque una para ir a ella)</span><br>' + html;
+            if (pendientesDuda.length === 0) html += '<div class="text-success mt-1">Todas resueltas.</div>';
+        } else {
+            html = '<span class="text-success"><i class="fas fa-circle-check me-1"></i>El lector vio todas las respuestas claras.</span>';
         }
-        var enBlanco = [];
-        Object.keys(lectura.respuestas).forEach(function (p) {
-            if (!respuestas[p]) enBlanco.push(p);
-        });
+        var enBlanco = Object.keys(lectura.respuestas).filter(function (p) { return !respuestas[p]; });
         if (enBlanco.length) {
-            html += '<div class="text-muted mt-1" style="font-size:.85rem;">' +
-                    'Quedan en blanco: ' + enBlanco.join(', ') + '</div>';
+            html += '<div class="text-muted mt-1" style="font-size:.85rem;">Quedan en blanco: ' +
+                    enBlanco.join(', ') + '</div>';
         }
         elDudas.innerHTML = html;
-        Array.prototype.slice.call(elDudas.querySelectorAll('.pe-fila-duda'))
-            .forEach(function (s) {
-                s.addEventListener('click', function () {
-                    var b = elLienzo.querySelector('.pe-burbuja[data-pregunta="' + s.dataset.p + '"]');
-                    if (b) {
-                        b.classList.add('tocada');
-                        b.scrollIntoView({behavior: 'smooth', block: 'center', inline: 'center'});
-                        setTimeout(function () { b.classList.remove('tocada'); }, 1600);
-                    }
-                });
+        Array.prototype.slice.call(elDudas.querySelectorAll('.pe-fila-duda')).forEach(function (s) {
+            s.addEventListener('click', function () {
+                var r = $('pe-r-' + s.dataset.p);
+                if (r) {
+                    r.classList.add('tocado');
+                    r.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    setTimeout(function () { r.classList.remove('tocado'); }, 1600);
+                }
             });
+        });
     }
 
-    elZoom.addEventListener('input', function () {
-        elLienzo.style.width = elZoom.value + '%';
-    });
+    elZoom.addEventListener('input', function () { elLienzo.style.width = elZoom.value + '%'; });
 
-    document.getElementById('pe-guardar').addEventListener('click', function () {
+    $('pe-guardar').addEventListener('click', function () {
         var id = lectura.hoja_id;
         if (!id) {
-            var sel = document.getElementById('pe-quien');
+            var sel = $('pe-quien');
             id = sel && sel.value;
             if (!id) { alert('Escoja de quién es esta hoja.'); return; }
         }
@@ -297,20 +736,47 @@
         }
         var limpias = {};
         Object.keys(respuestas).forEach(function (p) { limpias[p] = respuestas[p] || ''; });
+        var boton = $('pe-guardar');
+        boton.disabled = true;
         fetch(urlGuardar, {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
             body: JSON.stringify({hoja_id: id, respuestas: limpias, forma: forma})
         }).then(function (r) { return r.json(); }).then(function (d) {
+            boton.disabled = false;
             if (!d.ok) { alert(d.error || 'No se pudo guardar.'); return; }
-            elAviso.textContent = 'Guardada · nota ' + d.nota;
-            elHistorial.style.display = '';
-            var li = document.createElement('li');
-            li.textContent = d.nombre + (lectura.formas ? ' (forma ' + d.forma + ')' : '') + ' — ' + d.nota + (d.recortada ? ' (ajustada a la escala)' : '');
-            elListaOk.appendChild(li);
-            setTimeout(function () { elArchivo.value = ''; elArchivo.click(); }, 350);
-        }).catch(function () { alert('No se pudo guardar. Revise la conexión.'); });
+            anotar(id, d);
+            cerrarRevision();
+            if (modoCamara && flujo) {
+                esperarRetiro = true; perdidas = 0;
+                avisoGuardado = 'Guardada ✓ ' + d.nombre + ' · nota ' + d.nota + '. Ponga la siguiente hoja.';
+                arrancarBusqueda();
+                estado(avisoGuardado, 'bien');
+            } else {
+                setTimeout(function () { elArchivo.value = ''; elArchivo.click(); }, 350);
+            }
+        }).catch(function () {
+            boton.disabled = false;
+            alert('No se pudo guardar. Revise la conexión.');
+        });
     });
+
+    function anotar(id, d) {
+        var hoja = HOJAS.filter(function (h) { return String(h.id) === String(id); })[0];
+        if (hoja && !hoja.calificada) {
+            hoja.calificada = true;
+            pendientes = Math.max(0, pendientes - 1);
+            $('pe-pendientes').textContent = pendientes;
+        }
+        calificadas++;
+        $('pe-contador').textContent = calificadas;
+        $('pe-contador-s').textContent = calificadas === 1 ? '' : 's';
+        elHistorial.style.display = '';
+        var li = document.createElement('li');
+        li.textContent = d.nombre + (lectura.formas ? ' (forma ' + d.forma + ')' : '') + ' — ' + d.nota +
+                         (d.recortada ? ' (ajustada a la escala)' : '');
+        elListaOk.insertBefore(li, elListaOk.firstChild);
+    }
 
     function escapar(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -319,6 +785,4 @@
     }
 })();
 </script>
-<script id="pe-datos-hojas" type="application/json">{{ hojas_json|safe }}</script>
-<script>window.PE_HOJAS = JSON.parse(document.getElementById('pe-datos-hojas').textContent);</script>
 {% endblock %}
