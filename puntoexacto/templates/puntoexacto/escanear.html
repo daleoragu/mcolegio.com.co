@@ -29,11 +29,22 @@
     .pe-disparador { width:70px; height:70px; border-radius:50%; border:5px solid #fff;
                      background:rgba(255,255,255,.25); }
     .pe-disparador:active { background:#fff; }
+    .pe-auto { width:90px; font-size:.72rem; text-align:center; line-height:1.15; opacity:.9; }
+    .pe-auto input { display:block; margin:0 auto 3px; width:20px; height:20px; }
     .pe-leyendo { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
                   background:rgba(0,0,0,.55); font-size:1.2rem; font-weight:600; }
     .pe-leyendo.si { display:flex; }
     .pe-destello { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none;
                    transition:opacity .25s; }
+    /* Resultado encima de la cámara, cuando la hoja se guardó sola */
+    .pe-cam-nota { position:absolute; left:50%; bottom:16px; transform:translateX(-50%); width:min(92%, 380px);
+                   background:rgba(255,255,255,.97); color:#111; border-radius:16px; padding:14px 16px;
+                   box-shadow:0 10px 30px rgba(0,0,0,.4); display:none; }
+    .pe-cam-nota.si { display:block; animation:pe-sube .25s ease-out; }
+    @keyframes pe-sube { from { transform:translate(-50%, 20px); opacity:0; } }
+    .pe-cam-nota .fila { display:flex; align-items:center; gap:14px; }
+    .pe-cam-nota .valor { font-size:2.6rem; font-weight:800; line-height:1; min-width:84px; text-align:center;
+                          border-radius:12px; padding:8px 6px; color:#fff; }
 
     /* ---- Revisión (pantalla completa) ---- */
     .pe-revision { position:fixed; inset:0; z-index:2010; background:#f4f5f7; display:none;
@@ -46,20 +57,31 @@
     .pe-rev-bloque { background:#fff; border:1px solid #e3e6ec; border-radius:10px; padding:12px;
                      margin-bottom:12px; }
     .pe-lienzo { position:relative; display:inline-block; line-height:0; }
-    .pe-marco { overflow:auto; max-height:62vh; background:#e9ebef; border-radius:8px;
+    .pe-marco { overflow:auto; max-height:70vh; background:#e9ebef; border-radius:8px;
                 -webkit-overflow-scrolling:touch; }
     .pe-lienzo img { display:block; width:100%; height:auto; }
     .pe-burbuja { position:absolute; transform:translate(-50%,-50%);
                   border-radius:50%; box-sizing:border-box; cursor:pointer;
-                  border:2px solid rgba(90,100,115,.35); background:transparent; }
-    .pe-burbuja.marcada { background:rgba(13,110,60,.55); border-color:#0b6b4a; }
-    .pe-burbuja.duda { border-color:#c77800; border-width:3px; box-shadow:0 0 0 3px rgba(199,120,0,.25); }
+                  border:2px solid rgba(90,100,115,.25); background:transparent; }
+    .pe-burbuja.marcada { background:rgba(27,95,168,.5); border-color:#1b5fa8; }
+    .pe-burbuja.marcada.bien { background:rgba(13,140,70,.6); border-color:#0b6b4a; }
+    .pe-burbuja.marcada.mal { background:rgba(200,30,30,.55); border-color:#a4161a; }
+    .pe-burbuja.correcta { border:3px dashed #0b8a4a; }
+    .pe-burbuja.duda { box-shadow:0 0 0 4px rgba(230,150,0,.7); }
     .pe-burbuja.tocada { outline:3px solid #1b5fa8; }
+    .pe-sello { position:absolute; top:8px; left:8px; z-index:3; line-height:1.1; color:#fff; border-radius:12px;
+                padding:8px 12px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,.25); pointer-events:none; }
+    .pe-sello b { display:block; font-size:2rem; }
+    .pe-sello span { font-size:.78rem; }
     .pe-barra-zoom { display:flex; gap:10px; align-items:center; margin:8px 0; }
     .pe-estado-grande { font-size:1.05rem; font-weight:600; }
     .pe-fila-duda { display:inline-block; margin:0 6px 6px 0; padding:4px 11px;
                     border:1px solid #c77800; border-radius:999px; color:#8a5200;
                     cursor:pointer; background:#fff8e6; font-size:.88rem; }
+    .pe-cabeza { display:flex; gap:14px; align-items:center; }
+    .pe-nota-grande { font-size:2.4rem; font-weight:800; color:#fff; border-radius:12px; padding:6px 12px;
+                      min-width:92px; text-align:center; line-height:1.05; }
+    .pe-nota-grande small { display:block; font-size:.72rem; font-weight:600; opacity:.95; }
 
     /* Rejilla de respuestas: botones grandes para el dedo */
     .pe-rejilla { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:6px 14px; }
@@ -70,8 +92,12 @@
                      color:#374151; margin-right:3px; }
     .pe-op { width:38px; height:38px; border-radius:50%; border:2px solid #9aa3b2; background:#fff;
              font-weight:700; color:#4b5563; padding:0; font-size:.92rem; }
-    .pe-op.si { background:#0b6b4a; border-color:#0b6b4a; color:#fff; }
+    .pe-op.si { background:#1b5fa8; border-color:#1b5fa8; color:#fff; }
+    .pe-op.si.bien { background:#0b6b4a; border-color:#0b6b4a; }
+    .pe-op.si.mal { background:#b42318; border-color:#b42318; }
+    .pe-op.correcta { border:3px dashed #0b8a4a; color:#0b6b4a; }
     .pe-leyenda { font-size:.82rem; color:#6b7280; }
+    .pe-c-bien { color:#0b6b4a; font-weight:700; } .pe-c-mal { color:#b42318; font-weight:700; }
 </style>
 
 <div class="pe-escaner">
@@ -82,10 +108,11 @@
 
 <div class="pe-tarjeta">
     <p class="text-muted" style="font-size:.92rem;">
-        Abra la cámara y apunte a la hoja: cuando las <strong>cuatro esquinas negras</strong>
-        queden dentro de los recuadros, la foto se toma sola. Después puede
-        <strong>tocar con el dedo</strong> cualquier respuesta que el lector haya entendido mal
-        y, al guardar, la cámara vuelve a quedar lista para la siguiente hoja.
+        Abra la cámara y apunte a la hoja: la cámara <strong>busca sola la hoja y sus cuatro
+        esquinas negras</strong>, esté cerca o lejos, y toma la foto cuando la ve quieta.
+        Enseguida sale la <strong>nota sobre la foto</strong>. Si algo no se vio claro, lo corrige
+        tocando con el dedo; si todo estaba claro, se guarda sola y la cámara sigue con la
+        siguiente hoja.
     </p>
     <p class="text-muted" style="font-size:.86rem;">
         La foto no se guarda en el servidor: entra, se mide y se descarta.
@@ -128,12 +155,25 @@
             <div class="pe-destello" id="pe-destello"></div>
             <div class="pe-leyendo" id="pe-leyendo"><span><i class="fas fa-spinner fa-spin me-2"></i>Leyendo la hoja…</span></div>
         </div>
+        <div class="pe-cam-nota" id="pe-cam-nota">
+            <div class="fila">
+                <div class="valor" id="pe-cam-nota-valor">–</div>
+                <div style="flex:1;min-width:0;">
+                    <div class="fw-bold text-truncate" id="pe-cam-nota-nombre"></div>
+                    <div class="small" id="pe-cam-nota-detalle"></div>
+                    <div class="small text-success fw-semibold"><i class="fas fa-check me-1"></i>Guardada</div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-2" id="pe-cam-corregir">
+                <i class="fas fa-hand-pointer me-1"></i> Revisar o corregir esta hoja
+            </button>
+        </div>
     </div>
     <div class="pe-cam-estado" id="pe-cam-estado">Abriendo la cámara…</div>
     <div class="pe-cam-abajo">
-        <span style="width:70px;font-size:.75rem;text-align:center;opacity:.8;">Se toma sola</span>
+        <label class="pe-auto"><input type="checkbox" id="pe-auto" checked>Guardar sola si todo está claro</label>
         <button type="button" class="pe-disparador" id="pe-disparar" aria-label="Tomar la foto ahora"></button>
-        <span style="width:70px;"></span>
+        <span style="width:90px;"></span>
     </div>
 </div>
 
@@ -141,7 +181,24 @@
 <div class="pe-revision" id="pe-resultado">
     <div class="pe-rev-cuerpo">
         <div class="pe-rev-bloque">
-            <div id="pe-cabecera"></div>
+            <div class="pe-cabeza">
+                <div class="pe-nota-grande" id="pe-nota-grande" style="background:#6b7280;">–<small>nota</small></div>
+                <div style="flex:1;min-width:0;" id="pe-cabecera"></div>
+            </div>
+            <div id="pe-cabecera-extra"></div>
+        </div>
+        <div class="pe-rev-bloque">
+            <div class="pe-marco">
+                <div class="pe-lienzo" id="pe-lienzo" style="width:100%;">
+                    <div class="pe-sello" id="pe-sello"></div>
+                    <img id="pe-img" alt="Hoja fotografiada">
+                </div>
+            </div>
+            <div class="pe-barra-zoom">
+                <label for="pe-zoom" style="font-size:.86rem;white-space:nowrap;">Acercar</label>
+                <input type="range" id="pe-zoom" class="form-range" min="100" max="320" value="100">
+            </div>
+            <div class="pe-leyenda">Verde: bien. Rojo: mal. Punteada: la respuesta correcta. Toque una burbuja para corregir lo que leyó la cámara.</div>
         </div>
         <div class="pe-rev-bloque" id="pe-bloque-dudas">
             <div id="pe-dudas"></div>
@@ -155,23 +212,10 @@
                 Las de fondo amarillo son las que el lector no vio claras.</div>
             <div class="pe-rejilla" id="pe-rejilla"></div>
         </div>
-        <div class="pe-rev-bloque">
-            <strong>La foto</strong>
-            <div class="pe-barra-zoom">
-                <label for="pe-zoom" style="font-size:.86rem;white-space:nowrap;">Acercar</label>
-                <input type="range" id="pe-zoom" class="form-range" min="100" max="320" value="100">
-            </div>
-            <div class="pe-marco">
-                <div class="pe-lienzo" id="pe-lienzo" style="width:100%;">
-                    <img id="pe-img" alt="Hoja fotografiada">
-                </div>
-            </div>
-            <div class="pe-leyenda mt-1">También puede tocar las burbujas sobre la foto.</div>
-        </div>
     </div>
     <div class="pe-rev-pie">
         <button type="button" class="btn btn-outline-secondary" id="pe-otra">
-            <i class="fas fa-rotate-left me-1"></i> Repetir foto
+            <i class="fas fa-rotate-left me-1"></i> <span id="pe-otra-txt">Repetir foto</span>
         </button>
         <button type="button" class="btn btn-success" id="pe-guardar">
             <i class="fas fa-check me-1"></i> <span id="pe-guardar-txt">Guardar y seguir</span>
@@ -185,6 +229,9 @@
 (function () {
     var urlFoto = "{% url 'puntoexacto:procesar_foto' examen_id=examen.id %}";
     var urlGuardar = "{% url 'puntoexacto:guardar_lectura' examen_id=examen.id %}";
+    var urlNota = "{% url 'puntoexacto:nota_previa' examen_id=examen.id %}";
+    var NOTA_MIN = parseFloat("{{ examen.nota_minima|stringformat:'s' }}") || 1;
+    var NOTA_MAX = parseFloat("{{ examen.nota_maxima|stringformat:'s' }}") || 5;
     var csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
     var GEO = JSON.parse(document.getElementById('pe-datos-geo').textContent);
     var HOJAS = JSON.parse(document.getElementById('pe-datos-hojas').textContent);
@@ -197,30 +244,39 @@
     var elCamara = $('pe-camara'), elVideo = $('pe-video'), elGuias = $('pe-guias');
     var elCaja = $('pe-visor-caja'), elVisor = $('pe-visor'), elEstado = $('pe-cam-estado');
     var elLeyendo = $('pe-leyendo'), elDestello = $('pe-destello'), elLinterna = $('pe-linterna');
+    var elAuto = $('pe-auto'), elCamNota = $('pe-cam-nota');
 
     var lectura = null;      // lo que devolvió el servidor
     var respuestas = {};     // lo que vale ahora, ya con las correcciones
+    var notaInfo = null;     // nota calculada con las respuestas de ahora
     var urlObjeto = null;
     var modoCamara = false;  // si la foto vino de la cámara en vivo
+    var yaGuardada = null;   // id de la hoja si ya se guardó sola (para corregirla)
     var calificadas = 0;
     var pendientes = parseInt($('pe-pendientes').textContent, 10) || 0;
 
+    try { var guardado = localStorage.getItem('pe-auto'); if (guardado !== null) elAuto.checked = guardado === '1'; } catch (e) {}
+    elAuto.addEventListener('change', function () {
+        try { localStorage.setItem('pe-auto', elAuto.checked ? '1' : '0'); } catch (e) {}
+    });
+
     // =====================================================================
-    // 1. Cámara en vivo
+    // 1. Cámara en vivo: encontrar la hoja en cualquier parte del cuadro
     // =====================================================================
     // Las marcas, en mm con el origen arriba a la izquierda (el generador
     // las da desde abajo). Orden: sup. izq., sup. der., inf. der., inf. izq.
     var MARCAS = GEO.marcas_mm.map(function (p) { return [p[0], GEO.alto_mm - p[1]]; });
     var SPAN_W = MARCAS[1][0] - MARCAS[0][0];
     var SPAN_H = MARCAS[3][1] - MARCAS[0][1];
+    var PROP = SPAN_H / SPAN_W;
+    var BORDE_HOJA = [[0, 0], [GEO.ancho_mm, 0], [GEO.ancho_mm, GEO.alto_mm], [0, GEO.alto_mm]];
 
     var flujo = null, pista = null, linternaPrendida = false;
     var analisis = document.createElement('canvas');
     var ctxA = analisis.getContext('2d', {willReadFrequently: true});
     var ANCHO_ANALISIS = 360;
-    var guia = null;          // recuadros en píxeles del video
     var buscando = false, temporizador = null;
-    var anteriores = null, estables = 0;
+    var anterior = null, estables = 0;
     var esperarRetiro = false; // después de guardar: no repetir la misma hoja
     var perdidas = 0;
     var avisoGuardado = '';
@@ -228,7 +284,7 @@
     $('pe-abrir-camara').addEventListener('click', abrirCamara);
     $('pe-cerrar-camara').addEventListener('click', cerrarCamara);
     $('pe-disparar').addEventListener('click', function () {
-        if (buscando) capturar(anteriores && anteriores.length === 4 ? anteriores : null);
+        if (buscando) { ocultarNotaCamara(); capturar(anterior); }
     });
     elLinterna.addEventListener('click', function () {
         if (!pista) return;
@@ -281,6 +337,7 @@
 
     function cerrarCamara() {
         pararBusqueda();
+        ocultarNotaCamara();
         if (flujo) flujo.getTracks().forEach(function (t) { t.stop(); });
         flujo = null; pista = null; linternaPrendida = false;
         elLinterna.classList.remove('activo');
@@ -302,39 +359,57 @@
         var k = Math.min(W / vw, H / vh);
         elCaja.style.width = Math.round(vw * k) + 'px';
         elCaja.style.height = Math.round(vh * k) + 'px';
-        // Recuadro de las marcas: lo más grande posible, con aire para el borde de la hoja.
-        var mm = Math.min(vw * 0.80 / SPAN_W, vh * 0.84 / SPAN_H);
-        var fw = SPAN_W * mm, fh = SPAN_H * mm, x0 = (vw - fw) / 2, y0 = (vh - fh) / 2;
-        guia = {
-            mm: mm, fw: fw, fh: fh, lado: GEO.marca_mm * mm,
-            esquinas: [[x0, y0], [x0 + fw, y0], [x0 + fw, y0 + fh], [x0, y0 + fh]]
-        };
         elGuias.setAttribute('viewBox', '0 0 ' + vw + ' ' + vh);
-        dibujarGuias(null);
+        dibujar(null);
     }
     window.addEventListener('resize', function () { if (flujo) ajustarVisor(); });
 
-    function dibujarGuias(halladas) {
-        if (!guia) return;
-        var vw = elVideo.videoWidth;
-        var L = guia.lado * 1.9, g = Math.max(3, vw / 220);
+    // Homografía de 4 puntos (milímetros de la hoja -> píxeles del video), para
+    // dibujar el borde del papel a partir de las cuatro marcas.
+    function homografia(src, dst) {
+        var A = [], b = [];
+        for (var i = 0; i < 4; i++) {
+            var x = src[i][0], y = src[i][1], u = dst[i][0], v = dst[i][1];
+            A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u);
+            A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v);
+        }
+        for (var c = 0; c < 8; c++) {           // eliminación de Gauss con pivoteo
+            var p = c;
+            for (var r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+            var t = A[c]; A[c] = A[p]; A[p] = t; t = b[c]; b[c] = b[p]; b[p] = t;
+            if (Math.abs(A[c][c]) < 1e-12) return null;
+            for (r = c + 1; r < 8; r++) {
+                var f = A[r][c] / A[c][c];
+                for (var k = c; k < 8; k++) A[r][k] -= f * A[c][k];
+                b[r] -= f * b[c];
+            }
+        }
+        var h = new Array(8);
+        for (c = 7; c >= 0; c--) {
+            var s = b[c];
+            for (k = c + 1; k < 8; k++) s -= A[c][k] * h[k];
+            h[c] = s / A[c][c];
+        }
+        return function (x, y) {
+            var w = h[6] * x + h[7] * y + 1;
+            return [(h[0] * x + h[1] * y + h[2]) / w, (h[3] * x + h[4] * y + h[5]) / w];
+        };
+    }
+
+    function dibujar(quad, progreso) {
+        var vw = elVideo.videoWidth || 1000, g = Math.max(3, vw / 200);
         var html = '';
-        // Contorno de la hoja, tenue, para orientar.
-        var e = guia.esquinas;
-        html += '<polygon points="' + e.map(function (p) { return p.join(','); }).join(' ') +
-                '" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="' + (g / 2) +
-                '" stroke-dasharray="' + (g * 4) + ' ' + (g * 3) + '"/>';
-        e.forEach(function (p, i) {
-            var ok = halladas && halladas[i];
-            html += '<rect x="' + (p[0] - L / 2) + '" y="' + (p[1] - L / 2) + '" width="' + L +
-                    '" height="' + L + '" rx="' + (L / 8) + '" fill="' +
-                    (ok ? 'rgba(40,200,90,.18)' : 'none') + '" stroke="' +
-                    (ok ? '#2ee26b' : '#ffffff') + '" stroke-width="' + g + '"/>';
-        });
-        if (halladas) {
-            halladas.forEach(function (h) {
-                if (h) html += '<circle cx="' + h[0] + '" cy="' + h[1] + '" r="' + (g * 2) +
-                               '" fill="#2ee26b"/>';
+        if (quad) {
+            var H = homografia(MARCAS, quad);
+            if (H) {
+                var borde = BORDE_HOJA.map(function (p) { return H(p[0], p[1]); });
+                html += '<polygon points="' + borde.map(function (p) { return p.join(','); }).join(' ') +
+                        '" fill="rgba(46,226,107,' + (0.10 + 0.15 * (progreso || 0)) + ')" stroke="#2ee26b" stroke-width="' + g + '" stroke-linejoin="round"/>';
+            }
+            quad.forEach(function (p) {
+                html += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + (g * 3.2) +
+                        '" fill="none" stroke="#2ee26b" stroke-width="' + g + '"/>';
+                html += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + g + '" fill="#2ee26b"/>';
             });
         }
         elGuias.innerHTML = html;
@@ -342,13 +417,11 @@
 
     function arrancarBusqueda() {
         buscando = true;
-        anteriores = null; estables = 0;
+        anterior = null; estables = 0;
         elLeyendo.classList.remove('si');
-        if (!esperarRetiro) {
-            estado('Acerque la hoja hasta que las cuatro esquinas negras queden dentro de los recuadros.');
-        }
+        if (!esperarRetiro) estado('Apunte a la hoja: la cámara la busca sola.');
         clearTimeout(temporizador);
-        temporizador = setTimeout(cuadro, 120);
+        temporizador = setTimeout(cuadro, 100);
     }
 
     function pararBusqueda() {
@@ -356,103 +429,159 @@
         clearTimeout(temporizador);
     }
 
-    // Un cuadro: se reduce el video, se buscan las cuatro marcas cerca de su
-    // recuadro y, si quedan quietas unos instantes, se toma la foto.
     function cuadro() {
         if (!buscando) return;
-        if (elVideo.readyState >= 2 && guia && !document.hidden) {
-            var halladas = buscarMarcas();
-            var todas = halladas.every(Boolean) && forma_razonable(halladas);
-            dibujarGuias(halladas);
+        if (elVideo.readyState >= 2 && elVideo.videoWidth && !document.hidden) {
+            var r = buscarHoja();
+            var quad = r.quad;
             if (esperarRetiro) {
                 // Tras guardar, la hoja calificada suele seguir debajo de la cámara:
                 // se espera a que salga del cuadro antes de volver a disparar.
-                if (!todas) { perdidas++; if (perdidas >= 2) { esperarRetiro = false; } }
+                dibujar(null);
+                if (!quad) { perdidas++; if (perdidas >= 2) esperarRetiro = false; }
                 if (esperarRetiro) estado(avisoGuardado, 'bien');
-                else estado('Acerque la hoja hasta que las cuatro esquinas negras queden dentro de los recuadros.');
-            } else if (todas) {
-                var quieto = anteriores && anteriores.length === 4 && halladas.every(function (h, i) {
-                    return Math.hypot(h[0] - anteriores[i][0], h[1] - anteriores[i][1]) < guia.fw * 0.012;
+                else { ocultarNotaCamara(); estado('Apunte a la siguiente hoja.'); }
+            } else if (quad) {
+                var ancho = Math.hypot(quad[1][0] - quad[0][0], quad[1][1] - quad[0][1]);
+                var quieto = anterior && quad.every(function (h, i) {
+                    return Math.hypot(h[0] - anterior[i][0], h[1] - anterior[i][1]) < ancho * 0.015;
                 });
                 estables = quieto ? estables + 1 : 1;
-                anteriores = halladas;
-                if (estables >= 4) { capturar(halladas); return; }
-                estado('¡Ahí está! No mueva el celular…', 'bien');
+                anterior = quad;
+                dibujar(quad, Math.min(1, estables / 3));
+                var anchoVideo = elVideo.videoWidth;
+                if (ancho < anchoVideo * 0.42) {
+                    // Muy lejos: la foto no tendría detalle para leer las burbujas.
+                    estables = 0;
+                    estado('Hoja encontrada. Acérquese un poco más.');
+                } else if (estables >= 3) {
+                    capturar(quad); return;
+                } else {
+                    estado('¡Hoja encontrada! No mueva el celular…', 'bien');
+                }
             } else {
-                estables = 0; anteriores = null;
-                var n = halladas.filter(Boolean).length;
-                estado(n === 0 ? 'Acerque la hoja hasta que las cuatro esquinas negras queden dentro de los recuadros.'
-                               : 'Van ' + n + ' de 4 esquinas. Ajuste la hoja dentro de los recuadros.');
+                estables = 0; anterior = null;
+                dibujar(null);
+                estado(r.girada ? 'Ponga la hoja derecha: debe verse vertical en la pantalla.'
+                                : 'Apunte a la hoja: que se vean las cuatro esquinas negras.');
             }
         }
-        temporizador = setTimeout(cuadro, 110);
+        temporizador = setTimeout(cuadro, 90);
     }
 
-    function forma_razonable(p) {
-        var d = function (a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); };
-        var arriba = d(p[0], p[1]), abajo = d(p[3], p[2]), izq = d(p[0], p[3]), der = d(p[1], p[2]);
-        var ancho = (arriba + abajo) / 2, alto = (izq + der) / 2;
-        if (Math.min(arriba, abajo) / Math.max(arriba, abajo) < 0.8) return false;
-        if (Math.min(izq, der) / Math.max(izq, der) < 0.8) return false;
-        var prop = (alto / ancho) / (SPAN_H / SPAN_W);
-        return prop > 0.85 && prop < 1.18 && ancho > guia.fw * 0.62 && ancho < guia.fw * 1.3;
-    }
-
-    // Busca un cuadrado oscuro rodeado de papel cerca de cada recuadro. Es la
-    // misma idea del lector del servidor (centro oscuro menos anillo claro),
-    // en pequeño, para que corra varias veces por segundo en el celular.
-    function buscarMarcas() {
+    // Busca cuadrados oscuros rodeados de papel en TODO el cuadro y a varios
+    // tamaños (la hoja puede estar cerca o lejos), y escoge los cuatro que
+    // forman un rectángulo con las proporciones de la hoja. Es la misma idea
+    // del lector del servidor (centro oscuro menos anillo claro), en pequeño.
+    function buscarHoja() {
         var vw = elVideo.videoWidth, vh = elVideo.videoHeight;
         var s = ANCHO_ANALISIS / vw;
         var W = ANCHO_ANALISIS, H = Math.round(vh * s);
         if (analisis.width !== W || analisis.height !== H) { analisis.width = W; analisis.height = H; }
         ctxA.drawImage(elVideo, 0, 0, W, H);
         var px = ctxA.getImageData(0, 0, W, H).data;
-        // Imagen integral del gris.
+        var gris = new Float32Array(W * H);
         var W1 = W + 1, integ = new Float64Array(W1 * (H + 1));
         for (var y = 0; y < H; y++) {
             var fila = 0;
             for (var x = 0; x < W; x++) {
-                var i = (y * W + x) * 4;
-                fila += px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
+                var i = (y * W + x) * 4, v = px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
+                gris[y * W + x] = v;
+                fila += v;
                 integ[(y + 1) * W1 + x + 1] = integ[y * W1 + x + 1] + fila;
             }
         }
-        function suma(x0, y0, x1, y1) { // [x0,x1) x [y0,y1), ya recortado
+        function suma(x0, y0, x1, y1) {
             return integ[y1 * W1 + x1] - integ[y0 * W1 + x1] - integ[y1 * W1 + x0] + integ[y0 * W1 + x0];
         }
-        var L = guia.lado * s;
-        var c = Math.max(2, Math.round(L * 0.35));      // medio lado del centro
-        var ri = Math.max(c + 1, Math.round(L * 0.78)); // medio lado interno del anillo
-        var ro = Math.max(ri + 2, Math.round(L * 1.25)); // medio lado externo del anillo
-        var R = guia.fw * s * 0.2;                       // cuánto se aleja del recuadro
-        var paso = L > 14 ? 2 : 1;
-        return guia.esquinas.map(function (p) {
-            var ex = p[0] * s, ey = p[1] * s;
-            var xa = Math.max(ro, Math.round(ex - R)), xb = Math.min(W - ro - 1, Math.round(ex + R));
-            var ya = Math.max(ro, Math.round(ey - R)), yb = Math.min(H - ro - 1, Math.round(ey + R));
-            var mejor = -1e9, bx = 0, by = 0, bcen = 0, banillo = 0;
-            var areaC = (2 * c) * (2 * c), areaR = (2 * ro) * (2 * ro) - (2 * ri) * (2 * ri);
-            for (var y = ya; y <= yb; y += paso) {
-                for (var x = xa; x <= xb; x += paso) {
+        // Tamaños de la marca: la hoja ocupa entre ~30 % y ~98 % del ancho útil.
+        var lado = Math.min(W, H / PROP);
+        var base = GEO.marca_mm / SPAN_W * lado;
+        var candidatos = [];
+        [0.3, 0.42, 0.58, 0.8, 1.0].forEach(function (f) {
+            var L = base * f;
+            if (L < 4.5) return;
+            var c = Math.max(2, Math.round(L * 0.35)), ri = Math.max(c + 1, Math.round(L * 0.78)),
+                ro = Math.max(ri + 2, Math.round(L * 1.25)), paso = Math.max(1, Math.round(L / 5));
+            var areaC = 4 * c * c, areaR = 4 * ro * ro - 4 * ri * ri;
+            var locales = [];
+            for (var y = ro; y < H - ro; y += paso) {
+                for (var x = ro; x < W - ro; x += paso) {
                     var cen = suma(x - c, y - c, x + c, y + c) / areaC;
+                    if (cen > 150) continue;     // lo claro no puede ser una marca
                     var anillo = (suma(x - ro, y - ro, x + ro, y + ro) - suma(x - ri, y - ri, x + ri, y + ri)) / areaR;
-                    var v = anillo - cen;
-                    if (v > mejor) { mejor = v; bx = x; by = y; bcen = cen; banillo = anillo; }
+                    var val = anillo - cen;
+                    if (val > 34 && cen < anillo * 0.6) locales.push({x: x, y: y, v: val, L: L, cen: cen, anillo: anillo});
                 }
             }
-            if (!(mejor > 38 && bcen < banillo * 0.62)) return null;
-            // Centro fino: centroide de lo oscuro alrededor.
-            var r = Math.round(L * 0.9), umbral = (bcen + banillo) / 2, sx = 0, sy = 0, n = 0;
-            for (var yy = Math.max(0, by - r); yy < Math.min(H, by + r); yy++) {
-                for (var xx = Math.max(0, bx - r); xx < Math.min(W, bx + r); xx++) {
-                    var j = (yy * W + xx) * 4;
-                    if (px[j] * 0.299 + px[j + 1] * 0.587 + px[j + 2] * 0.114 <= umbral) { sx += xx; sy += yy; n++; }
+            // Quedarse con el mejor de cada vecindario.
+            locales.sort(function (a, b) { return b.v - a.v; });
+            var elegidos = [];
+            for (var k = 0; k < locales.length && elegidos.length < 10; k++) {
+                var a = locales[k], cerca = false;
+                for (var j = 0; j < elegidos.length; j++) {
+                    if (Math.abs(elegidos[j].x - a.x) < L * 1.5 && Math.abs(elegidos[j].y - a.y) < L * 1.5) { cerca = true; break; }
                 }
+                if (!cerca) elegidos.push(a);
             }
-            if (n >= 4) { bx = sx / n; by = sy / n; }
-            return [bx / s, by / s];
+            candidatos = candidatos.concat(elegidos);
         });
+        // Entre tamaños también: el mismo cuadro visto a dos escalas cuenta una vez.
+        candidatos.sort(function (a, b) { return b.v - a.v; });
+        var unicos = [];
+        candidatos.forEach(function (a) {
+            if (unicos.length >= 16) return;
+            for (var j = 0; j < unicos.length; j++) {
+                var b = unicos[j], r = Math.max(a.L, b.L) * 1.2;
+                if (Math.abs(a.x - b.x) < r && Math.abs(a.y - b.y) < r) return;
+            }
+            unicos.push(a);
+        });
+
+        var mejor = null, mejorV = -1, girada = false, n = unicos.length;
+        var d = function (a, b) { return Math.hypot(a.x - b.x, a.y - b.y); };
+        for (var i1 = 0; i1 < n; i1++) for (var i2 = i1 + 1; i2 < n; i2++)
+        for (var i3 = i2 + 1; i3 < n; i3++) for (var i4 = i3 + 1; i4 < n; i4++) {
+            var q = [unicos[i1], unicos[i2], unicos[i3], unicos[i4]];
+            var tl = q[0], br = q[0], tr = q[0], bl = q[0];
+            q.forEach(function (p) {
+                if (p.x + p.y < tl.x + tl.y) tl = p;
+                if (p.x + p.y > br.x + br.y) br = p;
+                if (p.x - p.y > tr.x - tr.y) tr = p;
+                if (p.x - p.y < bl.x - bl.y) bl = p;
+            });
+            if (tl === br || tl === tr || tl === bl || br === tr || br === bl || tr === bl) continue;
+            var arriba = d(tl, tr), abajo = d(bl, br), izq = d(tl, bl), der = d(tr, br);
+            if (Math.min(arriba, abajo) / Math.max(arriba, abajo) < 0.75) continue;
+            if (Math.min(izq, der) / Math.max(izq, der) < 0.75) continue;
+            var d1 = d(tl, br), d2 = d(tr, bl);
+            if (Math.min(d1, d2) / Math.max(d1, d2) < 0.85) continue;
+            var ancho = (arriba + abajo) / 2, alto = (izq + der) / 2;
+            if (ancho < W * 0.18) continue;
+            var prop = (alto / ancho) / PROP;
+            var esperado = GEO.marca_mm * ancho / SPAN_W;
+            var tamOk = q.every(function (p) { return p.L > esperado * 0.5 && p.L < esperado * 1.9; });
+            if (!tamOk) continue;
+            var suma4 = tl.v + tr.v + br.v + bl.v;
+            if (prop > 0.84 && prop < 1.19) {
+                if (suma4 > mejorV) { mejorV = suma4; mejor = [tl, tr, br, bl]; }
+            } else if (prop > 1 / 1.19 / PROP / PROP && prop < 1 / 0.84 / PROP / PROP) {
+                girada = true;   // proporciones de la hoja acostada
+            }
+        }
+        if (!mejor) return {quad: null, girada: girada};
+        // Centro fino de cada marca: centroide de lo oscuro alrededor.
+        var quad = mejor.map(function (m) {
+            var r = Math.round(m.L * 0.9), umbral = (m.cen + m.anillo) / 2, sx = 0, sy = 0, cnt = 0;
+            for (var yy = Math.max(0, m.y - r); yy < Math.min(H, m.y + r); yy++) {
+                for (var xx = Math.max(0, m.x - r); xx < Math.min(W, m.x + r); xx++) {
+                    if (gris[yy * W + xx] <= umbral) { sx += xx; sy += yy; cnt++; }
+                }
+            }
+            var cx = cnt >= 4 ? sx / cnt : m.x, cy = cnt >= 4 ? sy / cnt : m.y;
+            return [cx / s, cy / s];
+        });
+        return {quad: quad, girada: false};
     }
 
     function sonar() {
@@ -478,23 +607,20 @@
         var vw = elVideo.videoWidth, vh = elVideo.videoHeight;
         var x0 = 0, y0 = 0, x1 = vw, y1 = vh;
         if (marcas) {
-            var xs = marcas.map(function (p) { return p[0]; }), ys = marcas.map(function (p) { return p[1]; });
-            var kx = ((marcas[1][0] - marcas[0][0]) + (marcas[2][0] - marcas[3][0])) / 2 / SPAN_W;
-            var ky = ((marcas[3][1] - marcas[0][1]) + (marcas[2][1] - marcas[1][1])) / 2 / SPAN_H;
-            var hol = 1.25;
-            x0 = Math.max(0, Math.min.apply(null, xs) - MARCAS[0][0] * kx * hol);
-            x1 = Math.min(vw, Math.max.apply(null, xs) + (GEO.ancho_mm - MARCAS[1][0]) * kx * hol);
-            y0 = Math.max(0, Math.min.apply(null, ys) - MARCAS[0][1] * ky * hol);
-            y1 = Math.min(vh, Math.max.apply(null, ys) + (GEO.alto_mm - MARCAS[3][1]) * ky * hol);
+            var H = homografia(MARCAS, marcas);
+            var borde = H ? BORDE_HOJA.map(function (p) { return H(p[0], p[1]); }) : marcas;
+            var xs = borde.map(function (p) { return p[0]; }), ys = borde.map(function (p) { return p[1]; });
+            var mx = (Math.max.apply(null, xs) - Math.min.apply(null, xs)) * 0.03;
+            var my = (Math.max.apply(null, ys) - Math.min.apply(null, ys)) * 0.03;
+            x0 = Math.max(0, Math.min.apply(null, xs) - mx); x1 = Math.min(vw, Math.max.apply(null, xs) + mx);
+            y0 = Math.max(0, Math.min.apply(null, ys) - my); y1 = Math.min(vh, Math.max.apply(null, ys) + my);
         }
         var lienzo = document.createElement('canvas');
         lienzo.width = Math.round(x1 - x0); lienzo.height = Math.round(y1 - y0);
         lienzo.getContext('2d').drawImage(elVideo, x0, y0, x1 - x0, y1 - y0, 0, 0, lienzo.width, lienzo.height);
         elLeyendo.classList.add('si');
         estado('Leyendo la hoja…');
-        lienzo.toBlob(function (blob) {
-            enviarFoto(blob, true);
-        }, 'image/jpeg', 0.92);
+        lienzo.toBlob(function (blob) { enviarFoto(blob, true); }, 'image/jpeg', 0.92);
     }
 
     // =====================================================================
@@ -516,6 +642,7 @@
 
     function enviarFoto(archivo, deCamara) {
         modoCamara = deCamara;
+        yaGuardada = null;
         // La imagen que se muestra es la del teléfono, no una copia del
         // servidor: no hay segunda descarga y la foto no viaja de vuelta.
         if (urlObjeto) URL.revokeObjectURL(urlObjeto);
@@ -529,13 +656,88 @@
                 if (!d.ok) { fallo(d.error || 'No se pudo leer la foto.'); return; }
                 lectura = d;
                 respuestas = Object.assign({}, d.respuestas);
-                abrirRevision();
+                return pedirNota().then(despuesDeLeer);
             })
             .catch(function () {
                 restaurarBotonSubir();
                 fallo('No se pudo enviar la foto. Revise la conexión.');
             });
     }
+
+    function formaElegida() {
+        if (!lectura || !lectura.formas) return 'A';
+        var marcada = document.querySelector('input[name="pe-forma"]:checked');
+        return marcada ? marcada.value : (lectura.forma || '');
+    }
+
+    function respuestasLimpias() {
+        var limpias = {};
+        Object.keys(respuestas).forEach(function (p) { limpias[p] = respuestas[p] || ''; });
+        return limpias;
+    }
+
+    // La nota con las respuestas de ahora (el servidor califica sin guardar).
+    var pedido = 0;
+    function pedirNota() {
+        var mio = ++pedido;
+        return fetch(urlNota, {
+            method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+            body: JSON.stringify({respuestas: respuestasLimpias(), forma: formaElegida() || 'A'})
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (mio !== pedido) return;    // llegó tarde: ya hay una más nueva
+            notaInfo = d.ok ? d : null;
+            if (elResultado.classList.contains('abierta')) { pintar(); pintarNota(); }
+        }).catch(function () { notaInfo = null; });
+    }
+
+    function todoClaro() {
+        if (!lectura.hoja_id) return false;
+        if ((lectura.dudas || []).length) return false;
+        if (lectura.formas && (!lectura.forma || lectura.forma_duda)) return false;
+        return true;
+    }
+
+    function despuesDeLeer() {
+        if (modoCamara && flujo && elAuto.checked && todoClaro()) {
+            // Todo claro: se guarda sola, sale la nota sobre la cámara y se sigue.
+            guardar(lectura.hoja_id, lectura.forma || '', function (d) {
+                yaGuardada = lectura.hoja_id;
+                mostrarNotaCamara(d);
+                esperarRetiro = true; perdidas = 0;
+                avisoGuardado = '✓ ' + d.nombre + ' · ' + d.nota + '. Ponga la siguiente hoja.';
+                arrancarBusqueda();
+                estado(avisoGuardado, 'bien');
+            });
+        } else {
+            elLeyendo.classList.remove('si');
+            abrirRevision();
+        }
+    }
+
+    function colorNota(nota) {
+        var f = (nota - NOTA_MIN) / ((NOTA_MAX - NOTA_MIN) || 1);
+        return f >= 0.8 ? '#0b6b4a' : f >= 0.5 ? '#1b5fa8' : f >= 0.35 ? '#b45309' : '#b42318';
+    }
+
+    function mostrarNotaCamara(d) {
+        var v = $('pe-cam-nota-valor');
+        v.textContent = d.nota;
+        v.style.background = colorNota(parseFloat(d.nota));
+        $('pe-cam-nota-nombre').textContent = d.nombre;
+        $('pe-cam-nota-detalle').innerHTML = notaInfo
+            ? '<span class="pe-c-bien">' + notaInfo.buenas + ' bien</span> · <span class="pe-c-mal">' + notaInfo.malas +
+              ' mal</span>' + (notaInfo.blancas ? ' · ' + notaInfo.blancas + ' en blanco' : '') + ' de ' + notaInfo.total
+            : '';
+        elCamNota.classList.add('si');
+    }
+    function ocultarNotaCamara() { elCamNota.classList.remove('si'); }
+
+    $('pe-cam-corregir').addEventListener('click', function () {
+        if (!lectura) return;
+        pararBusqueda();
+        ocultarNotaCamara();
+        abrirRevision();
+    });
 
     function fallo(msg) {
         if (modoCamara && flujo) {
@@ -549,15 +751,17 @@
     }
 
     // =====================================================================
-    // 3. Revisión: corregir con el dedo
+    // 3. Revisión: la nota sobre la foto y corregir con el dedo
     // =====================================================================
     function abrirRevision() {
         elImg.src = urlObjeto;
         elZoom.value = 100;
         elLienzo.style.width = '100%';
-        $('pe-guardar-txt').textContent = modoCamara ? 'Guardar y seguir' : 'Guardar';
+        $('pe-guardar-txt').textContent = yaGuardada ? 'Guardar corrección' : (modoCamara ? 'Guardar y seguir' : 'Guardar');
+        $('pe-otra-txt').textContent = yaGuardada ? 'Volver a la cámara' : 'Repetir foto';
         pintarCabecera();
         pintar();
+        pintarNota();
         elResultado.classList.add('abierta');
         elResultado.querySelector('.pe-rev-cuerpo').scrollTop = 0;
         document.body.style.overflow = 'hidden';
@@ -570,53 +774,75 @@
 
     $('pe-otra').addEventListener('click', function () {
         cerrarRevision();
-        if (modoCamara && flujo) { esperarRetiro = false; arrancarBusqueda(); }
+        if (modoCamara && flujo) { esperarRetiro = !!yaGuardada; perdidas = 0; arrancarBusqueda(); }
         else { elArchivo.value = ''; elArchivo.click(); }
     });
     $('pe-limpiar').addEventListener('click', function () {
         if (!lectura) return;
         respuestas = Object.assign({}, lectura.respuestas);
         pintar();
+        pedirNota();
     });
+
+    function pintarNota() {
+        var g = $('pe-nota-grande'), sello = $('pe-sello');
+        if (!notaInfo) {
+            g.innerHTML = '–<small>nota</small>'; g.style.background = '#6b7280';
+            sello.style.display = 'none';
+            return;
+        }
+        var c = colorNota(parseFloat(notaInfo.nota));
+        g.innerHTML = escapar(notaInfo.nota) + '<small>' + notaInfo.buenas + ' de ' + notaInfo.total + '</small>';
+        g.style.background = c;
+        sello.style.display = '';
+        sello.style.background = c;
+        sello.innerHTML = '<b>' + escapar(notaInfo.nota) + '</b><span>' + notaInfo.buenas + '/' + notaInfo.total + ' bien</span>';
+    }
 
     function pintarCabecera() {
         var d = lectura;
-        var html = '';
+        var html = '', extra = '';
         if (d.hoja_id) {
             html += '<div class="pe-estado-grande">' + escapar(d.hoja_nombre) + '</div>';
             html += '<div class="text-muted" style="font-size:.85rem;">' +
                     escapar(d.identificador) + ' · ' + escapar(d.como_se_supo) + '</div>';
-            if (d.ya_calificada) {
-                html += '<div class="alert alert-warning mt-2 mb-0" style="font-size:.88rem;">' +
-                        'Esta hoja ya estaba calificada. Si guarda, se reemplaza lo anterior.</div>';
+            if (d.ya_calificada && !yaGuardada) {
+                extra += '<div class="alert alert-warning mt-2 mb-0" style="font-size:.88rem;">' +
+                         'Esta hoja ya estaba calificada. Si guarda, se reemplaza lo anterior.</div>';
             }
         } else {
-            html += '<div class="alert alert-warning mb-2" style="font-size:.9rem;">' +
+            html += '<div class="pe-estado-grande">¿De quién es esta hoja?</div>';
+            extra += '<div class="alert alert-warning mt-2 mb-2" style="font-size:.9rem;">' +
                     (d.identificador
                         ? 'El código dice <strong>' + escapar(d.identificador) +
                           '</strong>, que no es de este examen. '
                         : 'No se pudo leer el código de barras. ') +
                     'Escoja de quién es esta hoja.</div>';
-            html += '<select class="form-select" id="pe-quien"><option value="">Seleccione el estudiante</option>';
-            html += HOJAS.map(function (h) {
+            extra += '<select class="form-select" id="pe-quien"><option value="">Seleccione el estudiante</option>';
+            extra += HOJAS.map(function (h) {
                 return '<option value="' + h.id + '">' + escapar(h.nombre) +
                        (h.calificada ? ' (ya calificada)' : '') + '</option>';
             }).join('');
-            html += '</select>';
+            extra += '</select>';
         }
         if (d.formas) {
             // Forma que marcó el estudiante: se califica con la clave de esa forma.
-            html += '<div class="mt-2 d-flex flex-wrap align-items-center gap-2" style="font-size:1rem;">' +
+            var actual = formaElegida() || d.forma;
+            extra += '<div class="mt-2 d-flex flex-wrap align-items-center gap-2" style="font-size:1rem;">' +
                     '<strong>Forma:</strong>' + d.formas.split('').map(function (l) {
                         return '<label class="me-1"><input type="radio" name="pe-forma" value="' + l + '"' +
-                               (d.forma === l ? ' checked' : '') + '> ' + l + '</label>';
+                               (actual === l ? ' checked' : '') + '> ' + l + '</label>';
                     }).join('') + '</div>';
             if (d.forma_duda) {
-                html += '<div class="alert alert-warning mt-2 mb-0" style="font-size:.88rem;">' +
+                extra += '<div class="alert alert-warning mt-2 mb-0" style="font-size:.88rem;">' +
                         'Forma: ' + escapar(d.forma_duda) + '. Escoja cuál le tocó antes de guardar.</div>';
             }
         }
         elCabecera.innerHTML = html;
+        $('pe-cabecera-extra').innerHTML = extra;
+        Array.prototype.forEach.call(document.querySelectorAll('input[name="pe-forma"]'), function (r) {
+            r.addEventListener('change', pedirNota);   // otra forma, otra clave
+        });
     }
 
     function dudosas() {
@@ -629,6 +855,18 @@
         var n = (lectura.opciones && lectura.opciones[p]) || 4;
         var todas = Array.isArray(lectura.letras) ? lectura.letras.join('') : String(lectura.letras || 'ABCDEFGHIJ');
         return todas.slice(0, n).split('');
+    }
+
+    function claseDe(p, letra) {
+        // marcada / bien / mal / correcta, según la clave de la forma.
+        var c = [], clave = notaInfo && notaInfo.clave ? notaInfo.clave[p] : undefined;
+        var marcada = respuestas[p] === letra;
+        if (marcada) {
+            c.push(clave === undefined || clave === '' ? 'marcada' : 'marcada');
+            if (clave) c.push(clave === letra ? 'bien' : 'mal');
+        }
+        if (clave && clave === letra && respuestas[p] !== letra) c.push('correcta');
+        return c;
     }
 
     function pintar() {
@@ -653,7 +891,7 @@
             b.dataset.pregunta = pregunta;
             b.dataset.letra = letra;
             b.title = 'Pregunta ' + pregunta + ', opción ' + letra;
-            if (respuestas[pregunta] === letra) b.classList.add('marcada');
+            claseDe(pregunta, letra).forEach(function (c) { b.classList.add(c); });
             if (dud[pregunta]) b.classList.add('duda');
             b.addEventListener('click', function () { tocar(pregunta, letra); });
             elLienzo.appendChild(b);
@@ -664,7 +902,8 @@
             return '<div class="pe-renglon' + (dud[p] ? ' duda' : '') + '" id="pe-r-' + p + '">' +
                    '<span class="n">' + p + '</span>' +
                    letrasDe(p).map(function (l) {
-                       return '<button type="button" class="pe-op' + (respuestas[p] === l ? ' si' : '') +
+                       var cs = claseDe(p, l).map(function (c) { return c === 'marcada' ? 'si' : c; });
+                       return '<button type="button" class="pe-op ' + cs.join(' ') +
                               '" data-p="' + p + '" data-l="' + l + '" aria-label="Pregunta ' + p +
                               ', ' + l + '">' + l + '</button>';
                    }).join('') + '</div>';
@@ -677,13 +916,16 @@
         if (b) tocar(b.dataset.p, b.dataset.l);
     });
 
+    var esperaNota = null;
     function tocar(pregunta, letra) {
         // Tocar la que ya está marcada la deja en blanco: así se corrige tanto
         // "marcó otra" como "no marcó nada".
         respuestas[pregunta] = (respuestas[pregunta] === letra) ? '' : letra;
-        var scroll = elResultado.querySelector('.pe-rev-cuerpo').scrollTop;
+        var cuerpo = elResultado.querySelector('.pe-rev-cuerpo'), scroll = cuerpo.scrollTop;
         pintar();
-        elResultado.querySelector('.pe-rev-cuerpo').scrollTop = scroll;
+        cuerpo.scrollTop = scroll;
+        clearTimeout(esperaNota);
+        esperaNota = setTimeout(pedirNota, 250);
     }
 
     function resumen() {
@@ -721,6 +963,25 @@
 
     elZoom.addEventListener('input', function () { elLienzo.style.width = elZoom.value + '%'; });
 
+    function guardar(id, forma, alTerminar, boton) {
+        if (boton) boton.disabled = true;
+        fetch(urlGuardar, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+            body: JSON.stringify({hoja_id: id, respuestas: respuestasLimpias(), forma: forma})
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (boton) boton.disabled = false;
+            if (!d.ok) { elLeyendo.classList.remove('si'); alert(d.error || 'No se pudo guardar.'); if (!boton) abrirRevision(); return; }
+            anotar(id, d);
+            alTerminar(d);
+        }).catch(function () {
+            if (boton) boton.disabled = false;
+            elLeyendo.classList.remove('si');
+            alert('No se pudo guardar. Revise la conexión.');
+            if (!boton) abrirRevision();
+        });
+    }
+
     $('pe-guardar').addEventListener('click', function () {
         var id = lectura.hoja_id;
         if (!id) {
@@ -730,37 +991,25 @@
         }
         var forma = '';
         if (lectura.formas) {
-            var marcada = document.querySelector('input[name="pe-forma"]:checked');
-            if (!marcada) { alert('Escoja la forma que le tocó al estudiante.'); return; }
-            forma = marcada.value;
+            forma = formaElegida();
+            if (!forma) { alert('Escoja la forma que le tocó al estudiante.'); return; }
         }
-        var limpias = {};
-        Object.keys(respuestas).forEach(function (p) { limpias[p] = respuestas[p] || ''; });
-        var boton = $('pe-guardar');
-        boton.disabled = true;
-        fetch(urlGuardar, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
-            body: JSON.stringify({hoja_id: id, respuestas: limpias, forma: forma})
-        }).then(function (r) { return r.json(); }).then(function (d) {
-            boton.disabled = false;
-            if (!d.ok) { alert(d.error || 'No se pudo guardar.'); return; }
-            anotar(id, d);
+        guardar(id, forma, function (d) {
+            yaGuardada = id;
             cerrarRevision();
             if (modoCamara && flujo) {
                 esperarRetiro = true; perdidas = 0;
-                avisoGuardado = 'Guardada ✓ ' + d.nombre + ' · nota ' + d.nota + '. Ponga la siguiente hoja.';
+                mostrarNotaCamara(d);
+                avisoGuardado = '✓ ' + d.nombre + ' · ' + d.nota + '. Ponga la siguiente hoja.';
                 arrancarBusqueda();
                 estado(avisoGuardado, 'bien');
             } else {
                 setTimeout(function () { elArchivo.value = ''; elArchivo.click(); }, 350);
             }
-        }).catch(function () {
-            boton.disabled = false;
-            alert('No se pudo guardar. Revise la conexión.');
-        });
+        }, $('pe-guardar'));
     });
 
+    var contadas = {};
     function anotar(id, d) {
         var hoja = HOJAS.filter(function (h) { return String(h.id) === String(id); })[0];
         if (hoja && !hoja.calificada) {
@@ -768,13 +1017,19 @@
             pendientes = Math.max(0, pendientes - 1);
             $('pe-pendientes').textContent = pendientes;
         }
+        var linea = d.nombre + (lectura.formas ? ' (forma ' + d.forma + ')' : '') + ' — ' + d.nota +
+                    (d.recortada ? ' (ajustada a la escala)' : '');
+        elHistorial.style.display = '';
+        if (contadas[id]) {                 // una corrección: se cambia la línea, no se suma
+            contadas[id].textContent = linea;
+            return;
+        }
         calificadas++;
         $('pe-contador').textContent = calificadas;
         $('pe-contador-s').textContent = calificadas === 1 ? '' : 's';
-        elHistorial.style.display = '';
         var li = document.createElement('li');
-        li.textContent = d.nombre + (lectura.formas ? ' (forma ' + d.forma + ')' : '') + ' — ' + d.nota +
-                         (d.recortada ? ' (ajustada a la escala)' : '');
+        li.textContent = linea;
+        contadas[id] = li;
         elListaOk.insertBefore(li, elListaOk.firstChild);
     }
 

@@ -32,8 +32,9 @@
             <tbody>
             {% for e in examenes %}
                 <tr>
-                    <td><a href="{% url 'puntoexacto:resultados' examen_id=e.id %}"><strong>{{ e.titulo }}</strong></a></td>
-                    <td>{% if e.asignacion %}{{ e.asignacion.materia.nombre }} · {{ e.asignacion.curso.nombre }}{% else %}<span class="pe-gris">Sin asignar</span>{% endif %}</td>
+                    <td><a href="{% url 'puntoexacto:resultados' examen_id=e.id %}"><strong>{{ e.titulo }}</strong></a>
+                        {% if e.compartido_por_nombre %}<div class="small pe-gris"><i class="fas fa-share-nodes me-1"></i>Compartido por {{ e.compartido_por_nombre }}</div>{% endif %}</td>
+                    <td>{% if e.asignacion %}{{ e.asignacion.materia.nombre }} · {{ e.asignacion.curso.nombre }}{% elif e.compartido_por_nombre %}<a href="{% url 'puntoexacto:editar' examen_id=e.id %}" class="pe-chip pe-media">Escoja su asignatura</a>{% else %}<span class="pe-gris">Sin asignar</span>{% endif %}</td>
                     <td>{{ e.periodo|default:"—" }}</td>
                     <td class="pe-num">{{ e.fecha|date:"Y-m-d" }}</td>
                     <td class="pe-num">{{ e.numero_preguntas }}</td>
@@ -44,6 +45,7 @@
                         <a href="{% url 'puntoexacto:hojas' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary">Hojas</a>
                         <a href="{% url 'puntoexacto:escanear' examen_id=e.id %}" class="btn btn-sm btn-outline-success">Cámara</a>
                         <a href="{% url 'puntoexacto:resultados' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary">Revisar</a>
+                        <a href="{% url 'puntoexacto:compartir' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary" title="Compartir con otros docentes"><i class="fas fa-share-nodes"></i></a>
                         <a href="{% url 'puntoexacto:archivar' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary">
                             {% if e.archivado %}Restaurar{% else %}Archivar{% endif %}</a>
                     </td>
