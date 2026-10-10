@@ -80,7 +80,7 @@
                         <div class="flex-grow-1">
                             <h6 class="mb-0">{{ img.titulo|default:"(Sin título)" }}</h6>
                             <p class="mb-1 text-muted small">{{ img.subtitulo }}</p>
-                            <span class="badge bg-info">Orden: {{ img.orden }}</span>
+                            <span class="badge bg-info">Posición {{ forloop.counter }}</span>
                             {% if img.visible %}
                                 <span class="badge bg-success">Visible</span>
                             {% else %}
@@ -89,9 +89,14 @@
                         </div>
                         
                         <!-- Contenedor para los botones de acción -->
-                        <div class="ms-3">
+                        <div class="ms-3 text-nowrap">
+                            <!-- Subir / bajar en el orden -->
+                            <form action="{% url 'notas:mover_imagen_carrusel' img.pk 'subir' %}" method="POST" class="d-inline">{% csrf_token %}
+                                <button type="submit" class="btn btn-outline-secondary btn-sm mb-1" title="Subir" {% if forloop.first %}disabled{% endif %}><i class="fas fa-arrow-up"></i></button></form>
+                            <form action="{% url 'notas:mover_imagen_carrusel' img.pk 'bajar' %}" method="POST" class="d-inline">{% csrf_token %}
+                                <button type="submit" class="btn btn-outline-secondary btn-sm mb-1" title="Bajar" {% if forloop.last %}disabled{% endif %}><i class="fas fa-arrow-down"></i></button></form>
                             <!-- Botón para Editar -->
-                            <a href="#" class="btn btn-warning btn-sm mb-1" title="Editar">
+                            <a href="{% url 'notas:editar_imagen_carrusel' img.pk %}" class="btn btn-warning btn-sm mb-1" title="Editar">
                                 <i class="fas fa-edit"></i>
                             </a>
                             

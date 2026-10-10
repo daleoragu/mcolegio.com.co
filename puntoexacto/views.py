@@ -1868,9 +1868,10 @@ def cuadernillo_generar(request, examen_id):
     imagenes = cmod.leer_imagenes(request.FILES, contenido)
     versiones = cmod.versiones(examen, contenido, modo=modo, por_forma=por_forma)
     if not versiones:
-        return HttpResponse('No hay estudiantes: prepare las hojas del examen o escoja «línea para el nombre».',
-                            status=400)
-    base = re.sub(r'[^A-Za-z0-9_-]+', '_', examen.titulo)[:50] or 'examen'
+        return HttpResponse('No hay estudiantes para poner los nombres: el examen no tiene cursos con estudiantes '
+                            'activos. Escoja «línea para el nombre» o prepare las hojas del examen.', status=400)
+    from unidecode import unidecode
+    base = re.sub(r'[^A-Za-z0-9_-]+', '_', unidecode(examen.titulo)).strip('_')[:50] or 'examen'
     if request.POST.get('formato') == 'pdf':
         try:
             datos = cmod.generar_pdf(request, examen, contenido, imagenes, versiones)

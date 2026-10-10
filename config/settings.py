@@ -93,6 +93,19 @@ USE_I18N = True
 USE_TZ = True
 LOGIN_URL = '/super-admin/login/'
 
+# --- Contraseñas ---
+# Los de Django, en su orden, más uno rápido para las contraseñas iniciales de las
+# importaciones (notas/hashers.py). Al entrar por primera vez, Django la vuelve a
+# guardar con el primero de la lista.
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    'django.contrib.auth.hashers.ScryptPasswordHasher',
+    'notas.hashers.PBKDF2InicialHasher',
+]
+
 # --- Archivos Estáticos (CSS, JS) ---
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
