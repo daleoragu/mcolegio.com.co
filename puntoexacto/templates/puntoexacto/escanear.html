@@ -730,7 +730,7 @@
         var v = $('pe-cam-nota-valor');
         v.textContent = d.nota;
         v.style.background = colorNota(parseFloat(d.nota));
-        $('pe-cam-nota-nombre').textContent = d.nombre;
+        $('pe-cam-nota-nombre').textContent = d.nombre + (d.curso ? ' · ' + d.curso : '');
         $('pe-cam-nota-detalle').innerHTML = notaInfo
             ? '<span class="pe-c-bien">' + notaInfo.buenas + ' bien</span> · <span class="pe-c-mal">' + notaInfo.malas +
               ' mal</span>' + (notaInfo.blancas ? ' · ' + notaInfo.blancas + ' en blanco' : '') + ' de ' + notaInfo.total
@@ -811,6 +811,7 @@
         var html = '', extra = '';
         if (d.hoja_id) {
             html += '<div class="pe-estado-grande">' + escapar(d.hoja_nombre) + '</div>';
+            if (d.hoja_curso) html += '<div class="fw-semibold" style="font-size:.92rem;color:#1b5fa8;">Curso ' + escapar(d.hoja_curso) + '</div>';
             html += '<div class="text-muted" style="font-size:.85rem;">' +
                     escapar(d.identificador) + ' · ' + escapar(d.como_se_supo) + '</div>';
             if (d.ya_calificada && !yaGuardada) {
@@ -827,7 +828,7 @@
                     'Escoja de quién es esta hoja.</div>';
             extra += '<select class="form-select" id="pe-quien"><option value="">Seleccione el estudiante</option>';
             extra += HOJAS.map(function (h) {
-                return '<option value="' + h.id + '">' + escapar(h.nombre) +
+                return '<option value="' + h.id + '">' + escapar(h.nombre) + (h.curso ? ' · ' + escapar(h.curso) : '') +
                        (h.calificada ? ' (ya calificada)' : '') + '</option>';
             }).join('');
             extra += '</select>';
@@ -1024,7 +1025,7 @@
             pendientes = Math.max(0, pendientes - 1);
             $('pe-pendientes').textContent = pendientes;
         }
-        var linea = d.nombre + (lectura.formas ? ' (forma ' + d.forma + ')' : '') + ' — ' + d.nota +
+        var linea = d.nombre + (d.curso ? ' (' + d.curso + ')' : '') + (lectura.formas ? ' (forma ' + d.forma + ')' : '') + ' — ' + d.nota +
                     (d.recortada ? ' (ajustada a la escala)' : '');
         elHistorial.style.display = '';
         if (contadas[id]) {                 // una corrección: se cambia la línea, no se suma
