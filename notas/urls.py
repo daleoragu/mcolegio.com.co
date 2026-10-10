@@ -137,6 +137,7 @@ urlpatterns = [
     path('admin/portal/noticias/publicar/<int:pk>/', portal_admin_views.publicar_noticia_vista, name='publicar_noticia'),
     path('admin/portal/carrusel/', portal_admin_views.gestion_carrusel_vista, name='gestion_carrusel'),
     path('admin/portal/carrusel/editar/<int:pk>/', portal_admin_views.editar_imagen_carrusel_vista, name='editar_imagen_carrusel'),
+    path('admin/portal/carrusel/mover/<int:pk>/<str:direccion>/', portal_admin_views.mover_imagen_carrusel_vista, name='mover_imagen_carrusel'),
     path('admin/portal/carrusel/eliminar/<int:pk>/', portal_admin_views.eliminar_imagen_carrusel_vista, name='eliminar_imagen_carrusel'),
 
     # --- Rutas para Importación y Exportación ---

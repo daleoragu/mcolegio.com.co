@@ -21,6 +21,19 @@ class BaseReportGenerator:
         context = {'colegio': self.colegio}
         return render_to_string('notas/fragmentos/encabezado_pdf.html', context, request=request)
 
+    @staticmethod
+    def _imagen_excel(archivo):
+        """Imagen de openpyxl desde un archivo del colegio (local o en la nube); None si no se puede."""
+        if not archivo:
+            return None
+        try:
+            import io
+            with archivo.open('rb') as f:
+                return OpenpyxlImage(io.BytesIO(f.read()))
+        except Exception as e:      # imagen dañada, borrada o sin conexión: el reporte sale sin logo
+            print(f"ADVERTENCIA: No se pudo cargar el logo {archivo}: {e}")
+            return None
+
     def _add_excel_header(self, worksheet):
         """
         Añade el encabezado visual (logos y texto) a una hoja de cálculo de openpyxl.
@@ -38,23 +51,14 @@ class BaseReportGenerator:
             worksheet.column_dimensions[ws_col_letter].width = 8
 
         # --- 2. Insertar Logos (en celdas no combinadas) ---
-        try:
-            if self.colegio.logo_izquierdo and os.path.exists(self.colegio.logo_izquierdo.path):
-                img_izq = OpenpyxlImage(self.colegio.logo_izquierdo.path)
-                img_izq.height = 90
-                img_izq.width = 90
-                worksheet.add_image(img_izq, 'A1')
-        except (ValueError, FileNotFoundError) as e:
-            print(f"ADVERTENCIA: No se pudo cargar el logo izquierdo: {e}")
-
-        try:
-            if self.colegio.logo_derecho and os.path.exists(self.colegio.logo_derecho.path):
-                img_der = OpenpyxlImage(self.colegio.logo_derecho.path)
-                img_der.height = 90
-                img_der.width = 90
-                worksheet.add_image(img_der, 'P1')
-        except (ValueError, FileNotFoundError) as e:
-            print(f"ADVERTENCIA: No se pudo cargar el logo derecho: {e}")
+        # Se leen con .open() y no con .path: en producción los archivos están en
+        # DigitalOcean Spaces, que no tiene ruta en disco (.path daba error 500).
+        for campo, celda in (('logo_izquierdo', 'A1'), ('logo_derecho', 'P1')):
+            imagen = self._imagen_excel(getattr(self.colegio, campo, None))
+            if imagen is not None:
+                imagen.height = 90
+                imagen.width = 90
+                worksheet.add_image(imagen, celda)
 
         # --- 3. Insertar Texto del Encabezado ---
         # --- CORRECCIÓN: Se combina solo el área de texto, sin superponer con los logos ---

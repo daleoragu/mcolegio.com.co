@@ -841,6 +841,16 @@ def _revisar_estudiantes(filas, colegio):
 # Aplicar
 # ---------------------------------------------------------------------------
 
+def _nueva_cuenta(usuario, **campos):
+    """Cuenta nueva con su usuario como contraseña inicial, guardada con el método rápido
+    (notas/hashers.py): 500 cuentas tardan segundos y no minutos."""
+    from .hashers import clave_inicial
+    u = User(username=usuario, **campos)
+    u.password = clave_inicial(usuario)
+    u.save()
+    return u
+
+
 @transaction.atomic
 def aplicar(tipo, filas, colegio):
     """Revisa otra vez contra la base y guarda. Devuelve (resumen, credenciales nuevas)."""
@@ -890,8 +900,7 @@ def _aplicar_docente(r, colegio, usuarios):
         ficha.save()
         return None
     usuario = usuarios.nuevo(d['nombres'], d['apellidos'])
-    u = User.objects.create_user(username=usuario, password=usuario, first_name=d['nombres'],
-                                 last_name=d['apellidos'], email=d['correo'] or '')
+    u = _nueva_cuenta(usuario, first_name=d['nombres'], last_name=d['apellidos'], email=d['correo'] or '')
     grupo, _ = Group.objects.get_or_create(name='Docentes')
     u.groups.add(grupo)
     docente = Docente.objects.create(user=u, colegio=colegio)
@@ -958,7 +967,7 @@ def _aplicar_estudiante(r, colegio, usuarios):
         est.save()
     else:
         usuario = usuarios.nuevo(d['nombres'], d['apellidos'])
-        u = User.objects.create_user(username=usuario, password=usuario, first_name=d['nombres'], last_name=d['apellidos'])
+        u = _nueva_cuenta(usuario, first_name=d['nombres'], last_name=d['apellidos'])
         grupo, _ = Group.objects.get_or_create(name='Estudiantes')
         u.groups.add(grupo)
         est = Estudiante.objects.create(user=u, curso_id=d['curso'], colegio=colegio)

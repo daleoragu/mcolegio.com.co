@@ -158,3 +158,32 @@ class Importar(ColegioDePrueba):
         for v, g in [('6', 6), ('6°', 6), ('Sexto', 6), ('transición', 0), ('Undécimo', 11), ('once', 11),
                      ('Grado 3', 3), ('12', None), ('', None), ('Jardín', -1)]:
             self.assertEqual(imp.parse_grado(v), g, v)
+
+
+class ImportacionGrande(ColegioDePrueba):
+    """500 estudiantes de una vez no pueden pasar el límite de tiempo del servidor."""
+
+    def test_quinientos_estudiantes_rapido_y_la_clave_se_actualiza_al_entrar(self):
+        import time
+        from django.contrib.auth.hashers import identify_hasher
+        from django.test import override_settings
+        produccion = ['django.contrib.auth.hashers.PBKDF2PasswordHasher',          # como config/settings.py
+                      'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+                      'notas.hashers.PBKDF2InicialHasher']
+        filas = [[f'Nombre{i}', f'Apellido{i} Prueba', '601', 'TI', str(1100000000 + i)] for i in range(500)]
+        c = self.cliente(self.rectora)
+        with override_settings(PASSWORD_HASHERS=produccion):
+            c.post('/admin/importacion/estudiantes/revisar/', {'archivo': xlsx(
+                ['Nombres *', 'Apellidos *', 'Curso *', 'Tipo de documento', 'Documento'], filas)})
+            inicio = time.time()
+            r = c.post('/admin/importacion/estudiantes/aplicar/')
+            duracion = time.time() - inicio
+            self.assertEqual(r.context['resumen']['crear'], 500)
+            self.assertLess(duracion, 60, f'tardó {duracion:.1f} s')
+            u = User.objects.get(username='nombre0.apellido0')
+            self.assertEqual(identify_hasher(u.password).algorithm, 'pbkdf2_inicial')
+            # Entra con su usuario como clave y la contraseña queda con el método normal.
+            entra = self.cliente(host='a.localhost')
+            self.assertTrue(entra.login(username='nombre0.apellido0', password='nombre0.apellido0'))
+            u.refresh_from_db()
+            self.assertEqual(identify_hasher(u.password).algorithm, 'pbkdf2_sha256')

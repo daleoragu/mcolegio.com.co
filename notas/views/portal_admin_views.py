@@ -222,7 +222,7 @@ def gestion_carrusel_vista(request):
     else:
         form = ImagenCarruselForm()
     
-    imagenes = ImagenCarrusel.objects.filter(colegio=colegio).order_by('orden')
+    imagenes = ImagenCarrusel.objects.filter(colegio=colegio).order_by('orden', 'id')
     context = { 
         'form': form, 
         'imagenes': imagenes, 
@@ -253,6 +253,24 @@ def editar_imagen_carrusel_vista(request, pk):
         'colegio': request.colegio
     }
     return render(request, 'notas/admin_portal/editar_imagen_carrusel.html', context)
+
+@user_passes_test(es_admin_o_docente)
+def mover_imagen_carrusel_vista(request, pk, direccion):
+    """Sube o baja una imagen en el orden del carrusel (deja el orden 1, 2, 3… sin huecos)."""
+    if not request.colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    if request.method == 'POST' and direccion in ('subir', 'bajar'):
+        lista = list(ImagenCarrusel.objects.filter(colegio=request.colegio).order_by('orden', 'id'))
+        i = next((k for k, img in enumerate(lista) if img.pk == pk), None)
+        if i is None:
+            return HttpResponseNotFound("<h1>Imagen no encontrada</h1>")
+        j = i - 1 if direccion == 'subir' else i + 1
+        if 0 <= j < len(lista):
+            lista[i], lista[j] = lista[j], lista[i]
+        for n, img in enumerate(lista, start=1):
+            if img.orden != n:
+                ImagenCarrusel.objects.filter(pk=img.pk).update(orden=n)
+    return redirect('notas:gestion_carrusel')
 
 @user_passes_test(es_admin_o_docente)
 def eliminar_imagen_carrusel_vista(request, pk):

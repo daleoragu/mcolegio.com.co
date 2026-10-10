@@ -255,11 +255,16 @@ def versiones(examen, contenido, modo=None, por_forma=True):
             filas = [(h.nombre, h.estudiante.curso.nombre if h.estudiante.curso_id else '',
                       h.forma if h.forma in ordenes else 'A') for h in hojas]
         else:
+            # Sin hojas preparadas: los estudiantes activos de los cursos del examen
+            # (o, si el examen no tiene cursos marcados, el de su asignación).
             from notas.models import Estudiante
-            ests = (Estudiante.objects.filter(curso__in=examen.cursos.all(), colegio=examen.colegio)
+            cursos = list(examen.cursos.all())
+            if not cursos and examen.asignacion_id and examen.asignacion.curso_id:
+                cursos = [examen.asignacion.curso]
+            ests = (Estudiante.objects.filter(curso__in=cursos, colegio=examen.colegio, is_active=True)
                     .select_related('user', 'curso').order_by('curso__nombre', 'user__last_name', 'user__first_name'))
             filas = [(f'{e.user.last_name} {e.user.first_name}'.strip(), e.curso.nombre if e.curso_id else '', 'A')
-                     for e in ests if getattr(e, 'activo', True)]
+                     for e in ests]
         return [{'forma': f if len(letras) > 1 else '', 'estudiante': nombre.upper(), 'curso': curso,
                  'secuencia': secuencia(contenido, ordenes[f])} for nombre, curso, f in filas]
 

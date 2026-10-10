@@ -192,3 +192,50 @@ class ComponentesDinamicos(ColegioDePrueba):
         r = self.cliente(self.u_docente).get('/puntoexacto/nuevo/')
         self.assertContains(r, '>Proyecto<')
         self.assertNotContains(r, '>HACER<')
+
+
+class PermisoDelDocente(ColegioDePrueba):
+
+    def test_con_permiso_el_docente_ve_los_de_la_materia_hasta_que_pone_los_suyos(self):
+        import json
+        ConfiguracionCalificaciones.objects.update_or_create(colegio=self.a, defaults={'docente_puede_modificar': True})
+        from notas.models import AsignacionDocente
+        asig = AsignacionDocente.objects.get(pk=self.asig.pk)
+        self.assertTrue(asig.usar_ponderacion_equitativa)       # así quedan las asignaciones nuevas o importadas
+        self.assertEqual(comp.pesos(asig), {'SER': 0, 'SABER': 60, 'HACER': 40})   # los de la materia, no 33/33/33
+        r = self.cliente(self.u_docente).get(
+            f'/docente/ingresar-notas/?asignacion_id={self.asig.id}&periodo_id={self.p1.id}')
+        self.assertContains(r, 'id="p-saber" value="60"')
+        self.assertContains(r, 'id="p-hacer" value="40"')
+        self.cliente(self.u_docente).post('/docente/ingresar-notas/', json.dumps({
+            'asignacion_id': self.asig.id, 'periodo_id': self.p1.id, 'estudiantes': [],
+            'porcentajes': {'ser': '10', 'saber': '50', 'hacer': '40'}}), content_type='application/json')
+        self.assertEqual(comp.pesos(AsignacionDocente.objects.get(pk=self.asig.pk)), {'SER': 10, 'SABER': 50, 'HACER': 40})
+
+    def test_equitativa_en_enteros_que_suman_100(self):
+        ConfiguracionCalificaciones.objects.update_or_create(colegio=self.a, defaults={'docente_puede_modificar': True})
+        self.materia.usar_ponderacion_equitativa = True
+        self.materia.save()
+        r = self.cliente(self.u_docente).get(
+            f'/docente/ingresar-notas/?asignacion_id={self.asig.id}&periodo_id={self.p1.id}').content.decode()
+        import re
+        valores = [int(v) for v in re.findall(r'class="form-control form-control-sm porcentaje-input" id="p-\w+" value="(\d+)"', r)]
+        self.assertEqual(sum(valores), 100, valores)
+
+
+class CarruselOrden(ColegioDePrueba):
+
+    def test_subir_bajar_y_editar(self):
+        from notas.models import ImagenCarrusel
+        imgs = [ImagenCarrusel.objects.create(colegio=self.a, titulo=t, orden=0, imagen_enlace='https://x.co/a.jpg')
+                for t in ('Uno', 'Dos', 'Tres')]
+        c = self.cliente(self.rectora)
+        h = c.get('/admin/portal/carrusel/').content.decode()
+        self.assertIn(f'/admin/portal/carrusel/editar/{imgs[0].pk}/', h)       # antes el botón era href="#"
+        c.post(f'/admin/portal/carrusel/mover/{imgs[2].pk}/subir/')
+        orden = list(ImagenCarrusel.objects.filter(colegio=self.a).order_by('orden').values_list('titulo', flat=True))
+        self.assertEqual(orden, ['Uno', 'Tres', 'Dos'])
+        r = c.post(f'/admin/portal/carrusel/editar/{imgs[0].pk}/', {'titulo': 'Uno', 'subtitulo': '', 'orden': '9',
+                                                                   'visible': 'on', 'enlace_pegado': 'https://x.co/a.jpg'})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(ImagenCarrusel.objects.get(pk=imgs[0].pk).orden, 9)

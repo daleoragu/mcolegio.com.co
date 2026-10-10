@@ -79,10 +79,14 @@ class IngresoNotasView(LoginRequiredMixin, View):
             materia = asignacion_seleccionada.materia
             # Los componentes del colegio (pueden ser 1, 3, 5…), con su nombre y porcentaje.
             pesos_vigentes = _comp.pesos(asignacion_seleccionada)
+            # Las casillas del panel van en enteros: 33,33 + 33,33 + 33,34 se muestra 33 + 33 + 34.
+            total = sum(pesos_vigentes.values())
+            enteros = (_comp._repartir(dict(pesos_vigentes), 100) if total == 100 and pesos_vigentes
+                       else {c: int(round(p)) for c, p in pesos_vigentes.items()})
             lista_componentes = [
                 {'tipo': codigo.lower(), 'codigo': codigo,
                  'nombre': nombre_componente(asignacion_seleccionada, codigo),
-                 'peso': float(peso)}
+                 'peso': float(peso), 'peso_entero': enteros.get(codigo, 0)}
                 for codigo, peso in pesos_vigentes.items()
             ]
             config_materia = {

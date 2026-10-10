@@ -124,7 +124,11 @@ def pesos(asignacion):
     """
     colegio = asignacion.colegio
     config = ConfiguracionCalificaciones.objects.filter(colegio=colegio).first()
-    fuente = asignacion if (config and config.docente_puede_modificar) else asignacion.materia
+    # Con permiso, la asignación manda solo si el docente ya puso sus porcentajes
+    # (al guardarlos queda usar_ponderacion_equitativa=False). Mientras tanto
+    # —y así quedan las asignaciones nuevas o importadas— sigue los de la materia.
+    propios = config and config.docente_puede_modificar and not asignacion.usar_ponderacion_equitativa
+    fuente = asignacion if propios else asignacion.materia
     return pesos_de(fuente, codigos(colegio))
 
 
