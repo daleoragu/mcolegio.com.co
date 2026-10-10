@@ -53,12 +53,40 @@ def admin_dashboard_vista(request):
         return HttpResponseNotFound("<h1>Colegio no configurado.</h1>")
     
     user_is_also_docente = Docente.objects.filter(user=request.user, colegio=request.colegio).exists()
-    
+
     context = {
         'colegio': request.colegio,
-        'user_is_also_docente': user_is_also_docente
+        'user_is_also_docente': user_is_also_docente,
+        # Para las pestañas «Panel docente» y «Panel estudiante»: escoger a
+        # alguien y ver la plataforma como lo ve él («Ver como»).
+        'ver_como': _personas_para_ver_como(request),
     }
     return render(request, 'notas/admin_tools/admin_dashboard.html', context)
+
+
+def _personas_para_ver_como(request):
+    """Docentes y estudiantes activos del colegio que se pueden suplantar, en JSON.
+
+    Se dejan por fuera los que también administran (a esos no se les suplanta).
+    Los estudiantes van agrupados por curso para escogerlos en dos pasos.
+    """
+    import json
+
+    from django.db.models import Q
+
+    no = Q(user__is_superuser=True) | Q(user__is_staff=True) | Q(user__administraciones__activo=True)
+    docentes = [
+        {'id': d.user_id, 'n': f'{d.user.last_name} {d.user.first_name}'.strip() or d.user.username}
+        for d in Docente.objects.filter(colegio=request.colegio, user__is_active=True).exclude(no)
+        .select_related('user').order_by('user__last_name', 'user__first_name').distinct()]
+    cursos = {}
+    for e in (Estudiante.objects.filter(colegio=request.colegio, is_active=True, user__is_active=True).exclude(no)
+              .select_related('user', 'curso').order_by('curso__grado', 'curso__nombre', 'user__last_name').distinct()):
+        clave = e.curso.nombre if e.curso_id else 'Sin curso'
+        cursos.setdefault(clave, []).append(
+            {'id': e.user_id, 'n': f'{e.user.last_name} {e.user.first_name}'.strip() or e.user.username})
+    return json.dumps({'docentes': docentes, 'cursos': [{'c': c, 'e': l} for c, l in cursos.items()]},
+                      ensure_ascii=False).replace('</', '<\\/')
 
 
 @login_required

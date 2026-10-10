@@ -73,3 +73,18 @@ def pertenece_al_colegio(user, colegio):
     return bool((docente and docente.colegio_id == colegio.id)
                 or (estudiante and estudiante.colegio_id == colegio.id)
                 or AdministradorColegio.objects.filter(user=user, colegio=colegio, activo=True).exists())
+
+
+def es_docente_usuario(user):
+    """¿Es docente? Por el grupo «Docentes» o por tener perfil de Docente.
+
+    El grupo se pone al importar o crear docentes desde la plataforma, pero un
+    docente creado por otro camino (p. ej. el admin de Django) puede no tenerlo;
+    con el perfil basta para que le salgan sus menús y sus herramientas.
+    """
+    if user is None or not getattr(user, 'is_authenticated', False):
+        return False
+    if user.groups.filter(name='Docentes').exists():
+        return True
+    from .models.perfiles import Docente
+    return Docente.objects.filter(user=user).exists()

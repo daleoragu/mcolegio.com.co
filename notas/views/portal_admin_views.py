@@ -10,13 +10,14 @@ from ..forms import (
     DocumentoPublicoForm, FotoGaleriaForm, NoticiaForm, ImagenCarruselForm,
     ColegioPersonalizacionForm, RecursoEducativoForm, VideoPortalForm
 )
-from ..permisos import es_admin, es_admin_usuario
+from ..permisos import admin_requerido, es_admin, es_admin_usuario, es_docente_usuario
 
 def es_admin_o_docente(user):
-    return es_admin_usuario(user) or user.groups.filter(name='Docentes').exists()
+    return es_admin_usuario(user) or es_docente_usuario(user)
 
-@user_passes_test(es_admin_o_docente)
+@admin_requerido
 def personalizacion_portal_vista(request):
+    """Apariencia del portal (colores, diseño, textos de la portada): solo la administración."""
     colegio = request.colegio
     if not colegio:
         return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
