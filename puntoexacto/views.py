@@ -148,6 +148,38 @@ def crear(request):
 
 
 @login_required
+def compartir(request, examen_id):
+    """Le manda a otros docentes una copia del examen (clave, puntos, formas y cuadernillo)."""
+    from notas.utils.notificaciones import crear_notificacion
+
+    from . import compartir as compartir_mod
+
+    examen = _examen_o_404(request, examen_id)
+    yo = _docente_de(request)
+    excluir = {d for d in (yo and yo.id, examen.docente_id) if d}
+    docentes = (Docente.objects.filter(colegio=request.colegio, user__is_active=True)
+                .exclude(id__in=excluir).select_related('user')
+                .order_by('user__last_name', 'user__first_name'))
+    if request.method == 'POST':
+        elegidos = list(docentes.filter(id__in=[x for x in request.POST.getlist('docentes') if x.isdigit()]))
+        if not elegidos:
+            messages.error(request, 'Escoja al menos un docente.')
+        else:
+            nombre = (yo.user.get_full_name() if yo else '') or 'La administración'
+            for d in elegidos:
+                copia = compartir_mod.copiar(examen, d, quien=yo)
+                try:
+                    crear_notificacion(d.user, f'{nombre} le compartió el examen «{examen.titulo}» en PuntoExacto.',
+                                       'GENERAL', request.colegio, 'puntoexacto:editar', {'examen_id': copia.id})
+                except Exception:
+                    pass   # la copia ya quedó; el aviso es lo de menos
+            messages.success(request, f'Se le envió una copia a {len(elegidos)} docente(s). '
+                                      'Cada uno la ve en su PuntoExacto y la aplica en sus cursos.')
+            return redirect('puntoexacto:lista')
+    return render(request, 'puntoexacto/compartir.html', {'examen': examen, 'docentes': docentes})
+
+
+@login_required
 def editar(request, examen_id):
     examen = _examen_o_404(request, examen_id)
     docente = _docente_de(request)
@@ -1418,6 +1450,46 @@ def procesar_foto(request, examen_id):
         'ancho_foto': int(gris.shape[1]), 'alto_foto': int(gris.shape[0]),
         'opciones': {str(k): v for k, v in opciones.items()},
         'letras': hojas_mod.LETRAS,
+    })
+
+
+@login_required
+def nota_previa(request, examen_id):
+    """La nota que sacaría una hoja con estas respuestas, SIN guardar nada.
+
+    La cámara la muestra encima de la foto apenas lee la hoja, y la recalcula
+    cada vez que el docente corrige una burbuja. Se califica de verdad (con los
+    mismos bloques, formas y penalizaciones) en una hoja de paso que se deshace
+    al terminar.
+    """
+    import json
+    import uuid
+
+    examen = _examen_o_404(request, examen_id)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Método no permitido.'}, status=405)
+    try:
+        datos = json.loads(request.body.decode('utf-8'))
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({'ok': False, 'error': 'Datos ilegibles.'}, status=400)
+    respuestas = datos.get('respuestas') if isinstance(datos.get('respuestas'), dict) else {}
+    forma = (datos.get('forma') or 'A').strip().upper()[:1]
+    if forma not in formas_mod.letras_del_examen(examen):
+        forma = 'A'
+    preguntas = list(examen.preguntas.order_by('numero'))
+    orden = formas_mod.orden_de(examen, forma, preguntas)
+    clave = {str(c['posicion']): c['correcta'] for c in formas_mod.clave_de(orden, preguntas)
+             if not c['anulada'] and not (c['pregunta'] and c['pregunta'].es_control)}
+    with transaction.atomic():
+        de_paso = Hoja.objects.create(examen=examen, identificador=f'PREVIA-{uuid.uuid4().hex[:20]}', forma=forma)
+        formas_mod.guardar_lectura(de_paso, respuestas, preguntas, orden)
+        r = calif.calificar_hoja(de_paso, guardar=False)
+        transaction.set_rollback(True)
+    return JsonResponse({
+        'ok': True, 'nota': str(r['nota']), 'buenas': r['buenas'], 'malas': r['malas'],
+        'blancas': r['blancas'], 'parciales': r['parciales'], 'dobles': r['dobles'],
+        'total': len(clave), 'nota_maxima': str(examen.nota_maxima), 'clave': clave,
+        'forma': forma, 'recortada': r['recortada'],
     })
 
 

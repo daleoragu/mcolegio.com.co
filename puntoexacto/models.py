@@ -107,6 +107,10 @@ class Examen(models.Model):
         default=False, verbose_name='Imprimir la fecha de presentación en la hoja')
     archivado = models.BooleanField(default=False)
     creado = models.DateTimeField(auto_now_add=True)
+    # Si llegó como copia de otro docente (ver compartir.py): quién se lo compartió.
+    compartido_por = models.ForeignKey(Docente, on_delete=models.SET_NULL, null=True, blank=True,
+                                       related_name='+', verbose_name='Compartido por')
+    compartido_por_nombre = models.CharField(max_length=160, blank=True)
 
     class Meta:
         ordering = ['-fecha', '-creado']

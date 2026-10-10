@@ -1,7 +1,9 @@
 # notas/views/sedes_views.py
-"""Sedes del colegio: crearlas, editarlas y ver qué cursos tiene cada una."""
+"""Sedes del colegio: crearlas, editarlas y ver qué cursos tiene cada una.
+
+Solo las toca el administrador del colegio (los docentes que gestionan el portal no).
+"""
 from django.contrib import messages
-from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Count
 from django.http import HttpResponseNotFound
 from django.shortcuts import get_object_or_404, redirect, render
@@ -9,10 +11,10 @@ from django.views.decorators.http import require_POST
 
 from ..forms import SedeForm
 from ..models import Curso, Sede
-from ..permisos import es_admin_usuario
+from ..permisos import admin_requerido
 
 
-@user_passes_test(es_admin_usuario)
+@admin_requerido
 def gestion_sedes(request):
     if not request.colegio:
         return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
@@ -50,21 +52,21 @@ def _formulario(request, sede=None):
     })
 
 
-@user_passes_test(es_admin_usuario)
+@admin_requerido
 def crear_sede(request):
     if not request.colegio:
         return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
     return _formulario(request)
 
 
-@user_passes_test(es_admin_usuario)
+@admin_requerido
 def editar_sede(request, sede_id):
     if not request.colegio:
         return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
     return _formulario(request, get_object_or_404(Sede, id=sede_id, colegio=request.colegio))
 
 
-@user_passes_test(es_admin_usuario)
+@admin_requerido
 @require_POST
 def eliminar_sede(request, sede_id):
     if not request.colegio:

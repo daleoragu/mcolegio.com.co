@@ -8,7 +8,7 @@ cambian las notas, el acta firmada no cambia, como pasa con el papel.
 from django.conf import settings
 from django.db import models
 
-from notas.models import Colegio, Curso, PeriodoAcademico, Sede
+from notas.models import Colegio, Curso, Docente, PeriodoAcademico, Sede
 
 
 class Acta(models.Model):
@@ -18,6 +18,9 @@ class Acta(models.Model):
     ALCANCES = [(PERIODO, 'Pendientes del periodo'), (ACUMULADO, 'Pendientes en el acumulado del año')]
     BORRADOR, CERRADA = 'BORRADOR', 'CERRADA'
     ESTADOS = [(BORRADOR, 'Borrador'), (CERRADA, 'Cerrada')]
+    CUADRO, LINEAS = 'CUADRO', 'LINEAS'
+    ESTILOS_FIRMA = [(CUADRO, 'Cuadro: nombre, cargo y firma'),
+                     (LINEAS, 'Línea de firma con el nombre debajo')]
 
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='actas')
     tipo = models.CharField(max_length=10, choices=TIPOS, default=COMISION)
@@ -47,6 +50,8 @@ class Acta(models.Model):
     decisiones = models.TextField(blank=True, verbose_name='Decisiones y compromisos', help_text='Uno por línea.')
     # [{'nombre': ..., 'cargo': ..., 'asistio': bool}] — en el acta sale con una X y su línea de firma.
     asistencia = models.JSONField(default=list, blank=True, verbose_name='Asistentes')
+    estilo_firma = models.CharField(max_length=10, choices=ESTILOS_FIRMA, default=CUADRO,
+                                    verbose_name='Cómo salen las firmas')
 
     informe = models.JSONField(null=True, blank=True, editable=False)  # congelado al cerrar
     estado = models.CharField(max_length=10, choices=ESTADOS, default=BORRADOR)
@@ -93,3 +98,21 @@ class Acta(models.Model):
     @property
     def cuantos_asistieron(self):
         return sum(1 for a in self.lista_asistentes() if a['asistio'])
+
+
+class RedactorActas(models.Model):
+    """Docente al que el administrador le dio el rol de generar actas.
+
+    El docente ve y redacta solo las suyas; al administrador le salen todas y
+    es quien puede cambiar el número.
+    """
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='redactores_actas')
+    docente = models.OneToOneField(Docente, on_delete=models.CASCADE, related_name='rol_actas')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Docente que genera actas'
+        verbose_name_plural = 'Docentes que generan actas'
+
+    def __str__(self):
+        return str(self.docente)

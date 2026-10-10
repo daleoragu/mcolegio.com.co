@@ -12,7 +12,13 @@
     <div class="ac-card">
         <h5><span class="num">1</span>Datos de la reunión</h5>
         <div class="row g-3">
+            {% if form.numero %}
+            <div class="col-sm-3"><label class="form-label fw-semibold" for="{{ form.numero.id_for_label }}">{{ form.numero.label }}</label>{{ form.numero }}{{ form.numero.errors }}
+                <div class="form-text">Solo la administración lo cambia.</div></div>
+            <div class="col-sm-9"><label class="form-label fw-semibold" for="{{ form.titulo.id_for_label }}">{{ form.titulo.label }}</label>{{ form.titulo }}{{ form.titulo.errors }}</div>
+            {% else %}
             <div class="col-md-12"><label class="form-label fw-semibold" for="{{ form.titulo.id_for_label }}">{{ form.titulo.label }}</label>{{ form.titulo }}{{ form.titulo.errors }}</div>
+            {% endif %}
             <div class="col-sm-4"><label class="form-label fw-semibold" for="{{ form.fecha.id_for_label }}">{{ form.fecha.label }}</label>{{ form.fecha }}{{ form.fecha.errors }}</div>
             <div class="col-sm-4"><label class="form-label fw-semibold" for="{{ form.hora_inicio.id_for_label }}">{{ form.hora_inicio.label }}</label>{{ form.hora_inicio }}</div>
             <div class="col-sm-4"><label class="form-label fw-semibold" for="{{ form.hora_fin.id_for_label }}">{{ form.hora_fin.label }}</label>{{ form.hora_fin }}</div>
@@ -67,9 +73,15 @@
     <div class="ac-card">
         <h5><span class="num">{% if acta.es_comision %}4{% else %}3{% endif %}</span>Asistentes y firmas</h5>
         <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
-            <div class="form-text m-0">Marque con <strong>X</strong> a quienes asistieron. En el acta salen todos con su casilla y su línea de firma.</div>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="ac-sugerir"
+            <div class="form-text m-0">Marque con <strong>X</strong> a quienes asistieron. Abajo escoja cómo salen las firmas en el acta.</div>
+            <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm ac-traer" id="ac-sugerir"
                     data-url="{% url 'actas:sugerir_asistentes' acta.id %}"><i class="fas fa-user-plus me-1"></i>{% if acta.es_comision %}Traer directores de grado y representantes{% else %}Traer directivos{% endif %}</button>
+            {% if es_admin_actas %}
+            <button type="button" class="btn btn-outline-primary btn-sm ac-traer" id="ac-todos-docentes"
+                    data-url="{% url 'actas:sugerir_asistentes' acta.id %}?todos=docentes"><i class="fas fa-users me-1"></i>Agregar a todos los docentes</button>
+            {% endif %}
+            </div>
         </div>
         <div class="table-responsive">
         <table class="table table-sm align-middle mb-2 ac-asis">
@@ -90,6 +102,22 @@
             <button type="button" class="btn btn-link btn-sm px-0" id="ac-otra"><i class="fas fa-plus me-1"></i>Agregar asistente</button>
             <span class="small text-muted ms-auto" id="ac-cuenta"></span>
         </div>
+
+        <label class="form-label fw-semibold d-block mt-3 mb-2">{{ form.estilo_firma.label }}</label>
+        <div class="ac-estilos">
+            {% for op in form.estilo_firma %}
+            <label class="ac-estilo">
+                {{ op.tag }}
+                <span class="ac-estilo-nombre">{{ op.choice_label }}</span>
+                {% if op.data.value == 'CUADRO' %}
+                <span class="ac-muestra"><span class="mc-tabla"><b>Nombre</b><b>Cargo</b><b>Firma</b><i></i><i></i><i></i><i></i><i></i><i></i></span></span>
+                {% else %}
+                <span class="ac-muestra mc-lineas"><span><em></em>Nombre<small>Cargo</small></span><span><em></em>Nombre<small>Cargo</small></span></span>
+                {% endif %}
+            </label>
+            {% endfor %}
+        </div>
+        <div class="form-text">Con líneas, firman los marcados con X (si no marcó a nadie, todos los de la lista).</div>
     </div>
 
     <div class="ac-barra">
@@ -171,10 +199,10 @@
     document.getElementById('ac-otra').addEventListener('click', function () {
         fila({}).querySelector('[name=asis_nombre]').focus(); renumerar();
     });
-    var boton = document.getElementById('ac-sugerir');
-    boton.addEventListener('click', function () {
+    document.querySelectorAll('.ac-traer').forEach(function (boton) { boton.addEventListener('click', function () {
         var marcados = Array.prototype.map.call(document.querySelectorAll('input[name=cursos]:checked'), function (c) { return c.value; });
-        var url = boton.dataset.url + (document.querySelector('input[name=cursos]') ? '?cursos=' + marcados.join(',') : '');
+        var url = boton.dataset.url;
+        if (boton.id === 'ac-sugerir' && document.querySelector('input[name=cursos]')) url += '?cursos=' + marcados.join(',');
         fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(function (r) { return r.json(); })
             .then(function (d) {
@@ -190,7 +218,7 @@
                 });
                 renumerar();
             });
-    });
+    }); });
     renumerar();
 })();
 </script>

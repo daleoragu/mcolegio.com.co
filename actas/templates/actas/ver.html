@@ -6,8 +6,16 @@
 <p><a href="{% url 'actas:lista' %}" class="text-decoration-none"><i class="fas fa-arrow-left me-1"></i>Todas las actas</a></p>
 <div class="d-flex flex-wrap gap-2 mb-3">
     <a href="{% url 'actas:pdf' acta.id %}" target="_blank" class="btn btn-danger"><i class="fas fa-file-pdf me-1"></i>PDF para firmar</a>
+    {% if es_admin_actas %}
     <form method="post" action="{% url 'actas:reabrir' acta.id %}" onsubmit="return confirm('¿Volver a borrador? Al cerrarla otra vez, el informe se recalcula con las notas de ese momento.')">{% csrf_token %}
         <button class="btn btn-outline-secondary"><i class="fas fa-lock-open me-1"></i>Reabrir</button></form>
+    <form method="post" action="{% url 'actas:numero' acta.id %}" class="d-flex gap-1 align-items-center ms-md-auto">{% csrf_token %}
+        <label for="ac-num" class="small text-muted text-nowrap">Acta N.º</label>
+        <input type="number" min="1" name="numero" id="ac-num" value="{{ acta.numero }}" class="form-control form-control-sm" style="width:90px">
+        <button class="btn btn-sm btn-outline-primary">Cambiar número</button></form>
+    {% else %}
+    <span class="small text-muted align-self-center">Si hay que corregir algo, pídale a la administración que la reabra.</span>
+    {% endif %}
 </div>
 <div class="ac-card">
     <h5>{{ acta.titulo }}</h5>

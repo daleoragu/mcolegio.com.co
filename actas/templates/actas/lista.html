@@ -1,6 +1,30 @@
 {% extends 'notas/base.html' %}
-{% block title %}Actas{% endblock %}
-{% block page_title %}Actas{% endblock %}
+{% block title %}Actas<script>
+(function () {
+    var b = document.getElementById('ac-buscar');
+    if (!b) return;
+    b.addEventListener('input', function () {
+        var t = b.value.trim().toLowerCase();
+        document.querySelectorAll('.ac-redactores label').forEach(function (l) {
+            l.style.display = !t || l.textContent.toLowerCase().indexOf(t) >= 0 ? '' : 'none';
+        });
+    });
+})();
+</script>
+{% endblock %}
+{% block page_title %}Actas<script>
+(function () {
+    var b = document.getElementById('ac-buscar');
+    if (!b) return;
+    b.addEventListener('input', function () {
+        var t = b.value.trim().toLowerCase();
+        document.querySelectorAll('.ac-redactores label').forEach(function (l) {
+            l.style.display = !t || l.textContent.toLowerCase().indexOf(t) >= 0 ? '' : 'none';
+        });
+    });
+})();
+</script>
+{% endblock %}
 {% block content %}
 <style>
     .ac-nuevas { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:18px; }
@@ -10,7 +34,13 @@
     .ac-estado { border-radius:999px; padding:2px 10px; font-size:.78rem; font-weight:700; }
     .ac-BORRADOR { background:#fff7e6; color:#b45309; }
     .ac-CERRADA { background:#ecfdf3; color:#067647; }
+    .ac-redactores { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:4px 14px;
+                     max-height:320px; overflow:auto; font-size:.92rem; }
+    .ac-docente { font-size:.72rem; background:#eef4ff; color:#1d4ed8; border-radius:999px; padding:1px 8px; font-weight:600; }
 </style>
+{% if not es_admin_actas %}
+<div class="alert alert-info py-2 small"><i class="fas fa-circle-info me-1"></i>Aquí salen las actas que usted ha generado. También le aparecen a la administración del colegio, que es quien asigna el número definitivo.</div>
+{% endif %}
 <div class="ac-nuevas">
     <div class="ac-nueva">
         <h6><i class="fas fa-users-viewfinder me-2 text-primary"></i>Comisión de evaluación y promoción</h6>
@@ -26,6 +56,25 @@
     </div>
 </div>
 
+{% if es_admin_actas %}
+<details class="ac-nueva mb-3">
+    <summary class="fw-bold" style="cursor:pointer;"><i class="fas fa-user-pen me-2 text-primary"></i>Docentes que pueden generar actas
+        <span class="badge bg-light text-dark border ms-1">{{ n_redactores }}</span></summary>
+    <p class="mt-2 mb-2">Los docentes marcados ven «Actas» en su menú y pueden redactar las suyas (por ejemplo, reuniones de área o de padres). Usted las ve todas aquí y puede cambiarles el número.</p>
+    {% if docentes %}
+    <form method="post" action="{% url 'actas:redactores' %}">{% csrf_token %}
+        <input type="text" class="form-control form-control-sm mb-2" placeholder="Buscar docente…" id="ac-buscar" style="max-width:300px">
+        <div class="ac-redactores">
+            {% for d in docentes %}
+            <label><input type="checkbox" class="form-check-input me-1" name="docentes" value="{{ d.id }}" {% if d.marcado %}checked{% endif %}>{{ d.nombre }}</label>
+            {% endfor %}
+        </div>
+        <button class="btn btn-primary btn-sm mt-2"><i class="fas fa-save me-1"></i>Guardar</button>
+    </form>
+    {% else %}<p class="text-muted mb-0">El colegio no tiene docentes registrados.</p>{% endif %}
+</details>
+{% endif %}
+
 {% if anos|length > 1 %}
 <form method="get" class="mb-2 d-flex gap-2 align-items-center">
     <label class="small" for="ano">Año</label>
@@ -39,7 +88,7 @@
 <div class="card shadow-sm">
     <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
-        <thead class="table-light"><tr><th>N.º</th><th>Título</th><th>Fecha</th><th>Tipo</th><th>Estado</th><th class="text-end"></th></tr></thead>
+        <thead class="table-light"><tr><th>N.º</th><th>Título</th><th>Fecha</th><th>Tipo</th>{% if es_admin_actas %}<th>Redactó</th>{% endif %}<th>Estado</th><th class="text-end"></th></tr></thead>
         <tbody>
         {% for a in actas %}
             <tr>
@@ -48,6 +97,7 @@
                     {% if a.es_comision %}<div class="small text-muted">{{ a.periodo|default:"" }}{% for c in a.cursos.all %}{% if forloop.first %} · {% endif %}{{ c.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}</td>
                 <td class="text-nowrap">{{ a.fecha|date:"d/m/Y" }}</td>
                 <td class="small">{{ a.get_tipo_display }}</td>
+                {% if es_admin_actas %}<td class="small">{{ a.creada_por.get_full_name|default:a.creada_por.username|default:"—" }}{% if a.de_docente %} <span class="ac-docente">docente</span>{% endif %}</td>{% endif %}
                 <td><span class="ac-estado ac-{{ a.estado }}">{{ a.get_estado_display }}</span></td>
                 <td class="text-end text-nowrap">
                     <a href="{% url 'actas:editar' a.id %}" class="btn btn-sm btn-outline-primary" title="Abrir"><i class="fas fa-pen"></i></a>
@@ -55,10 +105,22 @@
                 </td>
             </tr>
         {% empty %}
-            <tr><td colspan="6" class="text-center text-muted py-4">Todavía no hay actas.</td></tr>
+            <tr><td colspan="7" class="text-center text-muted py-4">Todavía no hay actas.</td></tr>
         {% endfor %}
         </tbody>
     </table>
     </div>
 </div>
+<script>
+(function () {
+    var b = document.getElementById('ac-buscar');
+    if (!b) return;
+    b.addEventListener('input', function () {
+        var t = b.value.trim().toLowerCase();
+        document.querySelectorAll('.ac-redactores label').forEach(function (l) {
+            l.style.display = !t || l.textContent.toLowerCase().indexOf(t) >= 0 ? '' : 'none';
+        });
+    });
+})();
+</script>
 {% endblock %}
