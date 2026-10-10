@@ -1385,6 +1385,11 @@ def procesar_foto(request, examen_id):
     from . import lector as lector_mod
 
     examen = _examen_o_404(request, examen_id)
+    if request.method == 'GET':
+        # La cámara llama esto al abrirse: deja calculado el mapa de burbujas
+        # de este examen en el servidor, para que la primera hoja no espere.
+        hojas_mod.mapa_de_examen(examen)
+        return JsonResponse({'ok': True})
     if request.method != 'POST' or 'foto' not in request.FILES:
         return JsonResponse({'ok': False, 'error': 'No llegó ninguna foto.'}, status=400)
 
@@ -1433,8 +1438,23 @@ def procesar_foto(request, examen_id):
         hoja = examen.hojas.filter(identificador=leido).select_related(
             'estudiante__user').first()
 
+    respuestas_txt = {str(k): v for k, v in respuestas.items()}
+    # Todo en una sola ida al servidor: lo leído, la nota y, si todo está claro
+    # y la cámara lo pide, la hoja ya guardada.
+    guardada = None
+    todo_claro = hoja is not None and not dudas and (not letras_forma or (forma and not forma_duda))
+    if request.POST.get('auto') == '1' and todo_claro:
+        guardada = _guardar_hoja(examen, hoja, respuestas_txt, forma)
+    # La nota con la clave de la forma, para pintar bien/mal sobre la foto. Si
+    # ya se guardó no se vuelve a calcular: la clave sale sin calificar de nuevo.
+    previa = _nota_sin_guardar(examen, respuestas_txt, forma or 'A', calificar=guardada is None)
+    if guardada:
+        previa.update({k: guardada[k] for k in ('nota', 'buenas', 'malas', 'blancas', 'recortada')})
+
     return JsonResponse({
         'ok': True,
+        'nota_previa': previa,
+        'guardada': guardada,
         'hoja_id': hoja.id if hoja else None,
         'hoja_nombre': hoja.nombre if hoja else None,
         'formas': letras_forma,
@@ -1443,7 +1463,7 @@ def procesar_foto(request, examen_id):
         'identificador': leido,
         'como_se_supo': como,
         'ya_calificada': bool(hoja and hoja.estado == 'calificada'),
-        'respuestas': {str(k): v for k, v in respuestas.items()},
+        'respuestas': respuestas_txt,
         'dudas': dudas,
         'posiciones': posiciones,
         'radio_px': round(radio_px, 1),
@@ -1453,17 +1473,62 @@ def procesar_foto(request, examen_id):
     })
 
 
-@login_required
-def nota_previa(request, examen_id):
+def _nota_sin_guardar(examen, respuestas, forma, calificar=True):
     """La nota que sacaría una hoja con estas respuestas, SIN guardar nada.
 
-    La cámara la muestra encima de la foto apenas lee la hoja, y la recalcula
-    cada vez que el docente corrige una burbuja. Se califica de verdad (con los
-    mismos bloques, formas y penalizaciones) en una hoja de paso que se deshace
-    al terminar.
+    Se califica de verdad (con los mismos bloques, formas y penalizaciones) en
+    una hoja de paso dentro de una transacción que se deshace al terminar.
     """
-    import json
     import uuid
+
+    forma = (forma or 'A').strip().upper()[:1]
+    if forma not in formas_mod.letras_del_examen(examen):
+        forma = 'A'
+    preguntas = list(examen.preguntas.order_by('numero'))
+    orden = formas_mod.orden_de(examen, forma, preguntas)
+    clave = {str(c['posicion']): c['correcta'] for c in formas_mod.clave_de(orden, preguntas)
+             if not c['anulada'] and not (c['pregunta'] and c['pregunta'].es_control)}
+    r = {'nota': '', 'buenas': 0, 'malas': 0, 'blancas': 0, 'parciales': 0, 'dobles': 0, 'recortada': False}
+    if calificar:
+        with transaction.atomic():
+            de_paso = Hoja.objects.create(examen=examen, identificador=f'PREVIA-{uuid.uuid4().hex[:20]}',
+                                          forma=forma)
+            formas_mod.guardar_lectura(de_paso, respuestas, preguntas, orden)
+            r = calif.calificar_hoja(de_paso, guardar=False)
+            transaction.set_rollback(True)
+    return {
+        'ok': True, 'nota': str(r['nota']), 'buenas': r['buenas'], 'malas': r['malas'],
+        'blancas': r['blancas'], 'parciales': r['parciales'], 'dobles': r['dobles'],
+        'total': len(clave), 'nota_maxima': str(examen.nota_maxima), 'clave': clave,
+        'forma': forma, 'recortada': r['recortada'],
+    }
+
+
+def _guardar_hoja(examen, hoja, respuestas, forma):
+    """Guarda lo que se leyó (ya confirmado) y califica la hoja. Devuelve lo que ve el docente."""
+    forma = (forma or '').strip().upper()[:1]
+    if forma and forma in formas_mod.letras_del_examen(examen):
+        hoja.forma = forma
+    elif not examen.formas.filter(letra=hoja.forma).exists():
+        hoja.forma = 'A'
+    with transaction.atomic():
+        hoja.save(update_fields=['forma'])
+        # Las respuestas vienen por posición en la hoja impresa; si la hoja es
+        # de la forma B se traducen a la A antes de guardarse.
+        formas_mod.guardar_lectura(hoja, respuestas)
+        hoja.estado = 'calificada'
+        hoja.save(update_fields=['estado'])
+        r = calif.calificar_hoja(hoja)
+    hoja.refresh_from_db()
+    return {'ok': True, 'nota': str(hoja.nota), 'forma': hoja.forma,
+            'recortada': hoja.nota_recortada, 'nombre': hoja.nombre, 'hoja_id': hoja.id,
+            'buenas': r['buenas'], 'malas': r['malas'], 'blancas': r['blancas']}
+
+
+@login_required
+def nota_previa(request, examen_id):
+    """La nota con las respuestas de ahora, sin guardar: la cámara la recalcula al corregir."""
+    import json
 
     examen = _examen_o_404(request, examen_id)
     if request.method != 'POST':
@@ -1473,24 +1538,7 @@ def nota_previa(request, examen_id):
     except (ValueError, UnicodeDecodeError):
         return JsonResponse({'ok': False, 'error': 'Datos ilegibles.'}, status=400)
     respuestas = datos.get('respuestas') if isinstance(datos.get('respuestas'), dict) else {}
-    forma = (datos.get('forma') or 'A').strip().upper()[:1]
-    if forma not in formas_mod.letras_del_examen(examen):
-        forma = 'A'
-    preguntas = list(examen.preguntas.order_by('numero'))
-    orden = formas_mod.orden_de(examen, forma, preguntas)
-    clave = {str(c['posicion']): c['correcta'] for c in formas_mod.clave_de(orden, preguntas)
-             if not c['anulada'] and not (c['pregunta'] and c['pregunta'].es_control)}
-    with transaction.atomic():
-        de_paso = Hoja.objects.create(examen=examen, identificador=f'PREVIA-{uuid.uuid4().hex[:20]}', forma=forma)
-        formas_mod.guardar_lectura(de_paso, respuestas, preguntas, orden)
-        r = calif.calificar_hoja(de_paso, guardar=False)
-        transaction.set_rollback(True)
-    return JsonResponse({
-        'ok': True, 'nota': str(r['nota']), 'buenas': r['buenas'], 'malas': r['malas'],
-        'blancas': r['blancas'], 'parciales': r['parciales'], 'dobles': r['dobles'],
-        'total': len(clave), 'nota_maxima': str(examen.nota_maxima), 'clave': clave,
-        'forma': forma, 'recortada': r['recortada'],
-    })
+    return JsonResponse(_nota_sin_guardar(examen, respuestas, datos.get('forma')))
 
 
 @login_required
@@ -1515,25 +1563,7 @@ def guardar_lectura(request, examen_id):
     if not isinstance(respuestas, dict):
         respuestas = {}
 
-    forma = (datos.get('forma') or '').strip().upper()[:1]
-    if forma and forma in formas_mod.letras_del_examen(examen):
-        hoja.forma = forma
-    elif not examen.formas.filter(letra=hoja.forma).exists():
-        hoja.forma = 'A'
-
-    with transaction.atomic():
-        hoja.save(update_fields=['forma'])
-        # Las respuestas vienen por posición en la hoja impresa; si la hoja es
-        # de la forma B se traducen a la A antes de guardarse.
-        formas_mod.guardar_lectura(hoja, respuestas)
-        hoja.estado = 'calificada'
-        hoja.save(update_fields=['estado'])
-        calif.calificar_hoja(hoja)
-
-    hoja.refresh_from_db()
-    return JsonResponse({'ok': True, 'nota': str(hoja.nota), 'forma': hoja.forma,
-                         'recortada': hoja.nota_recortada,
-                         'nombre': hoja.nombre})
+    return JsonResponse(_guardar_hoja(examen, hoja, respuestas, datos.get('forma')))
 
 
 # ---------------------------------------------------------------------------
