@@ -128,7 +128,7 @@
                     </div>
                     <div class="compromisos-titulo">COMPROMISOS</div>
                     <p class="ficha-label mt-2">Compromiso del Padre/Acudiente:</p>
-                    <div class="compromisos-box">{{ ficha.compromiso_padre|linebreaksbr|default:"El acudiente no ha registrado un compromiso." }}</div>
+                    <div class="compromisos-box">{{ ficha.compromiso_padre|default_if_none:""|linebreaksbr|default:"El acudiente no ha registrado un compromiso." }}</div>
                     
                     <form method="POST" class="mt-3">
                         {% csrf_token %}

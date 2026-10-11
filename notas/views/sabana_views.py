@@ -382,11 +382,12 @@ def generar_sabana_pdf(request):
 
 @login_required
 def exportar_sabana_excel(request):
-    curso, periodo_ref, datos_completos, error, _ = _preparar_y_validar_sabana(request)
+    curso, periodo_ref, datos_completos, error, is_final_report = _preparar_y_validar_sabana(request)
     if error:
         messages.error(request, error)
         return redirect('notas:selector_sabana')
-    return generar_excel_sabana(curso=curso, periodo=periodo_ref, **datos_completos)
+    return generar_excel_sabana(curso=curso, periodo=periodo_ref, colegio=request.colegio,
+                                is_final_report=is_final_report, **datos_completos)
 
 @login_required
 def selector_sabana_vista(request):
