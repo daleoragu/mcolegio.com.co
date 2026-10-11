@@ -4,7 +4,6 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.drawing.image import Image
-import requests
 from io import BytesIO
 from decimal import Decimal
 
@@ -36,28 +35,31 @@ def generar_excel_sabana(curso, periodo, sabana_data, areas_con_materias, desemp
     total_cols = 3 + sum(len(a.materias_del_curso_ordenadas) + (0 if getattr(a, 'colapsada', False) else 1)
                          for a in areas_con_materias) + 1 + len(desempenos_headers) + 1
     
-    # Insertar logo si existe
-    if colegio.logo:
-        try:
-            response = requests.get(colegio.logo.url, stream=True)
-            response.raise_for_status()
-            img = Image(BytesIO(response.content))
-            img.height = 60
-            img.width = 60
-            ws.add_image(img, 'A1')
-        except requests.exceptions.RequestException:
-            pass # Si falla la descarga del logo, simplemente no se añade.
-    
-    # Información del colegio
-    ws.merge_cells(start_row=1, start_column=2, end_row=1, end_column=total_cols -1)
-    cell = ws.cell(row=1, column=2, value=colegio.nombre.upper())
+    # Escudo del colegio (el mismo de las planillas en Excel)
+    from notas.planillas.excel import _imagen_escudo
+    img = _imagen_escudo(colegio, alto=60)
+    if img is not None:
+        ws.add_image(img, 'A1')
+
+    # Encabezado del colegio: las mismas líneas de «Encabezado de documentos»
+    ws.merge_cells(start_row=1, start_column=2, end_row=1, end_column=total_cols - 1)
+    cell = ws.cell(row=1, column=2, value=(colegio.linea_encabezado_1 or colegio.nombre).upper())
     cell.font = title_font
     cell.alignment = center_align
 
-    ws.merge_cells(start_row=2, start_column=2, end_row=2, end_column=total_cols -1)
-    info_text = f"REGISTRO DANE: {colegio.dane or 'N/A'} | RESOLUCIÓN {colegio.resolucion or 'N/A'}"
-    cell = ws.cell(row=2, column=2, value=info_text)
+    lineas = [getattr(colegio, f'linea_encabezado_{i}', '') or '' for i in range(2, 6)]
+    lineas = [l.strip() for l in lineas if l and l.strip()]
+    if not lineas:
+        datos = []
+        if colegio.dane:
+            datos.append(f"DANE {colegio.dane}")
+        if colegio.resolucion_aprobacion:
+            datos.append(f"Resolución {colegio.resolucion_aprobacion}")
+        lineas = [' · '.join(datos)] if datos else []
+    ws.merge_cells(start_row=2, start_column=2, end_row=2, end_column=total_cols - 1)
+    cell = ws.cell(row=2, column=2, value=' · '.join(lineas[:2]))
     cell.alignment = center_align
+    ws.row_dimensions[2].height = 30
 
     # Título de la sábana
     ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=total_cols)
@@ -104,7 +106,7 @@ def generar_excel_sabana(curso, periodo, sabana_data, areas_con_materias, desemp
     col_idx += 1
 
     for d in desempenos_headers:
-        ws.cell(row=row_h1, column=col_idx, value=d[:3] + ".").tool_tip = d
+        ws.cell(row=row_h1, column=col_idx, value=d[:3] + ".")
         ws.merge_cells(start_row=row_h1, start_column=col_idx, end_row=row_h2, end_column=col_idx)
         col_idx += 1
 
@@ -180,6 +182,13 @@ def generar_excel_sabana(curso, periodo, sabana_data, areas_con_materias, desemp
         ws.column_dimensions[col_letter].width = 10
     
     # --- Respuesta HTTP ---
+    # Impresión: horizontal y todas las columnas en el ancho de la hoja.
+    ws.page_setup.orientation = 'landscape'
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.print_title_rows = '7:8'
+
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     filename = f"Sabana_{curso.nombre}_{periodo.get_nombre_display()}.xlsx"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'

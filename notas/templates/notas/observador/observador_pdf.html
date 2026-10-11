@@ -182,9 +182,9 @@
     
     <div class="compromisos-titulo">COMPROMISOS</div>
     <p class="label">Como Padre me Comprometo a:</p>
-    <div class="compromisos-box">{{ ficha.compromiso_padre|linebreaksbr|default:"&nbsp;" }}</div>
+    <div class="compromisos-box">{{ ficha.compromiso_padre|default_if_none:""|linebreaksbr|default:"&nbsp;" }}</div>
     <p class="label" style="margin-top: 10px;">Como Estudiante me Comprometo a:</p>
-    <div class="compromisos-box">{{ ficha.compromiso_estudiante|linebreaksbr|default:"&nbsp;" }}</div>
+    <div class="compromisos-box">{{ ficha.compromiso_estudiante|default_if_none:""|linebreaksbr|default:"&nbsp;" }}</div>
     
     <table class="firmas-section">
         <tr>

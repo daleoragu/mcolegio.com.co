@@ -16,9 +16,10 @@ Solo aparece si el colegio tiene dos o más sedes activas (sedes_filtro).
 <script>
 (function () {
     var sel = document.getElementById('sede-{{ objetivo }}');
-    var objetivo = document.getElementById(sel.dataset.objetivo);
-    if (!objetivo) return;
+    // El filtro suele ir ANTES del selector de cursos: se busca el objetivo al usarlo, no al cargar.
     function aplicar() {
+        var objetivo = document.getElementById(sel.dataset.objetivo);
+        if (!objetivo) return;
         var sede = sel.value;
         if (objetivo.tagName === 'SELECT') {
             Array.prototype.forEach.call(objetivo.options, function (op) {

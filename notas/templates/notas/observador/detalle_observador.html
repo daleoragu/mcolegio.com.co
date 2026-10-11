@@ -119,9 +119,9 @@
                     </div>
                     <div class="compromisos-titulo">COMPROMISOS</div>
                     <p class="ficha-label mt-2">Como Padre me Comprometo a:</p>
-                    <div class="compromisos-box">{{ ficha.compromiso_padre|linebreaksbr }}</div>
+                    <div class="compromisos-box">{{ ficha.compromiso_padre|default_if_none:""|linebreaksbr }}</div>
                     <p class="ficha-label mt-3">Como Estudiante me Comprometo a:</p>
-                    <div class="compromisos-box">{{ ficha.compromiso_estudiante|linebreaksbr }}</div>
+                    <div class="compromisos-box">{{ ficha.compromiso_estudiante|default_if_none:""|linebreaksbr }}</div>
                     <div class="firmas-section">
                         <div class="firma-linea">FIRMA DEL PADRE O ACUDIENTE</div>
                         <div class="firma-linea">FIRMA DEL ESTUDIANTE</div>
