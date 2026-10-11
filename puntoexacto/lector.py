@@ -269,14 +269,37 @@ def medir_burbujas(gris, H, mapa, radio_mm, alto_mm, negro=0.0):
         # impresa o un pedazo de la banda gris no bajan la referencia.
         nivel_papel = float(np.percentile(papel, 70))
         tinta = float(np.percentile(dentro, 35))   # el 35% más oscuro del interior
+        trazo = float(np.percentile(dentro, 15))   # el 15%: alcanza a ver un trazo suelto
         # La escala va de «papel» a «negro de esta foto», no de papel a cero:
         # así una foto quemada y una oscura dan el mismo número para la misma
         # marca de lápiz.
         rango = max(nivel_papel - negro, 12.0)
         relleno = (nivel_papel - tinta) / rango
         medidas[clave] = {'relleno': float(np.clip(relleno, 0.0, 1.0)),
+                          'trazo': float(np.clip((nivel_papel - trazo) / rango, 0.0, 1.0)),
                           'papel': nivel_papel, 'tinta': tinta, 'fuera': False}
+    _sumar_trazos(medidas)
     return medidas, radio_px, posiciones
+
+
+def _sumar_trazos(medidas):
+    """Marcas a medio rellenar: un par de rayas de lápiz en vez de la burbuja llena.
+
+    El 35 % más oscuro del interior no las ve (entre raya y raya hay papel).
+    El 15 % sí, pero también ve la letra gris impresa dentro de cada burbuja.
+    Como la gran mayoría de burbujas de una hoja están vacías, la mediana de
+    ese 15 % es lo que pesa la letra en ESTA foto: lo que una burbuja tenga
+    por encima de eso es lápiz. Se toma el mayor de los dos números, así una
+    burbuja bien rellena no cambia y una a medias deja de quedar en duda.
+    """
+    vivas = [m for m in medidas.values() if not m.get('fuera') and 'trazo' in m]
+    if len(vivas) < 8:
+        return
+    base = float(np.median([m['trazo'] for m in vivas]))
+    for m in vivas:
+        extra = m['trazo'] - base
+        if extra > m['relleno']:
+            m['relleno'] = float(np.clip(extra, 0.0, 1.0))
 
 
 # ---------------------------------------------------------------------------

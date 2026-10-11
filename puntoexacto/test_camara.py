@@ -185,3 +185,23 @@ class HojaDeOtroExamen(UnaSolaIdaAlServidor):
         d = self.c.post(f'/puntoexacto/{vacio.id}/escanear/foto/', {'foto': foto}).json()
         self.assertFalse(d['ok'])
         self.assertTrue(d.get('otro_examen'), d)
+
+
+class TrazosAMedias(CamaraEnVivo):
+    """Una burbuja con un par de rayas de lápiz cuenta como marcada; las vacías no."""
+
+    def test_sumar_trazos(self):
+        from . import lector
+        medidas = {}
+        for n in range(1, 11):
+            for l in 'ABCD':
+                # Vacías: la letra impresa deja el 15 % en ~0.20 y el 35 % en ~0.02.
+                medidas[f'{n}{l}'] = {'relleno': 0.02, 'trazo': 0.20, 'fuera': False}
+        medidas['3B'] = {'relleno': 0.06, 'trazo': 0.62, 'fuera': False}   # dos rayas de lápiz
+        medidas['7C'] = {'relleno': 0.80, 'trazo': 0.95, 'fuera': False}   # bien rellena
+        lector._sumar_trazos(medidas)
+        respuestas, dudas = lector.decidir(medidas, 10, lambda n: 'ABCD')
+        self.assertEqual(respuestas[3], 'B')
+        self.assertEqual(respuestas[7], 'C')
+        self.assertEqual([n for n in range(1, 11) if respuestas[n] and n not in (3, 7)], [])
+        self.assertEqual(medidas['7C']['relleno'], 0.80)   # la bien rellena no cambia
