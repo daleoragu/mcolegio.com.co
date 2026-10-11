@@ -754,7 +754,7 @@ def letras_de_formas(examen):
     return ('A' + otras) if otras else ''
 
 
-def mapa_de_examen(examen):
+def mapa_de_examen(examen, por_pagina=None):
     """Dónde queda cada burbuja de ESTE examen, en milímetros de la hoja.
 
     Se genera dibujando una hoja de mentira y quedándose con el mapa, en vez de
@@ -765,7 +765,9 @@ def mapa_de_examen(examen):
     """
     import io
 
-    por_pagina = examen.hojas_por_pagina or 1
+    # El reparto con que se IMPRIMIÓ la hoja (1, 2, 4 u 8 por página) cambia
+    # dónde queda cada burbuja; por defecto, el que tiene guardado el examen.
+    por_pagina = por_pagina or examen.hojas_por_pagina or 1
     secciones = examen.secciones_para_hoja()
     firma = (examen.id, examen.numero_preguntas, examen.numero_opciones,
              por_pagina, repr(secciones),

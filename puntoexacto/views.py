@@ -629,6 +629,12 @@ def imprimir(request, examen_id):
     except ValueError as e:
         messages.error(request, str(e))
         return redirect('puntoexacto:hojas', examen_id=examen.id)
+    # Lo que se imprime es lo que la cámara tiene que leer: el reparto queda
+    # guardado en el examen. Antes se imprimía a 4 por página y el lector
+    # seguía buscando las burbujas donde van en la hoja de 1 por página.
+    if por_pagina != (examen.hojas_por_pagina or 1):
+        examen.hojas_por_pagina = por_pagina
+        examen.save(update_fields=['hojas_por_pagina'])
 
     respuesta = HttpResponse(pdf, content_type='application/pdf')
     respuesta['Content-Disposition'] = (
@@ -1364,8 +1370,17 @@ def escanear(request, examen_id):
               'calificada': h.estado == 'calificada'} for h in hojas_lista]
     # La cámara del navegador busca las cuatro marcas en vivo y necesita saber
     # dónde quedan en la hoja (y su tamaño) para dibujar los recuadros guía.
-    geo = _geometria_de_examen(examen, [h.identificador for h in hojas_lista])
-    guia = {k: geo[k] for k in ('ancho_mm', 'alto_mm', 'marca_mm', 'marcas_mm')}
+    # La cámara reconoce la hoja por sus proporciones; como pudo imprimirse con
+    # otro reparto por página, recibe las de todos los que caben (primero el
+    # del examen) y le dice al servidor cuál vio.
+    ids = [h.identificador for h in hojas_lista]
+    actual = examen.hojas_por_pagina or 1
+    guia = []
+    for pp in [actual] + [x for x in (1, 2, 4, 8) if x != actual]:
+        if pp != actual and hojas_mod.capacidad(pp, examen.opciones_maximas()) < examen.numero_preguntas:
+            continue
+        geo = _geometria_de_examen(examen, ids, pp)
+        guia.append(dict({k: geo[k] for k in ('ancho_mm', 'alto_mm', 'marca_mm', 'marcas_mm')}, por_pagina=pp))
     return render(request, 'puntoexacto/escanear.html', {
         'examen': examen,
         'pendientes': sum(1 for h in hojas_lista if h.estado != 'calificada'),
@@ -1383,12 +1398,12 @@ def _curso_y_sede(hoja):
     return curso.nombre + (' · ' + hojas_mod.nombre_sede(curso.sede.nombre) if curso.sede_id else '')
 
 
-def _geometria_de_examen(examen, identificadores):
+def _geometria_de_examen(examen, identificadores, por_pagina=None):
     # Todos los códigos tienen la misma forma (PE-00012-0007), así que el ancho
     # de las barras es el mismo; sin hojas todavía, se calcula con uno así.
     # Sin esto, un examen sin hojas no lograba leer ningún código (ni siquiera
     # para avisar que la hoja es de otro examen).
-    return hojas_mod.geometria(examen.hojas_por_pagina or 1,
+    return hojas_mod.geometria(por_pagina or examen.hojas_por_pagina or 1,
                                identificadores[0] if identificadores else f'PE-{examen.id:05d}-0001')
 
 
@@ -1418,25 +1433,28 @@ def procesar_foto(request, examen_id):
                              'error': 'La foto pesa demasiado. Baje la resolución '
                                       'de la cámara.'}, status=400)
 
-    info = hojas_mod.mapa_de_examen(examen)
     preguntas = list(examen.preguntas.order_by('numero'))
     opciones = {p.numero: p.opciones_efectivas() for p in preguntas}
     letras = lambda n: hojas_mod.LETRAS[:opciones.get(n, examen.numero_opciones)]
-
     identificadores = list(examen.hojas.values_list('identificador', flat=True))
-    geo = _geometria_de_examen(examen, identificadores)
+    letras_forma = hojas_mod.letras_de_formas(examen)
 
     try:
         gris = lector_mod._a_gris(archivo)
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': f'No se pudo abrir la foto ({type(e).__name__}).'})
+
+    def leer_con(por_pagina):
+        """Lee la foto suponiendo que la hoja se imprimió con ese reparto por página."""
+        info = hojas_mod.mapa_de_examen(examen, por_pagina)
+        geo = _geometria_de_examen(examen, identificadores, por_pagina)
         H, centros = lector_mod.matriz_de_hoja(gris, geo)
         negro = lector_mod.nivel_de_negro(gris, centros, geo['marca_mm'], H)
         medidas, radio_px, posiciones = lector_mod.medir_burbujas(
             gris, H, info['mapa'], info['radio_mm'], geo['alto_mm'], negro)
-        respuestas, dudas = lector_mod.decidir(
-            medidas, examen.numero_preguntas, letras)
+        respuestas, dudas = lector_mod.decidir(medidas, examen.numero_preguntas, letras)
         leido, como = lector_mod.identificar_hoja(gris, H, geo, identificadores)
         # La forma se lee como una pregunta más, con las burbujas «FA», «FB»…
-        letras_forma = hojas_mod.letras_de_formas(examen)
         forma, forma_duda = '', None
         if letras_forma:
             de_forma = {f'1{l}': medidas[f'F{l}'] for l in letras_forma if f'F{l}' in medidas}
@@ -1446,11 +1464,48 @@ def procesar_foto(request, examen_id):
                 forma_duda = d_forma[0]['motivo']
             elif not forma:
                 forma_duda = 'no marcó la forma'
-    except lector_mod.LecturaFallida as e:
-        return JsonResponse({'ok': False, 'error': str(e)})
-    except Exception as e:
-        return JsonResponse({'ok': False,
-                             'error': f'No se pudo leer la foto ({type(e).__name__}).'})
+        return {'por_pagina': por_pagina, 'respuestas': respuestas, 'dudas': dudas, 'leido': leido,
+                'como': como, 'forma': forma, 'forma_duda': forma_duda, 'radio_px': radio_px,
+                'posiciones': posiciones}
+
+    def calidad(r):
+        # Primero, que el código de barras se haya leído (confirma el reparto);
+        # después, las menos dudas.
+        return (0 if r['leido'] else 1, len(r['dudas']))
+
+    # El reparto (1, 2, 4 u 8 hojas por página) se escoge al imprimir: una hoja
+    # pudo salir con uno distinto del que tiene guardado el examen. Se lee con
+    # el que sugiere la cámara (por la forma de la hoja) o el del examen, y si
+    # no cuadra —el código no se lee o sobran dudas— se prueban los demás.
+    sugerido = request.POST.get('por_pagina', '')
+    orden = [int(sugerido)] if sugerido.isdigit() and int(sugerido) in hojas_mod.REPARTO else []
+    for pp in [examen.hojas_por_pagina or 1, 1, 4, 2, 8]:
+        if pp not in orden and hojas_mod.capacidad(pp, examen.opciones_maximas()) >= examen.numero_preguntas:
+            orden.append(pp)
+    mejor, error = None, None
+    for pp in orden:
+        try:
+            r = leer_con(pp)
+        except lector_mod.LecturaFallida as e:
+            error = error or str(e)
+            continue
+        except Exception as e:
+            error = error or f'No se pudo leer la foto ({type(e).__name__}).'
+            continue
+        if mejor is None or calidad(r) < calidad(mejor):
+            mejor = r
+        if r['leido'] and len(r['dudas']) <= max(2, examen.numero_preguntas // 10):
+            break                      # código leído y lectura limpia: es este reparto
+    if mejor is None:
+        return JsonResponse({'ok': False, 'error': error or 'No se pudo leer la foto.'})
+    if mejor['leido'] in identificadores and mejor['por_pagina'] != (examen.hojas_por_pagina or 1):
+        # Las hojas de este examen se imprimieron con otro reparto: queda
+        # guardado para que las siguientes se lean al primer intento.
+        examen.hojas_por_pagina = mejor['por_pagina']
+        examen.save(update_fields=['hojas_por_pagina'])
+    respuestas, dudas, leido, como = mejor['respuestas'], mejor['dudas'], mejor['leido'], mejor['como']
+    forma, forma_duda = mejor['forma'], mejor['forma_duda']
+    radio_px, posiciones = mejor['radio_px'], mejor['posiciones']
 
     # Cada hoja es de UN examen: el código de barras lleva el número del examen
     # (PE-00012-0007 = hoja 7 del examen 12). Si es de otro, no se califica

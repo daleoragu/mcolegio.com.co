@@ -44,10 +44,13 @@ class CamaraEnVivo(ColegioDePrueba):
         self.assertIn('id="pe-abrir-camara"', html)
         self.assertIn('id="pe-video"', html)
         self.assertIn('id="pe-rejilla"', html)          # corregir con el dedo
-        geo = json.loads(re.search(r'id="pe-datos-geo"[^>]*>(.*?)</script>', html, re.S).group(1))
+        geos = json.loads(re.search(r'id="pe-datos-geo"[^>]*>(.*?)</script>', html, re.S).group(1))
+        # Primero el reparto del examen, después los demás en que pudo imprimirse.
+        self.assertEqual(geos[0]['por_pagina'], 1)
+        self.assertEqual({g['por_pagina'] for g in geos}, {1, 2, 4, 8})
         esperado = H.geometria(1, 'PE-00001-0001')
-        self.assertEqual(geo['ancho_mm'], esperado['ancho_mm'])
-        self.assertEqual([list(p) for p in esperado['marcas_mm']], geo['marcas_mm'])
+        self.assertEqual(geos[0]['ancho_mm'], esperado['ancho_mm'])
+        self.assertEqual([list(p) for p in esperado['marcas_mm']], geos[0]['marcas_mm'])
 
     def test_lee_la_foto_recortada_como_la_manda_la_camara(self):
         """La cámara manda solo el pedazo de la hoja (con un poco de borde) y
@@ -205,3 +208,55 @@ class TrazosAMedias(CamaraEnVivo):
         self.assertEqual(respuestas[7], 'C')
         self.assertEqual([n for n in range(1, 11) if respuestas[n] and n not in (3, 7)], [])
         self.assertEqual(medidas['7C']['relleno'], 0.80)   # la bien rellena no cambia
+
+
+class ImpresaConOtroReparto(CamaraEnVivo):
+    """La hoja se imprimió a 4 por página aunque el examen dijera 1: igual se lee bien."""
+
+    def foto_de_reparto(self, por_pagina, marcadas):
+        pdf = self.c.get(self.url(f'hojas/imprimir/?por_pagina={por_pagina}')).content
+        with tempfile.TemporaryDirectory() as d:
+            open(f'{d}/h.pdf', 'wb').write(pdf)
+            try:
+                subprocess.run(['pdftoppm', '-r', '200', '-png', '-singlefile', f'{d}/h.pdf', f'{d}/h'], check=True)
+            except (OSError, subprocess.CalledProcessError):
+                self.skipTest('pdftoppm no está instalado')
+            pagina = Image.open(f'{d}/h.png').convert('RGB')
+        cols, filas = H.REPARTO[por_pagina]
+        hoja = pagina.crop((0, 0, pagina.width // cols, pagina.height // filas))
+        info = H.mapa_de_examen(self.ex, por_pagina)
+        esc = hoja.width / info['hoja_w_mm']
+        alto_mm = hoja.height / esc
+        dib = ImageDraw.Draw(hoja)
+        r = info['radio_mm'] * esc * 0.8
+        for p, l in marcadas.items():
+            x, y = info['mapa'][f'{p}{l}']
+            dib.ellipse([x * esc - r, (alto_mm - y) * esc - r, x * esc + r, (alto_mm - y) * esc + r], fill=(30, 30, 30))
+        b = io.BytesIO()
+        hoja.save(b, 'JPEG', quality=85)
+        return SimpleUploadedFile('hoja.jpg', b.getvalue(), 'image/jpeg')
+
+    def test_imprimir_guarda_el_reparto(self):
+        self.c.get(self.url('hojas/imprimir/?por_pagina=4'))
+        self.ex.refresh_from_db()
+        self.assertEqual(self.ex.hojas_por_pagina, 4)
+
+    def test_lee_la_hoja_de_4_por_pagina_aunque_el_examen_diga_1(self):
+        marcadas = {n: l for n, l in zip(range(1, 9), 'DCBADCBA')}
+        foto = self.foto_de_reparto(4, marcadas)
+        Examen.objects.filter(id=self.ex.id).update(hojas_por_pagina=1)   # como quedó en su colegio
+        d = self.c.post(self.url('escanear/foto/'), {'foto': foto}).json()
+        self.assertTrue(d['ok'], d)
+        self.assertEqual(d['hoja_id'], self.hoja.id)              # el código se leyó
+        self.assertEqual({int(k): v for k, v in d['respuestas'].items() if v}, marcadas)
+        self.assertEqual(d['dudas'], [])
+        self.ex.refresh_from_db()
+        self.assertEqual(self.ex.hojas_por_pagina, 4)             # y queda aprendido
+
+    def test_tambien_la_apaisada_de_2_por_pagina(self):
+        marcadas = {n: l for n, l in zip(range(1, 9), 'ABCDDCBA')}
+        foto = self.foto_de_reparto(2, marcadas)
+        Examen.objects.filter(id=self.ex.id).update(hojas_por_pagina=1)
+        d = self.c.post(self.url('escanear/foto/'), {'foto': foto, 'por_pagina': '2'}).json()
+        self.assertTrue(d['ok'], d)
+        self.assertEqual({int(k): v for k, v in d['respuestas'].items() if v}, marcadas)
