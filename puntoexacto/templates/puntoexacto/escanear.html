@@ -275,7 +275,8 @@
     var analisis = document.createElement('canvas');
     var ctxA = analisis.getContext('2d', {willReadFrequently: true});
     var ANCHO_ANALISIS = 320;    // basta para ver las marcas y corre rápido en el celular
-    var ANCHO_FOTO = 1100;       // la foto que se sube: liviana y con detalle de sobra para leer
+    var ANCHO_FOTO = 1600;       // la foto que se sube: ~300 KB, con detalle para trazos flojos
+    var enfoque = null;          // fotogramas candidatos mientras la cámara enfoca
     var buscando = false, temporizador = null;
     var anterior = null, estables = 0;
     var esperarRetiro = false; // después de guardar: no repetir la misma hoja
@@ -313,13 +314,14 @@
         fetch(urlFoto, {headers: {'X-Requested-With': 'XMLHttpRequest'}}).catch(function () {});
         navigator.mediaDevices.getUserMedia({
             audio: false,
-            video: {facingMode: {ideal: 'environment'}, width: {ideal: 2560}, height: {ideal: 1440}}
+            video: {facingMode: {ideal: 'environment'}, width: {ideal: 3840}, height: {ideal: 2160}}
         }).then(function (s) {
             flujo = s;
             pista = s.getVideoTracks()[0];
             try {
                 var cap = pista.getCapabilities ? pista.getCapabilities() : {};
                 if (cap.torch) elLinterna.style.visibility = 'visible';
+                pista.__enfoqueUnaVez = !!(cap.focusMode && cap.focusMode.indexOf('single-shot') >= 0);
                 if (cap.focusMode && cap.focusMode.indexOf('continuous') >= 0) {
                     pista.applyConstraints({advanced: [{focusMode: 'continuous'}]}).catch(function () {});
                 }
@@ -327,6 +329,7 @@
             elVideo.srcObject = s;
             elVideo.onloadedmetadata = function () {
                 elVideo.play();
+                contarCuadros();
                 ajustarVisor();
                 arrancarBusqueda();
             };
@@ -420,7 +423,7 @@
 
     function arrancarBusqueda() {
         buscando = true;
-        anterior = null; estables = 0;
+        anterior = null; estables = 0; enfoque = null;
         elLeyendo.classList.remove('si');
         if (!esperarRetiro) estado('Apunte a la hoja: la cámara la busca sola.');
         clearTimeout(temporizador);
@@ -460,14 +463,16 @@
                     estables = 0;
                     estado('Hoja encontrada. Acérquese un poco más.');
                 } else if (estables >= 2) {
-                    // Apenas la ve en dos cuadros seguidos (una décima de segundo) dispara:
-                    // así no sale movida y no hay que esperar.
-                    capturar(quad); return;
+                    // Quieta: se toma el fotograma más nítido de los que van
+                    // llegando mientras la cámara termina de enfocar.
+                    if (elegirFotograma(quad)) return;
+                    estado('Enfocando… no mueva el celular', 'bien');
                 } else {
+                    if (!enfoque) pedirEnfoque();
                     estado('¡Hoja encontrada! No mueva el celular…', 'bien');
                 }
             } else {
-                estables = 0; anterior = null;
+                estables = 0; anterior = null; enfoque = null;
                 dibujar(null);
                 estado(r.girada ? 'Ponga la hoja derecha: debe verse vertical en la pantalla.'
                                 : 'Apunte a la hoja: que se vean las cuatro esquinas negras.');
@@ -606,11 +611,7 @@
 
     // Foto a resolución completa, recortada a la hoja: el lector del servidor
     // busca una marca por cuadrante y supone que la hoja llena la foto.
-    function capturar(marcas) {
-        pararBusqueda();
-        sonar();
-        elDestello.style.opacity = '0.85';
-        setTimeout(function () { elDestello.style.opacity = '0'; }, 120);
+    function fotograma(marcas) {
         var vw = elVideo.videoWidth, vh = elVideo.videoHeight;
         var x0 = 0, y0 = 0, x1 = vw, y1 = vh;
         if (marcas) {
@@ -622,18 +623,102 @@
             x0 = Math.max(0, Math.min.apply(null, xs) - mx); x1 = Math.min(vw, Math.max.apply(null, xs) + mx);
             y0 = Math.max(0, Math.min.apply(null, ys) - my); y1 = Math.min(vh, Math.max.apply(null, ys) + my);
         }
-        // Se sube reducida: una foto de 1100 px pesa unos 150 KB y se lee igual
-        // de bien; la de resolución completa puede pasar de 2 MB y tardar
-        // varios segundos en subir con datos móviles.
+        // Se sube reducida a 1600 px (unos 300 KB): con eso se ven bien hasta
+        // los trazos flojos de lápiz, y no pesa los 2 MB de la foto completa.
         var k = Math.min(1, ANCHO_FOTO / (x1 - x0));
         var lienzo = document.createElement('canvas');
         lienzo.width = Math.round((x1 - x0) * k); lienzo.height = Math.round((y1 - y0) * k);
-        var ctxF = lienzo.getContext('2d');
-        ctxF.drawImage(elVideo, x0, y0, x1 - x0, y1 - y0, 0, 0, lienzo.width, lienzo.height);
+        lienzo.getContext('2d').drawImage(elVideo, x0, y0, x1 - x0, y1 - y0, 0, 0, lienzo.width, lienzo.height);
+        return lienzo;
+    }
+
+    // Qué tan enfocada está: energía de los bordes en el centro de la hoja
+    // (donde están las burbujas). Una foto borrosa tiene bordes suaves.
+    var lienzoNitidez = document.createElement('canvas');
+    function nitidez(lienzo) {
+        var w = 360, h = Math.round(lienzo.height * w / lienzo.width);
+        var sx = lienzo.width * 0.15, sy = lienzo.height * 0.25;
+        var sw = lienzo.width * 0.7, sh = lienzo.height * 0.5;
+        h = Math.round(sh * w / sw);
+        lienzoNitidez.width = w; lienzoNitidez.height = h;
+        var c = lienzoNitidez.getContext('2d', {willReadFrequently: true});
+        c.drawImage(lienzo, sx, sy, sw, sh, 0, 0, w, h);
+        var d = c.getImageData(0, 0, w, h).data, suma = 0, n = 0;
+        for (var y = 1; y < h - 1; y += 1) {
+            for (var x = 1; x < w - 1; x += 1) {
+                var i = (y * w + x) * 4;
+                var lap = 4 * d[i + 1] - d[i + 1 - 4] - d[i + 1 + 4] - d[i + 1 - 4 * w] - d[i + 1 + 4 * w];
+                suma += lap * lap; n++;
+            }
+        }
+        return n ? suma / n : 0;
+    }
+
+    // Pide a la cámara que enfoque ya (en los celulares que lo permiten).
+    function pedirEnfoque() {
+        if (!pista || !pista.__enfoqueUnaVez) return;
+        pista.applyConstraints({advanced: [{focusMode: 'single-shot'}]})
+            .then(function () { return pista.applyConstraints({advanced: [{focusMode: 'continuous'}]}); })
+            .catch(function () {});
+    }
+
+    // Mientras la hoja está quieta se miden unos fotogramas y se manda el más
+    // nítido: dispara cuando la cámara ya enfocó (la nitidez dejó de subir) o,
+    // a más tardar, en 1,2 segundos con el mejor que haya.
+    // Cuántos fotogramas nuevos ha entregado la cámara. El ciclo de búsqueda
+    // corre más rápido que la cámara: sin esto se mediría el mismo fotograma
+    // varias veces y parecería que «ya no mejora» aunque siga enfocando.
+    var cuadrosVideo = 0, ultimoTiempo = -1;
+    function contarCuadros() {
+        if (elVideo.requestVideoFrameCallback) {
+            elVideo.requestVideoFrameCallback(function cb() { cuadrosVideo++; elVideo.requestVideoFrameCallback(cb); });
+        }
+    }
+    function hayCuadroNuevo() {
+        if (elVideo.requestVideoFrameCallback) {
+            if (cuadrosVideo === ultimoTiempo) return false;
+            ultimoTiempo = cuadrosVideo; return true;
+        }
+        var t = elVideo.currentTime;        // navegadores sin requestVideoFrameCallback
+        if (t === ultimoTiempo) return false;
+        ultimoTiempo = t; return true;
+    }
+
+    function elegirFotograma(quad) {
+        var ahora = performance.now();
+        if (enfoque && !hayCuadroNuevo()) return ahora - enfoque.t0 > 1200 && enfoque.mejor ? (disparar(enfoque.mejor), true) : false;
+        if (!enfoque) { enfoque = {t0: ahora, n: 0, max: 0, mejor: null, sinMejorar: 0}; pedirEnfoque(); }
+        var lienzo = fotograma(quad), v = nitidez(lienzo);
+        enfoque.n++;
+        // «Mejoró» solo si sube de verdad (3 %): el ruido del video hace bailar
+        // la medida un poco aunque la imagen no cambie.
+        if (v > enfoque.max * 1.03) { enfoque.max = v; enfoque.mejor = lienzo; enfoque.sinMejorar = 0; }
+        else {
+            enfoque.sinMejorar++;
+            if (v > enfoque.max) { enfoque.max = v; enfoque.mejor = lienzo; }
+        }
+        window.__pe_nitidez = Math.round(v);
+        // Mientras la nitidez sube, la cámara sigue enfocando: se espera. Cuando
+        // deja de subir dos fotogramas seguidos ya enfocó y se manda el mejor.
+        var listo = (enfoque.n >= 3 && enfoque.sinMejorar >= 2) || ahora - enfoque.t0 > 1200;
+        if (!listo) return false;
+        disparar(enfoque.mejor || lienzo);
+        return true;
+    }
+
+    function disparar(lienzo) {
+        pararBusqueda();
+        enfoque = null;
+        sonar();
+        elDestello.style.opacity = '0.85';
+        setTimeout(function () { elDestello.style.opacity = '0'; }, 120);
         elLeyendo.classList.add('si');
         estado('Leyendo la hoja…');
-        lienzo.toBlob(function (blob) { enviarFoto(blob, true); }, 'image/jpeg', 0.82);
+        lienzo.toBlob(function (blob) { enviarFoto(blob, true); }, 'image/jpeg', 0.85);
     }
+
+    // El botón: con lo que haya en este momento.
+    function capturar(marcas) { disparar(fotograma(marcas)); }
 
     // =====================================================================
     // 2. Subir una foto (si no hay cámara en vivo)
