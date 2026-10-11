@@ -233,7 +233,7 @@
     var NOTA_MIN = parseFloat("{{ examen.nota_minima|stringformat:'s' }}") || 1;
     var NOTA_MAX = parseFloat("{{ examen.nota_maxima|stringformat:'s' }}") || 5;
     var csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    var GEO = JSON.parse(document.getElementById('pe-datos-geo').textContent);
+    var GEOS = JSON.parse(document.getElementById('pe-datos-geo').textContent);
     var HOJAS = JSON.parse(document.getElementById('pe-datos-hojas').textContent);
 
     var $ = function (id) { return document.getElementById(id); };
@@ -265,11 +265,16 @@
     // =====================================================================
     // Las marcas, en mm con el origen arriba a la izquierda (el generador
     // las da desde abajo). Orden: sup. izq., sup. der., inf. der., inf. izq.
-    var MARCAS = GEO.marcas_mm.map(function (p) { return [p[0], GEO.alto_mm - p[1]]; });
-    var SPAN_W = MARCAS[1][0] - MARCAS[0][0];
-    var SPAN_H = MARCAS[3][1] - MARCAS[0][1];
-    var PROP = SPAN_H / SPAN_W;
-    var BORDE_HOJA = [[0, 0], [GEO.ancho_mm, 0], [GEO.ancho_mm, GEO.alto_mm], [0, GEO.alto_mm]];
+    // Una por cada reparto con que pudo imprimirse la hoja (1, 2, 4 u 8 por
+    // página), empezando por el del examen: cambian las proporciones y el
+    // tamaño de las marcas. La de 2 y la de 8 por página son apaisadas.
+    var DISENOS = GEOS.map(function (g) {
+        var m = g.marcas_mm.map(function (p) { return [p[0], g.alto_mm - p[1]]; });
+        var sw = m[1][0] - m[0][0], sh = m[3][1] - m[0][1];
+        return {pp: g.por_pagina, marcas: m, spanW: sw, spanH: sh, prop: sh / sw, marca: g.marca_mm,
+                ancho: g.ancho_mm, alto: g.alto_mm,
+                borde: [[0, 0], [g.ancho_mm, 0], [g.ancho_mm, g.alto_mm], [0, g.alto_mm]]};
+    });
 
     var flujo = null, pista = null, linternaPrendida = false;
     var analisis = document.createElement('canvas');
@@ -277,6 +282,7 @@
     var ANCHO_ANALISIS = 320;    // basta para ver las marcas y corre rápido en el celular
     var ANCHO_FOTO = 1600;       // la foto que se sube: ~300 KB, con detalle para trazos flojos
     var enfoque = null;          // fotogramas candidatos mientras la cámara enfoca
+    var porPaginaVisto = '';     // reparto que reconoció la cámara (lo confirma el servidor)
     var buscando = false, temporizador = null;
     var anterior = null, estables = 0;
     var esperarRetiro = false; // después de guardar: no repetir la misma hoja
@@ -406,9 +412,9 @@
         var vw = elVideo.videoWidth || 1000, g = Math.max(3, vw / 200);
         var html = '';
         if (quad) {
-            var H = homografia(MARCAS, quad);
+            var H = homografia(quad.diseno.marcas, quad);
             if (H) {
-                var borde = BORDE_HOJA.map(function (p) { return H(p[0], p[1]); });
+                var borde = quad.diseno.borde.map(function (p) { return H(p[0], p[1]); });
                 html += '<polygon points="' + borde.map(function (p) { return p.join(','); }).join(' ') +
                         '" fill="rgba(46,226,107,' + (0.10 + 0.15 * (progreso || 0)) + ')" stroke="#2ee26b" stroke-width="' + g + '" stroke-linejoin="round"/>';
             }
@@ -506,13 +512,19 @@
         function suma(x0, y0, x1, y1) {
             return integ[y1 * W1 + x1] - integ[y0 * W1 + x1] - integ[y1 * W1 + x0] + integ[y0 * W1 + x0];
         }
-        // Tamaños de la marca: la hoja ocupa entre ~30 % y ~98 % del ancho útil.
-        var lado = Math.min(W, H / PROP);
-        var base = GEO.marca_mm / SPAN_W * lado;
+        // Tamaños de la marca: la hoja ocupa entre ~30 % y ~98 % del ancho útil,
+        // para cada reparto posible; los tamaños casi iguales se miran una vez.
+        var tamanos = [];
+        DISENOS.forEach(function (dz) {
+            var lado = Math.min(W, H / dz.prop);
+            var base = dz.marca / dz.spanW * lado;
+            [0.3, 0.42, 0.58, 0.8, 1.0].forEach(function (f) {
+                var L = base * f;
+                if (L >= 4.5 && !tamanos.some(function (t) { return Math.abs(t - L) < L * 0.15; })) tamanos.push(L);
+            });
+        });
         var candidatos = [];
-        [0.3, 0.42, 0.58, 0.8, 1.0].forEach(function (f) {
-            var L = base * f;
-            if (L < 4.5) return;
+        tamanos.forEach(function (L) {
             var c = Math.max(2, Math.round(L * 0.35)), ri = Math.max(c + 1, Math.round(L * 0.78)),
                 ro = Math.max(ri + 2, Math.round(L * 1.25)), paso = Math.max(1, Math.round(L / 4));
             var areaC = 4 * c * c, areaR = 4 * ro * ro - 4 * ri * ri;
@@ -570,17 +582,24 @@
             if (Math.min(d1, d2) / Math.max(d1, d2) < 0.85) continue;
             var ancho = (arriba + abajo) / 2, alto = (izq + der) / 2;
             if (ancho < W * 0.18) continue;
-            var prop = (alto / ancho) / PROP;
-            var esperado = GEO.marca_mm * ancho / SPAN_W;
-            var tamOk = q.every(function (p) { return p.L > esperado * 0.5 && p.L < esperado * 1.9; });
-            if (!tamOk) continue;
             var suma4 = tl.v + tr.v + br.v + bl.v;
-            if (prop > 0.84 && prop < 1.19) {
-                if (suma4 > mejorV) { mejorV = suma4; mejor = [tl, tr, br, bl]; }
-            } else if (prop > 1 / 1.19 / PROP / PROP && prop < 1 / 0.84 / PROP / PROP) {
-                girada = true;   // proporciones de la hoja acostada
+            for (var di = 0; di < DISENOS.length; di++) {
+                var dz = DISENOS[di];
+                var prop = (alto / ancho) / dz.prop;
+                var esperado = dz.marca * ancho / dz.spanW;
+                var tamOk = q.every(function (p) { return p.L > esperado * 0.5 && p.L < esperado * 1.9; });
+                if (!tamOk) continue;
+                if (prop > 0.84 && prop < 1.19) {
+                    // A igual calidad gana el reparto del examen (el primero).
+                    var v = suma4 * (di === 0 ? 1.02 : 1);
+                    if (v > mejorV) { mejorV = v; mejor = [tl, tr, br, bl]; mejor.diseno = dz; }
+                    break;
+                } else if (prop > 1 / 1.19 / dz.prop / dz.prop && prop < 1 / 0.84 / dz.prop / dz.prop) {
+                    girada = true;   // proporciones de esta hoja, pero acostada
+                }
             }
         }
+        if (mejor) girada = false;
         if (!mejor) return {quad: null, girada: girada};
         // Centro fino de cada marca: centroide de lo oscuro alrededor.
         var quad = mejor.map(function (m) {
@@ -593,6 +612,7 @@
             var cx = cnt >= 4 ? sx / cnt : m.x, cy = cnt >= 4 ? sy / cnt : m.y;
             return [cx / s, cy / s];
         });
+        quad.diseno = mejor.diseno;
         return {quad: quad, girada: false};
     }
 
@@ -615,8 +635,9 @@
         var vw = elVideo.videoWidth, vh = elVideo.videoHeight;
         var x0 = 0, y0 = 0, x1 = vw, y1 = vh;
         if (marcas) {
-            var H = homografia(MARCAS, marcas);
-            var borde = H ? BORDE_HOJA.map(function (p) { return H(p[0], p[1]); }) : marcas;
+            var dz = marcas.diseno || DISENOS[0];
+            var H = homografia(dz.marcas, marcas);
+            var borde = H ? dz.borde.map(function (p) { return H(p[0], p[1]); }) : marcas;
             var xs = borde.map(function (p) { return p[0]; }), ys = borde.map(function (p) { return p[1]; });
             var mx = (Math.max.apply(null, xs) - Math.min.apply(null, xs)) * 0.03;
             var my = (Math.max.apply(null, ys) - Math.min.apply(null, ys)) * 0.03;
@@ -629,6 +650,7 @@
         var lienzo = document.createElement('canvas');
         lienzo.width = Math.round((x1 - x0) * k); lienzo.height = Math.round((y1 - y0) * k);
         lienzo.getContext('2d').drawImage(elVideo, x0, y0, x1 - x0, y1 - y0, 0, 0, lienzo.width, lienzo.height);
+        lienzo.porPagina = marcas && marcas.diseno ? marcas.diseno.pp : '';
         return lienzo;
     }
 
@@ -714,6 +736,7 @@
         setTimeout(function () { elDestello.style.opacity = '0'; }, 120);
         elLeyendo.classList.add('si');
         estado('Leyendo la hoja…');
+        porPaginaVisto = lienzo.porPagina || '';
         lienzo.toBlob(function (blob) { enviarFoto(blob, true); }, 'image/jpeg', 0.85);
     }
 
@@ -748,6 +771,7 @@
         cuerpo.append('foto', archivo, 'hoja.jpg');
         // Si todo sale claro, el servidor la guarda de una vez (una sola ida y vuelta).
         if (deCamara && flujo && elAuto.checked) cuerpo.append('auto', '1');
+        if (deCamara && porPaginaVisto) cuerpo.append('por_pagina', porPaginaVisto);
         fetch(urlFoto, {method: 'POST', body: cuerpo, headers: {'X-CSRFToken': csrf}})
             .then(function (r) { return r.json(); })
             .then(function (d) {
@@ -995,9 +1019,11 @@
             b.className = 'pe-burbuja';
             b.style.left = (pos[0] / W * 100) + '%';
             b.style.top = (pos[1] / H * 100) + '%';
+            // Caja cuadrada de verdad: con alto 0 + relleno, el borde se suma al
+            // alto y los círculos chicos salían como óvalos.
             b.style.width = diametro + '%';
-            b.style.paddingBottom = diametro + '%';
-            b.style.height = '0';
+            b.style.height = 'auto';
+            b.style.aspectRatio = '1 / 1';
             b.dataset.pregunta = pregunta;
             b.dataset.letra = letra;
             b.title = 'Pregunta ' + pregunta + ', opción ' + letra;
