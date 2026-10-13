@@ -433,7 +433,7 @@
         elLeyendo.classList.remove('si');
         if (!esperarRetiro) estado('Apunte a la hoja: la cámara la busca sola.');
         clearTimeout(temporizador);
-        temporizador = setTimeout(cuadro, 100);
+        temporizador = setTimeout(cuadro, 50);
     }
 
     function pararBusqueda() {
@@ -458,7 +458,7 @@
             } else if (quad) {
                 var ancho = Math.hypot(quad[1][0] - quad[0][0], quad[1][1] - quad[0][1]);
                 var quieto = anterior && quad.every(function (h, i) {
-                    return Math.hypot(h[0] - anterior[i][0], h[1] - anterior[i][1]) < ancho * 0.025;
+                    return Math.hypot(h[0] - anterior[i][0], h[1] - anterior[i][1]) < ancho * 0.04;
                 });
                 estables = quieto ? estables + 1 : 1;
                 anterior = quad;
@@ -686,7 +686,7 @@
 
     // Mientras la hoja está quieta se miden unos fotogramas y se manda el más
     // nítido: dispara cuando la cámara ya enfocó (la nitidez dejó de subir) o,
-    // a más tardar, en 1,2 segundos con el mejor que haya.
+    // a más tardar, en 0,6 segundos con el mejor que haya.
     // Cuántos fotogramas nuevos ha entregado la cámara. El ciclo de búsqueda
     // corre más rápido que la cámara: sin esto se mediría el mismo fotograma
     // varias veces y parecería que «ya no mejora» aunque siga enfocando.
@@ -708,7 +708,7 @@
 
     function elegirFotograma(quad) {
         var ahora = performance.now();
-        if (enfoque && !hayCuadroNuevo()) return ahora - enfoque.t0 > 1200 && enfoque.mejor ? (disparar(enfoque.mejor), true) : false;
+        if (enfoque && !hayCuadroNuevo()) return ahora - enfoque.t0 > 600 && enfoque.mejor ? (disparar(enfoque.mejor), true) : false;
         if (!enfoque) { enfoque = {t0: ahora, n: 0, max: 0, mejor: null, sinMejorar: 0}; pedirEnfoque(); }
         var lienzo = fotograma(quad), v = nitidez(lienzo);
         enfoque.n++;
@@ -721,8 +721,8 @@
         }
         window.__pe_nitidez = Math.round(v);
         // Mientras la nitidez sube, la cámara sigue enfocando: se espera. Cuando
-        // deja de subir dos fotogramas seguidos ya enfocó y se manda el mejor.
-        var listo = (enfoque.n >= 3 && enfoque.sinMejorar >= 2) || ahora - enfoque.t0 > 1200;
+        // deja de subir ya enfocó y se manda el mejor.
+        var listo = (enfoque.n >= 2 && enfoque.sinMejorar >= 1) || ahora - enfoque.t0 > 600;
         if (!listo) return false;
         disparar(enfoque.mejor || lienzo);
         return true;
@@ -863,7 +863,7 @@
             estado('⚠ ' + d.error, 'mal');
             // Hasta que la hoja salga del cuadro no se vuelve a intentar con ella.
             esperarRetiro = true; perdidas = 0; avisoGuardado = '⚠ ' + d.error;
-            setTimeout(function () { if (flujo && !elResultado.classList.contains('abierta')) arrancarBusqueda(); }, 1500);
+            setTimeout(function () { if (flujo && !elResultado.classList.contains('abierta')) arrancarBusqueda(); }, 1000);
         } else {
             if (d.url_otro && confirm(d.error + '\n\n¿Abrir la cámara de ese examen?')) location.href = d.url_otro;
             else if (!d.url_otro) alert(d.error);
@@ -875,7 +875,7 @@
             elLeyendo.classList.remove('si');
             // El mensaje se deja leer antes de que la búsqueda lo reemplace.
             estado(msg + ' Intente otra vez.', 'mal');
-            setTimeout(function () { if (flujo && !elResultado.classList.contains('abierta')) arrancarBusqueda(); }, 2200);
+            setTimeout(function () { if (flujo && !elResultado.classList.contains('abierta')) arrancarBusqueda(); }, 1500);
         } else {
             alert(msg);
         }

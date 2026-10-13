@@ -114,3 +114,40 @@ def obtener_desempeno(nota, colegio):
     except Exception:
         return ''
     return ''
+
+
+@register.filter(name='svg_vertical')
+def svg_vertical(texto, alto=80):
+    """Texto girado (de abajo hacia arriba) como SVG, para encabezados angostos en PDF.
+
+    WeasyPrint no maneja ``writing-mode``; un SVG en línea sí sale igual en el
+    PDF. Los nombres largos se parten en hasta tres renglones verticales para
+    que la columna no crezca.
+    """
+    from django.utils.html import escape
+    from django.utils.safestring import mark_safe
+    texto = ' '.join(str(texto or '').split())
+    if not texto:
+        return ''
+    alto = int(alto)
+    por_linea = max(4, int(alto / 4.6))
+    lineas, linea = [], ''
+    for palabra in texto.split(' '):
+        prueba = (linea + ' ' + palabra).strip()
+        if len(prueba) <= por_linea or not linea:
+            linea = prueba
+        else:
+            lineas.append(linea)
+            linea = palabra
+    lineas.append(linea)
+    lineas = lineas[:3]
+    paso = 8.5
+    ancho = round(paso * len(lineas) + 1.5, 1)
+    textos = ''.join(
+        f'<text x="{-alto / 2:.1f}" y="{7 + paso * i:.1f}" text-anchor="middle">{escape(l)}</text>'
+        for i, l in enumerate(lineas))
+    return mark_safe(
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{ancho}" height="{alto}" '
+        f'viewBox="0 0 {ancho} {alto}"><g transform="rotate(-90)" '
+        f'font-family="Helvetica, Arial, sans-serif" font-size="7" font-weight="bold" fill="#333">'
+        f'{textos}</g></svg>')
