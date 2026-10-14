@@ -4,7 +4,8 @@
     <button class="btn login-btn dropdown-toggle" type="button" id="dropdownLogin" data-bs-toggle="dropdown" aria-expanded="false">
         <i class="fas fa-user-lock me-1"></i> Ingreso
     </button>
-    <div class="dropdown-menu dropdown-menu-end p-3 dropdown-menu-login" aria-labelledby="dropdownLogin">
+    {# z-index por encima de la barra de menú fija (sticky-top, 1020): sin esto el menú tapaba la contraseña. #}
+    <div class="dropdown-menu dropdown-menu-end p-3 dropdown-menu-login" aria-labelledby="dropdownLogin" style="z-index: 1060;">
         {% if user.is_authenticated %}
             <div class="text-center">
                 <p class="mb-1 small">Bienvenido/a,</p>
