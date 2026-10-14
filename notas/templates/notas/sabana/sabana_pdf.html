@@ -18,28 +18,34 @@
         }
         body { font-family: 'Helvetica', Arial, sans-serif; font-size: 7px; color: #333; }
         
-        .encabezado-con-bordes { width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 10px; }
-        .encabezado-con-bordes td { vertical-align: middle; text-align: center; padding: 5px; border: 1px solid #000; }
-
-        .encabezado-sin-bordes { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-        .encabezado-sin-bordes td { vertical-align: middle; text-align: center; padding: 0; border: none; }
+        /* El encabezado del colegio se ve igual que en el boletín: sin cuadros
+           alrededor de los escudos y del texto. */
+        .encabezado-con-bordes, .encabezado-sin-bordes { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .encabezado-con-bordes td, .encabezado-sin-bordes td { vertical-align: middle; padding: 0 4px; border: none; }
         .escudo {max-width: 100px;  max-height: {{ colegio.alto_logos_pdf|default:65 }}px; height: auto; width: auto;}
         .info-institucion { vertical-align: middle; }
         .info-institucion p { margin: 1px 0; }
 
-        .tabla-sabana { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .tabla-sabana { width: auto; margin: 0 auto 15px; border-collapse: collapse; }
         .tabla-sabana th, .tabla-sabana td { border: 1px solid #999; padding: 2px; text-align: center; vertical-align: middle; }
         .tabla-sabana thead th { background-color: #f2f2f2; font-weight: bold; padding: 4px 2px; }
         .tabla-sabana tr { page-break-inside: avoid; }
         .tabla-sabana tfoot td { font-weight: bold; text-align: center; background-color: #f2f2f2; }
         .tabla-sabana tfoot .label-resumen { text-align: right; padding-right: 10px; background-color: #e9ecef; }
         .th-area { background-color: #e9ecef; }
-        .td-nombre { text-align: left !important; font-size: 8px; width: 15%; padding-left: 4px; }
+        .td-nombre { text-align: left !important; font-size: 8px; min-width: 150px; padding-left: 4px; }
+        .tabla-sabana tbody td { min-width: 20px; padding: 2px 3px; }
         .td-periodo { font-weight: bold; }
         .tr-acumulada { font-weight: bold; background-color: #e9ecef; }
         .nota-reprobada { color: #D00; font-weight: bold; }
         .nota-area { font-weight: bold; background-color: #f2f2f2; }
         .nota-recuperada { color: #008000; font-weight: bold; } /* Verde para recuperación */
+        /* Áreas y materias largas en vertical: las columnas quedan del ancho de una nota. */
+        .tabla-sabana thead th.th-vert, .tabla-sabana thead th.th-materia { padding: 3px 1px; }
+        .tabla-sabana svg { display: block; margin: 0 auto; }
+        .necesaria { font-size: 6px; color: #9E1982; font-weight: bold; white-space: nowrap; }
+        .necesaria.imposible { color: #B3261E; }
+        .aviso-faltante { color: #D98324; font-weight: bold; }
 
         /* Estilos para el Podio en PDF */
         .podium-section { margin-top: 20px; page-break-inside: avoid; text-align: center; }
@@ -91,11 +97,14 @@
             <thead>
                 <tr>
                     <th rowspan="2">N°</th><th rowspan="2" class="td-nombre">Apellidos y Nombres</th><th rowspan="2">P.</th>
-                    {% for area in areas_con_materias %}<th colspan="{{ area.materias_del_curso_ordenadas|length|add:1 }}" class="th-area">{{ area.nombre }}</th>{% endfor %}
-                    <th rowspan="2">Prom.</th>{% for desempeno in desempenos_headers %}<th rowspan="2" title="{{desempeno|capfirst}}">{{ desempeno|slice:":3" }}.</th>{% endfor %}<th rowspan="2">Pue.</th>
+                    {% for area in areas_con_materias %}<th colspan="{% if area.colapsada %}1{% else %}{{ area.materias_del_curso_ordenadas|length|add:1 }}{% endif %}" class="th-area th-vert">{{ area.nombre|upper|svg_vertical:76 }}</th>{% endfor %}
+                    <th rowspan="2">Prom.</th>{% for desempeno in desempenos_headers %}<th rowspan="2">{{ desempeno|slice:":3" }}.</th>{% endfor %}<th rowspan="2">Puesto</th>
                 </tr>
                 <tr>
-                    {% for area in areas_con_materias %}{% for materia in area.materias_del_curso_ordenadas %}<th>{{ materia.abreviatura|default:materia.nombre }}</th>{% endfor %}<th class="th-area">TOT</th>{% endfor %}
+                    {% for area in areas_con_materias %}
+                        {% for materia in area.materias_del_curso_ordenadas %}{% with n=materia.abreviatura|default:materia.nombre %}<th class="th-materia">{% if n|length > 4 %}{{ n|svg_vertical:56 }}{% else %}{{ n }}{% endif %}</th>{% endwith %}{% endfor %}
+                        {% if not area.colapsada %}<th class="th-area th-materia">{{ "DEF. ÁREA"|svg_vertical:56 }}</th>{% endif %}
+                    {% endfor %}
                 </tr>
             </thead>
             <tbody>
@@ -148,6 +157,11 @@
                         {% for celda in data.fila_acumulada.celdas %}
                             <td class="{% if celda.nota|desempeno:colegio == 'BAJO' %}nota-reprobada{% endif %} {% if celda.is_area %}nota-area{% endif %}">
                                 {{ celda.nota|coma_decimal|default_if_none:"-" }}
+                                {% if celda.faltantes %}<span class="aviso-faltante">!</span>{% endif %}
+                                {% if celda.necesaria %}
+                                    {% if celda.necesaria.estado == 'posible' %}<span class="necesaria">&uarr;{{ celda.necesaria.valor|coma_decimal }}</span>
+                                    {% elif celda.necesaria.estado == 'imposible' %}<span class="necesaria imposible">&uarr;&infin;</span>{% endif %}
+                                {% endif %}
                             </td>
                         {% endfor %}
                         <td>
@@ -177,7 +191,7 @@
                         {% with desempeno=celda.desempenos|get_item:d_header %}
                         <td>
                             {{ desempeno.count }}
-                            <span style="color: #555;">({{ desempeno.percentage|floatformat:1 }}%)</span>
+                            <br><span style="color: #555; font-weight: normal;">({{ desempeno.percentage|floatformat:1 }}%)</span>
                         </td>
                         {% endwith %}
                     {% endfor %}
