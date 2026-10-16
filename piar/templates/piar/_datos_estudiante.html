@@ -1,0 +1,9 @@
+<table class="t">
+    <tr><th style="width:18%">Estudiante</th><td style="width:32%">{{ est.user.last_name|upper }} {{ est.user.first_name|upper }}</td>
+        <th style="width:18%">Documento</th><td>{% if ficha.numero_documento %}{{ ficha.get_tipo_documento_display }} {{ ficha.numero_documento }}{% else %}—{% endif %}</td></tr>
+    <tr><th>Curso</th><td>{{ est.curso.nombre|default:"—" }}{% if est.curso.sede %} · {{ est.curso.sede.nombre }}{% endif %}</td>
+        <th>Fecha de nacimiento</th><td>{{ ficha.fecha_nacimiento|date:"d/m/Y"|default:"—" }}{% if edad %} ({{ edad }} años){% endif %}</td></tr>
+    <tr><th>Acudiente</th><td>{% firstof ficha.nombre_acudiente ficha.nombre_madre "—" %}</td>
+        <th>Teléfono</th><td>{% firstof ficha.celular_acudiente ficha.celular_madre "—" %}</td></tr>
+    <tr><th>EPS</th><td>{{ ficha.eps|default:"—" }}</td><th>Año lectivo</th><td>{{ piar.ano_lectivo }}</td></tr>
+</table>

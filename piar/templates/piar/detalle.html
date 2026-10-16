@@ -1,0 +1,66 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0">PIAR {{ piar.ano_lectivo }} · {{ est.user.get_full_name }}</h4>
+        <p class="text-muted small mb-0">{{ est.curso.nombre|default:"Sin curso" }} ·
+            {% if piar.estado == 'VIGENTE' %}<span class="text-success fw-semibold">Vigente desde {{ piar.fecha_acta|date:"d/m/Y" }}</span>{% else %}<span class="text-warning fw-semibold">En elaboración</span>{% endif %}</p></div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'piar:pdf' piar.pk %}" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="fas fa-file-pdf me-1"></i>PIAR en PDF</a>
+        <a href="{% url 'piar:acta' piar.pk %}" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="fas fa-file-signature me-1"></i>Acta de acuerdo</a>
+        <a href="{% url 'piar:panel' %}?ano={{ piar.ano_lectivo }}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>PIAR</a>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'piar/_estilos.html' %}
+{% if otros %}<p class="small text-muted">Otros años: {% for o in otros %}<a href="{% url 'piar:detalle' o.pk %}">{{ o.ano_lectivo }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+
+{% if not general %}{% include 'piar/_matriz.html' %}{% endif %}
+<div class="pi-tarjeta">
+    <h6 class="fw-bold">1. Información del estudiante y valoración pedagógica</h6>
+    {% if general %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="que" value="general">
+        <div class="row g-3">{% for campo in form %}
+            <div class="{% if campo.name == 'fecha_elaboracion' or campo.name == 'categoria' %}col-md-3{% elif campo.name == 'elaborado_por' or campo.name == 'fuente_diagnostico' %}col-md-6{% else %}col-md-6{% endif %}">
+                <label class="form-label small fw-semibold mb-1" for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}
+                {% if campo.help_text %}<div class="pi-ayuda">{{ campo.help_text }}</div>{% endif %}{{ campo.errors }}</div>
+        {% endfor %}</div>
+        <button class="btn btn-primary mt-3"><i class="fas fa-save me-1"></i>Guardar información</button>
+    </form>
+    {% else %}
+    <dl class="row mb-0 small">
+        <dt class="col-sm-3">Categoría</dt><dd class="col-sm-9">{{ piar.get_categoria_display|default:"—" }}</dd>
+        {% for campo in form %}{% if campo.name != 'categoria' and campo.name != 'fecha_elaboracion' and campo.value %}<dt class="col-sm-3">{{ campo.label }}</dt><dd class="col-sm-9" style="white-space:pre-line">{{ campo.value }}</dd>{% endif %}{% endfor %}
+    </dl>
+    {% endif %}
+</div>
+
+{% if general %}{% include 'piar/_matriz.html' %}{% endif %}
+
+<div class="pi-tarjeta">
+    <h6 class="fw-bold">3. Acta de acuerdo con la familia</h6>
+    {% if general %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="que" value="acta">
+        <div class="row g-3">
+            <div class="col-md-6"><label class="form-label small fw-semibold mb-1">{{ acta.compromisos_familia.label }}</label>{{ acta.compromisos_familia }}</div>
+            <div class="col-md-6"><label class="form-label small fw-semibold mb-1">{{ acta.compromisos_colegio.label }}</label>{{ acta.compromisos_colegio }}</div>
+            <div class="col-md-12"><label class="form-label small fw-semibold mb-1">{{ acta.recomendaciones.label }}</label>{{ acta.recomendaciones }}<div class="pi-ayuda">{{ acta.recomendaciones.help_text }}</div></div>
+            <div class="col-md-4"><label class="form-label small fw-semibold mb-1">{{ acta.fecha_acta.label }}</label>{{ acta.fecha_acta }}
+                <div class="pi-ayuda">Imprima el acta, fírmela con la familia y ponga aquí la fecha: el PIAR queda vigente.</div></div>
+            <div class="col-md-8 d-flex align-items-center"><div class="form-check">{{ acta.compartido_familia }}<label class="form-check-label" for="{{ acta.compartido_familia.id_for_label }}">{{ acta.compartido_familia.label }}</label>
+                <div class="pi-ayuda">{{ acta.compartido_familia.help_text }}</div></div></div>
+        </div>
+        <button class="btn btn-primary mt-3"><i class="fas fa-save me-1"></i>Guardar acta</button>
+    </form>
+    {% else %}
+    <dl class="row mb-0 small">
+        <dt class="col-sm-3">Compromisos de la familia</dt><dd class="col-sm-9" style="white-space:pre-line">{{ piar.compromisos_familia|default:"—" }}</dd>
+        <dt class="col-sm-3">Compromisos del colegio</dt><dd class="col-sm-9" style="white-space:pre-line">{{ piar.compromisos_colegio|default:"—" }}</dd>
+    </dl>
+    {% endif %}
+</div>
+{% if es_admin %}
+<form method="post" action="{% url 'piar:eliminar' piar.pk %}" onsubmit="return confirm('¿Eliminar este PIAR con todos sus ajustes? No se puede deshacer.');">{% csrf_token %}
+    <button class="btn btn-link text-danger btn-sm px-0"><i class="fas fa-trash me-1"></i>Eliminar este PIAR</button></form>
+{% endif %}
+{% endblock %}

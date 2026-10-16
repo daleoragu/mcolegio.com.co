@@ -1,0 +1,45 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0">{{ materia.nombre }} · {{ periodo.get_nombre_display }}</h4>
+        <p class="text-muted small mb-0">Ajustes razonables para {{ est.user.get_full_name }} ({{ est.curso.nombre }})</p></div>
+    <a href="{% url 'piar:detalle' piar.pk %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Volver al PIAR</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'piar/_estilos.html' %}
+<div class="row g-3">
+<div class="col-lg-8">
+    <div class="pi-tarjeta">
+        {% if anterior and not obj and not copiado %}<div class="alert alert-info py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span class="small">¿Siguen los mismos ajustes del {{ anterior.periodo.get_nombre_display|lower }}?</span>
+            <a href="?copiar=1" class="btn btn-sm btn-info text-white"><i class="fas fa-copy me-1"></i>Traer los del periodo anterior</a></div>{% endif %}
+        {% if copiado %}<div class="alert alert-info py-2 small">Se trajeron los ajustes del {{ anterior.periodo.get_nombre_display|lower }}. Revíselos y guarde.</div>{% endif %}
+        <form method="post">{% csrf_token %}
+            <label class="form-label small fw-semibold mb-1">{{ form.objetivos.label }}</label>{{ form.objetivos }}
+            <div class="pi-ayuda mb-3">Lo que se espera que el estudiante aprenda este periodo, a partir de los aprendizajes del grado.</div>
+            <label class="form-label small fw-semibold mb-1">{{ form.barreras.label }}</label>{{ form.barreras }}
+            <div class="pi-ayuda mb-3">Lo que en su clase le impide o le dificulta aprender o participar.</div>
+            <label class="form-label small fw-semibold mb-1">{{ form.tipos.label }}</label>
+            <div class="d-flex gap-3 flex-wrap mb-2">{% for c in form.tipos %}<div class="form-check">{{ c.tag }}<label class="form-check-label" for="{{ c.id_for_label }}">{{ c.choice_label }}</label></div>{% endfor %}</div>
+            <label class="form-label small fw-semibold mb-1">{{ form.ajustes.label }}</label>{{ form.ajustes }}{{ form.ajustes.errors }}
+            <div class="pi-ayuda mb-3">Qué va a hacer distinto: materiales, tiempos, forma de explicar, forma de evaluar, ubicación, apoyos.</div>
+            <label class="form-label small fw-semibold mb-1">{{ form.evaluacion.label }}</label>{{ form.evaluacion }}
+            <div class="pi-ayuda mb-3">{{ form.evaluacion.help_text }} Puede llenarla al cierre del periodo.</div>
+            <button class="btn btn-primary"><i class="fas fa-save me-1"></i>Guardar</button>
+        </form>
+    </div>
+</div>
+<div class="col-lg-4">
+    <div class="pi-tarjeta small">
+        <h6 class="fw-bold">Del PIAR del estudiante</h6>
+        {% if piar.categoria %}<p class="mb-2"><strong>{{ piar.get_categoria_display }}</strong></p>{% endif %}
+        {% if piar.fortalezas %}<p class="mb-1 fw-semibold">Fortalezas</p><p style="white-space:pre-line">{{ piar.fortalezas }}</p>{% endif %}
+        {% if piar.barreras %}<p class="mb-1 fw-semibold">Barreras generales</p><p style="white-space:pre-line">{{ piar.barreras }}</p>{% endif %}
+        {% if piar.apoyos_requeridos %}<p class="mb-1 fw-semibold">Apoyos que requiere</p><p style="white-space:pre-line">{{ piar.apoyos_requeridos }}</p>{% endif %}
+        {% if not piar.fortalezas and not piar.barreras and not piar.apoyos_requeridos %}<p class="text-muted mb-0">Todavía no tiene la valoración pedagógica.</p>{% endif %}
+    </div>
+    <div class="pi-tarjeta small text-muted">Los indicadores que salen en el boletín del estudiante se siguen poniendo en la planilla con el botón <i class="fas fa-universal-access"></i>.</div>
+</div>
+</div>
+{% endblock %}

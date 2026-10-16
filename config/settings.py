@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'certificados',    # <--- Certificados de estudio y de calificaciones con QR de verificación
     'circulares',      # <--- Circulares con confirmación de lectura
     'cartera',         # <--- Cartera y pensiones (colegios privados)
+    'piar',            # <--- PIAR, Decreto 1421 (inclusión)
 ]
 
 MIDDLEWARE = [

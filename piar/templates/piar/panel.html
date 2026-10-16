@@ -1,0 +1,59 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0"><i class="fas fa-universal-access me-2" style="color:#7c3aed"></i>PIAR · {{ ano }}</h4>
+        <p class="text-muted small mb-0">Plan Individual de Ajustes Razonables (Decreto 1421 de 2017){% if not coordina %} · estudiantes de sus cursos{% endif %}</p></div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="?ano={{ ano|add:'-1' }}" class="btn btn-outline-secondary btn-sm">{{ ano|add:'-1' }}</a>
+        {% if es_admin %}<a href="{% url 'piar:configuracion' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-user-gear me-1"></i>Docentes de apoyo</a>{% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'piar/_estilos.html' %}
+{% if pendientes %}
+<div class="alert alert-warning">
+    <strong><i class="fas fa-pen-to-square me-1"></i>Le faltan estos ajustes del PIAR:</strong>
+    <ul class="mb-0 mt-1">{% for p, m, per in pendientes %}<li><a href="{% url 'piar:ajuste' p.pk m.pk per.pk %}">{{ p.estudiante.user.get_full_name }} · {{ m.nombre }} · {{ per.get_nombre_display }}</a> <span class="small text-muted">({{ p.estudiante.curso.nombre }})</span></li>{% endfor %}</ul>
+</div>
+{% endif %}
+<div class="row g-3 mb-1">
+    <div class="col-4"><div class="pi-tarjeta"><div class="small text-muted">Estudiantes</div><div class="pi-cifra">{{ filas|length }}</div></div></div>
+    <div class="col-4"><div class="pi-tarjeta"><div class="small text-muted">PIAR vigentes</div><div class="pi-cifra text-success">{{ vigentes }}</div></div></div>
+    <div class="col-4"><div class="pi-tarjeta"><div class="small text-muted">Sin PIAR</div><div class="pi-cifra {% if sin_piar %}text-danger{% endif %}">{{ sin_piar }}</div></div></div>
+</div>
+<div class="pi-tarjeta">
+    <form class="d-flex gap-2 flex-wrap mb-3" method="get">
+        <input type="hidden" name="ano" value="{{ ano }}">
+        <select name="curso_id" class="form-select form-select-sm" style="max-width:220px" onchange="this.form.submit()">
+            <option value="">Todos los cursos</option>
+            {% for c in cursos %}<option value="{{ c.id }}" {% if c.id|stringformat:"s" == curso_id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
+        </select>
+    </form>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>Estudiante</th><th>Curso</th><th>Estado</th><th>Ajustes por asignatura</th><th></th></tr></thead>
+        <tbody>{% for f in filas %}
+        <tr><td>{{ f.est.user.last_name }} {{ f.est.user.first_name }}{% if f.piar.categoria %}<div class="pi-ayuda">{{ f.piar.get_categoria_display }}</div>{% endif %}</td>
+            <td>{{ f.est.curso.nombre|default:"—" }}</td>
+            <td>{% if not f.piar %}<span class="pi-chip no">Sin PIAR</span>{% elif f.piar.estado == 'VIGENTE' %}<span class="pi-chip ok">Vigente</span>{% else %}<span class="pi-chip borr">En elaboración</span>{% endif %}</td>
+            <td>{% if f.avance %}<div class="d-flex align-items-center gap-2"><div class="pi-barra"><div style="width:{{ f.avance.2 }}%"></div></div><span class="small text-muted">{{ f.avance.0 }}/{{ f.avance.1 }}</span></div>{% endif %}</td>
+            <td class="text-end text-nowrap">{% if f.piar %}<a href="{% url 'piar:detalle' f.piar.pk %}" class="btn btn-sm btn-outline-primary">Abrir</a>
+                {% elif f.puede_crear %}<form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="accion" value="crear"><input type="hidden" name="estudiante" value="{{ f.est.id }}">
+                    <button class="btn btn-sm btn-primary"><i class="fas fa-plus me-1"></i>Crear PIAR</button></form>{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="5" class="text-muted py-3">No hay estudiantes de inclusión{% if curso_id %} en este curso{% endif %}.
+            {% if coordina %}Búsquelos abajo para crearles el PIAR, o márquelos como «Estudiante de inclusión» en Gestión de Estudiantes.{% endif %}</td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% if coordina %}
+<div class="pi-tarjeta">
+    <h6 class="fw-bold"><i class="fas fa-magnifying-glass me-1"></i>Crear PIAR a otro estudiante</h6>
+    <form method="get" class="d-flex gap-2" style="max-width:480px"><input type="hidden" name="ano" value="{{ ano }}">
+        <input name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Nombre, apellido o documento"><button class="btn btn-sm btn-outline-primary">Buscar</button></form>
+    {% if q %}<ul class="list-group mt-2" style="max-width:480px">{% for e in encontrados %}
+        <li class="list-group-item d-flex justify-content-between align-items-center py-1"><span>{{ e.user.get_full_name }} <span class="small text-muted">{{ e.curso.nombre }}</span></span>
+            <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="crear"><input type="hidden" name="estudiante" value="{{ e.id }}"><button class="btn btn-sm btn-link">Crear PIAR</button></form></li>
+    {% empty %}<li class="list-group-item small text-muted">No se encontró a nadie con «{{ q }}».</li>{% endfor %}</ul>{% endif %}
+    <p class="pi-ayuda mt-2 mb-0">Al crear el PIAR el estudiante queda marcado como de inclusión (no entra al puesto ni al promedio del curso). Si tenía PIAR el año anterior, el nuevo arranca con esa información.</p>
+</div>
+{% endif %}
+{% endblock %}

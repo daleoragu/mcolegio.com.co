@@ -27,6 +27,8 @@ MODULOS = OrderedDict([
     ('reporte_parcial', ('Reporte parcial con avisos', 'Reporte parcial, aviso a la familia e informe en PDF.',
                          ('/docente/reporte-parcial/', '/reporte-parcial/', '/familia/informe-parcial/'))),
     ('correo', ('Correo interno', 'Mensajería entre docentes, estudiantes y administración.', ('/mensajeria/',))),
+    ('piar', ('PIAR (inclusión)', 'Plan Individual de Ajustes Razonables (Decreto 1421) con acta de acuerdo.',
+              ('/piar/',))),
     ('cartera', ('Cartera y pensiones', 'Cobros, pagos con recibo, morosos, estado de cuenta y paz y salvo.',
                  ('/cartera/',))),
     ('elecciones', ('Elecciones escolares', 'Votaciones de personero, contralor y consejo estudiantil.',

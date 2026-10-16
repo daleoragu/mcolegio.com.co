@@ -1,0 +1,47 @@
+{% extends 'piar/_pdf_base.html' %}
+{% block titulo %}PIAR {{ piar.ano_lectivo }}{% endblock %}
+{% block orientacion %}landscape{% endblock %}
+{% block cuerpo %}
+<h1>PLAN INDIVIDUAL DE AJUSTES RAZONABLES – PIAR</h1>
+<div class="sub">Decreto 1421 de 2017 · Elaborado el {{ piar.fecha_elaboracion|date:"d/m/Y" }}{% if piar.elaborado_por %} por {{ piar.elaborado_por }}{% endif %} · {{ piar.get_estado_display }}</div>
+
+<h2>1. Información general del estudiante</h2>
+{% include 'piar/_datos_estudiante.html' %}
+<table class="t">
+    <tr><th style="width:22%">Categoría</th><td>{{ piar.get_categoria_display|default:"—" }}</td></tr>
+    <tr><th>Diagnóstico</th><td class="pre">{{ piar.diagnostico|default:"—" }}{% if piar.fuente_diagnostico %}<br><em>{{ piar.fuente_diagnostico }}</em>{% endif %}</td></tr>
+    <tr><th>Terapias y apoyos de salud</th><td class="pre">{{ piar.apoyos_salud|default:"—" }}</td></tr>
+    <tr><th>Entorno del hogar</th><td class="pre">{{ piar.entorno_hogar|default:"—" }}</td></tr>
+    <tr><th>Trayectoria escolar</th><td class="pre">{{ piar.trayectoria|default:"—" }}</td></tr>
+</table>
+
+<h2>2. Valoración pedagógica</h2>
+<table class="t">
+    <tr><th style="width:22%">Descripción del estudiante</th><td class="pre">{{ piar.descripcion|default:"—" }}</td></tr>
+    <tr><th>Fortalezas y habilidades</th><td class="pre">{{ piar.fortalezas|default:"—" }}</td></tr>
+    <tr><th>Barreras en el colegio</th><td class="pre">{{ piar.barreras|default:"—" }}</td></tr>
+    <tr><th>Apoyos que requiere</th><td class="pre">{{ piar.apoyos_requeridos|default:"—" }}</td></tr>
+    <tr><th>Expectativas de la familia</th><td class="pre">{{ piar.expectativas_familia|default:"—" }}</td></tr>
+    <tr><th>Expectativas del estudiante</th><td class="pre">{{ piar.expectativas_estudiante|default:"—" }}</td></tr>
+</table>
+
+<h2>3. Ajustes razonables por asignatura</h2>
+{% for b in por_materia %}
+<h3>{{ b.materia.nombre|upper }}{% if b.docentes %} <span style="font-weight:normal; color:#555">· {{ b.docentes|join:", " }}</span>{% endif %}</h3>
+{% if b.ajustes %}
+<table class="t">
+    <thead><tr><th style="width:9%">Periodo</th><th style="width:21%">Objetivos / propósitos</th><th style="width:20%">Barreras</th><th style="width:28%">Ajustes razonables</th><th>Evaluación de los ajustes</th></tr></thead>
+    {% for a in b.ajustes %}<tr><td>{{ a.periodo.get_nombre_display }}</td><td class="pre">{{ a.objetivos }}</td><td class="pre">{{ a.barreras }}</td>
+        <td class="pre">{% if a.tipos %}<strong>{{ a.tipos_texto }}.</strong> {% endif %}{{ a.ajustes }}</td><td class="pre">{{ a.evaluacion }}</td></tr>{% endfor %}
+</table>
+{% else %}<p class="vacio">Sin ajustes registrados.</p>{% endif %}
+{% endfor %}
+
+<h2>4. Recomendaciones</h2>
+<p class="pre">{{ piar.recomendaciones|default:"—" }}</p>
+
+<table class="firmas">
+    <tr><td><div class="linea"></div>Docente de apoyo / orientación</td><td><div class="linea"></div>Director(a) de grupo</td></tr>
+    <tr><td><div class="linea"></div>Acudiente</td><td><div class="linea"></div>Rector(a) o coordinador(a)</td></tr>
+</table>
+{% endblock %}

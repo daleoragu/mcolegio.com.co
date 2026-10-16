@@ -1,0 +1,29 @@
+{% extends 'piar/_pdf_base.html' %}
+{% block titulo %}Acta de acuerdo PIAR{% endblock %}
+{% block cuerpo %}
+<h1>ACTA DE ACUERDO – PIAR {{ piar.ano_lectivo }}</h1>
+<div class="sub">Decreto 1421 de 2017</div>
+{% include 'piar/_datos_estudiante.html' %}
+<p style="text-align:justify">En {{ colegio.ciudad|default:"________________" }}, a los {% if piar.fecha_acta %}{{ piar.fecha_acta|date:"j" }} días del mes de {{ piar.fecha_acta|date:"F" }} de {{ piar.fecha_acta|date:"Y" }}{% else %}____ días del mes de ______________ de {{ piar.ano_lectivo }}{% endif %},
+    se reúnen la familia del estudiante, el estudiante y {{ colegio.nombre }} para conocer el Plan Individual de Ajustes Razonables (PIAR)
+    y acordar los compromisos de cada parte para que el estudiante pueda aprender y participar en igualdad de condiciones.</p>
+
+<h2>Ajustes razonables acordados</h2>
+<table class="t">
+    <tr><th style="width:24%">Asignatura</th><th>Ajustes</th></tr>
+    {% for b in por_materia %}{% if b.ajustes %}{% with a=b.ajustes|last %}<tr><td>{{ b.materia.nombre }}<br><span style="color:#666; font-size:8.5px">{{ a.periodo.get_nombre_display }}</span></td><td class="pre">{{ a.ajustes }}</td></tr>{% endwith %}{% endif %}
+    {% empty %}<tr><td colspan="2" class="vacio">—</td></tr>{% endfor %}
+</table>
+{% if piar.apoyos_requeridos %}<p><strong>Apoyos que requiere:</strong> <span class="pre">{{ piar.apoyos_requeridos }}</span></p>{% endif %}
+
+<h2>Compromisos de la familia</h2>
+<p class="pre">{{ piar.compromisos_familia|default:"______________________________________________________________________________________________" }}</p>
+<h2>Compromisos del colegio</h2>
+<p class="pre">{{ piar.compromisos_colegio|default:"______________________________________________________________________________________________" }}</p>
+
+<p style="margin-top:12px; text-align:justify">Las partes se comprometen a cumplir lo acordado. El PIAR se revisa en cada periodo y se actualiza cada año.</p>
+<table class="firmas">
+    <tr><td><div class="linea"></div>Acudiente<br>C.C.</td><td><div class="linea"></div>Estudiante</td></tr>
+    <tr><td><div class="linea"></div>Docente de apoyo / orientación</td><td><div class="linea"></div>Rector(a) o coordinador(a)</td></tr>
+</table>
+{% endblock %}
