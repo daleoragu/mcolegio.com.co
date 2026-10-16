@@ -166,3 +166,24 @@ class Certificados(ColegioDePrueba):
         c = self.cliente(self.rectora)
         self.assertEqual(c.get('/certificados/importar/plantilla/').status_code, 200)
         self.assertRedirects(c.get('/herramientas/certificados/'), '/certificados/', fetch_redirect_response=False)
+
+
+class LibroFinal(Certificados):
+
+    def test_libro_del_ano_en_pdf(self):
+        c = self.cliente(self.rectora)
+        self.assertContains(c.get('/certificados/libro-final/'), 'Primer folio')
+        r = c.get('/certificados/libro-final/?ano=2026&folio=7')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+
+    def test_datos_del_curso(self):
+        from . import libro
+        d = libro.datos_curso(self.a, self.curso, 2026)
+        self.assertEqual(d['areas'], ['MATEMÁTICAS'])
+        fila = next(f for f in d['filas'] if f['documento'] == '1110555')
+        self.assertEqual(fila['celdas'][0]['nota'], '4,2')
+
+    def test_ano_sin_notas(self):
+        r = self.cliente(self.rectora).get('/certificados/libro-final/?ano=2010')
+        self.assertRedirects(r, '/certificados/libro-final/', fetch_redirect_response=False)

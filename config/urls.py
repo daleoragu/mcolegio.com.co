@@ -36,6 +36,7 @@ urlpatterns = [
     # 7. ACTAS del colegio (solo administradores)
     path('actas/', include('actas.urls', namespace='actas')),
     path('certificados/', include('certificados.urls', namespace='certificados')),
+    path('circulares/', include('circulares.urls', namespace='circulares')),
 
     # 5. RUTAS DE TU APLICACIÓN "NOTAS"
     #    Esta línea incluye todas las URLs de tu archivo 'notas/urls.py'.

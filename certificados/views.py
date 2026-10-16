@@ -266,3 +266,42 @@ def solicitar(request):
             request.build_absolute_uri(reverse('certificados:panel')))
     messages.success(request, 'Solicitud enviada. Le avisaremos cuando la secretaría la apruebe.')
     return redirect('certificados:mis_certificados')
+
+
+# ---------------------------------------------------------------------------
+# Libro final de calificaciones
+# ---------------------------------------------------------------------------
+@admin_requerido
+def libro(request):
+    from . import libro as libro_mod
+    colegio = request.colegio
+    anos = libro_mod.anos(colegio)
+    ano = request.GET.get('ano')
+    if not ano:
+        return render(request, 'certificados/libro_selector.html', {
+            'colegio': colegio, 'anos': anos, 'cursos': Curso.objects.filter(colegio=colegio).order_by('nombre')})
+    ano = int(ano)
+    if ano not in anos:
+        messages.error(request, f'El colegio no tiene periodos de {ano}.')
+        return redirect('certificados:libro')
+    curso_id = request.GET.get('curso_id') or ''
+    cursos = ([get_object_or_404(Curso, id=curso_id, colegio=colegio)] if curso_id
+              else libro_mod.cursos_del_ano(colegio, ano))
+    secciones = [s for s in (libro_mod.datos_curso(colegio, c, ano) for c in cursos) if s['filas']]
+    if not secciones:
+        messages.error(request, f'No hay notas de {ano} para generar el libro.')
+        return redirect('certificados:libro')
+    try:
+        from weasyprint import HTML
+    except ImportError:
+        return HttpResponse('La generación de PDF no está disponible en este servidor.', status=500)
+    conf = ConfiguracionCertificados.de(colegio)
+    rector = conf.firma_nombre.strip() or (colegio.admin_general.get_full_name() if colegio.admin_general_id else '')
+    html = render_to_string('certificados/libro_pdf.html', {
+        'colegio': colegio, 'ano': ano, 'secciones': secciones, 'conf': conf, 'rector': rector,
+        'folio_inicial': max(1, int(request.GET.get('folio') or 1))}, request=request)
+    datos = HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+    nombre = f'Libro final {ano}' + (f' {cursos[0].nombre}' if curso_id else '')
+    r = HttpResponse(datos, content_type='application/pdf')
+    r['Content-Disposition'] = f'inline; filename="{nombre}.pdf"'
+    return r

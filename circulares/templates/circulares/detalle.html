@@ -1,0 +1,39 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0">Circular N.º {{ c.numero }} · {{ c.titulo }}</h4>
+        <p class="text-muted small mb-0">{{ c.get_para_display }}{% if c.para == 'CURSOS' %}: {{ c.cursos.all|join:", " }}{% endif %} · publicada el {{ c.publicada|date:"d/m/Y h:i a" }}</p></div>
+    <div class="d-flex gap-2"><a href="{% url 'circulares:ver' c.id %}" class="btn btn-outline-secondary btn-sm">Ver la circular</a>
+        <a href="{% url 'circulares:lista' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Volver</a></div>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'circulares/_estilos.html' %}
+<div class="row g-3 mb-1">
+    <div class="col-md-4"><div class="ci-tarjeta text-center"><div class="fs-2 fw-bold">{{ resumen.total }}</div><div class="small text-muted">destinatarios</div></div></div>
+    <div class="col-md-4"><div class="ci-tarjeta text-center"><div class="fs-2 fw-bold">{{ resumen.abiertas }}</div><div class="small text-muted">la abrieron</div></div></div>
+    <div class="col-md-4"><div class="ci-tarjeta text-center"><div class="fs-2 fw-bold text-success">{% if c.pide_confirmacion %}{{ resumen.confirmadas }}{% else %}{{ resumen.pct }}%{% endif %}</div>
+        <div class="small text-muted">{% if c.pide_confirmacion %}confirmaron la lectura{% if c.fecha_limite %} (plazo {{ c.fecha_limite|date:"d/m/Y" }}){% endif %}{% else %}de lectura{% endif %}</div></div></div>
+</div>
+<div class="ci-tarjeta">
+    <ul class="nav nav-pills mb-3">
+        <li class="nav-item"><a class="nav-link {% if filtro == 'pendientes' %}active{% endif %}" href="?ver=pendientes">Faltan</a></li>
+        <li class="nav-item"><a class="nav-link {% if filtro == 'listos' %}active{% endif %}" href="?ver=listos">{% if c.pide_confirmacion %}Confirmaron{% else %}La leyeron{% endif %}</a></li>
+        <li class="nav-item"><a class="nav-link {% if filtro == 'todos' %}active{% endif %}" href="?ver=todos">Todos</a></li>
+    </ul>
+    {% if filtro == 'pendientes' %}<p class="small text-muted">Para recordarle a una familia, toque <span class="badge ci-wa">WhatsApp</span>: se abre con este mensaje listo:
+        <em>«{{ texto }}»</em></p>{% endif %}
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>Curso</th><th>Nombre</th><th>Abrió</th>{% if c.pide_confirmacion %}<th>Confirmó</th>{% endif %}<th></th></tr></thead>
+        <tbody>
+        {% for f in filas %}
+        <tr><td class="small">{% if f.l.estudiante %}{{ f.l.estudiante.curso.nombre }}{% else %}Docente{% endif %}</td>
+            <td>{{ f.l.usuario.last_name }} {{ f.l.usuario.first_name }}</td>
+            <td class="small">{{ f.l.abierta|date:"d/m h:i a"|default:"—" }}</td>
+            {% if c.pide_confirmacion %}<td class="small">{% if f.l.confirmada %}<span class="ci-chip ci-ok">{{ f.l.confirmada|date:"d/m h:i a" }}</span>{% if f.l.quien_confirma %} {{ f.l.quien_confirma }}{% endif %}{% else %}<span class="ci-chip ci-pend">Pendiente</span>{% endif %}</td>{% endif %}
+            <td class="text-end text-nowrap">{% for k in f.contactos %}<a class="btn btn-sm ci-wa ms-1" target="_blank" rel="noopener" href="{{ k.enlace }}" title="{{ k.rol }} {{ k.visible }}"><i class="fab fa-whatsapp me-1"></i>{{ k.rol }}</a>{% endfor %}</td></tr>
+        {% empty %}<tr><td colspan="5" class="text-muted text-center py-3">{% if filtro == 'pendientes' %}¡No falta nadie!{% else %}Nadie todavía.{% endif %}</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-bullhorn me-2"></i>Circulares</h4>{% endblock %}
+{% block content %}
+{% include 'circulares/_estilos.html' %}
+<div class="ci-tarjeta" style="max-width:860px;">
+    {% for l in lecturas %}
+    <a href="{% url 'circulares:ver' l.circular.id %}" class="d-flex justify-content-between align-items-center gap-3 py-2 border-bottom text-decoration-none text-reset">
+        <div><div class="fw-semibold">N.º {{ l.circular.numero }} · {{ l.circular.titulo }}</div>
+            <div class="small text-muted">{{ l.circular.publicada|date:"d/m/Y" }}</div></div>
+        {% if not l.abierta %}<span class="ci-chip ci-nueva">Nueva</span>
+        {% elif l.circular.pide_confirmacion and not l.confirmada %}<span class="ci-chip ci-pend">Falta confirmar</span>
+        {% else %}<span class="ci-chip ci-ok">Leída</span>{% endif %}
+    </a>
+    {% empty %}<p class="text-muted mb-0">No tiene circulares.</p>{% endfor %}
+</div>
+{% endblock %}
