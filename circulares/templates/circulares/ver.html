@@ -1,0 +1,29 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-bullhorn me-2"></i>Circular N.º {{ c.numero }}</h4>{% endblock %}
+{% block content %}
+{% include 'circulares/_estilos.html' %}
+<div style="max-width:820px;">
+    <div class="ci-tarjeta">
+        <h4 class="fw-bold mb-1">{{ c.titulo }}</h4>
+        <p class="small text-muted mb-3">{{ colegio.nombre }} · {{ c.publicada|date:"d/m/Y" }}</p>
+        <div class="ci-cuerpo">{{ c.cuerpo }}</div>
+        {% if c.adjunto %}<a href="{{ c.adjunto.url }}" target="_blank" class="btn btn-outline-primary btn-sm mt-3"><i class="fas fa-paperclip me-1"></i>Abrir el archivo adjunto</a>{% endif %}
+    </div>
+    {% if lectura and c.pide_confirmacion %}
+    <div class="ci-tarjeta">
+        {% if lectura.confirmada %}
+        <p class="mb-0"><span class="ci-chip ci-ok"><i class="fas fa-check me-1"></i>Confirmada</span>
+            el {{ lectura.confirmada|date:"d/m/Y h:i a" }}{% if lectura.quien_confirma %} por {{ lectura.quien_confirma }}{% endif %}.</p>
+        {% else %}
+        <form method="post" action="{% url 'circulares:confirmar' c.id %}" class="d-flex flex-wrap gap-2 align-items-end">{% csrf_token %}
+            <div><label class="form-label small mb-1" for="ci-nombre">Su nombre (acudiente)</label>
+                <input type="text" name="nombre" id="ci-nombre" class="form-control" maxlength="120" placeholder="Opcional"></div>
+            <button class="btn btn-success"><i class="fas fa-check me-1"></i>Leí la circular</button>
+        </form>
+        {% if c.fecha_limite %}<p class="small text-muted mt-2 mb-0">Por favor confirme a más tardar el {{ c.fecha_limite|date:"d/m/Y" }}.</p>{% endif %}
+        {% endif %}
+    </div>
+    {% endif %}
+    <a href="{% if lectura %}{% url 'circulares:mis_circulares' %}{% else %}{% url 'circulares:detalle' c.id %}{% endif %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Volver</a>
+</div>
+{% endblock %}

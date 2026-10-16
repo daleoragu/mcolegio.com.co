@@ -1,0 +1,26 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="mb-0"><i class="fas fa-book me-2"></i>Libro final de calificaciones</h4>
+    <a href="{% url 'certificados:panel' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Certificados</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'certificados/_estilos.html' %}
+<div class="ce-tarjeta" style="max-width:760px;">
+    <p>El consolidado del año para imprimir, firmar y archivar: por cada curso, la definitiva de cada área, el promedio y el resultado de cada estudiante, con los folios numerados.</p>
+    {% if messages %}{% for m in messages %}<div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags }}{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+    <form method="get" target="_blank" class="row g-2 align-items-end">
+        <div class="col-sm-3"><label class="form-label small mb-1" for="ano">Año</label>
+            <select name="ano" id="ano" class="form-select" required>{% for a in anos %}<option value="{{ a }}">{{ a }}</option>{% endfor %}</select></div>
+        <div class="col-sm-4"><label class="form-label small mb-1" for="curso_id">Curso</label>
+            <select name="curso_id" id="curso_id" class="form-select"><option value="">Todos los cursos</option>
+                {% for c in cursos %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}</select></div>
+        <div class="col-sm-2"><label class="form-label small mb-1" for="folio">Primer folio</label>
+            <input type="number" name="folio" id="folio" value="1" min="1" class="form-control"></div>
+        <div class="col-sm-3"><button class="btn btn-primary w-100"><i class="fas fa-file-pdf me-1"></i>Generar PDF</button></div>
+    </form>
+    <p class="small text-muted mt-3 mb-0">«Primer folio» sirve para seguir la numeración de un libro que ya tiene hojas. Las firmas salen de la
+        <a href="{% url 'certificados:configuracion' %}">configuración de certificados</a>.</p>
+</div>
+{% endblock %}
