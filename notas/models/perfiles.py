@@ -143,6 +143,9 @@ class Colegio(models.Model):
 
     # --- Configuración del Portal ---
     portal_publico_activo = models.BooleanField(default=True, verbose_name="¿Portal Público Activo?")
+    nombre_correo = models.CharField(
+        max_length=40, default='Correo interno', verbose_name='Nombre del correo interno',
+        help_text='Cómo se llama el correo de la plataforma en este colegio (por ejemplo, «SanFraMail»).')
     layout_portal = models.CharField(max_length=10, choices=LAYOUT_CHOICES, default='topbar', verbose_name="Diseño del Portal")
 
     def __str__(self):

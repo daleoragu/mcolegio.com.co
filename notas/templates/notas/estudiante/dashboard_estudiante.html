@@ -140,7 +140,7 @@
         </a>
         <a href="{% url 'notas:bandeja_entrada' %}" class="app-icon">
             <div class="icon-container bg-est-mail"><i class="fas fa-envelope"></i></div>
-            <span class="app-label">CofraMail</span>
+            <span class="app-label">{{ colegio.nombre_correo|default:"Correo interno" }}</span>
         </a>
         <a href="{% url 'notas:portal' %}" class="app-icon">
             <div class="icon-container bg-est-portal"><i class="fas fa-globe"></i></div>
