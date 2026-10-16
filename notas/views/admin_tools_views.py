@@ -12,6 +12,7 @@ from django.contrib.auth import get_user_model
 from django import forms
 from django.forms import modelformset_factory
 from django.db.models import Max
+from django.utils import timezone
 from django.views.generic.edit import UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import ImproperlyConfigured, ValidationError
@@ -130,9 +131,44 @@ def panel_control_periodos_vista(request):
                 mensaje_notificacion = f"El plazo para registrar Nivelaciones del {periodo} ha sido {estado}."
                 url_notificacion = reverse('notas:plan_mejoramiento')
             
+            elif action in ('programar_cierre', 'cancelar_cierre'):
+                from ..plazos import PLAZOS, avisar_docentes
+                item = request.POST.get('item')
+                if item not in PLAZOS:
+                    messages.error(request, "Plazo no reconocido.")
+                    return redirect('notas:panel_control_periodos')
+                interruptor, cierre, nombre, url_nombre = PLAZOS[item]
+                if action == 'cancelar_cierre':
+                    setattr(periodo, cierre, None)
+                    periodo.save(update_fields=[cierre])
+                    messages.info(request, f"Se quitó el cierre programado de {nombre} del {periodo}: queda abierto hasta que lo cierre.")
+                    return redirect('notas:panel_control_periodos')
+                from datetime import datetime
+                try:
+                    fecha = timezone.make_aware(datetime.strptime(request.POST.get('fecha', ''), '%Y-%m-%dT%H:%M'))
+                except ValueError:
+                    messages.error(request, "Escoja la fecha y la hora del cierre.")
+                    return redirect('notas:panel_control_periodos')
+                if fecha <= timezone.now():
+                    messages.error(request, "La fecha del cierre ya pasó: escoja una fecha y hora futuras.")
+                    return redirect('notas:panel_control_periodos')
+                estaba_abierto = getattr(periodo, interruptor)
+                setattr(periodo, interruptor, True)       # programar el cierre de algo cerrado lo abre hasta esa fecha
+                setattr(periodo, cierre, fecha)
+                periodo.save(update_fields=[interruptor, cierre])
+                cuando = timezone.localtime(fecha).strftime('%d/%m/%Y a las %I:%M %p').replace('AM', 'a. m.').replace('PM', 'p. m.')
+                messages.success(request, f"{nombre} del {periodo} {'queda abierto' if estaba_abierto else 'se abrió'} y se cierra solo el {cuando}")
+                avisar_docentes(request.colegio, f"{nombre} del {periodo}: abierto hasta el {cuando}.", url_nombre)
+                return redirect('notas:panel_control_periodos')
+
             else:
                 messages.error(request, "Acción no reconocida.")
 
+            # Abrir o cerrar a mano deja sin efecto un cierre programado que ya no aplica.
+            from ..plazos import PLAZOS
+            for interruptor, cierre, _, _ in PLAZOS.values():
+                if not getattr(periodo, interruptor) or (getattr(periodo, cierre) and getattr(periodo, cierre) <= timezone.now()):
+                    setattr(periodo, cierre, None)
             periodo.save()
             
             if mensaje_notificacion:

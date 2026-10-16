@@ -24,6 +24,26 @@ from .. import avisos_familia
 def es_docente_o_superuser(user):
     return es_admin_usuario(user) or es_docente_usuario(user)
 
+
+def _cursos_de_la_sede_del_docente(docente, colegio):
+    """Todos los cursos de las sedes donde el docente tiene clase.
+
+    Un docente puede anotar en el observador a cualquier estudiante de su
+    sede, no solo a los de sus cursos (el que lo vio en el patio, en el
+    descanso, en una salida). Si el colegio no usa sedes, son todos los cursos.
+    """
+    from django.db.models import Q
+    asignados = Curso.objects.filter(
+        colegio=colegio,
+        id__in=AsignacionDocente.objects.filter(docente=docente, colegio=colegio).values_list('curso_id', flat=True))
+    sedes = set(asignados.values_list('sede_id', flat=True))
+    filtro = Q(sede_id__in=[s for s in sedes if s is not None])
+    if None in sedes:
+        filtro |= Q(sede__isnull=True)
+    if not sedes:
+        return Curso.objects.none()
+    return Curso.objects.filter(colegio=colegio).filter(filtro).order_by('nombre')
+
 @login_required
 @user_passes_test(es_docente_o_superuser)
 def observador_selector_vista(request):
@@ -31,34 +51,43 @@ def observador_selector_vista(request):
         return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
 
     user = request.user
-    cursos = []
+    cursos = Curso.objects.none()
+    mis_cursos_ids = set()
     estudiantes = Estudiante.objects.none()
 
     if es_admin_usuario(user):
         cursos = Curso.objects.filter(colegio=request.colegio).order_by('nombre')
     else:
-        try:
-            docente = get_object_or_404(Docente, user=user, colegio=request.colegio)
-            cursos_ids = AsignacionDocente.objects.filter(docente=docente, colegio=request.colegio).values_list('curso_id', flat=True).distinct()
-            cursos = Curso.objects.filter(id__in=cursos_ids, colegio=request.colegio).order_by('nombre')
-        except Docente.DoesNotExist:
+        docente = Docente.objects.filter(user=user, colegio=request.colegio).first()
+        if docente is None:
             messages.error(request, "Su perfil no está asociado a un docente en este colegio.")
             return redirect('notas:dashboard')
+        cursos = _cursos_de_la_sede_del_docente(docente, request.colegio)
+        mis_cursos_ids = set(AsignacionDocente.objects.filter(docente=docente, colegio=request.colegio)
+                             .values_list('curso_id', flat=True))
 
     curso_seleccionado_id = request.GET.get('curso_id')
     if curso_seleccionado_id:
-        estudiantes = Estudiante.objects.filter(
-            curso_id=curso_seleccionado_id, colegio=request.colegio, is_active=True
-        ).select_related('user', 'curso').order_by('user__last_name', 'user__first_name')
+        estudiantes = Estudiante.objects.filter(colegio=request.colegio, is_active=True)
+        if curso_seleccionado_id == 'todos':
+            # Todos los estudiantes de la(s) sede(s) del docente, para buscar por nombre.
+            estudiantes = estudiantes.filter(curso__in=cursos)
+        else:
+            estudiantes = estudiantes.filter(curso_id=curso_seleccionado_id, curso__in=cursos)
+        estudiantes = estudiantes.select_related('user', 'curso').order_by('user__last_name', 'user__first_name')
 
     if request.method == 'POST':
         estudiante_id = request.POST.get('estudiante_id')
         if estudiante_id:
             return redirect('notas:vista_detalle_observador', estudiante_id=estudiante_id)
 
+    mis = [c for c in cursos if c.id in mis_cursos_ids] if not es_admin_usuario(user) else []
+    otros = [c for c in cursos if c.id not in mis_cursos_ids] if not es_admin_usuario(user) else list(cursos)
     context = {
         'colegio': request.colegio,
         'cursos': cursos,
+        'mis_cursos': mis,
+        'otros_cursos': otros,
         'estudiantes': estudiantes,
         'curso_seleccionado_id': curso_seleccionado_id,
         'page_title': 'Seleccionar Estudiante para Observador'

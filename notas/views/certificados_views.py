@@ -1,6 +1,6 @@
 # notas/views/certificados_views.py
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpResponse, HttpResponseNotFound
 
@@ -20,6 +20,7 @@ def selector_certificados_vista(request):
     Muestra una lista de estudiantes para que el administrador pueda
     seleccionar a quién generar el certificado.
     """
+    return redirect('certificados:panel')
     if not request.colegio:
         return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
 
@@ -44,6 +45,14 @@ def generar_certificado_estudio_pdf(request, estudiante_id):
     """
     Genera el PDF del certificado de estudio para un estudiante específico.
     """
+    # Sale por el módulo de certificados, con su código de verificación.
+    from certificados import logica
+    estudiante = get_object_or_404(Estudiante, id=estudiante_id, colegio=request.colegio)
+    try:
+        cert = logica.emitir(estudiante, 'ESTUDIO', usuario=request.user)
+    except logica.SinDatos as e:
+        return HttpResponse(str(e), status=400)
+    return redirect('certificados:pdf', codigo=cert.codigo)
     if not request.colegio:
         return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
 

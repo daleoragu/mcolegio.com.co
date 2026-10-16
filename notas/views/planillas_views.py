@@ -104,8 +104,32 @@ def guardar_columnas(request, asignacion_id, periodo_id):
     periodo = get_object_or_404(PeriodoAcademico, id=periodo_id, colegio=request.colegio)
     if not _puede_editar(request, asignacion):
         return HttpResponseForbidden('Esta asignatura no es suya.')
+    pedidas = {codigo: request.POST.getlist(f'col_{codigo}') for codigo, _, _ in componentes_activos(asignacion)}
+    _aplicar_columnas(request, asignacion, periodo, pedidas)
+    otras = []
+    if request.POST.get('aplicar_todas') and asignacion.docente_id:
+        # La misma cantidad y nombres de notas en todas las asignaturas del
+        # docente en este periodo (cada una conserva las columnas con notas).
+        otras = list(AsignacionDocente.objects.filter(docente_id=asignacion.docente_id, colegio=request.colegio)
+                     .exclude(id=asignacion.id).select_related('materia', 'curso'))
+        for otra in otras:
+            _aplicar_columnas(request, otra, periodo, pedidas)
+    if otras:
+        messages.success(request, f'Columnas guardadas en {len(otras) + 1} asignaturas de este periodo. '
+                                  f'Así salen en línea y en el Excel.')
+    else:
+        messages.success(request, f'Columnas de {asignacion.curso.nombre} · {asignacion.materia.nombre} guardadas. '
+                                  f'Así salen en línea y en el Excel.')
+    url = reverse('notas:mis_planillas') + f'?periodo={periodo.id}'
+    if es_admin(request) and asignacion.docente_id:
+        url += f'&docente={asignacion.docente_id}'
+    return redirect(url + f'#asig-{asignacion.id}')
+
+
+def _aplicar_columnas(request, asignacion, periodo, pedidas):
+    """Guarda las columnas pedidas ({código: [nombres]}) en una asignatura."""
     for codigo, nombre, _ in componentes_activos(asignacion):
-        nombres = [n for n in request.POST.getlist(f'col_{codigo}')]
+        nombres = pedidas.get(codigo) or []
         if not nombres:
             continue
         # Lo que ya tiene notas no se puede quitar: se conserva al final.
@@ -116,15 +140,10 @@ def guardar_columnas(request, asignacion_id, periodo_id):
         for d in dict.fromkeys(con_notas):
             if d not in limpios:
                 limpios.append(d)
-                messages.warning(request, f'«{d}» de {nombre} ya tiene notas, así que se dejó. '
+                messages.warning(request, f'«{d}» de {nombre} en {asignacion.curso.nombre} · '
+                                          f'{asignacion.materia.nombre} ya tiene notas, así que se dejó. '
                                           f'Bórrele las notas en la planilla en línea si quiere quitarla.')
         guardar_plan(asignacion, periodo, codigo, limpios[:TOPE_COLUMNAS])
-    messages.success(request, f'Columnas de {asignacion.curso.nombre} · {asignacion.materia.nombre} guardadas. '
-                              f'Así salen en línea y en el Excel.')
-    url = reverse('notas:mis_planillas') + f'?periodo={periodo.id}'
-    if es_admin(request) and asignacion.docente_id:
-        url += f'&docente={asignacion.docente_id}'
-    return redirect(url + f'#asig-{asignacion.id}')
 
 
 def _nombre_archivo(texto):

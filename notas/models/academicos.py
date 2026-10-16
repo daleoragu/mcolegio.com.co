@@ -74,6 +74,12 @@ class PeriodoAcademico(models.Model):
     esta_activo = models.BooleanField(default=True, verbose_name="Ingreso de Notas Activo")
     reporte_parcial_activo = models.BooleanField(default=True, verbose_name="Reporte Parcial Activo")
     nivelaciones_activas = models.BooleanField(default=False, verbose_name="Nivelaciones Activas")
+    # Cierre programado: a esa fecha y hora el plazo se cierra solo (ver notas/plazos.py).
+    cierre_notas = models.DateTimeField(null=True, blank=True, verbose_name="Cierre programado del ingreso de notas")
+    cierre_reporte_parcial = models.DateTimeField(null=True, blank=True,
+                                                  verbose_name="Cierre programado del reporte parcial")
+    cierre_nivelaciones = models.DateTimeField(null=True, blank=True,
+                                               verbose_name="Cierre programado de las nivelaciones")
     class Meta:
         unique_together = ('nombre', 'ano_lectivo', 'colegio')
         verbose_name = "Periodo Académico"; verbose_name_plural = "Periodos Académicos"; ordering = ['-ano_lectivo', 'fecha_inicio']

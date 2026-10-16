@@ -1,0 +1,77 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-award me-2"></i>Mis certificados</h4>{% endblock %}
+{% block content %}
+{% include 'certificados/_estilos.html' %}
+<div style="max-width:820px;">
+{% if conf.modo_entrega == 'SECRETARIA' %}
+    <div class="alert alert-info">En {{ colegio.nombre }} los certificados se piden en la secretaría. Aquí puede descargar los que ya le entregaron.</div>
+{% elif conf.modo_entrega == 'APROBACION' %}
+    <p class="text-muted">Pida el certificado que necesita; cuando la secretaría lo apruebe, le llega un aviso y lo descarga aquí mismo.</p>
+{% else %}
+    <p class="text-muted">Descargue el certificado que necesita. Cada uno lleva un código QR para que quien lo reciba compruebe que es auténtico.</p>
+{% endif %}
+
+{% if conf.modo_entrega != 'SECRETARIA' %}
+<div class="ce-tarjeta">
+    <h5><i class="fas fa-table-list me-2 text-primary"></i>Certificado de calificaciones</h5>
+    {% for a in anos %}
+    <div class="ce-ano"><strong>{{ a }}</strong>
+        {% if conf.modo_entrega == 'LIBRE' %}
+        <form method="post" action="{% url 'certificados:solicitar' %}" target="_blank">{% csrf_token %}
+            <input type="hidden" name="tipo" value="CALIFICACIONES"><input type="hidden" name="ano" value="{{ a }}">
+            <button class="btn btn-primary btn-sm"><i class="fas fa-download me-1"></i>Descargar</button></form>
+        {% else %}
+        <form method="post" action="{% url 'certificados:solicitar' %}" class="ce-pedir">{% csrf_token %}
+            <input type="hidden" name="tipo" value="CALIFICACIONES"><input type="hidden" name="ano" value="{{ a }}"><input type="hidden" name="motivo">
+            <button class="btn btn-outline-primary btn-sm"><i class="fas fa-paper-plane me-1"></i>Pedir</button></form>
+        {% endif %}
+    </div>
+    {% empty %}<p class="text-muted small mb-0">Todavía no hay notas finales para certificar.</p>{% endfor %}
+</div>
+{% if est.is_active and est.curso %}
+<div class="ce-tarjeta">
+    <h5><i class="fas fa-id-card me-2 text-success"></i>Certificado de estudio</h5>
+    <div class="ce-ano"><span class="small">Hace constar que está matriculado(a) este año.</span>
+        <form method="post" action="{% url 'certificados:solicitar' %}" {% if conf.modo_entrega == 'LIBRE' %}target="_blank"{% else %}class="ce-pedir"{% endif %}>{% csrf_token %}
+            <input type="hidden" name="tipo" value="ESTUDIO"><input type="hidden" name="motivo">
+            <button class="btn btn-{% if conf.modo_entrega == 'LIBRE' %}success{% else %}outline-success{% endif %} btn-sm">
+                {% if conf.modo_entrega == 'LIBRE' %}<i class="fas fa-download me-1"></i>Descargar{% else %}<i class="fas fa-paper-plane me-1"></i>Pedir{% endif %}</button></form>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% if solicitudes %}
+<div class="ce-tarjeta">
+    <h5><i class="fas fa-inbox me-2 text-warning"></i>Mis solicitudes</h5>
+    {% for s in solicitudes %}
+    <div class="ce-ano"><div>{{ s.get_tipo_display }}{% if s.tipo == 'CALIFICACIONES' %} {{ s.ano_lectivo }}{% endif %}
+        <div class="small text-muted">{{ s.solicitada|date:"d/m/Y" }}{% if s.respuesta %} · {{ s.respuesta }}{% endif %}</div></div>
+        <div>{% if s.estado == 'APROBADA' and s.certificado and not s.certificado.anulado %}
+            <a class="btn btn-primary btn-sm" target="_blank" href="{% url 'certificados:pdf' s.certificado.codigo %}"><i class="fas fa-download me-1"></i>Descargar</a>
+            {% else %}<span class="ce-chip ce-{{ s.estado }}">{{ s.get_estado_display }}</span>{% endif %}</div></div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if emitidos %}
+<div class="ce-tarjeta">
+    <h5><i class="fas fa-folder-open me-2 text-secondary"></i>Certificados que ya tiene</h5>
+    {% for c in emitidos %}
+    <div class="ce-ano"><div>{{ c.get_tipo_display }}{% if c.tipo == 'CALIFICACIONES' %} {{ c.ano_lectivo }}{% endif %}
+        <div class="small text-muted">Expedido el {{ c.emitido|date:"d/m/Y" }} · código <span class="ce-codigo">{{ c.codigo }}</span></div></div>
+        <a class="btn btn-outline-primary btn-sm" target="_blank" href="{% url 'certificados:pdf' c.codigo %}"><i class="fas fa-download me-1"></i>PDF</a></div>
+    {% endfor %}
+</div>
+{% endif %}
+</div>
+<script>
+document.querySelectorAll('form.ce-pedir').forEach(function (f) {
+    f.addEventListener('submit', function (ev) {
+        var r = prompt('¿Para qué lo necesita? (opcional: traslado, universidad, trabajo…)', '');
+        if (r === null) { ev.preventDefault(); return; }
+        f.motivo.value = r;
+    });
+});
+</script>
+{% endblock %}

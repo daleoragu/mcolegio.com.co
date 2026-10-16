@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'puntoexacto',     # <--- PuntoExacto: exámenes de selección múltiple
     'prematricula',    # <--- Prematrícula desde el portal
     'actas',           # <--- Actas: comisión de evaluación y promoción, actas libres
+    'certificados',    # <--- Certificados de estudio y de calificaciones con QR de verificación
 ]
 
 MIDDLEWARE = [

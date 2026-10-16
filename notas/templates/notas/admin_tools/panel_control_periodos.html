@@ -21,6 +21,8 @@
     .table th, .table td {
         vertical-align: middle;
     }
+    .pc-programar { padding: .2rem .45rem; margin-left: 2px; }
+    .pc-cierre { font-size: .75rem; color: #9a3412; margin-top: 4px; white-space: nowrap; }
     .form-switch .form-check-input {
         width: 3em;
         height: 1.5em;
@@ -45,7 +47,8 @@
 
 <div class="admin-panel-card">
     <h4><i class="fas fa-toggle-on me-2"></i>Gestión de Plazos por Periodo</h4>
-    <p class="text-muted">Desde aquí puede habilitar o deshabilitar de forma independiente los diferentes procesos académicos para cada periodo.</p>
+    <p class="text-muted">Desde aquí puede habilitar o deshabilitar de forma independiente los diferentes procesos académicos para cada periodo.
+        Con <i class="fas fa-clock"></i> deja programada la fecha y hora en que el plazo se cierra solo.</p>
     <div class="table-responsive">
         <table class="table table-hover align-middle">
             <thead class="table-light">
@@ -73,6 +76,19 @@
                                 {% if periodo.esta_activo %}Abierto{% else %}Cerrado{% endif %}
                             </button>
                         </form>
+                        <button type="button" class="btn btn-sm btn-outline-secondary pc-programar" title="Programar cierre"
+                                data-bs-toggle="modal" data-bs-target="#cierreModal" data-periodo="{{ periodo.id }}" data-item="notas"
+                                data-nombre="Ingreso de Notas · {{ periodo.get_nombre_display }} {{ periodo.ano_lectivo }}"
+                                data-abierto="{{ periodo.esta_activo|yesno:'1,0' }}"
+                                data-fecha="{% if periodo.cierre_notas %}{{ periodo.cierre_notas|date:'Y-m-d\\TH:i' }}{% endif %}"><i class="fas fa-clock"></i></button>
+                        {% if periodo.cierre_notas and periodo.esta_activo %}
+                        <div class="pc-cierre">Se cierra el {{ periodo.cierre_notas|date:"d/m/Y h:i A" }}
+                            <form method="POST" class="d-inline">{% csrf_token %}
+                                <input type="hidden" name="action" value="cancelar_cierre"><input type="hidden" name="item" value="notas">
+                                <input type="hidden" name="periodo_id" value="{{ periodo.id }}">
+                                <button type="submit" class="btn btn-link btn-sm p-0 ms-1 text-danger" title="Quitar el cierre programado">×</button></form>
+                        </div>
+                        {% endif %}
                     </td>
 
                     <td class="text-center">
@@ -84,6 +100,19 @@
                                 {% if periodo.reporte_parcial_activo %}Abierto{% else %}Cerrado{% endif %}
                             </button>
                         </form>
+                        <button type="button" class="btn btn-sm btn-outline-secondary pc-programar" title="Programar cierre"
+                                data-bs-toggle="modal" data-bs-target="#cierreModal" data-periodo="{{ periodo.id }}" data-item="reporte"
+                                data-nombre="Reporte Parcial · {{ periodo.get_nombre_display }} {{ periodo.ano_lectivo }}"
+                                data-abierto="{{ periodo.reporte_parcial_activo|yesno:'1,0' }}"
+                                data-fecha="{% if periodo.cierre_reporte_parcial %}{{ periodo.cierre_reporte_parcial|date:'Y-m-d\\TH:i' }}{% endif %}"><i class="fas fa-clock"></i></button>
+                        {% if periodo.cierre_reporte_parcial and periodo.reporte_parcial_activo %}
+                        <div class="pc-cierre">Se cierra el {{ periodo.cierre_reporte_parcial|date:"d/m/Y h:i A" }}
+                            <form method="POST" class="d-inline">{% csrf_token %}
+                                <input type="hidden" name="action" value="cancelar_cierre"><input type="hidden" name="item" value="reporte">
+                                <input type="hidden" name="periodo_id" value="{{ periodo.id }}">
+                                <button type="submit" class="btn btn-link btn-sm p-0 ms-1 text-danger" title="Quitar el cierre programado">×</button></form>
+                        </div>
+                        {% endif %}
                     </td>
 
                     <td class="text-center">
@@ -95,6 +124,19 @@
                                 {% if periodo.nivelaciones_activas %}Abierto{% else %}Cerrado{% endif %}
                             </button>
                         </form>
+                        <button type="button" class="btn btn-sm btn-outline-secondary pc-programar" title="Programar cierre"
+                                data-bs-toggle="modal" data-bs-target="#cierreModal" data-periodo="{{ periodo.id }}" data-item="nivelaciones"
+                                data-nombre="Nivelaciones · {{ periodo.get_nombre_display }} {{ periodo.ano_lectivo }}"
+                                data-abierto="{{ periodo.nivelaciones_activas|yesno:'1,0' }}"
+                                data-fecha="{% if periodo.cierre_nivelaciones %}{{ periodo.cierre_nivelaciones|date:'Y-m-d\\TH:i' }}{% endif %}"><i class="fas fa-clock"></i></button>
+                        {% if periodo.cierre_nivelaciones and periodo.nivelaciones_activas %}
+                        <div class="pc-cierre">Se cierra el {{ periodo.cierre_nivelaciones|date:"d/m/Y h:i A" }}
+                            <form method="POST" class="d-inline">{% csrf_token %}
+                                <input type="hidden" name="action" value="cancelar_cierre"><input type="hidden" name="item" value="nivelaciones">
+                                <input type="hidden" name="periodo_id" value="{{ periodo.id }}">
+                                <button type="submit" class="btn btn-link btn-sm p-0 ms-1 text-danger" title="Quitar el cierre programado">×</button></form>
+                        </div>
+                        {% endif %}
                     </td>
                     <td class="text-end">
                         <!-- Botón para abrir el modal de edición -->
@@ -236,5 +278,73 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+</script>
+
+<!-- Programar el cierre de un plazo -->
+<div class="modal fade" id="cierreModal" tabindex="-1" aria-labelledby="cierreModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="programar_cierre">
+                <input type="hidden" name="periodo_id" id="cierre-periodo">
+                <input type="hidden" name="item" id="cierre-item">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cierreModalLabel"><i class="fas fa-clock me-2"></i>Programar cierre</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="fw-semibold mb-2" id="cierre-nombre"></p>
+                    <label for="cierre-fecha" class="form-label">Se cierra solo el</label>
+                    <input type="datetime-local" name="fecha" id="cierre-fecha" class="form-control" required>
+                    <div class="d-flex flex-wrap gap-2 mt-2" id="cierre-rapidos">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-dias="0" data-hora="23:59">Hoy 11:59 p. m.</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-dias="1" data-hora="18:00">Mañana 6:00 p. m.</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-dias="viernes" data-hora="18:00">Viernes 6:00 p. m.</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-dias="7" data-hora="23:59">En una semana</button>
+                    </div>
+                    <div class="form-text mt-2" id="cierre-aviso"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Programar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var modal = document.getElementById('cierreModal');
+    if (!modal) return;
+    var fecha = document.getElementById('cierre-fecha');
+    function dosDigitos(n) { return (n < 10 ? '0' : '') + n; }
+    function valor(d) {
+        return d.getFullYear() + '-' + dosDigitos(d.getMonth() + 1) + '-' + dosDigitos(d.getDate()) + 'T' +
+               dosDigitos(d.getHours()) + ':' + dosDigitos(d.getMinutes());
+    }
+    var ahora = new Date();
+    fecha.min = valor(ahora);
+    modal.addEventListener('show.bs.modal', function (ev) {
+        var b = ev.relatedTarget;
+        document.getElementById('cierre-periodo').value = b.dataset.periodo;
+        document.getElementById('cierre-item').value = b.dataset.item;
+        document.getElementById('cierre-nombre').textContent = b.dataset.nombre;
+        fecha.value = b.dataset.fecha || '';
+        document.getElementById('cierre-aviso').textContent = b.dataset.abierto === '1'
+            ? 'Queda abierto hasta esa fecha y hora; después se cierra solo y se les avisa a los docentes.'
+            : 'Hoy está cerrado: al programar el cierre se abre ya mismo y se cierra solo en esa fecha.';
+    });
+    document.querySelectorAll('#cierre-rapidos button').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var d = new Date();
+            if (b.dataset.dias === 'viernes') { d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7)); }
+            else { d.setDate(d.getDate() + parseInt(b.dataset.dias, 10)); }
+            var hm = b.dataset.hora.split(':');
+            d.setHours(parseInt(hm[0], 10), parseInt(hm[1], 10), 0, 0);
+            fecha.value = valor(d);
+        });
+    });
+})();
 </script>
 {% endblock %}

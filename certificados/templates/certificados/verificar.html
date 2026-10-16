@@ -1,0 +1,42 @@
+{% extends 'prematricula/_base_publica.html' %}
+{% block etiqueta %}Verificación de certificados{% endblock %}
+{% block contenido %}
+{% if cert %}
+<div class="pm-tarjeta">
+    {% if cert.anulado %}
+    <div class="alert alert-danger mb-3"><strong><i class="fas fa-ban me-1"></i>Este certificado fue ANULADO</strong>{% if cert.motivo_anulacion %}: {{ cert.motivo_anulacion }}{% endif %}. No tiene validez.</div>
+    {% else %}
+    <div class="alert alert-success mb-3"><strong><i class="fas fa-circle-check me-1"></i>Certificado auténtico.</strong>
+        Fue expedido por {{ cert.colegio.nombre }} y lo que dice abajo es lo mismo que debe decir el papel.</div>
+    {% endif %}
+    <table class="table table-sm mb-0">
+        <tr><th style="width:38%">Código</th><td class="font-monospace">{{ cert.codigo }}</td></tr>
+        <tr><th>Tipo</th><td>{{ cert.get_tipo_display }}{% if cert.tipo == 'CALIFICACIONES' %} · año {{ cert.ano_lectivo }}{% endif %}</td></tr>
+        <tr><th>Estudiante</th><td>{{ c.nombre }}</td></tr>
+        {% if documento_oculto %}<tr><th>Documento</th><td>{{ c.tipo_documento }} {{ documento_oculto }}</td></tr>{% endif %}
+        <tr><th>Grado</th><td>{{ c.grado }}</td></tr>
+        {% if c.resultado %}<tr><th>Resultado del año</th><td>{{ c.resultado }}</td></tr>{% endif %}
+        <tr><th>Expedido</th><td>{{ cert.emitido|date:"d/m/Y" }}</td></tr>
+    </table>
+</div>
+{% if c.areas and not cert.anulado %}
+<div class="pm-tarjeta">
+    <h2><i class="fas fa-table-list"></i>Valoraciones certificadas</h2>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Área</th><th class="text-center">Valoración</th><th>Desempeño</th></tr></thead>
+        <tbody>{% for a in c.areas %}<tr><td>{{ a.nombre }}</td><td class="text-center">{{ a.nota|default:"—" }}</td><td>{{ a.desempeno }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endif %}
+{% else %}
+<div class="pm-tarjeta">
+    {% if codigo %}<div class="alert alert-danger"><strong>No existe ningún certificado con el código {{ codigo }}.</strong> Revise que lo escribió bien; si el problema sigue, el documento podría no ser auténtico.</div>{% endif %}
+    <h2><i class="fas fa-qrcode"></i>Verificar un certificado</h2>
+    <p class="text-muted">Escanee el código QR del certificado o escriba el código que aparece debajo de él.</p>
+    <form method="get" action="{% url 'certificados:verificar_form' %}" class="d-flex gap-2 flex-wrap">
+        <input type="text" name="codigo" value="{{ codigo }}" class="form-control" style="max-width:280px; text-transform:uppercase;" placeholder="Código de 12 caracteres" required>
+        <button class="btn btn-pm">Verificar</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

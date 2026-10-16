@@ -1,0 +1,92 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0"><i class="fas fa-award me-2"></i>Certificados</h4>
+        <p class="text-muted mb-0 small">De estudio y de calificaciones de cualquier año, con código QR para verificar que son auténticos.</p></div>
+    <div class="ce-acciones">
+        <a href="{% url 'certificados:importar' %}" class="btn btn-outline-success btn-sm"><i class="fas fa-file-excel me-1"></i>Cargar notas de años anteriores</a>
+        <a href="{% url 'certificados:configuracion' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-gear me-1"></i>Configuración</a>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'certificados/_estilos.html' %}
+
+{% if pendientes %}
+<div class="ce-tarjeta" style="border-color:#f5c26b;">
+    <h5><i class="fas fa-inbox me-2 text-warning"></i>Solicitudes de las familias <span class="badge bg-warning text-dark">{{ pendientes|length }}</span></h5>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Estudiante</th><th>Certificado</th><th>Para qué</th><th>Pedido</th><th></th></tr></thead>
+        <tbody>
+        {% for s in pendientes %}
+        <tr>
+            <td><a href="{% url 'certificados:estudiante' s.estudiante_id %}">{{ s.estudiante }}</a>
+                <div class="small text-muted">{{ s.estudiante.curso.nombre|default:"Exalumno" }}</div></td>
+            <td>{{ s.get_tipo_display }}{% if s.ano_lectivo and s.tipo == 'CALIFICACIONES' %} {{ s.ano_lectivo }}{% endif %}</td>
+            <td class="small">{{ s.motivo|default:"—" }}</td>
+            <td class="small text-muted">{{ s.solicitada|date:"d/m/Y H:i" }}</td>
+            <td class="text-end">
+                <form method="post" action="{% url 'certificados:resolver' s.id %}" class="d-inline">{% csrf_token %}
+                    <input type="hidden" name="accion" value="aprobar">
+                    <button class="btn btn-success btn-sm"><i class="fas fa-check me-1"></i>Aprobar</button></form>
+                <form method="post" action="{% url 'certificados:resolver' s.id %}" class="d-inline"
+                      onsubmit="var r = prompt('¿Por qué no se aprueba? (la familia verá este mensaje)', ''); if (r === null) return false; this.respuesta.value = r;">
+                    {% csrf_token %}<input type="hidden" name="accion" value="rechazar"><input type="hidden" name="respuesta">
+                    <button class="btn btn-outline-danger btn-sm">Rechazar</button></form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table></div>
+</div>
+{% endif %}
+
+<div class="ce-tarjeta">
+    <h5><i class="fas fa-magnifying-glass me-2 text-primary"></i>Buscar estudiante</h5>
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-5"><label class="form-label small mb-1" for="q">Nombre, apellido o documento</label>
+            <input type="text" name="q" id="q" value="{{ q }}" class="form-control" placeholder="Ej.: Pérez, o 1110…" autofocus></div>
+        <div class="col-md-3"><label class="form-label small mb-1" for="curso_id">Curso</label>
+            <select name="curso_id" id="curso_id" class="form-select"><option value="">Todos</option>
+                {% for c in cursos %}<option value="{{ c.id }}" {% if c.id|stringformat:"s" == curso_id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
+            </select></div>
+        <div class="col-md-2"><div class="form-check mt-md-4">
+            <input class="form-check-input" type="checkbox" name="exalumnos" value="1" id="exalumnos" {% if exalumnos %}checked{% endif %}>
+            <label class="form-check-label small" for="exalumnos">Incluir exalumnos y retirados</label></div></div>
+        <div class="col-md-2"><button class="btn btn-primary w-100"><i class="fas fa-search me-1"></i>Buscar</button></div>
+    </form>
+    {% if buscando %}
+    <div class="table-responsive mt-3"><table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>Estudiante</th><th>Documento</th><th>Curso</th><th></th></tr></thead>
+        <tbody>
+        {% for e in estudiantes %}
+        <tr><td>{{ e.user.last_name }} {{ e.user.first_name }}{% if not e.is_active %} <span class="badge bg-secondary">Exalumno</span>{% endif %}</td>
+            <td class="small">{{ e.ficha.numero_documento|default:"—" }}</td>
+            <td>{{ e.curso.nombre|default:"—" }}</td>
+            <td class="text-end"><a class="btn btn-primary btn-sm" href="{% url 'certificados:estudiante' e.id %}"><i class="fas fa-award me-1"></i>Certificados</a></td></tr>
+        {% empty %}<tr><td colspan="4" class="text-muted">No se encontró ningún estudiante.{% if not exalumnos %} Si es un exalumno, marque «Incluir exalumnos y retirados».{% endif %}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table></div>
+    {% if tope %}<p class="small text-muted mt-2">Se muestran los primeros 200: escriba más del nombre para afinar la búsqueda.</p>{% endif %}
+    {% else %}
+    <p class="text-muted small mt-3 mb-0">Escriba un nombre o documento, o escoja un curso.</p>
+    {% endif %}
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-7"><div class="ce-tarjeta h-100">
+        <h5><i class="fas fa-clock-rotate-left me-2 text-secondary"></i>Últimos certificados emitidos</h5>
+        {% if emitidos %}
+        <ul class="list-unstyled mb-0 small">
+        {% for c in emitidos %}<li class="mb-1"><span class="ce-codigo">{{ c.codigo }}</span> · {{ c.get_tipo_display }}{% if c.tipo == 'CALIFICACIONES' %} {{ c.ano_lectivo }}{% endif %} · {{ c.estudiante }} · {{ c.emitido|date:"d/m/Y" }}{% if c.anulado %} <span class="ce-chip ce-anulado">anulado</span>{% endif %}</li>{% endfor %}
+        </ul>
+        {% else %}<p class="text-muted small mb-0">Todavía no se ha emitido ninguno.</p>{% endif %}
+    </div></div>
+    <div class="col-lg-5"><div class="ce-tarjeta h-100">
+        <h5><i class="fas fa-people-roof me-2 text-success"></i>Familias</h5>
+        <p class="small mb-1"><strong>{{ conf.get_modo_entrega_display }}.</strong></p>
+        <p class="small text-muted mb-0">Los estudiantes y acudientes ven «Mis certificados» en su panel. Cámbielo en <a href="{% url 'certificados:configuracion' %}">Configuración</a>.</p>
+    </div></div>
+</div>
+{% endblock %}

@@ -14,14 +14,24 @@
             
             <form method="GET" class="mb-4">
                 <div class="mb-3">
-                    <label for="curso_id" class="form-label fw-bold">Paso 1: Seleccione el Grado</label>
+                    <label for="curso_id" class="form-label fw-bold">Paso 1: Seleccione el curso (o busque en todos)</label>
                     <select name="curso_id" id="curso_id" class="form-select" onchange="this.form.submit();">
-                        <option value="">-- Todos los Grados --</option>
-                        {% for curso in cursos %}
-                            <option value="{{ curso.id }}" {% if curso.id|stringformat:"s" == curso_seleccionado_id %}selected{% endif %}>
-                                {{ curso.nombre }}
-                            </option>
-                        {% endfor %}
+                        <option value="">-- Seleccione --</option>
+                        <option value="todos" {% if curso_seleccionado_id == "todos" %}selected{% endif %}>Buscar en todos los cursos{% if mis_cursos %} de mi sede{% endif %}</option>
+                        {% if mis_cursos %}
+                        <optgroup label="Mis cursos">
+                            {% for curso in mis_cursos %}
+                            <option value="{{ curso.id }}" {% if curso.id|stringformat:"s" == curso_seleccionado_id %}selected{% endif %}>{{ curso.nombre }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                        {% if otros_cursos %}
+                        <optgroup label="{% if mis_cursos %}Otros cursos de mi sede{% else %}Cursos{% endif %}">
+                            {% for curso in otros_cursos %}
+                            <option value="{{ curso.id }}" {% if curso.id|stringformat:"s" == curso_seleccionado_id %}selected{% endif %}>{{ curso.nombre }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
                     </select>
                 </div>
             </form>
@@ -37,7 +47,7 @@
                         <option value="">Escriba para buscar en el grado seleccionado...</option>
                         {% for est in estudiantes %}
                             <option value="{{ est.id }}">
-                                {{ est.user.last_name|upper }} {{ est.user.first_name|upper }}
+                                {{ est.user.last_name|upper }} {{ est.user.first_name|upper }}{% if curso_seleccionado_id == "todos" %} · {{ est.curso.nombre }}{% endif %}
                             </option>
                         {% endfor %}
                     </select>
@@ -50,7 +60,7 @@
                 </div>
             </form>
             {% else %}
-            <p class="text-muted text-center mt-4">Por favor, seleccione un grado para ver la lista de estudiantes.</p>
+            <p class="text-muted text-center mt-4">Seleccione un curso, o «Buscar en todos los cursos» para encontrar a cualquier estudiante por su nombre.</p>
             {% endif %}
         </div>
     </div>

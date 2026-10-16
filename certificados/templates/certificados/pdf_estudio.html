@@ -1,0 +1,8 @@
+{% extends 'certificados/_pdf_base.html' %}
+{% block cuerpo %}
+<h1 style="margin-top:40px">CERTIFICADO DE ESTUDIO</h1>
+<p class="texto" style="font-size:12px; margin-top:30px;">{% if c.firma_nombre %}El(la) suscrito(a) {{ c.firma_cargo }} de{% else %}La{% endif %} <strong>{{ c.colegio|upper }}</strong>{% if c.resolucion %}, aprobada por {{ c.resolucion }}{% endif %}{% if c.dane %} y con código DANE {{ c.dane }}{% endif %}{% if c.resolucion or c.dane %},{% endif %}
+    HACE CONSTAR que <strong>{{ c.nombre }}</strong>{% if c.documento %}, identificado(a) con {{ c.tipo_documento }} No. <strong>{{ c.documento }}</strong>{% endif %},
+    se encuentra matriculado(a) en esta institución en el grado <strong>{{ c.grado|upper }}</strong> para el año lectivo <strong>{{ c.ano }}</strong>.</p>
+<div style="height:40px"></div>
+{% endblock %}
