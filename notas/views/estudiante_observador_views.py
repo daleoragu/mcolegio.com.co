@@ -15,11 +15,16 @@ from ..forms import EstudianteCompromisoForm
 
 
 def es_estudiante(user):
-    """Verifica si el usuario pertenece al grupo de Estudiantes."""
-    return user.groups.filter(name='Estudiantes').exists()
+    """¿Es estudiante? Por el grupo «Estudiantes» o por tener perfil de estudiante.
+
+    Un estudiante creado por otro camino puede no tener el grupo: con el perfil
+    basta. (Antes, sin el grupo, la página fallaba con un error 500 porque
+    intentaba mandarlo a una dirección «login» que no existe.)
+    """
+    return user.groups.filter(name='Estudiantes').exists() or Estudiante.objects.filter(user=user).exists()
 
 @login_required
-@user_passes_test(es_estudiante, login_url='login')
+@user_passes_test(es_estudiante, login_url='/')
 def mi_observador_vista(request):
     """
     Muestra el observador personal del estudiante logueado, asegurando

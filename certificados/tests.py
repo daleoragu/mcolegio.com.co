@@ -26,7 +26,8 @@ def _excel(filas, cabecera=None):
     return SimpleUploadedFile('notas.xlsx', buf.getvalue())
 
 
-class Certificados(ColegioDePrueba):
+class ConNotas(ColegioDePrueba):
+    """Ana, con documento y notas de Matemáticas en los dos periodos de 2026."""
 
     @classmethod
     def setUpTestData(cls):
@@ -38,6 +39,10 @@ class Certificados(ColegioDePrueba):
         for p, v in ((cls.p1, '4.0'), (cls.p2, '4.4')):
             Calificacion.objects.create(colegio=cls.a, estudiante=cls.ana, materia=cls.materia, periodo=p,
                                         tipo_nota='PROM_PERIODO', valor_nota=Decimal(v))
+
+
+
+class Certificados(ConNotas):
 
     # --- Datos ---------------------------------------------------------------
     def test_ano_en_curso_sale_de_la_plataforma_y_es_parcial(self):
@@ -168,7 +173,7 @@ class Certificados(ColegioDePrueba):
         self.assertRedirects(c.get('/herramientas/certificados/'), '/certificados/', fetch_redirect_response=False)
 
 
-class LibroFinal(Certificados):
+class LibroFinal(ConNotas):
 
     def test_libro_del_ano_en_pdf(self):
         c = self.cliente(self.rectora)
