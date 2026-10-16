@@ -80,33 +80,47 @@
             <input type="hidden" name="asignacion_id" value="{{ asignacion_seleccionada_id }}">
             <input type="hidden" name="periodo_id" value="{{ periodo_seleccionado_id }}">
             
+            {% if hay_sugeridos %}
+            <div class="alert alert-info py-2 mt-3"><i class="fas fa-lightbulb me-1"></i>
+                Los estudiantes con nota parcial en <strong>bajo</strong> ya salen marcados en «Sí». Revise y guarde.</div>
+            {% endif %}
             <table class="tabla-reporte">
                 <thead>
                     <tr>
                         <th>Estudiante</th>
+                        <th style="width:130px" class="text-center">Nota parcial</th>
                         <th>¿Presenta Dificultades?</th>
+                        <th style="width:150px"></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for estudiante_obj in estudiantes %}
+                    {% for f in filas %}
                         <tr>
-                            <td>{{ estudiante_obj.user.get_full_name|default:estudiante_obj.user.username }}</td>
+                            <td>{{ f.est.user.get_full_name|default:f.est.user.username }}</td>
+                            <td class="text-center">{% if f.nota %}<strong {% if f.bajo %}style="color:#b42318"{% endif %}>{{ f.nota }}</strong>
+                                <div class="small text-muted">{{ f.desempeno|lower|capfirst }}</div>{% else %}<span class="text-muted small">Sin notas aún</span>{% endif %}</td>
                             <td class="radio-group">
-                                {% with reporte_actual=reportes_existentes_map|get_item:estudiante_obj.id %}
                                 <label>
-                                    <input type="radio" name="reporte_{{ estudiante_obj.id }}" value="si" 
-                                           {% if reporte_actual == True %}checked{% endif %} required {% if plazo_reporte_cerrado %}disabled{% endif %}> Sí
+                                    <input type="radio" name="reporte_{{ f.est.id }}" value="si"
+                                           {% if f.si %}checked{% endif %} required {% if plazo_reporte_cerrado %}disabled{% endif %}> Sí
                                 </label>
                                 <label>
-                                    <input type="radio" name="reporte_{{ estudiante_obj.id }}" value="no" 
-                                           {% if reporte_actual == False or reporte_actual is None %}checked{% endif %} required {% if plazo_reporte_cerrado %}disabled{% endif %}> No
+                                    <input type="radio" name="reporte_{{ f.est.id }}" value="no"
+                                           {% if not f.si %}checked{% endif %} required {% if plazo_reporte_cerrado %}disabled{% endif %}> No
                                 </label>
-                                {% endwith %}
+                                {% if f.sugerido %}<span class="badge bg-warning text-dark">Sugerido por la nota</span>{% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if f.guardado %}
+                                <a class="btn btn-sm btn-outline-success" href="{% url 'notas:aviso_reporte_parcial' f.est.id %}?periodo_id={{ periodo_seleccionado_id }}&volver={{ request.get_full_path|urlencode }}">
+                                    <i class="fab fa-whatsapp me-1"></i>Avisar</a>
+                                {% endif %}
                             </td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            <p class="small text-muted mt-2 mb-0">«Avisar» aparece cuando el reporte en «Sí» ya está guardado: envía a la familia, por WhatsApp o correo, las asignaturas con dificultades y el enlace para descargar el informe parcial.</p>
             <button type="submit" class="btn-guardar" {% if plazo_reporte_cerrado %}disabled{% endif %}>Guardar Reportes</button>
         </form>
     {% elif asignacion_seleccionada_id and periodo_seleccionado_id %}

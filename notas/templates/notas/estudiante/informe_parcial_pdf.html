@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Informe parcial</title>
+<style>
+    @page { size: letter portrait; margin: 1.6cm 1.8cm;
+            @bottom-center { content: "Informe parcial · Página " counter(page) " de " counter(pages); font-size: 7.5px; color: #666; font-family: Helvetica, Arial, sans-serif; } }
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 10.5px; color: #222; line-height: 1.45; }
+    .encabezado-con-bordes, .encabezado-sin-bordes { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+    .encabezado-con-bordes td, .encabezado-sin-bordes td { vertical-align: middle; padding: 0 4px; border: none; }
+    .escudo { max-width: 90px; max-height: {{ colegio.alto_logos_pdf|default:80 }}px; height: auto; width: auto; }
+    h1 { text-align: center; font-size: 15px; letter-spacing: 1px; margin: 16px 0 12px; }
+    .datos { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    .datos td { padding: 3px 6px; border: 1px solid #ccd3de; }
+    .datos td.e { background: #eef1f6; font-weight: bold; width: 18%; }
+    table.notas { width: 100%; border-collapse: collapse; margin: 8px 0 14px; }
+    table.notas th { background: #eef1f6; font-size: 9px; text-transform: uppercase; }
+    table.notas th, table.notas td { border: 1px solid #b9c0cc; padding: 4px 6px; }
+    td.c { text-align: center; }
+    .bajo { color: #b42318; font-weight: bold; }
+    .nota { border: 1px solid #ccd3de; border-radius: 6px; padding: 8px 10px; font-size: 9.5px; }
+    .firmas { width: 100%; margin-top: 60px; border-collapse: collapse; }
+    .firmas td { width: 50%; text-align: center; padding: 0 18px; }
+    .linea { border-top: 1px solid #222; margin-bottom: 3px; }
+</style></head>
+<body>
+{% include "notas/fragmentos/encabezado_pdf.html" %}
+<h1>INFORME PARCIAL DE DESEMPEÑO</h1>
+<table class="datos">
+    <tr><td class="e">Estudiante</td><td>{{ estudiante.user.get_full_name|upper }}</td><td class="e">Curso</td><td>{{ estudiante.curso.nombre|default:"—" }}</td></tr>
+    <tr><td class="e">Periodo</td><td>{{ periodo.get_nombre_display }} {{ periodo.ano_lectivo }}</td><td class="e">Fecha</td><td>{% now "d/m/Y" %}</td></tr>
+</table>
+{% if asignaturas %}
+<p>A la fecha, el(la) estudiante presenta dificultades académicas en las siguientes asignaturas:</p>
+<table class="notas">
+    <thead><tr><th style="text-align:left">Asignatura</th><th style="text-align:left">Docente</th><th style="width:80px">Nota parcial</th><th style="width:90px">Desempeño</th></tr></thead>
+    <tbody>{% for a in asignaturas %}<tr><td>{{ a.materia }}</td><td>{{ a.docente }}</td>
+        <td class="c {% if a.desempeno == 'BAJO' %}bajo{% endif %}">{{ a.nota_texto|default:"—" }}</td><td class="c">{{ a.desempeno }}</td></tr>{% endfor %}</tbody>
+</table>
+<div class="nota">La nota parcial se calcula con las notas registradas hasta hoy y puede cambiar antes del cierre del periodo.
+    Todavía hay tiempo para mejorar: le pedimos acompañar al estudiante en casa y comunicarse con los docentes si lo necesita.</div>
+{% else %}
+<p>El(la) estudiante no tiene asignaturas reportadas con dificultades en este periodo.</p>
+{% endif %}
+<table class="firmas"><tr>
+    <td><div class="linea"></div>{{ estudiante.curso.director_grado.user.get_full_name|default:"&nbsp;" }}<br>Director(a) de grado</td>
+    <td><div class="linea"></div>&nbsp;<br>Acudiente</td>
+</tr></table>
+<p style="font-size:8px; color:#666; margin-top:24px;">Este informe es de seguimiento académico y no reemplaza el boletín del periodo.</p>
+</body></html>
