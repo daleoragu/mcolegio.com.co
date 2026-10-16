@@ -20,7 +20,7 @@
                 <li><a class="dropdown-item {% if 'mensajes' in request.path %}active{% endif %}" href="{% url 'notas:bandeja_entrada' %}"><i class="fas fa-envelope fa-fw me-2 text-muted"></i>Correo interno</a></li>
                 
                 {# --- 2. PANEL DEL ESTUDIANTE --- #}
-                {% if user|has_group:"Estudiantes" %}
+                {% if user|has_group:"Estudiantes" or user.estudiante %}
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header">Panel Estudiante</h6></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'mi_observador' %}active{% endif %}" href="{% url 'notas:mi_observador' %}"><i class="fas fa-user-graduate fa-fw me-2 text-muted"></i>Mi Observador</a></li>
@@ -28,7 +28,7 @@
                     <li><a class="dropdown-item {% if request.resolver_match.app_name == 'circulares' %}active{% endif %}" href="{% url 'circulares:mis_circulares' %}"><i class="fas fa-bullhorn fa-fw me-2 text-muted"></i>Circulares</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'mi_boletin' %}active{% endif %}" href="{% url 'notas:mi_boletin' %}"><i class="fas fa-file-pdf fa-fw me-2 text-muted"></i>Mi Boletín</a></li>
                     {% if user.estudiante %}
-                        <li><a class="dropdown-item {% if request.resolver_match.url_name == 'acta_reporte_parcial_estudiante' %}active{% endif %}" href="{% url 'notas:acta_reporte_parcial_estudiante' user.estudiante.id %}"><i class="fas fa-file-alt fa-fw me-2 text-muted"></i>Mi Reporte Parcial</a></li>
+                        <li><a class="dropdown-item {% if request.resolver_match.url_name == 'acta_reporte_parcial_estudiante' %}active{% endif %}" href="{% url 'notas:acta_reporte_parcial_estudiante' user.estudiante.id %}"><i class="fas fa-file-alt fa-fw me-2 text-muted"></i>Mi informe parcial</a></li>
                     {% endif %}
                 {% endif %}
 
@@ -39,7 +39,7 @@
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'ingresar_notas_periodo' %}active{% endif %}" href="{% url 'notas:ingresar_notas_periodo' %}"><i class="fas fa-edit fa-fw me-2 text-muted"></i>Ingresar Notas</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'mis_planillas' %}active{% endif %}" href="{% url 'notas:mis_planillas' %}"><i class="fas fa-table-cells fa-fw me-2 text-muted"></i>Mis planillas</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'subir_planilla' %}active{% endif %}" href="{% url 'notas:subir_planilla' %}"><i class="fas fa-upload fa-fw me-2 text-muted"></i>Subir planilla de notas</a></li>
-                    {% if not user.es_admin_colegio %}<li><a class="dropdown-item" href="{% url 'circulares:mis_circulares' %}"><i class="fas fa-bullhorn fa-fw me-2 text-muted"></i>Circulares</a></li>{% endif %}
+                    <li><a class="dropdown-item {% if request.resolver_match.url_name == 'mis_circulares' %}active{% endif %}" href="{% url 'circulares:mis_circulares' %}"><i class="fas fa-bullhorn fa-fw me-2 text-muted"></i>{% if user.es_admin_colegio %}Circulares recibidas{% else %}Circulares{% endif %}</a></li>
                     {% if user.es_admin_colegio or user.docente.cursos_dirigidos.all %}<li><a class="dropdown-item {% if request.resolver_match.url_name == 'alertas_tempranas' %}active{% endif %}" href="{% url 'notas:alertas_tempranas' %}"><i class="fas fa-triangle-exclamation fa-fw me-2 text-muted"></i>Alertas tempranas</a></li>{% endif %}
                     {# PuntoExacto va junto a Ingresar Notas: de ahí salen las columnas de la planilla. #}
                     <li><a class="dropdown-item {% if 'puntoexacto' in request.path %}active{% endif %}" href="{% url 'puntoexacto:lista' %}"><i class="fas fa-list-check fa-fw me-2 text-muted"></i>PuntoExacto</a></li>
@@ -53,6 +53,7 @@
                     <li><a class="dropdown-item {% if 'sabana' in request.path %}active{% endif %}" href="{% url 'notas:selector_sabana' %}"><i class="fas fa-table fa-fw me-2 text-muted"></i>Sábana de Notas</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'panel_estadisticas' %}active{% endif %}" href="{% url 'notas:panel_estadisticas' %}"><i class="fas fa-chart-pie fa-fw me-2 text-muted"></i>Estadísticas</a></li>
                     <li><a class="dropdown-item {% if 'configuracion-portal' in request.path %}active{% endif %}" href="{% url 'notas:configuracion_portal' %}"><i class="fas fa-newspaper fa-fw me-2 text-muted"></i>Gestionar Portal</a></li>
+                    <li><a class="dropdown-item {% if 'salon_digital' in request.path %}active{% endif %}" href="{% url 'salon_digital:panel' %}"><i class="fas fa-chalkboard fa-fw me-2 text-muted"></i>Salón Digital</a></li>
                     {# Actas: el docente con el rol (lo da el administrador en Actas); el administrador la tiene abajo. #}
                     {% if not user.es_admin_colegio and user.docente.rol_actas %}<li><a class="dropdown-item {% if request.resolver_match.app_name == 'actas' %}active{% endif %}" href="{% url 'actas:lista' %}"><i class="fas fa-file-contract fa-fw me-2 text-muted"></i>Actas</a></li>{% endif %}
                 {% endif %}
@@ -87,7 +88,8 @@
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'gestion_ponderacion_areas' %}active{% endif %}" href="{% url 'notas:gestion_ponderacion_areas' %}"><i class="fas fa-balance-scale fa-fw me-2 text-muted"></i>Ponderación de Áreas</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'impresion_masiva_carnets' %}active{% endif %}" href="{% url 'notas:impresion_masiva_carnets' %}"><i class="fas fa-id-card fa-fw me-2 text-muted"></i>Imprimir Carnets</a></li>
                     <li><a class="dropdown-item {% if 'certificado' in request.path %}active{% endif %}" href="{% url 'certificados:panel' %}"><i class="fas fa-award fa-fw me-2 text-muted"></i>Certificados</a></li>
-                    <li><a class="dropdown-item {% if 'circulares/gestion' in request.path %}active{% endif %}" href="{% url 'circulares:lista' %}"><i class="fas fa-bullhorn fa-fw me-2 text-muted"></i>Circulares</a></li>
+                    <li><a class="dropdown-item {% if request.resolver_match.url_name == 'libro' %}active{% endif %}" href="{% url 'certificados:libro' %}"><i class="fas fa-book fa-fw me-2 text-muted"></i>Libro final de calificaciones</a></li>
+                    <li><a class="dropdown-item {% if 'circulares/gestion' in request.path %}active{% endif %}" href="{% url 'circulares:lista' %}"><i class="fas fa-bullhorn fa-fw me-2 text-muted"></i>Circulares (enviar)</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'personalizacion_portal' %}active{% endif %}" href="{% url 'notas:personalizacion_portal' %}"><i class="fas fa-palette fa-fw me-2 text-muted"></i>Personalizar Portal</a></li>
                 {% endif %}
             </ul>

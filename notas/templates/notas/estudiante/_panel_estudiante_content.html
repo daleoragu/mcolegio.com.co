@@ -17,7 +17,7 @@
     {% if user.estudiante %} {# Asegurarse de que el usuario es un estudiante antes de mostrar el enlace #}
         <a href="{% url 'notas:acta_reporte_parcial_estudiante' user.estudiante.id %}" class="app-icon">
             <div class="icon-container" style="background: linear-gradient(135deg, #a0522d, #8b4513);"><i class="fas fa-file-alt"></i></div>
-            <span class="app-label">Mi Reporte Parcial</span>
+            <span class="app-label">Mi informe parcial</span>
         </a>
     {% endif %}
 </div>
