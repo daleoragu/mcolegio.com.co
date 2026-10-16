@@ -1,7 +1,7 @@
 {% extends 'notas/base.html' %}
 {% load static %}
 
-{% block title %}CofraMail - Bandeja de Entrada{% endblock %}
+{% block title %}{{ colegio.nombre_correo|default:"Correo interno" }} - Bandeja de Entrada{% endblock %}
 {% block page_title %}{% endblock %}
 
 {% block extra_css %}
@@ -24,7 +24,7 @@
         padding: 15px;
     }
 
-    /* Estilos para el logo CofraMail */
+    /* Logo del correo interno (el nombre lo pone el colegio) */
     .coframail-logo {
         display: flex;
         align-items: center;
@@ -137,9 +137,7 @@
         <div class="coframail-nav">
             <div class="coframail-logo">
                 <i class="fas fa-envelope-open-text fa-2x icon"></i>
-                <h3>
-                    <span class="c-1">C</span><span class="c-2">o</span><span class="c-3">f</span><span class="c-1">r</span><span class="c-2">a</span><span class="c-3">M</span><span class="c-1">a</span><span class="c-2">i</span><span class="c-3">l</span>
-                </h3>
+                <h3><span class="c-1">{{ colegio.nombre_correo|default:"Correo interno" }}</span></h3>
             </div>
             
             <a href="{% url 'notas:componer_mensaje' %}" class="btn btn-primary btn-redactar mb-4">

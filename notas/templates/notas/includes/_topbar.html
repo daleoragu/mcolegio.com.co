@@ -17,7 +17,7 @@
                 
                 {# --- 1. COMUNICACIONES --- #}
                 <li><h6 class="dropdown-header">Comunicaciones</h6></li>
-                <li><a class="dropdown-item {% if 'mensajes' in request.path %}active{% endif %}" href="{% url 'notas:bandeja_entrada' %}"><i class="fas fa-envelope fa-fw me-2 text-muted"></i>Correo interno</a></li>
+                <li><a class="dropdown-item {% if 'mensajes' in request.path %}active{% endif %}" href="{% url 'notas:bandeja_entrada' %}"><i class="fas fa-envelope fa-fw me-2 text-muted"></i>{{ colegio.nombre_correo|default:"Correo interno" }}</a></li>
                 
                 {# --- 2. PANEL DEL ESTUDIANTE --- #}
                 {% if user|has_group:"Estudiantes" or user.estudiante %}

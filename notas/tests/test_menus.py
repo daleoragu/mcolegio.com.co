@@ -89,3 +89,19 @@ class MenusDeLoNuevo(ColegioDePrueba):
         for texto in ('Libro final', 'Circulares (enviar)', 'Certificados'):
             self.assertContains(r, texto)
         self._abren(c, self._enlaces(r))
+
+
+class NombreDelCorreo(ColegioDePrueba):
+
+    def test_el_colegio_le_pone_nombre_al_correo(self):
+        c = self.cliente(self.rectora)
+        self.assertContains(c.get('/panel-docente/'), 'Correo interno')
+        self.a.nombre_correo = 'SanFraMail'
+        self.a.save(update_fields=['nombre_correo'])
+        for ruta in ('/panel-docente/', '/panel-administrador/'):
+            r = c.get(ruta)
+            self.assertContains(r, 'SanFraMail')
+            self.assertNotContains(r, 'CofraMail')
+        r = self.cliente(self.estudiantes[0].user).get('/panel-estudiante/')
+        self.assertContains(r, 'SanFraMail')
+        self.assertContains(c.get('/mensajeria/bandeja-entrada/'), 'SanFraMail')

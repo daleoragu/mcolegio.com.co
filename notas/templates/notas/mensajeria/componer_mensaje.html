@@ -1,7 +1,7 @@
 {% extends 'notas/base.html' %}
 {% load static %}
 
-{% block title %}CofraMail - Redactar Mensaje{% endblock %}
+{% block title %}{{ colegio.nombre_correo|default:"Correo interno" }} - Redactar Mensaje{% endblock %}
 {% block page_title %}{% endblock %}
 
 {% block extra_css %}
@@ -37,7 +37,7 @@
     <div class="coframail-layout">
         <!-- === COLUMNA IZQUIERDA (NAVEGACIÓN) === -->
         <div class="coframail-nav">
-            <div class="coframail-logo"><i class="fas fa-envelope-open-text fa-2x icon"></i><h3><span class="c-1">C</span><span class="c-2">o</span><span class="c-3">f</span><span class="c-1">r</span><span class="c-2">a</span><span class="c-3">M</span><span class="c-1">a</span><span class="c-2">i</span><span class="c-3">l</span></h3></div>
+            <div class="coframail-logo"><i class="fas fa-envelope-open-text fa-2x icon"></i><h3><span class="c-1">{{ colegio.nombre_correo|default:"Correo interno" }}</span></h3></div>
             <!-- Se marca el botón Redactar como activo -->
             <a href="{% url 'notas:componer_mensaje' %}" class="btn btn-primary btn-redactar mb-4 active"><i class="fas fa-pencil-alt me-2"></i>Redactar</a>
             <ul class="nav nav-pills flex-column">

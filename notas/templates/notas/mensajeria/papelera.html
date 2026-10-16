@@ -1,7 +1,7 @@
 {% extends 'notas/base.html' %}
 {% load static %}
 
-{% block title %}CofraMail - Papelera{% endblock %}
+{% block title %}{{ colegio.nombre_correo|default:"Correo interno" }} - Papelera{% endblock %}
 {% block page_title %}{% endblock %}
 
 {% block extra_css %}
@@ -35,7 +35,7 @@
     <div class="coframail-layout">
 
         <div class="coframail-nav">
-            <div class="coframail-logo"><i class="fas fa-envelope-open-text fa-2x icon"></i><h3><span class="c-1">C</span><span class="c-2">o</span><span class="c-3">f</span><span class="c-1">r</span><span class="c-2">a</span><span class="c-3">M</span><span class="c-1">a</span><span class="c-2">i</span><span class="c-3">l</span></h3></div>
+            <div class="coframail-logo"><i class="fas fa-envelope-open-text fa-2x icon"></i><h3><span class="c-1">{{ colegio.nombre_correo|default:"Correo interno" }}</span></h3></div>
             <a href="{% url 'notas:componer_mensaje' %}" class="btn btn-primary btn-redactar mb-4"><i class="fas fa-pencil-alt me-2"></i>Redactar</a>
             <ul class="nav nav-pills flex-column">
                 <li class="nav-item mb-1"><a class="nav-link" href="{% url 'notas:bandeja_entrada' %}"><i class="fas fa-inbox fa-fw"></i> Recibidos</a></li>

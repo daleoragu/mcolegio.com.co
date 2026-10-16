@@ -193,7 +193,7 @@ class ColegioPersonalizacionForm(forms.ModelForm):
     class Meta:
         model = Colegio
         fields = [
-            'nombre', 'lema',
+            'nombre', 'lema', 'nombre_correo',
             'historia', 'mision', 'vision', 'modelo_pedagogico',
             'escudo', 'favicon',
             'color_primario', 'color_texto_primario', 'color_secundario', 'color_fondo', 
@@ -209,6 +209,7 @@ class ColegioPersonalizacionForm(forms.ModelForm):
             # Se añade 'readonly': True para que el campo no sea editable pero su valor se envíe.
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'readonly': True}),
             'lema': forms.TextInput(attrs={'class': 'form-control'}),
+            'nombre_correo': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 40}),
             'historia': forms.Textarea(attrs={'class': 'form-control', 'rows': 8}),
             'mision': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
             'vision': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
