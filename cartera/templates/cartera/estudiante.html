@@ -1,0 +1,88 @@
+{% extends 'notas/base.html' %}
+{% load cartera_tags %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0">{{ est.user.get_full_name }}</h4><p class="text-muted small mb-0">{{ est.curso.nombre|default:"Sin curso" }} · estado de cuenta</p></div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'cartera:estado_pdf' est.id %}" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="fas fa-file-pdf me-1"></i>Estado de cuenta</a>
+        {% if not st.vencido %}<a href="{% url 'cartera:paz_y_salvo' est.id %}" target="_blank" class="btn btn-outline-success btn-sm"><i class="fas fa-circle-check me-1"></i>Paz y salvo</a>{% endif %}
+        <a href="{% url 'cartera:panel' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Cartera</a>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'cartera/_estilos.html' %}
+{% if recibo_nuevo %}<div class="alert alert-success d-flex justify-content-between align-items-center"><span>Pago registrado.</span>
+    <a href="{% url 'cartera:recibo' recibo_nuevo %}" target="_blank" class="btn btn-success btn-sm"><i class="fas fa-print me-1"></i>Imprimir recibo</a></div>{% endif %}
+<div class="row g-3 mb-1">
+    <div class="col-6 col-lg-3"><div class="ca-tarjeta"><div class="small text-muted">Saldo</div><div class="ca-cifra">{{ st.saldo|pesos }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="ca-tarjeta"><div class="small text-muted">Vencido</div><div class="ca-cifra {% if st.vencido %}ca-mora{% endif %}">{{ st.vencido|pesos }}</div>
+        {% if st.dias_mora %}<div class="small ca-mora">{{ st.dias_mora }} días de mora</div>{% endif %}</div></div>
+    <div class="col-6 col-lg-3"><div class="ca-tarjeta"><div class="small text-muted">Pagado</div><div class="ca-cifra ca-ok">{{ st.pagado|pesos }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="ca-tarjeta"><div class="small text-muted">Saldo a favor</div><div class="ca-cifra">{{ st.a_favor|pesos }}</div></div></div>
+</div>
+<div class="row g-3">
+<div class="col-lg-8">
+    <div class="ca-tarjeta">
+        <h6 class="fw-bold">Cobros</h6>
+        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+            <thead class="table-light"><tr><th>Concepto</th><th>Vence</th><th class="num">Valor</th><th class="num">Desc.</th><th class="num">Pagado</th><th class="num">Saldo</th></tr></thead>
+            <tbody>{% for f in st.filas %}
+            <tr><td>{{ f.c.descripcion }}</td><td class="small">{{ f.c.vence|date:"d/m/Y" }}</td><td class="num">{{ f.c.valor|pesos }}</td>
+                <td class="num small">{% if f.c.descuento %}{{ f.c.descuento|pesos }}{% endif %}</td><td class="num">{{ f.pagado|pesos }}</td>
+                <td class="num {% if f.en_mora %}ca-mora fw-bold{% endif %}">{% if f.saldo %}{{ f.saldo|pesos }}{% else %}<span class="ca-chip ok">Pagado</span>{% endif %}</td></tr>
+            {% empty %}<tr><td colspan="6" class="text-muted">No tiene cobros generados.
+                <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="accion" value="generar"><button class="btn btn-link btn-sm p-0">Generar los de este año</button></form></td></tr>{% endfor %}</tbody>
+        </table></div>
+    </div>
+    <div class="ca-tarjeta">
+        <h6 class="fw-bold">Pagos</h6>
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Recibo</th><th>Fecha</th><th>Medio</th><th class="num">Valor</th><th></th></tr></thead>
+            <tbody>{% for p in st.pagos %}
+            <tr {% if p.anulado %}class="text-muted text-decoration-line-through"{% endif %}><td>N.º {{ p.numero }}</td><td class="small">{{ p.fecha|date:"d/m/Y" }}</td>
+                <td class="small">{{ p.get_medio_display }}{% if p.referencia %} · {{ p.referencia }}{% endif %}</td><td class="num">{{ p.valor|pesos }}</td>
+                <td class="text-end text-nowrap">{% if not p.anulado %}<a href="{% url 'cartera:recibo' p.id %}" target="_blank" class="btn btn-sm btn-outline-secondary">Recibo</a>
+                    <form method="post" action="{% url 'cartera:anular' p.id %}" class="d-inline" onsubmit="var r=prompt('Motivo de la anulación:',''); if(r===null) return false; this.motivo.value=r;">{% csrf_token %}
+                        <input type="hidden" name="motivo"><button class="btn btn-sm btn-link text-danger">Anular</button></form>{% else %}<span class="small">Anulado</span>{% endif %}</td></tr>
+            {% empty %}<tr><td colspan="5" class="text-muted">Sin pagos.</td></tr>{% endfor %}</tbody>
+        </table>
+    </div>
+</div>
+<div class="col-lg-4">
+    <div class="ca-tarjeta">
+        <h6 class="fw-bold"><i class="fas fa-hand-holding-dollar me-2 text-success"></i>Registrar pago</h6>
+        <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="pago">
+            <label class="form-label small mb-1">Valor</label>{{ form.valor }}
+            <label class="form-label small mb-1 mt-2">Fecha</label>{{ form.fecha }}
+            <label class="form-label small mb-1 mt-2">Medio</label>{{ form.medio }}
+            <label class="form-label small mb-1 mt-2">Referencia</label>{{ form.referencia }}
+            <label class="form-label small mb-1 mt-2">Observación</label>{{ form.observacion }}
+            {{ form.errors }}
+            <button class="btn btn-success w-100 mt-3">Registrar y generar recibo</button>
+            <div class="form-text">Se aplica a los cobros más viejos primero; lo que sobre queda como saldo a favor.</div>
+        </form>
+    </div>
+    {% if st.vencido %}
+    <div class="ca-tarjeta">
+        <h6 class="fw-bold"><i class="fab fa-whatsapp me-2" style="color:#25d366"></i>Recordar el pago</h6>
+        <p class="small text-muted mb-2" style="white-space:pre-line">{{ texto }}</p>
+        {% for c in contactos %}<a class="btn btn-sm ca-wa me-1 mb-1" target="_blank" rel="noopener" href="{{ c.enlace }}"><i class="fab fa-whatsapp me-1"></i>{{ c.rol }} {{ c.visible }}</a>
+        {% empty %}<p class="small text-muted mb-0">La ficha no tiene celulares de la familia.</p>{% endfor %}
+    </div>
+    {% endif %}
+    <div class="ca-tarjeta">
+        <h6 class="fw-bold">Becas y descuentos</h6>
+        {% for b in becas %}<div class="d-flex justify-content-between align-items-center small mb-1"><span><strong>{{ b.porcentaje }} %</strong> {% if b.concepto %}en {{ b.concepto }}{% else %}en todo{% endif %}{% if b.motivo %} · {{ b.motivo }}{% endif %}</span>
+            <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="quitar_beca"><input type="hidden" name="beca" value="{{ b.id }}"><button class="btn btn-link btn-sm text-danger p-0">Quitar</button></form></div>
+        {% empty %}<p class="small text-muted">Sin descuentos.</p>{% endfor %}
+        <form method="post" class="row g-1 mt-2">{% csrf_token %}<input type="hidden" name="accion" value="beca">
+            <div class="col-4"><input type="number" name="porcentaje" min="1" max="100" placeholder="%" class="form-control form-control-sm"></div>
+            <div class="col-8"><select name="concepto" class="form-select form-select-sm"><option value="">Todos los conceptos</option>{% for c in conceptos %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}</select></div>
+            <div class="col-8"><input type="text" name="motivo" placeholder="Motivo (hermanos, beca…)" class="form-control form-control-sm"></div>
+            <div class="col-4"><button class="btn btn-outline-primary btn-sm w-100">Agregar</button></div>
+        </form>
+    </div>
+</div>
+</div>
+{% endblock %}

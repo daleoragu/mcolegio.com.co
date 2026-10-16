@@ -1,0 +1,59 @@
+{% extends 'notas/base.html' %}
+{% load cartera_tags %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0"><i class="fas fa-cash-register me-2"></i>Cartera y pensiones</h4>
+        <p class="text-muted small mb-0">Cobros, pagos con recibo, morosos y paz y salvo.</p></div>
+    <a href="{% url 'cartera:configuracion' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-gear me-1"></i>Conceptos y configuración</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'cartera/_estilos.html' %}
+{% if sin_conceptos %}
+<div class="alert alert-info">Para empezar, cree en <a href="{% url 'cartera:configuracion' %}">Configuración</a> los conceptos que cobra el colegio
+    (pensión, matrícula…) con su valor, y luego genere los cobros del año.</div>
+{% endif %}
+<div class="row g-3 mb-1">
+    <div class="col-6 col-lg-3"><div class="ca-tarjeta"><div class="small text-muted">Cartera total</div><div class="ca-cifra">{{ tot.saldo|pesos }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="ca-tarjeta"><div class="small text-muted">Vencido</div><div class="ca-cifra ca-mora">{{ tot.vencido|pesos }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="ca-tarjeta"><div class="small text-muted">Estudiantes en mora</div><div class="ca-cifra">{{ tot.morosos }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="ca-tarjeta"><div class="small text-muted">Recaudo de este mes</div><div class="ca-cifra ca-ok">{{ tot.recaudo_mes|pesos }}</div></div></div>
+</div>
+<div class="row g-3">
+<div class="col-lg-8">
+<div class="ca-tarjeta">
+    <form method="get" class="d-flex flex-wrap gap-2 align-items-center mb-3">
+        <select name="curso_id" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+            <option value="">Todos los cursos</option>{% for c in cursos %}<option value="{{ c.id }}" {% if c.id|stringformat:"s" == curso_id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
+        </select>
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="mora" value="1" id="mora" {% if solo_mora %}checked{% endif %} onchange="this.form.submit()">
+            <label class="form-check-label small" for="mora">Solo en mora</label></div>
+    </form>
+    <div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>Curso</th><th>Estudiante</th><th class="num">Saldo</th><th class="num">Vencido</th><th>Mora</th><th></th></tr></thead>
+        <tbody>
+        {% for f in filas %}
+        <tr><td class="small">{{ f.e.curso.nombre|default:"—" }}</td><td>{{ f.e.user.last_name }} {{ f.e.user.first_name }}</td>
+            <td class="num">{{ f.saldo|pesos }}</td><td class="num {% if f.vencido %}ca-mora fw-bold{% endif %}">{{ f.vencido|pesos }}</td>
+            <td>{% if f.vencido %}<span class="ca-chip mora">{{ f.dias }} día{{ f.dias|pluralize }}</span>{% elif f.saldo %}<span class="ca-chip pend">Al día</span>{% else %}<span class="ca-chip ok">Paz y salvo</span>{% endif %}</td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'cartera:estudiante' f.e.id %}">Abrir</a></td></tr>
+        {% empty %}<tr><td colspan="6" class="text-muted text-center py-3">No hay estudiantes{% if solo_mora %} en mora{% endif %}.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
+</div>
+</div>
+<div class="col-lg-4">
+<div class="ca-tarjeta">
+    <h6 class="fw-bold"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Generar cobros</h6>
+    <p class="small text-muted">Crea lo que falta por cobrar a cada estudiante matriculado según los conceptos y valores. No duplica lo que ya existe.</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="generar">
+        <label class="form-label small mb-1">Año</label>
+        <input type="number" name="ano" value="{{ ano }}" class="form-control form-control-sm mb-2" style="max-width:120px">
+        <label class="form-label small mb-1">Meses de pensión (vacío = los de la configuración)</label>
+        <div class="d-flex flex-wrap gap-2 mb-3">{% for n, m in meses %}<label class="small"><input type="checkbox" name="meses" value="{{ n }}" class="form-check-input me-1">{{ m|slice:":3" }}</label>{% endfor %}</div>
+        <button class="btn btn-primary btn-sm w-100">Generar</button>
+    </form>
+</div>
+</div>
+</div>
+{% endblock %}

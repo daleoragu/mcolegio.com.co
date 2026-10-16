@@ -1,0 +1,13 @@
+{% extends 'cartera/_pdf_base.html' %}{% load cartera_tags %}
+{% block titulo %}Estado de cuenta{% endblock %}
+{% block cuerpo %}
+<h1>ESTADO DE CUENTA</h1>
+<table class="datos"><tr><td><strong>Estudiante:</strong> {{ est.user.get_full_name|upper }}</td><td><strong>Curso:</strong> {{ est.curso.nombre|default:"—" }}</td><td><strong>Fecha:</strong> {{ hoy|date:"d/m/Y" }}</td></tr></table>
+<table class="t"><thead><tr><th style="text-align:left">Concepto</th><th>Vence</th><th class="num">Valor</th><th class="num">Pagado</th><th class="num">Saldo</th></tr></thead>
+    <tbody>{% for f in st.filas %}<tr><td>{{ f.c.descripcion }}</td><td>{{ f.c.vence|date:"d/m/Y" }}</td><td class="num">{{ f.c.neto|pesos }}</td><td class="num">{{ f.pagado|pesos }}</td>
+        <td class="num {% if f.en_mora %}mora{% endif %}">{{ f.saldo|pesos }}</td></tr>{% endfor %}
+    <tr><td colspan="4" class="total">SALDO TOTAL</td><td class="num total">{{ st.saldo|pesos }}</td></tr>
+    <tr><td colspan="4" class="total">VENCIDO</td><td class="num total {% if st.vencido %}mora{% endif %}">{{ st.vencido|pesos }}</td></tr></tbody></table>
+{% if st.a_favor %}<p>Saldo a favor: <strong>{{ st.a_favor|pesos }}</strong></p>{% endif %}
+{% if conf.datos_pago %}<p><strong>Cómo pagar:</strong> {{ conf.datos_pago|linebreaksbr }}</p>{% endif %}
+{% endblock %}

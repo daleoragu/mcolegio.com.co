@@ -27,6 +27,8 @@ MODULOS = OrderedDict([
     ('reporte_parcial', ('Reporte parcial con avisos', 'Reporte parcial, aviso a la familia e informe en PDF.',
                          ('/docente/reporte-parcial/', '/reporte-parcial/', '/familia/informe-parcial/'))),
     ('correo', ('Correo interno', 'Mensajería entre docentes, estudiantes y administración.', ('/mensajeria/',))),
+    ('cartera', ('Cartera y pensiones', 'Cobros, pagos con recibo, morosos, estado de cuenta y paz y salvo.',
+                 ('/cartera/',))),
     ('elecciones', ('Elecciones escolares', 'Votaciones de personero, contralor y consejo estudiantil.',
                     ('/elecciones2026/',))),
     # Salón Digital es un producto aparte con cuentas propias: aquí solo se

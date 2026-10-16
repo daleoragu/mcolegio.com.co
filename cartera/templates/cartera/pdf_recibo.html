@@ -1,0 +1,15 @@
+{% extends 'cartera/_pdf_base.html' %}{% load cartera_tags %}
+{% block titulo %}Recibo {{ pago.numero }}{% endblock %}
+{% block cuerpo %}
+<h1>RECIBO DE PAGO N.º {{ pago.numero }}</h1>
+{% if pago.anulado %}<p class="mora" style="text-align:center">ANULADO{% if pago.motivo_anulacion %}: {{ pago.motivo_anulacion }}{% endif %}</p>{% endif %}
+<table class="datos"><tr><td><strong>Fecha:</strong> {{ pago.fecha|date:"d/m/Y" }}</td><td><strong>Estudiante:</strong> {{ est.user.get_full_name|upper }}</td><td><strong>Curso:</strong> {{ est.curso.nombre|default:"—" }}</td></tr>
+    <tr><td><strong>Medio:</strong> {{ pago.get_medio_display }}</td><td colspan="2">{% if pago.referencia %}<strong>Referencia:</strong> {{ pago.referencia }}{% endif %}</td></tr></table>
+<table class="t"><thead><tr><th style="text-align:left">Concepto</th><th class="num">Valor aplicado</th></tr></thead>
+    <tbody>{% for a in aplicaciones %}<tr><td>{{ a.cargo.descripcion }}</td><td class="num">{{ a.valor|pesos }}</td></tr>{% endfor %}
+    {% if a_favor > 0 %}<tr><td>Saldo a favor</td><td class="num">{{ a_favor|pesos }}</td></tr>{% endif %}
+    <tr><td class="total">TOTAL RECIBIDO</td><td class="num total">{{ pago.valor|pesos }}</td></tr></tbody></table>
+{% if pago.observacion %}<p><strong>Observación:</strong> {{ pago.observacion }}</p>{% endif %}
+<div class="firma"><div class="linea"></div>Recibido por: {{ pago.registrado_por.get_full_name|default:"Tesorería" }}</div>
+<p class="pie">Generado el {{ hoy|date:"d/m/Y" }} desde la plataforma del colegio.</p>
+{% endblock %}

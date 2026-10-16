@@ -211,6 +211,12 @@ def _estudiante_de(request):
     return Estudiante.objects.filter(user=request.user, colegio=request.colegio).select_related('curso').first()
 
 
+def _bloqueo_cartera(est):
+    """Saldo vencido si el colegio exige paz y salvo para los certificados (0 si no aplica)."""
+    from cartera.logica import bloqueo_certificados
+    return bloqueo_certificados(est)
+
+
 @login_required
 def mis_certificados(request):
     est = _estudiante_de(request)
@@ -222,6 +228,7 @@ def mis_certificados(request):
         'colegio': request.colegio, 'est': est, 'conf': conf, 'anos': logica.anos_disponibles(est),
         'emitidos': est.certificados.filter(anulado=False),
         'solicitudes': est.solicitudes_certificado.all()[:10],
+        'bloqueo': _bloqueo_cartera(est),
         'pendientes': set(est.solicitudes_certificado.filter(estado='PENDIENTE')
                           .values_list('tipo', 'ano_lectivo')),
     })
@@ -241,6 +248,12 @@ def solicitar(request):
         return HttpResponseForbidden('Tipo desconocido.')
     if tipo == 'CALIFICACIONES' and ano not in logica.anos_disponibles(est):
         messages.error(request, 'No hay notas de ese año.')
+        return redirect('certificados:mis_certificados')
+    from cartera.logica import bloqueo_certificados, pesos
+    vencido = bloqueo_certificados(est)
+    if vencido:
+        messages.error(request, f'Para descargar certificados hay que estar a paz y salvo: tiene un saldo vencido de '
+                                f'{pesos(vencido)}. Comuníquese con la tesorería del colegio.')
         return redirect('certificados:mis_certificados')
     if conf.modo_entrega == 'SECRETARIA':
         messages.info(request, 'En este colegio los certificados se piden directamente en la secretaría.')

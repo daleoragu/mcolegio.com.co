@@ -1,0 +1,10 @@
+{% extends 'cartera/_pdf_base.html' %}
+{% block titulo %}Paz y salvo{% endblock %}
+{% block cuerpo %}
+<h1 style="margin-top:40px">PAZ Y SALVO</h1>
+<p style="text-align:justify; font-size:12px; margin-top:30px;">La tesorería de <strong>{{ colegio.nombre|upper }}</strong> hace constar que
+    <strong>{{ est.user.get_full_name|upper }}</strong>{% if est.ficha.numero_documento %}, identificado(a) con {{ est.ficha.get_tipo_documento_display }} No. {{ est.ficha.numero_documento }}{% endif %},
+    del curso <strong>{{ est.curso.nombre|default:"—" }}</strong>, se encuentra a paz y salvo por todo concepto con la institución a la fecha.</p>
+<p style="font-size:12px;">Se expide en {{ colegio.ciudad|default:"la ciudad" }} el {{ hoy|date:"d/m/Y" }}.</p>
+<div class="firma"><div class="linea"></div><strong>{{ firma|upper|default:"&nbsp;" }}</strong><br>{{ cargo }}</div>
+{% endblock %}

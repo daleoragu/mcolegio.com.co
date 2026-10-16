@@ -3,6 +3,8 @@
 {% block content %}
 {% include 'certificados/_estilos.html' %}
 <div style="max-width:820px;">
+{% if bloqueo %}<div class="alert alert-warning"><i class="fas fa-wallet me-1"></i>Para descargar o pedir certificados hay que estar a paz y salvo.
+    Tiene un saldo vencido{% if 'cartera' in mods %}: <a href="{% url 'cartera:mi_cuenta' %}">ver mi estado de cuenta</a>{% endif %}.</div>{% endif %}
 {% if conf.modo_entrega == 'SECRETARIA' %}
     <div class="alert alert-info">En {{ colegio.nombre }} los certificados se piden en la secretaría. Aquí puede descargar los que ya le entregaron.</div>
 {% elif conf.modo_entrega == 'APROBACION' %}

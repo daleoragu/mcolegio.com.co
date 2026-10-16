@@ -1,0 +1,70 @@
+{% extends 'notas/base.html' %}
+{% load cartera_tags %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="mb-0"><i class="fas fa-gear me-2"></i>Cartera: conceptos y configuración</h4>
+    <a href="{% url 'cartera:panel' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Cartera</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'cartera/_estilos.html' %}
+<div class="row g-3">
+<div class="col-lg-7">
+    <div class="ca-tarjeta">
+        <h6 class="fw-bold">Conceptos de cobro</h6>
+        <table class="table table-sm align-middle">
+            <thead><tr><th>Concepto</th><th>Tipo</th><th class="num">Valor</th><th></th></tr></thead>
+            <tbody>{% for c in conceptos %}
+            <tr {% if not c.activo %}class="text-muted"{% endif %}><td>{{ c.nombre }}{% if not c.activo %} (inactivo){% endif %}
+                {% if c.valores_grado.all %}<div class="small text-muted">Con valor distinto en {{ c.valores_grado.all|length }} grado{{ c.valores_grado.all|length|pluralize }}</div>{% endif %}</td>
+                <td class="small">{{ c.get_tipo_display }}</td><td class="num">{{ c.valor|pesos }}</td>
+                <td class="text-end"><a href="{% url 'cartera:concepto' c.id %}" class="btn btn-sm btn-outline-primary">Editar</a></td></tr>
+            {% empty %}<tr><td colspan="4" class="text-muted">Todavía no hay conceptos.</td></tr>{% endfor %}</tbody>
+        </table>
+    </div>
+    <div class="ca-tarjeta">
+        <h6 class="fw-bold">{% if concepto %}Editar «{{ concepto.nombre }}»{% else %}Nuevo concepto{% endif %}</h6>
+        <form method="post" action="{% if concepto %}{% url 'cartera:concepto' concepto.id %}{% else %}{% url 'cartera:configuracion' %}{% endif %}">{% csrf_token %}
+            <input type="hidden" name="que" value="concepto">
+            <div class="row g-2">
+                <div class="col-md-6"><label class="form-label small mb-1">Nombre</label>{{ form_concepto.nombre }}</div>
+                <div class="col-md-6"><label class="form-label small mb-1">Tipo</label>{{ form_concepto.tipo }}</div>
+                <div class="col-md-4"><label class="form-label small mb-1">Valor general (pesos)</label>{{ form_concepto.valor }}</div>
+                <div class="col-md-4"><label class="form-label small mb-1">Mes (si es una vez al año)</label>{{ form_concepto.mes_unico }}</div>
+                <div class="col-md-2"><label class="form-label small mb-1">Orden</label>{{ form_concepto.orden }}</div>
+                <div class="col-md-2 d-flex align-items-end"><div class="form-check">{{ form_concepto.activo }}<label class="form-check-label small" for="{{ form_concepto.activo.id_for_label }}">Activo</label></div></div>
+            </div>
+            {{ form_concepto.errors }}
+            {% if grados %}
+            <p class="small text-muted mt-3 mb-1">Valor distinto por grado (vacío = el valor general):</p>
+            <div class="row g-2">{% for g in grados %}<div class="col-6 col-md-3"><label class="form-label small mb-0">{{ g.nombre }}</label>
+                <input type="number" min="0" name="grado_{{ g.n }}" value="{{ g.valor }}" class="form-control form-control-sm"></div>{% endfor %}</div>
+            {% endif %}
+            <div class="mt-3 d-flex gap-2"><button class="btn btn-primary btn-sm">Guardar concepto</button>
+                {% if concepto %}<a href="{% url 'cartera:configuracion' %}" class="btn btn-link btn-sm">Nuevo</a>{% endif %}</div>
+        </form>
+        {% if concepto %}
+        <form method="post" action="{% url 'cartera:concepto' concepto.id %}" class="mt-2" onsubmit="return confirm('¿Eliminar este concepto?');">{% csrf_token %}
+            <input type="hidden" name="que" value="borrar_concepto"><button class="btn btn-link text-danger btn-sm p-0">Eliminar concepto</button></form>
+        {% endif %}
+    </div>
+</div>
+<div class="col-lg-5">
+    <div class="ca-tarjeta">
+        <h6 class="fw-bold">Configuración</h6>
+        <form method="post">{% csrf_token %}<input type="hidden" name="que" value="config">
+            <label class="form-label small mb-1">{{ form_conf.dia_vencimiento.label }}</label>{{ form_conf.dia_vencimiento }}
+            <label class="form-label small mb-1 mt-3">{{ form_conf.meses_pension.label }}</label>
+            <div class="d-flex flex-wrap gap-2">{% for m in form_conf.meses_pension %}<label class="small">{{ m.tag }} {{ m.choice_label|slice:":3" }}</label>{% endfor %}</div>
+            <label class="form-label small mb-1 mt-3">{{ form_conf.datos_pago.label }}</label>{{ form_conf.datos_pago }}
+            <div class="form-text">{{ form_conf.datos_pago.help_text }}</div>
+            <div class="form-check mt-3">{{ form_conf.familias_ven_estado }}<label class="form-check-label small" for="{{ form_conf.familias_ven_estado.id_for_label }}">{{ form_conf.familias_ven_estado.label }}</label></div>
+            <div class="form-check mt-1">{{ form_conf.exigir_paz_y_salvo }}<label class="form-check-label small" for="{{ form_conf.exigir_paz_y_salvo.id_for_label }}">{{ form_conf.exigir_paz_y_salvo.label }}</label></div>
+            <div class="form-text">{{ form_conf.exigir_paz_y_salvo.help_text }}</div>
+            {{ form_conf.errors }}
+            <button class="btn btn-primary btn-sm mt-3">Guardar configuración</button>
+        </form>
+    </div>
+</div>
+</div>
+{% endblock %}
