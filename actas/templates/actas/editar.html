@@ -37,7 +37,8 @@
             <div class="col-md-5"><label class="form-label fw-semibold" for="{{ form.sede.id_for_label }}">{{ form.sede.label }}</label>{{ form.sede }}</div>
             {% endif %}
             <div class="col-12">
-                <label class="form-label fw-semibold d-block">Cursos</label>
+                <label class="form-label fw-semibold d-block">Cursos
+                    <button type="button" class="btn btn-outline-primary btn-sm ms-2 py-0" id="ac-todos-cursos"><i class="fas fa-check-double me-1"></i>Seleccionar todos</button></label>
                 {% for g in grados %}
                 <div class="ac-grado">
                     <div class="ac-grado-cab">{{ g.nombre }}
@@ -75,6 +76,7 @@
         <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
             <div class="form-text m-0">Marque con <strong>X</strong> a quienes asistieron. Abajo escoja cómo salen las firmas en el acta.</div>
             <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-success btn-sm" id="ac-todos-asistieron"><i class="fas fa-check-double me-1"></i>Marcar a todos</button>
             <button type="button" class="btn btn-outline-secondary btn-sm ac-traer" id="ac-sugerir"
                     data-url="{% url 'actas:sugerir_asistentes' acta.id %}"><i class="fas fa-user-plus me-1"></i>{% if acta.es_comision %}Traer directores de grado y representantes{% else %}Traer directivos{% endif %}</button>
             {% if es_admin_actas %}
@@ -160,6 +162,21 @@
             var todos = cajas.every(function (c) { return c.checked; });
             cajas.forEach(function (c) { c.checked = !todos; });
         });
+    });
+    // Todos los cursos visibles (los de la sede elegida); si ya están todos, los quita.
+    var todosCursos = document.getElementById('ac-todos-cursos');
+    if (todosCursos) todosCursos.addEventListener('click', function () {
+        var cajas = Array.prototype.filter.call(document.querySelectorAll('.ac-cursos label'), function (l) {
+            return l.style.display !== 'none' && l.closest('.ac-grado').style.display !== 'none';
+        }).map(function (l) { return l.querySelector('input'); });
+        var todos = cajas.every(function (c) { return c.checked; });
+        cajas.forEach(function (c) { c.checked = !todos; });
+    });
+    var todosAsis = document.getElementById('ac-todos-asistieron');
+    if (todosAsis) todosAsis.addEventListener('click', function () {
+        var cajas = document.querySelectorAll('#ac-asis-filas .ac-x');
+        var todos = Array.prototype.every.call(cajas, function (c) { return c.checked; });
+        cajas.forEach(function (c) { c.checked = !todos; c.dispatchEvent(new Event('change', {bubbles: true})); });
     });
     var sede = document.getElementById('id_sede');
     function filtrar() {

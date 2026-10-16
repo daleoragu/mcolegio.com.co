@@ -1,0 +1,39 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="mb-0"><i class="fas fa-file-excel me-2 text-success"></i>Notas de años anteriores</h4>
+    <a href="{% url 'certificados:panel' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Volver</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'certificados/_estilos.html' %}
+<div class="ce-tarjeta" style="max-width:860px;">
+    <p>Cargue las notas finales de los años en que el colegio todavía no usaba la plataforma. Con ellas puede sacar
+       el certificado de calificaciones de cualquier año, también de exalumnos.</p>
+    <ol class="small">
+        <li>Descargue la plantilla: una fila por cada área o asignatura de cada estudiante en cada año.</li>
+        <li>El estudiante se reconoce por el <strong>documento</strong>. Si no está en la plataforma, se crea como exalumno con los apellidos y nombres del archivo.</li>
+        <li>Antes de guardar se revisa todo el archivo: si hay un error, no se guarda nada y le decimos en qué fila está.</li>
+        <li>Si sube otra vez el mismo estudiante y año, se reemplazan esas notas.</li>
+    </ol>
+    <a href="{% url 'certificados:plantilla' %}" class="btn btn-outline-success btn-sm mb-3"><i class="fas fa-download me-1"></i>Descargar plantilla</a>
+    <form method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">{% csrf_token %}
+        <input type="file" name="archivo" accept=".xlsx" class="form-control" style="max-width:420px" required>
+        <button class="btn btn-success"><i class="fas fa-upload me-1"></i>Subir y cargar</button>
+    </form>
+</div>
+{% if resumen %}
+<div class="alert alert-success" style="max-width:860px;">
+    <strong>Listo.</strong> Se cargaron {{ resumen.filas }} notas de {{ resumen.estudiantes }} estudiante{{ resumen.estudiantes|pluralize }}
+    ({{ resumen.anos }} año{{ resumen.anos|pluralize }} en total){% if resumen.exalumnos_creados %}; se cre{{ resumen.exalumnos_creados|pluralize:'ó,aron' }} {{ resumen.exalumnos_creados }} exalumno{{ resumen.exalumnos_creados|pluralize }}{% endif %}.
+    Búsquelos en <a href="{% url 'certificados:panel' %}?exalumnos=1">Certificados</a>.
+</div>
+{% endif %}
+{% if errores %}
+<div class="alert alert-danger" style="max-width:860px;">
+    <strong>No se guardó nada.</strong> Corrija esto y vuelva a subir el archivo:
+    <ul class="mb-0 mt-2">{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul>
+    {% if mas_errores %}<p class="mb-0 mt-2">…y {{ mas_errores }} error{{ mas_errores|pluralize:"es" }} más.</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

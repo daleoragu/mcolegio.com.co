@@ -1,0 +1,29 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-gear me-2"></i>Configuración de certificados</h4>{% endblock %}
+{% block content %}
+{% include 'certificados/_estilos.html' %}
+<div class="ce-tarjeta" style="max-width:760px;">
+    <form method="post">{% csrf_token %}
+        {% for f in form %}
+        <div class="mb-3">
+            {% if f.field.widget.input_type == 'checkbox' %}
+            <div class="form-check">{{ f }}<label class="form-check-label" for="{{ f.id_for_label }}">{{ f.label }}</label></div>
+            {% else %}
+            <label class="form-label fw-semibold" for="{{ f.id_for_label }}">{{ f.label }}</label>
+            {% if f.name == 'modo_entrega' %}
+                {% for r in f %}<div class="form-check">{{ r.tag }}<label class="form-check-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>{% endfor %}
+            {% else %}{{ f }}{% endif %}
+            {% endif %}
+            {% if f.help_text %}<div class="form-text">{{ f.help_text }}</div>{% endif %}
+            {{ f.errors }}
+        </div>
+        {% endfor %}
+        <button class="btn btn-primary"><i class="fas fa-save me-1"></i>Guardar</button>
+        <a href="{% url 'certificados:panel' %}" class="btn btn-link">Cancelar</a>
+    </form>
+</div>
+<script>
+document.querySelectorAll('.ce-tarjeta input[type=text], .ce-tarjeta textarea, .ce-tarjeta select').forEach(function (e) { e.classList.add('form-control'); });
+document.querySelectorAll('.ce-tarjeta input[type=checkbox], .ce-tarjeta input[type=radio]').forEach(function (e) { e.classList.add('form-check-input'); });
+</script>
+{% endblock %}

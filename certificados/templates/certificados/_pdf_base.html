@@ -1,0 +1,50 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>{{ cert.get_tipo_display }}</title>
+<style>
+    @page { size: letter portrait; margin: 1.6cm 1.8cm 1.4cm;
+            @bottom-center { content: "Código de verificación {{ cert.codigo }} · Página " counter(page) " de " counter(pages);
+                             font-family: Helvetica, Arial, sans-serif; font-size: 7.5px; color: #666; } }
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 10.5px; color: #222; line-height: 1.45; }
+    .encabezado-con-bordes, .encabezado-sin-bordes { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+    .encabezado-con-bordes td, .encabezado-sin-bordes td { vertical-align: middle; padding: 0 4px; border: none; }
+    .escudo { max-width: 90px; max-height: {{ colegio.alto_logos_pdf|default:80 }}px; height: auto; width: auto; }
+    h1 { text-align: center; font-size: 15px; letter-spacing: 1px; margin: 18px 0 4px; }
+    .sub { text-align: center; font-size: 9px; color: #555; margin: 0 0 16px; }
+    .texto { text-align: justify; margin: 0 0 10px; }
+    table.notas { width: 100%; border-collapse: collapse; margin: 6px 0 10px; }
+    table.notas th { background: #eef1f6; font-size: 9px; text-transform: uppercase; letter-spacing: .3px; }
+    table.notas th, table.notas td { border: 1px solid #b9c0cc; padding: 3px 6px; }
+    table.notas td.c { text-align: center; }
+    tr.area td { font-weight: bold; background: #f7f8fa; }
+    tr.asig td.n { padding-left: 18px; }
+    .resultado { border: 1.5px solid #193661; padding: 6px 10px; margin: 10px 0; font-size: 11px; }
+    .escala { font-size: 8.5px; color: #444; margin: 6px 0 12px; }
+    .parcial { border: 1px dashed #b45309; color: #92400e; padding: 5px 8px; font-size: 9px; margin: 8px 0; }
+    .firmas { width: 100%; margin-top: 54px; border-collapse: collapse; }
+    .firmas td { width: 50%; text-align: center; vertical-align: top; padding: 0 16px; }
+    .linea { border-top: 1px solid #222; margin: 0 auto 3px; width: 85%; }
+    .verificacion { margin-top: 26px; border: 1px solid #ccd3de; border-radius: 6px; padding: 8px 10px; page-break-inside: avoid; }
+    .verificacion table { width: 100%; border-collapse: collapse; }
+    .verificacion td { vertical-align: middle; font-size: 8.5px; color: #333; }
+    .verificacion img { width: 78px; height: 78px; }
+    .codigo { font-family: Courier, monospace; font-size: 12px; font-weight: bold; letter-spacing: 1px; }
+    .anulado { position: fixed; top: 40%; left: 0; right: 0; text-align: center; font-size: 70px; color: rgba(200,0,0,.18);
+               transform: rotate(-30deg); font-weight: bold; }
+</style></head>
+<body>
+{% if cert.anulado %}<div class="anulado">ANULADO</div>{% endif %}
+{% include "notas/fragmentos/encabezado_pdf.html" %}
+{% block cuerpo %}{% endblock %}
+{% if c.texto_final %}<p class="texto">{{ c.texto_final|linebreaksbr }}</p>{% endif %}
+<p class="texto">Se expide en {{ c.ciudad|default:"la ciudad" }}{% if c.departamento %} ({{ c.departamento }}){% endif %}, el {{ c.fecha }}.</p>
+<table class="firmas"><tr>
+    <td><div class="linea"></div><strong>{{ c.firma_nombre|default:"&nbsp;" }}</strong><br>{{ c.firma_cargo }}</td>
+    {% if c.firma2_nombre %}<td><div class="linea"></div><strong>{{ c.firma2_nombre }}</strong><br>{{ c.firma2_cargo }}</td>{% endif %}
+</tr></table>
+<div class="verificacion"><table><tr>
+    <td style="width:90px"><img src="data:image/png;base64,{{ qr }}" alt="QR"></td>
+    <td><strong>Verifique que este certificado es auténtico</strong> escaneando el código QR o entrando a<br>
+        <span style="word-break: break-all;">{{ url_verificar }}</span><br>
+        Código: <span class="codigo">{{ cert.codigo }}</span></td>
+</tr></table></div>
+</body></html>

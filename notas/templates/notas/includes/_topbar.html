@@ -24,6 +24,7 @@
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header">Panel Estudiante</h6></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'mi_observador' %}active{% endif %}" href="{% url 'notas:mi_observador' %}"><i class="fas fa-user-graduate fa-fw me-2 text-muted"></i>Mi Observador</a></li>
+                    <li><a class="dropdown-item {% if request.resolver_match.url_name == 'mis_certificados' %}active{% endif %}" href="{% url 'certificados:mis_certificados' %}"><i class="fas fa-award fa-fw me-2 text-muted"></i>Mis certificados</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'mi_boletin' %}active{% endif %}" href="{% url 'notas:mi_boletin' %}"><i class="fas fa-file-pdf fa-fw me-2 text-muted"></i>Mi Boletín</a></li>
                     {% if user.estudiante %}
                         <li><a class="dropdown-item {% if request.resolver_match.url_name == 'acta_reporte_parcial_estudiante' %}active{% endif %}" href="{% url 'notas:acta_reporte_parcial_estudiante' user.estudiante.id %}"><i class="fas fa-file-alt fa-fw me-2 text-muted"></i>Mi Reporte Parcial</a></li>
@@ -36,6 +37,7 @@
                     <li><h6 class="dropdown-header">Gestión Docente</h6></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'ingresar_notas_periodo' %}active{% endif %}" href="{% url 'notas:ingresar_notas_periodo' %}"><i class="fas fa-edit fa-fw me-2 text-muted"></i>Ingresar Notas</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'mis_planillas' %}active{% endif %}" href="{% url 'notas:mis_planillas' %}"><i class="fas fa-table-cells fa-fw me-2 text-muted"></i>Mis planillas</a></li>
+                    <li><a class="dropdown-item {% if request.resolver_match.url_name == 'subir_planilla' %}active{% endif %}" href="{% url 'notas:subir_planilla' %}"><i class="fas fa-upload fa-fw me-2 text-muted"></i>Subir planilla de notas</a></li>
                     {% if user.es_admin_colegio or user.docente.cursos_dirigidos.all %}<li><a class="dropdown-item {% if request.resolver_match.url_name == 'alertas_tempranas' %}active{% endif %}" href="{% url 'notas:alertas_tempranas' %}"><i class="fas fa-triangle-exclamation fa-fw me-2 text-muted"></i>Alertas tempranas</a></li>{% endif %}
                     {# PuntoExacto va junto a Ingresar Notas: de ahí salen las columnas de la planilla. #}
                     <li><a class="dropdown-item {% if 'puntoexacto' in request.path %}active{% endif %}" href="{% url 'puntoexacto:lista' %}"><i class="fas fa-list-check fa-fw me-2 text-muted"></i>PuntoExacto</a></li>
@@ -82,7 +84,7 @@
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'configuracion_calificaciones' %}active{% endif %}" href="{% url 'notas:configuracion_calificaciones' %}"><i class="fas fa-percentage fa-fw me-2 text-muted"></i>Permisos de Porcentajes</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'gestion_ponderacion_areas' %}active{% endif %}" href="{% url 'notas:gestion_ponderacion_areas' %}"><i class="fas fa-balance-scale fa-fw me-2 text-muted"></i>Ponderación de Áreas</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'impresion_masiva_carnets' %}active{% endif %}" href="{% url 'notas:impresion_masiva_carnets' %}"><i class="fas fa-id-card fa-fw me-2 text-muted"></i>Imprimir Carnets</a></li>
-                    <li><a class="dropdown-item {% if 'certificado' in request.path %}active{% endif %}" href="{% url 'notas:selector_certificados' %}"><i class="fas fa-award fa-fw me-2 text-muted"></i>Generar Certificados</a></li>
+                    <li><a class="dropdown-item {% if 'certificado' in request.path %}active{% endif %}" href="{% url 'certificados:panel' %}"><i class="fas fa-award fa-fw me-2 text-muted"></i>Certificados</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'personalizacion_portal' %}active{% endif %}" href="{% url 'notas:personalizacion_portal' %}"><i class="fas fa-palette fa-fw me-2 text-muted"></i>Personalizar Portal</a></li>
                 {% endif %}
             </ul>

@@ -1,30 +1,6 @@
 {% extends 'notas/base.html' %}
-{% block title %}Actas<script>
-(function () {
-    var b = document.getElementById('ac-buscar');
-    if (!b) return;
-    b.addEventListener('input', function () {
-        var t = b.value.trim().toLowerCase();
-        document.querySelectorAll('.ac-redactores label').forEach(function (l) {
-            l.style.display = !t || l.textContent.toLowerCase().indexOf(t) >= 0 ? '' : 'none';
-        });
-    });
-})();
-</script>
-{% endblock %}
-{% block page_title %}Actas<script>
-(function () {
-    var b = document.getElementById('ac-buscar');
-    if (!b) return;
-    b.addEventListener('input', function () {
-        var t = b.value.trim().toLowerCase();
-        document.querySelectorAll('.ac-redactores label').forEach(function (l) {
-            l.style.display = !t || l.textContent.toLowerCase().indexOf(t) >= 0 ? '' : 'none';
-        });
-    });
-})();
-</script>
-{% endblock %}
+{% block title %}Actas{% endblock %}
+{% block page_title %}Actas{% endblock %}
 {% block content %}
 <style>
     .ac-nuevas { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:18px; }
@@ -63,7 +39,11 @@
     <p class="mt-2 mb-2">Los docentes marcados ven «Actas» en su menú y pueden redactar las suyas (por ejemplo, reuniones de área o de padres). Usted las ve todas aquí y puede cambiarles el número.</p>
     {% if docentes %}
     <form method="post" action="{% url 'actas:redactores' %}">{% csrf_token %}
-        <input type="text" class="form-control form-control-sm mb-2" placeholder="Buscar docente…" id="ac-buscar" style="max-width:300px">
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+            <input type="text" class="form-control form-control-sm" placeholder="Buscar docente…" id="ac-buscar" style="max-width:300px">
+            <button type="button" class="btn btn-outline-primary btn-sm" id="ac-marcar-todos"><i class="fas fa-check-double me-1"></i>Seleccionar todos</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="ac-desmarcar-todos">Quitar todos</button>
+        </div>
         <div class="ac-redactores">
             {% for d in docentes %}
             <label><input type="checkbox" class="form-check-input me-1" name="docentes" value="{{ d.id }}" {% if d.marcado %}checked{% endif %}>{{ d.nombre }}</label>
@@ -121,6 +101,27 @@
             l.style.display = !t || l.textContent.toLowerCase().indexOf(t) >= 0 ? '' : 'none';
         });
     });
+})();
+</script>
+
+<script>
+(function () {
+    var b = document.getElementById('ac-buscar');
+    if (!b) return;
+    function visibles() {
+        return Array.prototype.filter.call(document.querySelectorAll('.ac-redactores label'),
+            function (l) { return l.style.display !== 'none'; });
+    }
+    b.addEventListener('input', function () {
+        var t = b.value.trim().toLowerCase();
+        document.querySelectorAll('.ac-redactores label').forEach(function (l) {
+            l.style.display = !t || l.textContent.toLowerCase().indexOf(t) >= 0 ? '' : 'none';
+        });
+    });
+    // Con una búsqueda escrita, marca o quita solo los que se están viendo.
+    function marcar(v) { visibles().forEach(function (l) { l.querySelector('input').checked = v; }); }
+    document.getElementById('ac-marcar-todos').addEventListener('click', function () { marcar(true); });
+    document.getElementById('ac-desmarcar-todos').addEventListener('click', function () { marcar(false); });
 })();
 </script>
 {% endblock %}

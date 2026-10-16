@@ -1,0 +1,27 @@
+{% extends 'certificados/_pdf_base.html' %}
+{% block cuerpo %}
+<h1>CERTIFICADO DE CALIFICACIONES</h1>
+<p class="texto">{% if c.firma_nombre %}El(la) suscrito(a) {{ c.firma_cargo }} de{% else %}La{% endif %} <strong>{{ c.colegio|upper }}</strong>{% if c.resolucion %}, aprobada por {{ c.resolucion }}{% endif %}{% if c.dane %} y con código DANE {{ c.dane }}{% endif %}{% if c.resolucion or c.dane %},{% endif %}
+    CERTIFICA que <strong>{{ c.nombre }}</strong>{% if c.documento %}, identificado(a) con {{ c.tipo_documento }} No. <strong>{{ c.documento }}</strong>{% endif %},
+    {% if c.parcial %}cursa{% else %}cursó{% endif %} en esta institución el grado <strong>{{ c.grado|upper }}</strong> durante el año lectivo
+    <strong>{{ c.ano }}</strong>, con las siguientes valoraciones{% if c.parcial %} a la fecha{% endif %}:</p>
+<table class="notas">
+    <thead><tr><th style="text-align:left">Área{% if c.mostrar_asignaturas %} / asignatura{% endif %}</th>
+        {% if c.mostrar_intensidad %}<th style="width:46px">I.H.</th>{% endif %}
+        <th style="width:70px">Valoración</th><th style="width:96px">Desempeño</th></tr></thead>
+    <tbody>
+    {% for a in c.areas %}
+        <tr class="area"><td>{{ a.nombre }}</td>{% if c.mostrar_intensidad %}<td class="c">{{ a.ih|default_if_none:"" }}</td>{% endif %}
+            <td class="c">{{ a.nota|default:"—" }}</td><td class="c">{{ a.desempeno }}</td></tr>
+        {% if c.mostrar_asignaturas %}{% for s in a.asignaturas %}
+        <tr class="asig"><td class="n">{{ s.nombre }}</td>{% if c.mostrar_intensidad %}<td class="c">{{ s.ih|default_if_none:"" }}</td>{% endif %}
+            <td class="c">{{ s.nota|default:"—" }}</td><td class="c">{{ s.desempeno }}</td></tr>
+        {% endfor %}{% endif %}
+    {% endfor %}
+    </tbody>
+</table>
+{% if c.parcial %}<div class="parcial">El año lectivo {{ c.ano }} está en curso: las valoraciones son las acumuladas a la fecha de expedición y pueden cambiar.</div>
+{% elif c.resultado %}<div class="resultado">Resultado del año: <strong>{{ c.resultado }}</strong>.</div>{% endif %}
+{% if c.escala %}<p class="escala"><strong>Escala de valoración institucional (Decreto 1290 de 2009):</strong>
+    {% for e in c.escala %}{{ e.nombre }} {{ e.min }} a {{ e.max }}{% if not forloop.last %} · {% endif %}{% endfor %}.</p>{% endif %}
+{% endblock %}
