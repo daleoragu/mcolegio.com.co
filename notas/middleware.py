@@ -63,6 +63,17 @@ class ColegioMiddleware:
         except Exception:
             logger.exception('Error calculando si el usuario administra %s', host)
 
+        # Módulo apagado para este colegio: su dirección muestra un aviso.
+        try:
+            from .modulos import modulo_de_ruta, esta_activo, MODULOS
+            codigo = modulo_de_ruta(request.path) if request.colegio else None
+            if codigo and not esta_activo(request.colegio, codigo):
+                from django.shortcuts import render
+                return render(request, 'notas/modulo_inactivo.html',
+                              {'colegio': request.colegio, 'modulo': MODULOS[codigo][0]}, status=403)
+        except Exception:
+            logger.exception('Error revisando los módulos de %s', host)
+
         # Plazos de periodos con cierre programado que ya vencieron.
         try:
             from .plazos import aplicar_si_toca

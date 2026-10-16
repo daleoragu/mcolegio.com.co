@@ -10,6 +10,12 @@ from django.db.models import Max # <--- IMPORTADO PARA EL ORDEN
 # MODELO CENTRAL PARA MULTI-COLEGIO (VERSIÓN COMPLETA Y CORREGIDA)
 # ==============================================================================
 
+def _todos_los_modulos():
+    """Un colegio nuevo arranca con todo encendido (ver notas/modulos.py)."""
+    from notas.modulos import TODOS
+    return list(TODOS)
+
+
 class Colegio(models.Model):
     """
     Modelo central que representa a cada institución educativa en la plataforma.
@@ -143,6 +149,9 @@ class Colegio(models.Model):
 
     # --- Configuración del Portal ---
     portal_publico_activo = models.BooleanField(default=True, verbose_name="¿Portal Público Activo?")
+    modulos_activos = models.JSONField(
+        default=_todos_los_modulos, blank=True, verbose_name='Módulos activos',
+        help_text='Los módulos contratados. Se cambian desde /plataforma/modulos/.')
     nombre_correo = models.CharField(
         max_length=40, default='Correo interno', verbose_name='Nombre del correo interno',
         help_text='Cómo se llama el correo de la plataforma en este colegio (por ejemplo, «SanFraMail»).')

@@ -1,0 +1,15 @@
+{% extends 'prematricula/_base_publica.html' %}
+{% block etiqueta %}Ingreso{% endblock %}
+{% block contenido %}
+<div class="pm-tarjeta mx-auto" style="max-width:420px;">
+    <h2><i class="fas fa-user-lock"></i>Ingreso a la plataforma</h2>
+    <form method="post">{% csrf_token %}
+        <div class="mb-3"><label class="form-label" for="u">Usuario</label>
+            <input type="text" name="username" id="u" class="form-control" required autofocus></div>
+        <div class="mb-3"><label class="form-label" for="c">Contraseña</label>
+            <input type="password" name="password" id="c" class="form-control" required></div>
+        <button class="btn btn-pm w-100">Ingresar</button>
+    </form>
+    <a href="{% url 'notas:recuperar_clave' %}" class="d-block text-center small mt-3">¿Olvidó su contraseña?</a>
+</div>
+{% endblock %}

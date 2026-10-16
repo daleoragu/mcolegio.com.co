@@ -136,6 +136,10 @@ def portal_vista(request):
             else:
                 messages.error(request, "Usuario o contraseña incorrectos.")
         
+        from ..modulos import esta_activo
+        if not esta_activo(colegio_actual, 'portal'):
+            # Sin el módulo de portal, la dirección del colegio es solo el ingreso.
+            return render(request, 'notas/portal_cerrado.html', {'colegio': colegio_actual})
         context = {'colegio': colegio_actual, **_contexto_diseno(request, colegio_actual)}
         return render(request, 'notas/portal.html', context)
     else:

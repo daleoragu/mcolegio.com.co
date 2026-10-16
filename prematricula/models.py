@@ -45,6 +45,9 @@ class Configuracion(models.Model):
         from django.utils import timezone
         if not self.abierta:
             return False
+        from notas.modulos import esta_activo
+        if not esta_activo(self.colegio, 'prematricula'):
+            return False                  # módulo apagado: no sale en el portal
         return not (self.fecha_cierre and timezone.localdate() > self.fecha_cierre)
 
 

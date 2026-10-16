@@ -1,0 +1,39 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div><h4 class="mb-0"><i class="fas fa-toggle-on me-2"></i>Módulos de cada colegio</h4>
+    <p class="text-muted small mb-0">Lo que tiene contratado cada colegio. El núcleo (notas, planillas, asistencia, boletines, sábana y observador) siempre está activo.
+        Al apagar un módulo desaparece de menús y paneles, y sus datos se conservan.</p></div>
+{% endblock %}
+{% block content %}
+<style>
+    .mo-tarjeta { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:18px 20px; margin-bottom:14px; scroll-margin-top:90px; }
+    .mo-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:8px 18px; margin:12px 0; }
+    .mo-grid label { display:flex; gap:8px; align-items:flex-start; font-size:.92rem; cursor:pointer; }
+    .mo-grid small { display:block; color:#6b7280; font-size:.78rem; line-height:1.25; }
+</style>
+{% for f in filas %}
+<div class="mo-tarjeta" id="colegio-{{ f.c.pk }}">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div><strong class="fs-5">{{ f.c.nombre }}</strong> <span class="text-muted small">{{ f.c.slug }}.mcolegio.com.co</span>
+            <span class="badge bg-light text-dark border ms-1">{{ f.activos|length }} de {{ modulos|length }}</span></div>
+        <div class="d-flex gap-2">
+            {% for codigo, plan in planes.items %}
+            <form method="post" onsubmit="return confirm('¿Aplicar el plan {{ plan.0 }} a {{ f.c.nombre|escapejs }}?');">{% csrf_token %}
+                <input type="hidden" name="colegio" value="{{ f.c.pk }}"><input type="hidden" name="plan" value="{{ codigo }}">
+                <button class="btn btn-outline-primary btn-sm">Plan {{ plan.0 }}</button></form>
+            {% endfor %}
+        </div>
+    </div>
+    <form method="post">{% csrf_token %}
+        <input type="hidden" name="colegio" value="{{ f.c.pk }}">
+        <div class="mo-grid">
+            {% for codigo, m in modulos.items %}
+            <label><input type="checkbox" class="form-check-input mt-1" name="mod_{{ codigo }}" {% if codigo in f.activos %}checked{% endif %}>
+                <span>{{ m.0 }}<small>{{ m.1 }}</small></span></label>
+            {% endfor %}
+        </div>
+        <button class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i>Guardar</button>
+    </form>
+</div>
+{% empty %}<p class="text-muted">No hay colegios.</p>{% endfor %}
+{% endblock %}

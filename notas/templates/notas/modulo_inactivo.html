@@ -1,0 +1,11 @@
+{% extends 'prematricula/_base_publica.html' %}
+{% block etiqueta %}{{ modulo }}{% endblock %}
+{% block contenido %}
+<div class="pm-tarjeta text-center py-5">
+    <i class="fas fa-toggle-off fa-3x mb-3" style="color:#9ca3af;"></i>
+    <h2 class="justify-content-center">Este servicio no está activo en su colegio</h2>
+    <p class="text-muted mb-4"><strong>{{ modulo }}</strong> no hace parte de los servicios que tiene activos {{ colegio.nombre }}.
+        Si lo necesita, comuníquese con la administración del colegio.</p>
+    {% if user.is_authenticated %}<a href="{% url 'notas:dashboard' %}" class="btn btn-pm">Volver a mi panel</a>{% endif %}
+</div>
+{% endblock %}

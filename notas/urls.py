@@ -2,6 +2,7 @@
 # Este archivo define todas las URLs específicas de tu aplicación "notas".
 
 from django.urls import path
+from .views import plataforma_views
 from .views import (
     auth_views,
     dashboard_views,
@@ -60,6 +61,7 @@ urlpatterns = [
 
     # --- Rutas de Paneles de Usuario ---
     path('dashboard/', dashboard_views.dashboard_vista, name='dashboard'),
+    path('plataforma/modulos/', plataforma_views.modulos_colegios, name='modulos_colegios'),
     path('panel-administrador/', dashboard_views.admin_dashboard_vista, name='admin_dashboard'),
     path('panel-docente/', dashboard_views.docente_dashboard_vista, name='panel_docente'),
     path('panel-estudiante/', dashboard_views.estudiante_dashboard_vista, name='panel_estudiante'),

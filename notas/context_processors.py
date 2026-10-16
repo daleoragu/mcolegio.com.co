@@ -32,4 +32,7 @@ def colegio_context(request):
     """
     # getattr es una forma segura de obtener el atributo, devolviendo None si no existe.
     colegio = getattr(request, 'colegio', None)
-    return {'colegio': colegio}
+    from .modulos import activos
+    # «mods»: los módulos activos del colegio, para mostrar u ocultar menús
+    # ({% if 'circulares' in mods %}). Ver notas/modulos.py.
+    return {'colegio': colegio, 'mods': activos(colegio)}
