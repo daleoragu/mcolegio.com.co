@@ -63,5 +63,12 @@ class ColegioMiddleware:
         except Exception:
             logger.exception('Error calculando si el usuario administra %s', host)
 
+        # Plazos de periodos con cierre programado que ya vencieron.
+        try:
+            from .plazos import aplicar_si_toca
+            aplicar_si_toca(request.colegio)
+        except Exception:
+            logger.exception('Error cerrando plazos programados de %s', host)
+
         response = self.get_response(request)
         return response
