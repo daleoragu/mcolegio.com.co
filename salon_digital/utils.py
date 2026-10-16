@@ -2,8 +2,10 @@
 import re
 from collections import OrderedDict, defaultdict
 
-RE_ENDPOINT = re.compile(r"""(const\s+ENDPOINT\s*=\s*)(['"])(.*?)\2""", re.S)
-RE_CLAVE = re.compile(r"""(const\s+CLAVE_PANEL\s*=\s*)(['"])(.*?)\2""", re.S)
+# const, let o var, con comillas sencillas, dobles o invertidas: los archivos
+# que arman ChatGPT, Gemini o Claude no siempre escriben la línea igual.
+RE_ENDPOINT = re.compile(r"""((?:const|let|var)\s+ENDPOINT\s*=\s*)(['"`])(.*?)\2""", re.S)
+RE_CLAVE = re.compile(r"""((?:const|let|var)\s+CLAVE_PANEL\s*=\s*)(['"`])(.*?)\2""", re.S)
 
 
 def reescribir_endpoint(contenido, url_endpoint, clave_panel=None):
@@ -331,6 +333,18 @@ CDNS = (
 GOOGLE = 'https://apis.google.com https://ssl.gstatic.com'
 
 
+def origenes_salon():
+    """https://dominio y https://www.dominio del Salón, para connect-src."""
+    import os
+    from django.conf import settings
+    base = (os.getenv('SALON_DOMINIO_PUBLICO', '') or getattr(settings, 'SALON_DOMINIO_PUBLICO', '') or '').strip()
+    base = re.sub(r'^https?://', '', base).strip('/').split('/')[0]
+    if not base:
+        return ''
+    sin_www = base[4:] if base.startswith('www.') else base
+    return f' https://{sin_www} https://www.{sin_www}'
+
+
 def cabecera_csp(origen_archivos=''):
     """Política que impide que una página publicada robe datos.
 
@@ -351,7 +365,7 @@ def cabecera_csp(origen_archivos=''):
         f"img-src 'self' data: blob:{extra} https://ssl.gstatic.com https://lh3.googleusercontent.com",
         f"font-src 'self' data:{extra} {CDNS}",
         f"media-src 'self' data: blob:{extra}",
-        "connect-src 'self'",
+        f"connect-src 'self'{origenes_salon()}",
         "form-action 'self'",
         "base-uri 'self'",
         "object-src 'none'",

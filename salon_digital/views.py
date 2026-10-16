@@ -212,7 +212,7 @@ def ver_pagina(request, usuario, slug):
     with default_storage.open(ruta, 'rb') as fh:
         contenido = fh.read()
 
-    texto = contenido.decode('utf-8', errors='replace')
+    texto = _conectar(contenido, pagina)
     extra = bloque_comentarios(request, pagina)
     if extra:
         if '</body>' in texto.lower():
@@ -227,6 +227,26 @@ def ver_pagina(request, usuario, slug):
 
     PaginaPublicada.objects.filter(pk=pagina.pk).update(visitas=pagina.visitas + 1)
     return respuesta
+
+
+def _conectar(contenido, pagina):
+    """Al servir la página, su ENDPOINT apunta a esta misma dirección.
+
+    Al subirla se graba la dirección absoluta del Salón (sirve si el archivo se
+    abre fuera de la plataforma). Pero si el estudiante entra por otra
+    dirección —con o sin www, o por el subdominio de un colegio— el navegador
+    bloquea el envío a un dominio distinto y el resultado no llega. Con la
+    ruta relativa el envío siempre va al mismo sitio desde donde se abrió.
+    """
+    texto = contenido.decode('utf-8', errors='replace') if isinstance(contenido, bytes) else contenido
+    if not pagina.captura_resultados:
+        return texto
+    ruta = reverse('salon_digital:api_resultados', kwargs={'usuario': pagina.propietario.slug, 'slug': pagina.slug})
+    texto, conectada = reescribir_endpoint(texto, ruta, pagina.clave_panel)
+    if conectada and not pagina.endpoint_reescrito:
+        # Subida antes de que se reconocieran «let»/«var»: queda marcada como conectada.
+        PaginaPublicada.objects.filter(pk=pagina.pk).update(endpoint_reescrito=True)
+    return texto
 
 
 def archivo_pagina(request, usuario, slug, ruta):
@@ -251,7 +271,7 @@ def archivo_pagina(request, usuario, slug, ruta):
     if extension in ('.html', '.htm'):
         with default_storage.open(completa, 'rb') as fh:
             contenido = fh.read()
-        respuesta = HttpResponse(contenido, content_type='text/html; charset=utf-8')
+        respuesta = HttpResponse(_conectar(contenido, pagina), content_type='text/html; charset=utf-8')
         respuesta['Content-Security-Policy'] = cabecera_csp(origen_archivos())
         respuesta['X-Content-Type-Options'] = 'nosniff'
         return respuesta
