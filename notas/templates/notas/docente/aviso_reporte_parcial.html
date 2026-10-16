@@ -1,0 +1,81 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}Avisar a la familia{% endblock %}
+{% block content %}
+<style>
+    .af-mensaje { background:#e7f7ec; border-radius:12px 12px 12px 2px; padding:14px 16px; font-size:.98rem;
+                  box-shadow:0 1px 2px rgba(0,0,0,.08); white-space:pre-line; }
+    .af-contacto { display:flex; align-items:center; gap:12px; border:1px solid #e3e6ec; border-radius:10px;
+                   padding:10px 14px; margin-bottom:10px; }
+    .af-contacto .rol { font-weight:700; min-width:90px; }
+    .af-wa { background:#25d366; border-color:#25d366; color:#fff; }
+    .af-wa:hover { background:#1ebe5a; color:#fff; }
+</style>
+<div class="container mt-4" style="max-width:820px;">
+    {% if messages %}{% for m in messages %}
+        <div class="alert alert-{{ m.tags }} alert-dismissible fade show">{{ m }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    {% endfor %}{% endif %}
+
+    <div class="card shadow-sm mb-3"><div class="card-body">
+        <h5 class="mb-1">Informe parcial de {{ estudiante.user.get_full_name }}</h5>
+        <p class="text-muted mb-3" style="font-size:.9rem;">{{ estudiante.curso.nombre }} · {{ periodo }}</p>
+        {% if asignaturas %}
+        <table class="table table-sm mb-3">
+            <thead><tr><th>Asignatura</th><th>Docente</th><th class="text-center">Nota parcial</th></tr></thead>
+            <tbody>{% for a in asignaturas %}<tr><td>{{ a.materia }}</td><td class="small">{{ a.docente }}</td>
+                <td class="text-center">{{ a.nota_texto|default:"—" }} <span class="small text-muted">{{ a.desempeno|lower }}</span></td></tr>{% endfor %}</tbody>
+        </table>
+        {% else %}
+        <div class="alert alert-warning">Este estudiante no tiene asignaturas reportadas con dificultades en este periodo.</div>
+        {% endif %}
+        <label class="form-label fw-bold" for="af-texto">Mensaje para WhatsApp</label>
+        <textarea id="af-texto" class="form-control af-mensaje" rows="7">{{ texto }}</textarea>
+        <p class="text-muted mt-2 mb-0" style="font-size:.84rem;">Puede ajustar el texto antes de enviarlo. El enlace descarga el
+            <a href="{{ url_informe }}" target="_blank">informe parcial en PDF</a> sin usuario ni contraseña y sirve por 30 días.</p>
+    </div></div>
+
+    <div class="card shadow-sm mb-3"><div class="card-body">
+        <h5 class="mb-3"><i class="fab fa-whatsapp me-2" style="color:#25d366;"></i>WhatsApp</h5>
+        {% for c in contactos %}
+        <div class="af-contacto">
+            <span class="rol">{{ c.rol }}</span>
+            <span class="flex-grow-1">{{ c.nombre|default:"" }} <span class="text-muted">{{ c.visible }}</span></span>
+            <a href="{{ c.enlace }}" data-numero="{{ c.numero }}" target="_blank" rel="noopener" class="btn btn-sm af-wa">
+                <i class="fab fa-whatsapp me-1"></i>Enviar</a>
+        </div>
+        {% empty %}
+        <p class="text-muted mb-2">La ficha del estudiante no tiene celulares de acudiente, mamá o papá.</p>
+        {% endfor %}
+        <p class="text-muted mb-0" style="font-size:.84rem;">Se abre WhatsApp con el mensaje ya escrito; solo toque «Enviar».
+            <a href="{% url 'notas:editar_ficha' estudiante.id %}">Actualizar los celulares en la ficha</a>.</p>
+    </div></div>
+
+    <div class="card shadow-sm mb-3"><div class="card-body">
+        <h5 class="mb-3"><i class="fas fa-envelope me-2 text-primary"></i>Correo</h5>
+        {% if not correo_acudiente %}<p class="text-muted mb-0">La ficha no tiene correo del acudiente.</p>
+        {% elif not correo_configurado %}<p class="text-muted mb-0">El correo de la plataforma todavía no está configurado; por ahora use WhatsApp.</p>
+        {% else %}
+        <form method="post" class="d-flex align-items-center gap-3">{% csrf_token %}
+            <input type="hidden" name="accion" value="correo"><input type="hidden" name="periodo_id" value="{{ periodo.id }}">
+            <span>{{ correo_acudiente }}</span>
+            <button class="btn btn-sm btn-outline-primary">Enviar al correo</button>
+        </form>
+        {% endif %}
+    </div></div>
+
+    <div class="d-flex gap-2">
+        <a href="{{ volver }}" class="btn btn-secondary"><i class="fas fa-arrow-left me-1"></i>Volver</a>
+        <a href="{% url 'notas:informe_parcial_pdf' estudiante.id %}?periodo_id={{ periodo.id }}" target="_blank" class="btn btn-outline-danger"><i class="fas fa-file-pdf me-1"></i>Ver el informe en PDF</a>
+    </div>
+</div>
+<script>
+(function () {
+    var caja = document.getElementById('af-texto');
+    document.querySelectorAll('a.af-wa').forEach(function (a) {
+        a.addEventListener('click', function () {
+            a.href = 'https://wa.me/' + a.dataset.numero + '?text=' + encodeURIComponent(caja.value.trim());
+        });
+    });
+})();
+</script>
+{% endblock %}

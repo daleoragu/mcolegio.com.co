@@ -151,6 +151,22 @@ def reporte_parcial_vista(request):
                     periodo_id=periodo_seleccionado_id
                 )
                 context['reportes_existentes_map'] = {r.estudiante_id: r.presenta_dificultades for r in reportes_existentes}
+                # Nota parcial con lo que ya hay en la planilla: si está en bajo y
+                # el docente aún no ha guardado, el «Sí» sale marcado.
+                from .. import reporte_aviso
+                parciales = reporte_aviso.notas_parciales(asignacion_seleccionada, periodo_seleccionado, estudiantes)
+                guardados = context['reportes_existentes_map']
+                filas = []
+                for est in estudiantes:
+                    nota = parciales.get(est.id)
+                    bajo = reporte_aviso.esta_en_bajo(request.colegio, nota)
+                    marcado = guardados.get(est.id) if est.id in guardados else bajo
+                    filas.append({'est': est, 'nota': reporte_aviso.texto_nota(nota), 'bajo': bajo,
+                                  'desempeno': reporte_aviso.desempeno(request.colegio, nota),
+                                  'si': marcado, 'guardado': guardados.get(est.id) is True,
+                                  'sugerido': bajo and est.id not in guardados})
+                context['filas'] = filas
+                context['hay_sugeridos'] = any(f['sugerido'] for f in filas)
         except Exception as e:
             messages.error(request, f"No se pudo cargar la información: {e}")
 
@@ -211,6 +227,7 @@ def acta_reporte_parcial_estudiante(request, estudiante_id):
         'reportes_dificultades': reportes_dificultades,
         'todos_los_periodos': todos_los_periodos, # Para el selector de períodos
         'periodo_seleccionado': periodo_seleccionado, # Para mantener la selección en el dropdown
+        'puede_avisar': es_admin(request) or Docente.objects.filter(user=request.user, colegio=request.colegio).exists(),
     }
 
     return render(request, 'notas/estudiante/acta_reporte_parcial.html', context)
@@ -262,3 +279,92 @@ def lista_estudiantes_reporte(request):
         'curso_seleccionado_id': curso_seleccionado_id,
     }
     return render(request, 'notas/docente/lista_estudiantes_reporte.html', context)
+
+
+# ---------------------------------------------------------------------------
+# Aviso a la familia e informe parcial en PDF
+# ---------------------------------------------------------------------------
+from django.http import HttpResponse, HttpResponseForbidden
+from django.urls import reverse
+
+from .. import reporte_aviso
+
+
+def _puede_avisar(request):
+    return es_admin(request) or Docente.objects.filter(user=request.user, colegio=request.colegio).exists()
+
+
+def _url_informe(request, estudiante, periodo):
+    return request.build_absolute_uri(
+        reverse('notas:informe_parcial_publico', args=[reporte_aviso.token_informe(estudiante, periodo)]))
+
+
+@login_required
+def aviso_reporte_parcial(request, estudiante_id):
+    """Avisar a la familia de las asignaturas reportadas: WhatsApp y correo."""
+    if not request.colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    if not _puede_avisar(request):
+        return HttpResponseForbidden('Solo para docentes y administración.')
+    estudiante = get_object_or_404(Estudiante.objects.select_related('user', 'curso'), id=estudiante_id,
+                                   colegio=request.colegio)
+    periodo = get_object_or_404(PeriodoAcademico, id=request.GET.get('periodo_id') or request.POST.get('periodo_id'),
+                                colegio=request.colegio)
+    asignaturas = reporte_aviso.asignaturas_reportadas(estudiante, periodo)
+    url_informe = _url_informe(request, estudiante, periodo)
+    if request.method == 'POST' and request.POST.get('accion') == 'correo':
+        enviado, detalle = reporte_aviso.enviar_correo(estudiante, periodo, asignaturas, url_informe)
+        if enviado:
+            messages.success(request, f"Aviso enviado al correo {detalle}.")
+        else:
+            messages.warning(request, f"No se envió el correo: {detalle}.")
+        return redirect(reverse('notas:aviso_reporte_parcial', args=[estudiante.id]) + f'?periodo_id={periodo.id}')
+    texto = reporte_aviso.texto_aviso(estudiante, periodo, asignaturas, url_informe)
+    contactos = reporte_aviso.contactos(estudiante)
+    for c in contactos:
+        c['enlace'] = reporte_aviso.enlace_whatsapp(c['numero'], texto)
+    return render(request, 'notas/docente/aviso_reporte_parcial.html', {
+        'colegio': request.colegio, 'estudiante': estudiante, 'periodo': periodo, 'asignaturas': asignaturas,
+        'texto': texto, 'contactos': contactos, 'url_informe': url_informe,
+        'correo_acudiente': reporte_aviso.correo_acudiente(estudiante),
+        'correo_configurado': reporte_aviso.correo_configurado(),
+        'volver': request.GET.get('volver') or reverse('notas:reporte_parcial'),
+    })
+
+
+def _pdf_informe(request, estudiante, periodo):
+    try:
+        from weasyprint import HTML
+    except ImportError:
+        return HttpResponse('La generación de PDF no está disponible en este servidor.', status=500)
+    from django.template.loader import render_to_string
+    html = render_to_string('notas/estudiante/informe_parcial_pdf.html', {
+        'colegio': estudiante.colegio, 'estudiante': estudiante, 'periodo': periodo,
+        'asignaturas': reporte_aviso.asignaturas_reportadas(estudiante, periodo)}, request=request)
+    datos = HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+    r = HttpResponse(datos, content_type='application/pdf')
+    nombre = f'Informe parcial {periodo.get_nombre_display()} {estudiante.user.get_full_name()}'
+    r['Content-Disposition'] = f'inline; filename="{nombre}.pdf"'
+    return r
+
+
+@login_required
+def informe_parcial_pdf(request, estudiante_id):
+    if not request.colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    if not has_report_access(request.user, estudiante_id, request.colegio):
+        return HttpResponseForbidden('No tiene permiso para ver este informe.')
+    estudiante = get_object_or_404(Estudiante, id=estudiante_id, colegio=request.colegio)
+    periodo = get_object_or_404(PeriodoAcademico, id=request.GET.get('periodo_id'), colegio=request.colegio)
+    return _pdf_informe(request, estudiante, periodo)
+
+
+def informe_parcial_publico(request, token):
+    """El enlace del aviso: la familia descarga el informe sin usuario ni contraseña."""
+    datos = reporte_aviso.leer_token(token)
+    if not datos:
+        return HttpResponse('Este enlace venció o no es válido. Pida uno nuevo al colegio o consulte el informe '
+                            'en la plataforma.', status=410)
+    estudiante = get_object_or_404(Estudiante.objects.select_related('colegio', 'user'), id=datos[0])
+    periodo = get_object_or_404(PeriodoAcademico, id=datos[1], colegio=estudiante.colegio)
+    return _pdf_informe(request, estudiante, periodo)

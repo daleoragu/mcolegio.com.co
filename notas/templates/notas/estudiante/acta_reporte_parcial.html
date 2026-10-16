@@ -194,9 +194,15 @@
     </form>
 
     {% if periodo_seleccionado %}
-        <p class="text-center lead mb-4">Mostrando reportes para el período: <strong>{{ periodo_seleccionado }}</strong></p>
+        <p class="text-center lead mb-2">Mostrando reportes para el período: <strong>{{ periodo_seleccionado }}</strong></p>
+        <div class="text-center mb-4 d-flex justify-content-center gap-2 flex-wrap">
+            <a class="btn btn-outline-danger btn-sm" target="_blank" href="{% url 'notas:informe_parcial_pdf' estudiante.id %}?periodo_id={{ periodo_seleccionado.id }}"><i class="fas fa-file-pdf me-1"></i>Descargar informe parcial (PDF)</a>
+            {% if puede_avisar and reportes_dificultades %}
+            <a class="btn btn-outline-success btn-sm" href="{% url 'notas:aviso_reporte_parcial' estudiante.id %}?periodo_id={{ periodo_seleccionado.id }}&volver={{ request.get_full_path|urlencode }}"><i class="fab fa-whatsapp me-1"></i>Avisar a la familia</a>
+            {% endif %}
+        </div>
     {% else %}
-        <p class="text-center lead mb-4">Mostrando reportes para <strong>Todos los Períodos</strong>.</p>
+        <p class="text-center lead mb-4">Mostrando reportes para <strong>Todos los Períodos</strong>. Escoja un período para descargar el informe en PDF.</p>
     {% endif %}
 
 
