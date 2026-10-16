@@ -1,0 +1,68 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0"><i class="fas fa-landmark me-2" style="color:#1f4e79"></i>SIMAT · {{ ano }}</h4>
+        <p class="text-muted small mb-0">Datos de matrícula para el Sistema Integrado de Matrícula del Ministerio de Educación</p></div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'simat:importar' %}" class="btn btn-outline-primary btn-sm"><i class="fas fa-file-import me-1"></i>Importar desde el SIMAT</a>
+        <a href="{% url 'simat:configuracion' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-gear me-1"></i>Configuración</a>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'simat/_estilos.html' %}
+{% if problemas %}<div class="alert alert-warning"><strong>Antes de exportar:</strong><ul class="mb-0">{% for p in problemas %}<li>{{ p }}</li>{% endfor %}</ul></div>{% endif %}
+<div class="row g-3 mb-1">
+    <div class="col-4"><div class="sm-tarjeta"><div class="small text-muted">Estudiantes activos</div><div class="sm-cifra">{{ total }}</div></div></div>
+    <div class="col-4"><div class="sm-tarjeta"><div class="small text-muted">Listos para el SIMAT</div><div class="sm-cifra text-success">{{ listos }}</div></div></div>
+    <div class="col-4"><div class="sm-tarjeta"><div class="small text-muted">Les falta algo</div><div class="sm-cifra {% if incompletos %}text-danger{% endif %}">{{ incompletos }}</div></div></div>
+</div>
+<div class="row g-3">
+<div class="col-lg-4 order-lg-2">
+    <div class="sm-tarjeta">
+        <h6 class="fw-bold"><span class="sm-paso">1</span>Completar los datos</h6>
+        <p class="sm-ayuda mb-2">Descargue el Excel, llénelo (los códigos están en la segunda hoja) y súbalo. También puede editar a cada estudiante desde la lista.</p>
+        <a href="{% url 'simat:datos' %}{% if curso_id %}?curso_id={{ curso_id }}{% endif %}" class="btn btn-sm btn-outline-success w-100 mb-2"><i class="fas fa-file-excel me-1"></i>Descargar Excel de datos</a>
+        <form method="post" action="{% url 'simat:datos' %}" enctype="multipart/form-data" class="d-flex gap-2">{% csrf_token %}
+            <input type="file" name="archivo" accept=".xlsx" class="form-control form-control-sm" required>
+            <button class="btn btn-sm btn-success">Subir</button></form>
+    </div>
+    <div class="sm-tarjeta">
+        <h6 class="fw-bold"><span class="sm-paso">2</span>Llenar vacíos de un clic</h6>
+        <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="llenar"><input type="hidden" name="curso_id" value="{{ curso_id }}">
+            <select name="campo" class="form-select form-select-sm mb-2" id="sm-campo">
+                {% for c, n, op in llenables %}<option value="{{ c }}">{{ n }}</option>{% endfor %}</select>
+            <input name="valor" class="form-control form-control-sm mb-2" value="{{ conf.municipio }}" placeholder="Código o valor (ej.: 73443, 1, 2…)">
+            <p class="sm-ayuda mb-2">Solo cambia a quien lo tiene vacío{% if curso_id %} en el curso escogido{% endif %}. Zona: 1 urbana, 2 rural. Estrato: 0 a 6.</p>
+            <button class="btn btn-sm btn-outline-primary w-100">Llenar vacíos</button></form>
+    </div>
+    <div class="sm-tarjeta">
+        <h6 class="fw-bold"><span class="sm-paso">3</span>Exportar para el SIMAT</h6>
+        <a href="{% url 'simat:exportar' %}{% if curso_id %}?curso_id={{ curso_id }}{% endif %}" class="btn btn-sm btn-primary w-100 mb-2"><i class="fas fa-file-zipper me-1"></i>Archivo de cargue (.zip) · {{ listos }} listos</a>
+        <a href="{% url 'simat:exportar' %}?formato=xlsx&todos=1{% if curso_id %}&curso_id={{ curso_id }}{% endif %}" class="btn btn-sm btn-outline-secondary w-100"><i class="fas fa-file-excel me-1"></i>Excel para revisar (todos)</a>
+        <p class="sm-ayuda mt-2 mb-0">El .zip lleva solo a los estudiantes listos. En el SIMAT: Administración → Carga de datos → «Carga de alumnos matriculados».</p>
+    </div>
+</div>
+<div class="col-lg-8 order-lg-1">
+    <div class="sm-tarjeta">
+        <form class="d-flex gap-2 flex-wrap mb-3" method="get">
+            <select name="curso_id" class="form-select form-select-sm" style="max-width:200px" onchange="this.form.submit()">
+                <option value="">Todos los cursos</option>
+                {% for c in cursos %}<option value="{{ c.id }}" {% if c.id|stringformat:"s" == curso_id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select>
+            <select name="ver" class="form-select form-select-sm" style="max-width:200px" onchange="this.form.submit()">
+                <option value="incompletos" {% if ver == 'incompletos' %}selected{% endif %}>Solo a los que les falta</option>
+                <option value="todos" {% if ver == 'todos' %}selected{% endif %}>Todos</option></select>
+        </form>
+        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+            <thead class="table-light"><tr><th>Estudiante</th><th>Curso</th><th>Le falta</th><th></th></tr></thead>
+            <tbody>{% for f in filas %}
+            <tr><td>{{ f.est.user.last_name }} {{ f.est.user.first_name }}<div class="sm-ayuda">{{ f.numero_documento|default:"sin documento" }}</div></td>
+                <td>{{ f.curso.nombre }}</td>
+                <td>{% for x in f.faltan %}<span class="sm-falta">{{ x }}</span>{% empty %}<span class="sm-ok">Listo</span>{% endfor %}</td>
+                <td class="text-end"><a href="{% url 'simat:estudiante' f.est.id %}?siguiente={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-primary">Editar</a></td></tr>
+            {% empty %}<tr><td colspan="4" class="text-muted py-3">{% if total %}Todos los estudiantes están listos para el SIMAT.{% else %}No hay estudiantes activos con curso.{% endif %}</td></tr>{% endfor %}</tbody>
+        </table></div>
+    </div>
+</div>
+</div>
+{% endblock %}

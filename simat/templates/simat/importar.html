@@ -1,0 +1,58 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0"><i class="fas fa-file-import me-2" style="color:#1f4e79"></i>Importar desde el SIMAT</h4>
+        <p class="text-muted small mb-0">Crea o actualiza los estudiantes y sus cursos con el reporte de matrícula del SIMAT</p></div>
+    <a href="{% url 'simat:panel' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>SIMAT</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'simat/_estilos.html' %}
+{% if not analisis %}
+<div class="sm-tarjeta" style="max-width:720px">
+    <ol class="small">
+        <li>En el SIMAT, descargue el listado o reporte de los estudiantes matriculados del colegio (Excel o CSV).</li>
+        <li>Si lo descarga en <strong>.xls</strong>, ábralo y guárdelo como <strong>.xlsx</strong>.</li>
+        <li>Súbalo aquí. Primero verá lo que va a pasar; nada cambia hasta que usted confirme.</li>
+    </ol>
+    <form method="post" enctype="multipart/form-data" class="d-flex gap-2">{% csrf_token %}<input type="hidden" name="accion" value="analizar">
+        <input type="file" name="archivo" accept=".xlsx,.csv,.txt" class="form-control" required>
+        <button class="btn btn-primary">Revisar archivo</button></form>
+    <p class="sm-ayuda mt-2 mb-0">Se reconocen las columnas por su título: documento, tipo de documento, apellidos, nombres, fecha de nacimiento, género, grado, grupo, jornada, estrato, dirección, municipios… Los estudiantes se buscan por documento (o por nombre completo si en la plataforma no tienen documento).</p>
+</div>
+{% else %}
+<div class="row g-3 mb-1">
+    <div class="col-6 col-lg-3"><div class="sm-tarjeta"><div class="small text-muted">Nuevos</div><div class="sm-cifra text-primary">{{ res.nuevos }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="sm-tarjeta"><div class="small text-muted">Ya están (se actualizan)</div><div class="sm-cifra">{{ res.actualizar }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="sm-tarjeta"><div class="small text-muted">Cambian de curso</div><div class="sm-cifra">{{ res.cambian_curso }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="sm-tarjeta"><div class="small text-muted">Con error (no se tocan)</div><div class="sm-cifra {% if res.errores %}text-danger{% endif %}">{{ res.errores|length }}</div></div></div>
+</div>
+<div class="sm-tarjeta">
+    <p class="small mb-1"><strong>Columnas reconocidas:</strong> {{ analisis.reconocidas|join:", " }}</p>
+    {% if analisis.ignoradas %}<p class="small text-muted mb-0">No se usan: {{ analisis.ignoradas|join:", " }}</p>{% endif %}
+</div>
+{% if res.errores %}<div class="sm-tarjeta"><h6 class="fw-bold text-danger">Filas con error</h6><ul class="small mb-0">{% for r in res.errores|slice:":30" %}<li>Fila {{ r.fila }}{% if r.doc %} · {{ r.doc }}{% endif %}{% if r.apellidos %} · {{ r.apellidos }} {{ r.nombres }}{% endif %}: {{ r.error }}</li>{% endfor %}</ul>{% if res.errores|length > 30 %}<p class="small text-muted mb-0">… y {{ res.errores|length|add:"-30" }} más.</p>{% endif %}</div>{% endif %}
+<div class="sm-tarjeta">
+    <h6 class="fw-bold">Muestra</h6>
+    <div class="table-responsive"><table class="table table-sm small mb-0">
+        <thead><tr><th>Documento</th><th>Apellidos</th><th>Nombres</th><th>Grado / grupo</th><th>Curso en la plataforma</th><th></th></tr></thead>
+        <tbody>{% for r in muestra %}<tr><td>{{ r.doc }}</td><td>{{ r.apellidos }}</td><td>{{ r.nombres }}</td><td>{{ r.grado|default_if_none:"—" }} · {{ r.grupo|default:"—" }}</td>
+            <td>{{ r.curso_nombre|default:"—" }}</td><td>{% if r.estudiante %}<span class="sm-ok">Ya está</span>{% else %}<span class="badge bg-primary">Nuevo</span>{% endif %}</td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+<div class="sm-tarjeta">
+    <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="aplicar">
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="crear_nuevos" id="cn" checked><label class="form-check-label" for="cn">Crear los {{ res.nuevos }} estudiantes nuevos (usuario y contraseña: nombre.apellido, como en la prematrícula)</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="mover_curso" id="mc" checked><label class="form-check-label" for="mc">Pasar al curso que dice el SIMAT a los que están en otro ({{ res.cambian_curso }})</label></div>
+        {% if res.cursos_faltan %}
+        <div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="crear_cursos" id="cc"><label class="form-check-label" for="cc">Crear los cursos que no existen: {% for c in res.cursos_faltan %}<span class="sm-falta">{{ c }}</span>{% endfor %}</label></div>
+        {% if sedes %}<div class="ms-4 mt-1" style="max-width:320px"><select name="sede" class="form-select form-select-sm"><option value="">Sin sede</option>{% for s in sedes %}<option value="{{ s.id }}">{{ s.nombre }}</option>{% endfor %}</select></div>{% endif %}
+        <p class="sm-ayuda ms-4 mb-0">Si no los crea, esos estudiantes quedan sin curso.</p>
+        {% endif %}
+        {% if res.sin_grado %}<p class="small text-warning mt-2 mb-0">{{ res.sin_grado }} filas no traen un grado que se entienda: quedan sin curso.</p>{% endif %}
+        <div class="d-flex gap-2 mt-3"><button class="btn btn-primary"><i class="fas fa-check me-1"></i>Importar</button>
+            <button class="btn btn-outline-secondary" name="accion" value="cancelar">Cancelar</button></div>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

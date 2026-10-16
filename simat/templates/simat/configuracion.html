@@ -1,0 +1,53 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h4 class="mb-0">Configuración SIMAT</h4>{% endblock %}
+{% block content %}
+{% include 'simat/_estilos.html' %}
+<form method="post">{% csrf_token %}
+<div class="row g-3">
+<div class="col-lg-6">
+    <div class="sm-tarjeta">
+        <h6 class="fw-bold">El colegio</h6>
+        <p class="sm-ayuda">Código DANE del colegio: <strong>{{ colegio.dane|default:"sin registrar" }}</strong> (se cambia en la configuración del colegio).</p>
+        <div class="row g-3">
+            <div class="col-md-6"><label class="form-label small fw-semibold mb-1">{{ form.municipio.label }}</label>{{ form.municipio }}<div class="sm-ayuda">{{ form.municipio.help_text }}</div>{{ form.municipio.errors }}</div>
+            <div class="col-md-6"><div class="form-check mt-4">{{ form.oficial }}<label class="form-check-label" for="{{ form.oficial.id_for_label }}">{{ form.oficial.label }}</label></div><div class="sm-ayuda">{{ form.oficial.help_text }}</div></div>
+            <div class="col-md-6"><label class="form-label small fw-semibold mb-1">{{ form.jornada.label }}</label>{{ form.jornada }}</div>
+            <div class="col-md-6"><label class="form-label small fw-semibold mb-1">{{ form.metodologia.label }}</label>{{ form.metodologia }}</div>
+            <div class="col-md-6"><label class="form-label small fw-semibold mb-1">{{ form.fuente_recursos.label }}</label>{{ form.fuente_recursos }}</div>
+            <div class="col-md-3"><label class="form-label small fw-semibold mb-1">{{ form.caracter.label }}</label>{{ form.caracter }}</div>
+            <div class="col-md-3"><label class="form-label small fw-semibold mb-1">{{ form.especialidad.label }}</label>{{ form.especialidad }}</div>
+        </div>
+    </div>
+    <div class="sm-tarjeta">
+        <h6 class="fw-bold">Consecutivo de cada sede</h6>
+        <p class="sm-ayuda">Las dos cifras que el DUE le dio a cada sede (la principal suele ser 01).</p>
+        {% for s, v in sedes %}<div class="d-flex align-items-center gap-2 mb-2"><span class="flex-grow-1 small">{{ s.nombre }}{% if s.codigo_dane %} <span class="text-muted">· DANE {{ s.codigo_dane }}</span>{% endif %}</span>
+            <input name="sede_{{ s.id }}" value="{{ v }}" class="form-control form-control-sm" style="width:80px" maxlength="2"></div>
+        {% endfor %}
+        <div class="d-flex align-items-center gap-2"><span class="flex-grow-1 small text-muted">Cursos sin sede</span>
+            <input name="sede_" value="{{ sin_sede }}" placeholder="01" class="form-control form-control-sm" style="width:80px" maxlength="2"></div>
+    </div>
+</div>
+<div class="col-lg-6">
+    <div class="sm-tarjeta">
+        <h6 class="fw-bold">Formato del archivo</h6>
+        <div class="row g-3">
+            <div class="col-md-6"><label class="form-label small fw-semibold mb-1">Separador</label>{{ form.separador }}</div>
+            <div class="col-md-6"><label class="form-label small fw-semibold mb-1">Codificación</label>{{ form.codificacion }}</div>
+            <div class="col-12"><label class="form-label small fw-semibold mb-1">{{ form.columnas.label }}</label>{{ form.columnas }}<div class="sm-ayuda">{{ form.columnas.help_text }}</div></div>
+        </div>
+        <p class="small mt-2 mb-1">El archivo sale con <strong>{{ cols|length }}</strong> columnas{% if no_reconocidas %}; estas no las reconozco y saldrán vacías: {% for t in no_reconocidas %}<span class="sm-falta">{{ t }}</span>{% endfor %}{% endif %}.</p>
+    </div>
+    {% if categorias %}
+    <div class="sm-tarjeta">
+        <h6 class="fw-bold">Discapacidad: categoría del PIAR → código SIMAT</h6>
+        <p class="sm-ayuda">Si su SIMAT usa otros códigos, cámbielos aquí.</p>
+        {% for k, nombre, cod in categorias %}<div class="d-flex align-items-center gap-2 mb-1"><span class="flex-grow-1 small">{{ nombre }}</span>
+            <select name="disc_{{ k }}" class="form-select form-select-sm" style="width:220px">{% for c, n in discapacidades %}<option value="{{ c }}" {% if c == cod %}selected{% endif %}>{{ c }} · {{ n }}</option>{% endfor %}</select></div>{% endfor %}
+    </div>
+    {% endif %}
+</div>
+</div>
+<button class="btn btn-primary">Guardar</button> <a href="{% url 'simat:panel' %}" class="btn btn-secondary">Volver</a>
+</form>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h4 class="mb-0">Importación del SIMAT terminada</h4>{% endblock %}
+{% block content %}
+{% include 'simat/_estilos.html' %}
+<div class="sm-tarjeta" style="max-width:760px">
+    <ul class="mb-3">
+        <li>Estudiantes nuevos: <strong>{{ hecho.creados }}</strong></li>
+        <li>Actualizados: <strong>{{ hecho.actualizados }}</strong> (de ellos, {{ hecho.movidos }} cambiaron de curso)</li>
+        {% if hecho.cursos_creados %}<li>Cursos creados: <strong>{{ hecho.cursos_creados }}</strong></li>{% endif %}
+    </ul>
+    {% if hecho.usuarios %}
+    <h6 class="fw-bold">Usuarios nuevos</h6>
+    <p class="sm-ayuda">La contraseña inicial es igual al usuario. Guarde o imprima esta lista: no se vuelve a mostrar.</p>
+    <div class="table-responsive" style="max-height:420px"><table class="table table-sm small"><thead><tr><th>Estudiante</th><th>Usuario y contraseña</th></tr></thead>
+        <tbody>{% for n, u in hecho.usuarios %}<tr><td>{{ n }}</td><td class="font-monospace">{{ u }}</td></tr>{% endfor %}</tbody></table></div>
+    <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="fas fa-print me-1"></i>Imprimir</button>
+    {% endif %}
+    <a href="{% url 'simat:panel' %}" class="btn btn-primary btn-sm">Ir a la revisión SIMAT</a>
+</div>
+{% endblock %}

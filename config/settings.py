@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'circulares',      # <--- Circulares con confirmación de lectura
     'cartera',         # <--- Cartera y pensiones (colegios privados)
     'piar',            # <--- PIAR, Decreto 1421 (inclusión)
+    'simat',           # <--- Exportar / importar SIMAT
 ]
 
 MIDDLEWARE = [

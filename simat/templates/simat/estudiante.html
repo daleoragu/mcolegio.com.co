@@ -1,0 +1,63 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0">{{ est.user.get_full_name }}</h4><p class="text-muted small mb-0">{{ est.curso.nombre }} · datos SIMAT</p></div>
+    <a href="{{ siguiente|default:'/simat/' }}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>SIMAT</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'simat/_estilos.html' %}
+{% if faltan %}<div class="alert alert-warning py-2"><strong>Le falta:</strong> {% for x in faltan %}<span class="sm-falta">{{ x }}</span>{% endfor %}</div>
+{% else %}<div class="alert alert-success py-2">Listo para el SIMAT.</div>{% endif %}
+<form method="post">{% csrf_token %}<input type="hidden" name="siguiente" value="{{ siguiente }}">
+<div class="sm-tarjeta">
+    <h6 class="fw-bold">Identificación</h6>
+    <div class="row g-3">
+        {% include 'simat/_campo.html' with campo=form.tipo_documento %}
+        {% include 'simat/_campo.html' with campo=form.numero_documento %}
+        {% include 'simat/_campo.html' with campo=form.mpio_expedicion %}
+        {% include 'simat/_campo.html' with campo=form.fecha_nacimiento %}
+        {% include 'simat/_campo.html' with campo=form.apellido1 %}
+        {% include 'simat/_campo.html' with campo=form.apellido2 %}
+        {% include 'simat/_campo.html' with campo=form.nombre1 %}
+        {% include 'simat/_campo.html' with campo=form.nombre2 %}
+        {% include 'simat/_campo.html' with campo=form.genero %}
+        {% include 'simat/_campo.html' with campo=form.mpio_nacimiento %}
+    </div>
+    <p class="sm-ayuda mt-2 mb-0">Si deja los nombres vacíos se envían partidos del nombre de la plataforma: <strong>{{ ef.apellido1 }} · {{ ef.apellido2|default:"—" }} · {{ ef.nombre1 }} · {{ ef.nombre2|default:"—" }}</strong>. Municipios: código DANE de 5 cifras (ej.: 73443).</p>
+</div>
+<div class="sm-tarjeta">
+    <h6 class="fw-bold">Residencia y población</h6>
+    <div class="row g-3">
+        {% include 'simat/_campo.html' with campo=form.direccion ancho='col-md-6' %}
+        {% include 'simat/_campo.html' with campo=form.telefono %}
+        {% include 'simat/_campo.html' with campo=form.mpio_residencia %}
+        {% include 'simat/_campo.html' with campo=form.zona %}
+        {% include 'simat/_campo.html' with campo=form.estrato %}
+        {% include 'simat/_campo.html' with campo=form.etnia %}
+        {% include 'simat/_campo.html' with campo=form.resguardo %}
+        {% include 'simat/_campo.html' with campo=form.vulnerabilidad %}
+        {% include 'simat/_campo.html' with campo=form.mpio_desplazamiento %}
+        {% include 'simat/_campo.html' with campo=form.discapacidad %}
+        {% include 'simat/_campo.html' with campo=form.capacidad %}
+    </div>
+</div>
+<div class="sm-tarjeta">
+    <h6 class="fw-bold">Matrícula</h6>
+    <div class="row g-3">
+        {% include 'simat/_campo.html' with campo=form.jornada %}
+        {% include 'simat/_campo.html' with campo=form.nuevo %}
+        {% include 'simat/_campo.html' with campo=form.situacion_anterior %}
+        {% include 'simat/_campo.html' with campo=form.institucion_bienestar %}
+        {% include 'simat/_campo.html' with campo=form.repitente %}
+        {% include 'simat/_campo.html' with campo=form.subsidio %}
+        {% include 'simat/_campo.html' with campo=form.madre_cabeza %}
+        {% include 'simat/_campo.html' with campo=form.hijo_madre_cabeza %}
+        {% include 'simat/_campo.html' with campo=form.veterano %}
+        {% include 'simat/_campo.html' with campo=form.heroe %}
+    </div>
+    <p class="sm-ayuda mt-2 mb-0">Se enviará: grado {{ ef.grado }}, grupo {{ ef.grupo }}, jornada {{ ef.jornada }}, nuevo {{ ef.nuevo }}, situación del año anterior {{ ef.situacion_anterior|default:"—" }}, discapacidad {{ ef.discapacidad }}.</p>
+</div>
+<button class="btn btn-primary"><i class="fas fa-save me-1"></i>Guardar</button>
+</form>
+{% endblock %}
