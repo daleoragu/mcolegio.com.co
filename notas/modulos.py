@@ -40,6 +40,8 @@ TODOS = list(MODULOS)
 
 PLANES = OrderedDict([
     ('basico', ('Básico', ['circulares', 'certificados'])),
+    # Colegios oficiales (matrícula cero): todo menos el módulo de cobros.
+    ('publico', ('Público', [m for m in TODOS if m != 'cartera'])),
     ('completo', ('Completo', TODOS)),
 ])
 
