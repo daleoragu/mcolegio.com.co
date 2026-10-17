@@ -16,7 +16,9 @@ from ..permisos import es_admin, es_admin_usuario
 
 def _enviar_correo_inasistencia(estudiante, asignacion, fecha):
     # Esta función auxiliar no necesita cambios, ya que recibe objetos ya filtrados.
-    acudiente_email = getattr(estudiante.ficha, 'email_acudiente', None)
+    # Sin ficha no hay correo del acudiente (antes eso daba error y no se guardaba la inasistencia).
+    ficha = getattr(estudiante, 'ficha', None) if hasattr(estudiante, 'ficha') else None
+    acudiente_email = getattr(ficha, 'email_acudiente', None)
     if not acudiente_email:
         return
 
@@ -62,10 +64,22 @@ def asistencia_vista(request):
         fecha_str = fecha_obj.strftime('%Y-%m-%d')
         messages.warning(request, "Fecha no válida, se ha usado la fecha de hoy.")
 
+    # Asistencia por hora: solo si el colegio tiene un horario publicado.
+    # Sin horario, la pantalla funciona exactamente como antes.
+    clases_hoy, clase_ahora = _clases_del_horario(request, docente_actual, fecha_obj)
+    if clases_hoy:
+        ids = {a.id for a in asignaciones_docente}
+        extra = [c['asignacion'] for c in clases_hoy if c['asignacion'].id not in ids]
+        if extra:
+            asignaciones_docente = list(asignaciones_docente) + extra
+        if not asignacion_id and clase_ahora and 'asignacion_id' not in request.GET:
+            asignacion_id = str(clase_ahora['asignacion'].id)
+
     if asignacion_id:
         try:
             asignacion_actual = get_object_or_404(AsignacionDocente, id=asignacion_id, colegio=request.colegio)
-            if not es_admin(request) and asignacion_actual.docente != docente_actual:
+            if (not es_admin(request) and asignacion_actual.docente != docente_actual
+                    and not _cubre_reemplazo(request, docente_actual, asignacion_actual, fecha_obj)):
                 raise AsignacionDocente.DoesNotExist
             
             mostrar_lista = True
@@ -86,8 +100,40 @@ def asistencia_vista(request):
         'asignacion_seleccionada_id': asignacion_id,
         'fecha_seleccionada': fecha_str,
         'mostrar_lista': mostrar_lista,
+        'clases_hoy': clases_hoy,
+        'clase_ahora': clase_ahora,
     }
     return render(request, 'notas/docente/asistencia.html', context)
+
+
+def _clases_del_horario(request, docente, fecha):
+    """Las clases del docente ese día según el horario publicado, y la que está en curso.
+
+    Devuelve ([], None) si el módulo de horarios está apagado, si no hay horario
+    publicado o si algo falla: la toma de asistencia nunca se rompe por esto.
+    """
+    if not docente:
+        return [], None
+    try:
+        from ..modulos import esta_activo
+        if not esta_activo(request.colegio, 'horarios'):
+            return [], None
+        from horarios import reemplazos
+        clases = reemplazos.clases_de_hoy(request.colegio, docente, fecha)
+        ahora = None
+        if clases and fecha == timezone.localdate():
+            ahora = reemplazos.clase_en_curso(clases, timezone.localtime().time())
+        return clases, ahora
+    except Exception:
+        return [], None
+
+
+def _cubre_reemplazo(request, docente, asignacion, fecha):
+    try:
+        from horarios import reemplazos
+        return reemplazos.puede_tomar_asistencia(request.colegio, docente, asignacion, fecha)
+    except Exception:
+        return False
 
 @login_required
 def guardar_inasistencia_ajax(request):
@@ -111,7 +157,12 @@ def guardar_inasistencia_ajax(request):
         estudiante = get_object_or_404(Estudiante, id=estudiante_id, colegio=request.colegio)
         
         docente_actual = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
-        if not es_admin(request) and asignacion.docente != docente_actual:
+        try:
+            fecha_permiso = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            fecha_permiso = None
+        if (not es_admin(request) and asignacion.docente != docente_actual
+                and not (fecha_permiso and _cubre_reemplazo(request, docente_actual, asignacion, fecha_permiso))):
              return JsonResponse({'status': 'error', 'message': 'Permiso denegado'}, status=403)
 
         asistencia_obj, created = Asistencia.objects.update_or_create(

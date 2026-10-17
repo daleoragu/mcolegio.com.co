@@ -193,7 +193,7 @@ class ColegioPersonalizacionForm(forms.ModelForm):
     class Meta:
         model = Colegio
         fields = [
-            'nombre', 'lema', 'nombre_correo',
+            'nombre', 'lema', 'nombre_correo', 'nombre_app',
             'historia', 'mision', 'vision', 'modelo_pedagogico',
             'escudo', 'favicon',
             'color_primario', 'color_texto_primario', 'color_secundario', 'color_fondo', 
@@ -210,6 +210,7 @@ class ColegioPersonalizacionForm(forms.ModelForm):
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'readonly': True}),
             'lema': forms.TextInput(attrs={'class': 'form-control'}),
             'nombre_correo': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 40}),
+            'nombre_app': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 12, 'placeholder': 'Ej: IGS, San Fra, Mi Cole'}),
             'historia': forms.Textarea(attrs={'class': 'form-control', 'rows': 8}),
             'mision': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
             'vision': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),

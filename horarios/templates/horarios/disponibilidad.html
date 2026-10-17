@@ -1,0 +1,46 @@
+{% extends 'notas/base.html' %}
+{% block title %}Disponibilidad de los docentes{% endblock %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0"><i class="fas fa-hand-paper me-2" style="color:#4338ca"></i>Disponibilidad de los docentes</h4>
+        <p class="text-muted small mb-0">Cada docente marca las horas en que no puede; llegan solas al generador con los datos del colegio</p></div>
+    <a href="{% url 'horarios:panel' %}" class="btn btn-outline-secondary btn-sm">Volver a Horarios</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'horarios/_estilos.html' %}
+<div class="row g-3">
+<div class="col-lg-5">
+    <div class="ho-tarjeta">
+        <form method="post">{% csrf_token %}
+            <label class="d-flex gap-2 align-items-center fw-semibold mb-2"><input type="checkbox" name="pedir" value="1" {% if conf.pedir_disponibilidad %}checked{% endif %}>
+                Pedir a los docentes su disponibilidad</label>
+            <p class="ho-ayuda">Al activarlo, a cada docente le llega una notificación y ve «Mi disponibilidad» en su horario.</p>
+            <label class="form-label small">Mensaje para los docentes (opcional)</label>
+            <input name="mensaje" value="{{ conf.mensaje }}" maxlength="250" class="form-control form-control-sm mb-2" placeholder="Estamos armando el horario del próximo año…">
+            <label class="form-label small">Plazo (opcional)</label>
+            <input type="date" name="fecha_limite" value="{{ conf.fecha_limite|date:'Y-m-d' }}" class="form-control form-control-sm mb-3" style="max-width:200px">
+            <button class="btn btn-primary btn-sm">Guardar</button>
+        </form>
+    </div>
+    <div class="ho-tarjeta">
+        <h6 class="fw-bold">¿Y después?</h6>
+        <p class="small mb-0">Descargue «Datos del colegio (.mch)» en Horarios y ábralo en el generador: las horas marcadas aparecen
+            en la pestaña «Docentes y cursos» (rojo = no puede, amarillo = mejor no) y las notas de cada docente.</p>
+    </div>
+</div>
+<div class="col-lg-7">
+    <div class="ho-tarjeta">
+        <h6 class="fw-bold">Han respondido {{ listos }} de {{ filas|length }}</h6>
+        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Docente</th><th class="text-center">No puede</th><th class="text-center">Mejor no</th><th>Día libre</th><th>Nota</th></tr></thead>
+            <tbody>{% for f in filas %}<tr>
+                <td>{{ f.docente }}{% if not f.listo %} <span class="ho-chip bor">pendiente</span>{% endif %}</td>
+                <td class="text-center">{{ f.no|default:"" }}</td><td class="text-center">{{ f.pref|default:"" }}</td>
+                <td>{% if f.disp.dia_libre %}Sí{% endif %}</td>
+                <td class="small text-muted">{{ f.disp.nota|default:"" }}</td></tr>{% endfor %}
+            </tbody></table></div>
+    </div>
+</div>
+</div>
+{% endblock %}

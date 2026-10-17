@@ -48,9 +48,24 @@ def datos_del_colegio(colegio, con_firma=True):
         'asignaciones': [{'id': a.id, 'curso': a.curso_id, 'materia': a.materia_id, 'docente': a.docente_id,
                           'ih': a.intensidad_horaria_semanal} for a in asignaciones],
     }
+    d['disponibilidad'] = disponibilidad_para_archivo(colegio, jornadas)
     if con_firma:
         d['firma'] = _firma(colegio.id, exportado)
     return d
+
+
+def disponibilidad_para_archivo(colegio, jornadas=None):
+    """{docente_id: {'no_puede', 'prefiere_no', 'dia_libre', 'nota'}} de lo que marcaron en la plataforma."""
+    from .models import Disponibilidad
+    jornadas = jornadas if jornadas is not None else list(Jornada.objects.filter(colegio=colegio).prefetch_related('franjas'))
+    validas = {f'{d}-{f.id}' for j in jornadas for d in j.dias for f in j.franjas.all() if not f.descanso}
+    out = {}
+    for x in Disponibilidad.objects.filter(colegio=colegio):
+        no = [k for k in x.lista('no') if k in validas]
+        pref = [k for k in x.lista('pref') if k in validas]
+        if no or pref or x.dia_libre or x.nota:
+            out[str(x.docente_id)] = {'no_puede': no, 'prefiere_no': pref, 'dia_libre': x.dia_libre, 'nota': x.nota}
+    return out
 
 
 def archivo_datos(colegio):

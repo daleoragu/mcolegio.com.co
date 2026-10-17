@@ -36,7 +36,16 @@ PESO_REPETIDA = 2.0       # la misma materia dos veces el mismo día (sin ser bl
 PESO_TARDE = 0.4          # materias que prefieren las primeras horas
 PESO_ULTIMA = 1.5         # materias que mejor no van en la última hora
 PESO_PREFIERE_NO = 2.5    # hora en que el docente prefiere no tener clase
+PESO_EVITAR = 7.5         # hora que el docente pide evitar con fuerza («mejor no +»)
 PESO_DIA_SUELTO = 1.0     # docente que va un día solo a dar una clase
+PESO_EQUILIBRIO = 0.3     # repartir parejo las clases del docente en la semana
+PESO_DIA_LIBRE = 6.0      # el docente pidió tener un día sin clases
+
+# Los «criterios ponderables» (como en GHC): el coordinador mueve cada uno de 0 a
+# 10 y el 5 es lo normal. Aquí quedan los pesos ya multiplicados.
+PESOS = {'hueco': PESO_HUECO, 'hueco_curso': PESO_HUECO_CURSO, 'repetida': PESO_REPETIDA, 'tarde': PESO_TARDE,
+         'ultima': PESO_ULTIMA, 'prefiere_no': PESO_PREFIERE_NO, 'evitar': PESO_EVITAR, 'dia_suelto': PESO_DIA_SUELTO,
+         'equilibrio': PESO_EQUILIBRIO, 'dia_libre': PESO_DIA_LIBRE}
 
 
 class Problema:
@@ -52,7 +61,8 @@ class Problema:
 
     def __init__(self, franjas, siguiente, slots, unidades, fijas=(), no_puede=None, prefiere_no=None,
                  max_materia_dia=None, max_docente_dia=None, max_seguidas=None, primeras=None, dobles=None,
-                 ultimas=None, permanencia=None, desplazamiento=0, espacios=None):
+                 ultimas=None, permanencia=None, desplazamiento=0, espacios=None, pesos=None, evitar=None,
+                 dia_libre=None, dias_docente=None):
         self.franjas = franjas
         self.siguiente = siguiente
         self.anterior = {b: a for a, b in siguiente.items()}
@@ -70,6 +80,10 @@ class Problema:
         self.permanencia = permanencia or {}
         self.desplazamiento = desplazamiento or 0
         self.espacios = espacios or {}               # {espacio: capacidad}
+        self.w = dict(PESOS, **(pesos or {}))
+        self.evitar = evitar or {}                   # {docente: {(dia, franja)}} «mejor no» fuerte
+        self.dia_libre = set(dia_libre or ())        # docentes que piden un día sin clases
+        self.dias_docente = dias_docente or {}       # {docente: {días en que podría tener clase}}
         self.por_jornada = defaultdict(list)
         for fid, (jid, orden, ini, fin) in franjas.items():
             self.por_jornada[jid].append((orden, fid))
@@ -98,6 +112,8 @@ class Estado:
         self.pos = {}
         self.u = {}
         self.fijas = set()
+        self.w = p.w
+        self.rechazos = defaultdict(int)        # uid -> veces que no cupo o la sacaron (dificultad)
 
     def celdas(self, u, dia, franja):
         out = [franja]
@@ -243,22 +259,36 @@ class Estado:
             return 0.0
         por_jornada = defaultdict(set)
         c = 0.0
+        w = self.w
         prefiere_no = self.p.prefiere_no.get(docente, ())
+        evitar = self.p.evitar.get(docente, ())
         for (ini, fin, uid, f) in lst:
             por_jornada[self.p.franjas[f][0]].add(self.p.indice[f])
             if (dia, f) in prefiere_no:
-                c += PESO_PREFIERE_NO
-        c += PESO_HUECO * sum((max(i) - min(i) + 1) - len(i) for i in por_jornada.values())
+                c += w['prefiere_no']
+            if (dia, f) in evitar:
+                c += w['evitar']
+        c += w['hueco'] * sum((max(i) - min(i) + 1) - len(i) for i in por_jornada.values())
         if len(lst) == 1:
-            c += PESO_DIA_SUELTO
+            c += w['dia_suelto']
+        c += w['equilibrio'] * len(lst) ** 2
         return c
+
+    def costo_docente_semana(self, docente):
+        """El docente pidió un día libre y tiene clase todos los días."""
+        if docente not in self.p.dia_libre:
+            return 0.0
+        dias = self.p.dias_docente.get(docente) or ()
+        if dias and all(self.docente.get((docente, d)) for d in dias):
+            return self.w['dia_libre']
+        return 0.0
 
     def costo_curso_dia(self, curso, dia):
         fs = self.cd.get((curso, dia))
         if not fs:
             return 0.0
         idx = [self.p.indice[f] for f in fs]
-        return PESO_HUECO_CURSO * ((max(idx) + 1) - len(idx))     # libres antes de la última clase
+        return self.w['hueco_curso'] * ((max(idx) + 1) - len(idx))     # libres antes de la última clase
 
     def costo_unidad(self, uid):
         u = self.u[uid]
@@ -266,24 +296,25 @@ class Estado:
         c = 0.0
         for parte in u['partes']:
             if parte['materia'] in self.p.primeras:
-                c += PESO_TARDE * self.p.indice[franja]
+                c += self.w['tarde'] * self.p.indice[franja]
             if parte['materia'] in self.p.ultimas:
                 ult = self.celdas(u, dia, franja)[-1]
                 if self.p.indice[ult] == self.p.ultimo[self.p.franjas[ult][0]]:
-                    c += PESO_ULTIMA
+                    c += self.w['ultima']
         return c
 
     def costo_repeticion(self, curso, materia, dia):
         n = self.cm[(curso, materia, dia)]
         if materia in self.p.dobles:
-            return 0.0 if n <= 3 else PESO_REPETIDA * (n - 3)
-        return PESO_REPETIDA * max(0, n - 1)
+            return 0.0 if n <= 3 else self.w['repetida'] * (n - 3)
+        return self.w['repetida'] * max(0, n - 1)
 
     def costo_total(self):
         c = sum(self.costo_docente_dia(d, dia) for (d, dia) in list(self.docente.keys()))
         c += sum(self.costo_curso_dia(cu, dia) for (cu, dia) in list(self.cd.keys()))
         c += sum(self.costo_repeticion(cu, m, dia) for (cu, m, dia) in list(self.cm.keys()))
         c += sum(self.costo_unidad(uid) for uid in self.pos)
+        c += sum(self.costo_docente_semana(d) for d in self.p.dia_libre)
         return c
 
 
@@ -329,19 +360,23 @@ def _construir(p, est, cola, posibles, rnd, hasta, avance=None, total=1):
                         for x in estorban) * 10 + rnd.random() * 5
             else:
                 c = rnd.random()
+                w = p.w
                 for q in u['partes']:
                     if q['materia'] in p.primeras:
-                        c += PESO_TARDE * p.indice[f]
+                        c += w['tarde'] * p.indice[f]
                     if est.cm[(q['curso'], q['materia'], d)] > 0 and q['materia'] not in p.dobles:
-                        c += PESO_REPETIDA
+                        c += w['repetida']
                     if (d, f) in p.prefiere_no.get(q['docente'], ()):
-                        c += PESO_PREFIERE_NO
+                        c += w['prefiere_no']
+                    if (d, f) in p.evitar.get(q['docente'], ()):
+                        c += w['evitar']
             if mejor_c is None or c < mejor_c - 1e-9:
                 mejores, mejor_c = [(d, f, estorban)], c
             elif abs(c - mejor_c) < 1e-9:
                 mejores.append((d, f, estorban))
         if not mejores:
             trabadas[uid] += 1
+            est.rechazos[uid] += 3
             if trabadas[uid] <= 3:              # si ni sacando a otras cabe, queda sin ubicar
                 cola.append(uid)
             continue
@@ -349,6 +384,7 @@ def _construir(p, est, cola, posibles, rnd, hasta, avance=None, total=1):
         for x in estorban:
             est.quitar(x)
             cola.append(x)
+            est.rechazos[x] += 1
         est.poner(u, d, f)
         reciente[uid] = paso
         if avance and paso % 200 == 0:
@@ -469,6 +505,7 @@ def _reconstruir(p, viejo, posiciones):
     est = Estado(p)
     est.u = viejo.u
     est.fijas = viejo.fijas
+    est.rechazos = viejo.rechazos
     for uid, (d, f) in posiciones.items():
         est.poner(est.u[uid], d, f)
     return est
@@ -486,6 +523,8 @@ def _costo_local(est, uids, dias):
             c += est.costo_curso_dia(cu, d)
         for (cu, m) in cms:
             c += est.costo_repeticion(cu, m, d)
+    for doc in docentes:
+        c += est.costo_docente_semana(doc)
     for x in uids:
         if x in est.pos:
             c += est.costo_unidad(x)

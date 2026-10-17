@@ -1,0 +1,85 @@
+{% extends 'notas/base.html' %}
+{% block title %}Calendario escolar{% endblock %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0"><i class="fas fa-calendar-days me-2" style="color:#4338ca"></i>Calendario escolar</h4>
+        <p class="text-muted small mb-0">Izadas, entregas, reuniones, evaluaciones y festivos del año</p></div>
+    {% if puede_editar %}<a href="{% url 'calendario:nuevo' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>Nuevo evento</a>{% endif %}
+</div>
+{% endblock %}
+{% block content %}
+{% include 'calendario/_estilos.html' %}
+<div class="row g-3">
+<div class="col-lg-8">
+    <div class="ca-tarjeta">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <a class="btn btn-sm btn-outline-secondary" href="?ano={{ previo.0 }}&mes={{ previo.1 }}" aria-label="Mes anterior"><i class="fas fa-chevron-left"></i></a>
+            <h5 class="fw-bold mb-0">{{ nombre_mes }} {{ ano }}</h5>
+            <a class="btn btn-sm btn-outline-secondary" href="?ano={{ siguiente.0 }}&mes={{ siguiente.1 }}" aria-label="Mes siguiente"><i class="fas fa-chevron-right"></i></a>
+        </div>
+        <table class="ca-mes">
+            <thead><tr>{% for d in dias_semana %}<th>{{ d }}</th>{% endfor %}</tr></thead>
+            <tbody>
+            {% for semana in semanas %}<tr>
+                {% for dia in semana %}
+                <td class="{% if dia.otro_mes %}otro{% endif %} {% if dia.hoy %}hoy{% endif %}">
+                    <div class="ca-num"><span>{{ dia.fecha.day }}</span>{% if puede_editar %}<a href="{% url 'calendario:nuevo' %}?fecha={{ dia.fecha|date:'Y-m-d' }}" title="Agregar evento este día">+</a>{% endif %}</div>
+                    {% for e in dia.eventos|slice:":3" %}
+                        {% if e.pk %}<a class="ca-ev" style="background:{{ e.color }}" href="{% url 'calendario:evento' e.pk %}" title="{{ e.titulo }}">{% if e.hora_inicio %}{{ e.hora_inicio|time:"H:i" }} {% endif %}{{ e.titulo }}</a>
+                        {% else %}<span class="ca-ev" style="background:{{ e.color }}" title="{{ e.titulo }}">{{ e.titulo }}</span>{% endif %}
+                    {% endfor %}
+                    {% if dia.eventos|length > 3 %}<div class="ca-ayuda" style="font-size:.65rem">+{{ dia.eventos|length|add:"-3" }} más</div>{% endif %}
+                </td>
+                {% endfor %}
+            </tr>{% endfor %}
+            </tbody>
+        </table>
+        <div class="text-center mt-2"><a href="?ano={{ hoy.year }}&mes={{ hoy.month }}" class="small">Ir a hoy</a></div>
+    </div>
+</div>
+<div class="col-lg-4">
+    <div class="ca-tarjeta">
+        <h6 class="fw-bold mb-1">Próximos días</h6>
+        {% for e in proximos %}
+        <div class="ca-prox">
+            <div class="ca-fecha"><b>{{ e.fecha.day }}</b><small>{{ e.fecha|date:"M" }}</small></div>
+            <div class="flex-grow-1">
+                <div class="fw-semibold small"><span class="ca-punto" style="background:{{ e.color }}"></span>{% if e.pk %}<a href="{% url 'calendario:evento' e.pk %}">{{ e.titulo }}</a>{% else %}{{ e.titulo }}{% endif %}</div>
+                <div class="ca-ayuda">{{ e.get_tipo_display }}{% if e.hora_inicio %} · {{ e.hora_inicio|time:"H:i" }}{% endif %}{% if e.lugar %} · {{ e.lugar }}{% endif %}{% if e.fecha_fin and e.fecha_fin != e.fecha %} · hasta el {{ e.fecha_fin|date:"d/m" }}{% endif %}</div>
+                <a href="{{ e.google }}" target="_blank" rel="noopener" class="small"><i class="fab fa-google me-1"></i>Agregar a mi Google Calendar</a>
+            </div>
+        </div>
+        {% empty %}<p class="ca-ayuda mb-0">No hay eventos en los próximos 45 días.</p>{% endfor %}
+    </div>
+    <div class="ca-tarjeta">
+        <h6 class="fw-bold"><i class="fab fa-google me-1"></i>Tenerlo en el celular</h6>
+        <p class="ca-ayuda">Suscríbase una vez y el calendario del colegio aparece en su Google Calendar y se actualiza solo.</p>
+        <ol class="small ps-3 mb-2">
+            <li>Copie esta dirección: <input class="form-control form-control-sm mt-1" value="{{ url_ics }}" readonly onclick="this.select()" id="ca-url"></li>
+            <li>En el computador abra <strong>calendar.google.com</strong> → «Otros calendarios» <strong>+</strong> → «Desde URL» y péguela.</li>
+        </ol>
+        <div class="d-flex gap-2 flex-wrap">
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('ca-url').value);this.textContent='¡Copiada!'">Copiar dirección</button>
+            <a href="{{ url_webcal }}" class="btn btn-sm btn-outline-secondary">Abrir en el celular</a>
+            <a href="{% url 'calendario:descargar_ics' %}" class="btn btn-sm btn-outline-secondary">Descargar .ics</a>
+        </div>
+        <p class="ca-ayuda mt-2 mb-0">Esta dirección es personal: no la publique.</p>
+    </div>
+    {% if puede_editar %}
+    <div class="ca-tarjeta">
+        <h6 class="fw-bold">Festivos de Colombia</h6>
+        <p class="ca-ayuda">Agrega de una vez todos los festivos del año (con la Ley Emiliani).</p>
+        <form method="post" action="{% url 'calendario:festivos' %}" class="d-flex gap-2">{% csrf_token %}
+            <input type="number" name="ano" value="{{ ano }}" min="2020" max="2100" class="form-control form-control-sm" style="max-width:100px">
+            <input type="hidden" name="mes" value="{{ num }}">
+            <button class="btn btn-sm btn-outline-primary">Agregar festivos</button>
+        </form>
+    </div>
+    {% endif %}
+    <div class="ca-tarjeta">
+        <h6 class="fw-bold mb-2">Colores</h6>
+        <div class="small">{% for nombre, color in leyenda %}<span class="me-2 text-nowrap"><span class="ca-punto" style="background:{{ color }}"></span>{{ nombre }}</span>{% endfor %}</div>
+    </div>
+</div>
+</div>
+{% endblock %}

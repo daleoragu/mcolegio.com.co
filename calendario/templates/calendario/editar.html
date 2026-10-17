@@ -1,0 +1,45 @@
+{% extends 'notas/base.html' %}
+{% block title %}{% if e.pk %}Editar evento{% else %}Nuevo evento{% endif %}{% endblock %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="mb-0"><i class="fas fa-calendar-plus me-2" style="color:#4338ca"></i>{% if e.pk %}Editar evento{% else %}Nuevo evento{% endif %}</h4>
+    <a href="{% url 'calendario:inicio' %}" class="btn btn-outline-secondary btn-sm">Volver al calendario</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'calendario/_estilos.html' %}
+<div class="ca-tarjeta" style="max-width:820px">
+    {% for err in errores %}<div class="alert alert-danger py-2">{{ err }}</div>{% endfor %}
+    <form method="post">{% csrf_token %}
+        <div class="row g-3">
+            <div class="col-md-8"><label class="form-label fw-semibold">Nombre del evento</label>
+                <input name="titulo" value="{{ e.titulo }}" maxlength="120" required class="form-control" placeholder="Izada de bandera · Día del idioma"></div>
+            <div class="col-md-4"><label class="form-label fw-semibold">Tipo</label>
+                <select name="tipo" class="form-select">{% for c, n in tipos %}<option value="{{ c }}" {% if e.tipo == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+            <div class="col-6 col-md-3"><label class="form-label fw-semibold">Fecha</label>
+                <input type="date" name="fecha" value="{{ e.fecha|date:'Y-m-d' }}" required class="form-control"></div>
+            <div class="col-6 col-md-3"><label class="form-label">Hasta (opcional)</label>
+                <input type="date" name="fecha_fin" value="{{ e.fecha_fin|date:'Y-m-d' }}" class="form-control"></div>
+            <div class="col-6 col-md-3"><label class="form-label">Hora inicio</label>
+                <input type="time" name="hora_inicio" value="{{ e.hora_inicio|time:'H:i' }}" class="form-control"></div>
+            <div class="col-6 col-md-3"><label class="form-label">Hora fin</label>
+                <input type="time" name="hora_fin" value="{{ e.hora_fin|time:'H:i' }}" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Lugar</label>
+                <input name="lugar" value="{{ e.lugar }}" maxlength="120" class="form-control" placeholder="Patio principal, auditorio…"></div>
+            <div class="col-md-6"><label class="form-label fw-semibold">¿Quién lo ve?</label>
+                <select name="para" class="form-select">{% for c, n in para %}<option value="{{ c }}" {% if e.para == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+            <div class="col-12"><label class="form-label">Descripción</label>
+                <textarea name="descripcion" rows="3" class="form-control" placeholder="Indicaciones, uniforme, qué deben traer…">{{ e.descripcion }}</textarea></div>
+            <div class="col-12">
+                <label class="form-label">Solo para estos cursos <span class="ca-ayuda">(si no marca ninguno, es para todos)</span></label>
+                <div class="d-flex flex-wrap gap-2">{% for c in cursos %}
+                    <label class="border rounded px-2 py-1 small"><input type="checkbox" name="cursos" value="{{ c.id }}" {% if c.id in elegidos %}checked{% endif %}> {{ c.nombre }}</label>
+                {% endfor %}</div>
+            </div>
+            <div class="col-12"><label class="d-flex gap-2 align-items-center"><input type="checkbox" name="avisar" value="1" {% if not e.pk %}checked{% endif %}>
+                <span>Enviar notificación a quienes lo ven{% if e.pk %} (avisar del cambio){% endif %}</span></label></div>
+        </div>
+        <div class="mt-3"><button class="btn btn-primary">Guardar</button></div>
+    </form>
+</div>
+{% endblock %}

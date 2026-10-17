@@ -433,5 +433,18 @@
    "ih": 2
   }
  ],
- "firma": "3daff7977a977360c667a01cd73242d1"
+ "firma": "3daff7977a977360c667a01cd73242d1",
+ "disponibilidad": {
+  "3": {
+   "no_puede": [
+    "5-14",
+    "5-13"
+   ],
+   "prefiere_no": [
+    "1-8"
+   ],
+   "dia_libre": false,
+   "nota": "Los viernes al final salgo a la universidad."
+  }
+ }
 }

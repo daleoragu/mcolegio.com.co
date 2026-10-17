@@ -13,8 +13,9 @@ from notas.models import Curso, Docente
 from notas.modulos import esta_activo
 from notas.permisos import admin_requerido, es_admin
 
-from . import cuadricula, intercambio, logica, nucleo
-from .models import DIAS, AplicacionEscritorio, Franja, Horario, Jornada, Sesion
+from . import cuadricula, intercambio, logica, nucleo, reemplazos
+from .models import (DIAS, AplicacionEscritorio, ConfiguracionHorario, Disponibilidad, Franja, Horario, Jornada,
+                     Reemplazo, Sesion)
 
 
 def _premium(request):
@@ -317,6 +318,176 @@ def mi_horario(request):
             titulo = f'Horario del curso {curso.nombre}'
     if request.GET.get('pdf') and h and tablas:
         return _pdf(request, {'h': h, 'paginas': [{'titulo': titulo, 'tablas': tablas}]}, 'Mi horario')
+    proximos = reemplazos.reemplazos_proximos(colegio, docente) if (h and docente) else []
+    conf = ConfiguracionHorario.objects.filter(colegio=colegio).first()
     return render(request, 'horarios/mi_horario.html', {'colegio': colegio, 'h': h, 'tablas': tablas,
                                                         'titulo': titulo or 'Horario de clases',
-                                                        'es_admin': es_admin(request)})
+                                                        'es_admin': es_admin(request), 'proximos': proximos,
+                                                        'otras_tareas': _otras_tareas(h, docente) if h and docente else [],
+                                                        'pedir': bool(docente and conf and conf.pedir_disponibilidad)})
+
+
+def _otras_tareas(h, docente):
+    """Turnos de descanso y actividades complementarias del docente (vienen del generador)."""
+    franjas = {f.id: f for f in Franja.objects.filter(jornada__colegio=h.colegio)}
+    dias = dict(DIAS)
+    out = []
+    for x in (h.informe or {}).get('acompanamientos', []):
+        if docente.id in x.get('docentes', []) and x.get('franja') in franjas:
+            f = franjas[x['franja']]
+            out.append({'orden': (x['dia'], f.inicio), 'texto': f"{dias.get(x['dia'])} {f.inicio:%H:%M}–{f.fin:%H:%M}",
+                        'que': f"Acompañamiento de descanso · {x.get('zona')}"})
+    for x in (h.informe or {}).get('actividades', []):
+        if x.get('docente') == docente.id and x.get('franja') in franjas:
+            f = franjas[x['franja']]
+            out.append({'orden': (x['dia'], f.inicio), 'texto': f"{dias.get(x['dia'])} {f.inicio:%H:%M}–{f.fin:%H:%M}",
+                        'que': x.get('nombre') or 'Actividad'})
+    return sorted(out, key=lambda x: x['orden'])
+
+
+# ---------------------------------------------------------------------------
+# Disponibilidad de los docentes («desideratas»): la marcan aquí y viaja al generador
+# ---------------------------------------------------------------------------
+def _jornadas_docente(colegio, docente):
+    from notas.models import AsignacionDocente
+    cursos = set(AsignacionDocente.objects.filter(colegio=colegio, docente=docente).values_list('curso_id', flat=True))
+    todas = list(Jornada.objects.filter(colegio=colegio).prefetch_related('franjas', 'cursos'))
+    mias = [j for j in todas if cursos & {c.id for c in j.cursos.all()}]
+    return mias or todas
+
+
+@login_required
+def mi_disponibilidad(request):
+    colegio = request.colegio
+    docente = Docente.objects.filter(user=request.user, colegio=colegio).first()
+    if not docente:
+        messages.info(request, 'Esta página es para los docentes.')
+        return redirect('horarios:mi_horario')
+    conf = ConfiguracionHorario.objects.filter(colegio=colegio).first()
+    disp, _ = Disponibilidad.objects.get_or_create(colegio=colegio, docente=docente)
+    jornadas = _jornadas_docente(colegio, docente)
+    abierta = bool(conf and conf.pedir_disponibilidad)
+    if request.method == 'POST' and abierta:
+        validas = {f'{d}-{f.id}' for j in jornadas for d in j.dias for f in j.franjas.all() if not f.descanso}
+        celdas = {}
+        for k in validas:
+            v = request.POST.get(f'c_{k}')
+            if v in (Disponibilidad.NO, Disponibilidad.PREF):
+                celdas[k] = v
+        disp.celdas = celdas
+        disp.dia_libre = bool(request.POST.get('dia_libre'))
+        disp.nota = (request.POST.get('nota') or '').strip()[:300]
+        disp.save()
+        messages.success(request, 'Su disponibilidad quedó guardada. Gracias.')
+        return redirect('horarios:mi_disponibilidad')
+    tablas = []
+    for j in jornadas:
+        dias = [(d, n) for d, n in DIAS if d in j.dias]
+        filas = []
+        for f in sorted(j.franjas.all(), key=lambda x: (x.orden, x.inicio)):
+            filas.append({'franja': f, 'celdas': [{'clave': f'{d}-{f.id}', 'valor': (disp.celdas or {}).get(f'{d}-{f.id}', '')}
+                                                  for d, _ in dias]})
+        tablas.append({'jornada': j, 'dias': dias, 'filas': filas})
+    total = sum(1 for t in tablas for fl in t['filas'] if not fl['franja'].descanso for _ in fl['celdas'])
+    return render(request, 'horarios/mi_disponibilidad.html', {
+        'colegio': colegio, 'tablas': tablas, 'disp': disp, 'conf': conf, 'abierta': abierta,
+        'total': total, 'n_no': len(disp.lista('no'))})
+
+
+@admin_requerido
+def disponibilidad_docentes(request):
+    colegio = request.colegio
+    conf, _ = ConfiguracionHorario.objects.get_or_create(colegio=colegio)
+    if request.method == 'POST':
+        antes = conf.pedir_disponibilidad
+        conf.pedir_disponibilidad = bool(request.POST.get('pedir'))
+        conf.mensaje = (request.POST.get('mensaje') or '').strip()[:250]
+        try:
+            conf.fecha_limite = datetime.datetime.strptime(request.POST.get('fecha_limite') or '', '%Y-%m-%d').date()
+        except ValueError:
+            conf.fecha_limite = None
+        conf.save()
+        if conf.pedir_disponibilidad and not antes:
+            from notas.models.comunicaciones import Notificacion
+            texto = 'Marque en la plataforma las horas en que no puede tener clase (para el horario).'
+            if conf.fecha_limite:
+                texto += f' Plazo: {conf.fecha_limite:%d/%m}.'
+            Notificacion.objects.bulk_create([
+                Notificacion(colegio=colegio, destinatario_id=u, tipo='GENERAL', mensaje=texto,
+                             url=reverse('horarios:mi_disponibilidad'))
+                for u in Docente.objects.filter(colegio=colegio, user__is_active=True).values_list('user_id', flat=True)])
+            messages.success(request, 'Listo: se avisó a los docentes para que marquen su disponibilidad.')
+        else:
+            messages.success(request, 'Guardado.')
+        return redirect('horarios:disponibilidad')
+    marcadas = {x.docente_id: x for x in Disponibilidad.objects.filter(colegio=colegio)}
+    filas = []
+    for d in Docente.objects.filter(colegio=colegio, user__is_active=True).select_related('user'):
+        x = marcadas.get(d.id)
+        filas.append({'docente': d, 'disp': x, 'no': len(x.lista('no')) if x else 0,
+                      'pref': len(x.lista('pref')) if x else 0,
+                      'listo': bool(x and (x.celdas or x.nota or x.dia_libre))})
+    filas.sort(key=lambda f: (not f['listo'], f['docente'].user.last_name))
+    return render(request, 'horarios/disponibilidad.html', {
+        'colegio': colegio, 'conf': conf, 'filas': filas, 'listos': sum(1 for f in filas if f['listo'])})
+
+
+# ---------------------------------------------------------------------------
+# Reemplazos: un docente falta y se busca quién cubre sus clases
+# ---------------------------------------------------------------------------
+def _fecha(txt):
+    try:
+        return datetime.datetime.strptime(txt or '', '%Y-%m-%d').date()
+    except ValueError:
+        return timezone.localdate()
+
+
+@admin_requerido
+def reemplazos_vista(request):
+    colegio = request.colegio
+    h = cuadricula.publicado(colegio)
+    fecha = _fecha(request.POST.get('fecha') or request.GET.get('fecha'))
+    docente = None
+    did = request.POST.get('docente') or request.GET.get('docente')
+    if did and str(did).isdigit():
+        docente = Docente.objects.filter(colegio=colegio, pk=did).select_related('user').first()
+    url_aviso = reverse('horarios:mi_horario')
+
+    if request.method == 'POST' and h and docente:
+        accion = request.POST.get('accion')
+        if accion == 'quitar':
+            Reemplazo.objects.filter(colegio=colegio, fecha=fecha, ausente=docente).delete()
+            messages.success(request, f'Se quitó la ausencia de {docente} el {fecha:%d/%m/%Y}.')
+            return redirect(f"{reverse('horarios:reemplazos')}?fecha={fecha:%Y-%m-%d}")
+        motivo = (request.POST.get('motivo') or '').strip()[:120]
+        avisados = 0
+        for s in reemplazos.clases_de(h, docente, fecha):
+            rid = request.POST.get(f'r_{s.id}', '')
+            nuevo = Docente.objects.filter(colegio=colegio, pk=rid).first() if rid.isdigit() else None
+            nota = (request.POST.get(f'n_{s.id}') or '').strip()[:200]
+            r, creado = Reemplazo.objects.get_or_create(colegio=colegio, fecha=fecha, sesion=s,
+                                                        defaults={'ausente': docente})
+            cambio = creado or r.reemplazante_id != (nuevo.id if nuevo else None) or r.nota != nota
+            r.ausente, r.reemplazante, r.nota, r.motivo = docente, nuevo, nota, motivo
+            r.save()
+            if nuevo and cambio:
+                reemplazos.avisar(r, url_aviso)
+                avisados += 1
+        messages.success(request, f'Ausencia de {docente} guardada. Se avisó a {avisados} docente(s).')
+        return redirect(f"{reverse('horarios:reemplazos')}?fecha={fecha:%Y-%m-%d}&docente={docente.pk}")
+
+    plan = []
+    if h and docente:
+        _, plan = reemplazos.plan_de_ausencia(colegio, docente, fecha)
+    dia = (Reemplazo.objects.filter(colegio=colegio, fecha=fecha)
+           .select_related('ausente__user', 'reemplazante__user', 'sesion__curso', 'sesion__franja',
+                           'sesion__asignacion__materia').order_by('ausente__user__last_name', 'sesion__franja__inicio'))
+    con_clase = set()
+    if h:
+        con_clase = set(Sesion.objects.filter(horario=h, dia=fecha.isoweekday()).values_list('asignacion__docente_id', flat=True))
+    docentes = [d for d in Docente.objects.filter(colegio=colegio, user__is_active=True).select_related('user')]
+    return render(request, 'horarios/reemplazos.html', {
+        'colegio': colegio, 'h': h, 'fecha': fecha, 'docente': docente, 'plan': plan, 'dia': dia,
+        'docentes': docentes, 'con_clase': con_clase,
+        'motivo': next((r.motivo for p in plan if (r := p['reemplazo'])), ''),
+        'nombre_dia': dict(DIAS).get(fecha.isoweekday(), 'Domingo')})
