@@ -296,6 +296,18 @@ class Proyecto:
         return [(a, self.datos.ih(a['id'], self.cond) - hechas[a['id']]) for a in self.asignaciones_de_curso(cid)
                 if self.datos.ih(a['id'], self.cond) - hechas[a['id']] > 0]
 
+    def pendientes_docente(self, alt, did):
+        """[(asignación, horas por ubicar)] del docente, para armar el horario desde su vista."""
+        D = self.datos
+        hechas = defaultdict(int)
+        for s in alt['sesiones']:
+            hechas[s['asignacion']] += 1
+        orden = {c['id']: i for i, c in enumerate(D.crudo['cursos'])}
+        mias = sorted((a for a in D.asignaciones.values() if a.get('docente') == did and a['curso'] in D.jornada_de_curso),
+                      key=lambda a: (orden.get(a['curso'], 0), D.nombre_materia(a['materia'])))
+        return [(a, D.ih(a['id'], self.cond) - hechas[a['id']]) for a in mias
+                if D.ih(a['id'], self.cond) - hechas[a['id']] > 0]
+
     def motivo(self, alt, aid, dia, fid, ignorar=None):
         """None si la ficha cabe ahí; si no, por qué."""
         D = self.datos
@@ -376,13 +388,26 @@ class Proyecto:
         return None
 
     def intercambiar(self, alt, i, dia, fid):
-        """Mueve la ficha i a (dia, fid) y la del mismo curso que estaba ahí pasa a donde estaba i."""
+        """Mueve la ficha i a (dia, fid) y la que estorba ahí (del mismo curso o del mismo docente)
+        pasa a donde estaba i."""
+        D = self.datos
         s = alt['sesiones'][i]
-        cid = self.datos.asignaciones[s['asignacion']]['curso']
-        j = next((k for k, x in enumerate(alt['sesiones']) if k != i and x['dia'] == dia and x['franja'] == fid
-                  and self.datos.asignaciones.get(x['asignacion'], {}).get('curso') == cid), None)
+        a = D.asignaciones[s['asignacion']]
+        ini, fin = D.intervalo(fid)
+
+        def estorba(x):
+            b = D.asignaciones.get(x['asignacion'], {})
+            if x['dia'] != dia:
+                return False
+            if b.get('curso') == a['curso'] and x['franja'] == fid:
+                return True
+            if a.get('docente') and b.get('docente') == a['docente'] and x['franja'] in D.franjas:
+                y0, y1 = D.intervalo(x['franja'])
+                return y0 < fin and ini < y1
+            return False
+        j = next((k for k, x in enumerate(alt['sesiones']) if k != i and estorba(x)), None)
         if j is None:
-            return 'No hay otra ficha del curso en esa hora para intercambiar.'
+            return 'No hay otra ficha en esa hora para intercambiar.'
         t = alt['sesiones'][j]
         d0, f0 = s['dia'], s['franja']
         m = self.motivo(alt, s['asignacion'], dia, fid, ignorar={i, j})

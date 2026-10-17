@@ -789,7 +789,7 @@ class App(tk.Tk):
         self.cb_quien.pack(side='left', padx=6)
         self.cb_ver.bind('<<ComboboxSelected>>', lambda e: self._opciones_ver())
         self.cb_quien.bind('<<ComboboxSelected>>', lambda e: self._ver())
-        ttk.Label(sel, text='Arrastre las fichas (sobre otra del curso: intercambiar). Clic derecho: fijar o quitar. 🔒 = fijada.',
+        ttk.Label(sel, text='Arme por curso o por docente: arrastre las fichas (sobre otra: intercambiar). Clic derecho: fijar o quitar. 🔒 = fijada.',
                   style='Ayuda.TLabel').pack(side='left', padx=8)
         abajo = ttk.Frame(der)
         abajo.pack(fill='both', expand=True, pady=4)
@@ -909,18 +909,22 @@ class App(tk.Tk):
                      fg='#666').grid(padx=20, pady=20)
             return
         tipo, ident = self.quien_l[self.cb_quien.current()]
-        editable = tipo == 'c'
-        if editable:
-            tk.Label(self.paleta, text='Fichas por ubicar', bg=GRIS, font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=6, pady=4)
+        editable = True                      # se arma igual desde un curso o desde un docente
+        D = self.p.datos
+        tk.Label(self.paleta, text='Fichas por ubicar', bg=GRIS, font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=6, pady=4)
+        if tipo == 'c':
             pend = self.p.pendientes(alt, ident)
-            for a, n in pend:
-                texto = f"{self.p.datos.nombre_materia(a['materia'])} ×{n}\n{self.p.datos.nombre_docente(a.get('docente'))}"
-                self._ficha(self.paleta, texto, SUELTA, {'tipo': 'nueva', 'asig': a['id']}).pack(fill='x', padx=6, pady=2)
-            if not pend:
-                tk.Label(self.paleta, text='✔ Todas ubicadas', bg=GRIS, fg='#14532d').pack(anchor='w', padx=6)
-            tk.Label(self.paleta, text='Suelte aquí una ficha\npara sacarla del horario.', bg=GRIS, fg='#888',
-                     font=('Segoe UI', 8)).pack(side='bottom', pady=6)
-        tablas = [self.p.tabla_curso(alt, ident)] if editable else self.p.tablas_docente(alt, ident)
+            textos = [f"{D.nombre_materia(a['materia'])} ×{n}\n{D.nombre_docente(a.get('docente'))}" for a, n in pend]
+        else:
+            pend = self.p.pendientes_docente(alt, ident)
+            textos = [f"{D.nombre_curso(a['curso'])} · {D.nombre_materia(a['materia'])} ×{n}" for a, n in pend]
+        for (a, n), texto in zip(pend, textos):
+            self._ficha(self.paleta, texto, SUELTA, {'tipo': 'nueva', 'asig': a['id']}).pack(fill='x', padx=6, pady=2)
+        if not pend:
+            tk.Label(self.paleta, text='✔ Todas ubicadas', bg=GRIS, fg='#14532d').pack(anchor='w', padx=6)
+        tk.Label(self.paleta, text='Suelte aquí una ficha\npara sacarla del horario.', bg=GRIS, fg='#888',
+                 font=('Segoe UI', 8)).pack(side='bottom', pady=6)
+        tablas = [self.p.tabla_curso(alt, ident)] if tipo == 'c' else self.p.tablas_docente(alt, ident)
         fila = 0
         for t in tablas:
             if not t:
@@ -1048,7 +1052,7 @@ class App(tk.Tk):
             motivo = self.p.poner_ficha(alt, datos['asig'], destino[1], destino[2])
         else:
             motivo = self.p.mover_ficha(alt, datos['i'], destino[1], destino[2])
-            if motivo and 'ya tiene' in motivo and messagebox.askyesno(
+            if motivo and ('ya tiene' in motivo or 'ya está en' in motivo) and messagebox.askyesno(
                     TITULO, motivo + '\n\n¿Intercambiar las dos fichas de lugar?'):
                 motivo = self.p.intercambiar(alt, datos['i'], destino[1], destino[2])
                 if not motivo:
