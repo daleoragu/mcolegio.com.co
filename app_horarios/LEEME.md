@@ -47,3 +47,11 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 - **Bloques en cualquier orden**: si una clase de 3 horas es 2+1 y ya está puesta la hora suelta, lo que falta es el bloque de 2 (y al revés). Vale para el generador, «Completar lo que falta» y el armado a mano.
 - **Botón «✂ Dividir en bloques automáticamente»** (pestaña 1): pone 2+2+1… a las clases que no tienen bloques; «Quitar todos los bloques» los borra.
 - **Fichas de bloque**: en «Fichas por ubicar» sale una ficha por cada bloque que falta («Matemáticas · bloque 2 h», «Matemáticas · 1 h») y se ubican en el orden que usted quiera; el bloque se pone completo (los colores miran las dos horas). Clic derecho en la ficha: «Ubicar de a una hora».
+
+## Versión 2.6
+
+- **Filtros** por grado, área y docente (y «Buscar») en la tabla de clases; por área en Materias; por grado y área en la lista de Docentes y cursos; y en cada pestaña del horario (cursos por grado, docentes por área).
+- **¿Bloques partidos por el descanso?** La primera vez que se genera con bloques, la app pregunta si un bloque puede quedar con una hora antes del descanso y otra después. Se cambia en Reglas.
+- **Pantalla del horario a lo ancho**: sin barra lateral; arriba los botones (generar, completar, guardar, Excel, renombrar, quitar, pestañas, avisos) y abajo las cuadrículas, que ocupan toda la pantalla. La app abre maximizada.
+- **Cada pestaña escoge su horario**: así se comparan alternativas lado a lado (o en ventanas aparte) y se edita cualquiera de ellas.
+- Los avisos se muestran con el botón «⚠ Avisos».

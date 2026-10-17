@@ -42,6 +42,11 @@ def prueba():
     p.asig(a0)['bloques'] = '2+1'
     app._llenar_datos()
     assert app.tv_asig.get_children()
+    # Filtros de la tabla de clases (grado, área, docente y buscar)
+    total = len(app.tv_asig.get_children())
+    primera = D.asignaciones[sorted(D.asignaciones)[0]]
+    assert app.filtro_datos(primera)
+    assert total == len(D.asignaciones)
     # Botón de dividir en bloques automáticamente
     app._dividir_bloques()
     assert any(p.asig(x).get('bloques') for x in D.asignaciones), 'no dividió ninguna clase'
@@ -142,11 +147,27 @@ def prueba():
     app.sueltas.add(pend[0][0]['id'])
     app._ver()
     app.sueltas.discard(pend[0][0]['id'])
+    # ¿Bloques partidos por el descanso? Se pregunta una vez
+    p.cond['bloque_descanso'] = None
+    app._preguntar_descanso()
+    assert p.cond['bloque_descanso'] is True
     # Varias pestañas y una ventana aparte: todas muestran el mismo horario
     v2 = app.nueva_pestana(tipo=1)
     v3 = app.nueva_ventana()
     assert len(app.vistas) == 3 and v2.rejilla.winfo_children() and v3.rejilla.winfo_children()
     app.escoger({'tipo': 'nueva', 'asig': pend[0][0]['id']})
+    # Cada pestaña puede mostrar otro horario (para compararlos)
+    if len(p.alternativas) > 1:
+        v2.cb_alt.current(1)
+        v2._cambio_alt()
+        assert v2.alt() is p.alternativas[1] and app.vistas[0].alt() is p.alternativas[0]
+    # Filtro por grado en la vista
+    v2.cb_ver.current(0)
+    v2.opciones()
+    if len(v2.filtros) > 1:
+        v2.cb_filtro.current(1)
+        v2.opciones(conservar_filtro=True)
+        assert v2.quien_l
     app.cerrar_vista(v2)
     assert len(app.vistas) == 2
     app.quitar_seleccion()

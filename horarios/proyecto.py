@@ -526,9 +526,14 @@ class Proyecto:
 
     # --- Bloques (2 horas seguidas, etc.) -------------------------------------------
     def _siguientes(self):
-        if getattr(self, '_sig', None) is None:
-            self._sig = nucleo.siguientes(self.datos)
+        cruzar = nucleo.bloque_cruza_descanso(self.cond)
+        if getattr(self, '_sig', None) is None or self._sig_cruza != cruzar:
+            self._sig = nucleo.siguientes(self.datos, cruzar)
+            self._sig_cruza = cruzar
         return self._sig
+
+    def hay_bloques(self):
+        return any(max(self.partes_asig(a) or [1]) > 1 for a in self.datos.asignaciones)
 
     def celdas_bloque(self, fid, largo):
         """[fid, la siguiente, …] o None si el bloque se cruza con un descanso o el fin de la jornada."""
