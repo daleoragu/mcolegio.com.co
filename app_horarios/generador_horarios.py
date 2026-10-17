@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import nucleo                     # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '2.1'
+VERSION = '2.2'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -273,6 +273,32 @@ class App(tk.Tk):
                      poner('max_seguidas')).grid(row=1, column=0, sticky='w', pady=4)
         self._numero(gen, 'Máximo de horas de una materia en un día:', c.get('max_por_dia') or 2, 1, 6,
                      poner('max_por_dia')).grid(row=1, column=1, sticky='w', padx=20)
+        ex = c.setdefault('excluyente', {'activa': False, 'a': 1, 'b': 7, 'obligatoria': True})
+        fila_ex = ttk.Frame(gen)
+        fila_ex.grid(row=2, column=0, columnspan=2, sticky='w', pady=(6, 0))
+        var_ex = tk.BooleanVar(value=bool(ex.get('activa')))
+        ttk.Checkbutton(fila_ex, text='Si un docente tiene la hora', variable=var_ex,
+                        command=lambda: ex.__setitem__('activa', var_ex.get())).pack(side='left')
+        var_b = tk.StringVar(value=str(ex.get('b') or 7))
+        ttk.Spinbox(fila_ex, from_=1, to=12, width=3, textvariable=var_b).pack(side='left', padx=4)
+        ttk.Label(fila_ex, text='no tiene la hora').pack(side='left')
+        var_a = tk.StringVar(value=str(ex.get('a') or 1))
+        ttk.Spinbox(fila_ex, from_=1, to=12, width=3, textvariable=var_a).pack(side='left', padx=4)
+        ttk.Label(fila_ex, text='el mismo día ·').pack(side='left')
+        cb_ex = ttk.Combobox(fila_ex, state='readonly', width=14, values=['Obligatorio', 'Si se puede'])
+        cb_ex.current(0 if ex.get('obligatoria', True) else 1)
+        cb_ex.pack(side='left', padx=4)
+        cb_ex.bind('<<ComboboxSelected>>', lambda e: ex.__setitem__('obligatoria', cb_ex.current() == 0))
+
+        def horas_ex(*_):
+            for clave, var in (('a', var_a), ('b', var_b)):
+                try:
+                    ex[clave] = max(1, int(var.get()))
+                except ValueError:
+                    pass
+        var_a.trace_add('write', horas_ex)
+        var_b.trace_add('write', horas_ex)
+        ttk.Label(fila_ex, text='(si la jornada tiene menos horas, cuenta la última)', style='Ayuda.TLabel').pack(side='left', padx=6)
         pri = ttk.LabelFrame(f, text='Prioridades al mejorar el horario (0 = no importa · 5 = normal · 10 = muy importante)',
                              padding=8)
         pri.pack(fill='x', pady=(8, 0))
@@ -451,6 +477,11 @@ class App(tk.Tk):
         var_libre = tk.BooleanVar(value=bool(r.get('dia_libre')))
         ttk.Checkbutton(abajo, text='Pide un día sin clases a la semana (si se puede)', variable=var_libre,
                         command=lambda: r.__setitem__('dia_libre', var_libre.get())).pack(anchor='w', pady=(4, 0))
+        ex = self.p.cond.get('excluyente') or {}
+        if ex.get('activa'):
+            var_sin = tk.BooleanVar(value=bool(r.get('sin_excluyente')))
+            ttk.Checkbutton(abajo, text=f'A este docente no se le aplica la regla de la hora {ex.get("b")} y la hora {ex.get("a")}',
+                            variable=var_sin, command=lambda: r.__setitem__('sin_excluyente', var_sin.get())).pack(anchor='w')
 
     def _ver_curso(self, c):
         ttk.Label(self.panel_doc, text=f'Curso {c["nombre"]}', style='Titulo.TLabel').pack(anchor='w')

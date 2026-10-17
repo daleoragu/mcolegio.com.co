@@ -49,6 +49,9 @@ def prueba():
     app._llenar_materias()
     p.cond['pesos']['hueco'] = 8
     p.cond['pesos']['equilibrio'] = 7
+    # Si tiene la 7.ª no tiene la 1.ª (como preferencia: el ejemplo no tiene docentes para que sea obligatoria)
+    assert p.cond['excluyente']['activa'] is False
+    p.cond['excluyente'].update(activa=True, a=1, b=7, obligatoria=False)
     # 3. Docentes: casillas de tres estados y día completo
     app.lb_doc.selection_set(0)
     app._ver_docente()
@@ -64,6 +67,7 @@ def prueba():
     app._dia_docente(d['id'], j['dias'][-1])
     p.docente(d['id'])['dia_libre'] = True
     app._ver_docente()
+    p.docente(d['id'])['sin_excluyente'] = False
     # Cursos: horas sin clase
     app.lb_doc.selection_clear(0, 'end')
     app.lb_doc.selection_set(len(app.docs))

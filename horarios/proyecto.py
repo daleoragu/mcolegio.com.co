@@ -235,11 +235,35 @@ class Proyecto:
             if a and s['franja'] in self.datos.franjas and self.celda_curso(a['curso'], s['dia'], s['franja']):
                 alt['choques'].append(f'{self.datos.nombre_curso(a["curso"])} no tiene clase el '
                                       f'{nucleo.DIAS[s["dia"]]} a las {self.datos.franjas[s["franja"]]["inicio"]}.')
+        alt['choques'] += self._revisar_excluyente(alt)
         faltan = nucleo.horas_faltantes(self.datos, alt['sesiones'], self.cond)
         alt['sin_ubicar'] = [{'asignacion': a['id'], 'horas': n} for a, n in faltan]
         alt['horas_sin_ubicar'] = sum(n for _, n in faltan)
         self.complementos(alt)
         return alt
+
+    def _revisar_excluyente(self, alt):
+        """Docentes que quedaron con las dos horas excluyentes el mismo día (si la regla es obligatoria)."""
+        regla = nucleo.regla_excluyente(self.cond)
+        if not regla or not regla[2]:
+            return []
+        a, b, _ = regla
+        D = self.datos
+        por = defaultdict(list)
+        for s in alt['sesiones']:
+            x = D.asignaciones.get(s['asignacion'])
+            if x and x.get('docente') and s['franja'] in D.franjas:
+                por[(x['docente'], s['dia'], D.franjas[s['franja']]['jornada'])].append(s['franja'])
+        for (did, dia), fs in nucleo.franjas_de_reuniones(D, alt.get('reuniones')).items():
+            for f in fs:
+                por[(did, dia, D.franjas[f]['jornada'])].append(f)
+        out = []
+        for (did, dia, _), fs in por.items():
+            if self.docente(did).get('sin_excluyente'):
+                continue
+            if any(self._es_hora(f, a) for f in fs) and any(self._es_hora(f, b) for f in fs):
+                out.append(f'{D.nombre_docente(did)} tiene la hora {a} y la hora {b} el {nucleo.DIAS[dia]}.')
+        return out
 
     def complementos(self, alt):
         """Actividades complementarias y turnos de descanso (se recalculan con cada cambio)."""
@@ -346,11 +370,16 @@ class Proyecto:
             perm = float(perm) if perm not in (None, '') else float(self.cond.get('permanencia_horas') or 0)
             mias = [(D.intervalo(s['franja']), s) for s in otras
                     if s['dia'] == dia and D.asignaciones.get(s['asignacion'], {}).get('docente') == did]
+            reus = nucleo.franjas_de_reuniones(D, alt.get('reuniones')).get((did, dia), [])
             if perm and not extra:
                 tramos = [t for t, s in mias if not self.cond['asignaciones'].get(str(s['asignacion']), {}).get('extra')]
+                tramos += [D.intervalo(x) for x in reus]       # las reuniones de área van dentro de la permanencia
                 tramos.append((ini, fin))
                 if max(b for _, b in tramos) - min(x for x, _ in tramos) > perm * 60:
                     return f'Se pasa de las {perm:g} horas de permanencia de {D.nombre_docente(did)} ese día.'
+            m = self._motivo_excluyente(did, dia, fid, [(None, {'franja': x}) for x in reus] + mias)
+            if m:
+                return m
             despl = int(self.cond.get('desplazamiento') or 0)
             sede = D.sede_de_curso(a['curso'])
             for (x, y), s in mias:
@@ -367,6 +396,30 @@ class Proyecto:
                       and D.asignaciones.get(s['asignacion'], {}).get('materia') == a['materia'])
         if ese_dia + 1 > tope:
             return f'{D.nombre_materia(a["materia"])} ya tiene {ese_dia} hora(s) ese día (máximo {tope}).'
+        return None
+
+    def _numero_hora(self, fid):
+        """(número de la hora de clase desde 1, cuántas horas de clase tiene esa jornada)."""
+        f = self.datos.franjas[fid]
+        clase = [x['id'] for x in self.datos.franjas_de(f['jornada']) if not x['descanso']]
+        return (clase.index(fid) + 1 if fid in clase else 0), len(clase)
+
+    def _es_hora(self, fid, n):
+        k, total = self._numero_hora(fid)
+        return k == min(n, total)
+
+    def _motivo_excluyente(self, did, dia, fid, mias):
+        regla = nucleo.regla_excluyente(self.cond)
+        if not regla or not regla[2] or self.docente(did).get('sin_excluyente'):
+            return None
+        a, b, _ = regla
+        for _, s in mias:
+            otra = s['franja']
+            if self.datos.franjas[otra]['jornada'] != self.datos.franjas[fid]['jornada']:
+                continue
+            if (self._es_hora(fid, a) and self._es_hora(otra, b)) or (self._es_hora(fid, b) and self._es_hora(otra, a)):
+                return (f'{self.datos.nombre_docente(did)} ya tiene la hora {b if self._es_hora(otra, b) else a} ese día: '
+                        f'no puede tener también la {a if self._es_hora(otra, b) else b}.')
         return None
 
     def poner_ficha(self, alt, aid, dia, fid):

@@ -40,12 +40,13 @@ PESO_EVITAR = 7.5         # hora que el docente pide evitar con fuerza («mejor 
 PESO_DIA_SUELTO = 1.0     # docente que va un día solo a dar una clase
 PESO_EQUILIBRIO = 0.3     # repartir parejo las clases del docente en la semana
 PESO_DIA_LIBRE = 6.0      # el docente pidió tener un día sin clases
+PESO_EXCLUYENTE = 8.0     # el docente tiene el mismo día las dos horas que no deben juntarse (1.ª y 7.ª)
 
 # Los «criterios ponderables» (como en GHC): el coordinador mueve cada uno de 0 a
 # 10 y el 5 es lo normal. Aquí quedan los pesos ya multiplicados.
 PESOS = {'hueco': PESO_HUECO, 'hueco_curso': PESO_HUECO_CURSO, 'repetida': PESO_REPETIDA, 'tarde': PESO_TARDE,
          'ultima': PESO_ULTIMA, 'prefiere_no': PESO_PREFIERE_NO, 'evitar': PESO_EVITAR, 'dia_suelto': PESO_DIA_SUELTO,
-         'equilibrio': PESO_EQUILIBRIO, 'dia_libre': PESO_DIA_LIBRE}
+         'equilibrio': PESO_EQUILIBRIO, 'dia_libre': PESO_DIA_LIBRE, 'excluyente': PESO_EXCLUYENTE}
 
 
 class Problema:
@@ -62,7 +63,8 @@ class Problema:
     def __init__(self, franjas, siguiente, slots, unidades, fijas=(), no_puede=None, prefiere_no=None,
                  max_materia_dia=None, max_docente_dia=None, max_seguidas=None, primeras=None, dobles=None,
                  ultimas=None, permanencia=None, desplazamiento=0, espacios=None, pesos=None, evitar=None,
-                 dia_libre=None, dias_docente=None):
+                 dia_libre=None, dias_docente=None, excluyentes=None, excluyente_duro=True, sin_excluyente=None,
+                 reuniones_doc=None):
         self.franjas = franjas
         self.siguiente = siguiente
         self.anterior = {b: a for a, b in siguiente.items()}
@@ -84,6 +86,14 @@ class Problema:
         self.evitar = evitar or {}                   # {docente: {(dia, franja)}} «mejor no» fuerte
         self.dia_libre = set(dia_libre or ())        # docentes que piden un día sin clases
         self.dias_docente = dias_docente or {}       # {docente: {días en que podría tener clase}}
+        # Horas que un docente no puede tener el mismo día: [(hora_a, hora_b)] con números de
+        # hora de clase desde 1 (si la jornada tiene menos horas, se toma la última).
+        self.excluyentes = list(excluyentes or [])
+        self.excluyente_duro = excluyente_duro
+        self.sin_excluyente = set(sin_excluyente or ())
+        # Reuniones de área ya ubicadas: {(docente, dia): [franja…]}. Cuentan dentro de la
+        # permanencia y para la regla de la 1.ª y la 7.ª hora, como si fueran una clase fija.
+        self.reuniones_doc = reuniones_doc or {}
         self.por_jornada = defaultdict(list)
         for fid, (jid, orden, ini, fin) in franjas.items():
             self.por_jornada[jid].append((orden, fid))
@@ -114,6 +124,16 @@ class Estado:
         self.fijas = set()
         self.w = p.w
         self.rechazos = defaultdict(int)        # uid -> veces que no cupo o la sacaron (dificultad)
+        for (doc, dia), fs in p.reuniones_doc.items():
+            for k, f in enumerate(fs):
+                if f not in p.franjas:
+                    continue
+                uid = f'R{doc}-{dia}-{k}'
+                self.u[uid] = {'id': uid, 'asig': None, 'largo': 1, 'extra': False, 'reunion': True,
+                               'partes': [{'curso': None, 'docente': doc, 'materia': None, 'sede': '', 'asig': None}]}
+                self.fijas.add(uid)
+                _, _, ini, fin = p.franjas[f]
+                self.docente[(doc, dia)].append((ini, fin, uid, f))
 
     def celdas(self, u, dia, franja):
         out = [franja]
@@ -170,10 +190,18 @@ class Estado:
                        if uid not in ign and uid not in estorban and not self.u[uid].get('extra')] + [(ini_u, fin_u)]
                 if max(b for _, b in lst) - min(a for a, _ in lst) > perm:
                     return False, []
+            # Horas que no van el mismo día (si tiene la 7.ª no tiene la 1.ª)
+            if p.excluyentes and p.excluyente_duro and doc not in p.sin_excluyente:
+                for (a, b, uid, f) in self.docente[(doc, dia)]:
+                    if uid in ign or uid in estorban:
+                        continue
+                    if any(_excluye(p, x, f) for x in celdas) and not estorba(uid):
+                        return False, []
             # Máximo de horas seguidas
             tope = p.max_seguidas.get(doc)
             if tope:
-                mias = {f for (a, b, uid, f) in self.docente[(doc, dia)] if uid not in ign and uid not in estorban}
+                mias = {f for (a, b, uid, f) in self.docente[(doc, dia)] if uid not in ign and uid not in estorban
+                        and not self.u[uid].get('reunion')}
                 mias.update(celdas)
                 if _racha(p, mias) > tope:
                     return False, []
@@ -272,6 +300,11 @@ class Estado:
         if len(lst) == 1:
             c += w['dia_suelto']
         c += w['equilibrio'] * len(lst) ** 2
+        p = self.p
+        if p.excluyentes and not p.excluyente_duro and docente not in p.sin_excluyente:
+            fs = [f for (_, _, _, f) in lst]
+            if any(_excluye(p, x, y) for i, x in enumerate(fs) for y in fs[i + 1:]):
+                c += w['excluyente']
         return c
 
     def costo_docente_semana(self, docente):
@@ -316,6 +349,23 @@ class Estado:
         c += sum(self.costo_unidad(uid) for uid in self.pos)
         c += sum(self.costo_docente_semana(d) for d in self.p.dia_libre)
         return c
+
+
+def _numero_hora(p, f, n):
+    """¿La franja f es la hora de clase número n (desde 1) de su jornada? Si la jornada tiene
+    menos de n horas, cuenta la última."""
+    jid = p.franjas[f][0]
+    return p.indice[f] == min(n - 1, p.ultimo[jid])
+
+
+def _excluye(p, f1, f2):
+    """¿Esas dos horas no pueden ir el mismo día para un docente? (dentro de la misma jornada)"""
+    if p.franjas[f1][0] != p.franjas[f2][0]:
+        return False
+    for a, b in p.excluyentes:
+        if (_numero_hora(p, f1, a) and _numero_hora(p, f2, b)) or (_numero_hora(p, f1, b) and _numero_hora(p, f2, a)):
+            return True
+    return False
 
 
 def _racha(p, franjas):
@@ -496,7 +546,7 @@ def resolver(p, segundos=20, semilla=0, avance=None):
     if mejor_pos != est.pos:
         est = _reconstruir(p, est, mejor_pos)
     return {'ubicadas': {uid: est.pos[uid] for uid in est.pos if uid not in est.fijas},
-            'sin_ubicar': [uid for uid in est.u if uid not in est.pos],
+            'sin_ubicar': [uid for uid in est.u if uid not in est.pos and uid not in est.fijas],
             'divididas': sorted(set(divididas)),
             'costo': round(est.costo_total(), 1), 'estado': est}
 

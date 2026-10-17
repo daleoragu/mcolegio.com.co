@@ -25,3 +25,8 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 - **Lo que más costó ubicar**: cuando quedan horas sin ubicar, la lista dice qué clases chocaron más, para revisar sus condiciones.
 - **Intercambiar fichas**: arrastre una ficha sobre otra del mismo curso y se cambian de lugar si las dos caben.
 - **Excel** con hojas nuevas: Docentes, Libres por hora (sirve para reemplazos), Descansos y Actividades.
+
+## Versión 2.2
+
+- **«Si tiene la 7.ª no tiene la 1.ª»** (pestaña 2): si un docente tiene la hora B un día, no tiene la hora A ese mismo día (dentro de la misma jornada). Puede ser obligatoria o «si se puede», y en la pestaña 3 se puede quitar a un docente en particular. Si la jornada tiene menos horas, la «7.ª» es la última.
+- **Las reuniones de área cuentan dentro de la permanencia** y para esa regla: un docente con reunión a la última hora no queda con clase a la primera, y sus clases de ese día caben con la reunión dentro de sus horas de permanencia.

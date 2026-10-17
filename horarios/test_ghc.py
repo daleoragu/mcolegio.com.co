@@ -171,3 +171,60 @@ class IdeasDeGHC(SimpleTestCase):
         # Intercambio entre cursos distintos del mismo docente
         self.assertIsNone(p.intercambiar(alt, 0, 1, f[1]))
         self.assertEqual([(s['asignacion'], s['franja']) for s in alt['sesiones']], [(a1['id'], f[1]), (a2['id'], f[0])])
+
+    def test_septima_y_primera_no_el_mismo_dia(self):
+        D = datos(cursos_tarde=(3, 4))          # con 4 cursos en una jornada y 6 docentes no se podría
+        f = [x['id'] for x in D.franjas_de(1) if not x['descanso']]      # 6 horas: la «7.ª» es la última
+        p = proyecto(D)
+        p.cond['excluyente'] = {'activa': True, 'a': 1, 'b': 7, 'obligatoria': True}
+        alt = p.generar(cuantas=1, segundos=4)[0]
+        self.assertEqual(alt['horas_sin_ubicar'], 0)
+        self.assertEqual(alt['choques'], [])
+        por = defaultdict(set)
+        for s in alt['sesiones']:
+            por[(D.asignaciones[s['asignacion']]['docente'], s['dia'])].add(s['franja'])
+        for fs in por.values():
+            self.assertFalse(f[0] in fs and f[-1] in fs)
+        # A mano tampoco deja
+        blanco = p.en_blanco()
+        a1, a2 = D.asignaciones[13], D.asignaciones[23]                   # docente 3 en dos cursos de la mañana
+        self.assertIsNone(p.poner_ficha(blanco, a1['id'], 2, f[-1]))
+        self.assertIn('no puede tener también', p.poner_ficha(blanco, a2['id'], 2, f[0]))
+        # Docente al que no se le aplica
+        p.docente(3)['sin_excluyente'] = True
+        self.assertIsNone(p.poner_ficha(blanco, a2['id'], 2, f[0]))
+        # Como preferencia: no prohíbe, solo lo evita
+        p.cond['excluyente']['obligatoria'] = False
+        p.docente(3)['sin_excluyente'] = False
+        self.assertEqual(p.revisar(blanco)['choques'], [])
+
+    def test_aviso_si_no_alcanzan_los_docentes(self):
+        D = datos()                                  # 4 cursos y 6 docentes en la mañana
+        cond = nucleo.condiciones_vacias()
+        cond['excluyente'] = {'activa': True, 'a': 1, 'b': 7, 'obligatoria': True}
+        self.assertTrue(any('hacen falta al menos 8 docentes' in t for _, t in nucleo.diagnostico(D, cond)))
+        cond['excluyente']['obligatoria'] = False
+        self.assertFalse(any('hacen falta' in t for _, t in nucleo.diagnostico(D, cond)))
+
+    def test_reuniones_dentro_de_la_permanencia(self):
+        D = datos(cursos_tarde=(3, 4))
+        f = [x for x in D.franjas_de(1) if not x['descanso']]
+        p = proyecto(D)
+        p.cond['permanencia_horas'] = 4
+        # Reunión fija el martes a la última hora de la mañana para los docentes 1 y 2
+        p.cond['reuniones'] = [{'nombre': 'Ciencias', 'docentes': [1, 2], 'jefe': 1, 'modo': 'fija', 'dia': 2,
+                                'hora': f[-1]['inicio'], 'dos': False}]
+        p.cond['excluyente'] = {'activa': True, 'a': 1, 'b': 7, 'obligatoria': True}
+        alt = p.generar(cuantas=1, segundos=4)[0]
+        self.assertEqual(alt['choques'], [])
+        ini_reu = nucleo.minutos(f[-1]['inicio'])
+        fin_reu = nucleo.minutos(f[-1]['fin'])
+        for s in alt['sesiones']:
+            a = D.asignaciones[s['asignacion']]
+            if a['docente'] in (1, 2) and s['dia'] == 2 and D.franjas[s['franja']]['jornada'] == 1:
+                ini, fin = D.intervalo(s['franja'])
+                self.assertLessEqual(fin_reu - ini, 4 * 60)          # la reunión cuenta en las 4 horas
+                self.assertNotEqual(s['franja'], f[0]['id'])         # y en la regla de la 1.ª y la 7.ª
+        # A mano: la primera hora del martes no se deja poner al docente 1
+        blanco = p.en_blanco()
+        self.assertTrue(p.poner_ficha(blanco, 11, 2, f[0]['id']))

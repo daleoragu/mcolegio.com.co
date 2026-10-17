@@ -51,7 +51,9 @@ def condiciones_vacias():
             'pesos': {},                 # {criterio: 0..10} prioridades al optimizar (5 = normal)
             'cursos': {},                # {cid: {'no_puede': ['dia-franja']}} horas sin clase del curso
             'actividades': [],           # [{'nombre', 'docentes': [did] (vacío = todos), 'horas', 'max_dia'}]
-            'acompanamiento': {'zonas': [], 'max_semana': 2}}   # turnos en los descansos
+            'acompanamiento': {'zonas': [], 'max_semana': 2},   # turnos en los descansos
+            # Si el docente tiene la hora «b» no tiene la hora «a» el mismo día (ej.: la 7.ª y la 1.ª)
+            'excluyente': {'activa': False, 'a': 1, 'b': 7, 'obligatoria': True}}
 
 
 # Los criterios que el coordinador puede subir o bajar (de 0 a 10; 5 = normal).
@@ -65,7 +67,22 @@ CRITERIOS = [
     ('dia_libre', 'Darle el día libre al docente que lo pidió'),
     ('tarde', 'Poner temprano las materias marcadas «primeras horas»'),
     ('ultima', 'Sacar de la última hora las materias marcadas'),
+    ('excluyente', 'Evitar que un docente tenga la primera y la última hora el mismo día (si es preferencia)'),
 ]
+
+
+def regla_excluyente(cond):
+    """(hora_a, hora_b, obligatoria) o None si la regla está apagada."""
+    r = cond.get('excluyente') or {}
+    if not r.get('activa'):
+        return None
+    try:
+        a, b = int(r.get('a') or 1), int(r.get('b') or 7)
+    except (TypeError, ValueError):
+        return None
+    if a == b or a < 1 or b < 1:
+        return None
+    return a, b, bool(r.get('obligatoria', True))
 
 
 def pesos_de(cond):
@@ -274,6 +291,19 @@ def _diagnostico_mas(D, cond, por_docente):
     if con and len(con) < len(nps):
         salida.append(('info', f'{len(con)} docente(s) tienen horas en «no puede». Para que el horario sea parejo, '
                                'ofrezca a todos la misma posibilidad de pedir horas.'))
+    # Regla «si tiene la 7.ª no tiene la 1.ª»: cada día, los docentes de la primera hora y los de
+    # la última tienen que ser distintos; si no alcanzan, no hay cómo.
+    regla = regla_excluyente(cond)
+    if regla and regla[2]:
+        for jid, j in D.jornadas.items():
+            cursos = len(j.get('cursos') or [])
+            docs = {x['docente'] for x in D.asignaciones.values()
+                    if x.get('docente') and D.jornada_de_curso.get(x['curso']) == jid}
+            if cursos and len(docs) < 2 * cursos:
+                salida.append(('aviso', f'{j["nombre"]}: con la regla de la hora {regla[1]} y la hora {regla[0]} '
+                                        f'obligatoria hacen falta al menos {2 * cursos} docentes para cubrir la primera y la '
+                                        f'última hora de los {cursos} cursos (hay {len(docs)}). Algunos cursos tendrían que '
+                                        'salir antes, o póngala como «Si se puede».'))
     # Actividades y acompañamientos
     for act in cond.get('actividades', []):
         if not act.get('horas'):
@@ -382,6 +412,24 @@ def ubicar_reuniones(datos, cond, no_puede=None):
     return resultados, no_puede
 
 
+def franjas_de_reuniones(datos, reuniones):
+    """{(docente, dia): [franja…]}: las horas de clase que ocupa cada reunión a cada asistente."""
+    out = defaultdict(list)
+    for r in reuniones or []:
+        for reu in (r, r.get('segunda') or {}):
+            if not reu.get('dia'):
+                continue
+            for did in reu.get('asisten', []):
+                for jid in datos.jornadas_de_docente(did):
+                    if reu['dia'] not in datos.jornadas[jid]['dias']:
+                        continue
+                    for f in datos.franjas_de(jid):
+                        if not f['descanso'] and minutos(f['inicio']) < reu['fin'] and reu['inicio'] < minutos(f['fin']):
+                            if f['id'] not in out[(did, reu['dia'])]:
+                                out[(did, reu['dia'])].append(f['id'])
+    return dict(out)
+
+
 def texto_hora(m):
     return f'{m // 60:02d}:{m % 60:02d}'
 
@@ -486,6 +534,7 @@ def armar(datos, cond):
     prefiere_no = {}
     evitar = {}
     dia_libre = set()
+    sin_excluyente = set()
     max_seguidas = {}
     max_docente_dia = {}
     permanencia = {}
@@ -502,6 +551,8 @@ def armar(datos, cond):
         evitar[int(did)] = celdas(r.get('evitar'))
         if r.get('dia_libre'):
             dia_libre.add(int(did))
+        if r.get('sin_excluyente'):
+            sin_excluyente.add(int(did))
         if r.get('max_seguidas'):
             max_seguidas[int(did)] = int(r['max_seguidas'])
         if r.get('max_dia'):
@@ -513,6 +564,7 @@ def armar(datos, cond):
             else:
                 permanencia.pop(int(did), None)
     reuniones, no_puede = ubicar_reuniones(D, cond, no_puede)
+    reuniones_doc = franjas_de_reuniones(D, reuniones)
     dias_docente = {did: {d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']} for did in dia_libre}
     # Para el día libre se escoge un día por docente (el que ya tiene más horas en «no puede»,
     # o el que tenga menos clases fijadas; se rotan para no dejar a todos libres el mismo día) y
@@ -536,7 +588,10 @@ def armar(datos, cond):
                  max_materia_dia=max_materia_dia, max_docente_dia=max_docente_dia, max_seguidas=max_seguidas,
                  primeras=primeras, dobles=dobles, ultimas=ultimas, permanencia=permanencia,
                  desplazamiento=int(cond.get('desplazamiento') or 0), espacios=espacios, pesos=pesos_de(cond),
-                 evitar=evitar, dia_libre=dia_libre, dias_docente=dias_docente)
+                 evitar=evitar, dia_libre=dia_libre, dias_docente=dias_docente,
+                 excluyentes=[regla_excluyente(cond)[:2]] if regla_excluyente(cond) else [],
+                 excluyente_duro=bool(regla_excluyente(cond) and regla_excluyente(cond)[2]),
+                 sin_excluyente=sin_excluyente, reuniones_doc=reuniones_doc)
     p.reuniones = reuniones
     return p
 
