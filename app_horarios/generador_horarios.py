@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import nucleo                     # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '2.3'
+VERSION = '2.4'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -275,6 +275,27 @@ class App(tk.Tk):
                      poner('max_seguidas')).grid(row=1, column=0, sticky='w', pady=4)
         self._numero(gen, 'Máximo de horas de una materia en un día:', c.get('max_por_dia') or 2, 1, 6,
                      poner('max_por_dia')).grid(row=1, column=1, sticky='w', padx=20)
+        bg = c.setdefault('bloques_general', {'activa': False, 'desde': 2})
+        fila_bl = ttk.Frame(gen)
+        fila_bl.grid(row=3, column=0, columnspan=2, sticky='w', pady=(6, 0))
+        var_bl = tk.BooleanVar(value=bool(bg.get('activa')))
+
+        def cambio_bloques():
+            bg['activa'] = var_bl.get()
+            self._llenar_materias()
+        ttk.Checkbutton(fila_bl, text='Dar prioridad a los bloques: las materias de', variable=var_bl,
+                        command=cambio_bloques).pack(side='left')
+        var_desde = tk.StringVar(value=str(bg.get('desde') or 2))
+        ttk.Spinbox(fila_bl, from_=2, to=10, width=3, textvariable=var_desde).pack(side='left', padx=4)
+
+        def cambio_desde(*_):
+            try:
+                bg['desde'] = max(2, int(var_desde.get()))
+            except ValueError:
+                pass
+        var_desde.trace_add('write', cambio_desde)
+        ttk.Label(fila_bl, text='horas o más van en bloques de 2 horas seguidas (2+2+1…); si no cabe, se parte').pack(side='left')
+        ttk.Label(fila_bl, text='· una materia con «1+1+1» en Bloques queda por fuera', style='Ayuda.TLabel').pack(side='left', padx=6)
         ex = c.setdefault('excluyente', {'activa': False, 'a': 1, 'b': 7, 'obligatoria': True})
         fila_ex = ttk.Frame(gen)
         fila_ex.grid(row=2, column=0, columnspan=2, sticky='w', pady=(6, 0))
@@ -336,7 +357,9 @@ class App(tk.Tk):
         for m in sorted(D.materias.values(), key=lambda m: m['nombre']):
             r = self.p.cond['materias'].get(str(m['id']), {})
             self.tv_mat.insert('', 'end', iid=str(m['id']), values=(
-                m['nombre'], m.get('area', ''), r.get('bloques') or ('2+2…' if r.get('doble') else '1+1…'),
+                m['nombre'], m.get('area', ''),
+                r.get('bloques') or ('2+2…' if r.get('doble') else
+                                     '2+2… (general)' if (self.p.cond.get('bloques_general') or {}).get('activa') else '1+1…'),
                 r.get('max_dia') or 'General', 'Sí' if r.get('primeras') else '', 'Sí' if r.get('ultimas') else '',
                 r.get('espacio') or ''))
         self.lb_esp.delete(0, 'end')

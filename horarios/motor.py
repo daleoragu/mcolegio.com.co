@@ -41,12 +41,14 @@ PESO_DIA_SUELTO = 1.0     # docente que va un día solo a dar una clase
 PESO_EQUILIBRIO = 0.3     # repartir parejo las clases del docente en la semana
 PESO_DIA_LIBRE = 6.0      # el docente pidió tener un día sin clases
 PESO_EXCLUYENTE = 8.0     # el docente tiene el mismo día las dos horas que no deben juntarse (1.ª y 7.ª)
+PESO_BLOQUE = 3.0         # horas de la misma materia el mismo día que no quedaron seguidas (bloque roto)
 
 # Los «criterios ponderables» (como en GHC): el coordinador mueve cada uno de 0 a
 # 10 y el 5 es lo normal. Aquí quedan los pesos ya multiplicados.
 PESOS = {'hueco': PESO_HUECO, 'hueco_curso': PESO_HUECO_CURSO, 'repetida': PESO_REPETIDA, 'tarde': PESO_TARDE,
          'ultima': PESO_ULTIMA, 'prefiere_no': PESO_PREFIERE_NO, 'evitar': PESO_EVITAR, 'dia_suelto': PESO_DIA_SUELTO,
-         'equilibrio': PESO_EQUILIBRIO, 'dia_libre': PESO_DIA_LIBRE, 'excluyente': PESO_EXCLUYENTE}
+         'equilibrio': PESO_EQUILIBRIO, 'dia_libre': PESO_DIA_LIBRE, 'excluyente': PESO_EXCLUYENTE,
+         'bloque': PESO_BLOQUE}
 
 
 class Problema:
@@ -119,6 +121,7 @@ class Estado:
         self.cm = defaultdict(int)              # (curso, materia, dia) -> horas
         self.dd = defaultdict(int)              # (docente, dia) -> horas
         self.cd = defaultdict(set)              # (curso, dia) -> {franjas}
+        self.cmf = defaultdict(list)            # (curso, materia, dia) -> [franjas]
         self.pos = {}
         self.u = {}
         self.fijas = set()
@@ -256,6 +259,7 @@ class Estado:
                 _, _, ini, fin = self.p.franjas[f]
                 self.docente[(parte['docente'], dia)].append((ini, fin, uid, f))
                 self.cd[(parte['curso'], dia)].add(f)
+                self.cmf[(parte['curso'], parte['materia'], dia)].append(f)
             self.cm[(parte['curso'], parte['materia'], dia)] += u['largo']
             self.dd[(parte['docente'], dia)] += u['largo']
         if u.get('espacio'):
@@ -272,6 +276,9 @@ class Estado:
             for f in celdas:
                 self.curso.pop((parte['curso'], dia, f), None)
                 self.cd[(parte['curso'], dia)].discard(f)
+                lst = self.cmf[(parte['curso'], parte['materia'], dia)]
+                if f in lst:
+                    lst.remove(f)
             k = (parte['docente'], dia)
             self.docente[k] = [t for t in self.docente[k] if t[2] != uid]
             self.cm[(parte['curso'], parte['materia'], dia)] -= u['largo']
@@ -339,7 +346,15 @@ class Estado:
     def costo_repeticion(self, curso, materia, dia):
         n = self.cm[(curso, materia, dia)]
         if materia in self.p.dobles:
-            return 0.0 if n <= 3 else self.w['repetida'] * (n - 3)
+            c = 0.0 if n <= 3 else self.w['repetida'] * (n - 3)
+            # Bloques: las horas del día deben quedar seguidas; una hora sola cuenta un poco
+            fs = set(self.cmf.get((curso, materia, dia)) or ())
+            if len(fs) >= 2:
+                tramos = sum(1 for f in fs if self.p.anterior.get(f) not in fs)
+                c += self.w['bloque'] * (tramos - 1)
+            elif len(fs) == 1:
+                c += self.w['bloque'] * 0.3
+            return c
         return self.w['repetida'] * max(0, n - 1)
 
     def costo_total(self):
@@ -389,7 +404,16 @@ def _posiciones(p, est, u):
         s = set(p.slots.get(c, []))
         comunes = s if comunes is None else comunes & s
     orden = p.slots.get(cursos[0], [])
-    return [(d, f) for (d, f) in orden if (d, f) in (comunes or set()) and est.celdas(u, d, f)]
+    comunes = comunes or set()
+    out = []
+    for (d, f) in orden:
+        if (d, f) not in comunes:
+            continue
+        cs = est.celdas(u, d, f)
+        # Todas las horas del bloque (no solo la primera) tienen que ser horas permitidas del curso
+        if cs and all((d, x) in comunes for x in cs):
+            out.append((d, f))
+    return out
 
 
 def _construir(p, est, cola, posibles, rnd, hasta, avance=None, total=1):

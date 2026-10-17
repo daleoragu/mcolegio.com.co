@@ -36,3 +36,8 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 - **Colores al escoger una ficha**: verde = libre; amarillo = ocupada por otra clase que se puede quitar (reemplazar, y la otra vuelve a «Fichas por ubicar», o intercambiar); rojo = no se puede (hay una ficha fijada 🔒 o una condición que no se rompe). Con la ficha escogida basta tocar una casilla verde para ponerla.
 - **Varias pestañas** («➕ Otra pestaña») y **ventanas aparte** («🗗 Abrir en ventana aparte») para ver al tiempo cursos y docentes; todas muestran el mismo horario y se actualizan juntas.
 - «Fijar 🔒 lo que ubico a mano» es ahora una casilla (apagada al empezar): así lo que se arma a mano se puede reemplazar sin quitar candados uno por uno.
+
+## Versión 2.4
+
+- **Prioridad a los bloques** (pestaña 2, Reglas generales): las materias de 2 horas o más (el número se puede cambiar) van en bloques de 2 horas seguidas (2+2+1…). Si un bloque no cabe, se parte y queda en el informe. Una materia con sus propios bloques (por ejemplo «1+1+1» o «3+2») usa los suyos.
+- Nueva prioridad «Que las horas de una materia el mismo día queden seguidas»: si un bloque se tuvo que partir, el generador procura dejar las horas juntas.

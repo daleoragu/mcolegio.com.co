@@ -248,3 +248,46 @@ class IdeasDeGHC(SimpleTestCase):
         self.assertEqual(sorted(s['asignacion'] for s in alt['sesiones']), [12, 13])
         self.assertEqual(dict((a['id'], n) for a, n in p.pendientes(alt, 1))[11], 6)
         self.assertIn('fijada', p.reemplazar(alt, 11, 1, f[1]))
+
+    def test_prioridad_a_los_bloques(self):
+        D = datos(cursos_tarde=(3, 4))
+        cond = nucleo.condiciones_vacias()
+        self.assertIsNone(nucleo.bloques_por_defecto(cond, 4))
+        cond['bloques_general'] = {'activa': True, 'desde': 2}
+        self.assertEqual(nucleo.bloques_por_defecto(cond, 5), [2, 2, 1])
+        self.assertIsNone(nucleo.bloques_por_defecto(cond, 1))
+        cond['materias'] = {'6': {'bloques': '1+1+1+1'}}            # esta materia queda por fuera
+        r = nucleo.generar(D, cond, segundos=4, semilla=3)
+        self.assertEqual(r['sin_ubicar'], [])
+        self.assertEqual(nucleo.revisar(D, r['sesiones'], cond), [])
+        seguidas = sueltas = 0
+        por = defaultdict(set)
+        for s in r['sesiones']:
+            a = D.asignaciones[s['asignacion']]
+            if a['materia'] != 6:
+                por[(a['curso'], a['materia'], s['dia'])].add(s['franja'])
+        sig = {}
+        for j in D.jornadas:
+            fs = D.franjas_de(j)
+            for x, y in zip(fs, fs[1:]):
+                if not x['descanso'] and not y['descanso']:
+                    sig[x['id']] = y['id']
+        for fs in por.values():
+            if len(fs) >= 2:
+                if all(sig.get(f) in fs or any(sig.get(g) == f for g in fs) for f in fs):
+                    seguidas += 1
+                else:
+                    sueltas += 1
+        self.assertGreater(seguidas, 20)
+        self.assertLessEqual(sueltas, 2)
+
+    def test_bloque_no_cae_en_hora_sin_clase_del_curso(self):
+        D = datos(cursos_tarde=(3, 4))
+        p = proyecto(D)
+        f = [x['id'] for x in D.franjas_de(1) if not x['descanso']]
+        for dia in range(1, 6):
+            p.alternar_celda_curso(1, dia, f[-1])          # el 101 nunca tiene la última hora
+        p.cond['bloques_general'] = {'activa': True, 'desde': 2}
+        for semilla in range(3):
+            r = nucleo.generar(D, p.cond, segundos=2, semilla=semilla)
+            self.assertFalse([s for s in r['sesiones'] if s['curso'] == 1 and s['franja'] == f[-1]])

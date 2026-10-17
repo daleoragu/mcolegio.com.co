@@ -53,6 +53,10 @@ def prueba():
     # Si tiene la 7.ª no tiene la 1.ª (como preferencia: el ejemplo no tiene docentes para que sea obligatoria)
     assert p.cond['excluyente']['activa'] is False
     p.cond['excluyente'].update(activa=True, a=1, b=7, obligatoria=False)
+    # Prioridad a los bloques (2+2+1…) para las materias sin bloques propios
+    p.cond['bloques_general'].update(activa=True, desde=2)
+    app._llenar_materias()
+    assert p.cond['bloques_general']['activa']
     # 3. Docentes: casillas de tres estados y día completo
     app.lb_doc.selection_set(0)
     app._ver_docente()
