@@ -1,0 +1,50 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0">{{ h.nombre }} {% if h.estado == 'PUBLICADO' %}<span class="ho-chip pub" style="font-size:.8rem">Publicado</span>{% elif h.estado == 'ARCHIVADO' %}<span class="ho-chip arc" style="font-size:.8rem">Archivado</span>{% else %}<span class="ho-chip bor" style="font-size:.8rem">Borrador</span>{% endif %}</h4>
+        <p class="text-muted small mb-0">{{ h.get_origen_display }} · {{ n_sesiones }} clases{% if h.informe.huecos is not None %} · {{ h.informe.huecos }} horas libres sueltas de docentes{% endif %}</p></div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'horarios:pdf' h.pk %}?ver={{ ver }}" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="fas fa-file-pdf me-1"></i>PDF de todos</a>
+        <a href="{% url 'horarios:pdf' h.pk %}?ver={{ ver }}&id={{ elegido }}" target="_blank" class="btn btn-outline-secondary btn-sm">PDF de este</a>
+        <a href="{% url 'horarios:panel' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Horarios</a>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'horarios/_estilos.html' %}
+{% if choques %}<div class="alert alert-danger"><strong>{{ choques|length }} choque{{ choques|length|pluralize }}:</strong><ul class="mb-0 small">{% for c in choques|slice:":15" %}<li>{{ c }}</li>{% endfor %}</ul></div>{% endif %}
+{% if n_faltan %}<div class="alert alert-warning small"><strong>Faltan horas por ubicar ({{ n_faltan }}):</strong> {% for m, c, n in faltan %}{{ m }} {{ c }} ({{ n }}){% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+<div class="row g-3">
+<div class="col-lg-9">
+    <div class="ho-tarjeta">
+        <form method="get" class="d-flex gap-2 flex-wrap mb-3">
+            <select name="ver" class="form-select form-select-sm" style="max-width:160px" onchange="this.form.id.value='';this.form.submit()">
+                <option value="curso" {% if ver == 'curso' %}selected{% endif %}>Por curso</option>
+                <option value="docente" {% if ver == 'docente' %}selected{% endif %}>Por docente</option></select>
+            <select name="id" class="form-select form-select-sm" style="max-width:280px" onchange="this.form.submit()">
+                {% if ver == 'docente' %}{% for d in docentes %}<option value="{{ d.id }}" {% if d.id == elegido %}selected{% endif %}>{{ d.user.get_full_name }}</option>{% endfor %}
+                {% else %}{% for c in cursos %}<option value="{{ c.id }}" {% if c.id == elegido %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}{% endif %}</select>
+        </form>
+        {% include 'horarios/_grid.html' %}
+    </div>
+</div>
+<div class="col-lg-3">
+    <div class="ho-tarjeta">
+        {% if h.estado != 'PUBLICADO' %}
+        <form method="post" action="{% url 'horarios:accion' h.pk %}" onsubmit="return confirm('¿Publicar este horario? Reemplaza al publicado y se avisa a docentes y estudiantes.');">{% csrf_token %}
+            <input type="hidden" name="que" value="publicar"><button class="btn btn-success w-100 mb-2" {% if choques %}disabled{% endif %}><i class="fas fa-bullhorn me-1"></i>Publicar y avisar</button></form>
+        {% if choques %}<p class="ho-ayuda">Corrija los choques para poder publicar.</p>{% endif %}
+        {% else %}<p class="small text-success mb-2"><i class="fas fa-circle-check me-1"></i>Es el horario oficial desde el {{ h.publicado_en|date:"d/m/Y H:i" }}.</p>{% endif %}
+        <form method="post" action="{% url 'horarios:accion' h.pk %}" class="mb-2">{% csrf_token %}<input type="hidden" name="que" value="renombrar">
+            <div class="input-group input-group-sm"><input name="nombre" value="{{ h.nombre }}" class="form-control"><button class="btn btn-outline-secondary">Renombrar</button></div></form>
+        {% if h.estado != 'PUBLICADO' %}
+        <form method="post" action="{% url 'horarios:accion' h.pk %}" onsubmit="return confirm('¿Eliminar este horario?');">{% csrf_token %}<input type="hidden" name="que" value="eliminar">
+            <button class="btn btn-link text-danger btn-sm px-0">Eliminar</button></form>
+        {% else %}
+        <form method="post" action="{% url 'horarios:accion' h.pk %}" onsubmit="return confirm('¿Archivar? Docentes y estudiantes dejan de verlo.');">{% csrf_token %}<input type="hidden" name="que" value="archivar">
+            <button class="btn btn-link text-muted btn-sm px-0">Archivar</button></form>
+        {% endif %}
+    </div>
+</div>
+</div>
+{% endblock %}

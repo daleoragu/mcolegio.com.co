@@ -1,0 +1,56 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<div class="d-flex justify-content-between align-items-center"><h4 class="mb-0">{% if jornada %}Jornada {{ jornada.nombre }}{% else %}Nueva jornada{% endif %}</h4>
+    <a href="{% url 'horarios:panel' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Horarios</a></div>{% endblock %}
+{% block content %}
+{% include 'horarios/_estilos.html' %}
+<form method="post">{% csrf_token %}
+<div class="row g-3">
+<div class="col-lg-7">
+    <div class="ho-tarjeta">
+        <div class="row g-3">
+            <div class="col-md-5"><label class="form-label small fw-semibold">Nombre</label><input name="nombre" class="form-control" value="{{ jornada.nombre|default:'Mañana' }}"></div>
+            <div class="col-md-7"><label class="form-label small fw-semibold">Días de clase</label><div class="d-flex flex-wrap gap-3">
+                {% for d, n in dias_todos %}<div class="form-check"><input class="form-check-input" type="checkbox" name="dias" value="{{ d }}" id="d{{ d }}" {% if d in dias %}checked{% endif %}><label class="form-check-label small" for="d{{ d }}">{{ n }}</label></div>{% endfor %}</div></div>
+        </div>
+    </div>
+    <div class="ho-tarjeta">
+        <h6 class="fw-bold">Horas de clase y descansos</h6>
+        {% if franjas %}
+        <table class="table table-sm align-middle"><thead><tr><th>Inicio</th><th>Fin</th><th>Nombre</th><th>Descanso</th><th>Quitar</th></tr></thead><tbody>
+        {% for f in franjas %}<tr {% if f.descanso %}class="table-light"{% endif %}>
+            <td><input type="time" name="ini_{{ f.id }}" value="{{ f.inicio|time:'H:i' }}" class="form-control form-control-sm"></td>
+            <td><input type="time" name="fin_{{ f.id }}" value="{{ f.fin|time:'H:i' }}" class="form-control form-control-sm"></td>
+            <td><input name="etq_{{ f.id }}" value="{{ f.etiqueta }}" class="form-control form-control-sm"></td>
+            <td class="text-center"><input type="checkbox" class="form-check-input" name="desc_{{ f.id }}" {% if f.descanso %}checked{% endif %}></td>
+            <td class="text-center"><input type="checkbox" class="form-check-input" name="borrar_{{ f.id }}"></td></tr>{% endfor %}
+        <tr><td><input type="time" name="nueva_ini" class="form-control form-control-sm"></td><td><input type="time" name="nueva_fin" class="form-control form-control-sm"></td>
+            <td><input name="nueva_etq" placeholder="Agregar…" class="form-control form-control-sm"></td><td class="text-center"><input type="checkbox" class="form-check-input" name="nueva_desc"></td><td></td></tr>
+        </tbody></table>
+        {% endif %}
+        <div class="border rounded p-3 bg-light">
+            <div class="small fw-semibold mb-2">{% if franjas %}O vuelva a crearlas de una vez{% else %}Crearlas de una vez{% endif %}</div>
+            <div class="row g-2 small">
+                <div class="col-6 col-md-3"><label>Primera clase</label><input type="time" name="g_inicio" value="06:30" class="form-control form-control-sm"></div>
+                <div class="col-6 col-md-2"><label>Minutos</label><input type="number" name="g_duracion" value="55" class="form-control form-control-sm"></div>
+                <div class="col-6 col-md-2"><label>N.º clases</label><input type="number" name="g_clases" value="6" class="form-control form-control-sm"></div>
+                <div class="col-6 col-md-3"><label>Descanso después de</label><input name="g_descanso_tras" value="3" placeholder="3 ó 2,4" class="form-control form-control-sm"></div>
+                <div class="col-6 col-md-2"><label>Min. descanso</label><input type="number" name="g_descanso_min" value="30" class="form-control form-control-sm"></div>
+            </div>
+            <button name="accion" value="generar_franjas" class="btn btn-sm btn-outline-primary mt-2" {% if franjas %}onclick="return confirm('Se reemplazan las horas actuales. ¿Seguir?')"{% endif %}>Crear horas</button>
+        </div>
+    </div>
+</div>
+<div class="col-lg-5">
+    <div class="ho-tarjeta">
+        <h6 class="fw-bold">Cursos de esta jornada</h6>
+        <div style="max-height:420px; overflow:auto" class="border rounded p-2">{% for c in cursos %}
+            <div class="form-check"><input class="form-check-input" type="checkbox" name="cursos" value="{{ c.id }}" id="c{{ c.id }}" {% if c.id in elegidos %}checked{% endif %} {% if c.id in otras %}disabled{% endif %}>
+                <label class="form-check-label small" for="c{{ c.id }}">{{ c.nombre }}{% if c.sede %} <span class="text-muted">· {{ c.sede.nombre }}</span>{% endif %}{% for k, v in otras.items %}{% if k == c.id %} <span class="text-muted">(en {{ v }})</span>{% endif %}{% endfor %}</label></div>
+        {% endfor %}</div>
+    </div>
+</div>
+</div>
+<div class="d-flex gap-2"><button class="btn btn-primary" name="accion" value="guardar">Guardar</button>
+    {% if jornada %}<button class="btn btn-outline-danger" name="accion" value="eliminar" onclick="return confirm('¿Eliminar la jornada y sus horas? Los horarios que la usan pierden esas clases.')">Eliminar jornada</button>{% endif %}</div>
+</form>
+{% endblock %}

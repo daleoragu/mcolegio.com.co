@@ -1,0 +1,14 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h4 class="mb-0">App del generador de horarios</h4>{% endblock %}
+{% block content %}
+{% include 'horarios/_estilos.html' %}
+<div class="ho-tarjeta" style="max-width:640px">
+    <form method="post" enctype="multipart/form-data">{% csrf_token %}
+        <label class="form-label small fw-semibold">Instalador o .exe</label><input type="file" name="archivo" class="form-control mb-2" required>
+        <div class="row g-2"><div class="col-4"><input name="version" placeholder="Versión (1.0)" class="form-control"></div>
+            <div class="col-8"><input name="notas" placeholder="Qué cambió" class="form-control"></div></div>
+        <button class="btn btn-primary mt-2">Subir</button>
+    </form>
+    <hr>{% for a in apps %}<div class="small">{{ a.version }} · {{ a.subido|date:"d/m/Y H:i" }} · {{ a.notas }}</div>{% empty %}<p class="small text-muted mb-0">Aún no se ha subido ninguna versión.</p>{% endfor %}
+</div>
+{% endblock %}

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Módulos por colegio: lo apagado no sale en menús ni abre, y los datos se conservan."""
-from notas.modulos import PLANES, TODOS, activos, modulo_de_ruta
+from notas.modulos import COMPLETO, PLANES, TODOS, activos, modulo_de_ruta
 from notas.models import Colegio
 from notas.tests.base import ColegioDePrueba
 
@@ -12,7 +12,7 @@ class Modulos(ColegioDePrueba):
         self.a.save(update_fields=['modulos_activos'])
 
     def test_un_colegio_nuevo_tiene_todo(self):
-        self.assertEqual(activos(Colegio.objects.create(nombre='Nuevo', slug='nuevo')), set(TODOS))
+        self.assertEqual(activos(Colegio.objects.create(nombre='Nuevo', slug='nuevo')), set(COMPLETO))
 
     def test_rutas(self):
         self.assertEqual(modulo_de_ruta('/circulares/gestion/'), 'circulares')
@@ -57,7 +57,7 @@ class Modulos(ColegioDePrueba):
         self.assertEqual(set(self.a.modulos_activos), set(PLANES['basico'][1]))
         c.post('/plataforma/modulos/', {'colegio': self.a.pk, 'plan': 'publico'})
         self.a.refresh_from_db()
-        self.assertEqual(set(self.a.modulos_activos), set(TODOS) - {'cartera'})
+        self.assertEqual(set(self.a.modulos_activos), set(TODOS) - {'cartera', 'generador_horarios'})
         c.post('/plataforma/modulos/', {'colegio': self.a.pk, 'mod_actas': 'on'})
         self.a.refresh_from_db()
         self.assertEqual(self.a.modulos_activos, ['actas'])

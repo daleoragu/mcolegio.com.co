@@ -1,0 +1,13 @@
+{% for t in tablas %}
+<div class="table-responsive mb-3">
+{% if tablas|length > 1 %}<div class="small fw-semibold text-muted mb-1">{{ t.jornada.nombre }}</div>{% endif %}
+<table class="ho-grid">
+    <thead><tr><th></th>{% for d, n in t.dias %}<th>{{ n }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for f in t.filas %}
+    {% if f.franja.descanso %}<tr class="ho-descanso"><td class="ho-hora">{{ f.franja.inicio|time:"H:i" }}</td><td colspan="{{ t.dias|length }}">{{ f.franja.etiqueta|default:"Descanso" }}</td></tr>
+    {% else %}<tr><td class="ho-hora">{{ f.franja.inicio|time:"H:i" }}<br>{{ f.franja.fin|time:"H:i" }}</td>
+        {% for c in f.celdas %}<td class="ho-celda {% if c %}lleno{% endif %}">{% for x in c %}<div class="ho-t">{{ x.titulo }}</div><div class="ho-s">{{ x.sub }}</div>{% endfor %}</td>{% endfor %}</tr>{% endif %}
+    {% endfor %}</tbody>
+</table></div>
+{% empty %}<p class="text-muted">No hay clases para mostrar.</p>
+{% endfor %}

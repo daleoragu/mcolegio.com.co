@@ -1,0 +1,15 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="mb-0"><i class="fas fa-calendar-week me-2" style="color:#4338ca"></i>{{ titulo }}</h4>
+    {% if tablas %}<a href="?pdf=1" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="fas fa-file-pdf me-1"></i>Descargar PDF</a>{% endif %}
+</div>
+{% endblock %}
+{% block content %}
+{% include 'horarios/_estilos.html' %}
+<div class="ho-tarjeta">
+    {% if not h %}<p class="text-muted mb-0">El colegio todavía no ha publicado el horario de clases.</p>
+    {% elif not tablas %}<p class="text-muted mb-0">{% if es_admin %}Esta vista es para docentes y estudiantes. Vea el horario completo en <a href="{% url 'horarios:detalle' h.pk %}">{{ h.nombre }}</a>.{% else %}No tiene clases en el horario publicado.{% endif %}</p>
+    {% else %}{% include 'horarios/_grid.html' %}<p class="ho-ayuda mb-0">Vigente desde el {{ h.publicado_en|date:"d/m/Y" }}.</p>{% endif %}
+</div>
+{% endblock %}
