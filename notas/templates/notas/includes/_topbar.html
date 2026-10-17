@@ -143,6 +143,8 @@
                 {% endif %}
                 <li><a class="dropdown-item" href="{% url 'notas:cambiar_password' %}"><i class="fas fa-key fa-fw me-2 text-muted"></i>Cambiar Contraseña</a></li>
                 <li><hr class="dropdown-divider"></li>
+                <li class="mc-menu-instalar"><a class="dropdown-item" href="#" onclick="if (window.mcInstalarApp) { window.mcInstalarApp(); } return false;"><i class="fas fa-mobile-screen-button fa-fw me-2 text-muted"></i>Instalar la app en el celular</a></li>
+                <script>if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) document.querySelectorAll('.mc-menu-instalar').forEach(function (e) { e.remove(); });</script>
                 <li><a class="dropdown-item text-danger" href="{% url 'notas:logout' %}"><i class="fas fa-sign-out-alt fa-fw me-2"></i>Salir</a></li>
             </ul>
         </div>

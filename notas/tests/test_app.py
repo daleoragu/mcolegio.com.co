@@ -54,3 +54,4 @@ class AppInstalable(ColegioDePrueba):
             html = c.get(url).content.decode()
             self.assertIn('rel="manifest" href="/manifest.webmanifest"', html)
             self.assertIn("navigator.serviceWorker.register('/sw.js')", html)
+        self.assertIn('Instalar la app en el celular', self.cliente(self.rectora).get('/panel-administrador/').content.decode())

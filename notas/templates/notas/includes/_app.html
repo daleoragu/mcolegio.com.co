@@ -46,19 +46,33 @@
       if (pedido) {
         pedido.prompt();
         pedido.userChoice.then(function () { pedido = null; b.remove(); });
-      } else if (esIOS) {
-        instruccionesIOS();
+      } else {
+        instrucciones();
       }
     };
   }
 
-  function instruccionesIOS() {
+  function instrucciones() {
+    var ua = navigator.userAgent;
+    var dentroDeApp = /FBAN|FBAV|Instagram|Line\/|; wv\)|TikTok/i.test(ua);
+    var pasos;
+    if (dentroDeApp) {
+      pasos = '<p style="margin:0 0 6px">Abrió el enlace dentro de otra aplicación (Facebook, Instagram…), y desde ahí no se puede instalar.</p>' +
+              '<p style="margin:0 0 16px">Toque los <b>tres puntos</b> y escoja <b>«Abrir en el navegador»</b> (Chrome o Safari). Allí toque de nuevo <b>Instalar</b>.</p>';
+    } else if (esIOS) {
+      pasos = '<p style="margin:0 0 6px">1. Ábrala en <b>Safari</b>. Toque el botón <b>Compartir</b> (el cuadro con la flecha ⬆️).</p>' +
+              '<p style="margin:0 0 6px">2. Baje y toque <b>«Agregar a inicio»</b>.</p>' +
+              '<p style="margin:0 0 16px">3. Toque <b>Agregar</b>. El icono del colegio queda en su pantalla.</p>';
+    } else if (/SamsungBrowser/i.test(ua)) {
+      pasos = '<p style="margin:0 0 6px">1. Toque el menú <b>☰</b> (abajo a la derecha).</p>' +
+              '<p style="margin:0 0 16px">2. Toque <b>«Añadir página a»</b> → <b>«Pantalla de inicio»</b>.</p>';
+    } else {
+      pasos = '<p style="margin:0 0 6px">1. En Chrome, toque los <b>tres puntos ⋮</b> (arriba a la derecha).</p>' +
+              '<p style="margin:0 0 16px">2. Toque <b>«Instalar app»</b> o <b>«Agregar a la pantalla principal»</b>.</p>';
+    }
     var m = document.createElement('div');
     m.className = 'mc-ios';
-    m.innerHTML = '<div><p style="margin:0 0 10px"><b>Para instalarla en el iPhone:</b></p>' +
-      '<p style="margin:0 0 6px">1. Toque el botón <b>Compartir</b> (el cuadro con la flecha ⬆️) en la barra de Safari.</p>' +
-      '<p style="margin:0 0 6px">2. Baje y toque <b>«Agregar a inicio»</b>.</p>' +
-      '<p style="margin:0 0 16px">3. Toque <b>Agregar</b>. El icono del colegio queda en su pantalla.</p>' +
+    m.innerHTML = '<div><p style="margin:0 0 10px"><b>Para instalar la app del colegio:</b></p>' + pasos +
       '<button type="button" style="width:100%;border:0;border-radius:12px;padding:12px;font-weight:700">Entendido</button></div>';
     document.body.appendChild(m);
     m.style.display = 'flex';
@@ -71,6 +85,11 @@
     if (document.body) boton(); else document.addEventListener('DOMContentLoaded', boton);
   });
   window.addEventListener('appinstalled', function () { var b = document.getElementById('mc-instalar'); if (b) b.remove(); });
-  if (esIOS && esCelular) document.addEventListener('DOMContentLoaded', boton);
+  // En el celular el botón sale siempre: si el navegador no ofrece la instalación
+  // directa (Chrome a veces tarda, Samsung Internet, iPhone), muestra los pasos.
+  if (esCelular) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boton); else boton();
+  }
+  window.mcInstalarApp = function () { if (pedido) { pedido.prompt(); } else { instrucciones(); } };
 })();
 </script>
