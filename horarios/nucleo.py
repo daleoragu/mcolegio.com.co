@@ -10,7 +10,7 @@
 import json
 from collections import defaultdict
 
-from .motor import Problema, resolver, unidad_simple
+from .motor import PESOS, Problema, resolver, unidad_simple
 
 TIPO_DATOS = 'mcolegio-horario-datos'
 TIPO_RESULTADO = 'mcolegio-horario-resultado'
@@ -47,7 +47,52 @@ def condiciones_vacias():
             'max_seguidas': 0,           # máximo de horas seguidas de un docente (0 = sin límite)
             'reuniones': [],
             'simultaneas': [],           # [{'nombre', 'asignaciones': [aid…]}] van a la misma hora
-            'espacios': []}              # [{'nombre', 'capacidad'}] sala de sistemas, laboratorio…
+            'espacios': [],              # [{'nombre', 'capacidad'}] sala de sistemas, laboratorio…
+            'pesos': {},                 # {criterio: 0..10} prioridades al optimizar (5 = normal)
+            'cursos': {},                # {cid: {'no_puede': ['dia-franja']}} horas sin clase del curso
+            'actividades': [],           # [{'nombre', 'docentes': [did] (vacío = todos), 'horas', 'max_dia'}]
+            'acompanamiento': {'zonas': [], 'max_semana': 2}}   # turnos en los descansos
+
+
+# Los criterios que el coordinador puede subir o bajar (de 0 a 10; 5 = normal).
+CRITERIOS = [
+    ('hueco', 'Que los docentes no tengan horas sueltas entre clases'),
+    ('hueco_curso', 'Que los cursos no tengan horas libres en medio de la jornada'),
+    ('repetida', 'No repetir la misma materia el mismo día'),
+    ('prefiere_no', 'Respetar las horas «mejor no» de los docentes'),
+    ('equilibrio', 'Repartir parejo las clases de cada docente en la semana'),
+    ('dia_suelto', 'Evitar que un docente vaya un día solo a dar una clase'),
+    ('dia_libre', 'Darle el día libre al docente que lo pidió'),
+    ('tarde', 'Poner temprano las materias marcadas «primeras horas»'),
+    ('ultima', 'Sacar de la última hora las materias marcadas'),
+]
+
+
+def pesos_de(cond):
+    """Los pesos del motor según las prioridades (0 a 10) que puso el coordinador."""
+    w = {}
+    for clave, valor in (cond.get('pesos') or {}).items():
+        try:
+            f = max(0.0, min(10.0, float(valor))) / 5.0
+        except (TypeError, ValueError):
+            continue
+        if clave in PESOS:
+            w[clave] = PESOS[clave] * f
+        if clave == 'prefiere_no':
+            w['evitar'] = PESOS['evitar'] * f
+    return w
+
+
+def celdas(lista):
+    """['1-5', '2-7'] -> {(1, 5), (2, 7)}."""
+    out = set()
+    for k in lista or []:
+        try:
+            d, f = str(k).split('-')
+            out.add((int(d), int(f)))
+        except ValueError:
+            pass
+    return out
 
 
 def patron(texto):
@@ -152,6 +197,7 @@ def diagnostico(datos, cond):
             salida.append(('error', f'{D.nombre_curso(cid)} no está en ninguna jornada (asígnela en la plataforma).'))
             continue
         cupo = len([f for f in D.jornadas[jid]['franjas'] if not f['descanso']]) * len(D.jornadas[jid]['dias'])
+        cupo -= len(cond.get('cursos', {}).get(str(cid), {}).get('no_puede', []))
         if horas > cupo:
             salida.append(('error', f'{D.nombre_curso(cid)} tiene {horas} horas de clase y solo hay {cupo} espacios en la semana.'))
     for did, horas in por_docente.items():
@@ -165,6 +211,76 @@ def diagnostico(datos, cond):
     for a in D.asignaciones.values():
         if not a.get('docente') and D.ih(a['id'], cond):
             salida.append(('aviso', f'{D.nombre_materia(a["materia"])} en {D.nombre_curso(a["curso"])} no tiene docente.'))
+    salida += _diagnostico_mas(D, cond, por_docente)
+    return salida
+
+
+def _seguidas_max(datos, jid):
+    """Cuántas horas de clase seguidas (sin descanso) caben como máximo en la jornada."""
+    mejor = n = 0
+    for f in datos.franjas_de(jid):
+        n = 0 if f['descanso'] else n + 1
+        mejor = max(mejor, n)
+    return mejor
+
+
+def _diagnostico_mas(D, cond, por_docente):
+    """Revisiones al estilo de GHC: errores que impiden, avisos que dificultan e información."""
+    salida = []
+    mat, asg = cond.get('materias', {}), cond.get('asignaciones', {})
+    # Bloques más largos que las horas seguidas que hay
+    for a in D.asignaciones.values():
+        jid = D.jornada_de_curso.get(a['curso'])
+        if jid is None:
+            continue
+        partes = patron(asg.get(str(a['id']), {}).get('bloques')) or patron(mat.get(str(a['materia']), {}).get('bloques')) or []
+        tope = _seguidas_max(D, jid)
+        if partes and max(partes) > tope:
+            salida.append(('aviso', f'{D.nombre_materia(a["materia"])} en {D.nombre_curso(a["curso"])}: un bloque de '
+                                    f'{max(partes)} horas no cabe (hay máximo {tope} seguidas); se partirá.'))
+    # Clases simultáneas con el mismo docente
+    for g in cond.get('simultaneas', []):
+        docs = [D.asignaciones[int(x)].get('docente') for x in g.get('asignaciones', []) if int(x) in D.asignaciones]
+        docs = [d for d in docs if d]
+        if len(docs) != len(set(docs)):
+            salida.append(('error', f'«{g.get("nombre")}»: un mismo docente no puede estar en dos clases simultáneas.'))
+    # Espacios compartidos con más horas de las que caben
+    espacios = {e['nombre']: max(1, int(e.get('capacidad') or 1)) for e in cond.get('espacios', []) if e.get('nombre')}
+    uso, cupo_esp = defaultdict(int), defaultdict(int)
+    for a in D.asignaciones.values():
+        e = asg.get(str(a['id']), {}).get('espacio') or mat.get(str(a['materia']), {}).get('espacio')
+        jid = D.jornada_de_curso.get(a['curso'])
+        if e in espacios and jid is not None:
+            uso[e] += D.ih(a['id'], cond)
+    for e, cap in espacios.items():
+        horas = max((len([f for f in j['franjas'] if not f['descanso']]) * len(j['dias']) for j in D.jornadas.values()),
+                    default=0)
+        if uso[e] > cap * horas:
+            salida.append(('error', f'{e}: se necesitan {uso[e]} horas y solo caben {cap * horas} en la semana.'))
+        elif uso[e] > cap * horas * 0.85:
+            salida.append(('aviso', f'{e} queda casi lleno ({uso[e]} de {cap * horas} horas): puede costar ubicarlo.'))
+    # Demasiadas prohibiciones (GHC: mejor usar «mejor no»)
+    nps = {}
+    for did, horas in por_docente.items():
+        cupo = sum(len([f for f in D.jornadas[j]['franjas'] if not f['descanso']]) * len(D.jornadas[j]['dias'])
+                   for j in D.jornadas_de_docente(did))
+        np_ = len(cond.get('docentes', {}).get(str(did), {}).get('no_puede', []))
+        nps[did] = np_
+        libres = cupo - np_
+        if cupo and horas <= libres and horas > 0.9 * libres and np_:
+            salida.append(('aviso', f'{D.nombre_docente(did)} tiene casi todas sus horas libres ocupadas '
+                                    f'({horas} clases en {libres} espacios). Cambie algunos «no puede» por «mejor no».'))
+    con = [d for d, n in nps.items() if n]
+    if con and len(con) < len(nps):
+        salida.append(('info', f'{len(con)} docente(s) tienen horas en «no puede». Para que el horario sea parejo, '
+                               'ofrezca a todos la misma posibilidad de pedir horas.'))
+    # Actividades y acompañamientos
+    for act in cond.get('actividades', []):
+        if not act.get('horas'):
+            salida.append(('info', f'La actividad «{act.get("nombre")}» no tiene horas: no se ubicará.'))
+    zonas = cond.get('acompanamiento', {}).get('zonas', [])
+    if zonas and not any(f['descanso'] for f in D.franjas.values()):
+        salida.append(('aviso', 'Hay zonas de acompañamiento pero las jornadas no tienen descansos.'))
     return salida
 
 
@@ -290,7 +406,8 @@ def armar(datos, cond):
     slots = {}
     for cid, jid in D.jornada_de_curso.items():
         j = D.jornadas[jid]
-        slots[cid] = [(d, f['id']) for d in j['dias'] for f in D.franjas_de(jid) if not f['descanso']]
+        sin = celdas(cond.get('cursos', {}).get(str(cid), {}).get('no_puede'))
+        slots[cid] = [(d, f['id']) for d in j['dias'] for f in D.franjas_de(jid) if not f['descanso'] and (d, f['id']) not in sin]
     mat = cond.get('materias', {})
     asg = cond.get('asignaciones', {})
     dobles = set()
@@ -367,6 +484,8 @@ def armar(datos, cond):
             unidades.append(u)
     no_puede = {}
     prefiere_no = {}
+    evitar = {}
+    dia_libre = set()
     max_seguidas = {}
     max_docente_dia = {}
     permanencia = {}
@@ -380,6 +499,9 @@ def armar(datos, cond):
     for did, r in cond.get('docentes', {}).items():
         no_puede[int(did)] = {tuple(int(x) for x in k.split('-')) for k in r.get('no_puede', [])}
         prefiere_no[int(did)] = {tuple(int(x) for x in k.split('-')) for k in r.get('prefiere_no', [])}
+        evitar[int(did)] = celdas(r.get('evitar'))
+        if r.get('dia_libre'):
+            dia_libre.add(int(did))
         if r.get('max_seguidas'):
             max_seguidas[int(did)] = int(r['max_seguidas'])
         if r.get('max_dia'):
@@ -391,10 +513,30 @@ def armar(datos, cond):
             else:
                 permanencia.pop(int(did), None)
     reuniones, no_puede = ubicar_reuniones(D, cond, no_puede)
+    dias_docente = {did: {d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']} for did in dia_libre}
+    # Para el día libre se escoge un día por docente (el que ya tiene más horas en «no puede»,
+    # o el que tenga menos clases fijadas; se rotan para no dejar a todos libres el mismo día) y
+    # sus horas se vuelven «mejor no» fuerte: así el generador lo va vaciando poco a poco.
+    for k, did in enumerate(sorted(dia_libre)):
+        dias = sorted(dias_docente.get(did) or [])
+        if len(dias) < 2:
+            continue
+        fijadas = defaultdict(int)
+        for fx in fijas:
+            if fx['docente'] == did:
+                fijadas[fx['dia']] += 1
+        bloqueadas = defaultdict(int)
+        for (d, _) in no_puede.get(did, ()):
+            bloqueadas[d] += 1
+        rot = {d: (i - k) % len(dias) for i, d in enumerate(dias)}
+        dia = min(dias, key=lambda d: (fijadas[d], -bloqueadas[d], rot[d]))
+        evitar.setdefault(did, set()).update(
+            (dia, f['id']) for jid in D.jornadas_de_docente(did) for f in D.franjas_de(jid) if not f['descanso'])
     p = Problema(franjas_clase, siguiente, slots, unidades, fijas=fijas, no_puede=no_puede, prefiere_no=prefiere_no,
                  max_materia_dia=max_materia_dia, max_docente_dia=max_docente_dia, max_seguidas=max_seguidas,
                  primeras=primeras, dobles=dobles, ultimas=ultimas, permanencia=permanencia,
-                 desplazamiento=int(cond.get('desplazamiento') or 0), espacios=espacios)
+                 desplazamiento=int(cond.get('desplazamiento') or 0), espacios=espacios, pesos=pesos_de(cond),
+                 evitar=evitar, dia_libre=dia_libre, dias_docente=dias_docente)
     p.reuniones = reuniones
     return p
 
@@ -422,9 +564,150 @@ def generar(datos, cond, segundos=30, semilla=0, avance=None):
         for q in u['partes']:
             sin[q['asig']] += u['largo']
     huecos = {did: h for did, h in huecos_por_docente(est).items() if did and did > 0}
+    # Lo que más costó ubicar (como las «sesiones con más rechazos» de GHC): sirve para
+    # encontrar la condición que traba el horario.
+    rech = defaultdict(int)
+    for uid, n in est.rechazos.items():
+        u = est.u.get(uid)
+        if u and uid not in est.fijas:
+            for q in u['partes']:
+                rech[q['asig']] += n
+    dificiles = [{'asignacion': a, 'rechazos': n} for a, n in sorted(rech.items(), key=lambda x: -x[1])[:10] if n >= 3]
     return {'sesiones': sesiones, 'costo': r['costo'], 'huecos': sum(huecos.values()),
             'sin_ubicar': [{'asignacion': a, 'horas': h} for a, h in sin.items()],
-            'divididas': r.get('divididas', []), 'reuniones': getattr(p, 'reuniones', [])}
+            'divididas': r.get('divididas', []), 'reuniones': getattr(p, 'reuniones', []), 'dificiles': dificiles}
+
+
+# ---------------------------------------------------------------------------
+# Después de ubicar las clases: actividades complementarias y descansos
+# ---------------------------------------------------------------------------
+def _ocupado(datos, sesiones, reuniones=()):
+    """{(docente, dia): [(ini, fin)]} de clases y reuniones."""
+    oc = defaultdict(list)
+    for s in sesiones:
+        a = datos.asignaciones.get(s['asignacion'])
+        if a and a.get('docente') and s['franja'] in datos.franjas:
+            oc[(a['docente'], s['dia'])].append(datos.intervalo(s['franja']))
+    for r in reuniones or []:
+        for reu in (r, r.get('segunda') or {}):
+            for did in reu.get('asisten', []):
+                oc[(did, reu['dia'])].append((reu['inicio'], reu['fin']))
+    return oc
+
+
+def ubicar_actividades(datos, cond, sesiones, reuniones=()):
+    """Ubica las horas de actividades complementarias (atención a padres, planeación…).
+
+    Primero en los huecos del docente, luego pegadas a sus clases y dentro de su
+    permanencia; nunca en horas que no puede. Devuelve (lista, avisos).
+    """
+    D = datos
+    oc = _ocupado(D, sesiones, reuniones)
+    con_clase = {a.get('docente') for a in D.asignaciones.values() if a.get('docente')}
+    general = float(cond.get('permanencia_horas') or 0)
+    salida, avisos = [], []
+    for act in cond.get('actividades', []):
+        horas = int(act.get('horas') or 0)
+        if horas <= 0:
+            continue
+        max_dia = int(act.get('max_dia') or 1)
+        quienes = [int(x) for x in act.get('docentes') or []] or sorted(con_clase)
+        for did in quienes:
+            if did not in D.docentes:
+                continue
+            r = cond.get('docentes', {}).get(str(did), {})
+            no = celdas(r.get('no_puede'))
+            mejor_no = celdas(r.get('prefiere_no')) | celdas(r.get('evitar'))
+            perm = r.get('permanencia')
+            perm = float(perm) if perm not in (None, '') else general
+            puestas = defaultdict(int)
+            for _ in range(horas):
+                elegido, puntos = None, None
+                for jid in D.jornadas_de_docente(did):
+                    j = D.jornadas[jid]
+                    for dia in j['dias']:
+                        if puestas[dia] >= max_dia:
+                            continue
+                        tramos = oc.get((did, dia), [])
+                        for f in D.franjas_de(jid):
+                            if f['descanso'] or (dia, f['id']) in no:
+                                continue
+                            ini, fin = minutos(f['inicio']), minutos(f['fin'])
+                            if any(a < fin and ini < b for a, b in tramos):
+                                continue
+                            if tramos:
+                                lo, hi = min(a for a, _ in tramos), max(b for _, b in tramos)
+                                if lo < ini and fin < hi:
+                                    pts = 0                      # hueco entre clases
+                                elif any(b == ini or a == fin for a, b in tramos) or abs(ini - hi) <= 30 or abs(lo - fin) <= 30:
+                                    pts = 1                      # pegada a una clase
+                                else:
+                                    pts = 3
+                                if perm and max(hi, fin) - min(lo, ini) > perm * 60:
+                                    continue
+                            else:
+                                pts = 8                          # un día en que no tiene clases
+                            if (dia, f['id']) in mejor_no:
+                                pts += 4
+                            pts += puestas[dia] * 0.5 + f['orden'] * 0.01
+                            if puntos is None or pts < puntos:
+                                elegido, puntos = (dia, f, ini, fin), pts
+                if elegido is None:
+                    avisos.append(f'{act.get("nombre")}: no hubo espacio para una hora de {D.nombre_docente(did)}.')
+                    break
+                dia, f, ini, fin = elegido
+                oc[(did, dia)].append((ini, fin))
+                puestas[dia] += 1
+                salida.append({'nombre': act.get('nombre') or 'Actividad', 'docente': did, 'dia': dia, 'franja': f['id']})
+    return salida, avisos
+
+
+def asignar_acompanamientos(datos, cond, sesiones):
+    """Reparte los turnos de acompañamiento de los descansos (patio, tienda, baños…).
+
+    Toma docentes que ese día tienen clase justo antes o justo después del descanso
+    (ya están en el colegio), reparte parejo y respeta el máximo de turnos a la
+    semana. Devuelve (turnos, avisos); cada turno: {'dia', 'franja', 'zona', 'docentes'}.
+    """
+    D = datos
+    ac = cond.get('acompanamiento') or {}
+    zonas = [z for z in ac.get('zonas', []) if z.get('nombre') and int(z.get('cuantos') or 0) > 0]
+    if not zonas:
+        return [], []
+    tope = int(ac.get('max_semana') or 0) or 99
+    oc = _ocupado(D, sesiones)
+    carga = defaultdict(int)
+    turnos, avisos = [], []
+    excluidos = {int(x) for x in ac.get('excluir', [])}
+    for jid in sorted(D.jornadas):
+        j = D.jornadas[jid]
+        if not j.get('cursos'):
+            continue
+        lst = D.franjas_de(jid)
+        for dia in j['dias']:
+            for k, f in enumerate(lst):
+                if not f['descanso']:
+                    continue
+                ini, fin = minutos(f['inicio']), minutos(f['fin'])
+                antes = {did for (did, d), tr in oc.items() if d == dia and any(b == ini for _, b in tr)}
+                despues = {did for (did, d), tr in oc.items() if d == dia and any(a == fin for a, _ in tr)}
+                dia_con = {did for (did, d), tr in oc.items() if d == dia and tr and
+                           min(a for a, _ in tr) < ini and max(b for _, b in tr) > fin}
+                candidatos = (antes | despues | dia_con) - excluidos
+                usados = set()
+                for z in zonas:
+                    n = int(z['cuantos'])
+                    orden = sorted(candidatos - usados, key=lambda did: (
+                        carga[did], 0 if did in antes and did in despues else (1 if did in antes or did in despues else 2),
+                        D.nombre_docente(did)))
+                    elegidos = [did for did in orden if carga[did] < tope][:n]
+                    for did in elegidos:
+                        carga[did] += 1
+                        usados.add(did)
+                    turnos.append({'dia': dia, 'franja': f['id'], 'zona': z['nombre'], 'docentes': elegidos})
+                    if len(elegidos) < n:
+                        avisos.append(f'{DIAS[dia]} {f["inicio"]} · {z["nombre"]}: faltan {n - len(elegidos)} docente(s).')
+    return turnos, avisos
 
 
 # ---------------------------------------------------------------------------

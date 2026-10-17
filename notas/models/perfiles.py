@@ -155,6 +155,10 @@ class Colegio(models.Model):
     nombre_correo = models.CharField(
         max_length=40, default='Correo interno', verbose_name='Nombre del correo interno',
         help_text='Cómo se llama el correo de la plataforma en este colegio (por ejemplo, «SanFraMail»).')
+    nombre_app = models.CharField(
+        max_length=12, blank=True, default='', verbose_name='Nombre corto de la app',
+        help_text='Lo que aparece debajo del icono en el celular (máximo 12 letras). '
+                  'Si lo deja vacío se usan las iniciales del colegio.')
     layout_portal = models.CharField(max_length=10, choices=LAYOUT_CHOICES, default='topbar', verbose_name="Diseño del Portal")
 
     def __str__(self):

@@ -97,3 +97,46 @@ class AplicacionEscritorio(models.Model):
 
     class Meta:
         ordering = ['-subido']
+
+
+class Reemplazo(models.Model):
+    """Una clase de un docente que falta, cubierta (o por cubrir) por otro, en una fecha."""
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='reemplazos')
+    fecha = models.DateField()
+    sesion = models.ForeignKey(Sesion, on_delete=models.CASCADE, related_name='reemplazos')
+    ausente = models.ForeignKey('notas.Docente', on_delete=models.CASCADE, related_name='ausencias_horario')
+    reemplazante = models.ForeignKey('notas.Docente', on_delete=models.SET_NULL, null=True, blank=True,
+                                     related_name='reemplazos_horario')
+    motivo = models.CharField(max_length=120, blank=True)
+    nota = models.CharField(max_length=200, blank=True, help_text='Indicaciones para quien reemplaza (taller, guía…)')
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('fecha', 'sesion')
+        ordering = ['fecha', 'sesion__franja__inicio']
+
+    def __str__(self):
+        return f'{self.fecha} · {self.sesion.curso} · {self.ausente}'
+
+
+class ConfiguracionHorario(models.Model):
+    """Ajustes del módulo por colegio: por ahora, si se le pide a los docentes su disponibilidad."""
+    colegio = models.OneToOneField(Colegio, on_delete=models.CASCADE, related_name='config_horario')
+    pedir_disponibilidad = models.BooleanField(default=False)
+    mensaje = models.CharField(max_length=250, blank=True)
+    fecha_limite = models.DateField(null=True, blank=True)
+
+
+class Disponibilidad(models.Model):
+    """Las horas en que el docente no puede o prefiere no tener clase (las «desideratas» de GHC).
+    Se marcan en la plataforma y viajan al generador dentro del archivo de datos."""
+    NO, PREF = 'no', 'pref'
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='disponibilidades')
+    docente = models.OneToOneField('notas.Docente', on_delete=models.CASCADE, related_name='disponibilidad_horario')
+    celdas = models.JSONField(default=dict, blank=True)    # {'dia-franja': 'no' | 'pref'}
+    dia_libre = models.BooleanField(default=False)
+    nota = models.CharField(max_length=300, blank=True)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    def lista(self, valor):
+        return sorted(k for k, v in (self.celdas or {}).items() if v == valor)

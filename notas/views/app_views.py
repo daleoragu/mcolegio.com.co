@@ -24,6 +24,12 @@ def _colores(colegio):
     return (colegio.color_topbar or colegio.color_primario or '#343A40'), '#ffffff'
 
 
+def _nombre_de_app(colegio):
+    """El nombre corto que el colegio escogió; si no escogió, las iniciales."""
+    propio = (getattr(colegio, 'nombre_app', '') or '').strip()
+    return propio[:12] if propio else _nombre_corto(colegio.nombre)
+
+
 def _nombre_corto(nombre):
     """Lo que sale debajo del icono: corto, para que no lo corte el celular."""
     palabras = [p for p in nombre.split() if p.lower() not in {'de', 'del', 'la', 'el', 'los', 'las', 'y'}]
@@ -40,7 +46,7 @@ def manifiesto(request):
     tema, fondo = _colores(colegio)
     datos = {
         'name': nombre,
-        'short_name': _nombre_corto(colegio.nombre) if colegio else 'mcolegio',
+        'short_name': _nombre_de_app(colegio) if colegio else 'mcolegio',
         'description': f'Notas, boletines, asistencia y comunicación de {nombre}.',
         'id': '/',
         'start_url': '/app/',
@@ -101,7 +107,7 @@ def _icono_de_letras(colegio, tam):
         fondo = Image.new('RGB', (tam, tam), color)
     except ValueError:
         fondo = Image.new('RGB', (tam, tam), '#1f2937')
-    texto = _nombre_corto(colegio.nombre)[:3].upper() if colegio else 'MC'
+    texto = _nombre_de_app(colegio).replace(' ', '')[:3].upper() if colegio else 'MC'
     d = ImageDraw.Draw(fondo)
     try:
         fuente = ImageFont.load_default(size=int(tam * 0.32))

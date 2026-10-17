@@ -20,6 +20,8 @@ MODULOS = OrderedDict([
                       ('/certificados/',))),
     ('circulares', ('Circulares', 'Circulares a familias y docentes con confirmación de lectura.',
                     ('/circulares/',))),
+    ('calendario', ('Calendario escolar', 'Eventos del año (izadas, entregas, reuniones, festivos) con aviso y Google Calendar.',
+                    ('/calendario/',))),
     ('actas', ('Actas', 'Actas de comisión de evaluación y actas libres.', ('/actas/',))),
     ('prematricula', ('Prematrícula', 'Inscripciones en línea desde el portal.', ('/prematricula/',))),
     ('estadisticas', ('Estadísticas y alertas tempranas', 'Estadísticas con conclusiones y alertas de pérdida.',

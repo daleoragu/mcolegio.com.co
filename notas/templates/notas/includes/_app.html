@@ -3,7 +3,7 @@
 <meta name="theme-color" content="{{ colegio.color_topbar|default:'#1f2937' }}">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="{{ colegio.nombre|default:'mcolegio'|truncatechars:20 }}">
+<meta name="apple-mobile-web-app-title" content="{% if colegio.nombre_app %}{{ colegio.nombre_app }}{% else %}{{ colegio.nombre|default:'mcolegio'|truncatechars:20 }}{% endif %}">
 <link rel="apple-touch-icon" href="/app/icono-192.png">
 <style>
   .mc-instalar { position:fixed; left:16px; bottom:16px; z-index:1040; display:none; align-items:center; gap:8px;

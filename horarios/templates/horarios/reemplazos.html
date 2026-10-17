@@ -1,0 +1,92 @@
+{% extends 'notas/base.html' %}
+{% block title %}Reemplazos{% endblock %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0"><i class="fas fa-people-arrows me-2" style="color:#4338ca"></i>Reemplazos</h4>
+        <p class="text-muted small mb-0">Cuando un docente falta: quién está libre a esa hora para cubrir sus clases</p></div>
+    <a href="{% url 'horarios:panel' %}" class="btn btn-outline-secondary btn-sm">Volver a Horarios</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'horarios/_estilos.html' %}
+<style>
+    .re-cand { display:flex; gap:8px; align-items:flex-start; padding:6px 8px; border:1px solid #e5e7eb; border-radius:8px; margin-bottom:4px; cursor:pointer; }
+    .re-cand:hover { background:#f8fafc; }
+    .re-cand input { margin-top:4px; }
+    .re-hora { font-weight:700; color:#4338ca; white-space:nowrap; }
+</style>
+{% if not h %}
+<div class="ho-tarjeta">
+    <p class="mb-0 text-muted">Para sugerir reemplazos, la plataforma necesita el horario de clases <strong>publicado</strong>
+    (así sabe quién está libre a cada hora). Cuando lo publique en <a href="{% url 'horarios:panel' %}">Horarios</a>, esta pantalla queda lista.</p>
+</div>
+{% else %}
+<div class="ho-tarjeta">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-sm-4"><label class="form-label small fw-semibold">Fecha</label>
+            <input type="date" name="fecha" value="{{ fecha|date:'Y-m-d' }}" class="form-control" onchange="this.form.submit()"></div>
+        <div class="col-sm-6"><label class="form-label small fw-semibold">Docente que falta</label>
+            <select name="docente" class="form-select" onchange="this.form.submit()">
+                <option value="">Seleccione…</option>
+                {% for d in docentes %}<option value="{{ d.pk }}" {% if docente and d.pk == docente.pk %}selected{% endif %}>{{ d.user.last_name }} {{ d.user.first_name }}{% if d.pk not in con_clase %} (sin clases este día){% endif %}</option>{% endfor %}
+            </select></div>
+        <div class="col-sm-2"><button class="btn btn-primary w-100">Ver</button></div>
+    </form>
+    <p class="ho-ayuda mt-2 mb-0">{{ nombre_dia }} {{ fecha|date:"d/m/Y" }} · se usa el horario publicado «{{ h.nombre }}».</p>
+</div>
+
+{% if docente %}
+<div class="ho-tarjeta">
+    <h6 class="fw-bold mb-3">Clases de {{ docente }} el {{ nombre_dia|lower }}</h6>
+    {% if not plan %}
+        <p class="text-muted mb-0">No tiene clases ese día en el horario publicado.</p>
+    {% else %}
+    <form method="post">{% csrf_token %}
+        <input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}"><input type="hidden" name="docente" value="{{ docente.pk }}">
+        <div class="mb-3"><label class="form-label small fw-semibold">Motivo (opcional, no se muestra a los estudiantes)</label>
+            <input name="motivo" value="{{ motivo }}" maxlength="120" class="form-control form-control-sm" placeholder="Incapacidad, permiso, capacitación…"></div>
+        {% for p in plan %}
+        <div class="border rounded-3 p-3 mb-3">
+            <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
+                <div><span class="re-hora">{{ p.sesion.franja.inicio|time:"H:i" }}–{{ p.sesion.franja.fin|time:"H:i" }}</span>
+                    · <strong>{{ p.sesion.curso.nombre }}</strong> · {{ p.sesion.asignacion.materia.nombre }}</div>
+                {% if p.reemplazo.reemplazante %}<span class="ho-chip pub">Cubre: {{ p.reemplazo.reemplazante }}</span>{% elif p.reemplazo %}<span class="ho-chip bor">Sin reemplazo</span>{% endif %}
+            </div>
+            <label class="re-cand"><input type="radio" name="r_{{ p.sesion.id }}" value="" {% if not p.reemplazo.reemplazante %}checked{% endif %}>
+                <div><strong>Sin reemplazo</strong><div class="ho-ayuda">El curso queda con guía/taller o sale temprano.</div></div></label>
+            {% if p.reemplazo.reemplazante %}{% with r=p.reemplazo.reemplazante %}{% if r not in p.candidatos %}
+            <label class="re-cand"><input type="radio" name="r_{{ p.sesion.id }}" value="{{ r.pk }}" checked><div><strong>{{ r }}</strong><div class="ho-ayuda">ya asignado</div></div></label>
+            {% endif %}{% endwith %}{% endif %}
+            {% for c in p.candidatos %}
+            <label class="re-cand"><input type="radio" name="r_{{ p.sesion.id }}" value="{{ c.docente.pk }}" {% if p.reemplazo.reemplazante_id == c.docente.pk %}checked{% endif %}>
+                <div><strong>{{ c.docente }}</strong>{% if forloop.first %} <span class="ho-chip pub">sugerido</span>{% endif %}
+                    <div class="ho-ayuda">Libre a esa hora{% for r in c.razones %} · {{ r }}{% endfor %}</div></div></label>
+            {% empty %}<p class="ho-ayuda">Nadie está libre a esa hora.</p>{% endfor %}
+            <input name="n_{{ p.sesion.id }}" value="{{ p.reemplazo.nota }}" maxlength="200" class="form-control form-control-sm mt-2" placeholder="Indicación para quien reemplaza (opcional): guía en la carpeta, taller pág. 40…">
+        </div>
+        {% endfor %}
+        <div class="d-flex gap-2 flex-wrap">
+            <button name="accion" value="guardar" class="btn btn-primary"><i class="fas fa-paper-plane me-1"></i>Guardar y avisar</button>
+            {% if plan.0.reemplazo %}<button name="accion" value="quitar" class="btn btn-outline-danger" onclick="return confirm('¿Quitar la ausencia de este docente en esta fecha?')">Quitar ausencia</button>{% endif %}
+        </div>
+        <p class="ho-ayuda mt-2 mb-0">A cada docente escogido le llega una notificación con la hora, el curso y la indicación. Ese día puede tomar la asistencia de esa clase.</p>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="ho-tarjeta">
+    <h6 class="fw-bold">Reemplazos del {{ fecha|date:"d/m/Y" }}</h6>
+    {% if dia %}
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Hora</th><th>Curso</th><th>Materia</th><th>Falta</th><th>Cubre</th></tr></thead>
+        <tbody>{% for r in dia %}<tr>
+            <td class="text-nowrap">{{ r.sesion.franja.inicio|time:"H:i" }}</td><td>{{ r.sesion.curso.nombre }}</td>
+            <td>{{ r.sesion.asignacion.materia.nombre }}</td>
+            <td><a href="?fecha={{ fecha|date:'Y-m-d' }}&docente={{ r.ausente_id }}">{{ r.ausente }}</a></td>
+            <td>{% if r.reemplazante %}{{ r.reemplazante }}{% else %}<span class="text-warning">sin reemplazo</span>{% endif %}</td></tr>{% endfor %}
+        </tbody></table></div>
+    {% else %}<p class="text-muted small mb-0">No hay ausencias registradas para esta fecha.</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

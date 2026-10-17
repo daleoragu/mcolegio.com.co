@@ -1,0 +1,76 @@
+{% extends 'notas/base.html' %}
+{% block title %}Mi disponibilidad{% endblock %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0"><i class="fas fa-hand-paper me-2" style="color:#4338ca"></i>Mi disponibilidad para el horario</h4>
+        <p class="text-muted small mb-0">Marque las horas en que no puede tener clase. La coordinación las tendrá en cuenta al armar el horario.</p></div>
+    <a href="{% url 'horarios:mi_horario' %}" class="btn btn-outline-secondary btn-sm">Mi horario</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'horarios/_estilos.html' %}
+<style>
+    .di-celda { width:100%; height:38px; border:0; border-radius:8px; font-size:.72rem; font-weight:600; cursor:pointer; background:#dcfce7; color:#14532d; }
+    .di-celda[data-v="no"] { background:#fecaca; color:#7f1d1d; }
+    .di-celda[data-v="pref"] { background:#fef08a; color:#713f12; }
+    .di-celda:disabled { cursor:default; opacity:.8; }
+    .di-ley span { display:inline-block; width:14px; height:14px; border-radius:4px; vertical-align:middle; margin:0 4px 0 10px; }
+</style>
+{% if not abierta %}
+<div class="alert alert-secondary">En este momento la coordinación no está recogiendo la disponibilidad. Puede ver lo que marcó antes.</div>
+{% else %}
+<div class="ho-tarjeta" style="background:#eef2ff;border-color:#c7d2fe">
+    {% if conf.mensaje %}<p class="mb-1">{{ conf.mensaje }}</p>{% endif %}
+    {% if conf.fecha_limite %}<p class="mb-1 fw-semibold">Plazo: {{ conf.fecha_limite|date:"l d \d\e F" }}</p>{% endif %}
+    <p class="small mb-0">Toque cada casilla: <strong>verde</strong> = puede · <strong>rojo</strong> = no puede · <strong>amarillo</strong> = mejor no.
+        Use el rojo solo cuando de verdad no pueda (otro trabajo, estudio, cita fija): entre más rojos, más difícil es armar un buen horario para todos.</p>
+</div>
+{% endif %}
+<form method="post">{% csrf_token %}
+<div class="ho-tarjeta">
+    {% for t in tablas %}
+    {% if tablas|length > 1 %}<h6 class="fw-bold">{{ t.jornada.nombre }}</h6>{% endif %}
+    <table class="ho-grid mb-3">
+        <thead><tr><th></th>{% for d, n in t.dias %}<th>{{ n }}</th>{% endfor %}</tr></thead>
+        <tbody>
+        {% for fila in t.filas %}
+            {% if fila.franja.descanso %}<tr class="ho-descanso"><td></td><td colspan="{{ t.dias|length }}">{{ fila.franja.etiqueta|default:"Descanso" }} · {{ fila.franja.texto }}</td></tr>
+            {% else %}<tr><td class="ho-hora">{{ fila.franja.texto }}</td>
+                {% for c in fila.celdas %}<td style="padding:2px">
+                    <input type="hidden" name="c_{{ c.clave }}" value="{{ c.valor }}">
+                    <button type="button" class="di-celda" data-v="{{ c.valor }}" {% if not abierta %}disabled{% endif %}>{% if c.valor == 'no' %}No puedo{% elif c.valor == 'pref' %}Mejor no{% endif %}</button>
+                </td>{% endfor %}</tr>
+            {% endif %}
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endfor %}
+    <p class="ho-ayuda" id="di-cuenta"></p>
+    <label class="d-flex gap-2 align-items-center mb-2"><input type="checkbox" name="dia_libre" value="1" {% if disp.dia_libre %}checked{% endif %} {% if not abierta %}disabled{% endif %}>
+        <span>Si se puede, me gustaría tener un día de la semana sin clases</span></label>
+    <label class="form-label small fw-semibold">Nota para la coordinación (opcional)</label>
+    <textarea name="nota" rows="2" maxlength="300" class="form-control" {% if not abierta %}disabled{% endif %} placeholder="Ej.: los martes estudio en la tarde">{{ disp.nota }}</textarea>
+    {% if abierta %}<button class="btn btn-primary mt-3"><i class="fas fa-check me-1"></i>Guardar mi disponibilidad</button>{% endif %}
+    {% if disp.actualizado and disp.celdas %}<p class="ho-ayuda mt-2 mb-0">Última vez guardada: {{ disp.actualizado|date:"d/m/Y H:i" }}</p>{% endif %}
+</div>
+</form>
+<script>
+(function () {
+    var orden = ['', 'no', 'pref'], texto = {'': '', 'no': 'No puedo', 'pref': 'Mejor no'}, total = {{ total }};
+    function contar() {
+        var n = document.querySelectorAll('.di-celda[data-v="no"]').length;
+        var el = document.getElementById('di-cuenta');
+        el.textContent = n ? ('Marcó ' + n + ' de ' + total + ' horas como «no puedo».' + (n > total * 0.3 ? ' Son bastantes: si alguna no es indispensable, cámbiela a «mejor no».' : '')) : '';
+    }
+    document.querySelectorAll('.di-celda').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var v = orden[(orden.indexOf(b.dataset.v || '') + 1) % 3];
+            b.dataset.v = v; b.textContent = texto[v];
+            b.previousElementSibling.value = v;
+            contar();
+        });
+    });
+    contar();
+})();
+</script>
+{% endblock %}

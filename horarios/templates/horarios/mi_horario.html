@@ -7,6 +7,29 @@
 {% endblock %}
 {% block content %}
 {% include 'horarios/_estilos.html' %}
+{% if pedir %}
+<div class="ho-tarjeta d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-color:#fde68a;background:#fffbeb">
+    <div><strong><i class="fas fa-hand-paper me-1"></i>La coordinación está armando el horario.</strong>
+        <div class="small">Marque las horas en que no puede tener clase.</div></div>
+    <a href="{% url 'horarios:mi_disponibilidad' %}" class="btn btn-warning btn-sm">Marcar mi disponibilidad</a>
+</div>
+{% endif %}
+{% if otras_tareas %}
+<div class="ho-tarjeta">
+    <h6 class="fw-bold mb-2"><i class="fas fa-clipboard-list me-1"></i>Otras tareas en su horario</h6>
+    {% for x in otras_tareas %}<div class="small py-1 border-bottom"><strong>{{ x.texto }}</strong> · {{ x.que }}</div>{% endfor %}
+</div>
+{% endif %}
+{% if proximos %}
+<div class="ho-tarjeta" style="border-color:#c7d2fe;background:#eef2ff">
+    <h6 class="fw-bold mb-2"><i class="fas fa-people-arrows me-1"></i>Reemplazos que le tocan</h6>
+    {% for r in proximos %}<div class="small py-1 border-bottom">
+        <strong>{{ r.fecha|date:"D d/m" }} · {{ r.sesion.franja.inicio|time:"H:i" }}–{{ r.sesion.franja.fin|time:"H:i" }}</strong>
+        · {{ r.sesion.curso.nombre }} · {{ r.sesion.asignacion.materia.nombre }} <span class="text-muted">(por {{ r.ausente }})</span>
+        {% if r.nota %}<div class="text-muted">{{ r.nota }}</div>{% endif %}</div>{% endfor %}
+    <p class="ho-ayuda mt-2 mb-0">Ese día puede tomar la asistencia de esas clases desde «Asistencia».</p>
+</div>
+{% endif %}
 <div class="ho-tarjeta">
     {% if not h %}<p class="text-muted mb-0">El colegio todavía no ha publicado el horario de clases.</p>
     {% elif not tablas %}<p class="text-muted mb-0">{% if es_admin %}Esta vista es para docentes y estudiantes. Vea el horario completo en <a href="{% url 'horarios:detalle' h.pk %}">{{ h.nombre }}</a>.{% else %}No tiene clases en el horario publicado.{% endif %}</p>

@@ -24,6 +24,15 @@ class AppInstalable(ColegioDePrueba):
         self.assertEqual(len(m['icons']), 3)
         self.assertEqual(_nombre_corto('Institución Educativa Técnica General Santander'), 'IETGS')
 
+    def test_nombre_corto_propio(self):
+        self.a.nombre_app = 'San Fra'
+        self.a.save()
+        m = json.loads(self.cliente().get('/manifest.webmanifest').content)
+        self.assertEqual(m['short_name'], 'San Fra')
+        c = self.cliente(self.rectora)
+        r = c.get('/admin/portal/personalizacion/')
+        self.assertContains(r, 'name="nombre_app"')
+
     def test_iconos_con_y_sin_escudo(self):
         for tam in (192, 512):
             r = self.cliente().get(f'/app/icono-{tam}.png')

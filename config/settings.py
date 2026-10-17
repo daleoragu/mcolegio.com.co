@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'piar',            # <--- PIAR, Decreto 1421 (inclusión)
     'simat',           # <--- Exportar / importar SIMAT
     'horarios',        # <--- Horarios de clase (generador: plan Premium)
+    'calendario',      # <--- Calendario escolar
 ]
 
 MIDDLEWARE = [

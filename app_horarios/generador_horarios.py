@@ -3,7 +3,8 @@
 Funciona sin internet:
   1. Abra el archivo de datos (.mch) que descargó de la plataforma.
   2. Revise los datos y ponga las reglas: bloques, permanencia, horas extra,
-     sedes, espacios, docentes, reuniones de área y clases simultáneas.
+     sedes, espacios, docentes y cursos, reuniones de área, clases simultáneas,
+     actividades complementarias, acompañamiento de descansos y prioridades.
   3. Arme el horario: arrastre fichas a mano, genere alternativas o combine
      (fije lo que quiera y deje que el generador complete el resto).
   4. Guarde la alternativa (.mchr) y súbala en la plataforma.
@@ -21,13 +22,16 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import nucleo                     # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '2.0'
+VERSION = '2.1'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
+NARANJA = '#fdba74'
 FIJA, SUELTA, REUNION = '#c7d2fe', '#ede9fe', '#fde68a'
-COLOR_ESTADO = {'libre': VERDE, 'no_puede': ROJO, 'prefiere_no': AMARILLO}
-TEXTO_ESTADO = {'libre': '', 'no_puede': 'No puede', 'prefiere_no': 'Mejor no'}
+ACTIVIDAD, TURNO = '#bbf7d0', '#a5f3fc'
+COLOR_ESTADO = {'libre': VERDE, 'no_puede': ROJO, 'prefiere_no': AMARILLO, 'evitar': NARANJA}
+TEXTO_ESTADO = {'libre': '', 'no_puede': 'No puede', 'prefiere_no': 'Mejor no', 'evitar': 'Mejor no +'}
+ICONO = {'error': '✖ ', 'aviso': '⚠ ', 'info': 'ℹ '}
 
 
 class App(tk.Tk):
@@ -76,10 +80,13 @@ class App(tk.Tk):
         self.nb.add(f, text='Inicio')
         ttk.Label(f, text='Generador de horarios', style='Titulo.TLabel').pack(anchor='w')
         texto = ('1. En la plataforma, entre a Horarios y descargue «Datos del colegio (.mch)».\n'
+                 '   (Si pidió a los docentes su disponibilidad en la plataforma, ya viene en ese archivo.)\n'
                  '2. Aquí, toque «Abrir datos del colegio» y escoja ese archivo.\n'
-                 '3. Pestañas 1 a 4: revise los datos y ponga las reglas del colegio.\n'
-                 '4. Pestaña 5: arrastre fichas a mano, genere alternativas o combine las dos cosas.\n'
+                 '3. Pestañas 1 a 5: revise los datos y ponga las reglas del colegio.\n'
+                 '4. Pestaña 6: arrastre fichas a mano, genere alternativas o combine las dos cosas.\n'
                  '5. Guarde la alternativa «para la plataforma» (.mchr) y súbala en Horarios → Importar.\n\n'
+                 'Consejo: ponga «no puede» solo cuando de verdad no se pueda. Para lo demás use «mejor no»:\n'
+                 'así el generador tiene espacio para moverse y encuentra horarios mejores.\n\n'
                  'Guarde el proyecto (.mchp) para seguir otro día sin perder lo que lleva.')
         ttk.Label(f, text=texto, justify='left').pack(anchor='w', pady=12)
         ttk.Button(f, text='📂 Abrir datos del colegio', command=self.abrir_datos).pack(anchor='w')
@@ -94,9 +101,12 @@ class App(tk.Tk):
         self.tab_reglas()
         self.tab_docentes()
         self.tab_grupos()
+        self.tab_tareas()
         self.tab_horario()
         self.nb.select(0)
-        self.avisar('Datos abiertos. Empiece por revisar la pestaña 1.')
+        disp = len(self.p.disponibilidad_plataforma())
+        self.avisar('Datos abiertos. Empiece por revisar la pestaña 1.' +
+                    (f' Trae la disponibilidad que marcaron {disp} docente(s) en la plataforma.' if disp else ''))
 
     # --- Archivos -------------------------------------------------------
     def abrir_datos(self):
@@ -205,8 +215,12 @@ class App(tk.Tk):
         t.delete('1.0', 'end')
         t.insert('end', f'{len(D.cursos)} cursos · {len(D.docentes)} docentes · {len(D.asignaciones)} asignaciones\n\n')
         t.insert('end', '✔ Todo listo para generar.\n\n' if not diag else '')
-        for nivel, texto in diag:
-            t.insert('end', ('✖ ' if nivel == 'error' else '• ') + texto + '\n')
+        for nivel in ('error', 'aviso', 'info'):
+            for n, texto in diag:
+                if n == nivel:
+                    t.insert('end', ICONO[nivel] + texto + '\n')
+        if diag:
+            t.insert('end', '\n✖ impide generar completo · ⚠ puede dificultar · ℹ para tener en cuenta\n')
         t.insert('end', '\nCarga de los docentes (clase + extra):\n')
         for d in sorted(D.docentes.values(), key=lambda d: d['nombre']):
             base, extra, sedes = self.p.resumen_docente(d['id'])
@@ -259,6 +273,17 @@ class App(tk.Tk):
                      poner('max_seguidas')).grid(row=1, column=0, sticky='w', pady=4)
         self._numero(gen, 'Máximo de horas de una materia en un día:', c.get('max_por_dia') or 2, 1, 6,
                      poner('max_por_dia')).grid(row=1, column=1, sticky='w', padx=20)
+        pri = ttk.LabelFrame(f, text='Prioridades al mejorar el horario (0 = no importa · 5 = normal · 10 = muy importante)',
+                             padding=8)
+        pri.pack(fill='x', pady=(8, 0))
+        pesos = c.setdefault('pesos', {})
+        for k, (clave, texto) in enumerate(nucleo.CRITERIOS):
+            fila, col = divmod(k, 2)
+            ttk.Label(pri, text=texto).grid(row=fila, column=col * 2, sticky='w', padx=(0 if col == 0 else 20, 4))
+            var = tk.IntVar(value=int(pesos.get(clave, 5)))
+            esc = tk.Scale(pri, from_=0, to=10, orient='horizontal', length=150, showvalue=True, variable=var,
+                           command=lambda v, clave=clave: pesos.__setitem__(clave, int(float(v))))
+            esc.grid(row=fila, column=col * 2 + 1, sticky='w')
         cuerpo = ttk.Frame(f)
         cuerpo.pack(fill='both', expand=True, pady=8)
         izq = ttk.LabelFrame(cuerpo, text='Materias (doble clic para cambiar)', padding=6)
@@ -343,35 +368,56 @@ class App(tk.Tk):
     # --- 3. Docentes --------------------------------------------------------
     def tab_docentes(self):
         f = ttk.Frame(self.nb, padding=10)
-        self.nb.add(f, text='3. Docentes')
+        self.nb.add(f, text='3. Docentes y cursos')
         izq = ttk.Frame(f)
         izq.pack(side='left', fill='y')
-        ttk.Label(izq, text='Docente').pack(anchor='w')
+        ttk.Label(izq, text='Docentes y, al final, cursos').pack(anchor='w')
         self.lb_doc = tk.Listbox(izq, width=34, exportselection=False)
         self.lb_doc.pack(fill='y', expand=True)
         con_clases = {a.get('docente') for a in self.p.datos.asignaciones.values()}
         self.docs = [d for d in sorted(self.p.datos.docentes.values(), key=lambda d: d['nombre']) if d['id'] in con_clases]
+        self.cursos_l = [c for c in self.p.datos.crudo['cursos'] if c['id'] in self.p.datos.jornada_de_curso]
+        disp = self.p.disponibilidad_plataforma()
         for d in self.docs:
-            self.lb_doc.insert('end', d['nombre'])
+            self.lb_doc.insert('end', d['nombre'] + ('  ✉' if d['id'] in disp else ''))
+        for c in self.cursos_l:
+            self.lb_doc.insert('end', f'Curso {c["nombre"]}')
+            self.lb_doc.itemconfig('end', foreground='#3730a3')
         self.lb_doc.bind('<<ListboxSelect>>', lambda e: self._ver_docente())
+        if disp:
+            ttk.Label(izq, text=f'✉ = marcó su disponibilidad en la plataforma ({len(disp)})', style='Ayuda.TLabel').pack(anchor='w')
+            ttk.Button(izq, text='Volver a traer la disponibilidad', command=self._traer_disp).pack(fill='x', pady=2)
         self.panel_doc = ttk.Frame(f, padding=(14, 0))
         self.panel_doc.pack(side='left', fill='both', expand=True)
         ttk.Label(self.panel_doc, text='Escoja un docente.', style='Ayuda.TLabel').pack(anchor='w')
+
+    def _traer_disp(self):
+        if messagebox.askyesno(TITULO, 'Se reemplazan las horas marcadas aquí por las que cada docente marcó en la '
+                                       'plataforma. ¿Seguir?'):
+            n = self.p.traer_disponibilidad()
+            self.avisar(f'Disponibilidad de {n} docente(s) actualizada.')
+            self._ver_docente()
 
     def _ver_docente(self):
         sel = self.lb_doc.curselection()
         if not sel:
             return
-        d = self.docs[sel[0]]
         for w in self.panel_doc.winfo_children():
             w.destroy()
+        if sel[0] >= len(self.docs):
+            return self._ver_curso(self.cursos_l[sel[0] - len(self.docs)])
+        d = self.docs[sel[0]]
         base, extra, sedes = self.p.resumen_docente(d['id'])
         ttk.Label(self.panel_doc, text=d['nombre'], style='Titulo.TLabel').pack(anchor='w')
         ttk.Label(self.panel_doc, text=f'{base} horas de clase' + (f' + {extra} extra' if extra else '') +
                   f' · {", ".join(sedes)}', style='Ayuda.TLabel').pack(anchor='w')
-        ttk.Label(self.panel_doc, text='Toque una casilla: verde = puede, rojo = no puede, amarillo = mejor no. '
-                                       'Toque el día para cambiar el día completo.', style='Ayuda.TLabel').pack(anchor='w', pady=(4, 6))
+        ttk.Label(self.panel_doc, text='Toque una casilla: verde = puede, rojo = no puede, amarillo = mejor no, '
+                                       'naranja = mejor no (fuerte). Toque el día para cambiar el día completo.',
+                  style='Ayuda.TLabel').pack(anchor='w', pady=(4, 6))
         r = self.p.docente(d['id'])
+        if r.get('nota'):
+            ttk.Label(self.panel_doc, text=f'✉ Nota del docente: {r["nota"]}', foreground='#3730a3',
+                      wraplength=700).pack(anchor='w', pady=(0, 4))
         for j in self.p.jornadas_de_docente(d['id']):
             ttk.Label(self.panel_doc, text=j['nombre'], style='Sub.TLabel').pack(anchor='w', pady=(6, 2))
             g = tk.Frame(self.panel_doc)
@@ -402,6 +448,35 @@ class App(tk.Tk):
                      guardar('max_seguidas')).pack(anchor='w', pady=2)
         self._numero(abajo, 'Permanencia de este docente (horas, 0 = la regla general):', r.get('permanencia') or 0, 0, 14,
                      guardar('permanencia'), 0.5).pack(anchor='w')
+        var_libre = tk.BooleanVar(value=bool(r.get('dia_libre')))
+        ttk.Checkbutton(abajo, text='Pide un día sin clases a la semana (si se puede)', variable=var_libre,
+                        command=lambda: r.__setitem__('dia_libre', var_libre.get())).pack(anchor='w', pady=(4, 0))
+
+    def _ver_curso(self, c):
+        ttk.Label(self.panel_doc, text=f'Curso {c["nombre"]}', style='Titulo.TLabel').pack(anchor='w')
+        ttk.Label(self.panel_doc, text='Marque en rojo las horas en que este curso NO tiene clase (sale temprano, '
+                                       'actividad fija, etc.). El generador no le pondrá clases ahí.',
+                  style='Ayuda.TLabel', wraplength=700).pack(anchor='w', pady=(4, 6))
+        jid = self.p.datos.jornada_de_curso[c['id']]
+        j = self.p.datos.jornadas[jid]
+        g = tk.Frame(self.panel_doc)
+        g.pack(anchor='w')
+        for col, dia in enumerate(j['dias'], start=1):
+            tk.Label(g, text=nucleo.DIAS[dia], width=11).grid(row=0, column=col)
+        for fila, fr in enumerate(self.p.datos.franjas_de(jid), start=1):
+            tk.Label(g, text=fr['inicio'], width=7, anchor='e').grid(row=fila, column=0, padx=4)
+            for col, dia in enumerate(j['dias'], start=1):
+                if fr['descanso']:
+                    tk.Label(g, text='descanso', fg='#999', width=11).grid(row=fila, column=col)
+                    continue
+                no = self.p.celda_curso(c['id'], dia, fr['id'])
+                b = tk.Button(g, width=10, relief='flat', bg=ROJO if no else VERDE, text='Sin clase' if no else '')
+                b.configure(command=lambda b=b, dia=dia, fid=fr['id']: self._celda_curso(c['id'], dia, fid, b))
+                b.grid(row=fila, column=col, padx=1, pady=1)
+
+    def _celda_curso(self, cid, dia, fid, boton):
+        no = self.p.alternar_celda_curso(cid, dia, fid)
+        boton.configure(bg=ROJO if no else VERDE, text='Sin clase' if no else '')
 
     def _celda_docente(self, did, dia, fid, boton):
         est = self.p.siguiente_estado(did, dia, fid)
@@ -571,10 +646,105 @@ class App(tk.Tk):
             del self.p.cond['simultaneas'][int(sel)]
             self._llenar_grupos()
 
-    # --- 5. Horario -----------------------------------------------------------
+    # --- 5. Otras tareas: actividades complementarias y descansos -------------
+    def tab_tareas(self):
+        f = ttk.Frame(self.nb, padding=10)
+        self.nb.add(f, text='5. Actividades y descansos')
+        act = ttk.LabelFrame(f, text='Actividades complementarias: atención a padres, planeación, proyectos… '
+                                     'Se ubican después de las clases, primero en los huecos de cada docente.', padding=6)
+        act.pack(fill='both', expand=True)
+        marco, self.tv_act = self._tabla(act, [('nombre', 'Actividad', 220), ('docentes', 'Docentes', 260),
+                                               ('horas', 'Horas/semana', 95), ('max', 'Máx./día', 70)], 6)
+        marco.pack(fill='both', expand=True)
+        bot = ttk.Frame(act)
+        bot.pack(fill='x', pady=4)
+        ttk.Button(bot, text='Nueva', command=self._nueva_actividad).pack(side='left')
+        ttk.Button(bot, text='Quitar', command=self._quitar_actividad).pack(side='left', padx=4)
+        des = ttk.LabelFrame(f, text='Acompañamiento de descansos: zonas (patio, tienda, baños…) y cuántos docentes '
+                                     'cuidan cada una. Se escogen docentes que tienen clase justo antes o después.', padding=6)
+        des.pack(fill='both', expand=True, pady=(8, 0))
+        ac = self.p.cond.setdefault('acompanamiento', {'zonas': [], 'max_semana': 2})
+        marco, self.tv_zon = self._tabla(des, [('zona', 'Zona', 260), ('cuantos', 'Docentes por descanso', 160)], 5)
+        marco.pack(fill='both', expand=True)
+        bot = ttk.Frame(des)
+        bot.pack(fill='x', pady=4)
+        ttk.Button(bot, text='Agregar zona', command=self._nueva_zona).pack(side='left')
+        ttk.Button(bot, text='Quitar', command=self._quitar_zona).pack(side='left', padx=4)
+        self._numero(bot, '   Máximo de turnos por docente a la semana:', ac.get('max_semana') or 2, 1, 15,
+                     lambda v: ac.__setitem__('max_semana', v)).pack(side='left')
+        self._llenar_tareas()
+
+    def _llenar_tareas(self):
+        D = self.p.datos
+        self.tv_act.delete(*self.tv_act.get_children())
+        for i, a in enumerate(self.p.cond['actividades']):
+            quienes = 'Todos' if not a.get('docentes') else ', '.join(D.nombre_docente(x) for x in a['docentes'][:4]) + (
+                f' y {len(a["docentes"]) - 4} más' if len(a['docentes']) > 4 else '')
+            self.tv_act.insert('', 'end', iid=str(i), values=(a.get('nombre'), quienes, a.get('horas'), a.get('max_dia') or 1))
+        self.tv_zon.delete(*self.tv_zon.get_children())
+        for i, z in enumerate(self.p.cond['acompanamiento']['zonas']):
+            self.tv_zon.insert('', 'end', iid=str(i), values=(z['nombre'], z.get('cuantos', 1)))
+
+    def _nueva_actividad(self):
+        D = self.p.datos
+        v = tk.Toplevel(self)
+        v.title('Actividad complementaria')
+        v.transient(self)
+        v.grab_set()
+        cuerpo = ttk.Frame(v, padding=12)
+        cuerpo.pack(fill='both', expand=True)
+        ttk.Label(cuerpo, text='Nombre (ej.: Atención a padres)').grid(row=0, column=0, sticky='w')
+        e = ttk.Entry(cuerpo, width=40)
+        e.insert(0, 'Atención a padres')
+        e.grid(row=0, column=1, sticky='w')
+        var_h, var_m = tk.IntVar(value=1), tk.IntVar(value=1)
+        ttk.Label(cuerpo, text='Horas a la semana').grid(row=1, column=0, sticky='w', pady=4)
+        ttk.Spinbox(cuerpo, from_=1, to=10, width=5, textvariable=var_h).grid(row=1, column=1, sticky='w')
+        ttk.Label(cuerpo, text='Máximo por día').grid(row=2, column=0, sticky='w')
+        ttk.Spinbox(cuerpo, from_=1, to=6, width=5, textvariable=var_m).grid(row=2, column=1, sticky='w')
+        ttk.Label(cuerpo, text='Docentes (ninguno escogido = todos)').grid(row=3, column=0, columnspan=2, sticky='w', pady=(8, 2))
+        docs = sorted(D.docentes.values(), key=lambda d: d['nombre'])
+        lb = tk.Listbox(cuerpo, selectmode='extended', height=12, width=50, exportselection=False)
+        for d in docs:
+            lb.insert('end', d['nombre'])
+        lb.grid(row=4, column=0, columnspan=2, sticky='we')
+
+        def aceptar():
+            try:
+                h, m = int(var_h.get()), int(var_m.get())
+            except (ValueError, tk.TclError):
+                h, m = 1, 1
+            self.p.cond['actividades'].append({'nombre': e.get().strip() or 'Actividad', 'horas': max(1, h),
+                                               'max_dia': max(1, m), 'docentes': [docs[k]['id'] for k in lb.curselection()]})
+            v.destroy()
+            self._llenar_tareas()
+        ttk.Button(cuerpo, text='Guardar', command=aceptar).grid(row=5, column=1, sticky='e', pady=8)
+
+    def _quitar_actividad(self):
+        sel = self.tv_act.focus()
+        if sel:
+            del self.p.cond['actividades'][int(sel)]
+            self._llenar_tareas()
+
+    def _nueva_zona(self):
+        n = simpledialog.askstring(TITULO, 'Nombre de la zona (ej.: Patio principal):', parent=self)
+        if not n or not n.strip():
+            return
+        k = simpledialog.askinteger(TITULO, '¿Cuántos docentes la cuidan en cada descanso?', initialvalue=1, minvalue=1,
+                                    maxvalue=10, parent=self) or 1
+        self.p.cond['acompanamiento']['zonas'].append({'nombre': n.strip(), 'cuantos': k})
+        self._llenar_tareas()
+
+    def _quitar_zona(self):
+        sel = self.tv_zon.focus()
+        if sel:
+            del self.p.cond['acompanamiento']['zonas'][int(sel)]
+            self._llenar_tareas()
+
+    # --- 6. Horario -----------------------------------------------------------
     def tab_horario(self):
         f = ttk.Frame(self.nb, padding=8)
-        self.nb.add(f, text='5. Horario')
+        self.nb.add(f, text='6. Horario')
         arriba = ttk.Frame(f)
         arriba.pack(fill='x')
         ttk.Button(arriba, text='📝 Horario en blanco (armar a mano)', command=self._en_blanco).pack(side='left')
@@ -619,7 +789,7 @@ class App(tk.Tk):
         self.cb_quien.pack(side='left', padx=6)
         self.cb_ver.bind('<<ComboboxSelected>>', lambda e: self._opciones_ver())
         self.cb_quien.bind('<<ComboboxSelected>>', lambda e: self._ver())
-        ttk.Label(sel, text='Arrastre las fichas. Clic derecho en una ficha: fijar o quitar. 🔒 = fijada.',
+        ttk.Label(sel, text='Arrastre las fichas (sobre otra del curso: intercambiar). Clic derecho: fijar o quitar. 🔒 = fijada.',
                   style='Ayuda.TLabel').pack(side='left', padx=8)
         abajo = ttk.Frame(der)
         abajo.pack(fill='both', expand=True, pady=4)
@@ -765,9 +935,14 @@ class App(tk.Tk):
             fila += 1
             for fr, celdas in t['filas']:
                 tk.Label(self.rejilla, text=f"{fr['inicio']}\n{fr['fin']}", bg=BLANCO, fg='#555', width=6).grid(row=fila, column=0)
-                if fr['descanso']:
+                if fr['descanso'] and not any(celdas):
                     tk.Label(self.rejilla, text=fr.get('etiqueta') or 'Descanso', bg=GRIS, fg='#888').grid(
                         row=fila, column=1, columnspan=len(t['dias']), sticky='nsew', padx=1, pady=1)
+                elif fr['descanso']:
+                    for c, xs in enumerate(celdas, start=1):
+                        texto = '\n'.join(f"{x['titulo']}" for x in xs) or (fr.get('etiqueta') or 'Descanso')
+                        tk.Label(self.rejilla, text=texto, bg=TURNO if xs else GRIS, fg='#0f172a' if xs else '#888',
+                                 font=('Segoe UI', 8)).grid(row=fila, column=c, sticky='nsew', padx=1, pady=1)
                 else:
                     for c, ((dia, _), xs) in enumerate(zip(t['dias'], celdas), start=1):
                         celda = tk.Frame(self.rejilla, bg=GRIS if not xs else BLANCO, width=150, height=48,
@@ -777,8 +952,9 @@ class App(tk.Tk):
                         celda.pack_propagate(False)
                         celda.destino = ('celda', dia, fr['id'])
                         for x in xs:
-                            color = REUNION if x.get('reunion') else (FIJA if x['fijada'] else SUELTA)
-                            texto = ('🔒 ' if x['fijada'] and not x.get('reunion') else '') + f"{x['titulo']}\n{x['sub']}"
+                            color = (REUNION if x.get('reunion') else ACTIVIDAD if x.get('actividad')
+                                     else FIJA if x['fijada'] else SUELTA)
+                            texto = ('🔒 ' if x.get('i') is not None and x['fijada'] else '') + f"{x['titulo']}\n{x['sub']}"
                             datos = {'tipo': 'puesta', 'i': x['i']} if editable and x.get('i') is not None else None
                             self._ficha(celda, texto, color, datos).pack(fill='both', expand=True)
                 fila += 1
@@ -799,6 +975,17 @@ class App(tk.Tk):
                 t.insert('end', '\nReuniones:\n')
                 for r in reus:
                     t.insert('end', f'  • {r}\n')
+            dif = self.p.texto_dificiles(alt)
+            if dif and alt.get('horas_sin_ubicar'):
+                t.insert('end', '\nLo que más costó ubicar (revise sus condiciones):\n')
+                for x in dif[:6]:
+                    t.insert('end', f'  • {x}\n')
+            if alt.get('actividades'):
+                t.insert('end', f"\nActividades complementarias ubicadas: {len(alt['actividades'])}\n")
+            if alt.get('acompanamientos'):
+                t.insert('end', f"Turnos de descanso repartidos: {len(alt['acompanamientos'])} (véalos por docente o en Excel)\n")
+            for x in (alt.get('avisos_extra') or [])[:8]:
+                t.insert('end', f'⚠ {x}\n')
             if alt.get('divididas'):
                 D = self.p.datos
                 t.insert('end', '\nBloques que se partieron porque no cabían:\n')
@@ -861,6 +1048,13 @@ class App(tk.Tk):
             motivo = self.p.poner_ficha(alt, datos['asig'], destino[1], destino[2])
         else:
             motivo = self.p.mover_ficha(alt, datos['i'], destino[1], destino[2])
+            if motivo and 'ya tiene' in motivo and messagebox.askyesno(
+                    TITULO, motivo + '\n\n¿Intercambiar las dos fichas de lugar?'):
+                motivo = self.p.intercambiar(alt, datos['i'], destino[1], destino[2])
+                if not motivo:
+                    self.avisar('✔ Fichas intercambiadas.')
+                    self._actualizar_fila()
+                    return self._ver()
         if motivo:
             self.avisar('✖ ' + motivo, error=True)
             self.bell()

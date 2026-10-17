@@ -1,0 +1,26 @@
+{% extends 'notas/base.html' %}
+{% block title %}{{ e.titulo }}{% endblock %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="mb-0"><i class="fas fa-calendar-days me-2" style="color:{{ e.color }}"></i>{{ e.titulo }}</h4>
+    <a href="{% url 'calendario:inicio' %}?ano={{ e.fecha.year }}&mes={{ e.fecha.month }}" class="btn btn-outline-secondary btn-sm">Volver al calendario</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'calendario/_estilos.html' %}
+<div class="ca-tarjeta" style="max-width:720px">
+    <p class="mb-1"><span class="badge" style="background:{{ e.color }}">{{ e.get_tipo_display }}</span>
+        <span class="badge bg-light text-dark border">{{ e.get_para_display }}</span>
+        {% for c in e.cursos.all %}<span class="badge bg-light text-dark border">{{ c.nombre }}</span>{% endfor %}</p>
+    <p class="fs-5 fw-semibold mb-1 text-capitalize">{{ cuando }}{% if e.hora_fin %} – {{ e.hora_fin|time:"H:i" }}{% endif %}</p>
+    {% if e.lugar %}<p class="mb-2"><i class="fas fa-location-dot me-1 text-muted"></i>{{ e.lugar }}</p>{% endif %}
+    {% if e.descripcion %}<div class="mb-3" style="white-space:pre-line">{{ e.descripcion }}</div>{% endif %}
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ google }}" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm"><i class="fab fa-google me-1"></i>Agregar a mi Google Calendar</a>
+        {% if puede_editar %}
+        <a href="{% url 'calendario:editar' e.pk %}" class="btn btn-primary btn-sm">Editar</a>
+        <form method="post" action="{% url 'calendario:eliminar' e.pk %}" onsubmit="return confirm('¿Eliminar este evento?')">{% csrf_token %}<button class="btn btn-outline-danger btn-sm">Eliminar</button></form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
