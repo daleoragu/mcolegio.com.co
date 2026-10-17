@@ -52,6 +52,7 @@ urlpatterns = [
     path('app/icono-<int:tam>.png', app_views.icono, name='app_icono'),
     path('sin-conexion/', app_views.sin_conexion, name='app_sin_conexion'),
     path('app/', app_views.inicio, name='app_inicio'),
+    path('app/revisar/', app_views.diagnostico, name='app_diagnostico'),
     path('', include('notas.urls', namespace='notas')),
 ]
 

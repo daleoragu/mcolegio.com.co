@@ -189,6 +189,11 @@ def sin_conexion(request):
     return render(request, 'notas/app/sin_conexion.html', {'colegio': getattr(request, 'colegio', None)})
 
 
+def diagnostico(request):
+    """Página para revisar desde el celular por qué no se deja instalar."""
+    return render(request, 'notas/app/diagnostico.html', {'colegio': getattr(request, 'colegio', None)})
+
+
 def inicio(request):
     """Lo que abre el icono: el panel si ya entró; si no, el portal con el ingreso."""
     if request.user.is_authenticated:
