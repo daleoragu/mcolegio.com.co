@@ -9,6 +9,8 @@ from django.views.generic.base import RedirectView # <-- 1. IMPORTACIÓN AÑADID
 from django.conf import settings
 from django.conf.urls.static import static
 
+from notas.views import app_views
+
 urlpatterns = [
     # 1. RUTA PARA EL PANEL DE ADMINISTRACIÓN NATIVO DE DJANGO
     path('super-admin/', admin.site.urls),
@@ -43,6 +45,12 @@ urlpatterns = [
 
     # 5. RUTAS DE TU APLICACIÓN "NOTAS"
     #    Esta línea incluye todas las URLs de tu archivo 'notas/urls.py'.
+    # App instalable (PWA): en la raíz, porque el service worker solo controla lo que está debajo de su dirección.
+    path('manifest.webmanifest', app_views.manifiesto, name='app_manifiesto'),
+    path('sw.js', app_views.service_worker, name='app_service_worker'),
+    path('app/icono-<int:tam>.png', app_views.icono, name='app_icono'),
+    path('sin-conexion/', app_views.sin_conexion, name='app_sin_conexion'),
+    path('app/', app_views.inicio, name='app_inicio'),
     path('', include('notas.urls', namespace='notas')),
 ]
 
