@@ -422,23 +422,98 @@ class Proyecto:
                         f'no puede tener también la {a if self._es_hora(otra, b) else b}.')
         return None
 
-    def poner_ficha(self, alt, aid, dia, fid):
+    def poner_ficha(self, alt, aid, dia, fid, fijar=True):
         m = self.motivo(alt, aid, dia, fid)
         if m:
             return m
         alt['sesiones'].append({'asignacion': aid, 'curso': self.datos.asignaciones[aid]['curso'], 'dia': dia,
-                                'franja': fid, 'fijada': True})
+                                'franja': fid, 'fijada': fijar})
         self.revisar(alt)
         return None
 
-    def mover_ficha(self, alt, i, dia, fid):
+    def mover_ficha(self, alt, i, dia, fid, fijar=True):
         s = alt['sesiones'][i]
         m = self.motivo(alt, s['asignacion'], dia, fid, ignorar=i)
         if m:
             return m
-        s.update(dia=dia, franja=fid, fijada=True)
+        s.update(dia=dia, franja=fid, fijada=fijar or s.get('fijada', False))
         self.revisar(alt)
         return None
+
+    # --- Colores al escoger una ficha: verde, amarillo, rojo -----------------------
+    def estorbos(self, alt, aid, dia, fid, ignorar=()):
+        """Índices de las fichas que ocupan ese lugar para esa clase (mismo curso a esa hora, o el
+        mismo docente en una hora que se cruza)."""
+        D = self.datos
+        a = D.asignaciones[aid]
+        if fid not in D.franjas:
+            return []
+        ini, fin = D.intervalo(fid)
+        out = []
+        for k, x in enumerate(alt['sesiones']):
+            if k in ignorar or x['dia'] != dia:
+                continue
+            b = D.asignaciones.get(x['asignacion'], {})
+            if b.get('curso') == a['curso'] and x['franja'] == fid:
+                out.append(k)
+            elif a.get('docente') and b.get('docente') == a['docente'] and x['franja'] in D.franjas:
+                y0, y1 = D.intervalo(x['franja'])
+                if y0 < fin and ini < y1:
+                    out.append(k)
+        return out
+
+    def destino(self, alt, aid, dia, fid, i=None):
+        """Qué pasa si la clase `aid` (o la ficha i) va a (dia, fid):
+
+        ('libre', '', [])           -> verde: cabe.
+        ('ocupado', texto, [k…])    -> amarillo: la ocupan fichas que se pueden quitar (reemplazar o intercambiar).
+        ('imposible', texto, [k…])  -> rojo: hay una ficha fijada 🔒 o una condición que no se puede romper.
+        """
+        D = self.datos
+        ign = {i} if i is not None else set()
+        m = self.motivo(alt, aid, dia, fid, ignorar=ign)
+        if not m:
+            return 'libre', '', []
+        est = self.estorbos(alt, aid, dia, fid, ign)
+        if not est:
+            return 'imposible', m, []
+        fijas = [k for k in est if alt['sesiones'][k].get('fijada')]
+        if fijas:
+            x = D.asignaciones[alt['sesiones'][fijas[0]]['asignacion']]
+            return 'imposible', (f'Ahí está {D.nombre_materia(x["materia"])} de {D.nombre_curso(x["curso"])} '
+                                 f'({D.nombre_docente(x.get("docente"))}), fijada 🔒.'), est
+        m2 = self.motivo(alt, aid, dia, fid, ignorar=ign | set(est))
+        if m2:
+            return 'imposible', m2, est
+        nombres = []
+        for k in est:
+            x = D.asignaciones[alt['sesiones'][k]['asignacion']]
+            nombres.append(f'{D.nombre_materia(x["materia"])} de {D.nombre_curso(x["curso"])} ({D.nombre_docente(x.get("docente"))})')
+        return 'ocupado', 'Ocupada por ' + ' y '.join(nombres) + '.', est
+
+    def mapa_destinos(self, alt, aid, i=None):
+        """{(dia, franja): estado} de todas las horas de clase, para pintar la cuadrícula."""
+        out = {}
+        for j in self.datos.jornadas.values():
+            for f in j['franjas']:
+                if f['descanso']:
+                    continue
+                for dia in j['dias']:
+                    out[(dia, f['id'])] = self.destino(alt, aid, dia, f['id'], i)[0]
+        return out
+
+    def reemplazar(self, alt, aid, dia, fid, i=None, fijar=True):
+        """Pone la clase en (dia, fid) y saca las fichas que estorban (vuelven a «por ubicar»)."""
+        estado, texto, est = self.destino(alt, aid, dia, fid, i)
+        if estado == 'imposible':
+            return texto
+        for k in sorted(est, reverse=True):
+            del alt['sesiones'][k]
+            if i is not None and k < i:
+                i -= 1
+        if i is None:
+            return self.poner_ficha(alt, aid, dia, fid, fijar)
+        return self.mover_ficha(alt, i, dia, fid, fijar)
 
     def intercambiar(self, alt, i, dia, fid):
         """Mueve la ficha i a (dia, fid) y la que estorba ahí (del mismo curso o del mismo docente)

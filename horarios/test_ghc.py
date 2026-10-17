@@ -228,3 +228,23 @@ class IdeasDeGHC(SimpleTestCase):
         # A mano: la primera hora del martes no se deja poner al docente 1
         blanco = p.en_blanco()
         self.assertTrue(p.poner_ficha(blanco, 11, 2, f[0]['id']))
+
+    def test_colores_al_escoger_y_reemplazar(self):
+        D = datos()
+        p = proyecto(D)
+        alt = p.en_blanco()
+        f = [x['id'] for x in D.franjas_de(1) if not x['descanso']]
+        self.assertIsNone(p.poner_ficha(alt, 11, 1, f[0], fijar=False))      # curso 1, docente 1
+        self.assertIsNone(p.poner_ficha(alt, 12, 1, f[1], fijar=True))       # curso 1, docente 2, fijada
+        mapa = p.mapa_destinos(alt, 13)                                        # curso 1, docente 3
+        self.assertEqual(mapa[(1, f[0])], 'ocupado')                           # amarillo: se puede reemplazar
+        self.assertEqual(mapa[(1, f[1])], 'imposible')                         # rojo: está fijada
+        self.assertEqual(mapa[(1, f[2])], 'libre')
+        estado, texto, _ = p.destino(alt, 13, 1, f[1])
+        self.assertIn('fijada', texto)
+        # Ocupado por el mismo docente en otro curso también es amarillo
+        self.assertEqual(p.mapa_destinos(alt, 21)[(1, f[0])], 'ocupado')    # curso 2, docente 1
+        self.assertIsNone(p.reemplazar(alt, 13, 1, f[0], fijar=False))
+        self.assertEqual(sorted(s['asignacion'] for s in alt['sesiones']), [12, 13])
+        self.assertEqual(dict((a['id'], n) for a, n in p.pendientes(alt, 1))[11], 6)
+        self.assertIn('fijada', p.reemplazar(alt, 11, 1, f[1]))

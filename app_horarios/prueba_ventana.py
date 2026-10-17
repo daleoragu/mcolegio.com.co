@@ -25,6 +25,7 @@ def prueba():
     g.messagebox.showwarning = lambda *a, **k: print('aviso:', a[1:])
     g.messagebox.showinfo = lambda *a, **k: print('info:', a[1:])
     g.messagebox.askyesno = lambda *a, **k: True
+    g.messagebox.askyesnocancel = lambda *a, **k: True
 
     app = g.App()
     app.withdraw()
@@ -101,9 +102,32 @@ def prueba():
     assert len(alt['sesiones']) == 1, alt['sesiones']
     app.soltar({'tipo': 'puesta', 'i': 0}, ('celda', jc['dias'][2], clase[1]['id']))
     assert alt['sesiones'][0]['dia'] == jc['dias'][2]
-    app.soltar({'tipo': 'nueva', 'asig': pend[0][0]['id']}, ('celda', jc['dias'][2], clase[1]['id']))   # ocupada
-    assert 'ya tiene' in app.estado.cget('text'), app.estado.cget('text')
+    # Colores al escoger una ficha: verde libre, amarillo ocupada (se puede reemplazar), rojo no se puede
+    otra = pend[1][0]['id'] if len(pend) > 1 else pend[0][0]['id']
+    app.escoger({'tipo': 'nueva', 'asig': otra})
+    assert app._mapa[(jc['dias'][2], clase[1]['id'])] == 'ocupado', app._mapa[(jc['dias'][2], clase[1]['id'])]
+    assert 'libre' in app._mapa.values()
     assert app.rejilla.winfo_children()
+    app.tocar_celda(('celda', jc['dias'][3], clase[2]['id']))         # tocar una casilla con la ficha escogida
+    assert len(alt['sesiones']) == 2, alt['sesiones']
+    # Amarillo: reemplazar (la que estaba vuelve a «por ubicar»)
+    app.soltar({'tipo': 'nueva', 'asig': otra}, ('celda', jc['dias'][2], clase[1]['id']))
+    assert 'reemplazada' in app.estado.cget('text') or 'intercambiadas' in app.estado.cget('text'), app.estado.cget('text')
+    # Rojo: si la ficha está fijada 🔒 no se puede
+    k = next(k for k, x in enumerate(alt['sesiones']) if x['dia'] == jc['dias'][2] and x['franja'] == clase[1]['id'])
+    p.alternar_fijada(alt, k) if not alt['sesiones'][k].get('fijada') else None
+    app.escoger({'tipo': 'nueva', 'asig': pend[0][0]['id']})
+    assert app._mapa[(jc['dias'][2], clase[1]['id'])] == 'imposible'
+    app.soltar({'tipo': 'nueva', 'asig': pend[0][0]['id']}, ('celda', jc['dias'][2], clase[1]['id']))
+    assert 'fijada' in app.estado.cget('text'), app.estado.cget('text')
+    # Varias pestañas y una ventana aparte: todas muestran el mismo horario
+    v2 = app.nueva_pestana(tipo=1)
+    v3 = app.nueva_ventana()
+    assert len(app.vistas) == 3 and v2.rejilla.winfo_children() and v3.rejilla.winfo_children()
+    app.escoger({'tipo': 'nueva', 'asig': pend[0][0]['id']})
+    app.cerrar_vista(v2)
+    assert len(app.vistas) == 2
+    app.quitar_seleccion()
     nuevo = p.completar(alt, segundos=8)
     app._llenar_alternativas()
     app.update()

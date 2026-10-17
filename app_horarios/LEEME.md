@@ -30,3 +30,9 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 
 - **«Si tiene la 7.ª no tiene la 1.ª»** (pestaña 2): si un docente tiene la hora B un día, no tiene la hora A ese mismo día (dentro de la misma jornada). Puede ser obligatoria o «si se puede», y en la pestaña 3 se puede quitar a un docente en particular. Si la jornada tiene menos horas, la «7.ª» es la última.
 - **Las reuniones de área cuentan dentro de la permanencia** y para esa regla: un docente con reunión a la última hora no queda con clase a la primera, y sus clases de ese día caben con la reunión dentro de sus horas de permanencia.
+
+## Versión 2.3
+
+- **Colores al escoger una ficha**: verde = libre; amarillo = ocupada por otra clase que se puede quitar (reemplazar, y la otra vuelve a «Fichas por ubicar», o intercambiar); rojo = no se puede (hay una ficha fijada 🔒 o una condición que no se rompe). Con la ficha escogida basta tocar una casilla verde para ponerla.
+- **Varias pestañas** («➕ Otra pestaña») y **ventanas aparte** («🗗 Abrir en ventana aparte») para ver al tiempo cursos y docentes; todas muestran el mismo horario y se actualizan juntas.
+- «Fijar 🔒 lo que ubico a mano» es ahora una casilla (apagada al empezar): así lo que se arma a mano se puede reemplazar sin quitar candados uno por uno.
