@@ -390,7 +390,8 @@ class Proyecto:
                         return f'No le da tiempo de pasar de {otra} a {sede} ({despl} min).'
         regla = self.regla(a['materia'])
         tope = int(regla.get('max_dia') or self.cond.get('max_por_dia') or 2)
-        partes = nucleo.patron(self.asig(aid).get('bloques')) or nucleo.patron(regla.get('bloques')) or [1]
+        partes = (nucleo.patron(self.asig(aid).get('bloques')) or nucleo.patron(regla.get('bloques'))
+                  or nucleo.bloques_por_defecto(self.cond, D.ih(aid, self.cond)) or [1])
         tope = max(tope, max(partes))
         ese_dia = sum(1 for s in otras if s['dia'] == dia and D.asignaciones.get(s['asignacion'], {}).get('curso') == a['curso']
                       and D.asignaciones.get(s['asignacion'], {}).get('materia') == a['materia'])

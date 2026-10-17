@@ -53,7 +53,10 @@ def condiciones_vacias():
             'actividades': [],           # [{'nombre', 'docentes': [did] (vacío = todos), 'horas', 'max_dia'}]
             'acompanamiento': {'zonas': [], 'max_semana': 2},   # turnos en los descansos
             # Si el docente tiene la hora «b» no tiene la hora «a» el mismo día (ej.: la 7.ª y la 1.ª)
-            'excluyente': {'activa': False, 'a': 1, 'b': 7, 'obligatoria': True}}
+            'excluyente': {'activa': False, 'a': 1, 'b': 7, 'obligatoria': True},
+            # Prioridad a los bloques: las materias de N horas o más van en bloques de 2 horas seguidas
+            # (2+2+1…) si la materia no tiene sus propios bloques. Si un bloque no cabe, se parte.
+            'bloques_general': {'activa': False, 'desde': 2}}
 
 
 # Los criterios que el coordinador puede subir o bajar (de 0 a 10; 5 = normal).
@@ -68,7 +71,22 @@ CRITERIOS = [
     ('tarde', 'Poner temprano las materias marcadas «primeras horas»'),
     ('ultima', 'Sacar de la última hora las materias marcadas'),
     ('excluyente', 'Evitar que un docente tenga la primera y la última hora el mismo día (si es preferencia)'),
+    ('bloque', 'Que las horas de una materia el mismo día queden seguidas (bloques)'),
 ]
+
+
+def bloques_por_defecto(cond, ih):
+    """[2, 2, 1…] si está activa la prioridad a los bloques y la materia tiene suficientes horas."""
+    g = cond.get('bloques_general') or {}
+    if not g.get('activa'):
+        return None
+    try:
+        desde = max(2, int(g.get('desde') or 2))
+    except (TypeError, ValueError):
+        desde = 2
+    if ih < desde:
+        return None
+    return [2] * (ih // 2) + [1] * (ih % 2)
 
 
 def regla_excluyente(cond):
@@ -482,6 +500,8 @@ def armar(datos, cond):
         if partes is None and regla.get('doble'):
             ih = D.ih(a['id'], cond)
             partes = [2] * (ih // 2) + [1] * (ih % 2)
+        if partes is None:
+            partes = bloques_por_defecto(cond, D.ih(a['id'], cond))
         return ajustar(partes or [1] * n, n) if n else []
 
     fijas = []
