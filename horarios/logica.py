@@ -17,6 +17,19 @@ def destinatarios(horario):
     return docentes, estudiantes
 
 
+def vincular(horario):
+    """Las clases que se armaron sin docente se amarran a la asignación académica si ya existe
+    (mismo curso y materia, un solo docente). Devuelve cuántas se amarraron."""
+    from notas.models import AsignacionDocente
+    n = 0
+    for s in Sesion.objects.filter(horario=horario, asignacion__isnull=True, materia__isnull=False):
+        asig = list(AsignacionDocente.objects.filter(colegio=horario.colegio, curso_id=s.curso_id, materia_id=s.materia_id)[:2])
+        if len(asig) == 1:
+            Sesion.objects.filter(pk=s.pk).update(asignacion=asig[0])
+            n += 1
+    return n
+
+
 def publicar(horario, url_mi_horario):
     """Lo deja como el horario oficial (archiva el anterior) y avisa. Devuelve cuántos avisos."""
     colegio = horario.colegio

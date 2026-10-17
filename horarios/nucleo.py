@@ -139,6 +139,84 @@ def patron(texto):
     return partes if partes and all(1 <= x <= 4 for x in partes) else None
 
 
+def siguientes(datos):
+    """{franja: la franja de clase que sigue sin descanso en medio}."""
+    sig = {}
+    for jid in datos.jornadas:
+        lst = datos.franjas_de(jid)
+        for a, b in zip(lst, lst[1:]):
+            if not a['descanso'] and not b['descanso']:
+                sig[a['id']] = b['id']
+    return sig
+
+
+def corridas(posiciones, sig):
+    """[(dia, franja)…] de una misma clase -> largos de los tramos seguidos ([2, 1]…)."""
+    por_dia = defaultdict(set)
+    for d, f in posiciones:
+        por_dia[d].add(f)
+    out = []
+    ant = {b: a for a, b in sig.items()}
+    for fs in por_dia.values():
+        for f in fs:
+            if ant.get(f) in fs:
+                continue
+            n, x = 0, f
+            while x in fs:
+                n += 1
+                x = sig.get(x)
+            out.append(n)
+    return out
+
+
+def restar_corridas(partes, ya):
+    """Quita del patrón de bloques lo que ya está puesto, sin importar el orden.
+
+    Ej.: patrón 2+1 y ya hay una hora suelta -> falta el bloque de 2; ya hay un bloque de 2 ->
+    falta la hora suelta. Si lo puesto no coincide con ningún bloque, se descuenta de uno más
+    grande (que queda más corto)."""
+    quedan = sorted(partes, reverse=True)
+    for largo in sorted(ya, reverse=True):
+        while largo > 0 and quedan:
+            if largo in quedan:
+                quedan.remove(largo)
+                largo = 0
+            else:
+                mayores = [p for p in quedan if p > largo]
+                if mayores:
+                    p = min(mayores)
+                    quedan.remove(p)
+                    quedan.append(p - largo)
+                    largo = 0
+                else:
+                    p = max(quedan)
+                    quedan.remove(p)
+                    largo -= p
+    return sorted(quedan, reverse=True)
+
+
+def partes_completas(datos, cond, a):
+    """El patrón de bloques de una clase para toda su intensidad (sin contar lo ya puesto)."""
+    mat = cond.get('materias', {})
+    asg = cond.get('asignaciones', {})
+    ih = datos.ih(a['id'], cond)
+    regla = mat.get(str(a['materia']), {})
+    propia = asg.get(str(a['id']), {})
+    partes = patron(propia.get('bloques')) or patron(regla.get('bloques'))
+    if partes is None and regla.get('doble'):
+        partes = [2] * (ih // 2) + [1] * (ih % 2)
+    if partes is None:
+        partes = bloques_por_defecto(cond, ih)
+    return ajustar(partes or [1] * ih, ih) if ih else []
+
+
+def bloques_automaticos(ih):
+    """'2+2+1' para 5 horas, '2+1' para 3, '2' para 2; '' para 1 hora."""
+    if ih < 2:
+        return ''
+    return '+'.join(str(x) for x in [2] * (ih // 2) + [1] * (ih % 2))
+
+
 def ajustar(partes, total):
     """Recorta o completa un patrón de bloques para que sume `total`."""
     out, resto = [], total
@@ -487,25 +565,16 @@ def armar(datos, cond):
         return e if e in espacios else ''
 
     def doc_de(a):
-        return a.get('docente') or -a['id']        # sin docente: no choca con nadie
+        # Sin docente: un número propio (negativo y que no se repite) para que no choque con nadie.
+        return a.get('docente') or -(10 ** 9 + abs(a['id']))
 
     def parte(a):
         return {'curso': a['curso'], 'docente': doc_de(a), 'materia': a['materia'],
                 'sede': D.sede_de_curso(a['curso']), 'asig': a['id']}
 
-    def partes_de(a, n):
-        regla = mat.get(str(a['materia']), {})
-        propia = asg.get(str(a['id']), {})
-        partes = patron(propia.get('bloques')) or patron(regla.get('bloques'))
-        if partes is None and regla.get('doble'):
-            ih = D.ih(a['id'], cond)
-            partes = [2] * (ih // 2) + [1] * (ih % 2)
-        if partes is None:
-            partes = bloques_por_defecto(cond, D.ih(a['id'], cond))
-        return ajustar(partes or [1] * n, n) if n else []
-
     fijas = []
     usadas = defaultdict(int)
+    puestas = defaultdict(list)
     for fx in cond.get('fijas', []):
         a = D.asignaciones.get(int(fx['asignacion']))
         if not a:
@@ -513,6 +582,16 @@ def armar(datos, cond):
         fijas.append(dict(parte(a), asig=a['id'], dia=int(fx['dia']), franja=int(fx['franja']),
                           extra=bool(asg.get(str(a['id']), {}).get('extra')), espacio=espacio_de(a)))
         usadas[a['id']] += 1
+        puestas[a['id']].append((int(fx['dia']), int(fx['franja'])))
+
+    def partes_de(a, n):
+        """Los bloques que faltan por ubicar. El orden no importa: si ya está puesta la hora suelta
+        falta el bloque, y si ya está el bloque falta la hora suelta."""
+        if not n:
+            return []
+        completas = partes_completas(D, cond, a)
+        faltan = restar_corridas(completas, corridas(puestas.get(a['id'], []), siguiente))
+        return ajustar(faltan or [1] * n, n)
     unidades = []
     max_materia_dia = {}
     restantes = {}
@@ -521,7 +600,7 @@ def armar(datos, cond):
             restantes[a['id']] = max(0, D.ih(a['id'], cond) - usadas[a['id']])
             regla = mat.get(str(a['materia']), {})
             tope = int(regla.get('max_dia') or defecto)
-            partes = partes_de(a, D.ih(a['id'], cond))
+            partes = partes_completas(D, cond, a)
             max_materia_dia[(a['curso'], a['materia'])] = max(tope, max(partes or [1]))
             if any(x > 1 for x in partes):
                 dobles.add(a['materia'])

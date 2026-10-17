@@ -42,6 +42,9 @@ def prueba():
     p.asig(a0)['bloques'] = '2+1'
     app._llenar_datos()
     assert app.tv_asig.get_children()
+    # Botón de dividir en bloques automáticamente
+    app._dividir_bloques()
+    assert any(p.asig(x).get('bloques') for x in D.asignaciones), 'no dividió ninguna clase'
     # 2. Reglas
     p.cond['permanencia_horas'] = 6
     p.cond['espacios'].append({'nombre': 'Sala de sistemas', 'capacidad': 1})
@@ -124,6 +127,21 @@ def prueba():
     assert app._mapa[(jc['dias'][2], clase[1]['id'])] == 'imposible'
     app.soltar({'tipo': 'nueva', 'asig': pend[0][0]['id']}, ('celda', jc['dias'][2], clase[1]['id']))
     assert 'fijada' in app.estado.cget('text'), app.estado.cget('text')
+    # Ficha de bloque de 2 horas: se ubica completa, en cualquier orden respecto a la hora suelta
+    con_bloque = next((x for x, _ in p.pendientes(alt, cid) if 2 in p.piezas_pendientes(alt, x['id'])), None)
+    if con_bloque:
+        app.escoger({'tipo': 'nueva', 'asig': con_bloque['id'], 'largo': 2})
+        inicio = next(((d, f) for (d, f), e in app._mapa.items() if e == 'libre'), None)
+        if inicio:
+            antes_b = len(alt['sesiones'])
+            app.soltar({'tipo': 'nueva', 'asig': con_bloque['id'], 'largo': 2}, ('celda', inicio[0], inicio[1]))
+            print('bloque:', app.estado.cget('text'))
+            assert len(alt['sesiones']) == antes_b + 2, app.estado.cget('text')
+    # «Ubicar de a una hora» (lo que hace el menú del clic derecho; el menú no se abre en la prueba
+    # porque en Windows se queda esperando un clic)
+    app.sueltas.add(pend[0][0]['id'])
+    app._ver()
+    app.sueltas.discard(pend[0][0]['id'])
     # Varias pestañas y una ventana aparte: todas muestran el mismo horario
     v2 = app.nueva_pestana(tipo=1)
     v3 = app.nueva_ventana()
