@@ -55,3 +55,10 @@ class AppInstalable(ColegioDePrueba):
             self.assertIn('rel="manifest" href="/manifest.webmanifest"', html)
             self.assertIn("navigator.serviceWorker.register('/sw.js')", html)
         self.assertIn('Instalar la app en el celular', self.cliente(self.rectora).get('/panel-administrador/').content.decode())
+
+    def test_icono_nunca_falla(self):
+        from unittest import mock
+        with mock.patch('notas.views.app_views._png_icono', side_effect=OSError('Spaces caído')):
+            r = self.cliente().get('/app/icono-192.png')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Image.open(io.BytesIO(r.content)).size, (192, 192))
