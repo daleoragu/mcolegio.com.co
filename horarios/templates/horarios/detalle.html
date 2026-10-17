@@ -13,6 +13,7 @@
 {% block content %}
 {% include 'horarios/_estilos.html' %}
 {% if choques %}<div class="alert alert-danger"><strong>{{ choques|length }} choque{{ choques|length|pluralize }}:</strong><ul class="mb-0 small">{% for c in choques|slice:":15" %}<li>{{ c }}</li>{% endfor %}</ul></div>{% endif %}
+{% if sin_docente %}<div class="alert alert-info small"><strong>{{ sin_docente|length }} materia(s) sin docente</strong> en este horario: {% for c, m in sin_docente|slice:":20" %}{{ m }} {{ c }}{% if not forloop.last %}, {% endif %}{% endfor %}. Cuando les asigne docente en la asignación académica, las clases se amarran solas.</div>{% endif %}
 {% if n_faltan %}<div class="alert alert-warning small"><strong>Faltan horas por ubicar ({{ n_faltan }}):</strong> {% for m, c, n in faltan %}{{ m }} {{ c }} ({{ n }}){% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
 <div class="row g-3">
 <div class="col-lg-9">

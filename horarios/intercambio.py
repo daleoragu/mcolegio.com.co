@@ -13,7 +13,7 @@ from django.utils import timezone
 from notas.models import AsignacionDocente, Curso, Docente, Materia, PonderacionAreaMateria
 
 from . import nucleo
-from .models import Franja, Horario, Jornada, Sesion
+from .models import Franja, Horario, Jornada, PlanHoras, Sesion
 
 
 def _firma(colegio_id, exportado):
@@ -21,12 +21,38 @@ def _firma(colegio_id, exportado):
     return hmac.new(settings.SECRET_KEY.encode(), msg, hashlib.sha256).hexdigest()[:32]
 
 
-def datos_del_colegio(colegio, con_firma=True):
-    """El contenido del archivo de datos (.mch), como diccionario."""
+def planes_sin_docente(colegio, cursos=None):
+    """Las materias con intensidad horaria pero sin docente (PlanHoras sin asignación académica).
+
+    En el archivo de datos van como asignaciones con id NEGATIVO (-id del plan) y sin docente."""
+    con_asig = set(AsignacionDocente.objects.filter(colegio=colegio).values_list('curso_id', 'materia_id'))
+    qs = PlanHoras.objects.filter(colegio=colegio, horas__gt=0).select_related('materia', 'curso')
+    if cursos is not None:
+        qs = qs.filter(curso_id__in=cursos)
+    return [p for p in qs if (p.curso_id, p.materia_id) not in con_asig]
+
+
+def clave_sesion(s, planes=None):
+    """El id con que el generador conoce la clase: la asignación o, sin docente, -id del plan."""
+    if s.asignacion_id:
+        return s.asignacion_id
+    return (planes or {}).get((s.curso_id, s.materia_id), 0)
+
+
+def mapa_planes(colegio):
+    return {(p.curso_id, p.materia_id): -p.id for p in PlanHoras.objects.filter(colegio=colegio)}
+
+
+def datos_del_colegio(colegio, con_firma=True, sin_docente=True):
+    """El contenido del archivo de datos (.mch), como diccionario.
+
+    sin_docente: incluye también las materias que tienen intensidad horaria pero todavía no
+    tienen docente (se arman igual; el docente se pone después)."""
     jornadas = list(Jornada.objects.filter(colegio=colegio).prefetch_related('franjas', 'cursos'))
     cursos_en_jornada = {c.id for j in jornadas for c in j.cursos.all()}
     asignaciones = list(AsignacionDocente.objects.filter(colegio=colegio, curso_id__in=cursos_en_jornada)
                         .select_related('materia', 'docente__user', 'curso'))
+    planes = planes_sin_docente(colegio, cursos_en_jornada) if sin_docente else []
     exportado = timezone.now().isoformat(timespec='seconds')
     areas = dict(PonderacionAreaMateria.objects.filter(colegio=colegio).values_list('materia_id', 'area__nombre'))
     d = {
@@ -44,9 +70,12 @@ def datos_del_colegio(colegio, con_firma=True):
         'docentes': [{'id': x.id, 'nombre': x.user.get_full_name() or x.user.username}
                      for x in Docente.objects.filter(colegio=colegio).select_related('user')],
         'materias': [{'id': m.id, 'nombre': m.nombre, 'abreviatura': m.abreviatura or '', 'area': areas.get(m.id, '')}
-                     for m in Materia.objects.filter(id__in={a.materia_id for a in asignaciones}).order_by('nombre')],
+                     for m in Materia.objects.filter(id__in={a.materia_id for a in asignaciones} |
+                                                     {p.materia_id for p in planes}).order_by('nombre')],
         'asignaciones': [{'id': a.id, 'curso': a.curso_id, 'materia': a.materia_id, 'docente': a.docente_id,
-                          'ih': a.intensidad_horaria_semanal} for a in asignaciones],
+                          'ih': a.intensidad_horaria_semanal} for a in asignaciones] +
+                        [{'id': -p.id, 'curso': p.curso_id, 'materia': p.materia_id, 'docente': None, 'ih': p.horas}
+                         for p in planes],
     }
     d['disponibilidad'] = disponibilidad_para_archivo(colegio, jornadas)
     if con_firma:
@@ -68,21 +97,31 @@ def disponibilidad_para_archivo(colegio, jornadas=None):
     return out
 
 
-def archivo_datos(colegio):
-    return json.dumps(datos_del_colegio(colegio), ensure_ascii=False, indent=1).encode('utf-8')
+def archivo_datos(colegio, sin_docente=True):
+    return json.dumps(datos_del_colegio(colegio, sin_docente=sin_docente), ensure_ascii=False, indent=1).encode('utf-8')
 
 
 # ---------------------------------------------------------------------------
 # Importar
 # ---------------------------------------------------------------------------
 def _crear(colegio, nombre, origen, filas, informe):
-    """filas: [(asignacion_id, dia, franja_id)] ya validadas."""
-    asignaciones = {a.id: a for a in AsignacionDocente.objects.filter(colegio=colegio, id__in={f[0] for f in filas})}
+    """filas: [(id, dia, franja_id)] ya validadas. id > 0 es una asignación; id < 0 es una materia
+    sin docente (-id del PlanHoras)."""
+    asignaciones = {a.id: a for a in AsignacionDocente.objects.filter(colegio=colegio, id__in={f[0] for f in filas if f[0] > 0})}
+    planes = {-p.id: p for p in PlanHoras.objects.filter(colegio=colegio, id__in={-f[0] for f in filas if f[0] < 0})}
+    nuevas = []
+    for a, d, f in filas:
+        if a in asignaciones:
+            x = asignaciones[a]
+            nuevas.append(Sesion(curso_id=x.curso_id, asignacion_id=a, materia_id=x.materia_id, dia=d, franja_id=f))
+        elif a in planes:
+            x = planes[a]
+            nuevas.append(Sesion(curso_id=x.curso_id, asignacion=None, materia_id=x.materia_id, dia=d, franja_id=f))
     with transaction.atomic():
         h = Horario.objects.create(colegio=colegio, nombre=nombre[:80], origen=origen, informe=informe)
-        Sesion.objects.bulk_create([Sesion(horario=h, curso_id=asignaciones[a].curso_id, asignacion_id=a, dia=d,
-                                           franja_id=f) for a, d, f in filas if a in asignaciones],
-                                   ignore_conflicts=True)
+        for x in nuevas:
+            x.horario = h
+        Sesion.objects.bulk_create(nuevas, ignore_conflicts=True)
     return h
 
 
@@ -153,6 +192,13 @@ def importar_excel(archivo, colegio):
         clase = [f for f in sorted(j.franjas.all(), key=lambda x: (x.orden, x.inicio)) if not f.descanso]
         for c in j.cursos.all():
             jornada_de[c.id] = clase
+    materias = {}
+    for m in Materia.objects.filter(colegio=colegio):
+        materias.setdefault(_norm(m.nombre), m)
+        if m.abreviatura:
+            materias.setdefault(_norm(m.abreviatura), m)
+    planes = {(p.curso_id, p.materia_id): p for p in PlanHoras.objects.filter(colegio=colegio)}
+    sin_docente = {}
     asig = {}
     for a in AsignacionDocente.objects.filter(colegio=colegio).select_related('materia', 'docente__user'):
         asig.setdefault((a.curso_id, _norm(a.materia.nombre)), []).append(a)
@@ -191,9 +237,25 @@ def importar_excel(archivo, colegio):
         if len(candidatas) > 1 and v('docente'):
             candidatas = [a for a in candidatas if _norm(a.docente.user.get_full_name()) == _norm(v('docente'))] or candidatas
         if not candidatas:
-            errores.append(f'Fila {i}: {curso.nombre} no tiene la materia «{v("materia")}» en la asignación académica.')
+            # Sin docente: se arma igual con la materia (queda pendiente asignarle docente)
+            m = materias.get(_norm(v('materia')))
+            if not m:
+                errores.append(f'Fila {i}: no hay una materia «{v("materia")}» en el colegio.')
+                continue
+            sin_docente.setdefault((curso.id, m.id), []).append((dia, franja.id))
             continue
         validas.append((candidatas[0].id, dia, franja.id))
+    for (cid, mid), horas in sin_docente.items():
+        plan = planes.get((cid, mid))
+        if plan is None:
+            plan = PlanHoras.objects.create(colegio=colegio, curso_id=cid, materia_id=mid, horas=len(horas))
+        elif plan.horas < len(horas):
+            plan.horas = len(horas)
+            plan.save(update_fields=['horas'])
+        validas += [(-plan.id, d, f) for d, f in horas]
+    if sin_docente:
+        errores.insert(0, f'{len(sin_docente)} materia(s) entraron sin docente: asígnelo en la asignación académica '
+                          'y la clase se amarra sola.')
     if not validas:
         raise nucleo.ArchivoInvalido('No se pudo leer ninguna clase. ' + (errores[0] if errores else ''))
     actual = nucleo.Datos(datos_del_colegio(colegio, con_firma=False))

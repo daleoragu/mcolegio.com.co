@@ -487,7 +487,8 @@ def armar(datos, cond):
         return e if e in espacios else ''
 
     def doc_de(a):
-        return a.get('docente') or -a['id']        # sin docente: no choca con nadie
+        # Sin docente: un número propio (negativo y que no se repite) para que no choque con nadie.
+        return a.get('docente') or -(10 ** 9 + abs(a['id']))
 
     def parte(a):
         return {'curso': a['curso'], 'docente': doc_de(a), 'materia': a['materia'],

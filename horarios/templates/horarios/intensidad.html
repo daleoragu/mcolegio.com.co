@@ -1,0 +1,100 @@
+{% extends 'notas/base.html' %}
+{% block title %}Intensidad horaria por grado{% endblock %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0"><i class="fas fa-table me-2" style="color:#4338ca"></i>Intensidad horaria por grado</h4>
+        <p class="text-muted small mb-0">Horas a la semana de cada curso: si empatan con la jornada y entre los cursos del mismo grado</p></div>
+    <a href="{% url 'horarios:panel' %}" class="btn btn-outline-secondary btn-sm">Volver a Horarios</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'horarios/_estilos.html' %}
+<style>
+    .ih-tabla { width:100%; border-collapse:separate; border-spacing:0; font-size:.85rem; }
+    .ih-tabla th, .ih-tabla td { padding:4px 6px; border-bottom:1px solid #eef0f3; text-align:center; vertical-align:middle; }
+    .ih-tabla th:first-child, .ih-tabla td:first-child { text-align:left; }
+    .ih-tabla thead th { background:#f8fafc; font-size:.75rem; text-transform:uppercase; color:#475467; }
+    .ih-tabla input { width:56px; text-align:center; border:1px solid #d0d5dd; border-radius:6px; padding:2px; }
+    .ih-tabla input.plan { border-style:dashed; border-color:#a5b4fc; background:#f5f3ff; }
+    .ih-doc { display:block; font-size:.65rem; color:#667085; max-width:120px; margin:0 auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ih-total td { font-weight:700; background:#f8fafc; }
+    .ih-ok { color:#067647; } .ih-mal { color:#b42318; } .ih-ojo { color:#b45309; }
+    .ih-chip { display:inline-block; padding:1px 8px; border-radius:999px; font-size:.72rem; font-weight:600; }
+    .ih-chip.ok { background:#ecfdf3; color:#067647; } .ih-chip.mal { background:#fef3f2; color:#b42318; } .ih-chip.ojo { background:#fffaeb; color:#b45309; }
+    .ih-res { display:flex; flex-wrap:wrap; gap:6px; }
+    .ih-res div { border:1px solid #e5e7eb; border-radius:10px; padding:4px 10px; font-size:.8rem; }
+</style>
+{% if not grados %}<div class="ho-tarjeta"><p class="text-muted mb-0">No hay cursos todavía.</p></div>{% endif %}
+{% if grados and not hay_jornadas %}<div class="alert alert-warning small">Todavía no hay jornadas: cree la jornada con sus horas en Horarios para saber cuántas horas caben a la semana.</div>{% endif %}
+
+<div class="ho-tarjeta">
+    <h6 class="fw-bold mb-2">Resumen por grado</h6>
+    {% for g in grados %}
+    <div class="d-flex flex-wrap align-items-center gap-2 py-1 border-bottom">
+        <a href="#g{{ forloop.counter }}" class="fw-semibold" style="min-width:110px">{{ g.nombre }}</a>
+        <div class="ih-res">{% for r in g.resumen %}<div><strong>{{ r.curso.nombre }}</strong> {{ r.total }} h{% if r.cupo is not None %} / {{ r.cupo }}{% endif %}
+            {% if r.dif == 0 %}<span class="ih-ok">✔</span>{% elif r.dif is not None and r.dif < 0 %}<span class="ih-ojo">faltan {{ r.dif|stringformat:"d"|slice:"1:" }}</span>{% elif r.dif %}<span class="ih-mal">sobran {{ r.dif }}</span>{% endif %}</div>{% endfor %}</div>
+        {% if g.empata %}<span class="ih-chip ok">empata</span>{% elif not g.parejos %}<span class="ih-chip mal">los cursos no tienen las mismas horas</span>{% else %}<span class="ih-chip ojo">no llena la jornada</span>{% endif %}
+        {% if g.sin_docente %}<span class="ih-chip ojo">{{ g.sin_docente }} sin docente</span>{% endif %}
+    </div>
+    {% endfor %}
+    <p class="ho-ayuda mt-2 mb-0">«Total / horas de la jornada». Empata cuando cada curso tiene exactamente las horas de clase que caben en su semana.</p>
+</div>
+
+{% for g in grados %}
+<div class="ho-tarjeta" id="g{{ forloop.counter }}">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <h6 class="fw-bold mb-0">{{ g.nombre }}</h6>
+        {% if g.empata %}<span class="ih-chip ok">empata</span>{% elif not g.parejos %}<span class="ih-chip mal">los cursos no tienen las mismas horas</span>{% else %}<span class="ih-chip ojo">no llena la jornada</span>{% endif %}
+    </div>
+    <form method="post">{% csrf_token %}<input type="hidden" name="ancla" value="g{{ forloop.counter }}">
+    <div class="table-responsive"><table class="ih-tabla">
+        <thead><tr><th>Materia</th>{% for c in g.cursos %}<th>{{ c.nombre }}</th>{% endfor %}{% if g.cursos|length > 1 %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+        {% for f in g.filas %}<tr>
+            <td>{{ f.materia.nombre }}{% if not f.iguales %} <span class="ih-ojo" title="No todos los cursos del grado tienen las mismas horas">≠</span>{% endif %}</td>
+            {% for c in f.celdas %}<td>
+                {% if c.editable %}<input type="number" min="0" max="40" name="h_{{ c.curso.id }}_{{ f.materia.id }}" value="{{ c.horas }}" class="{% if c.tipo != 'asig' %}plan{% endif %}">
+                {% else %}<strong>{{ c.horas }}</strong>{% endif %}
+                <span class="ih-doc" title="{{ c.docente }}">{% if c.tipo == 'asig' %}{{ c.docente }}{% elif c.horas %}sin docente{% else %}&nbsp;{% endif %}</span>
+            </td>{% endfor %}
+            {% if g.cursos|length > 1 %}<td><button type="button" class="btn btn-link btn-sm p-0 ih-igual" title="Poner a todos los cursos del grado las horas del primero">= a todos</button></td>{% endif %}
+        </tr>{% endfor %}
+        <tr class="ih-total"><td>Total a la semana</td>{% for r in g.resumen %}<td>{{ r.total }}</td>{% endfor %}{% if g.cursos|length > 1 %}<td></td>{% endif %}</tr>
+        <tr><td class="text-muted">Horas de la jornada</td>{% for r in g.resumen %}<td class="text-muted">{% if r.cupo is not None %}{{ r.cupo }}{% else %}—{% endif %}</td>{% endfor %}{% if g.cursos|length > 1 %}<td></td>{% endif %}</tr>
+        <tr><td class="text-muted">Diferencia</td>{% for r in g.resumen %}<td>{% if r.dif == 0 %}<span class="ih-ok">✔ empata</span>{% elif r.dif is None %}—{% elif r.dif < 0 %}<span class="ih-ojo">faltan {{ r.dif|stringformat:"d"|slice:"1:" }}</span>{% else %}<span class="ih-mal">sobran {{ r.dif }}</span>{% endif %}</td>{% endfor %}{% if g.cursos|length > 1 %}<td></td>{% endif %}</tr>
+        </tbody>
+    </table></div>
+    <div class="d-flex gap-2 flex-wrap align-items-center mt-2">
+        <button class="btn btn-primary btn-sm">Guardar {{ g.nombre }}</button>
+        <span class="ho-ayuda">Recuadro punteado = materia sin docente todavía (se arma igual). Las que tienen docente cambian su intensidad en la asignación académica.</span>
+    </div>
+    </form>
+    <form method="post" class="d-flex gap-2 flex-wrap align-items-center mt-2 pt-2 border-top">{% csrf_token %}
+        <input type="hidden" name="accion" value="agregar"><input type="hidden" name="grado" value="{{ g.grado }}"><input type="hidden" name="ancla" value="g{{ forloop.counter }}">
+        <span class="small">Agregar una materia a todo el grado (sin docente):</span>
+        <select name="materia" class="form-select form-select-sm" style="max-width:240px" required><option value="">Materia…</option>{% for m in materias %}<option value="{{ m.id }}">{{ m.nombre }}</option>{% endfor %}</select>
+        <input type="number" name="horas" min="1" max="40" value="1" class="form-control form-control-sm" style="max-width:80px">
+        <span class="small">horas</span>
+        <button class="btn btn-outline-primary btn-sm">Agregar</button>
+    </form>
+</div>
+{% endfor %}
+
+{% if docentes %}
+<div class="ho-tarjeta">
+    <h6 class="fw-bold mb-2">Carga de los docentes (horas de clase a la semana)</h6>
+    <div class="ih-res">{% for d, n in docentes %}<div>{{ d }} · <strong>{{ n }} h</strong></div>{% endfor %}</div>
+</div>
+{% endif %}
+<script>
+document.querySelectorAll('.ih-igual').forEach(function (b) {
+    b.addEventListener('click', function () {
+        var ins = b.closest('tr').querySelectorAll('input[type=number]');
+        if (!ins.length) return;
+        var v = ins[0].value;
+        ins.forEach(function (i) { i.value = v; });
+    });
+});
+</script>
+{% endblock %}

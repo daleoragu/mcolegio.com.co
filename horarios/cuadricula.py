@@ -21,7 +21,7 @@ def _tabla(jornada, celdas):
 
 def sesiones(horario):
     return (Sesion.objects.filter(horario=horario)
-            .select_related('asignacion__materia', 'asignacion__docente__user', 'curso', 'franja'))
+            .select_related('asignacion__materia', 'asignacion__docente__user', 'materia', 'curso', 'franja'))
 
 
 def de_curso(horario, curso, todas=None):
@@ -32,9 +32,10 @@ def de_curso(horario, curso, todas=None):
     celdas = defaultdict(list)
     for s in todas:
         if s.curso_id == curso.id:
-            d = s.asignacion.docente
-            celdas[(s.dia, s.franja_id)].append({'titulo': s.asignacion.materia.nombre,
-                                                 'sub': d.user.get_full_name() if d else '', 'id': s.asignacion_id})
+            d = s.docente
+            celdas[(s.dia, s.franja_id)].append({'titulo': s.nombre_materia,
+                                                 'sub': d.user.get_full_name() if d else 'Sin docente',
+                                                 'id': s.asignacion_id, 'sin_docente': d is None})
     return _tabla(j, celdas)
 
 
@@ -46,7 +47,7 @@ def de_docente(horario, docente, todas=None):
         hay = False
         ids = {f.id for f in j.franjas.all()}
         for s in todas:
-            if s.asignacion.docente_id == docente.id and s.franja_id in ids:
+            if s.asignacion_id and s.asignacion.docente_id == docente.id and s.franja_id in ids:
                 celdas[(s.dia, s.franja_id)].append({'titulo': s.curso.nombre, 'sub': s.asignacion.materia.nombre,
                                                      'id': s.asignacion_id})
                 hay = True

@@ -78,14 +78,40 @@ class Horario(models.Model):
 
 
 class Sesion(models.Model):
+    """Una clase del horario. Si la materia todavía no tiene docente, `asignacion` queda vacía
+    y la clase se arma con la intensidad horaria del curso (PlanHoras); cuando se le asigne
+    docente en la asignación académica, la clase se amarra sola (ver logica.vincular)."""
     horario = models.ForeignKey(Horario, on_delete=models.CASCADE, related_name='sesiones')
     curso = models.ForeignKey(Curso, on_delete=models.CASCADE, related_name='+')
-    asignacion = models.ForeignKey(AsignacionDocente, on_delete=models.CASCADE, related_name='+')
+    asignacion = models.ForeignKey(AsignacionDocente, on_delete=models.CASCADE, related_name='+', null=True, blank=True)
+    materia = models.ForeignKey('notas.Materia', on_delete=models.CASCADE, related_name='+', null=True, blank=True)
     dia = models.PositiveSmallIntegerField(choices=DIAS)
     franja = models.ForeignKey(Franja, on_delete=models.CASCADE, related_name='+')
 
     class Meta:
         unique_together = ('horario', 'curso', 'dia', 'franja')
+
+    @property
+    def nombre_materia(self):
+        if self.asignacion_id:
+            return self.asignacion.materia.nombre
+        return self.materia.nombre if self.materia_id else ''
+
+    @property
+    def docente(self):
+        return self.asignacion.docente if self.asignacion_id else None
+
+
+class PlanHoras(models.Model):
+    """Intensidad horaria de una materia en un curso que todavía no tiene docente asignado.
+    Con esto el horario se puede armar «sin docente» desde la intensidad de cada curso."""
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='planes_horas')
+    curso = models.ForeignKey(Curso, on_delete=models.CASCADE, related_name='planes_horas')
+    materia = models.ForeignKey('notas.Materia', on_delete=models.CASCADE, related_name='planes_horas')
+    horas = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        unique_together = ('curso', 'materia')
 
 
 class AplicacionEscritorio(models.Model):

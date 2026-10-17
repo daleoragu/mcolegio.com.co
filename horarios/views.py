@@ -13,7 +13,7 @@ from notas.models import Curso, Docente
 from notas.modulos import esta_activo
 from notas.permisos import admin_requerido, es_admin
 
-from . import cuadricula, intercambio, logica, nucleo, reemplazos
+from . import cuadricula, intensidad, intercambio, logica, nucleo, reemplazos
 from .models import (DIAS, AplicacionEscritorio, ConfiguracionHorario, Disponibilidad, Franja, Horario, Jornada,
                      Reemplazo, Sesion)
 
@@ -143,7 +143,8 @@ def exportar_datos(request):
     if not Jornada.objects.filter(colegio=request.colegio, cursos__isnull=False).exists():
         messages.error(request, 'Primero cree las jornadas, sus horas de clase y asígneles los cursos.')
         return redirect('horarios:panel')
-    r = HttpResponse(intercambio.archivo_datos(request.colegio), content_type='application/json')
+    sin_docente = request.GET.get('sin_docente', '1') != '0'
+    r = HttpResponse(intercambio.archivo_datos(request.colegio, sin_docente=sin_docente), content_type='application/json')
     r['Content-Disposition'] = f'attachment; filename="datos_horario_{request.colegio.slug}_{timezone.localdate():%Y%m%d}.mch"'
     return r
 
@@ -204,15 +205,49 @@ def importar(request):
 
 
 # ---------------------------------------------------------------------------
+# Intensidad horaria por grado (para «empatar» y para armar sin docente)
+# ---------------------------------------------------------------------------
+@admin_requerido
+def intensidad_vista(request):
+    from notas.models import Materia
+    colegio = request.colegio
+    if request.method == 'POST':
+        if request.POST.get('accion') == 'agregar':
+            try:
+                g = request.POST.get('grado')
+                grado = int(g) if g not in (None, '', 'None') else None
+                n = intensidad.agregar_materia(colegio, grado, int(request.POST.get('materia') or 0),
+                                               int(request.POST.get('horas') or 0))
+                messages.success(request, f'Materia agregada a {n} curso(s) del grado (sin docente).')
+            except ValueError:
+                messages.error(request, 'Revise la materia y las horas.')
+        else:
+            n = intensidad.guardar(colegio, request.POST)
+            messages.success(request, f'Intensidad horaria guardada ({n} cambio{"s" if n != 1 else ""}).')
+        return redirect(f"{reverse('horarios:intensidad')}#{request.POST.get('ancla') or ''}")
+    grados, carga = intensidad.tabla(colegio)
+    docentes = sorted(((d, carga.get(d.id, 0)) for d in Docente.objects.filter(colegio=colegio, user__is_active=True)
+                       .select_related('user') if carga.get(d.id)), key=lambda x: -x[1])
+    return render(request, 'horarios/intensidad.html', {
+        'colegio': colegio, 'grados': grados, 'docentes': docentes,
+        'materias': Materia.objects.filter(colegio=colegio).order_by('nombre'),
+        'hay_jornadas': Jornada.objects.filter(colegio=colegio).exists()})
+
+
+# ---------------------------------------------------------------------------
 # Un horario
 # ---------------------------------------------------------------------------
 @admin_requerido
 def detalle(request, pk):
     h = get_object_or_404(Horario, pk=pk, colegio=request.colegio)
+    amarradas = logica.vincular(h)
+    if amarradas:
+        messages.info(request, f'{amarradas} clase(s) que estaban sin docente ya quedaron con su docente.')
     todas = list(cuadricula.sesiones(h))
     cursos = sorted({s.curso for s in todas}, key=lambda c: c.orden)
-    docentes = sorted({s.asignacion.docente for s in todas if s.asignacion.docente_id},
+    docentes = sorted({s.asignacion.docente for s in todas if s.asignacion_id and s.asignacion.docente_id},
                       key=lambda d: (d.user.last_name, d.user.first_name))
+    sin_docente = sorted({(s.curso.nombre, s.nombre_materia) for s in todas if not s.asignacion_id})
     ver = request.GET.get('ver') or 'curso'
     elegido = request.GET.get('id')
     tablas = []
@@ -226,11 +261,13 @@ def detalle(request, pk):
         tablas = [t] if t else []
         elegido = cur.id
     actual = nucleo.Datos(intercambio.datos_del_colegio(request.colegio, con_firma=False))
-    choques = nucleo.revisar(actual, [{'asignacion': s.asignacion_id, 'dia': s.dia, 'franja': s.franja_id} for s in todas])
-    faltan = nucleo.horas_faltantes(actual, [{'asignacion': s.asignacion_id} for s in todas])
+    planes = intercambio.mapa_planes(request.colegio)
+    claves = [intercambio.clave_sesion(s, planes) for s in todas]
+    choques = nucleo.revisar(actual, [{'asignacion': k, 'dia': s.dia, 'franja': s.franja_id} for k, s in zip(claves, todas)])
+    faltan = nucleo.horas_faltantes(actual, [{'asignacion': k} for k in claves])
     return render(request, 'horarios/detalle.html', {
         'colegio': request.colegio, 'h': h, 'tablas': tablas, 'cursos': cursos, 'docentes': docentes, 'ver': ver,
-        'elegido': elegido, 'choques': choques, 'n_sesiones': len(todas),
+        'elegido': elegido, 'choques': choques, 'n_sesiones': len(todas), 'sin_docente': sin_docente,
         'faltan': [(actual.nombre_materia(a['materia']), actual.nombre_curso(a['curso']), n) for a, n in faltan][:40],
         'n_faltan': len(faltan)})
 
@@ -241,9 +278,12 @@ def accion(request, pk):
     h = get_object_or_404(Horario, pk=pk, colegio=request.colegio)
     que = request.POST.get('que')
     if que == 'publicar':
+        logica.vincular(h)
         todas = list(cuadricula.sesiones(h))
         actual = nucleo.Datos(intercambio.datos_del_colegio(request.colegio, con_firma=False))
-        choques = nucleo.revisar(actual, [{'asignacion': s.asignacion_id, 'dia': s.dia, 'franja': s.franja_id} for s in todas])
+        planes = intercambio.mapa_planes(request.colegio)
+        choques = nucleo.revisar(actual, [{'asignacion': intercambio.clave_sesion(s, planes), 'dia': s.dia,
+                                           'franja': s.franja_id} for s in todas])
         if choques:
             messages.error(request, 'No se puede publicar un horario con choques. Corríjalos en el generador y vuelva a importarlo.')
             return redirect('horarios:detalle', h.pk)
@@ -282,7 +322,7 @@ def pdf(request, pk):
     todas = list(cuadricula.sesiones(h))
     paginas = []
     if request.GET.get('ver') == 'docente':
-        docentes = sorted({s.asignacion.docente for s in todas if s.asignacion.docente_id},
+        docentes = sorted({s.asignacion.docente for s in todas if s.asignacion_id and s.asignacion.docente_id},
                           key=lambda d: (d.user.last_name, d.user.first_name))
         if request.GET.get('id'):
             docentes = [d for d in docentes if str(d.id) == request.GET['id']]

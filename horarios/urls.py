@@ -17,6 +17,7 @@ urlpatterns = [
     path('<int:pk>/pdf/', views.pdf, name='pdf'),
     path('mi-horario/', views.mi_horario, name='mi_horario'),
     path('reemplazos/', views.reemplazos_vista, name='reemplazos'),
+    path('intensidad/', views.intensidad_vista, name='intensidad'),
     path('mi-disponibilidad/', views.mi_disponibilidad, name='mi_disponibilidad'),
     path('disponibilidad/', views.disponibilidad_docentes, name='disponibilidad'),
 ]
