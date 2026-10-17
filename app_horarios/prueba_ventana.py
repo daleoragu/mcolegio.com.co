@@ -120,6 +120,24 @@ def prueba():
     assert alt['actividades'] and alt['acompanamientos'], (alt['actividades'], alt['acompanamientos'])
     assert not any(s for s in alt['sesiones'] if D.asignaciones[s['asignacion']]['curso'] == c0['id']
                    and s['dia'] == jc0['dias'][-1] and s['franja'] == ult['id'])
+    # Armar desde la vista del docente: sus fichas pendientes se arrastran a su cuadrícula
+    blanco = p.en_blanco()
+    app._llenar_alternativas()
+    app.cb_ver.current(1)
+    app._opciones_ver()
+    did = app.quien_l[app.cb_quien.current()][1]
+    pd = p.pendientes_docente(blanco, did)
+    assert pd, 'el docente no tiene fichas por ubicar'
+    a1 = pd[0][0]
+    jd = D.jornadas[D.jornada_de_curso[a1['curso']]]
+    hora = [f for f in D.franjas_de(jd['id']) if not f['descanso']][2]
+    antes_n = len(blanco['sesiones'])
+    app.soltar({'tipo': 'nueva', 'asig': a1['id']}, ('celda', jd['dias'][0], hora['id']))
+    print('docente:', app.estado.cget('text'))
+    assert len(blanco['sesiones']) == antes_n + 1, blanco['sesiones']
+    assert app.paleta.winfo_children()
+    p.alternativas.remove(blanco)
+    app._llenar_alternativas()
     # Intercambiar dos fichas del mismo curso arrastrando una sobre la otra
     app.cb_ver.current(0)
     app._opciones_ver()
