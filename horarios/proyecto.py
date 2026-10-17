@@ -1,14 +1,18 @@
 """Lo que hace la app de escritorio, sin la ventana (así se puede probar).
 
 Un PROYECTO (.mchp) guarda los datos del colegio, las condiciones que el
-coordinador fue poniendo y las alternativas generadas.
+coordinador fue poniendo y las alternativas de horario (generadas o armadas a
+mano arrastrando fichas).
 """
+import copy
 import json
 import time
+from collections import defaultdict
 
 from . import nucleo
 
 TIPO_PROYECTO = 'mcolegio-horario-proyecto'
+ESTADOS_CELDA = ('libre', 'no_puede', 'prefiere_no')
 
 
 class Proyecto:
@@ -47,6 +51,9 @@ class Proyecto:
         c = self.cond
         c['fijas'] = [f for f in c['fijas'] if int(f['asignacion']) in d.asignaciones and int(f['franja']) in d.franjas]
         c['ih'] = {k: v for k, v in c['ih'].items() if int(k) in d.asignaciones}
+        c['asignaciones'] = {k: v for k, v in c['asignaciones'].items() if int(k) in d.asignaciones}
+        for g in c['simultaneas']:
+            g['asignaciones'] = [a for a in g['asignaciones'] if int(a) in d.asignaciones]
         nuevo.cond = c
         nuevo.ruta = self.ruta
         return nuevo
@@ -58,30 +65,176 @@ class Proyecto:
     def regla(self, mid):
         return self.cond['materias'].setdefault(str(mid), {})
 
-    def docente(self, did):
-        return self.cond['docentes'].setdefault(str(did), {'no_puede': []})
+    def asig(self, aid):
+        return self.cond['asignaciones'].setdefault(str(aid), {})
 
-    def alternar_no_puede(self, did, dia, fid):
+    def docente(self, did):
+        r = self.cond['docentes'].setdefault(str(did), {})
+        r.setdefault('no_puede', [])
+        r.setdefault('prefiere_no', [])
+        return r
+
+    def estado_celda(self, did, dia, fid):
         r = self.docente(did)
         clave = f'{dia}-{fid}'
-        lst = r.setdefault('no_puede', [])
-        if clave in lst:
-            lst.remove(clave)
-            return False
-        lst.append(clave)
-        return True
+        if clave in r['no_puede']:
+            return 'no_puede'
+        if clave in r['prefiere_no']:
+            return 'prefiere_no'
+        return 'libre'
+
+    def poner_celda(self, did, dia, fid, estado):
+        r = self.docente(did)
+        clave = f'{dia}-{fid}'
+        for k in ('no_puede', 'prefiere_no'):
+            if clave in r[k]:
+                r[k].remove(clave)
+        if estado in ('no_puede', 'prefiere_no'):
+            r[estado].append(clave)
+
+    def siguiente_estado(self, did, dia, fid):
+        """Libre → no puede → prefiere no → libre."""
+        actual = self.estado_celda(did, dia, fid)
+        nuevo = ESTADOS_CELDA[(ESTADOS_CELDA.index(actual) + 1) % 3]
+        self.poner_celda(did, dia, fid, nuevo)
+        return nuevo
+
+    def alternar_no_puede(self, did, dia, fid):
+        nuevo = 'libre' if self.estado_celda(did, dia, fid) == 'no_puede' else 'no_puede'
+        self.poner_celda(did, dia, fid, nuevo)
+        return nuevo == 'no_puede'
+
+    def marcar_dia(self, did, dia, estado):
+        for j in self.jornadas_de_docente(did):
+            if dia in j['dias']:
+                for f in j['franjas']:
+                    if not f['descanso']:
+                        self.poner_celda(did, dia, f['id'], estado)
 
     def jornadas_de_docente(self, did):
-        ids = {self.datos.jornada_de_curso.get(a['curso']) for a in self.datos.asignaciones.values()
-               if a.get('docente') == did}
-        return [self.datos.jornadas[j] for j in sorted(ids - {None})]
+        return [self.datos.jornadas[j] for j in self.datos.jornadas_de_docente(did)]
 
     def asignaciones_de_curso(self, cid):
         return sorted([a for a in self.datos.asignaciones.values() if a['curso'] == cid],
                       key=lambda a: self.datos.nombre_materia(a['materia']))
 
-    def agregar_fija(self, aid, dia, fid):
-        """None si quedó; si no, el motivo."""
+    def resumen_docente(self, did):
+        """(horas de clase, horas extra, sedes) del docente."""
+        base = extra = 0
+        sedes = set()
+        for a in self.datos.asignaciones.values():
+            if a.get('docente') == did:
+                n = self.datos.ih(a['id'], self.cond)
+                if self.cond['asignaciones'].get(str(a['id']), {}).get('extra'):
+                    extra += n
+                else:
+                    base += n
+                sedes.add(self.datos.sede_de_curso(a['curso']) or 'Principal')
+        return base, extra, sorted(sedes)
+
+    # Reuniones, clases simultáneas y espacios
+    def reuniones_por_area(self):
+        """Una reunión por cada área que todavía no tenga la suya."""
+        ya = {r.get('area') for r in self.cond['reuniones']}
+        nuevas = 0
+        for area in sorted(self.datos.areas):
+            docentes = self.datos.docentes_de_area(area)
+            if area in ya or len(docentes) < 2:
+                continue
+            self.cond['reuniones'].append({'nombre': f'Reunión de {area}', 'area': area, 'docentes': docentes,
+                                           'jefe': None, 'modo': 'auto', 'dos': True})
+            nuevas += 1
+        return nuevas
+
+    def ver_reuniones(self):
+        no_puede = {int(k): {tuple(int(x) for x in v.split('-')) for v in r.get('no_puede', [])}
+                    for k, r in self.cond['docentes'].items()}
+        return nucleo.ubicar_reuniones(self.datos, self.cond, no_puede)[0]
+
+    def agregar_simultanea(self, nombre, aids):
+        aids = [int(a) for a in aids]
+        cursos = [self.datos.asignaciones[a]['curso'] for a in aids]
+        if len(aids) < 2:
+            return 'Escoja al menos dos clases.'
+        if len(set(cursos)) != len(cursos):
+            return 'Las clases simultáneas deben ser de cursos distintos.'
+        horas = {self.datos.ih(a, self.cond) for a in aids}
+        self.cond['simultaneas'].append({'nombre': nombre or 'Clases simultáneas', 'asignaciones': aids})
+        return None if len(horas) == 1 else 'Quedó, pero no tienen las mismas horas: solo las comunes van juntas.'
+
+    # --- Generar --------------------------------------------------------------
+    def _cond_con_fijas(self, base, todas=False):
+        cond = copy.deepcopy(self.cond)
+        if base:
+            cond['fijas'] = [{'asignacion': s['asignacion'], 'dia': s['dia'], 'franja': s['franja']}
+                             for s in base['sesiones'] if todas or s.get('fijada')]
+        return cond
+
+    def _correr(self, cond, segundos, semilla, avance=None):
+        r = nucleo.generar(self.datos, cond, segundos=segundos, semilla=semilla, avance=avance)
+        fijas = {(f['asignacion'], f['dia'], f['franja']) for f in cond.get('fijas', [])}
+        for s in r['sesiones']:
+            s['fijada'] = (s['asignacion'], s['dia'], s['franja']) in fijas
+        self.revisar(r)
+        return r
+
+    def revisar(self, alt):
+        alt['choques'] = nucleo.revisar(self.datos, alt['sesiones'], self.cond)
+        faltan = nucleo.horas_faltantes(self.datos, alt['sesiones'], self.cond)
+        alt['sin_ubicar'] = [{'asignacion': a['id'], 'horas': n} for a, n in faltan]
+        alt['horas_sin_ubicar'] = sum(n for _, n in faltan)
+        return alt
+
+    def generar(self, cuantas=3, segundos=60, avance=None, base=None):
+        """Genera alternativas (cada una con otra semilla), respetando las fichas fijadas de `base`."""
+        cond = self._cond_con_fijas(base)
+        self.alternativas = [a for a in self.alternativas if a.get('manual')]
+        nuevas = []
+        for k in range(cuantas):
+            def av(p, k=k):
+                if avance:
+                    avance(int((k + p / 100) * 100 / cuantas), f'Alternativa {k + 1} de {cuantas}…')
+            nuevas.append(self._correr(cond, segundos, int(time.time()) + k * 7919, av))
+        nuevas.sort(key=lambda r: (r['horas_sin_ubicar'], len(r['choques']), r['costo']))
+        for i, r in enumerate(nuevas, start=1):
+            r['nombre'] = f'Alternativa {i}'
+        self.alternativas = nuevas + self.alternativas
+        if avance:
+            avance(100, 'Listo')
+        return nuevas
+
+    def completar(self, alt, segundos=30, avance=None, solo_fijadas=False):
+        """Deja quietas las fichas puestas (o solo las fijadas) y ubica lo que falta."""
+        cond = self._cond_con_fijas(alt, todas=not solo_fijadas)
+        r = self._correr(cond, segundos, int(time.time()),
+                         (lambda p: avance(p, 'Completando…')) if avance else None)
+        r['nombre'] = f"{alt.get('nombre', 'Horario')} (completado)"
+        self.alternativas.insert(0, r)
+        if avance:
+            avance(100, 'Listo')
+        return r
+
+    def en_blanco(self):
+        alt = {'nombre': f'Horario a mano {sum(1 for a in self.alternativas if a.get("manual")) + 1}', 'manual': True,
+               'sesiones': [dict(f, curso=self.datos.asignaciones[int(f['asignacion'])]['curso'], fijada=True,
+                                 asignacion=int(f['asignacion']), dia=int(f['dia']), franja=int(f['franja']))
+                            for f in self.cond['fijas'] if int(f['asignacion']) in self.datos.asignaciones],
+               'costo': None, 'huecos': None, 'reuniones': self.ver_reuniones(), 'divididas': []}
+        self.revisar(alt)
+        self.alternativas.insert(0, alt)
+        return alt
+
+    # --- Editar a mano (fichas) -------------------------------------------------
+    def pendientes(self, alt, cid):
+        """[(asignación, horas por ubicar)] del curso."""
+        hechas = defaultdict(int)
+        for s in alt['sesiones']:
+            hechas[s['asignacion']] += 1
+        return [(a, self.datos.ih(a['id'], self.cond) - hechas[a['id']]) for a in self.asignaciones_de_curso(cid)
+                if self.datos.ih(a['id'], self.cond) - hechas[a['id']] > 0]
+
+    def motivo(self, alt, aid, dia, fid, ignorar=None):
+        """None si la ficha cabe ahí; si no, por qué."""
         D = self.datos
         a = D.asignaciones[aid]
         jid = D.jornada_de_curso.get(a['curso'])
@@ -89,48 +242,97 @@ class Proyecto:
             return 'Esa hora no es de la jornada del curso.'
         if dia not in D.jornadas[jid]['dias']:
             return 'Ese día no hay clases en la jornada del curso.'
-        nueva = {'asignacion': aid, 'dia': dia, 'franja': fid}
-        ses = [{'asignacion': int(f['asignacion']), 'dia': int(f['dia']), 'franja': int(f['franja'])} for f in self.cond['fijas']]
-        problemas = nucleo.revisar(D, ses + [nueva], self.cond)
-        if problemas:
-            return problemas[-1]
-        fijas_de_a = sum(1 for f in self.cond['fijas'] if int(f['asignacion']) == aid)
-        if fijas_de_a >= D.ih(aid, self.cond):
+        otras = [s for i, s in enumerate(alt['sesiones']) if i != ignorar]
+        ini, fin = D.intervalo(fid)
+        for s in otras:
+            if s['dia'] != dia:
+                continue
+            b = D.asignaciones.get(s['asignacion'])
+            if b is None:
+                continue
+            if b['curso'] == a['curso'] and s['franja'] == fid:
+                return f'{D.nombre_curso(a["curso"])} ya tiene {D.nombre_materia(b["materia"])} a esa hora.'
+            x, y = D.intervalo(s['franja'])
+            if a.get('docente') and b.get('docente') == a['docente'] and x < fin and ini < y:
+                return f'{D.nombre_docente(a["docente"])} ya está en {D.nombre_curso(b["curso"])} a esa hora.'
+        did = a.get('docente')
+        if did:
+            if self.estado_celda(did, dia, fid) == 'no_puede':
+                return f'{D.nombre_docente(did)} no puede a esa hora.'
+            for r in alt.get('reuniones') or []:
+                for reu in (r, r.get('segunda') or {}):
+                    if reu.get('dia') == dia and did in reu.get('asisten', []) and reu['inicio'] < fin and ini < reu['fin']:
+                        return f'{D.nombre_docente(did)} tiene {r["nombre"]} a esa hora.'
+            extra = self.cond['asignaciones'].get(str(aid), {}).get('extra')
+            perm = self.docente(did).get('permanencia')
+            perm = float(perm) if perm not in (None, '') else float(self.cond.get('permanencia_horas') or 0)
+            mias = [(D.intervalo(s['franja']), s) for s in otras
+                    if s['dia'] == dia and D.asignaciones.get(s['asignacion'], {}).get('docente') == did]
+            if perm and not extra:
+                tramos = [t for t, s in mias if not self.cond['asignaciones'].get(str(s['asignacion']), {}).get('extra')]
+                tramos.append((ini, fin))
+                if max(b for _, b in tramos) - min(x for x, _ in tramos) > perm * 60:
+                    return f'Se pasa de las {perm:g} horas de permanencia de {D.nombre_docente(did)} ese día.'
+            despl = int(self.cond.get('desplazamiento') or 0)
+            sede = D.sede_de_curso(a['curso'])
+            for (x, y), s in mias:
+                otra = D.sede_de_curso(D.asignaciones[s['asignacion']]['curso'])
+                if despl and sede and otra and otra != sede:
+                    hueco = ini - y if y <= ini else x - fin
+                    if hueco < despl:
+                        return f'No le da tiempo de pasar de {otra} a {sede} ({despl} min).'
+        regla = self.regla(a['materia'])
+        tope = int(regla.get('max_dia') or self.cond.get('max_por_dia') or 2)
+        partes = nucleo.patron(self.asig(aid).get('bloques')) or nucleo.patron(regla.get('bloques')) or [1]
+        tope = max(tope, max(partes))
+        ese_dia = sum(1 for s in otras if s['dia'] == dia and D.asignaciones.get(s['asignacion'], {}).get('curso') == a['curso']
+                      and D.asignaciones.get(s['asignacion'], {}).get('materia') == a['materia'])
+        if ese_dia + 1 > tope:
+            return f'{D.nombre_materia(a["materia"])} ya tiene {ese_dia} hora(s) ese día (máximo {tope}).'
+        return None
+
+    def poner_ficha(self, alt, aid, dia, fid):
+        m = self.motivo(alt, aid, dia, fid)
+        if m:
+            return m
+        alt['sesiones'].append({'asignacion': aid, 'curso': self.datos.asignaciones[aid]['curso'], 'dia': dia,
+                                'franja': fid, 'fijada': True})
+        self.revisar(alt)
+        return None
+
+    def mover_ficha(self, alt, i, dia, fid):
+        s = alt['sesiones'][i]
+        m = self.motivo(alt, s['asignacion'], dia, fid, ignorar=i)
+        if m:
+            return m
+        s.update(dia=dia, franja=fid, fijada=True)
+        self.revisar(alt)
+        return None
+
+    def quitar_ficha(self, alt, i):
+        del alt['sesiones'][i]
+        self.revisar(alt)
+
+    def alternar_fijada(self, alt, i):
+        alt['sesiones'][i]['fijada'] = not alt['sesiones'][i].get('fijada')
+        return alt['sesiones'][i]['fijada']
+
+    # Compatibilidad: fijar una clase antes de generar
+    def agregar_fija(self, aid, dia, fid):
+        alt = {'sesiones': [{'asignacion': int(f['asignacion']), 'curso': self.datos.asignaciones[int(f['asignacion'])]['curso'],
+                             'dia': int(f['dia']), 'franja': int(f['franja'])} for f in self.cond['fijas']]}
+        m = self.motivo(alt, aid, dia, fid)
+        if m:
+            return m
+        if sum(1 for f in self.cond['fijas'] if int(f['asignacion']) == aid) >= self.datos.ih(aid, self.cond):
             return 'Esa materia ya tiene fijadas todas sus horas.'
-        self.cond['fijas'].append(nueva)
+        self.cond['fijas'].append({'asignacion': aid, 'dia': dia, 'franja': fid})
         return None
 
     def quitar_fija(self, i):
         del self.cond['fijas'][i]
 
-    # --- Generar --------------------------------------------------------------
-    def generar(self, cuantas=3, segundos=60, avance=None):
-        """Genera alternativas (cada una con otra semilla) y las ordena de mejor a peor."""
-        self.alternativas = []
-        for k in range(cuantas):
-            def av(p, k=k):
-                if avance:
-                    avance(int((k + p / 100) * 100 / cuantas), f'Alternativa {k + 1} de {cuantas}…')
-            r = nucleo.generar(self.datos, self.cond, segundos=segundos, semilla=int(time.time()) + k * 7919, avance=av)
-            r['choques'] = nucleo.revisar(self.datos, r['sesiones'], self.cond)
-            r['horas_sin_ubicar'] = sum(x['horas'] for x in r['sin_ubicar'])
-            self.alternativas.append(r)
-        self.alternativas.sort(key=lambda r: (r['horas_sin_ubicar'], len(r['choques']), r['costo']))
-        for i, r in enumerate(self.alternativas, start=1):
-            r['nombre'] = f'Alternativa {i}'
-        if avance:
-            avance(100, 'Listo')
-        return self.alternativas
-
     # --- Ver -------------------------------------------------------------------
-    def _celdas(self, alt, filtro, texto):
-        celdas = {}
-        for s in alt['sesiones']:
-            a = self.datos.asignaciones.get(s['asignacion'])
-            if a and filtro(a):
-                celdas.setdefault((s['dia'], s['franja']), []).append(texto(a))
-        return celdas
-
     def _tabla(self, jid, celdas):
         j = self.datos.jornadas[jid]
         dias = [(d, nucleo.DIAS[d]) for d in j['dias']]
@@ -138,35 +340,78 @@ class Proyecto:
         return {'jornada': j, 'dias': dias, 'filas': filas}
 
     def tabla_curso(self, alt, cid):
-        jid = self.datos.jornada_de_curso.get(cid)
+        D = self.datos
+        jid = D.jornada_de_curso.get(cid)
         if jid is None:
             return None
-        D = self.datos
-        return self._tabla(jid, self._celdas(alt, lambda a: a['curso'] == cid,
-                                             lambda a: (D.nombre_materia(a['materia']), D.nombre_docente(a.get('docente')))))
+        celdas = defaultdict(list)
+        for i, s in enumerate(alt['sesiones']):
+            a = D.asignaciones.get(s['asignacion'])
+            if a and a['curso'] == cid:
+                celdas[(s['dia'], s['franja'])].append({'i': i, 'titulo': D.nombre_materia(a['materia']),
+                                                        'sub': D.nombre_docente(a.get('docente')),
+                                                        'fijada': s.get('fijada', False), 'asig': a['id']})
+        return self._tabla(jid, celdas)
 
     def tablas_docente(self, alt, did):
         D = self.datos
-        celdas = self._celdas(alt, lambda a: a.get('docente') == did,
-                              lambda a: (D.nombre_curso(a['curso']), D.nombre_materia(a['materia'])))
-        return [self._tabla(j['id'], celdas) for j in self.jornadas_de_docente(did)]
+        tablas = []
+        for j in self.jornadas_de_docente(did):
+            celdas = defaultdict(list)
+            ids = {f['id'] for f in j['franjas']}
+            for i, s in enumerate(alt['sesiones']):
+                a = D.asignaciones.get(s['asignacion'])
+                if a and a.get('docente') == did and s['franja'] in ids:
+                    celdas[(s['dia'], s['franja'])].append({'i': i, 'titulo': D.nombre_curso(a['curso']),
+                                                            'sub': D.nombre_materia(a['materia']),
+                                                            'fijada': s.get('fijada', False), 'asig': a['id']})
+            for r in alt.get('reuniones') or []:
+                for reu in (r, r.get('segunda') or {}):
+                    if did in reu.get('asisten', []):
+                        for f in j['franjas']:
+                            x, y = nucleo.minutos(f['inicio']), nucleo.minutos(f['fin'])
+                            if not f['descanso'] and x < reu['fin'] and reu['inicio'] < y:
+                                celdas[(reu['dia'], f['id'])].append({'i': None, 'titulo': r['nombre'], 'sub': 'Reunión',
+                                                                      'fijada': True, 'reunion': True})
+            tablas.append(self._tabla(j['id'], celdas))
+        return tablas
 
     def sin_ubicar_texto(self, alt):
         D = self.datos
         return [f'{D.nombre_materia(D.asignaciones[x["asignacion"]]["materia"])} en '
                 f'{D.nombre_curso(D.asignaciones[x["asignacion"]]["curso"])}: {x["horas"]} h'
-                for x in alt['sin_ubicar'] if x['asignacion'] in D.asignaciones]
+                for x in alt.get('sin_ubicar', []) if x['asignacion'] in D.asignaciones]
+
+    def texto_reuniones(self, alt):
+        D = self.datos
+        out = []
+        for r in alt.get('reuniones') or []:
+            if not r.get('ubicada'):
+                out.append(f'{r["nombre"]}: no se encontró una hora (revise que el jefe tenga horas libres).')
+                continue
+            t = f'{r["nombre"]}: {nucleo.DIAS[r["dia"]]} {nucleo.texto_hora(r["inicio"])}'
+            if r.get('segunda'):
+                s = r['segunda']
+                t += f' y {nucleo.DIAS[s["dia"]]} {nucleo.texto_hora(s["inicio"])} (segundo grupo, con el jefe)'
+            if r.get('faltan'):
+                t += ' · no pueden: ' + ', '.join(D.nombre_docente(x) for x in r['faltan'])
+            out.append(t)
+        return out
 
     # --- Exportar --------------------------------------------------------------
     def exportar_resultado(self, alt, ruta):
         r = nucleo.resultado(self.datos, alt['sesiones'], alt.get('nombre', 'Horario'),
                              {'huecos': alt.get('huecos'), 'costo': alt.get('costo'),
-                              'horas_sin_ubicar': alt.get('horas_sin_ubicar', 0)})
+                              'horas_sin_ubicar': alt.get('horas_sin_ubicar', 0),
+                              'reuniones': self.texto_reuniones(alt),
+                              'divididas': [self.datos.nombre_materia(self.datos.asignaciones[a]['materia']) + ' ' +
+                                            self.datos.nombre_curso(self.datos.asignaciones[a]['curso'])
+                                            for a in alt.get('divididas', []) if a in self.datos.asignaciones]})
         with open(ruta, 'w', encoding='utf-8') as fh:
             json.dump(r, fh, ensure_ascii=False)
 
     def exportar_excel(self, alt, ruta):
-        """Una hoja por curso y otra con todas las clases (para revisar o imprimir)."""
+        """Una hoja con todas las clases y una por curso (para revisar o imprimir)."""
         from openpyxl import Workbook
         from openpyxl.styles import Alignment, Font, PatternFill
         D = self.datos
@@ -196,7 +441,7 @@ class Proyecto:
                 if f['descanso']:
                     h.append([f'{f["inicio"]} {f.get("etiqueta") or "Descanso"}'])
                     continue
-                h.append([f'{f["inicio"]}-{f["fin"]}'] + ['\n'.join(f'{m} ({d})' for m, d in x) for x in celdas])
+                h.append([f'{f["inicio"]}-{f["fin"]}'] + ['\n'.join(f'{x["titulo"]} ({x["sub"]})' for x in xs) for xs in celdas])
             for col in 'ABCDEFG':
                 h.column_dimensions[col].width = 24
             for fila in h.iter_rows(min_row=2):

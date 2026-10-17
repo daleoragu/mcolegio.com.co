@@ -10,7 +10,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from notas.models import AsignacionDocente, Curso, Docente, Materia
+from notas.models import AsignacionDocente, Curso, Docente, Materia, PonderacionAreaMateria
 
 from . import nucleo
 from .models import Franja, Horario, Jornada, Sesion
@@ -28,6 +28,7 @@ def datos_del_colegio(colegio, con_firma=True):
     asignaciones = list(AsignacionDocente.objects.filter(colegio=colegio, curso_id__in=cursos_en_jornada)
                         .select_related('materia', 'docente__user', 'curso'))
     exportado = timezone.now().isoformat(timespec='seconds')
+    areas = dict(PonderacionAreaMateria.objects.filter(colegio=colegio).values_list('materia_id', 'area__nombre'))
     d = {
         'tipo': nucleo.TIPO_DATOS, 'version': nucleo.VERSION, 'exportado': exportado,
         'colegio': {'id': colegio.id, 'nombre': colegio.nombre},
@@ -42,7 +43,7 @@ def datos_del_colegio(colegio, con_firma=True):
                    for c in Curso.objects.filter(id__in=cursos_en_jornada).select_related('sede').order_by('orden')],
         'docentes': [{'id': x.id, 'nombre': x.user.get_full_name() or x.user.username}
                      for x in Docente.objects.filter(colegio=colegio).select_related('user')],
-        'materias': [{'id': m.id, 'nombre': m.nombre, 'abreviatura': m.abreviatura or ''}
+        'materias': [{'id': m.id, 'nombre': m.nombre, 'abreviatura': m.abreviatura or '', 'area': areas.get(m.id, '')}
                      for m in Materia.objects.filter(id__in={a.materia_id for a in asignaciones}).order_by('nombre')],
         'asignaciones': [{'id': a.id, 'curso': a.curso_id, 'materia': a.materia_id, 'docente': a.docente_id,
                           'ih': a.intensidad_horaria_semanal} for a in asignaciones],

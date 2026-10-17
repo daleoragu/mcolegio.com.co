@@ -10,7 +10,7 @@
 import json
 from collections import defaultdict
 
-from .motor import Problema, resolver
+from .motor import Problema, resolver, unidad_simple
 
 TIPO_DATOS = 'mcolegio-horario-datos'
 TIPO_RESULTADO = 'mcolegio-horario-resultado'
@@ -40,7 +40,34 @@ def leer_json(texto, tipo):
 
 
 def condiciones_vacias():
-    return {'materias': {}, 'docentes': {}, 'fijas': [], 'ih': {}, 'max_por_dia': 2}
+    return {'materias': {}, 'docentes': {}, 'fijas': [], 'ih': {}, 'max_por_dia': 2,
+            'asignaciones': {},          # {aid: {'extra': bool, 'bloques': '2+2', 'dividir': bool}}
+            'permanencia_horas': 0,      # 0 = sin control; 6 en los oficiales (Decreto 1850/2002)
+            'desplazamiento': 30,        # minutos para cambiar de sede
+            'max_seguidas': 0,           # máximo de horas seguidas de un docente (0 = sin límite)
+            'reuniones': [],
+            'simultaneas': [],           # [{'nombre', 'asignaciones': [aid…]}] van a la misma hora
+            'espacios': []}              # [{'nombre', 'capacidad'}] sala de sistemas, laboratorio…
+
+
+def patron(texto):
+    """'2+2+1' -> [2, 2, 1]; None si no se entiende."""
+    try:
+        partes = [int(x) for x in str(texto or '').replace(' ', '').split('+') if x]
+    except ValueError:
+        return None
+    return partes if partes and all(1 <= x <= 4 for x in partes) else None
+
+
+def ajustar(partes, total):
+    """Recorta o completa un patrón de bloques para que sume `total`."""
+    out, resto = [], total
+    for x in partes:
+        if resto <= 0:
+            break
+        out.append(min(x, resto))
+        resto -= out[-1]
+    return out + [1] * resto
 
 
 # ---------------------------------------------------------------------------
@@ -53,6 +80,10 @@ class Datos:
         self.cursos = {c['id']: c for c in d['cursos']}
         self.docentes = {x['id']: x for x in d['docentes']}
         self.materias = {m['id']: m for m in d['materias']}
+        self.areas = {}
+        for m in d['materias']:
+            if m.get('area'):
+                self.areas.setdefault(m['area'], []).append(m['id'])
         self.asignaciones = {a['id']: a for a in d['asignaciones']}
         self.jornadas = {j['id']: j for j in d['jornadas']}
         self.franjas = {}
@@ -74,6 +105,18 @@ class Datos:
 
     def franjas_de(self, jid):
         return sorted(self.jornadas[jid]['franjas'], key=lambda f: f['orden'])
+
+    def sede_de_curso(self, cid):
+        return self.cursos.get(cid, {}).get('sede') or ''
+
+    def docentes_de_area(self, area):
+        mats = set(self.areas.get(area, []))
+        return sorted({a['docente'] for a in self.asignaciones.values() if a['materia'] in mats and a.get('docente')},
+                      key=self.nombre_docente)
+
+    def jornadas_de_docente(self, did):
+        return sorted({self.jornada_de_curso[a['curso']] for a in self.asignaciones.values()
+                       if a.get('docente') == did and a['curso'] in self.jornada_de_curso})
 
     def ih(self, aid, cond=None):
         if cond and str(aid) in cond.get('ih', {}):
@@ -126,6 +169,108 @@ def diagnostico(datos, cond):
 
 
 # ---------------------------------------------------------------------------
+# Reuniones de área
+# ---------------------------------------------------------------------------
+def _horas_de_clase(datos):
+    """[(dia, inicio, fin, {jornada: franja_id})] de todas las horas de clase, sin repetir."""
+    vistas = {}
+    for jid, j in datos.jornadas.items():
+        for f in datos.franjas_de(jid):
+            if f['descanso']:
+                continue
+            for d in j['dias']:
+                clave = (d, minutos(f['inicio']), minutos(f['fin']))
+                vistas.setdefault(clave, {})[jid] = f['id']
+    return sorted((d, a, b, m) for (d, a, b), m in vistas.items())
+
+
+def _puede_reunirse(datos, did, dia, ini, fin, no_puede):
+    """Franjas del docente que ocupa esa reunión, o None si no puede asistir."""
+    ocupa = []
+    for jid in datos.jornadas_de_docente(did):
+        j = datos.jornadas[jid]
+        if dia not in j['dias']:
+            continue
+        for f in datos.franjas_de(jid):
+            if f['descanso']:
+                continue
+            a, b = minutos(f['inicio']), minutos(f['fin'])
+            if a < fin and ini < b:
+                if (dia, f['id']) in no_puede.get(did, set()):
+                    return None
+                ocupa.append(f['id'])
+    return ocupa or None
+
+
+def ubicar_reuniones(datos, cond, no_puede=None):
+    """Escoge la hora de cada reunión de área y bloquea esa hora a los que asisten.
+
+    Busca la hora en que puede la mayoría (el jefe de área siempre). Si no pueden
+    todos y se permite, busca una segunda reunión para los que faltan, también
+    con el jefe. Devuelve (resultados, no_puede actualizado).
+    """
+    no_puede = {k: set(v) for k, v in (no_puede or {}).items()}
+    horas = _horas_de_clase(datos)
+    resultados = []
+    for r in cond.get('reuniones', []):
+        miembros = [int(x) for x in r.get('docentes', []) if int(x) in datos.docentes]
+        jefe = int(r['jefe']) if r.get('jefe') else None
+        if jefe and jefe not in miembros:
+            miembros.append(jefe)
+        if not miembros:
+            continue
+
+        def evaluar(dia, ini, fin, quienes):
+            asisten = {}
+            for did in quienes:
+                oc = _puede_reunirse(datos, did, dia, ini, fin, no_puede)
+                if oc:
+                    asisten[did] = oc
+            return asisten
+
+        def mejor(quienes, excluir=()):
+            elegido, puntos = None, -1
+            for (dia, ini, fin, _) in horas:
+                if (dia, ini) in excluir:
+                    continue
+                if r.get('modo') == 'fija' and not excluir:
+                    if dia != int(r.get('dia') or 0) or ini != minutos(r.get('hora') or '00:00'):
+                        continue
+                asisten = evaluar(dia, ini, fin, quienes)
+                if jefe and jefe not in asisten:
+                    continue
+                pts = len(asisten) * 1000 + ini           # a igual asistencia, más tarde en el día
+                if pts > puntos:
+                    elegido, puntos = (dia, ini, fin, asisten), pts
+            return elegido
+
+        primera = mejor(miembros)
+        res = {'nombre': r.get('nombre') or 'Reunión de área', 'jefe': jefe, 'miembros': miembros,
+               'ubicada': bool(primera), 'segunda': None}
+        if primera:
+            dia, ini, fin, asisten = primera
+            res.update({'dia': dia, 'inicio': ini, 'fin': fin, 'asisten': sorted(asisten),
+                        'faltan': sorted(set(miembros) - set(asisten))})
+            for did, oc in asisten.items():
+                no_puede.setdefault(did, set()).update((dia, f) for f in oc)
+            if res['faltan'] and r.get('dos', True):
+                quienes = res['faltan'] + ([jefe] if jefe else [])
+                otra = mejor(quienes, excluir={(dia, ini)})
+                if otra:
+                    d2, i2, f2, as2 = otra
+                    res['segunda'] = {'dia': d2, 'inicio': i2, 'fin': f2, 'asisten': sorted(as2)}
+                    res['faltan'] = sorted(set(res['faltan']) - set(as2))
+                    for did, oc in as2.items():
+                        no_puede.setdefault(did, set()).update((d2, f) for f in oc)
+        resultados.append(res)
+    return resultados, no_puede
+
+
+def texto_hora(m):
+    return f'{m // 60:02d}:{m % 60:02d}'
+
+
+# ---------------------------------------------------------------------------
 # Armar el problema y resolver
 # ---------------------------------------------------------------------------
 def armar(datos, cond):
@@ -147,43 +292,110 @@ def armar(datos, cond):
         j = D.jornadas[jid]
         slots[cid] = [(d, f['id']) for d in j['dias'] for f in D.franjas_de(jid) if not f['descanso']]
     mat = cond.get('materias', {})
-    dobles = {int(m) for m, r in mat.items() if r.get('doble')}
+    asg = cond.get('asignaciones', {})
+    dobles = set()
     primeras = {int(m) for m, r in mat.items() if r.get('primeras')}
+    ultimas = {int(m) for m, r in mat.items() if r.get('ultimas')}
     defecto = int(cond.get('max_por_dia') or 2)
+    espacios = {e['nombre']: max(1, int(e.get('capacidad') or 1)) for e in cond.get('espacios', []) if e.get('nombre')}
+
+    def espacio_de(a):
+        e = asg.get(str(a['id']), {}).get('espacio') or mat.get(str(a['materia']), {}).get('espacio') or ''
+        return e if e in espacios else ''
+
+    def doc_de(a):
+        return a.get('docente') or -a['id']        # sin docente: no choca con nadie
+
+    def parte(a):
+        return {'curso': a['curso'], 'docente': doc_de(a), 'materia': a['materia'],
+                'sede': D.sede_de_curso(a['curso']), 'asig': a['id']}
+
+    def partes_de(a, n):
+        regla = mat.get(str(a['materia']), {})
+        propia = asg.get(str(a['id']), {})
+        partes = patron(propia.get('bloques')) or patron(regla.get('bloques'))
+        if partes is None and regla.get('doble'):
+            ih = D.ih(a['id'], cond)
+            partes = [2] * (ih // 2) + [1] * (ih % 2)
+        return ajustar(partes or [1] * n, n) if n else []
+
     fijas = []
     usadas = defaultdict(int)
     for fx in cond.get('fijas', []):
         a = D.asignaciones.get(int(fx['asignacion']))
         if not a:
             continue
-        fijas.append({'asig': a['id'], 'curso': a['curso'], 'docente': a.get('docente') or -a['id'],
-                      'materia': a['materia'], 'dia': int(fx['dia']), 'franja': int(fx['franja'])})
+        fijas.append(dict(parte(a), asig=a['id'], dia=int(fx['dia']), franja=int(fx['franja']),
+                          extra=bool(asg.get(str(a['id']), {}).get('extra')), espacio=espacio_de(a)))
         usadas[a['id']] += 1
     unidades = []
     max_materia_dia = {}
+    restantes = {}
     for a in D.asignaciones.values():
-        if a['curso'] not in D.jornada_de_curso:
+        if a['curso'] in D.jornada_de_curso:
+            restantes[a['id']] = max(0, D.ih(a['id'], cond) - usadas[a['id']])
+            regla = mat.get(str(a['materia']), {})
+            tope = int(regla.get('max_dia') or defecto)
+            partes = partes_de(a, D.ih(a['id'], cond))
+            max_materia_dia[(a['curso'], a['materia'])] = max(tope, max(partes or [1]))
+            if any(x > 1 for x in partes):
+                dobles.add(a['materia'])
+    # Clases simultáneas: varias asignaciones (de cursos distintos) a la misma hora.
+    for g, grupo in enumerate(cond.get('simultaneas', [])):
+        miembros = []
+        for aid in grupo.get('asignaciones', []):
+            a = D.asignaciones.get(int(aid))
+            if a and a['id'] in restantes and a['curso'] not in {m['curso'] for m in miembros}:
+                miembros.append(a)
+        if len(miembros) < 2:
             continue
-        n = max(0, D.ih(a['id'], cond) - usadas[a['id']])
-        regla = mat.get(str(a['materia']), {})
-        max_materia_dia[(a['curso'], a['materia'])] = int(regla.get('max_dia') or defecto)
-        doc = a.get('docente') or -a['id']          # sin docente: no choca con nadie
-        if a['materia'] in dobles:
-            for _ in range(n // 2):
-                unidades.append({'id': f'{a["id"]}-{len(unidades)}', 'asig': a['id'], 'curso': a['curso'],
-                                 'docente': doc, 'materia': a['materia'], 'largo': 2})
-            n %= 2
-        for _ in range(n):
-            unidades.append({'id': f'{a["id"]}-{len(unidades)}', 'asig': a['id'], 'curso': a['curso'],
-                             'docente': doc, 'materia': a['materia'], 'largo': 1})
+        n = min(restantes[a['id']] for a in miembros)
+        for largo in partes_de(miembros[0], n):
+            unidades.append({'id': f'S{g}-{len(unidades)}', 'asig': miembros[0]['id'], 'largo': largo,
+                             'extra': all(asg.get(str(a['id']), {}).get('extra') for a in miembros),
+                             'dividir': True, 'espacio': espacio_de(miembros[0]),
+                             'partes': [parte(a) for a in miembros]})
+        for a in miembros:
+            restantes[a['id']] -= n
+    for a in D.asignaciones.values():
+        n = restantes.get(a['id'], 0)
+        propia = asg.get(str(a['id']), {})
+        for largo in partes_de(a, n):
+            u = unidad_simple(f'{a["id"]}-{len(unidades)}', a['id'], a['curso'], doc_de(a), a['materia'], largo,
+                              D.sede_de_curso(a['curso']), bool(propia.get('extra')), propia.get('dividir', True),
+                              espacio_de(a))
+            unidades.append(u)
     no_puede = {}
+    prefiere_no = {}
+    max_seguidas = {}
     max_docente_dia = {}
+    permanencia = {}
+    general = float(cond.get('permanencia_horas') or 0)
+    seguidas = int(cond.get('max_seguidas') or 0)
+    for did in D.docentes:
+        if general:
+            permanencia[did] = int(general * 60)
+        if seguidas:
+            max_seguidas[did] = seguidas
     for did, r in cond.get('docentes', {}).items():
         no_puede[int(did)] = {tuple(int(x) for x in k.split('-')) for k in r.get('no_puede', [])}
+        prefiere_no[int(did)] = {tuple(int(x) for x in k.split('-')) for k in r.get('prefiere_no', [])}
+        if r.get('max_seguidas'):
+            max_seguidas[int(did)] = int(r['max_seguidas'])
         if r.get('max_dia'):
             max_docente_dia[int(did)] = int(r['max_dia'])
-    p = Problema(franjas_clase, siguiente, slots, unidades, fijas=fijas, no_puede=no_puede,
-                 max_materia_dia=max_materia_dia, max_docente_dia=max_docente_dia, primeras=primeras, dobles=dobles)
+        if r.get('permanencia') is not None and r.get('permanencia') != '':
+            h = float(r['permanencia'])
+            if h:
+                permanencia[int(did)] = int(h * 60)
+            else:
+                permanencia.pop(int(did), None)
+    reuniones, no_puede = ubicar_reuniones(D, cond, no_puede)
+    p = Problema(franjas_clase, siguiente, slots, unidades, fijas=fijas, no_puede=no_puede, prefiere_no=prefiere_no,
+                 max_materia_dia=max_materia_dia, max_docente_dia=max_docente_dia, max_seguidas=max_seguidas,
+                 primeras=primeras, dobles=dobles, ultimas=ultimas, permanencia=permanencia,
+                 desplazamiento=int(cond.get('desplazamiento') or 0), espacios=espacios)
+    p.reuniones = reuniones
     return p
 
 
@@ -202,14 +414,17 @@ def generar(datos, cond, segundos=30, semilla=0, avance=None):
     for uid, (dia, franja) in r['ubicadas'].items():
         u = est.u[uid]
         for f in est.celdas(u, dia, franja):
-            sesiones.append({'asignacion': u['asig'], 'curso': u['curso'], 'dia': dia, 'franja': f})
+            for q in u['partes']:
+                sesiones.append({'asignacion': q['asig'], 'curso': q['curso'], 'dia': dia, 'franja': f})
     sin = defaultdict(int)
     for uid in r['sin_ubicar']:
         u = est.u[uid]
-        sin[u['asig']] += u['largo']
+        for q in u['partes']:
+            sin[q['asig']] += u['largo']
     huecos = {did: h for did, h in huecos_por_docente(est).items() if did and did > 0}
     return {'sesiones': sesiones, 'costo': r['costo'], 'huecos': sum(huecos.values()),
-            'sin_ubicar': [{'asignacion': a, 'horas': h} for a, h in sin.items()]}
+            'sin_ubicar': [{'asignacion': a, 'horas': h} for a, h in sin.items()],
+            'divididas': r.get('divididas', []), 'reuniones': getattr(p, 'reuniones', [])}
 
 
 # ---------------------------------------------------------------------------
