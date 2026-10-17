@@ -137,7 +137,11 @@ def prueba():
             app.soltar({'tipo': 'nueva', 'asig': con_bloque['id'], 'largo': 2}, ('celda', inicio[0], inicio[1]))
             print('bloque:', app.estado.cget('text'))
             assert len(alt['sesiones']) == antes_b + 2, app.estado.cget('text')
-    app._menu_paleta(type('E', (), {'x_root': 0, 'y_root': 0})(), pend[0][0]['id'])
+    # «Ubicar de a una hora» (lo que hace el menú del clic derecho; el menú no se abre en la prueba
+    # porque en Windows se queda esperando un clic)
+    app.sueltas.add(pend[0][0]['id'])
+    app._ver()
+    app.sueltas.discard(pend[0][0]['id'])
     # Varias pestañas y una ventana aparte: todas muestran el mismo horario
     v2 = app.nueva_pestana(tipo=1)
     v3 = app.nueva_ventana()
