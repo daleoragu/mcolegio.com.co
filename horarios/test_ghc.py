@@ -280,3 +280,14 @@ class IdeasDeGHC(SimpleTestCase):
                     sueltas += 1
         self.assertGreater(seguidas, 20)
         self.assertLessEqual(sueltas, 2)
+
+    def test_bloque_no_cae_en_hora_sin_clase_del_curso(self):
+        D = datos(cursos_tarde=(3, 4))
+        p = proyecto(D)
+        f = [x['id'] for x in D.franjas_de(1) if not x['descanso']]
+        for dia in range(1, 6):
+            p.alternar_celda_curso(1, dia, f[-1])          # el 101 nunca tiene la última hora
+        p.cond['bloques_general'] = {'activa': True, 'desde': 2}
+        for semilla in range(3):
+            r = nucleo.generar(D, p.cond, segundos=2, semilla=semilla)
+            self.assertFalse([s for s in r['sesiones'] if s['curso'] == 1 and s['franja'] == f[-1]])

@@ -404,7 +404,16 @@ def _posiciones(p, est, u):
         s = set(p.slots.get(c, []))
         comunes = s if comunes is None else comunes & s
     orden = p.slots.get(cursos[0], [])
-    return [(d, f) for (d, f) in orden if (d, f) in (comunes or set()) and est.celdas(u, d, f)]
+    comunes = comunes or set()
+    out = []
+    for (d, f) in orden:
+        if (d, f) not in comunes:
+            continue
+        cs = est.celdas(u, d, f)
+        # Todas las horas del bloque (no solo la primera) tienen que ser horas permitidas del curso
+        if cs and all((d, x) in comunes for x in cs):
+            out.append((d, f))
+    return out
 
 
 def _construir(p, est, cola, posibles, rnd, hasta, avance=None, total=1):
