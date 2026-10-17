@@ -156,7 +156,7 @@ class AppDeEscritorio(Base):
             fh.write(intercambio.archivo_datos(self.a))
         p = Proyecto.abrir_datos(ruta)
         self.assertIsNone(p.agregar_fija(self.asig.id, 2, self.f[1].id))
-        self.assertIn('dos clases', p.agregar_fija(self.asig2.id, 2, self.f[1].id))
+        self.assertIn('ya tiene', p.agregar_fija(self.asig2.id, 2, self.f[1].id))
         self.assertIn('no es de la jornada', p.agregar_fija(self.asig.id, 2, self.f[2].id))   # el descanso
         self.assertTrue(p.alternar_no_puede(self.doc2.id, 1, self.f[0].id))
         p.regla(self.ingles.id)['primeras'] = True

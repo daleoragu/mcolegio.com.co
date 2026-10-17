@@ -1,14 +1,14 @@
 {
  "tipo": "mcolegio-horario-datos",
  "version": 1,
- "exportado": "2026-10-17T01:56:38+00:00",
+ "exportado": "2026-10-17T03:52:42+00:00",
  "colegio": {
   "id": 1,
   "nombre": "Institución Educativa Nuevo Horizonte"
  },
  "jornadas": [
   {
-   "id": 1,
+   "id": 2,
    "nombre": "Mañana",
    "dias": [
     1,
@@ -26,7 +26,7 @@
    ],
    "franjas": [
     {
-     "id": 1,
+     "id": 8,
      "orden": 0,
      "inicio": "06:30",
      "fin": "07:25",
@@ -34,7 +34,7 @@
      "etiqueta": "1.ª hora"
     },
     {
-     "id": 2,
+     "id": 9,
      "orden": 1,
      "inicio": "07:25",
      "fin": "08:20",
@@ -42,7 +42,7 @@
      "etiqueta": "2.ª hora"
     },
     {
-     "id": 3,
+     "id": 10,
      "orden": 2,
      "inicio": "08:20",
      "fin": "09:15",
@@ -50,7 +50,7 @@
      "etiqueta": "3.ª hora"
     },
     {
-     "id": 4,
+     "id": 11,
      "orden": 3,
      "inicio": "09:15",
      "fin": "09:45",
@@ -58,7 +58,7 @@
      "etiqueta": "Descanso"
     },
     {
-     "id": 5,
+     "id": 12,
      "orden": 4,
      "inicio": "09:45",
      "fin": "10:40",
@@ -66,7 +66,7 @@
      "etiqueta": "4.ª hora"
     },
     {
-     "id": 6,
+     "id": 13,
      "orden": 5,
      "inicio": "10:40",
      "fin": "11:35",
@@ -74,7 +74,7 @@
      "etiqueta": "5.ª hora"
     },
     {
-     "id": 7,
+     "id": 14,
      "orden": 6,
      "inicio": "11:35",
      "fin": "12:30",
@@ -146,37 +146,44 @@
   {
    "id": 4,
    "nombre": "Ciencias Naturales",
-   "abreviatura": "CNA"
+   "abreviatura": "CNA",
+   "area": "CIENCIAS NATURALES"
   },
   {
    "id": 5,
    "nombre": "Ciencias Sociales",
-   "abreviatura": "SOC"
+   "abreviatura": "SOC",
+   "area": "CIENCIAS SOCIALES"
   },
   {
    "id": 6,
    "nombre": "Educación Física",
-   "abreviatura": "EDF"
+   "abreviatura": "EDF",
+   "area": "EDUCACIÓN FÍSICA"
   },
   {
    "id": 3,
    "nombre": "Inglés",
-   "abreviatura": "ING"
+   "abreviatura": "ING",
+   "area": "HUMANIDADES"
   },
   {
    "id": 2,
    "nombre": "Lengua Castellana",
-   "abreviatura": "LEN"
+   "abreviatura": "LEN",
+   "area": "HUMANIDADES"
   },
   {
    "id": 1,
    "nombre": "Matemáticas",
-   "abreviatura": "MAT"
+   "abreviatura": "MAT",
+   "area": "MATEMÁTICAS"
   },
   {
    "id": 7,
    "nombre": "Tecnología",
-   "abreviatura": "TEC"
+   "abreviatura": "TEC",
+   "area": "TECNOLOGÍA E INFORMÁTICA"
   }
  ],
  "asignaciones": [
@@ -426,5 +433,5 @@
    "ih": 2
   }
  ],
- "firma": "f6f4660fd643ba8fdc0b4f5733035f12"
+ "firma": "3daff7977a977360c667a01cd73242d1"
 }

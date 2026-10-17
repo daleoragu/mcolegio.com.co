@@ -35,6 +35,8 @@
             <input type="hidden" name="que" value="publicar"><button class="btn btn-success w-100 mb-2" {% if choques %}disabled{% endif %}><i class="fas fa-bullhorn me-1"></i>Publicar y avisar</button></form>
         {% if choques %}<p class="ho-ayuda">Corrija los choques para poder publicar.</p>{% endif %}
         {% else %}<p class="small text-success mb-2"><i class="fas fa-circle-check me-1"></i>Es el horario oficial desde el {{ h.publicado_en|date:"d/m/Y H:i" }}.</p>{% endif %}
+        {% if h.informe.reuniones %}<div class="small mb-2"><strong>Reuniones de área</strong><ul class="ps-3 mb-0">{% for r in h.informe.reuniones %}<li>{{ r }}</li>{% endfor %}</ul></div>{% endif %}
+        {% if h.informe.divididas %}<div class="small mb-2 text-muted"><strong>Bloques partidos:</strong> {{ h.informe.divididas|join:", " }}</div>{% endif %}
         <form method="post" action="{% url 'horarios:accion' h.pk %}" class="mb-2">{% csrf_token %}<input type="hidden" name="que" value="renombrar">
             <div class="input-group input-group-sm"><input name="nombre" value="{{ h.nombre }}" class="form-control"><button class="btn btn-outline-secondary">Renombrar</button></div></form>
         {% if h.estado != 'PUBLICADO' %}
