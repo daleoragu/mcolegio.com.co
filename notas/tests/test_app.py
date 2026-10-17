@@ -45,6 +45,9 @@ class AppInstalable(ColegioDePrueba):
         self.assertContains(r, "SIN_CONEXION = '/sin-conexion/'")
         self.assertContains(self.cliente().get('/sin-conexion/'), 'No hay conexión a internet')
 
+    def test_pagina_de_revision(self):
+        self.assertContains(self.cliente().get('/app/revisar/'), 'Revisión de la app del colegio')
+
     def test_inicio_de_la_app(self):
         self.assertRedirects(self.cliente().get('/app/'), '/', fetch_redirect_response=False)
         self.assertRedirects(self.cliente(self.rectora).get('/app/'), '/dashboard/', fetch_redirect_response=False)

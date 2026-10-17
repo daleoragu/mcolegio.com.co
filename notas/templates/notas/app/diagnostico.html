@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revisión de la app · {{ colegio.nombre|default:"mcolegio" }}</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<style>
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; margin:0; background:#f3f4f6; color:#111827; }
+  .caja { max-width:560px; margin:16px auto; background:#fff; border-radius:16px; padding:18px; box-shadow:0 4px 16px rgba(0,0,0,.06); }
+  h1 { font-size:1.15rem; margin:0 0 4px; } p.s { color:#6b7280; margin:0 0 12px; font-size:.9rem; }
+  .f { display:flex; gap:10px; padding:9px 0; border-top:1px solid #eef0f3; font-size:.92rem; }
+  .i { width:22px; flex:none; text-align:center; } .t { flex:1; } .d { color:#6b7280; font-size:.8rem; word-break:break-all; }
+  img { width:64px; height:64px; border-radius:14px; border:1px solid #e5e7eb; vertical-align:middle; margin-right:6px; }
+</style></head>
+<body><div class="caja">
+<h1>Revisión de la app del colegio</h1>
+<p class="s">Tome una captura de esta pantalla y envíela a soporte.</p>
+<div id="lista"></div>
+<div style="margin-top:10px"><img src="/app/icono-192.png" alt="icono 192"><img src="/app/icono-512.png?maskable=1" alt="icono 512"></div>
+</div>
+<script>
+(function () {
+  var lista = document.getElementById('lista');
+  function fila(ok, texto, detalle) {
+    var d = document.createElement('div'); d.className = 'f';
+    d.innerHTML = '<div class="i">' + (ok === true ? '✅' : ok === false ? '❌' : '⏳') + '</div><div class="t">' + texto +
+                  (detalle ? '<div class="d">' + detalle + '</div>' : '') + '</div>';
+    lista.appendChild(d); return d;
+  }
+  fila(location.protocol === 'https:' || location.hostname === 'localhost', 'Conexión segura (https)', location.origin);
+  var inst = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  fila(null, inst ? 'Abierta como app instalada' : 'Abierta en el navegador', navigator.userAgent);
+  fetch('/manifest.webmanifest', {cache: 'no-store'}).then(function (r) {
+    return r.text().then(function (t) {
+      var m = null; try { m = JSON.parse(t); } catch (e) {}
+      fila(r.ok && !!m, 'Datos de la app (manifest): ' + r.status, m ? (m.name + ' · ' + m.short_name + ' · ' + m.start_url) : t.slice(0, 160));
+      (m && m.icons || []).forEach(function (ic) {
+        fetch(ic.src, {cache: 'no-store'}).then(function (x) {
+          return x.blob().then(function (b) {
+            fila(x.ok && b.type === 'image/png', 'Icono ' + ic.sizes + (ic.purpose === 'maskable' ? ' (recortable)' : '') + ': ' + x.status,
+                 b.type + ' · ' + Math.round(b.size / 1024) + ' KB');
+          });
+        }).catch(function (e) { fila(false, 'Icono ' + ic.sizes, String(e)); });
+      });
+    });
+  }).catch(function (e) { fila(false, 'Datos de la app (manifest)', String(e)); });
+  fetch('/sw.js', {cache: 'no-store'}).then(function (r) {
+    fila(r.ok, 'Archivo del service worker: ' + r.status, r.headers.get('content-type'));
+  }).catch(function (e) { fila(false, 'Archivo del service worker', String(e)); });
+  if (!('serviceWorker' in navigator)) {
+    fila(false, 'Este navegador no permite instalar apps', 'Use Chrome (Android) o Safari (iPhone).');
+  } else {
+    navigator.serviceWorker.register('/sw.js').then(function (reg) {
+      return navigator.serviceWorker.ready.then(function () {
+        fila(true, 'Service worker activo', reg.scope);
+      });
+    }).catch(function (e) { fila(false, 'Service worker no se pudo activar', String(e)); });
+  }
+  var espera = fila(null, 'Chrome ofrece instalar…', 'Espere unos segundos');
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    espera.remove(); fila(true, 'Chrome permite instalar la app');
+  });
+  setTimeout(function () {
+    if (espera.parentNode) { espera.remove(); fila(null, 'Chrome no ofreció la instalación todavía', 'Puede ser normal si ya está instalada o si no ha usado el sitio un rato.'); }
+  }, 8000);
+})();
+</script>
+</body></html>
