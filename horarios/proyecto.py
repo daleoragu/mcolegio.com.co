@@ -463,7 +463,7 @@ class Proyecto:
                     out.append(k)
         return out
 
-    def destino(self, alt, aid, dia, fid, i=None):
+    def destino(self, alt, aid, dia, fid, i=None, ignorar_tambien=()):
         """Qué pasa si la clase `aid` (o la ficha i) va a (dia, fid):
 
         ('libre', '', [])           -> verde: cabe.
@@ -471,7 +471,7 @@ class Proyecto:
         ('imposible', texto, [k…])  -> rojo: hay una ficha fijada 🔒 o una condición que no se puede romper.
         """
         D = self.datos
-        ign = {i} if i is not None else set()
+        ign = ({i} if i is not None else set()) | set(ignorar_tambien)
         m = self.motivo(alt, aid, dia, fid, ignorar=ign)
         if not m:
             return 'libre', '', []
@@ -492,7 +492,7 @@ class Proyecto:
             nombres.append(f'{D.nombre_materia(x["materia"])} de {D.nombre_curso(x["curso"])} ({D.nombre_docente(x.get("docente"))})')
         return 'ocupado', 'Ocupada por ' + ' y '.join(nombres) + '.', est
 
-    def mapa_destinos(self, alt, aid, i=None):
+    def mapa_destinos(self, alt, aid, i=None, largo=1):
         """{(dia, franja): estado} de todas las horas de clase, para pintar la cuadrícula."""
         out = {}
         for j in self.datos.jornadas.values():
@@ -500,21 +500,108 @@ class Proyecto:
                 if f['descanso']:
                     continue
                 for dia in j['dias']:
-                    out[(dia, f['id'])] = self.destino(alt, aid, dia, f['id'], i)[0]
+                    if largo > 1:
+                        out[(dia, f['id'])] = self.destino_bloque(alt, aid, dia, f['id'], largo)[0]
+                    else:
+                        out[(dia, f['id'])] = self.destino(alt, aid, dia, f['id'], i)[0]
         return out
 
-    def reemplazar(self, alt, aid, dia, fid, i=None, fijar=True):
+    def reemplazar(self, alt, aid, dia, fid, i=None, fijar=True, largo=1):
         """Pone la clase en (dia, fid) y saca las fichas que estorban (vuelven a «por ubicar»)."""
-        estado, texto, est = self.destino(alt, aid, dia, fid, i)
+        if largo > 1:
+            estado, texto, est = self.destino_bloque(alt, aid, dia, fid, largo)
+        else:
+            estado, texto, est = self.destino(alt, aid, dia, fid, i)
         if estado == 'imposible':
             return texto
         for k in sorted(est, reverse=True):
             del alt['sesiones'][k]
             if i is not None and k < i:
                 i -= 1
+        if largo > 1:
+            return self.poner_bloque(alt, aid, dia, fid, largo, fijar)
         if i is None:
             return self.poner_ficha(alt, aid, dia, fid, fijar)
         return self.mover_ficha(alt, i, dia, fid, fijar)
+
+    # --- Bloques (2 horas seguidas, etc.) -------------------------------------------
+    def _siguientes(self):
+        if getattr(self, '_sig', None) is None:
+            self._sig = nucleo.siguientes(self.datos)
+        return self._sig
+
+    def celdas_bloque(self, fid, largo):
+        """[fid, la siguiente, …] o None si el bloque se cruza con un descanso o el fin de la jornada."""
+        out = [fid]
+        sig = self._siguientes()
+        while len(out) < largo:
+            nxt = sig.get(out[-1])
+            if not nxt:
+                return None
+            out.append(nxt)
+        return out
+
+    def partes_asig(self, aid):
+        return nucleo.partes_completas(self.datos, self.cond, self.datos.asignaciones[aid])
+
+    def piezas_pendientes(self, alt, aid):
+        """Los bloques que faltan de esa clase, sin importar en qué orden se pusieron los otros.
+        Ej.: 3 horas en 2+1 y ya está la hora suelta -> falta [2]."""
+        puestas = [(s['dia'], s['franja']) for s in alt['sesiones'] if s['asignacion'] == aid]
+        return nucleo.restar_corridas(self.partes_asig(aid), nucleo.corridas(puestas, self._siguientes()))
+
+    def destino_bloque(self, alt, aid, dia, fid, largo):
+        """Como destino(), pero para un bloque de varias horas que empieza en fid."""
+        cs = self.celdas_bloque(fid, largo)
+        if not cs:
+            return 'imposible', f'El bloque de {largo} horas no cabe ahí (se cruza con el descanso o el final de la jornada).', []
+        temp = {'sesiones': list(alt['sesiones']), 'reuniones': alt.get('reuniones')}
+        cid = self.datos.asignaciones[aid]['curso']
+        peor, textos, est_todos = 'libre', [], []
+        for c in cs:
+            estado, texto, est = self.destino(temp, aid, dia, c, ignorar_tambien=est_todos)
+            if estado == 'imposible':
+                return 'imposible', texto, est
+            if estado == 'ocupado':
+                peor = 'ocupado'
+                textos.append(texto)
+                est_todos += [k for k in est if k not in est_todos]
+            temp['sesiones'].append({'asignacion': aid, 'curso': cid, 'dia': dia, 'franja': c, 'fijada': False})
+        return peor, ' '.join(textos), est_todos
+
+    def poner_bloque(self, alt, aid, dia, fid, largo, fijar=True):
+        if largo <= 1:
+            return self.poner_ficha(alt, aid, dia, fid, fijar)
+        estado, texto, _ = self.destino_bloque(alt, aid, dia, fid, largo)
+        if estado != 'libre':
+            return texto
+        cid = self.datos.asignaciones[aid]['curso']
+        for c in self.celdas_bloque(fid, largo):
+            alt['sesiones'].append({'asignacion': aid, 'curso': cid, 'dia': dia, 'franja': c, 'fijada': fijar})
+        self.revisar(alt)
+        return None
+
+    def dividir_en_bloques(self, sobrescribir=False):
+        """Pone bloques de 2 horas (2+2+1…) a las clases que no tienen bloques. Devuelve cuántas."""
+        n = 0
+        for a in self.datos.asignaciones.values():
+            r = self.asig(a['id'])
+            regla = self.cond['materias'].get(str(a['materia']), {})
+            if not sobrescribir and (r.get('bloques') or regla.get('bloques')):
+                continue
+            t = nucleo.bloques_automaticos(self.datos.ih(a['id'], self.cond))
+            if t and r.get('bloques') != t:
+                r['bloques'] = t
+                n += 1
+        return n
+
+    def quitar_bloques(self):
+        n = 0
+        for r in self.cond['asignaciones'].values():
+            if r.get('bloques'):
+                r['bloques'] = ''
+                n += 1
+        return n
 
     def intercambiar(self, alt, i, dia, fid):
         """Mueve la ficha i a (dia, fid) y la que estorba ahí (del mismo curso o del mismo docente)

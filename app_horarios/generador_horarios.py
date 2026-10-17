@@ -22,12 +22,13 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import nucleo                     # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '2.4'
+VERSION = '2.5'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
 NARANJA = '#fdba74'
 FIJA, SUELTA, REUNION = '#c7d2fe', '#ede9fe', '#fde68a'
+BLOQUE = '#ddd6fe'
 ACTIVIDAD, TURNO = '#bbf7d0', '#a5f3fc'
 COLOR_ESTADO = {'libre': VERDE, 'no_puede': ROJO, 'prefiere_no': AMARILLO, 'evitar': NARANJA}
 TEXTO_ESTADO = {'libre': '', 'no_puede': 'No puede', 'prefiere_no': 'Mejor no', 'evitar': 'Mejor no +'}
@@ -187,6 +188,12 @@ class App(tk.Tk):
         self.nb.add(f, text='1. Datos')
         ttk.Label(f, text='Doble clic en una columna para cambiarla. «Bloques»: cómo se reparten las horas, '
                           'por ejemplo 2+2+1 (vacío = lo de la materia).', style='Ayuda.TLabel').pack(anchor='w')
+        bot = ttk.Frame(f)
+        bot.pack(anchor='w', pady=(4, 0))
+        ttk.Button(bot, text='✂ Dividir en bloques automáticamente (2+2+1…)', command=self._dividir_bloques).pack(side='left')
+        ttk.Button(bot, text='Quitar todos los bloques', command=self._quitar_bloques).pack(side='left', padx=4)
+        ttk.Label(bot, text='Solo llena las clases que no tienen bloques; las que ya tienen se respetan.',
+                  style='Ayuda.TLabel').pack(side='left', padx=6)
         cuerpo = ttk.Panedwindow(f, orient='horizontal')
         cuerpo.pack(fill='both', expand=True, pady=6)
         marco, self.tv_asig = self._tabla(cuerpo, [
@@ -230,6 +237,18 @@ class App(tk.Tk):
                 t.insert('end', f'  {d["nombre"]}: {base} h' + (f' + {extra} extra' if extra else '') +
                          (f' · sedes: {", ".join(sedes)}' if len(sedes) > 1 else '') + '\n')
         t.config(state='disabled')
+
+    def _dividir_bloques(self):
+        n = self.p.dividir_en_bloques()
+        self._llenar_datos()
+        self.avisar(f'{n} clase(s) quedaron en bloques de 2 horas. Puede cambiar cualquiera con doble clic en «Bloques».')
+
+    def _quitar_bloques(self):
+        if messagebox.askyesno(TITULO, '¿Quitar los bloques de todas las clases? Quedan en horas sueltas '
+                                       '(o con los bloques de su materia, si los tiene).'):
+            n = self.p.quitar_bloques()
+            self._llenar_datos()
+            self.avisar(f'Se quitaron los bloques de {n} clase(s).')
 
     def _editar_asig(self, ev):
         aid = self.tv_asig.identify_row(ev.y)
@@ -845,13 +864,14 @@ class App(tk.Tk):
         tk.Label(barra, text=' libre ', bg=VERDE_SEL).pack(side='left', padx=(8, 1))
         tk.Label(barra, text=' ocupada: se puede reemplazar ', bg=AMARILLO_SEL).pack(side='left', padx=1)
         tk.Label(barra, text=' no se puede ', bg=ROJO_SEL).pack(side='left', padx=1)
-        ttk.Label(der, text='Toque una ficha para ver dónde cabe; arrástrela o, con la ficha escogida, toque una casilla vacía. '
+        ttk.Label(der, text='Toque una ficha para ver dónde cabe (los bloques de 2 h van juntos, en cualquier orden); arrástrela o toque una casilla vacía. '
                             'Clic derecho: fijar o quitar. Esc: soltar la selección.', style='Ayuda.TLabel').pack(anchor='w')
         self.nb_vistas = ttk.Notebook(der)
         self.nb_vistas.pack(fill='both', expand=True, pady=(4, 0))
         self.nb_vistas.bind('<<NotebookTabChanged>>', lambda e: self._pintar_seleccion())
         self.vistas = []
         self.sel = None
+        self.sueltas = set()            # clases que el usuario quiere ubicar de a una hora
         self.bind('<Escape>', lambda e: self.quitar_seleccion())
         self.nueva_pestana()
         self._llenar_alternativas()
@@ -1012,12 +1032,13 @@ class App(tk.Tk):
         if not alt:
             return
         self.sel = datos
+        largo = datos.get('largo', 1) if datos['tipo'] == 'nueva' else 1
         if datos['tipo'] == 'nueva':
             aid, i = datos['asig'], None
         else:
             i = datos['i']
             aid = alt['sesiones'][i]['asignacion']
-        self._mapa = self.p.mapa_destinos(alt, aid, i)
+        self._mapa = self.p.mapa_destinos(alt, aid, i, largo)
         self._pintar_seleccion()
         D = self.p.datos
         a = D.asignaciones[aid]
@@ -1135,14 +1156,22 @@ class App(tk.Tk):
         else:
             i = datos.get('i')
             aid = datos['asig'] if datos['tipo'] == 'nueva' else alt['sesiones'][i]['asignacion']
-            estado, texto, est = self.p.destino(alt, aid, destino[1], destino[2], i)
+            largo = datos.get('largo', 1) if i is None else 1
+            if largo > 1:
+                estado, texto, est = self.p.destino_bloque(alt, aid, destino[1], destino[2], largo)
+            else:
+                estado, texto, est = self.p.destino(alt, aid, destino[1], destino[2], i)
             if estado == 'libre':
-                motivo = (self.p.poner_ficha(alt, aid, destino[1], destino[2], fijar) if i is None
-                          else self.p.mover_ficha(alt, i, destino[1], destino[2], fijar))
+                if largo > 1:
+                    motivo = self.p.poner_bloque(alt, aid, destino[1], destino[2], largo, fijar)
+                    hecho = f'Bloque de {largo} horas ubicado' + (' y fijado (🔒).' if fijar else '.')
+                else:
+                    motivo = (self.p.poner_ficha(alt, aid, destino[1], destino[2], fijar) if i is None
+                              else self.p.mover_ficha(alt, i, destino[1], destino[2], fijar))
             elif estado == 'imposible':
                 motivo = texto
             else:
-                motivo = self._ocupada(alt, aid, i, destino, texto, est, fijar)
+                motivo = self._ocupada(alt, aid, i, destino, texto, est, fijar, largo)
                 if motivo is False:          # canceló
                     self.avisar('No se cambió nada.')
                     return self._ver()
@@ -1158,7 +1187,7 @@ class App(tk.Tk):
         self._actualizar_fila()
         self._ver()
 
-    def _ocupada(self, alt, aid, i, destino, texto, est, fijar):
+    def _ocupada(self, alt, aid, i, destino, texto, est, fijar, largo=1):
         """Casilla amarilla: intercambiar (si se puede), reemplazar o cancelar.
         Devuelve True si intercambió, None si reemplazó, False si canceló, o el motivo si falló."""
         puede_intercambiar = i is not None and len(est) == 1
@@ -1176,7 +1205,7 @@ class App(tk.Tk):
                     return False
         elif not messagebox.askyesno(TITULO, texto + '\n\n¿Reemplazar esa hora? Lo que estaba vuelve a «Fichas por ubicar».'):
             return False
-        return self.p.reemplazar(alt, aid, destino[1], destino[2], i, fijar)
+        return self.p.reemplazar(alt, aid, destino[1], destino[2], i, fijar, largo)
 
     def _actualizar_fila(self):
         alt = self._alt()
@@ -1184,6 +1213,14 @@ class App(tk.Tk):
         if alt and sel:
             self.tv_alt.item(sel[0], values=(alt.get('nombre'), alt.get('horas_sin_ubicar', 0),
                                              alt.get('huecos') if alt.get('huecos') is not None else '—'))
+
+    def _menu_paleta(self, e, aid):
+        m = tk.Menu(self, tearoff=0)
+        if aid in self.sueltas:
+            m.add_command(label='Volver a ubicar en bloques', command=lambda: (self.sueltas.discard(aid), self._ver()))
+        else:
+            m.add_command(label='Ubicar de a una hora (partir el bloque)', command=lambda: (self.sueltas.add(aid), self._ver()))
+        m.tk_popup(e.x_root, e.y_root)
 
     def _menu_ficha(self, e, i):
         alt = self._alt()
@@ -1316,14 +1353,29 @@ class Vista:
         tipo, ident = self.quien_l[self.cb_quien.current()]
         D = app.p.datos
         tk.Label(self.paleta, text='Fichas por ubicar', bg=GRIS, font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=6, pady=4)
-        if tipo == 'c':
-            pend = app.p.pendientes(alt, ident)
-            textos = [f"{D.nombre_materia(a['materia'])} ×{n}\n{D.nombre_docente(a.get('docente'))}" for a, n in pend]
-        else:
-            pend = app.p.pendientes_docente(alt, ident)
-            textos = [f"{D.nombre_curso(a['curso'])} · {D.nombre_materia(a['materia'])} ×{n}" for a, n in pend]
-        for (a, n), texto in zip(pend, textos):
-            app._ficha(self.paleta, texto, SUELTA, {'tipo': 'nueva', 'asig': a['id']}).pack(fill='x', padx=6, pady=2)
+        pend = app.p.pendientes(alt, ident) if tipo == 'c' else app.p.pendientes_docente(alt, ident)
+        for a, n in pend:
+            # Una ficha por cada tamaño de bloque que falta (2 h, 1 h…), en el orden que usted quiera.
+            if a['id'] in app.sueltas:
+                piezas = [1] * n
+            else:
+                piezas = app.p.piezas_pendientes(alt, a['id'])
+                if sum(piezas) != n:
+                    piezas = [1] * n
+            cuantas = {}
+            for x in piezas:
+                cuantas[x] = cuantas.get(x, 0) + 1
+            for largo in sorted(cuantas, reverse=True):
+                k = cuantas[largo]
+                que = f'bloque {largo} h' if largo > 1 else '1 h'
+                if tipo == 'c':
+                    texto = f"{D.nombre_materia(a['materia'])} · {que}{f' ×{k}' if k > 1 else ''}\n{D.nombre_docente(a.get('docente'))}"
+                else:
+                    texto = f"{D.nombre_curso(a['curso'])} · {D.nombre_materia(a['materia'])} · {que}{f' ×{k}' if k > 1 else ''}"
+                color = BLOQUE if largo > 1 else SUELTA
+                ficha = app._ficha(self.paleta, texto, color, {'tipo': 'nueva', 'asig': a['id'], 'largo': largo})
+                ficha.pack(fill='x', padx=6, pady=2)
+                ficha.bind('<Button-3>', lambda e, aid=a['id']: app._menu_paleta(e, aid))
         if not pend:
             tk.Label(self.paleta, text='✔ Todas ubicadas', bg=GRIS, fg='#14532d').pack(anchor='w', padx=6)
         tk.Label(self.paleta, text='Suelte aquí una ficha\npara sacarla del horario.', bg=GRIS, fg='#888',

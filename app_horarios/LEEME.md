@@ -41,3 +41,9 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 
 - **Prioridad a los bloques** (pestaña 2, Reglas generales): las materias de 2 horas o más (el número se puede cambiar) van en bloques de 2 horas seguidas (2+2+1…). Si un bloque no cabe, se parte y queda en el informe. Una materia con sus propios bloques (por ejemplo «1+1+1» o «3+2») usa los suyos.
 - Nueva prioridad «Que las horas de una materia el mismo día queden seguidas»: si un bloque se tuvo que partir, el generador procura dejar las horas juntas.
+
+## Versión 2.5
+
+- **Bloques en cualquier orden**: si una clase de 3 horas es 2+1 y ya está puesta la hora suelta, lo que falta es el bloque de 2 (y al revés). Vale para el generador, «Completar lo que falta» y el armado a mano.
+- **Botón «✂ Dividir en bloques automáticamente»** (pestaña 1): pone 2+2+1… a las clases que no tienen bloques; «Quitar todos los bloques» los borra.
+- **Fichas de bloque**: en «Fichas por ubicar» sale una ficha por cada bloque que falta («Matemáticas · bloque 2 h», «Matemáticas · 1 h») y se ubican en el orden que usted quiera; el bloque se pone completo (los colores miran las dos horas). Clic derecho en la ficha: «Ubicar de a una hora».

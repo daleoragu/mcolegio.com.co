@@ -291,3 +291,46 @@ class IdeasDeGHC(SimpleTestCase):
         for semilla in range(3):
             r = nucleo.generar(D, p.cond, segundos=2, semilla=semilla)
             self.assertFalse([s for s in r['sesiones'] if s['curso'] == 1 and s['franja'] == f[-1]])
+
+    def test_bloques_en_cualquier_orden(self):
+        self.assertEqual(nucleo.restar_corridas([2, 1], [1]), [2])
+        self.assertEqual(nucleo.restar_corridas([2, 1], [2]), [1])
+        self.assertEqual(nucleo.restar_corridas([1, 2], [1]), [2])         # el orden escrito no importa
+        self.assertEqual(nucleo.restar_corridas([2, 2, 1], [1, 1]), [2, 1])  # dos sueltas parten un bloque
+        self.assertEqual(nucleo.bloques_automaticos(5), '2+2+1')
+        self.assertEqual(nucleo.bloques_automaticos(1), '')
+        D = datos(cursos_tarde=(3, 4))
+        f = [x['id'] for x in D.franjas_de(1) if not x['descanso']]
+        cond = nucleo.condiciones_vacias()
+        cond['ih'] = {'15': 3}
+        cond['asignaciones'] = {'15': {'bloques': '1+2'}}
+        # Fijo primero la hora suelta: lo que falta es el bloque de 2 (no dos sueltas)
+        cond['fijas'] = [{'asignacion': 15, 'dia': 1, 'franja': f[0]}]
+        p = nucleo.armar(D, cond)
+        self.assertEqual(sorted(u['largo'] for u in p.unidades if u['asig'] == 15), [2])
+        # Fijo primero el bloque de 2: falta la suelta
+        cond['fijas'] = [{'asignacion': 15, 'dia': 2, 'franja': f[0]}, {'asignacion': 15, 'dia': 2, 'franja': f[1]}]
+        p = nucleo.armar(D, cond)
+        self.assertEqual(sorted(u['largo'] for u in p.unidades if u['asig'] == 15), [1])
+        r = nucleo.generar(D, cond, segundos=2, semilla=1)
+        self.assertEqual(r['sin_ubicar'], [])
+
+    def test_fichas_de_bloque_a_mano_y_boton(self):
+        D = datos(cursos_tarde=(3, 4))
+        f = [x['id'] for x in D.franjas_de(1) if not x['descanso']]
+        p = proyecto(D)
+        self.assertEqual(p.dividir_en_bloques(), len(D.asignaciones))     # todas tienen 4 horas o más
+        self.assertEqual(p.asig(13)['bloques'], '2+2+1')                  # 5 horas
+        alt = p.en_blanco()
+        self.assertEqual(p.piezas_pendientes(alt, 13), [2, 2, 1])
+        self.assertIsNone(p.poner_ficha(alt, 13, 1, f[3], fijar=False))   # primero la suelta
+        self.assertEqual(p.piezas_pendientes(alt, 13), [2, 2])
+        self.assertIn('no cabe', p.destino_bloque(alt, 13, 2, f[2], 2)[1])  # 3.ª hora + descanso
+        self.assertEqual(p.mapa_destinos(alt, 13, largo=2)[(2, f[0])], 'libre')
+        self.assertIsNone(p.poner_bloque(alt, 13, 2, f[0], 2, fijar=False))
+        self.assertEqual(p.piezas_pendientes(alt, 13), [2])
+        self.assertEqual(sorted(s['franja'] for s in alt['sesiones'] if s['dia'] == 2), [f[0], f[1]])
+        # Un bloque sobre una hora ocupada (que no está fijada) es amarillo y se puede reemplazar
+        self.assertIsNone(p.poner_ficha(alt, 23, 3, f[1], fijar=False))
+        self.assertEqual(p.destino_bloque(alt, 13, 3, f[0], 2)[0], 'ocupado')
+        self.assertEqual(p.quitar_bloques(), len(D.asignaciones))
