@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import nucleo                     # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '2.5'
+VERSION = '2.6'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -43,6 +43,10 @@ class App(tk.Tk):
         self.title(TITULO)
         self.geometry('1260x800')
         self.minsize(1040, 660)
+        try:
+            self.state('zoomed')            # pantalla completa en Windows
+        except tk.TclError:
+            pass
         self.p = None
         self.cola = queue.Queue()
         self.generando = False
@@ -182,6 +186,67 @@ class App(tk.Tk):
         var.trace_add('write', cambio)
         return f
 
+    # Filtros por grado, área y docente (para las tablas)
+    def _filtros(self, padre, cuales, al_cambiar):
+        """Una fila de filtros. Devuelve una función acepta(asignacion) -> bool."""
+        D = self.p.datos
+        fila = ttk.Frame(padre)
+        fila.pack(fill='x', pady=(4, 0))
+        ttk.Label(fila, text='Filtrar:').pack(side='left')
+        cajas = {}
+        opciones = {}
+        if 'grado' in cuales:
+            gs = sorted({c.get('grado') for c in D.crudo['cursos']}, key=lambda g: (g is None, g if g is not None else 0))
+            opciones['grado'] = [('', 'Todos los grados')] + [(g, nombre_grado(g)) for g in gs]
+        if 'area' in cuales:
+            opciones['area'] = [('', 'Todas las áreas')] + [(a, a) for a in sorted(D.areas)]
+        if 'docente' in cuales:
+            con = {a.get('docente') for a in D.asignaciones.values() if a.get('docente')}
+            opciones['docente'] = [('', 'Todos los docentes')] + [
+                (d['id'], d['nombre']) for d in sorted(D.docentes.values(), key=lambda d: d['nombre']) if d['id'] in con]
+        for clave in cuales:
+            if clave == 'buscar':
+                continue
+            cb = ttk.Combobox(fila, state='readonly', width=24 if clave == 'docente' else 18,
+                              values=[n for _, n in opciones[clave]])
+            cb.current(0)
+            cb.pack(side='left', padx=3)
+            cb.bind('<<ComboboxSelected>>', lambda e: al_cambiar())
+            cajas[clave] = cb
+        var_buscar = tk.StringVar()
+        if 'buscar' in cuales:
+            ttk.Label(fila, text='Buscar:').pack(side='left', padx=(8, 2))
+            ttk.Entry(fila, textvariable=var_buscar, width=18).pack(side='left')
+            var_buscar.trace_add('write', lambda *_: al_cambiar())
+
+        def valor(clave):
+            cb = cajas.get(clave)
+            if cb is None:
+                return ''
+            k = cb.current()
+            return opciones[clave][k][0] if k is not None and 0 <= k < len(opciones[clave]) else ''
+
+        def acepta(a=None, materia=None, docente=None, curso=None):
+            if a is not None:
+                materia, docente, curso = a['materia'], a.get('docente'), a['curso']
+            g, ar, d = valor('grado'), valor('area'), valor('docente')
+            if g != '' and curso is not None and D.cursos.get(curso, {}).get('grado') != g:
+                return False
+            if ar != '' and materia is not None and D.materias.get(materia, {}).get('area') != ar:
+                return False
+            if d != '' and docente is not None and docente != d:
+                return False
+            q = (var_buscar.get() or '').strip().lower()
+            if q:
+                texto = ' '.join([D.nombre_curso(curso) if curso is not None else '',
+                                  D.nombre_materia(materia) if materia is not None else '',
+                                  D.nombre_docente(docente) if docente else '']).lower()
+                if q not in texto:
+                    return False
+            return True
+        acepta.valor = valor
+        return acepta
+
     # --- 1. Datos ---------------------------------------------------------
     def tab_datos(self):
         f = ttk.Frame(self.nb, padding=10)
@@ -194,6 +259,7 @@ class App(tk.Tk):
         ttk.Button(bot, text='Quitar todos los bloques', command=self._quitar_bloques).pack(side='left', padx=4)
         ttk.Label(bot, text='Solo llena las clases que no tienen bloques; las que ya tienen se respetan.',
                   style='Ayuda.TLabel').pack(side='left', padx=6)
+        self.filtro_datos = self._filtros(f, ('grado', 'area', 'docente', 'buscar'), lambda: self._llenar_datos())
         cuerpo = ttk.Panedwindow(f, orient='horizontal')
         cuerpo.pack(fill='both', expand=True, pady=6)
         marco, self.tv_asig = self._tabla(cuerpo, [
@@ -212,7 +278,10 @@ class App(tk.Tk):
         D, c = self.p.datos, self.p.cond
         self.tv_asig.delete(*self.tv_asig.get_children())
         orden = {x['id']: i for i, x in enumerate(D.crudo['cursos'])}
+        filtro = getattr(self, 'filtro_datos', None)
         for a in sorted(D.asignaciones.values(), key=lambda a: (orden.get(a['curso'], 0), D.nombre_materia(a['materia']))):
+            if filtro and not filtro(a):
+                continue
             r = c['asignaciones'].get(str(a['id']), {})
             self.tv_asig.insert('', 'end', iid=str(a['id']), values=(
                 D.nombre_curso(a['curso']), D.nombre_materia(a['materia']), D.nombre_docente(a.get('docente')),
@@ -315,6 +384,15 @@ class App(tk.Tk):
         var_desde.trace_add('write', cambio_desde)
         ttk.Label(fila_bl, text='horas o más van en bloques de 2 horas seguidas (2+2+1…); si no cabe, se parte').pack(side='left')
         ttk.Label(fila_bl, text='· una materia con «1+1+1» en Bloques queda por fuera', style='Ayuda.TLabel').pack(side='left', padx=6)
+        fila_bd = ttk.Frame(gen)
+        fila_bd.grid(row=4, column=0, columnspan=2, sticky='w', pady=(6, 0))
+        ttk.Label(fila_bd, text='¿Un bloque puede quedar partido por el descanso? (ej.: una hora antes y otra después)').pack(side='left')
+        self.cb_bd = ttk.Combobox(fila_bd, state='readonly', width=30,
+                                  values=['Preguntar al generar', 'Sí, puede quedar partido', 'No, siempre seguidas'])
+        self.cb_bd.current({None: 0, True: 1, False: 2}.get(c.get('bloque_descanso'), 0))
+        self.cb_bd.pack(side='left', padx=6)
+        self.cb_bd.bind('<<ComboboxSelected>>',
+                        lambda e: c.__setitem__('bloque_descanso', [None, True, False][self.cb_bd.current()]))
         ex = c.setdefault('excluyente', {'activa': False, 'a': 1, 'b': 7, 'obligatoria': True})
         fila_ex = ttk.Frame(gen)
         fila_ex.grid(row=2, column=0, columnspan=2, sticky='w', pady=(6, 0))
@@ -356,6 +434,7 @@ class App(tk.Tk):
         cuerpo.pack(fill='both', expand=True, pady=8)
         izq = ttk.LabelFrame(cuerpo, text='Materias (doble clic para cambiar)', padding=6)
         izq.pack(side='left', fill='both', expand=True)
+        self.filtro_mat = self._filtros(izq, ('area',), lambda: self._llenar_materias())
         marco, self.tv_mat = self._tabla(izq, [
             ('materia', 'Materia', 170), ('area', 'Área', 120), ('bloques', 'Bloques', 80), ('max', 'Máx./día', 70),
             ('primeras', 'Primeras horas', 100), ('ultima', 'Evitar última', 95), ('espacio', 'Espacio', 120)], 16)
@@ -373,7 +452,10 @@ class App(tk.Tk):
     def _llenar_materias(self):
         D = self.p.datos
         self.tv_mat.delete(*self.tv_mat.get_children())
+        filtro = getattr(self, 'filtro_mat', None)
         for m in sorted(D.materias.values(), key=lambda m: m['nombre']):
+            if filtro and not filtro(materia=m['id']):
+                continue
             r = self.p.cond['materias'].get(str(m['id']), {})
             self.tv_mat.insert('', 'end', iid=str(m['id']), values=(
                 m['nombre'], m.get('area', ''),
@@ -442,24 +524,34 @@ class App(tk.Tk):
         izq = ttk.Frame(f)
         izq.pack(side='left', fill='y')
         ttk.Label(izq, text='Docentes y, al final, cursos').pack(anchor='w')
+        self.filtro_doc = self._filtros(izq, ('grado', 'area'), lambda: self._llenar_lista_docentes())
         self.lb_doc = tk.Listbox(izq, width=34, exportselection=False)
         self.lb_doc.pack(fill='y', expand=True)
-        con_clases = {a.get('docente') for a in self.p.datos.asignaciones.values()}
-        self.docs = [d for d in sorted(self.p.datos.docentes.values(), key=lambda d: d['nombre']) if d['id'] in con_clases]
-        self.cursos_l = [c for c in self.p.datos.crudo['cursos'] if c['id'] in self.p.datos.jornada_de_curso]
-        disp = self.p.disponibilidad_plataforma()
-        for d in self.docs:
-            self.lb_doc.insert('end', d['nombre'] + ('  ✉' if d['id'] in disp else ''))
-        for c in self.cursos_l:
-            self.lb_doc.insert('end', f'Curso {c["nombre"]}')
-            self.lb_doc.itemconfig('end', foreground='#3730a3')
         self.lb_doc.bind('<<ListboxSelect>>', lambda e: self._ver_docente())
+        self._llenar_lista_docentes()
+        disp = self.p.disponibilidad_plataforma()
         if disp:
             ttk.Label(izq, text=f'✉ = marcó su disponibilidad en la plataforma ({len(disp)})', style='Ayuda.TLabel').pack(anchor='w')
             ttk.Button(izq, text='Volver a traer la disponibilidad', command=self._traer_disp).pack(fill='x', pady=2)
         self.panel_doc = ttk.Frame(f, padding=(14, 0))
         self.panel_doc.pack(side='left', fill='both', expand=True)
         ttk.Label(self.panel_doc, text='Escoja un docente.', style='Ayuda.TLabel').pack(anchor='w')
+
+    def _llenar_lista_docentes(self):
+        D = self.p.datos
+        filtro = self.filtro_doc
+        # Un docente pasa el filtro si tiene alguna clase en ese grado y de esa área
+        pasan = {a.get('docente') for a in D.asignaciones.values() if a.get('docente') and filtro(a)}
+        self.docs = [d for d in sorted(D.docentes.values(), key=lambda d: d['nombre']) if d['id'] in pasan]
+        g = filtro.valor('grado')
+        self.cursos_l = [c for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso and (g == '' or c.get('grado') == g)]
+        disp = self.p.disponibilidad_plataforma()
+        self.lb_doc.delete(0, 'end')
+        for d in self.docs:
+            self.lb_doc.insert('end', d['nombre'] + ('  ✉' if d['id'] in disp else ''))
+        for c in self.cursos_l:
+            self.lb_doc.insert('end', f'Curso {c["nombre"]}')
+            self.lb_doc.itemconfig('end', foreground='#3730a3')
 
     def _traer_disp(self):
         if messagebox.askyesno(TITULO, 'Se reemplazan las horas marcadas aquí por las que cada docente marcó en la '
@@ -818,63 +910,73 @@ class App(tk.Tk):
 
     # --- 6. Horario -----------------------------------------------------------
     def tab_horario(self):
-        f = ttk.Frame(self.nb, padding=8)
+        """Pantalla completa: arriba los botones, abajo las cuadrículas (pestañas). Cada pestaña
+        escoge qué horario muestra, así se pueden comparar alternativas lado a lado."""
+        f = ttk.Frame(self.nb, padding=(6, 4))
         self.nb.add(f, text='6. Horario')
-        arriba = ttk.Frame(f)
-        arriba.pack(fill='x')
-        ttk.Button(arriba, text='📝 Horario en blanco (armar a mano)', command=self._en_blanco).pack(side='left')
-        ttk.Separator(arriba, orient='vertical').pack(side='left', fill='y', padx=8)
-        ttk.Label(arriba, text='Alternativas:').pack(side='left')
+        uno = ttk.Frame(f)
+        uno.pack(fill='x')
+        ttk.Button(uno, text='📝 Horario en blanco', command=self._en_blanco).pack(side='left')
+        ttk.Separator(uno, orient='vertical').pack(side='left', fill='y', padx=6)
+        ttk.Label(uno, text='Alternativas:').pack(side='left')
         self.var_alt = tk.IntVar(value=3)
-        ttk.Spinbox(arriba, from_=1, to=3, width=3, textvariable=self.var_alt).pack(side='left', padx=4)
-        ttk.Label(arriba, text='Segundos c/u:').pack(side='left')
+        ttk.Spinbox(uno, from_=1, to=3, width=3, textvariable=self.var_alt).pack(side='left', padx=3)
+        ttk.Label(uno, text='Segundos c/u:').pack(side='left')
         self.var_seg = tk.IntVar(value=60)
-        ttk.Spinbox(arriba, from_=15, to=600, increment=15, width=5, textvariable=self.var_seg).pack(side='left', padx=4)
-        self.btn_gen = ttk.Button(arriba, text='▶ Generar', command=self.generar)
-        self.btn_gen.pack(side='left', padx=6)
-        self.barra = ttk.Progressbar(arriba, length=200, mode='determinate')
-        self.barra.pack(side='left')
-        self.lbl_prog = ttk.Label(arriba, text='', style='Ayuda.TLabel')
-        self.lbl_prog.pack(side='left', padx=6)
-
-        cuerpo = ttk.Panedwindow(f, orient='horizontal')
-        cuerpo.pack(fill='both', expand=True, pady=6)
-        izq = ttk.Frame(cuerpo)
-        cuerpo.add(izq, weight=1)
-        marco, self.tv_alt = self._tabla(izq, [('alt', 'Horario', 150), ('sin', 'Faltan', 50), ('huecos', 'Huecos', 55)], 6)
-        marco.pack(fill='x')
-        self.tv_alt.bind('<<TreeviewSelect>>', lambda e: self._ver())
-        for texto, cmd in (('Completar lo que falta', self._completar),
-                           ('Regenerar lo no fijado', lambda: self._completar(solo_fijadas=True)),
-                           ('💾 Guardar para la plataforma (.mchr)', self._exportar),
-                           ('Exportar a Excel', self._excel), ('Quitar este horario', self._quitar_alt)):
-            ttk.Button(izq, text=texto, command=cmd).pack(fill='x', pady=1)
-        ttk.Label(izq, text='Avisos', style='Sub.TLabel').pack(anchor='w', pady=(8, 0))
-        self.txt_avisos = tk.Text(izq, wrap='word', height=14, width=34, relief='flat', background=GRIS, font=('Segoe UI', 9))
-        self.txt_avisos.pack(fill='both', expand=True)
-
-        der = ttk.Frame(cuerpo)
-        cuerpo.add(der, weight=4)
-        barra = ttk.Frame(der)
-        barra.pack(fill='x')
-        ttk.Button(barra, text='➕ Otra pestaña', command=self.nueva_pestana).pack(side='left')
-        ttk.Button(barra, text='🗗 Abrir en ventana aparte', command=self.nueva_ventana).pack(side='left', padx=4)
+        ttk.Spinbox(uno, from_=15, to=600, increment=15, width=5, textvariable=self.var_seg).pack(side='left', padx=3)
+        self.btn_gen = ttk.Button(uno, text='▶ Generar', command=self.generar)
+        self.btn_gen.pack(side='left', padx=4)
+        ttk.Button(uno, text='Completar lo que falta', command=self._completar).pack(side='left', padx=2)
+        ttk.Button(uno, text='Regenerar lo no fijado', command=lambda: self._completar(solo_fijadas=True)).pack(side='left', padx=2)
+        self.barra = ttk.Progressbar(uno, length=160, mode='determinate')
+        self.barra.pack(side='left', padx=6)
+        self.lbl_prog = ttk.Label(uno, text='', style='Ayuda.TLabel')
+        self.lbl_prog.pack(side='left')
+        dos = ttk.Frame(f)
+        dos.pack(fill='x', pady=(4, 0))
+        ttk.Button(dos, text='💾 Guardar para la plataforma (.mchr)', command=self._exportar).pack(side='left')
+        ttk.Button(dos, text='Exportar a Excel', command=self._excel).pack(side='left', padx=3)
+        ttk.Button(dos, text='Renombrar', command=self._renombrar_alt).pack(side='left')
+        ttk.Button(dos, text='Quitar este horario', command=self._quitar_alt).pack(side='left', padx=3)
+        ttk.Separator(dos, orient='vertical').pack(side='left', fill='y', padx=6)
+        ttk.Button(dos, text='➕ Otra pestaña', command=self.nueva_pestana).pack(side='left')
+        ttk.Button(dos, text='🗗 Ventana aparte', command=self.nueva_ventana).pack(side='left', padx=3)
         self.var_fijar = tk.BooleanVar(value=False)
-        ttk.Checkbutton(barra, text='Fijar 🔒 lo que ubico a mano', variable=self.var_fijar).pack(side='left', padx=8)
-        tk.Label(barra, text=' libre ', bg=VERDE_SEL).pack(side='left', padx=(8, 1))
-        tk.Label(barra, text=' ocupada: se puede reemplazar ', bg=AMARILLO_SEL).pack(side='left', padx=1)
-        tk.Label(barra, text=' no se puede ', bg=ROJO_SEL).pack(side='left', padx=1)
-        ttk.Label(der, text='Toque una ficha para ver dónde cabe (los bloques de 2 h van juntos, en cualquier orden); arrástrela o toque una casilla vacía. '
-                            'Clic derecho: fijar o quitar. Esc: soltar la selección.', style='Ayuda.TLabel').pack(anchor='w')
-        self.nb_vistas = ttk.Notebook(der)
+        ttk.Checkbutton(dos, text='Fijar 🔒 lo que ubico a mano', variable=self.var_fijar).pack(side='left', padx=6)
+        self.btn_avisos = ttk.Button(dos, text='⚠ Avisos', command=self._alternar_avisos)
+        self.btn_avisos.pack(side='left', padx=3)
+        tk.Label(dos, text=' no se puede ', bg=ROJO_SEL).pack(side='right', padx=1)
+        tk.Label(dos, text=' ocupada: reemplazar ', bg=AMARILLO_SEL).pack(side='right', padx=1)
+        tk.Label(dos, text=' libre ', bg=VERDE_SEL).pack(side='right', padx=1)
+        ttk.Label(f, text='Toque una ficha para ver dónde cabe; arrástrela o toque una casilla vacía. Cada pestaña puede '
+                          'mostrar otro horario para compararlos. Clic derecho: fijar o quitar. Esc: soltar la selección.',
+                  style='Ayuda.TLabel').pack(anchor='w', pady=(2, 0))
+        self.marco_avisos = ttk.Frame(f)
+        self.txt_avisos = tk.Text(self.marco_avisos, wrap='word', height=8, relief='flat', background=GRIS,
+                                  font=('Segoe UI', 9))
+        self.txt_avisos.pack(fill='both', expand=True)
+        self.avisos_visibles = False
+        self.nb_vistas = ttk.Notebook(f)
         self.nb_vistas.pack(fill='both', expand=True, pady=(4, 0))
-        self.nb_vistas.bind('<<NotebookTabChanged>>', lambda e: self._pintar_seleccion())
+        self.nb_vistas.bind('<<NotebookTabChanged>>', lambda e: self._cambio_pestana())
         self.vistas = []
         self.sel = None
+        self._mapa = None
         self.sueltas = set()            # clases que el usuario quiere ubicar de a una hora
         self.bind('<Escape>', lambda e: self.quitar_seleccion())
         self.nueva_pestana()
         self._llenar_alternativas()
+
+    def _alternar_avisos(self):
+        if self.avisos_visibles:
+            self.marco_avisos.pack_forget()
+        else:
+            self.marco_avisos.pack(fill='x', before=self.nb_vistas, pady=(4, 0))
+        self.avisos_visibles = not self.avisos_visibles
+
+    def _cambio_pestana(self):
+        self._avisos(self._alt())
+        self._pintar_seleccion()
 
     def _en_blanco(self):
         self.p.en_blanco()
@@ -888,6 +990,7 @@ class App(tk.Tk):
         if errores and not messagebox.askyesno(TITULO, 'Hay problemas en los datos:\n\n' + '\n'.join(errores[:6]) +
                                                '\n\nAsí pueden quedar clases sin ubicar. ¿Generar de todas formas?'):
             return
+        self._preguntar_descanso()
         base = self._alt()
         fijadas = sum(1 for s in (base or {}).get('sesiones', []) if s.get('fijada'))
         if fijadas and not messagebox.askyesno(TITULO, f'Se van a respetar las {fijadas} fichas fijadas (🔒) del '
@@ -896,10 +999,25 @@ class App(tk.Tk):
         self._lanzar(lambda av: self.p.generar(max(1, min(3, self.var_alt.get())), max(5, self.var_seg.get()), av,
                                                base=base if fijadas else None))
 
+    def _preguntar_descanso(self):
+        """Si hay bloques y no se ha dicho, pregunta si un bloque puede quedar partido por el descanso."""
+        c = self.p.cond
+        if c.get('bloque_descanso') is not None or not self.p.hay_bloques():
+            return
+        r = messagebox.askyesno(TITULO, 'Hay clases en bloques (2 horas seguidas).\n\n'
+                                        '¿Un bloque puede quedar partido por el descanso? Por ejemplo, una hora antes '
+                                        'del descanso y la otra justo después.\n\n'
+                                        '«Sí»: se permite (más fácil de ubicar).\n«No»: las dos horas siempre seguidas.\n\n'
+                                        'Lo puede cambiar después en Reglas.')
+        c['bloque_descanso'] = bool(r)
+        if hasattr(self, 'cb_bd'):
+            self.cb_bd.current(1 if r else 2)
+
     def _completar(self, solo_fijadas=False):
         alt = self._alt()
         if not alt:
             return messagebox.showinfo(TITULO, 'Escoja un horario de la lista.')
+        self._preguntar_descanso()
         self._lanzar(lambda av: self.p.completar(alt, max(5, self.var_seg.get()), av, solo_fijadas=solo_fijadas))
 
     def _lanzar(self, trabajo):
@@ -937,19 +1055,41 @@ class App(tk.Tk):
             pass
         self.after(200, self._revisar_cola)
 
+    def nombres_alternativas(self):
+        out = []
+        for a in self.p.alternativas:
+            t = a.get('nombre') or 'Horario'
+            extra = []
+            if a.get('horas_sin_ubicar'):
+                extra.append(f"faltan {a['horas_sin_ubicar']}")
+            if a.get('choques'):
+                extra.append(f"{len(a['choques'])} choques")
+            if a.get('huecos') is not None:
+                extra.append(f"huecos {a['huecos']}")
+            out.append(t + (' · ' + ' · '.join(extra) if extra else ''))
+        return out
+
     def _llenar_alternativas(self, elegir=0):
-        self.tv_alt.delete(*self.tv_alt.get_children())
-        for i, a in enumerate(self.p.alternativas):
-            self.tv_alt.insert('', 'end', iid=str(i), values=(a.get('nombre'), a.get('horas_sin_ubicar', 0),
-                                                              a.get('huecos') if a.get('huecos') is not None else '—'))
-        if self.p.alternativas:
-            self.tv_alt.selection_set(str(min(elegir, len(self.p.alternativas) - 1)))
-        else:
-            self._ver()
+        """Actualiza la lista de horarios en todas las pestañas; la pestaña actual muestra `elegir`."""
+        nombres = self.nombres_alternativas()
+        actual = self.vista_actual() if self.vistas else None
+        for v in self.vistas:
+            v.poner_alternativas(nombres, elegir if v is actual else None)
+        self._ver()
 
     def _alt(self):
-        sel = self.tv_alt.selection() if hasattr(self, 'tv_alt') else ()
-        return self.p.alternativas[int(sel[0])] if sel and int(sel[0]) < len(self.p.alternativas) else None
+        if not getattr(self, 'vistas', None):
+            return None
+        return self.vista_actual().alt()
+
+    def _renombrar_alt(self):
+        alt = self._alt()
+        if not alt:
+            return
+        n = simpledialog.askstring(TITULO, 'Nombre de este horario:', initialvalue=alt.get('nombre') or '', parent=self)
+        if n and n.strip():
+            alt['nombre'] = n.strip()
+            self._actualizar_fila()
 
     # --- Vistas (pestañas y ventanas aparte) -------------------------------------
     def nueva_pestana(self, tipo=0):
@@ -957,7 +1097,10 @@ class App(tk.Tk):
         v = Vista(self, marco, cerrable=bool(self.vistas))
         self.nb_vistas.add(marco, text=f'Vista {len(self.vistas) + 1}')
         v.marco_pestana = marco
+        actual = self.vista_actual() if self.vistas else None
+        v.idx = actual.indice() if actual else 0
         self.vistas.append(v)
+        v.poner_alternativas(self.nombres_alternativas(), None, redibujar=False)
         v.cb_ver.current(tipo)
         v.opciones()
         try:
@@ -972,7 +1115,9 @@ class App(tk.Tk):
         w.geometry('1000x700')
         v = Vista(self, w, cerrable=False)
         v.ventana = w
+        v.idx = self.vista_actual().indice() if self.vistas else 0
         self.vistas.append(v)
+        v.poner_alternativas(self.nombres_alternativas(), None, redibujar=False)
 
         def cerrar():
             if v in self.vistas:
@@ -1024,13 +1169,18 @@ class App(tk.Tk):
         self._avisos(self._alt())
         for v in list(self.vistas):
             v.dibujar()
-        self._renombrar_pestanas()
+        self._actualizar_fila()
 
     # --- Selección: verde / amarillo / rojo --------------------------------------
+    def _vista_de(self, datos):
+        v = datos.get('vista') if isinstance(datos, dict) else None
+        return v if v in getattr(self, 'vistas', []) else self.vista_actual()
+
     def escoger(self, datos):
-        alt = self._alt()
+        alt = self._vista_de(datos).alt()
         if not alt:
             return
+        self._sel_alt = alt
         self.sel = datos
         largo = datos.get('largo', 1) if datos['tipo'] == 'nueva' else 1
         if datos['tipo'] == 'nueva':
@@ -1050,13 +1200,15 @@ class App(tk.Tk):
         if not self.sel or not getattr(self, '_mapa', None):
             return
         for v in self.vistas:
-            v.pintar(self._mapa)
+            if v.alt() is getattr(self, '_sel_alt', None):      # solo las pestañas que muestran ese horario
+                v.pintar(self._mapa)
 
-    def quitar_seleccion(self):
+    def quitar_seleccion(self, redibujar=True):
         if self.sel:
             self.sel = None
-            for v in self.vistas:
-                v.dibujar()
+            if redibujar:
+                for v in self.vistas:
+                    v.dibujar()
 
     def _avisos(self, alt):
         t = self.txt_avisos
@@ -1103,7 +1255,7 @@ class App(tk.Tk):
             lbl.bind('<B1-Motion>', self._arrastrar)
             lbl.bind('<ButtonRelease-1>', self._soltar_evento)
             if datos['tipo'] == 'puesta':
-                lbl.bind('<Button-3>', lambda e: self._menu_ficha(e, datos['i']))
+                lbl.bind('<Button-3>', lambda e: self._menu_ficha(e, datos['i'], datos.get('vista')))
         return lbl
 
     def _tomar(self, e, datos, texto, color):
@@ -1143,9 +1295,13 @@ class App(tk.Tk):
 
     def soltar(self, datos, destino):
         """Aplica una ficha soltada en una celda o en la paleta."""
-        alt = self._alt()
+        alt = self._vista_de(datos).alt()
         if not alt:
             return
+        if len(destino) > 3 and destino[3] is not None and destino[3].alt() is not alt:
+            self.avisar('✖ Esa pestaña muestra otro horario: suelte la ficha en una que muestre el mismo.', error=True)
+            self.bell()
+            return self._ver()
         motivo = None
         fijar = bool(self.var_fijar.get())
         hecho = 'Ficha ubicada' + (' y fijada (🔒).' if fijar else '.')
@@ -1208,11 +1364,14 @@ class App(tk.Tk):
         return self.p.reemplazar(alt, aid, destino[1], destino[2], i, fijar, largo)
 
     def _actualizar_fila(self):
+        nombres = self.nombres_alternativas()
+        for v in self.vistas:
+            v.poner_alternativas(nombres, None, redibujar=False)
+        self._renombrar_pestanas()
         alt = self._alt()
-        sel = self.tv_alt.selection()
-        if alt and sel:
-            self.tv_alt.item(sel[0], values=(alt.get('nombre'), alt.get('horas_sin_ubicar', 0),
-                                             alt.get('huecos') if alt.get('huecos') is not None else '—'))
+        if alt is not None and hasattr(self, 'btn_avisos'):
+            n = alt.get('horas_sin_ubicar', 0) + len(alt.get('choques') or [])
+            self.btn_avisos.configure(text=f'⚠ Avisos ({n})' if n else '✔ Avisos')
 
     def _menu_paleta(self, e, aid):
         m = tk.Menu(self, tearoff=0)
@@ -1222,15 +1381,16 @@ class App(tk.Tk):
             m.add_command(label='Ubicar de a una hora (partir el bloque)', command=lambda: (self.sueltas.add(aid), self._ver()))
         m.tk_popup(e.x_root, e.y_root)
 
-    def _menu_ficha(self, e, i):
-        alt = self._alt()
+    def _menu_ficha(self, e, i, vista=None):
+        alt = (vista or self.vista_actual()).alt()
         if not alt:
             return
         m = tk.Menu(self, tearoff=0)
         fijada = alt['sesiones'][i].get('fijada')
         m.add_command(label='Soltar (el generador la puede mover)' if fijada else 'Fijar 🔒 (el generador no la mueve)',
                       command=lambda: (self.p.alternar_fijada(alt, i), self._ver()))
-        m.add_command(label='Quitar del horario', command=lambda: self.soltar({'tipo': 'puesta', 'i': i}, ('paleta',)))
+        m.add_command(label='Quitar del horario', command=lambda: self.soltar({'tipo': 'puesta', 'i': i, 'vista': vista},
+                                                                             ('paleta',)))
         m.tk_popup(e.x_root, e.y_root)
 
     def _exportar(self):
@@ -1263,31 +1423,50 @@ class App(tk.Tk):
                 messagebox.showerror(TITULO, f'No se pudo guardar el Excel: {e}')
 
     def _quitar_alt(self):
-        sel = self.tv_alt.selection()
-        if sel and messagebox.askyesno(TITULO, '¿Quitar este horario de la lista?'):
-            del self.p.alternativas[int(sel[0])]
-            self._llenar_alternativas()
+        v = self.vista_actual()
+        k = v.indice()
+        if k is None or not messagebox.askyesno(TITULO, '¿Quitar este horario de la lista?'):
+            return
+        del self.p.alternativas[k]
+        for otra in self.vistas:
+            j = otra.indice()
+            if j is not None and j > k:
+                otra.idx = j - 1
+            elif j == k:
+                otra.idx = 0
+        self._llenar_alternativas(elegir=0 if v.idx is None else v.idx)
 
 
 class Vista:
     """Una cuadrícula del horario (por curso o por docente). Puede haber varias: en pestañas o en
-    ventanas aparte. Todas muestran el mismo horario y se actualizan juntas."""
+    ventanas aparte. Cada una escoge qué horario (alternativa) muestra."""
 
     def __init__(self, app, padre, cerrable=False):
         self.app = app
         self.quien_l = []
         self.celdas = []
+        self.idx = 0
+        self.filtros = []
         sel = ttk.Frame(padre)
         sel.pack(fill='x', pady=(4, 0))
+        ttk.Label(sel, text='Horario:').pack(side='left')
+        self.cb_alt = ttk.Combobox(sel, state='readonly', width=34)
+        self.cb_alt.pack(side='left', padx=(3, 8))
+        self.cb_alt.bind('<<ComboboxSelected>>', lambda e: self._cambio_alt())
         self.cb_ver = ttk.Combobox(sel, state='readonly', values=['Por curso', 'Por docente'], width=12)
         self.cb_ver.current(0)
-        self.cb_quien = ttk.Combobox(sel, state='readonly', width=36)
         self.cb_ver.pack(side='left')
-        self.cb_quien.pack(side='left', padx=6)
+        self.cb_filtro = ttk.Combobox(sel, state='readonly', width=20)
+        self.cb_filtro.pack(side='left', padx=4)
+        self.cb_quien = ttk.Combobox(sel, state='readonly', width=34)
+        self.cb_quien.pack(side='left', padx=2)
         self.cb_ver.bind('<<ComboboxSelected>>', lambda e: self.opciones())
+        self.cb_filtro.bind('<<ComboboxSelected>>', lambda e: self.opciones(conservar_filtro=True))
         self.cb_quien.bind('<<ComboboxSelected>>', lambda e: (self.dibujar(), app._renombrar_pestanas()))
         if cerrable:
             ttk.Button(sel, text='✖ Cerrar pestaña', command=lambda: app.cerrar_vista(self)).pack(side='right')
+        self.var_paleta = tk.BooleanVar(value=True)
+        ttk.Checkbutton(sel, text='Fichas', variable=self.var_paleta, command=self._mostrar_paleta).pack(side='right', padx=6)
         abajo = ttk.Frame(padre)
         abajo.pack(fill='both', expand=True, pady=4)
         self.paleta = tk.Frame(abajo, background=GRIS, width=190)
@@ -1296,14 +1475,52 @@ class Vista:
         self.paleta.destino = ('paleta',)
         marco = ttk.Frame(abajo)
         marco.pack(side='left', fill='both', expand=True, padx=(6, 0))
+        self.marco = marco
         self.lienzo = tk.Canvas(marco, background=BLANCO, highlightthickness=0)
         sy = ttk.Scrollbar(marco, orient='vertical', command=self.lienzo.yview)
         self.lienzo.configure(yscrollcommand=sy.set)
         sy.pack(side='right', fill='y')
         self.lienzo.pack(side='left', fill='both', expand=True)
         self.rejilla = tk.Frame(self.lienzo, background=BLANCO)
-        self.lienzo.create_window((0, 0), window=self.rejilla, anchor='nw')
+        self.ventana_rejilla = self.lienzo.create_window((0, 0), window=self.rejilla, anchor='nw')
         self.rejilla.bind('<Configure>', lambda e: self.lienzo.configure(scrollregion=self.lienzo.bbox('all')))
+        # La cuadrícula ocupa todo el ancho de la pantalla
+        self.lienzo.bind('<Configure>', lambda e: self.lienzo.itemconfigure(self.ventana_rejilla, width=e.width))
+
+    def _mostrar_paleta(self):
+        if self.var_paleta.get():
+            self.paleta.pack(side='left', fill='y', before=self.marco)
+        else:
+            self.paleta.pack_forget()
+
+    # Qué horario muestra esta pestaña
+    def indice(self):
+        n = len(self.app.p.alternativas)
+        return self.idx if self.idx is not None and 0 <= self.idx < n else (0 if n else None)
+
+    def alt(self):
+        k = self.indice()
+        return self.app.p.alternativas[k] if k is not None else None
+
+    def poner_alternativas(self, nombres, elegir=None, redibujar=True):
+        self.cb_alt.configure(values=nombres)
+        if elegir is not None:
+            self.idx = elegir
+        k = self.indice()
+        if k is not None:
+            self.cb_alt.current(k)
+            self.idx = k
+        else:
+            self.cb_alt.set('')
+        if redibujar:
+            self.dibujar()
+
+    def _cambio_alt(self):
+        self.idx = self.cb_alt.current()
+        self.app.quitar_seleccion(redibujar=False)
+        self.app._avisos(self.alt())
+        self.app._actualizar_fila()
+        self.dibujar()
 
     def titulo(self):
         k = self.cb_quien.current()
@@ -1311,21 +1528,45 @@ class Vista:
             return 'Vista'
         tipo, ident = self.quien_l[k]
         D = self.app.p.datos
-        return D.nombre_curso(ident) if tipo == 'c' else D.nombre_docente(ident).split(' ')[0] + ' ' + \
-            (D.nombre_docente(ident).split(' ')[1] if len(D.nombre_docente(ident).split(' ')) > 1 else '')
+        if tipo == 'c':
+            t = D.nombre_curso(ident)
+        else:
+            partes = D.nombre_docente(ident).split(' ')
+            t = ' '.join(partes[:2])
+        if len(self.app.p.alternativas) > 1 and self.indice():
+            t += f' · alt. {self.indice() + 1}'
+        return t
 
-    def opciones(self):
+    def opciones(self, conservar_filtro=False):
+        """Llena la lista de cursos (filtrada por grado) o de docentes (filtrada por área)."""
         D = self.app.p.datos
-        if self.cb_ver.current() == 1:
+        docente = self.cb_ver.current() == 1
+        if not conservar_filtro:
+            if docente:
+                self.filtros = [('', 'Todas las áreas')] + [(ar, ar) for ar in sorted(D.areas)]
+            else:
+                grados = sorted({c.get('grado') for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso},
+                                key=lambda g: (g is None, g if g is not None else 0))
+                self.filtros = [('', 'Todos los grados')] + [(g, nombre_grado(g)) for g in grados]
+            self.cb_filtro.configure(values=[n for _, n in self.filtros])
+            self.cb_filtro.current(0)
+        k = self.cb_filtro.current()
+        filtro = self.filtros[k][0] if k is not None and 0 <= k < len(self.filtros) else ''
+        if docente:
+            con_clase = {a.get('docente') for a in D.asignaciones.values()}
+            del_area = set(D.docentes_de_area(filtro)) if filtro != '' else None
             self.quien_l = [('d', d['id']) for d in sorted(D.docentes.values(), key=lambda d: d['nombre'])
-                            if d['id'] in {a.get('docente') for a in D.asignaciones.values()}]
+                            if d['id'] in con_clase and (del_area is None or d['id'] in del_area)]
             nombres = [D.nombre_docente(x) for _, x in self.quien_l]
         else:
-            self.quien_l = [('c', c['id']) for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso]
+            self.quien_l = [('c', c['id']) for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso
+                            and (filtro == '' or c.get('grado') == filtro)]
             nombres = [D.nombre_curso(x) for _, x in self.quien_l]
         self.cb_quien.configure(values=nombres)
         if nombres:
             self.cb_quien.current(0)
+        else:
+            self.cb_quien.set('')
         self.dibujar()
         self.app._renombrar_pestanas()
 
@@ -1345,7 +1586,7 @@ class Vista:
         for w in list(self.rejilla.winfo_children()) + list(self.paleta.winfo_children()):
             w.destroy()
         self.celdas = []
-        alt = app._alt()
+        alt = self.alt()
         if not alt or self.cb_quien.current() < 0 or not self.quien_l:
             tk.Label(self.rejilla, text='Genere un horario o cree uno en blanco para verlo aquí.', bg=BLANCO,
                      fg='#666').grid(padx=20, pady=20)
@@ -1373,7 +1614,8 @@ class Vista:
                 else:
                     texto = f"{D.nombre_curso(a['curso'])} · {D.nombre_materia(a['materia'])} · {que}{f' ×{k}' if k > 1 else ''}"
                 color = BLOQUE if largo > 1 else SUELTA
-                ficha = app._ficha(self.paleta, texto, color, {'tipo': 'nueva', 'asig': a['id'], 'largo': largo})
+                ficha = app._ficha(self.paleta, texto, color, {'tipo': 'nueva', 'asig': a['id'], 'largo': largo,
+                                                               'vista': self})
                 ficha.pack(fill='x', padx=6, pady=2)
                 ficha.bind('<Button-3>', lambda e, aid=a['id']: app._menu_paleta(e, aid))
         if not pend:
@@ -1381,6 +1623,9 @@ class Vista:
         tk.Label(self.paleta, text='Suelte aquí una ficha\npara sacarla del horario.', bg=GRIS, fg='#888',
                  font=('Segoe UI', 8)).pack(side='bottom', pady=6)
         tablas = [app.p.tabla_curso(alt, ident)] if tipo == 'c' else app.p.tablas_docente(alt, ident)
+        n_dias = max((len(t['dias']) for t in tablas if t), default=5)
+        for c in range(1, 7):
+            self.rejilla.columnconfigure(c, weight=1 if c <= n_dias else 0, uniform='dia' if c <= n_dias else '')
         fila = 0
         for t in tablas:
             if not t:
@@ -1390,7 +1635,7 @@ class Vista:
                     row=fila, column=0, sticky='w', pady=(8, 2))
                 fila += 1
             for c, (_, nombre) in enumerate(t['dias'], start=1):
-                tk.Label(self.rejilla, text=nombre, font=('Segoe UI', 9, 'bold'), bg=AZUL, fg='white', width=19).grid(
+                tk.Label(self.rejilla, text=nombre, font=('Segoe UI', 9, 'bold'), bg=AZUL, fg='white', width=12).grid(
                     row=fila, column=c, padx=1, pady=1, sticky='nsew')
             fila += 1
             for fr, celdas in t['filas']:
@@ -1405,21 +1650,27 @@ class Vista:
                                  font=('Segoe UI', 8)).grid(row=fila, column=c, sticky='nsew', padx=1, pady=1)
                 else:
                     for c, ((dia, _), xs) in enumerate(zip(t['dias'], celdas), start=1):
-                        celda = tk.Frame(self.rejilla, bg=GRIS if not xs else BLANCO, width=150, height=48,
+                        celda = tk.Frame(self.rejilla, bg=GRIS if not xs else BLANCO, width=110, height=50,
                                          highlightthickness=1, highlightbackground='#e2e8f0')
                         celda.grid(row=fila, column=c, padx=1, pady=1, sticky='nsew')
                         celda.grid_propagate(False)
                         celda.pack_propagate(False)
-                        celda.destino = ('celda', dia, fr['id'])
+                        celda.destino = ('celda', dia, fr['id'], self)
                         celda.bind('<Button-1>', lambda e, d=celda.destino: app.tocar_celda(d))
                         self.celdas.append((celda, celda.destino))
                         for x in xs:
                             color = (REUNION if x.get('reunion') else ACTIVIDAD if x.get('actividad')
                                      else FIJA if x['fijada'] else SUELTA)
                             texto = ('🔒 ' if x.get('i') is not None and x['fijada'] else '') + f"{x['titulo']}\n{x['sub']}"
-                            datos = {'tipo': 'puesta', 'i': x['i']} if x.get('i') is not None else None
+                            datos = {'tipo': 'puesta', 'i': x['i'], 'vista': self} if x.get('i') is not None else None
                             app._ficha(celda, texto, color, datos).pack(fill='both', expand=True, padx=1, pady=1)
                 fila += 1
+
+
+def nombre_grado(g):
+    if g is None:
+        return 'Sin grado'
+    return {-2: 'Prejardín', -1: 'Jardín', 0: 'Transición'}.get(g, f'Grado {g}')
 
 
 def main():

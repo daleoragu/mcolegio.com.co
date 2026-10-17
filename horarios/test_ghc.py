@@ -334,3 +334,20 @@ class IdeasDeGHC(SimpleTestCase):
         self.assertIsNone(p.poner_ficha(alt, 23, 3, f[1], fijar=False))
         self.assertEqual(p.destino_bloque(alt, 13, 3, f[0], 2)[0], 'ocupado')
         self.assertEqual(p.quitar_bloques(), len(D.asignaciones))
+
+    def test_bloque_partido_por_el_descanso(self):
+        D = datos(cursos_tarde=(3, 4))
+        f = [x['id'] for x in D.franjas_de(1) if not x['descanso']]       # el descanso va entre f[2] y f[3]
+        p = proyecto(D)
+        p.cond['asignaciones'] = {'13': {'bloques': '2+2+1'}}
+        alt = p.en_blanco()
+        self.assertIsNone(p.celdas_bloque(f[2], 2))                         # sin permiso, no cruza el descanso
+        p.cond['bloque_descanso'] = True
+        self.assertEqual(p.celdas_bloque(f[2], 2), [f[2], f[3]])
+        self.assertIsNone(p.poner_bloque(alt, 13, 1, f[2], 2, fijar=False))
+        self.assertEqual(p.piezas_pendientes(alt, 13), [2, 1])               # cuenta como bloque
+        nucleo_p = nucleo.armar(D, p.cond)
+        self.assertEqual(nucleo_p.siguiente_bloque[f[2]], f[3])
+        self.assertNotIn(f[2], nucleo_p.siguiente)                           # las «horas seguidas» del docente no cruzan
+        p.cond['bloque_descanso'] = False
+        self.assertNotIn(f[2], nucleo.armar(D, p.cond).siguiente_bloque)

@@ -66,10 +66,13 @@ class Problema:
                  max_materia_dia=None, max_docente_dia=None, max_seguidas=None, primeras=None, dobles=None,
                  ultimas=None, permanencia=None, desplazamiento=0, espacios=None, pesos=None, evitar=None,
                  dia_libre=None, dias_docente=None, excluyentes=None, excluyente_duro=True, sin_excluyente=None,
-                 reuniones_doc=None):
+                 reuniones_doc=None, siguiente_bloque=None):
         self.franjas = franjas
         self.siguiente = siguiente
         self.anterior = {b: a for a, b in siguiente.items()}
+        # Para armar bloques: igual a `siguiente`, o saltando el descanso si el colegio lo permite
+        self.siguiente_bloque = siguiente_bloque if siguiente_bloque is not None else siguiente
+        self.anterior_bloque = {b: a for a, b in self.siguiente_bloque.items()}
         self.slots = slots
         self.unidades = list(unidades)
         self.fijas = list(fijas)
@@ -141,7 +144,7 @@ class Estado:
     def celdas(self, u, dia, franja):
         out = [franja]
         for _ in range(u['largo'] - 1):
-            sig = self.p.siguiente.get(out[-1])
+            sig = self.p.siguiente_bloque.get(out[-1])
             if not sig:
                 return None
             out.append(sig)
@@ -350,7 +353,7 @@ class Estado:
             # Bloques: las horas del día deben quedar seguidas; una hora sola cuenta un poco
             fs = set(self.cmf.get((curso, materia, dia)) or ())
             if len(fs) >= 2:
-                tramos = sum(1 for f in fs if self.p.anterior.get(f) not in fs)
+                tramos = sum(1 for f in fs if self.p.anterior_bloque.get(f) not in fs)
                 c += self.w['bloque'] * (tramos - 1)
             elif len(fs) == 1:
                 c += self.w['bloque'] * 0.3

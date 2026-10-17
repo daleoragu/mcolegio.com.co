@@ -56,7 +56,9 @@ def condiciones_vacias():
             'excluyente': {'activa': False, 'a': 1, 'b': 7, 'obligatoria': True},
             # Prioridad a los bloques: las materias de N horas o más van en bloques de 2 horas seguidas
             # (2+2+1…) si la materia no tiene sus propios bloques. Si un bloque no cabe, se parte.
-            'bloques_general': {'activa': False, 'desde': 2}}
+            'bloques_general': {'activa': False, 'desde': 2},
+            # ¿Un bloque puede quedar partido por el descanso? None = todavía no se ha preguntado
+            'bloque_descanso': None}
 
 
 # Los criterios que el coordinador puede subir o bajar (de 0 a 10; 5 = normal).
@@ -139,15 +141,27 @@ def patron(texto):
     return partes if partes and all(1 <= x <= 4 for x in partes) else None
 
 
-def siguientes(datos):
-    """{franja: la franja de clase que sigue sin descanso en medio}."""
+def siguientes(datos, cruzar_descanso=False):
+    """{franja: la franja de clase que sigue sin descanso en medio}.
+
+    Con cruzar_descanso=True, la hora de antes del descanso y la de después también cuentan
+    como seguidas (para los colegios que aceptan bloques partidos por el descanso)."""
     sig = {}
     for jid in datos.jornadas:
         lst = datos.franjas_de(jid)
-        for a, b in zip(lst, lst[1:]):
-            if not a['descanso'] and not b['descanso']:
+        if cruzar_descanso:
+            clase = [f for f in lst if not f['descanso']]
+            for a, b in zip(clase, clase[1:]):
                 sig[a['id']] = b['id']
+        else:
+            for a, b in zip(lst, lst[1:]):
+                if not a['descanso'] and not b['descanso']:
+                    sig[a['id']] = b['id']
     return sig
+
+
+def bloque_cruza_descanso(cond):
+    return cond.get('bloque_descanso') is True
 
 
 def corridas(posiciones, sig):
@@ -572,6 +586,7 @@ def armar(datos, cond):
         return {'curso': a['curso'], 'docente': doc_de(a), 'materia': a['materia'],
                 'sede': D.sede_de_curso(a['curso']), 'asig': a['id']}
 
+    sig_bloque = siguientes(D, bloque_cruza_descanso(cond))
     fijas = []
     usadas = defaultdict(int)
     puestas = defaultdict(list)
@@ -590,7 +605,7 @@ def armar(datos, cond):
         if not n:
             return []
         completas = partes_completas(D, cond, a)
-        faltan = restar_corridas(completas, corridas(puestas.get(a['id'], []), siguiente))
+        faltan = restar_corridas(completas, corridas(puestas.get(a['id'], []), sig_bloque))
         return ajustar(faltan or [1] * n, n)
     unidades = []
     max_materia_dia = {}
@@ -690,7 +705,7 @@ def armar(datos, cond):
                  evitar=evitar, dia_libre=dia_libre, dias_docente=dias_docente,
                  excluyentes=[regla_excluyente(cond)[:2]] if regla_excluyente(cond) else [],
                  excluyente_duro=bool(regla_excluyente(cond) and regla_excluyente(cond)[2]),
-                 sin_excluyente=sin_excluyente, reuniones_doc=reuniones_doc)
+                 sin_excluyente=sin_excluyente, reuniones_doc=reuniones_doc, siguiente_bloque=sig_bloque)
     p.reuniones = reuniones
     return p
 
