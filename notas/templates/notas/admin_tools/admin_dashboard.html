@@ -198,6 +198,7 @@
                     <span class="app-label">Asignación Académica</span>
                 </a>
                 {% if 'prematricula' in mods %}<a href="{% url 'prematricula:panel' %}" class="app-icon"><div class="icon-container bg-prematricula"><i class="fas fa-file-signature"></i></div><span class="app-label">Prematrícula</span></a>{% endif %}
+                {% if 'horarios' in mods %}<a href="{% url 'horarios:panel' %}" class="app-icon"><div class="icon-container bg-prematricula" style="background:linear-gradient(135deg,#4338ca,#3730a3);"><i class="fas fa-calendar-week"></i></div><span class="app-label">Horarios</span></a>{% endif %}
                 {% if 'simat' in mods %}<a href="{% url 'simat:panel' %}" class="app-icon"><div class="icon-container bg-prematricula" style="background:linear-gradient(135deg,#1f4e79,#163a5c);"><i class="fas fa-landmark"></i></div><span class="app-label">SIMAT</span></a>{% endif %}
                 {% if 'cartera' in mods %}<a href="{% url 'cartera:panel' %}" class="app-icon"><div class="icon-container bg-prematricula" style="background:linear-gradient(135deg,#059669,#047857);"><i class="fas fa-cash-register"></i></div><span class="app-label">Cartera y pensiones</span></a>{% endif %}
                 <a href="{% url 'notas:gestion_sedes' %}" class="app-icon"><div class="icon-container bg-sedes"><i class="fas fa-school"></i></div><span class="app-label">Sedes</span></a>

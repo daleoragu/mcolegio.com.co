@@ -93,6 +93,28 @@ def _png_icono(colegio, tam, maskable):
     return out.getvalue()
 
 
+def _icono_de_letras(colegio, tam):
+    """Cuadro del color del colegio con sus iniciales, por si no hay ninguna imagen."""
+    from PIL import Image, ImageDraw, ImageFont
+    color, _ = _colores(colegio)
+    try:
+        fondo = Image.new('RGB', (tam, tam), color)
+    except ValueError:
+        fondo = Image.new('RGB', (tam, tam), '#1f2937')
+    texto = _nombre_corto(colegio.nombre)[:3].upper() if colegio else 'MC'
+    d = ImageDraw.Draw(fondo)
+    try:
+        fuente = ImageFont.load_default(size=int(tam * 0.32))
+    except TypeError:
+        fuente = ImageFont.load_default()
+    caja = d.textbbox((0, 0), texto, font=fuente)
+    d.text(((tam - (caja[2] - caja[0])) / 2 - caja[0], (tam - (caja[3] - caja[1])) / 2 - caja[1]), texto,
+           fill='white', font=fuente)
+    out = io.BytesIO()
+    fondo.save(out, 'PNG')
+    return out.getvalue()
+
+
 @cache_control(max_age=86400)
 def icono(request, tam):
     if tam not in TAMANOS:
@@ -101,14 +123,24 @@ def icono(request, tam):
     maskable = request.GET.get('maskable') == '1'
     archivo = _imagen_del_colegio(colegio)
     clave = f'app-icono:{getattr(colegio, "id", 0)}:{getattr(archivo, "name", "")}:{tam}:{int(maskable)}'
-    png = cache.get(clave)
+    try:
+        png = cache.get(clave)
+    except Exception:
+        png = None
     if png is None:
-        png = _png_icono(colegio, tam, maskable)
-        if png is None and archivo is not None:        # escudo dañado o Spaces caído: el de mcolegio
-            png = _png_icono(None, tam, maskable)
-        if png is None:
-            raise Http404
-        cache.set(clave, png, 6 * 3600)
+        png = None
+        for origen in (colegio, None):                 # escudo dañado o Spaces caído: el de mcolegio
+            try:
+                png = _png_icono(origen, tam, maskable)
+            except Exception:
+                png = None
+            if png:
+                break
+        png = png or _icono_de_letras(colegio, tam)    # nunca falla: sin icono el celular no instala
+        try:
+            cache.set(clave, png, 6 * 3600)
+        except Exception:
+            pass
     return HttpResponse(png, content_type='image/png')
 
 

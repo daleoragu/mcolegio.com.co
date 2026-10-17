@@ -1,0 +1,66 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0"><i class="fas fa-calendar-week me-2" style="color:#4338ca"></i>Horarios</h4>
+        <p class="text-muted small mb-0">Jornadas, horas de clase y horario de cada curso y docente</p></div>
+    <a href="{% url 'horarios:mi_horario' %}" class="btn btn-outline-secondary btn-sm">Ver como docente / estudiante</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'horarios/_estilos.html' %}
+<div class="row g-3">
+<div class="col-lg-7">
+    <div class="ho-tarjeta">
+        <div class="d-flex justify-content-between align-items-center mb-2"><h6 class="fw-bold mb-0">1. Jornadas y horas de clase</h6>
+            <a href="{% url 'horarios:jornada_nueva' %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-plus me-1"></i>Jornada</a></div>
+        {% for j in jornadas %}
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+            <div><strong>{{ j.nombre }}</strong> <span class="small text-muted">· {{ j.franjas_de_clase|length }} horas de clase · {{ j.cursos.count }} cursos</span></div>
+            <a href="{% url 'horarios:jornada' j.pk %}" class="btn btn-sm btn-link">Editar</a></div>
+        {% empty %}<p class="text-muted small mb-0">Todavía no hay jornadas. Cree una (por ejemplo «Mañana»), con sus horas de clase y sus cursos.</p>{% endfor %}
+        {% if jornadas and sin_jornada %}<p class="small text-warning mt-2 mb-0"><i class="fas fa-triangle-exclamation me-1"></i>Cursos sin jornada: {% for c in sin_jornada %}{{ c.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+    </div>
+    <div class="ho-tarjeta">
+        <h6 class="fw-bold">2. Horarios</h6>
+        {% for h in horarios %}
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+            <div><a href="{% url 'horarios:detalle' h.pk %}" class="fw-semibold">{{ h.nombre }}</a>
+                {% if h.estado == 'PUBLICADO' %}<span class="ho-chip pub">Publicado</span>{% else %}<span class="ho-chip bor">Borrador</span>{% endif %}
+                <div class="ho-ayuda">{{ h.get_origen_display }} · {{ h.actualizado|date:"d/m/Y H:i" }}{% if h.informe.choques %} · <span class="text-danger">{{ h.informe.choques|length }} choque(s)</span>{% endif %}</div></div>
+            <a href="{% url 'horarios:detalle' h.pk %}" class="btn btn-sm btn-outline-primary">Abrir</a></div>
+        {% empty %}<p class="text-muted small mb-0">No hay horarios. Impórtelo desde el generador o desde un Excel.</p>{% endfor %}
+        {% if archivados %}<details class="mt-2"><summary class="small text-muted">Archivados</summary>{% for h in archivados %}<div class="small"><a href="{% url 'horarios:detalle' h.pk %}">{{ h.nombre }}</a> · {{ h.actualizado|date:"d/m/Y" }}</div>{% endfor %}</details>{% endif %}
+    </div>
+</div>
+<div class="col-lg-5">
+    {% if premium %}
+    <div class="ho-premium">
+        <div class="small text-uppercase fw-bold" style="opacity:.8">Premium</div>
+        <h5 class="fw-bold">Generador de horarios</h5>
+        <p class="small mb-3" style="opacity:.9">Aplicación de Windows que arma el horario sin internet: usted pone las condiciones, ella propone hasta 3 alternativas.</p>
+        <ol class="small ps-3 mb-3">
+            <li>Descargue la app (una sola vez).</li>
+            <li>Descargue los datos del colegio y ábralos en la app.</li>
+            <li>Ponga las condiciones y genere.</li>
+            <li>Guarde el resultado y súbalo aquí abajo.</li>
+        </ol>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'horarios:descargar_app' %}" class="btn btn-light btn-sm"><i class="fab fa-windows me-1"></i>Descargar app{% if app %} {{ app.version }}{% endif %}</a>
+            <a href="{% url 'horarios:exportar_datos' %}" class="btn btn-warning btn-sm"><i class="fas fa-file-export me-1"></i>Datos del colegio (.mch)</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="ho-tarjeta"><h6 class="fw-bold"><i class="fas fa-crown me-1 text-warning"></i>Generador automático</h6>
+        <p class="small text-muted mb-0">Con el plan Premium, una aplicación arma el horario por usted con sus condiciones. Pregunte por él.</p></div>
+    {% endif %}
+    <div class="ho-tarjeta">
+        <h6 class="fw-bold"><i class="fas fa-file-import me-1"></i>Importar un horario</h6>
+        <form method="post" action="{% url 'horarios:importar' %}" enctype="multipart/form-data" class="d-flex gap-2">{% csrf_token %}
+            <input type="file" name="archivo" accept=".mchr,.xlsx" class="form-control form-control-sm" required>
+            <button class="btn btn-sm btn-primary">Importar</button></form>
+        <p class="ho-ayuda mt-2 mb-0">{% if premium %}El archivo <strong>.mchr</strong> del generador, o {% endif %}un <strong>Excel</strong> de otra aplicación (GHC, aSc…) con las columnas <strong>CURSO, DIA, HORA, MATERIA</strong> (y DOCENTE si una materia la dan dos). HORA es el número de la hora de clase (1, 2, 3…) o la hora de inicio (07:00). Queda como borrador hasta que lo publique.</p>
+    </div>
+    {% if user.is_superuser %}<p class="small"><a href="{% url 'horarios:subir_app' %}"><i class="fas fa-upload me-1"></i>Subir una versión nueva de la app</a></p>{% endif %}
+</div>
+</div>
+{% endblock %}

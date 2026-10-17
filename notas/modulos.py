@@ -31,6 +31,11 @@ MODULOS = OrderedDict([
               ('/piar/',))),
     ('simat', ('SIMAT', 'Datos SIMAT de los estudiantes, archivo de cargue e importación del reporte de matrícula.',
                ('/simat/',))),
+    ('horarios', ('Horarios de clase', 'Jornadas, importar el horario, publicarlo con aviso y «Mi horario» de cada uno.',
+                  ('/horarios/',))),
+    # El generador vive en una app de Windows; aquí solo se habilita la descarga.
+    ('generador_horarios', ('Generador de horarios (Premium)', 'App de Windows que arma el horario con condiciones y alternativas.',
+                            ())),
     ('cartera', ('Cartera y pensiones', 'Cobros, pagos con recibo, morosos, estado de cuenta y paz y salvo.',
                  ('/cartera/',))),
     ('elecciones', ('Elecciones escolares', 'Votaciones de personero, contralor y consejo estudiantil.',
@@ -42,11 +47,15 @@ MODULOS = OrderedDict([
 
 TODOS = list(MODULOS)
 
+PREMIUM = ['generador_horarios']
+COMPLETO = [m for m in TODOS if m not in PREMIUM]
+
 PLANES = OrderedDict([
     ('basico', ('Básico', ['circulares', 'certificados'])),
     # Colegios oficiales (matrícula cero): todo menos el módulo de cobros.
-    ('publico', ('Público', [m for m in TODOS if m != 'cartera'])),
-    ('completo', ('Completo', TODOS)),
+    ('publico', ('Público', [m for m in COMPLETO if m != 'cartera'])),
+    ('completo', ('Completo', COMPLETO)),
+    ('premium', ('Premium', TODOS)),
 ])
 
 # Direcciones que siguen funcionando aunque el módulo esté apagado: la

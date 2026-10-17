@@ -42,6 +42,7 @@ urlpatterns = [
     path('cartera/', include('cartera.urls', namespace='cartera')),
     path('piar/', include('piar.urls', namespace='piar')),
     path('simat/', include('simat.urls', namespace='simat')),
+    path('horarios/', include('horarios.urls', namespace='horarios')),
 
     # 5. RUTAS DE TU APLICACIÓN "NOTAS"
     #    Esta línea incluye todas las URLs de tu archivo 'notas/urls.py'.

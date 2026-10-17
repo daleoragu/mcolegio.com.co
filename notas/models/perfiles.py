@@ -11,9 +11,9 @@ from django.db.models import Max # <--- IMPORTADO PARA EL ORDEN
 # ==============================================================================
 
 def _todos_los_modulos():
-    """Un colegio nuevo arranca con todo encendido (ver notas/modulos.py)."""
-    from notas.modulos import TODOS
-    return list(TODOS)
+    """Un colegio nuevo arranca con el plan Completo (ver notas/modulos.py)."""
+    from notas.modulos import COMPLETO
+    return list(COMPLETO)
 
 
 class Colegio(models.Model):
