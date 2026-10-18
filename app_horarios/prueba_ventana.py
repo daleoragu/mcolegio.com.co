@@ -30,7 +30,8 @@ def prueba():
     g.messagebox.showinfo = lambda *a, **k: print('info:', a[1:])
     g.messagebox.askyesno = lambda *a, **k: True
     g.messagebox.askyesnocancel = lambda *a, **k: True
-    g.messagebox.showerror = lambda *a, **k: print('ERROR:', a[1:], flush=True)
+    errores = []
+    g.messagebox.showerror = lambda *a, **k: errores.append(a[1:])
 
     app = g.App()
     app.withdraw()
@@ -301,7 +302,8 @@ def prueba():
             app.escoger({'tipo': 'nueva', 'asig': a0})          # mientras genera, solo se mira
             assert 'Espere' in app.estado.cget('text'), app.estado.cget('text')
             app.detener()
-    assert vio, 'no mostró lo que iba acomodando'
+    assert not errores, errores
+    assert vio, ('no mostró lo que iba acomodando', app.estado.cget('text'), app.lbl_prog.cget('text'))
     assert not app.generando and app.alt_vivo is None
     assert p.alternativas[0].get('detenido'), 'no se detuvo'
     assert _t.monotonic() - t0 < 25, _t.monotonic() - t0

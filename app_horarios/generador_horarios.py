@@ -1159,7 +1159,9 @@ class App(tk.Tk):
                         self.parar_evt.is_set)
                 self.cola.put(('listo', None, None))
             except Exception as e:
-                self.cola.put(('error', 0, str(e)))
+                import traceback
+                traceback.print_exc()
+                self.cola.put(('error', 0, f'{type(e).__name__}: {e}'))
         threading.Thread(target=correr, daemon=True).start()
         self.after(200, self._revisar_cola)
 
