@@ -422,7 +422,7 @@ def _cortados(app, ancho):
                 pass
             if a <= 1 or x + a > w + 1:
                 fuera.append(f'fila {k}: {texto or h.winfo_class()}')
-    print(f'::notice::{ancho}px: ' + ('nada cortado' if not fuera else 'cortados -> ' + '; '.join(fuera)), flush=True)
+    print(f'::notice::{ancho}px (ventana {app.winfo_width()}): ' + ('nada cortado' if not fuera else 'cortados -> ' + '; '.join(fuera)), flush=True)
 
 
 def _captura(app):

@@ -79,7 +79,7 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 - El asistente también se abre con el botón **🩺 ¿Por qué faltan horas?** de la pestaña 6.
 - **Para solo cuando ya no mejora**: aunque se pongan muchos segundos, el generador termina cuando ya ubicó todo y lleva un rato sin mejorar el horario (más o menos un 10 % del tiempo, máximo 3 minutos). Si quedan clases por fuera, usa el tiempo para volver a intentarlo sacando otras, y se queda con el mejor intento.
 - **⏹ Detener**: para en cualquier momento y se queda con lo mejor que llevaba.
-- **Ver mientras acomoda**: mientras genera, la cuadrícula va mostrando las materias que ya ubicó y cuántas horas faltan (solo se mira; al terminar ya se puede mover).
+- **Ver en vivo**: mientras genera, la cuadrícula va mostrando las materias que ya ubicó y cuántas horas faltan (solo se mira; al terminar ya se puede mover).
 - **Tamaño (zoom)**: botones 🔍− / 100% / 🔍+ arriba (todas las cuadrículas), − / + en cada cuadrícula, o Ctrl + rueda del mouse encima de una cuadrícula. Si se agranda mucho, aparece la barra para correr de lado.
 - **Varias cuadrículas en una ventana**: escoja 2, 4, 6 o 9 y toque «▦ en una ventana». Cada cuadrícula escoge su horario, curso o docente (arranca cada una con un curso distinto) y se puede arrastrar entre ellas si muestran el mismo horario.
 - **↶ Deshacer** (o Ctrl+Z): deshace los últimos cambios hechos a mano (hasta 40).
@@ -111,5 +111,10 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 - **Reuniones de área a la misma hora**: en «4. Reuniones», la casilla «Todas las reuniones de área el mismo día y a la misma hora» busca una sola hora para todas (donde puedan todos los jefes y la mayoría). También vale para «Buscar hora en el horario armado».
 - **Soltar fichas fijadas 🔒**: Ctrl + clic marca varias fichas (quedan con borde azul) → «🔓 Soltar marcadas» o «🔒 Fijar marcadas». «🔓 Soltar todo» suelta todas las del horario (siguen en su lugar, pero el generador ya las puede mover).
 - **Completar ya no fija todo**: «Completar lo que falta» respeta lo que estaba puesto, pero solo deja fijadas 🔒 las que usted había fijado.
-- **PDF**: «📄 PDF uno por uno (.zip)» guarda un .zip con un PDF por curso (carpeta Cursos) y uno por docente (carpeta Docentes). «📄 PDF todo junto» guarda dos PDF: todos los cursos y todos los docentes, una hoja cada uno. Con colores por área.
+- **PDF**: «📄 PDF por separado (.zip)» guarda un .zip con un PDF por curso (carpeta Cursos) y uno por docente (carpeta Docentes). «📄 PDF todo junto» guarda dos PDF: todos los cursos y todos los docentes, una hoja cada uno. Con colores por área.
 - La lista de «3. Docentes y cursos» ahora va pegada a la izquierda, más ancha y con barra.
+
+## Versión 3.4.1
+
+- La barra de la pestaña 6 va en **tres filas**: (1) generar · (2) **⚠ Avisos, 🩺 ¿Por qué faltan horas?, ↶ Deshacer, fijar/soltar** y los colores verde/amarillo/rojo · (3) guardar, Excel, PDF, pestañas y tamaño. Así nada queda por fuera de la pantalla.
+- Si al generar quedan horas sin ubicar o choques, los avisos se abren solos.
