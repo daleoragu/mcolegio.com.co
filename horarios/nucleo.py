@@ -78,7 +78,7 @@ def condiciones_vacias():
             # Con horas extra, el día puede alargarse hasta estas horas más de la permanencia (0 = sin límite)
             'permanencia_extra': 2,
             # Docentes sin horas extra: un día largo (hasta «max» horas más, o con la 1.ª y la última)
-            # se permite si otro día es igual de corto. Ej.: un día de 7 h → otro de 5 h.
+            # se permite si la semana no pasa de permanencia × días (ej.: 6 h × 5 = 30 h).
             'compensar': {'activa': False, 'max': 1}}
 
 

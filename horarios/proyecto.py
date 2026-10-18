@@ -9,7 +9,7 @@ import json
 import time
 from collections import defaultdict
 
-from . import motor, nucleo
+from . import nucleo
 
 TIPO_PROYECTO = 'mcolegio-horario-proyecto'
 ESTADOS_CELDA = ('libre', 'no_puede', 'prefiere_no', 'evitar')
@@ -520,15 +520,13 @@ class Proyecto:
             salida[dia] = (ancho, par)
         return salida
 
-    def _parejas(self, did, perfil):
-        """([(dia_largo, exceso)], [(dia_corto, deficit)], ¿alcanza?)"""
-        perm = int(self._permanencia(did) * 60)
-        largos = sorted([(d, max(a - perm, 60 if par else 0)) for d, (a, par) in perfil.items() if a > perm or par],
-                        key=lambda x: -x[1])
-        cortos = sorted([(d, perm - a) for d, (a, par) in perfil.items() if a < perm and not par],
-                        key=lambda x: -x[1])
-        ok = motor.compensa([e for _, e in largos], [x for _, x in cortos])
-        return largos, cortos, ok
+    def semana_docente(self, alt, did):
+        """(total de la semana, tope = permanencia × días, perfil {dia: (minutos, par)}) en minutos."""
+        D = self.datos
+        perfil = self.perfil_docente(alt, did)
+        dias = {d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']} or set(perfil)
+        tope = int(self._permanencia(did) * 60) * max(1, len(dias))
+        return sum(a for a, _ in perfil.values()), tope, perfil
 
     def _revisar_compensacion(self, alt):
         D = self.datos
@@ -537,39 +535,35 @@ class Proyecto:
             comp = self.compensa_docente(did)
             if comp is None:
                 continue
-            perfil = self.perfil_docente(alt, did)
-            largos, cortos, ok = self._parejas(did, perfil)
+            total, tope, perfil = self.semana_docente(alt, did)
             perm = self._permanencia(did)
             for d, (a, _) in perfil.items():
                 if a > perm * 60 + comp:
                     out.append(f'{D.nombre_docente(did)}: el {nucleo.DIAS[d]} pasa de {perm:g} + '
                                f'{comp / 60:g} horas de permanencia.')
-            if not ok:
-                dias = ', '.join(f'{nucleo.DIAS[d]} ({texto_horas(perm * 60 + e)})' for d, e in largos)
-                out.append(f'{D.nombre_docente(did)} tiene día(s) largo(s) sin compensar: {dias}. Cada uno necesita '
-                           'otro día igual de corto.')
+            if total > tope:
+                out.append(f'{D.nombre_docente(did)}: la semana suma {texto_horas(total)} de permanencia y el máximo '
+                           f'es {texto_horas(tope)} ({perm:g} h × {tope // int(perm * 60)} días). Acorte algún día.')
         return out
 
     def texto_compensacion(self, alt):
-        """Para los avisos: qué día largo se compensó con qué día corto."""
+        """Para los avisos: docentes con días largos y cómo queda su semana."""
         D = self.datos
         out = []
         for did in sorted({a.get('docente') for a in D.asignaciones.values() if a.get('docente')}, key=D.nombre_docente):
             if self.compensa_docente(did) is None:
                 continue
-            perfil = self.perfil_docente(alt, did)
-            largos, cortos, ok = self._parejas(did, perfil)
+            total, tope, perfil = self.semana_docente(alt, did)
+            perm = self._permanencia(did) * 60
+            largos = [d for d, (a, par) in sorted(perfil.items()) if a > perm or par]
             if not largos:
                 continue
-            perm = self._permanencia(did) * 60
-            partes = []
-            for k, (d, e) in enumerate(largos):
-                t = f'{nucleo.DIAS[d]} {texto_horas(perfil[d][0])}'
-                if k < len(cortos):
-                    c = cortos[k][0]
-                    t += f' ↔ {nucleo.DIAS[c]} {texto_horas(perfil[c][0])}'
-                partes.append(t)
-            out.append(f'{D.nombre_docente(did)}: ' + '; '.join(partes) + ('' if ok else ' ✖ sin compensar'))
+            cortos = [d for d, (a, par) in sorted(perfil.items()) if a < perm and not par]
+            t = (f'{D.nombre_docente(did)}: {texto_horas(total)} de {texto_horas(tope)} · largos: '
+                 + ', '.join(f'{nucleo.DIAS[d]} {texto_horas(perfil[d][0])}' for d in largos))
+            if cortos:
+                t += ' · cortos: ' + ', '.join(f'{nucleo.DIAS[d]} {texto_horas(perfil[d][0])}' for d in cortos)
+            out.append(t + (' ✖ se pasa' if total > tope else ''))
         return out
 
     def _motivo_excluyente(self, did, dia, fid, mias):
@@ -996,8 +990,8 @@ class Proyecto:
                 perm = rd.get('permanencia')
                 perm = float(perm) if perm not in (None, '') else float(c.get('permanencia_horas') or 0)
                 if perm and not (c.get('compensar') or {}).get('activa') and not self.extra_docente(did):
-                    sug('compensar', 'Permitir días de 1 hora más de permanencia si otro día tiene 1 hora menos '
-                                     '(ej.: un día de 7 h y otro de 5 h)', 'compensar')
+                    sug('compensar', 'Permitir días de hasta 1 hora más de permanencia si la semana no pasa de '
+                                     'permanencia × días (ej.: 6 h × 5 = 30 h)', 'compensar')
                 if perm:
                     sug(f'perm-{did}', f'Subirle a {nom_d} la permanencia de {perm:g} a {perm + 1:g} horas', 'permanencia',
                         did=did, horas=perm + 1)

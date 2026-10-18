@@ -393,10 +393,10 @@ class App(tk.Tk):
             except ValueError:
                 pass
         var_cpm.trace_add('write', cambio_cpm)
-        ttk.Label(fila_cp, text='hora(s) más largo que su permanencia (o con la 1.ª y la última), si otro día es igual de '
-                                'corto').pack(side='left')
-        ttk.Label(gen, text='Ej.: permanencia de 6 h → si un día le tocan 7 h, otro día le tocan máximo 5 h. Cada día '
-                            'largo necesita su propio día corto.', style='Ayuda.TLabel').grid(row=8, column=0, columnspan=2,
+        ttk.Label(fila_cp, text='hora(s) más largo que su permanencia (o con la 1.ª y la última), si la semana no pasa de '
+                                'permanencia × días').pack(side='left')
+        ttk.Label(gen, text='Ej.: 6 h × 5 días = 30 h a la semana. Dos días de 7 h se pagan con un día de 4 h o con dos de '
+                            '5 h, como mejor encaje. Un día sin clases cuenta 0 h.', style='Ayuda.TLabel').grid(row=8, column=0, columnspan=2,
                                                                                          sticky='w')
         ttk.Label(gen, text='Un docente con horas extra puede tener tantos «días largos» (más que su permanencia, o con la '
                             '1.ª y la última hora) como horas extra tenga: con 2 extra, máximo 2 días. Si caben dentro de '

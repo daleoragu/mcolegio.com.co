@@ -107,7 +107,7 @@ class Problema:
         # permanencia o que tienen la 1.ª y la última hora. Mejor si no los usa.
         self.dias_largos_max = dias_largos_max or {}
         # Docentes SIN horas extra: un día puede pasar de la permanencia hasta estos minutos (o tener la
-        # 1.ª y la última) si otro día tiene esos mismos minutos de menos. Cada día largo, su día corto.
+        # 1.ª y la última) si la semana no pasa de permanencia × días (ej.: 6 h × 5 = 30 h).
         self.compensar = compensar or {}
         self.dias_de_docente = dias_de_docente or {}
         self.por_jornada = defaultdict(list)
@@ -376,36 +376,29 @@ class Estado:
             return any(_excluye(p, x, y) for i, x in enumerate(fs) for y in fs[i + 1:])
         return False
 
-    def perfil(self, docente, dia=None, nuevos=(), ign=(), fuera=()):
-        """[(exceso, deficit)] de cada día con clase: minutos de más o de menos frente a la permanencia."""
+    def semana(self, docente, dia=None, nuevos=(), ign=(), fuera=()):
+        """(minutos de permanencia de cada día con clase, tope de la semana = permanencia × días)."""
         p = self.p
         perm = p.permanencia.get(docente)
         if not perm:
-            return [], []
-        dias = set(p.dias_de_docente.get(docente) or ()) | ({dia} if dia is not None else set())
+            return [], 0
+        dias = set(p.dias_de_docente.get(docente) or ())
         if not dias:
             dias = {d for (x, d) in list(self.docente.keys()) if x == docente}
-        duro = p.excluyentes and p.excluyente_duro and docente not in p.sin_excluyente
-        excesos, deficits = [], []
-        for d in dias:
-            lst = [(a, b, f) for (a, b, uid, f) in self.docente.get((docente, d), ())
+        anchos = []
+        for d in dias | ({dia} if dia is not None else set()):
+            lst = [(a, b) for (a, b, uid, f) in self.docente.get((docente, d), ())
                    if uid not in ign and not (d == dia and uid in fuera)]
             if d == dia:
-                lst += [(a, b, f) for (a, b, f) in nuevos]
-            if not lst:
-                continue
-            ancho = max(b for _, b, _ in lst) - min(a for a, _, _ in lst)
-            par = duro and any(_excluye(p, x[2], y[2]) for i, x in enumerate(lst) for y in lst[i + 1:])
-            if ancho > perm or par:
-                excesos.append(max(ancho - perm, 60 if par else 0))
-            elif ancho < perm:
-                deficits.append(perm - ancho)
-        return excesos, deficits
+                lst += [(a, b) for (a, b, f) in nuevos]
+            if lst:
+                anchos.append(max(b for _, b in lst) - min(a for a, _ in lst))
+        return anchos, perm * max(1, len(dias))
 
     def compensado(self, docente, dia=None, tramos=(), ign=(), fuera=()):
-        """¿Cada día largo tiene su día corto (con al menos esos minutos de menos)?"""
-        excesos, deficits = self.perfil(docente, dia, tramos, ign, fuera)
-        return compensa(excesos, deficits)
+        """¿La semana del docente cabe en su permanencia × días? (los días largos se pagan con días cortos)"""
+        anchos, tope = self.semana(docente, dia, tramos, ign, fuera)
+        return sum(anchos) <= tope
 
     def dias_largos(self, docente, sin=None):
         return sum(1 for (d, dia) in list(self.docente.keys()) if d == docente and dia != sin and self.dia_largo(d, dia))
@@ -467,15 +460,6 @@ def _numero_hora(p, f, n):
     menos de n horas, cuenta la última."""
     jid = p.franjas[f][0]
     return p.indice[f] == min(n - 1, p.ultimo[jid])
-
-
-def compensa(excesos, deficits):
-    """Cada día largo necesita un día corto distinto con al menos esos minutos de menos."""
-    if not excesos:
-        return True
-    e = sorted(excesos, reverse=True)
-    d = sorted(deficits, reverse=True)
-    return len(d) >= len(e) and all(d[i] >= e[i] for i in range(len(e)))
 
 
 def _excluye(p, f1, f2):

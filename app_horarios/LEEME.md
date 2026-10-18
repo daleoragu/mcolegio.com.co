@@ -86,6 +86,6 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 
 ## Versión 3.1
 
-- **Compensar días largos** (pestaña 2, Reglas): un docente **sin horas extra** puede tener un día más largo que su permanencia (hasta 1 hora más, o lo que escoja; o con la 1.ª y la última hora) **solo si otro día es igual de corto**. Ej.: permanencia de 6 h → si un día le tocan 7 h, otro día le tocan máximo 5 h. Cada día largo necesita su propio día corto, todas las veces que pase.
-- En **⚠ Avisos** se ve cada pareja: «Lunes 7 h ↔ Jueves 5 h». Si al armar a mano queda un día largo sin su día corto, aparece como choque hasta que se compense.
+- **Compensar días largos** (pestaña 2, Reglas): un docente **sin horas extra** puede tener un día más largo que su permanencia (hasta 1 hora más, o lo que escoja; o con la 1.ª y la última hora) **si la semana no pasa de permanencia × días**. Ej.: 6 h × 5 días = 30 h: dos días de 7 h se pagan con un día de 4 h o con dos días de 5 h, como mejor encaje. Un día sin clases cuenta 0 h.
+- En **⚠ Avisos** se ve cada docente con días largos: «29 h 10 de 30 h · largos: Lunes 6 h 55, Jueves 6 h 55 · cortos: Martes 4 h 10…». Si al armar a mano la semana se pasa, aparece como choque hasta que se acorte algún día.
 - El asistente «¿Por qué faltan horas?» la sugiere cuando la permanencia está trabando el horario.
