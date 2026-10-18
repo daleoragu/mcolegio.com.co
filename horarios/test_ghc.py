@@ -385,3 +385,63 @@ class IdeasDeGHC(SimpleTestCase):
         self.assertEqual({(s['dia'], s['franja']) for s in alt['sesiones']}, {(2, f[1])})
         p.quitar_ficha(alt, 0)
         self.assertEqual(alt['sesiones'], [])
+
+    def test_horas_extra_escogidas_y_permanencia_mayor(self):
+        D = datos(cursos_tarde=(3, 4))
+        cond = nucleo.condiciones_vacias()
+        self.assertEqual(nucleo.horas_extra({'asignaciones': {'13': {'extra': True}}}, 13, 5), 5)   # lo de antes
+        cond['asignaciones'] = {'13': {'extra_horas': 2}}
+        self.assertEqual(nucleo.horas_extra(cond, 13, 5), 2)
+        p = nucleo.armar(D, cond)
+        extra = sum(u['largo'] for u in p.unidades if u['asig'] == 13 and u['extra'])
+        self.assertEqual(extra, 2)
+        # El docente 3 con permanencia de 5 h + hasta 2 h más por sus horas extra
+        D = datos()
+        cond['docentes'] = {'3': {'permanencia': 5}}
+        cond['permanencia_extra'] = 2
+        p = nucleo.armar(D, cond)
+        self.assertEqual(p.permanencia_extra, {3: 120})
+        r = nucleo.generar(D, cond, segundos=4, semilla=2)
+        self.assertEqual(r['sin_ubicar'], [])
+        por = defaultdict(list)
+        for s in r['sesiones']:
+            if D.asignaciones[s['asignacion']]['docente'] == 3:
+                por[s['dia']].append(D.intervalo(s['franja']))
+        for tr in por.values():
+            self.assertLessEqual(max(b for _, b in tr) - min(a for a, _ in tr), 7 * 60)
+        # En la app: el resumen del docente separa las extra
+        pr = proyecto(D)
+        pr.cond['asignaciones'] = {'13': {'extra_horas': 2}}
+        base, ext, _ = pr.resumen_docente(3)
+        self.assertEqual(ext, 2)
+
+    def test_dias_largos_segun_horas_extra(self):
+        D = datos(cursos_tarde=(3, 4))
+        f = [x['id'] for x in D.franjas_de(1) if not x['descanso']]
+        cond = nucleo.condiciones_vacias()
+        cond['excluyente'] = {'activa': True, 'a': 1, 'b': 7, 'obligatoria': True}
+        cond['asignaciones'] = {'13': {'extra_horas': 2}}           # docente 3: 2 horas extra -> 2 días largos
+        p = nucleo.armar(D, cond)
+        self.assertEqual(p.dias_largos_max, {3: 2})
+        r = nucleo.generar(D, cond, segundos=3, semilla=4)
+        self.assertEqual(r['sin_ubicar'], [])
+        largos = defaultdict(set)
+        for s in r['sesiones']:
+            a = D.asignaciones[s['asignacion']]
+            if s['franja'] in (f[0], f[-1]):
+                largos[(a['docente'], s['dia'])].add(s['franja'])
+        dias_con_las_dos = defaultdict(int)
+        for (doc, dia), fs in largos.items():
+            if len(fs) == 2:
+                dias_con_las_dos[doc] += 1
+        self.assertLessEqual(dias_con_las_dos.get(3, 0), 2)
+        self.assertFalse({d for d in dias_con_las_dos if d != 3})            # los demás, ninguno
+        # A mano: con 1 hora extra, el segundo día largo no se deja
+        pr = proyecto(D)
+        pr.cond['excluyente'] = {'activa': True, 'a': 1, 'b': 7, 'obligatoria': True}
+        pr.cond['asignaciones'] = {'13': {'extra_horas': 1}}
+        alt = pr.en_blanco()
+        self.assertIsNone(pr.poner_ficha(alt, 13, 1, f[0], fijar=False))
+        self.assertIsNone(pr.poner_ficha(alt, 23, 1, f[-1], fijar=False))     # primer día largo: sí
+        self.assertIsNone(pr.poner_ficha(alt, 13, 2, f[0], fijar=False))
+        self.assertIn('día(s) largo', pr.poner_ficha(alt, 23, 2, f[-1], fijar=False))

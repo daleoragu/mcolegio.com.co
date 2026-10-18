@@ -42,13 +42,14 @@ PESO_EQUILIBRIO = 0.3     # repartir parejo las clases del docente en la semana
 PESO_DIA_LIBRE = 6.0      # el docente pidió tener un día sin clases
 PESO_EXCLUYENTE = 8.0     # el docente tiene el mismo día las dos horas que no deben juntarse (1.ª y 7.ª)
 PESO_BLOQUE = 3.0         # horas de la misma materia el mismo día que no quedaron seguidas (bloque roto)
+PESO_DIA_LARGO = 4.0      # día del docente más largo que su permanencia (por sus horas extra)
 
 # Los «criterios ponderables» (como en GHC): el coordinador mueve cada uno de 0 a
 # 10 y el 5 es lo normal. Aquí quedan los pesos ya multiplicados.
 PESOS = {'hueco': PESO_HUECO, 'hueco_curso': PESO_HUECO_CURSO, 'repetida': PESO_REPETIDA, 'tarde': PESO_TARDE,
          'ultima': PESO_ULTIMA, 'prefiere_no': PESO_PREFIERE_NO, 'evitar': PESO_EVITAR, 'dia_suelto': PESO_DIA_SUELTO,
          'equilibrio': PESO_EQUILIBRIO, 'dia_libre': PESO_DIA_LIBRE, 'excluyente': PESO_EXCLUYENTE,
-         'bloque': PESO_BLOQUE}
+         'bloque': PESO_BLOQUE, 'dia_largo': PESO_DIA_LARGO}
 
 
 class Problema:
@@ -66,7 +67,7 @@ class Problema:
                  max_materia_dia=None, max_docente_dia=None, max_seguidas=None, primeras=None, dobles=None,
                  ultimas=None, permanencia=None, desplazamiento=0, espacios=None, pesos=None, evitar=None,
                  dia_libre=None, dias_docente=None, excluyentes=None, excluyente_duro=True, sin_excluyente=None,
-                 reuniones_doc=None, siguiente_bloque=None):
+                 reuniones_doc=None, siguiente_bloque=None, permanencia_extra=None, dias_largos_max=None):
         self.franjas = franjas
         self.siguiente = siguiente
         self.anterior = {b: a for a, b in siguiente.items()}
@@ -99,6 +100,11 @@ class Problema:
         # Reuniones de área ya ubicadas: {(docente, dia): [franja…]}. Cuentan dentro de la
         # permanencia y para la regla de la 1.ª y la 7.ª hora, como si fueran una clase fija.
         self.reuniones_doc = reuniones_doc or {}
+        # Con horas extra el día puede alargarse hasta permanencia + esto (minutos), contando todo
+        self.permanencia_extra = permanencia_extra or {}
+        # Cuántos días «largos» puede tener el docente (uno por cada hora extra): días que pasan de su
+        # permanencia o que tienen la 1.ª y la última hora. Mejor si no los usa.
+        self.dias_largos_max = dias_largos_max or {}
         self.por_jornada = defaultdict(list)
         for fid, (jid, orden, ini, fin) in franjas.items():
             self.por_jornada[jid].append((orden, fid))
@@ -196,13 +202,30 @@ class Estado:
                        if uid not in ign and uid not in estorban and not self.u[uid].get('extra')] + [(ini_u, fin_u)]
                 if max(b for _, b in lst) - min(a for a, _ in lst) > perm:
                     return False, []
+            # Con horas extra: todo el día (clases + extra) cabe en la permanencia más lo permitido
+            mas = p.permanencia_extra.get(doc)
+            largo_hoy = False
+            if perm:
+                lst = [(a, b) for (a, b, uid, _) in self.docente[(doc, dia)]
+                       if uid not in ign and uid not in estorban] + [(ini_u, fin_u)]
+                ancho = max(b for _, b in lst) - min(a for a, _ in lst)
+                if mas and ancho > perm + mas:
+                    return False, []
+                largo_hoy = ancho > perm
             # Horas que no van el mismo día (si tiene la 7.ª no tiene la 1.ª)
             if p.excluyentes and p.excluyente_duro and doc not in p.sin_excluyente:
                 for (a, b, uid, f) in self.docente[(doc, dia)]:
                     if uid in ign or uid in estorban:
                         continue
-                    if any(_excluye(p, x, f) for x in celdas) and not estorba(uid):
-                        return False, []
+                    if any(_excluye(p, x, f) for x in celdas):
+                        if doc in p.dias_largos_max:
+                            largo_hoy = True       # se permite como día largo (por sus horas extra)
+                        elif not estorba(uid):
+                            return False, []
+            # Días largos: tantos como horas extra tenga el docente
+            if largo_hoy and doc in p.dias_largos_max and not self.dia_largo(doc, dia):
+                if self.dias_largos(doc, sin=dia) >= p.dias_largos_max[doc]:
+                    return False, []
             # Máximo de horas seguidas
             tope = p.max_seguidas.get(doc)
             if tope:
@@ -324,7 +347,26 @@ class Estado:
             fs = [f for (_, _, _, f) in lst]
             if any(_excluye(p, x, y) for i, x in enumerate(fs) for y in fs[i + 1:]):
                 c += w['excluyente']
+        if docente in p.dias_largos_max and self.dia_largo(docente, dia):
+            c += w['dia_largo']           # se puede, pero mejor que las horas extra queden dentro de la jornada
         return c
+
+    def dia_largo(self, docente, dia):
+        """¿Ese día el docente pasa de su permanencia o tiene la 1.ª y la última hora?"""
+        p = self.p
+        lst = self.docente.get((docente, dia))
+        if not lst:
+            return False
+        perm = p.permanencia.get(docente)
+        if perm and max(b for _, b, _, _ in lst) - min(a for a, _, _, _ in lst) > perm:
+            return True
+        if p.excluyentes and p.excluyente_duro and docente not in p.sin_excluyente:
+            fs = [f for (_, _, _, f) in lst]
+            return any(_excluye(p, x, y) for i, x in enumerate(fs) for y in fs[i + 1:])
+        return False
+
+    def dias_largos(self, docente, sin=None):
+        return sum(1 for (d, dia) in list(self.docente.keys()) if d == docente and dia != sin and self.dia_largo(d, dia))
 
     def costo_docente_semana(self, docente):
         """El docente pidió un día libre y tiene clase todos los días."""

@@ -55,7 +55,7 @@ def leer_json(texto, tipo):
 
 def condiciones_vacias():
     return {'materias': {}, 'docentes': {}, 'fijas': [], 'ih': {}, 'max_por_dia': 2,
-            'asignaciones': {},          # {aid: {'extra': bool, 'bloques': '2+2', 'dividir': bool}}
+            'asignaciones': {},          # {aid: {'extra_horas': n, 'bloques': '2+2', 'dividir': bool}}
             'permanencia_horas': 0,      # 0 = sin control; 6 en los oficiales (Decreto 1850/2002)
             'desplazamiento': 30,        # minutos para cambiar de sede
             'max_seguidas': 0,           # máximo de horas seguidas de un docente (0 = sin límite)
@@ -74,7 +74,20 @@ def condiciones_vacias():
             # ¿Un bloque puede quedar partido por el descanso? None = todavía no se ha preguntado
             'bloque_descanso': None,
             # Multigrado (Escuela Nueva): cursos que ven clase juntos, con el mismo docente y en la misma aula
-            'multigrado': []}                 # [{'nombre', 'cursos': [cid…]}]
+            'multigrado': [],                 # [{'nombre', 'cursos': [cid…]}]
+            # Con horas extra, el día puede alargarse hasta estas horas más de la permanencia (0 = sin límite)
+            'permanencia_extra': 2}
+
+
+def horas_extra(cond, aid, ih):
+    """Cuántas de las horas de esa clase son horas extra (0 a ih)."""
+    r = (cond or {}).get('asignaciones', {}).get(str(aid), {})
+    if r.get('extra_horas') not in (None, ''):
+        try:
+            return max(0, min(ih, int(r['extra_horas'])))
+        except (TypeError, ValueError):
+            return 0
+    return ih if r.get('extra') else 0
 
 
 def grupos_multigrado(cond=None, juntos=None):
@@ -100,6 +113,7 @@ CRITERIOS = [
     ('ultima', 'Sacar de la última hora las materias marcadas'),
     ('excluyente', 'Evitar que un docente tenga la primera y la última hora el mismo día (si es preferencia)'),
     ('bloque', 'Que las horas de una materia el mismo día queden seguidas (bloques)'),
+    ('dia_largo', 'Que las horas extra queden dentro de la jornada normal (pocos días largos)'),
 ]
 
 
@@ -629,7 +643,8 @@ def armar(datos, cond):
         if not a:
             continue
         fijas.append(dict(parte(a), asig=a['id'], dia=int(fx['dia']), franja=int(fx['franja']),
-                          extra=bool(asg.get(str(a['id']), {}).get('extra')), espacio=espacio_de(a)))
+                          extra=horas_extra(cond, a['id'], D.ih(a['id'], cond)) >= D.ih(a['id'], cond) > 0,
+                          espacio=espacio_de(a)))
         usadas[a['id']] += 1
         puestas[a['id']].append((int(fx['dia']), int(fx['franja'])))
 
@@ -665,7 +680,8 @@ def armar(datos, cond):
         n = min(restantes[a['id']] for a in miembros)
         for largo in partes_de(miembros[0], n):
             unidades.append({'id': f'S{g}-{len(unidades)}', 'asig': miembros[0]['id'], 'largo': largo,
-                             'extra': all(asg.get(str(a['id']), {}).get('extra') for a in miembros),
+                             'extra': all(horas_extra(cond, a['id'], D.ih(a['id'], cond)) >= D.ih(a['id'], cond) > 0
+                                          for a in miembros),
                              'dividir': True, 'espacio': espacio_de(miembros[0]),
                              'partes': [parte(a) for a in miembros]})
         for a in miembros:
@@ -684,7 +700,8 @@ def armar(datos, cond):
             n = min(restantes[a['id']] for a in miembros)
             for largo in partes_de(miembros[0], n):
                 unidades.append({'id': f'M{g}-{len(unidades)}', 'asig': miembros[0]['id'], 'largo': largo,
-                                 'extra': all(asg.get(str(a['id']), {}).get('extra') for a in miembros),
+                                 'extra': all(horas_extra(cond, a['id'], D.ih(a['id'], cond)) >= D.ih(a['id'], cond) > 0
+                                              for a in miembros),
                                  'dividir': True, 'espacio': espacio_de(miembros[0]),
                                  'partes': [parte(a) for a in miembros]})
             for a in miembros:
@@ -692,11 +709,19 @@ def armar(datos, cond):
     for a in D.asignaciones.values():
         n = restantes.get(a['id'], 0)
         propia = asg.get(str(a['id']), {})
+        mias = []
         for largo in partes_de(a, n):
             u = unidad_simple(f'{a["id"]}-{len(unidades)}', a['id'], a['curso'], doc_de(a), a['materia'], largo,
-                              D.sede_de_curso(a['curso']), bool(propia.get('extra')), propia.get('dividir', True),
-                              espacio_de(a))
+                              D.sede_de_curso(a['curso']), False, propia.get('dividir', True), espacio_de(a))
             unidades.append(u)
+            mias.append(u)
+        # Las horas extra escogidas: se marcan primero las clases más cortas
+        k = horas_extra(cond, a['id'], D.ih(a['id'], cond))
+        for u in sorted(mias, key=lambda u: u['largo']):
+            if k <= 0:
+                break
+            u['extra'] = True
+            k -= u['largo']
     no_puede = {}
     prefiere_no = {}
     evitar = {}
@@ -730,6 +755,21 @@ def armar(datos, cond):
                 permanencia[int(did)] = int(h * 60)
             else:
                 permanencia.pop(int(did), None)
+    # Con horas extra el día puede ser más largo, hasta un tope (las extra no cuentan en la permanencia)
+    permanencia_extra = {}
+    general_extra = float(cond.get('permanencia_extra') or 0)
+    con_extra = {a.get('docente') for a in D.asignaciones.values()
+                 if a.get('docente') and horas_extra(cond, a['id'], D.ih(a['id'], cond))}
+    dias_largos_max = {}
+    for did in con_extra:
+        r = cond.get('docentes', {}).get(str(did), {})
+        h = r.get('permanencia_extra')
+        h = float(h) if h not in (None, '') else general_extra
+        if h and did in permanencia:
+            permanencia_extra[did] = int(h * 60)
+        # Un día largo (pasa de la permanencia o tiene la 1.ª y la última) por cada hora extra
+        dias_largos_max[did] = sum(horas_extra(cond, a['id'], D.ih(a['id'], cond))
+                                   for a in D.asignaciones.values() if a.get('docente') == did)
     reuniones, no_puede = ubicar_reuniones(D, cond, no_puede)
     reuniones_doc = franjas_de_reuniones(D, reuniones)
     dias_docente = {did: {d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']} for did in dia_libre}
@@ -758,7 +798,8 @@ def armar(datos, cond):
                  evitar=evitar, dia_libre=dia_libre, dias_docente=dias_docente,
                  excluyentes=[regla_excluyente(cond)[:2]] if regla_excluyente(cond) else [],
                  excluyente_duro=bool(regla_excluyente(cond) and regla_excluyente(cond)[2]),
-                 sin_excluyente=sin_excluyente, reuniones_doc=reuniones_doc, siguiente_bloque=sig_bloque)
+                 sin_excluyente=sin_excluyente, reuniones_doc=reuniones_doc, siguiente_bloque=sig_bloque,
+                 permanencia_extra=permanencia_extra, dias_largos_max=dias_largos_max)
     p.reuniones = reuniones
     return p
 
