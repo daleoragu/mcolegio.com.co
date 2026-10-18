@@ -64,6 +64,7 @@ def condiciones_vacias():
             'espacios': [],              # [{'nombre', 'capacidad'}] sala de sistemas, laboratorio…
             'pesos': {},                 # {criterio: 0..10} prioridades al optimizar (5 = normal)
             'cursos': {},                # {cid: {'no_puede': ['dia-franja']}} horas sin clase del curso
+            'areas': {},                 # {área: {'no_puede': [...], 'prefiere_no': [...]}} horas de las materias del área
             'actividades': [],           # [{'nombre', 'docentes': [did] (vacío = todos), 'horas', 'max_dia'}]
             'acompanamiento': {'zonas': [], 'max_semana': 2},   # turnos en los descansos
             # Si el docente tiene la hora «b» no tiene la hora «a» el mismo día (ej.: la 7.ª y la 1.ª)
@@ -133,6 +134,11 @@ def bloques_por_defecto(cond, ih):
     if ih < desde:
         return None
     return [2] * (ih // 2) + [1] * (ih % 2)
+
+
+def modo_viaja(valor):
+    """Preferencia de un docente que viaja: 'ambos', 'lunes' (entrar tarde) o 'viernes' (salir temprano)."""
+    return valor if valor in ('lunes', 'viernes', 'ambos') else 'ambos'
 
 
 def regla_excluyente(cond):
@@ -781,9 +787,18 @@ def armar(datos, cond):
         for did in permanencia:
             if did not in con_extra:
                 compensar[did] = tope_comp
-    viajan = {int(did) for did, r in cond.get('docentes', {}).items() if r.get('viaja') and int(did) in D.docentes}
+    viajan = {int(did): modo_viaja(r.get('viaja')) for did, r in cond.get('docentes', {}).items()
+              if r.get('viaja') and int(did) in D.docentes}
+    bloqueo_materia, mejor_no_materia = {}, {}
+    for area, r in (cond.get('areas') or {}).items():
+        no, mejor = celdas(r.get('no_puede')), celdas(r.get('prefiere_no'))
+        for mid in D.areas.get(area, []):
+            if no:
+                bloqueo_materia.setdefault(mid, set()).update(no)
+            if mejor:
+                mejor_no_materia.setdefault(mid, set()).update(mejor)
     dias_de_docente = {did: sorted({d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']})
-                       for did in set(compensar) | viajan}
+                       for did in set(compensar) | set(viajan)}
     reuniones, no_puede = ubicar_reuniones(D, cond, no_puede)
     reuniones_doc = franjas_de_reuniones(D, reuniones)
     dias_docente = {did: {d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']} for did in dia_libre}
@@ -814,7 +829,8 @@ def armar(datos, cond):
                  excluyente_duro=bool(regla_excluyente(cond) and regla_excluyente(cond)[2]),
                  sin_excluyente=sin_excluyente, reuniones_doc=reuniones_doc, siguiente_bloque=sig_bloque,
                  permanencia_extra=permanencia_extra, dias_largos_max=dias_largos_max,
-                 compensar=compensar, dias_de_docente=dias_de_docente, viajan=viajan)
+                 compensar=compensar, dias_de_docente=dias_de_docente, viajan=viajan,
+                 bloqueo_materia=bloqueo_materia, mejor_no_materia=mejor_no_materia)
     p.reuniones = reuniones
     return p
 

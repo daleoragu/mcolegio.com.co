@@ -33,6 +33,8 @@ FIJA, SUELTA, REUNION = '#c7d2fe', '#ede9fe', '#fde68a'
 BLOQUE = '#ddd6fe'
 ACTIVIDAD, TURNO = '#bbf7d0', '#a5f3fc'
 COLOR_ESTADO = {'libre': VERDE, 'no_puede': ROJO, 'prefiere_no': AMARILLO, 'evitar': NARANJA}
+COLOR_AREA = {'libre': VERDE, 'no_puede': ROJO, 'prefiere_no': AMARILLO}
+TEXTO_AREA = {'libre': '', 'no_puede': 'No van', 'prefiere_no': 'Mejor no'}
 TEXTO_ESTADO = {'libre': '', 'no_puede': 'No puede', 'prefiere_no': 'Mejor no', 'evitar': 'Mejor no +'}
 ICONO = {'error': '✖ ', 'aviso': '⚠ ', 'info': 'ℹ '}
 VERDE_SEL, AMARILLO_SEL, ROJO_SEL = '#4ade80', '#facc15', '#f87171'
@@ -562,7 +564,7 @@ class App(tk.Tk):
         self.nb.add(f, text='3. Docentes y cursos')
         izq = ttk.Frame(f)
         izq.pack(side='left', fill='y')
-        ttk.Label(izq, text='Docentes y, al final, cursos').pack(anchor='w')
+        ttk.Label(izq, text='Docentes y, al final, cursos y áreas').pack(anchor='w')
         self.filtro_doc = self._filtros(izq, ('grado', 'area'), lambda: self._llenar_lista_docentes())
         self.lb_doc = tk.Listbox(izq, width=34, exportselection=False)
         self.lb_doc.pack(fill='y', expand=True)
@@ -592,6 +594,13 @@ class App(tk.Tk):
         for c in self.cursos_l:
             self.lb_doc.insert('end', f'Curso {c["nombre"]}')
             self.lb_doc.itemconfig('end', foreground='#3730a3')
+        ar = filtro.valor('area')
+        self.areas_l = [x for x in sorted(D.areas) if ar == '' or x == ar]
+        for x in self.areas_l:
+            r = (self.p.cond.get('areas') or {}).get(x) or {}
+            n = len(r.get('no_puede') or []) + len(r.get('prefiere_no') or [])
+            self.lb_doc.insert('end', f'Área {x}' + (f'  ({n})' if n else ''))
+            self.lb_doc.itemconfig('end', foreground='#047857')
 
     def _traer_disp(self):
         if messagebox.askyesno(TITULO, 'Se reemplazan las horas marcadas aquí por las que cada docente marcó en la '
@@ -606,6 +615,9 @@ class App(tk.Tk):
             return
         for w in self.panel_doc.winfo_children():
             w.destroy()
+        if sel[0] >= len(self.docs) + len(self.cursos_l):
+            k = sel[0] - len(self.docs) - len(self.cursos_l)
+            return self._ver_area(self.areas_l[k]) if k < len(self.areas_l) else None
         if sel[0] >= len(self.docs):
             return self._ver_curso(self.cursos_l[sel[0] - len(self.docs)])
         d = self.docs[sel[0]]
@@ -654,10 +666,24 @@ class App(tk.Tk):
             self._numero(abajo, f'Tiene {extra} hora(s) extra (hasta {extra} día(s) largo(s)): su día puede alargarse '
                                 f'hasta (horas más; 0 = la regla general):',
                          r.get('permanencia_extra') or 0, 0, 6, guardar('permanencia_extra'), 0.5).pack(anchor='w', pady=2)
+        fila_v = ttk.Frame(abajo)
+        fila_v.pack(anchor='w', pady=(4, 0))
         var_viaja = tk.BooleanVar(value=bool(r.get('viaja')))
-        ttk.Checkbutton(abajo, text='🚌 No vive en el municipio (viaja): si le tocan días largos, compensar entrando tarde '
-                                    'el lunes o saliendo temprano el viernes', variable=var_viaja,
-                        command=lambda: r.__setitem__('viaja', var_viaja.get())).pack(anchor='w', pady=(4, 0))
+        modos = [('ambos', 'el lunes o el viernes (lo que mejor encaje)'), ('lunes', 'el lunes: entrar más tarde'),
+                 ('viernes', 'el viernes: salir más temprano')]
+        cb_viaja = ttk.Combobox(fila_v, state='readonly', width=40, values=[t for _, t in modos])
+        cb_viaja.current([m for m, _ in modos].index(nucleo.modo_viaja(r.get('viaja'))))
+
+        def cambio_viaja(*_):
+            r['viaja'] = modos[cb_viaja.current()][0] if var_viaja.get() else False
+            sel = self.lb_doc.curselection()
+            self._llenar_lista_docentes()
+            if sel:
+                self.lb_doc.selection_set(sel[0])
+        ttk.Checkbutton(fila_v, text='🚌 No vive en el municipio (viaja). Si le tocan días largos, compensar',
+                        variable=var_viaja, command=cambio_viaja).pack(side='left')
+        cb_viaja.pack(side='left', padx=4)
+        cb_viaja.bind('<<ComboboxSelected>>', cambio_viaja)
         var_libre = tk.BooleanVar(value=bool(r.get('dia_libre')))
         ttk.Checkbutton(abajo, text='Pide un día sin clases a la semana (si se puede)', variable=var_libre,
                         command=lambda: r.__setitem__('dia_libre', var_libre.get())).pack(anchor='w', pady=(4, 0))
@@ -688,6 +714,35 @@ class App(tk.Tk):
                 b = tk.Button(g, width=10, relief='flat', bg=ROJO if no else VERDE, text='Sin clase' if no else '')
                 b.configure(command=lambda b=b, dia=dia, fid=fr['id']: self._celda_curso(c['id'], dia, fid, b))
                 b.grid(row=fila, column=col, padx=1, pady=1)
+
+    def _ver_area(self, area):
+        D = self.p.datos
+        mats = ', '.join(sorted(D.nombre_materia(m) for m in D.areas.get(area, [])))
+        ttk.Label(self.panel_doc, text=f'Área {area}', style='Titulo.TLabel').pack(anchor='w')
+        ttk.Label(self.panel_doc, text=f'Materias: {mats}', style='Ayuda.TLabel', wraplength=700).pack(anchor='w')
+        ttk.Label(self.panel_doc, text='Toque una casilla: verde = puede, rojo = las clases del área NO van a esa hora, '
+                                       'amarillo = mejor no. Vale para todos los cursos y docentes del área.',
+                  style='Ayuda.TLabel', wraplength=700).pack(anchor='w', pady=(4, 6))
+        for j in self.p.jornadas_de_area(area):
+            ttk.Label(self.panel_doc, text=j['nombre'], style='Sub.TLabel').pack(anchor='w', pady=(6, 2))
+            g = tk.Frame(self.panel_doc)
+            g.pack(anchor='w')
+            for col, dia in enumerate(j['dias'], start=1):
+                tk.Label(g, text=nucleo.DIAS[dia], width=11).grid(row=0, column=col)
+            for fila, fr in enumerate(D.franjas_de(j['id']), start=1):
+                tk.Label(g, text=fr['inicio'], width=7, anchor='e').grid(row=fila, column=0, padx=4)
+                for col, dia in enumerate(j['dias'], start=1):
+                    if fr['descanso']:
+                        tk.Label(g, text='descanso', fg='#999', width=11).grid(row=fila, column=col)
+                        continue
+                    est = self.p.estado_celda_area(area, dia, fr['id'])
+                    b = tk.Button(g, width=10, relief='flat', bg=COLOR_AREA[est], text=TEXTO_AREA[est])
+                    b.configure(command=lambda b=b, dia=dia, fid=fr['id']: self._celda_area(area, dia, fid, b))
+                    b.grid(row=fila, column=col, padx=1, pady=1)
+
+    def _celda_area(self, area, dia, fid, boton):
+        est = self.p.siguiente_estado_area(area, dia, fid)
+        boton.configure(bg=COLOR_AREA[est], text=TEXTO_AREA[est])
 
     def _celda_curso(self, cid, dia, fid, boton):
         no = self.p.alternar_celda_curso(cid, dia, fid)

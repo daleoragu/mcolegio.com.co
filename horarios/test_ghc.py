@@ -575,3 +575,48 @@ class IdeasDeGHC(SimpleTestCase):
         txt = pr.texto_viajan(alt)
         if txt:
             self.assertNotIn('sin compensar', txt[0], txt)
+
+    def test_bloquear_horas_por_area(self):
+        D = datos()                                    # materias 1 y 2 son de Ciencias
+        p = proyecto(D)
+        clase = [f for f in D.franjas_de(1) if not f['descanso']]
+        for dia in (1, 2, 3, 4, 5):
+            self.assertEqual(p.siguiente_estado_area('Ciencias', dia, clase[0]['id']), 'no_puede')
+        self.assertEqual(p.siguiente_estado_area('Ciencias', 1, clase[1]['id']), 'no_puede')
+        self.assertEqual(p.siguiente_estado_area('Ciencias', 1, clase[1]['id']), 'prefiere_no')
+        self.assertEqual(p.estado_celda_area('Ciencias', 1, clase[1]['id']), 'prefiere_no')
+        self.assertEqual([j['id'] for j in p.jornadas_de_area('Ciencias')], [1])
+        alt = p.generar(cuantas=1, segundos=6)[0]
+        self.assertEqual(alt['choques'], [])
+        self.assertEqual(alt['horas_sin_ubicar'], 0)
+        primeras = [s for s in alt['sesiones'] if s['franja'] == clase[0]['id']]
+        self.assertTrue(primeras)
+        self.assertFalse([s for s in primeras if D.asignaciones[s['asignacion']]['materia'] in (1, 2)])
+        # A mano tampoco deja (y la sugerencia del asistente lo puede quitar)
+        blanco = p.en_blanco()
+        self.assertIn('Ciencias', p.motivo(blanco, 11, 1, clase[0]['id']))
+        self.assertIsNone(p.motivo(blanco, 13, 1, clase[0]['id']))       # materia 3 es de otra área
+        p.aplicar_sugerencia({'tipo': 'area_sin', 'datos': {'area': 'Ciencias'}})
+        self.assertIsNone(p.motivo(blanco, 11, 1, clase[0]['id']))
+
+    def test_docente_que_viaja_escoge_lunes_o_viernes(self):
+        from .motor import Estado
+        D = datos()
+        cond = nucleo.condiciones_vacias()
+        cond['permanencia_horas'] = 5
+        cond['compensar'] = {'activa': True, 'max': 1}
+        clase = None
+        for modo, esperado in (('lunes', 1), ('viernes', 0), ('ambos', 0), (True, 0)):
+            cond['docentes']['1'] = {'viaja': modo}
+            p = nucleo.armar(D, cond)
+            self.assertEqual(p.viajan[1], nucleo.modo_viaja(modo))
+            est = Estado(p)
+            for u in p.unidades:
+                est.u[u['id']] = u
+            uni = [u for u in p.unidades if u['partes'][0]['docente'] == 1 and u['largo'] == 1]
+            clase = sorted((f for f in p.franjas if p.franjas[f][0] == 1), key=lambda f: p.indice[f])
+            est.poner(uni[0], 2, clase[0])
+            est.poner(uni[1], 2, clase[-1])            # martes largo: 1 hora por compensar
+            est.poner(uni[2], 1, clase[0])             # lunes desde la primera
+            est.poner(uni[3], 5, clase[-2])            # viernes sale antes de la última
+            self.assertEqual(est.compensacion_faltante(1), esperado, modo)
