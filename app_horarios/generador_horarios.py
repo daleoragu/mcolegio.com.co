@@ -1100,8 +1100,8 @@ class App(tk.Tk):
         if fijadas and not messagebox.askyesno(TITULO, f'Se van a respetar las {fijadas} fichas fijadas (🔒) del '
                                                         f'horario «{base["nombre"]}». ¿Seguir?'):
             base = None
-        self._lanzar(lambda av, vv, pa: self.p.generar(max(1, min(3, self.var_alt.get())), max(5, self.var_seg.get()), av,
-                                                       base=base if fijadas else None, vivo=vv, parar=pa))
+        n, seg = max(1, min(3, int(self.var_alt.get()))), max(5, int(self.var_seg.get()))   # se leen aquí, no en el hilo
+        self._lanzar(lambda av, vv, pa: self.p.generar(n, seg, av, base=base if fijadas else None, vivo=vv, parar=pa))
 
     def _preguntar_descanso(self):
         """Si hay bloques y no se ha dicho, pregunta si un bloque puede quedar partido por el descanso."""
@@ -1124,8 +1124,8 @@ class App(tk.Tk):
         if not alt:
             return messagebox.showinfo(TITULO, 'Escoja un horario de la lista.')
         self._preguntar_descanso()
-        self._lanzar(lambda av, vv, pa: self.p.completar(alt, max(5, self.var_seg.get()), av, solo_fijadas=solo_fijadas,
-                                                         vivo=vv, parar=pa))
+        seg = max(5, int(self.var_seg.get()))
+        self._lanzar(lambda av, vv, pa: self.p.completar(alt, seg, av, solo_fijadas=solo_fijadas, vivo=vv, parar=pa))
 
     def _esperar(self):
         """True (y avisa) si está generando: mientras tanto el horario solo se mira."""
