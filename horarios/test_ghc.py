@@ -534,3 +534,44 @@ class IdeasDeGHC(SimpleTestCase):
         otro = p.en_blanco()
         self.assertIsNone(p.poner_ficha(otro, 11, 1, clase[0]['id']))
         self.assertIn('permanencia', p.motivo(otro, 21, 1, clase[-1]['id']))
+
+    def test_docente_que_viaja_compensa_lunes_o_viernes(self):
+        D = datos()
+        cond = nucleo.condiciones_vacias()
+        cond['permanencia_horas'] = 5
+        cond['compensar'] = {'activa': True, 'max': 1}
+        p = nucleo.armar(D, cond)
+        from .motor import Estado
+        est = Estado(p)
+        self.assertEqual(est.compensacion_faltante(1), 0)       # no viaja → no cuenta
+        cond['docentes']['1'] = {'viaja': True}
+        p = nucleo.armar(D, cond)
+        self.assertIn(1, p.viajan)
+        est = Estado(p)
+        for u in p.unidades:
+            est.u[u['id']] = u
+        uni = [u for u in p.unidades if u['partes'][0]['docente'] == 1 and u['largo'] == 1]
+        clase = sorted((f for f in p.franjas if p.franjas[f][0] == 1), key=lambda f: p.indice[f])
+        # Martes: primera y última (día largo de 6 h, permanencia 5) → 1 hora para compensar
+        est.poner(uni[0], 2, clase[0])
+        est.poner(uni[1], 2, clase[-1])
+        # Lunes desde la primera y viernes hasta la última: no compensa ahí
+        est.poner(uni[2], 1, clase[0])
+        est.poner(uni[3], 5, clase[-1])
+        self.assertEqual(est.compensacion_faltante(1), 1)
+        malo = est.costo_docente_semana(1)
+        self.assertGreater(malo, 0)
+        # El lunes entra a la segunda hora: compensado
+        est.quitar(uni[2]['id'])
+        est.poner(uni[2], 1, clase[1])
+        self.assertEqual(est.compensacion_faltante(1), 0)
+        self.assertEqual(est.costo_docente_semana(1), 0)
+        # Generando: el docente que viaja queda compensado el lunes o el viernes
+        pr = proyecto(D)
+        pr.cond.update({'permanencia_horas': 5, 'compensar': {'activa': True, 'max': 1}})
+        pr.docente(1)['viaja'] = True
+        alt = pr.generar(cuantas=1, segundos=10)[0]
+        self.assertEqual(alt['choques'], [])
+        txt = pr.texto_viajan(alt)
+        if txt:
+            self.assertNotIn('sin compensar', txt[0], txt)

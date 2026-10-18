@@ -284,6 +284,14 @@ def prueba():
     app.deshacer()
     assert alt['sesiones'] == antes_s, 'no deshizo'
     print('paso:', 'Generar de verdad', flush=True)
+    # Docentes que viven fuera: se pregunta una vez (y lleva a la pestaña 3 para marcarlos)
+    p.cond['compensar'] = {'activa': True, 'max': 1}
+    p.cond.pop('preguntado_viajan', None)
+    assert app._preguntar_viajan() is True and p.cond['preguntado_viajan']
+    assert app._preguntar_viajan() is False                      # ya no vuelve a preguntar
+    p.docente(D.asignaciones[a0]['docente'])['viaja'] = True
+    app._llenar_lista_docentes()
+    p.cond['compensar']['activa'] = False
     # Generar de verdad (en otro hilo), viendo lo que acomoda, y detener
     import time as _t
     app.var_alt.set(2)

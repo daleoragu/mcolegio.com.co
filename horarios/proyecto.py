@@ -566,6 +566,37 @@ class Proyecto:
             out.append(t + (' ✖ se pasa' if total > tope else ''))
         return out
 
+    def texto_viajan(self, alt):
+        """Docentes que no viven en el municipio y tienen días largos: dónde quedó la compensación."""
+        D = self.datos
+        out = []
+        for did, r in sorted(self.cond.get('docentes', {}).items(), key=lambda x: D.nombre_docente(int(x[0]))):
+            did = int(did)
+            if not r.get('viaja') or did not in D.docentes:
+                continue
+            perm = self._permanencia(did) * 60
+            perfil = self.perfil_docente(alt, did)
+            exceso = sum(max(0, a - perm) for a, _ in perfil.values())
+            if not perm or not exceso:
+                continue
+            dias = sorted({d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']})
+            partes = []
+            for d, primero in ((dias[0], True), (dias[-1], False)):
+                fs = [s['franja'] for s in alt['sesiones'] if s['dia'] == d and s['franja'] in D.franjas
+                      and D.asignaciones.get(s['asignacion'], {}).get('docente') == did]
+                if not fs:
+                    partes.append(f'{nucleo.DIAS[d]} no viene')
+                    continue
+                orden = [f['id'] for f in D.franjas_de(D.franjas[fs[0]]['jornada']) if not f['descanso']]
+                idx = [orden.index(f) for f in fs if f in orden]
+                if primero and min(idx):
+                    partes.append(f'{nucleo.DIAS[d]} entra a la {min(idx) + 1}.ª hora')
+                elif not primero and max(idx) < len(orden) - 1:
+                    partes.append(f'{nucleo.DIAS[d]} sale después de la {max(idx) + 1}.ª hora')
+            out.append(f'{D.nombre_docente(did)} (viaja): días largos suman {texto_horas(exceso)} de más · '
+                       + (', '.join(partes) if partes else 'sin compensar lunes ni viernes'))
+        return out
+
     def _motivo_excluyente(self, did, dia, fid, mias):
         regla = nucleo.regla_excluyente(self.cond)
         if not regla or not regla[2] or self.docente(did).get('sin_excluyente'):
