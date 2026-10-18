@@ -470,12 +470,14 @@ def _posiciones(p, est, u):
     return out
 
 
-def _construir(p, est, cola, posibles, rnd, hasta, avance=None, total=1):
+def _construir(p, est, cola, posibles, rnd, hasta, avance=None, total=1, tic=None):
     reciente = {}
     paso = 0
     trabadas = defaultdict(int)
     while cola and time.monotonic() < hasta:
         paso += 1
+        if tic and tic(est):
+            break
         uid = cola.pop(0)
         u = est.u[uid]
         mejores, mejor_c = [], None
@@ -519,12 +521,38 @@ def _construir(p, est, cola, posibles, rnd, hasta, avance=None, total=1):
             avance(min(60, int(60 * (1 - len(cola) / max(1, total)))))
 
 
-def resolver(p, segundos=20, semilla=0, avance=None):
-    """{'ubicadas': {uid: (dia, franja)}, 'sin_ubicar': [uid], 'divididas': [asig], 'costo', 'estado'}."""
+def _faltan(est):
+    """Horas-curso que aún no tienen lugar."""
+    return sum(u['largo'] * len(u['partes']) for uid, u in est.u.items() if uid not in est.pos and uid not in est.fijas)
+
+
+def resolver(p, segundos=20, semilla=0, avance=None, vivo=None, parar=None):
+    """{'ubicadas': {uid: (dia, franja)}, 'sin_ubicar': [uid], 'divididas': [asig], 'costo', 'estado', 'detenido'}.
+
+    vivo(est): se llama más o menos cada segundo con el estado actual (para ir mostrándolo).
+    parar(): si devuelve True, se detiene y entrega lo mejor que lleve.
+    Para solo cuando ya no mejora: si pasa un buen rato sin avanzar, no gasta el resto del tiempo.
+    """
     rnd = random.Random(semilla)
     est = Estado(p)
-    limite = time.monotonic() + segundos
-    t_construir = time.monotonic() + segundos * 0.65
+    inicio = time.monotonic()
+    limite = inicio + segundos
+    t_construir = inicio + segundos * 0.65
+    quieto = min(180.0, max(15.0, segundos * 0.1))       # segundos sin mejorar para dar por terminado
+    control = {'prox': 0.0, 'parado': False}
+
+    def tic(e):
+        if control['parado']:
+            return True
+        ahora = time.monotonic()
+        if ahora >= control['prox']:
+            control['prox'] = ahora + 0.8
+            if parar and parar():
+                control['parado'] = True
+                return True
+            if vivo:
+                vivo(e)
+        return False
 
     for i, fx in enumerate(p.fijas):
         u = unidad_simple(f'F{i}', fx['asig'], fx['curso'], fx['docente'], fx['materia'], 1, fx.get('sede', ''),
@@ -542,7 +570,21 @@ def resolver(p, segundos=20, semilla=0, avance=None):
         return (-len(u['partes']), -u['largo'], len(libres) + rnd.random())
 
     cola = [u['id'] for u in sorted(p.unidades, key=dificultad)]
-    _construir(p, est, cola, posibles, rnd, t_construir, avance, len(p.unidades))
+    _construir(p, est, cola, posibles, rnd, t_construir, avance, len(p.unidades), tic)
+    # Si quedaron clases por fuera y hay tiempo, vuelve a intentar (sacando otras) y se queda con
+    # la mejor vuelta. Por eso «más tiempo» sí sirve para ubicar lo que falta.
+    mejor_falta, mejor_pos_c = _faltan(est), dict(est.pos)
+    ultima_mejora = time.monotonic()
+    while (mejor_falta and not control['parado'] and time.monotonic() < t_construir
+           and time.monotonic() - ultima_mejora < quieto):
+        resto = [x for x in est.u if x not in est.pos and x not in est.fijas]
+        rnd.shuffle(resto)
+        _construir(p, est, resto, posibles, rnd, t_construir, None, 1, tic)
+        f = _faltan(est)
+        if f < mejor_falta:
+            mejor_falta, mejor_pos_c, ultima_mejora = f, dict(est.pos), time.monotonic()
+    if mejor_pos_c != est.pos:
+        est = _reconstruir(p, est, mejor_pos_c)
 
     divididas = []
     nuevas = []
@@ -558,7 +600,7 @@ def resolver(p, segundos=20, semilla=0, avance=None):
                 nuevas.append(nu['id'])
     if nuevas:
         resto = [x for x in est.u if x not in est.pos and x not in est.fijas]
-        _construir(p, est, resto, posibles, rnd, max(t_construir, time.monotonic() + segundos * 0.15))
+        _construir(p, est, resto, posibles, rnd, max(t_construir, time.monotonic() + segundos * 0.15), tic=tic)
 
     movibles = [uid for uid in est.pos if uid not in est.fijas]
     t0 = time.monotonic()
@@ -566,8 +608,14 @@ def resolver(p, segundos=20, semilla=0, avance=None):
     intentos = 0
     actual = est.costo_total()
     mejor, mejor_pos = actual, dict(est.pos)
+    ultima_mejora, ref = time.monotonic(), actual
     while movibles and time.monotonic() < limite:
         intentos += 1
+        if intentos % 50 == 0:
+            if tic(est):
+                break
+            if time.monotonic() - ultima_mejora > quieto:      # ya no mejora: termina antes
+                break
         uid = rnd.choice(movibles)
         u = est.u[uid]
         d0, f0 = est.pos[uid]
@@ -616,6 +664,8 @@ def resolver(p, segundos=20, semilla=0, avance=None):
             est.poner(u, d0, f0)
         else:
             actual += delta
+            if actual < ref * 0.99 - 0.5:            # mejora de verdad (más del 1 %), no de a poquitos
+                ultima_mejora, ref = time.monotonic(), actual
             if actual < mejor - 1e-9:
                 mejor, mejor_pos = actual, dict(est.pos)
         if avance and intentos % 2000 == 0:
@@ -626,7 +676,8 @@ def resolver(p, segundos=20, semilla=0, avance=None):
     return {'ubicadas': {uid: est.pos[uid] for uid in est.pos if uid not in est.fijas},
             'sin_ubicar': [uid for uid in est.u if uid not in est.pos and uid not in est.fijas],
             'divididas': sorted(set(divididas)),
-            'costo': round(est.costo_total(), 1), 'estado': est}
+            'costo': round(est.costo_total(), 1), 'estado': est, 'detenido': control['parado'],
+            'segundos_usados': round(time.monotonic() - inicio, 1)}
 
 
 def _reconstruir(p, viejo, posiciones):

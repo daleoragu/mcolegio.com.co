@@ -221,8 +221,8 @@ class Proyecto:
                              for s in base['sesiones'] if todas or s.get('fijada')]
         return cond
 
-    def _correr(self, cond, segundos, semilla, avance=None):
-        r = nucleo.generar(self.datos, cond, segundos=segundos, semilla=semilla, avance=avance)
+    def _correr(self, cond, segundos, semilla, avance=None, vivo=None, parar=None):
+        r = nucleo.generar(self.datos, cond, segundos=segundos, semilla=semilla, avance=avance, vivo=vivo, parar=parar)
         fijas = {(f['asignacion'], f['dia'], f['franja']) for f in cond.get('fijas', [])}
         for s in r['sesiones']:
             s['fijada'] = (s['asignacion'], s['dia'], s['franja']) in fijas
@@ -273,16 +273,21 @@ class Proyecto:
         alt['avisos_extra'] = av1 + av2
         return alt
 
-    def generar(self, cuantas=3, segundos=60, avance=None, base=None):
-        """Genera alternativas (cada una con otra semilla), respetando las fichas fijadas de `base`."""
+    def generar(self, cuantas=3, segundos=60, avance=None, base=None, vivo=None, parar=None):
+        """Genera alternativas (cada una con otra semilla), respetando las fichas fijadas de `base`.
+
+        vivo(sesiones, nombre): lo que va ubicando; parar(): detener y quedarse con lo que lleve."""
         cond = self._cond_con_fijas(base)
-        self.alternativas = [a for a in self.alternativas if a.get('manual')]
         nuevas = []
         for k in range(cuantas):
+            if nuevas and parar and parar():
+                break
             def av(p, k=k):
                 if avance:
                     avance(int((k + p / 100) * 100 / cuantas), f'Alternativa {k + 1} de {cuantas}…')
-            nuevas.append(self._correr(cond, segundos, int(time.time()) + k * 7919, av))
+            vv = (lambda ses, k=k: vivo(ses, f'Alternativa {k + 1}')) if vivo else None
+            nuevas.append(self._correr(cond, segundos, int(time.time()) + k * 7919, av, vv, parar))
+        self.alternativas = [a for a in self.alternativas if a.get('manual')]
         nuevas.sort(key=lambda r: (r['horas_sin_ubicar'], len(r['choques']), r['costo']))
         for i, r in enumerate(nuevas, start=1):
             r['nombre'] = f'Alternativa {i}'
@@ -291,16 +296,30 @@ class Proyecto:
             avance(100, 'Listo')
         return nuevas
 
-    def completar(self, alt, segundos=30, avance=None, solo_fijadas=False):
+    def completar(self, alt, segundos=30, avance=None, solo_fijadas=False, vivo=None, parar=None):
         """Deja quietas las fichas puestas (o solo las fijadas) y ubica lo que falta."""
         cond = self._cond_con_fijas(alt, todas=not solo_fijadas)
         r = self._correr(cond, segundos, int(time.time()),
-                         (lambda p: avance(p, 'Completando…')) if avance else None)
+                         (lambda p: avance(p, 'Completando…')) if avance else None,
+                         (lambda ses: vivo(ses, 'Completando')) if vivo else None, parar)
         r['nombre'] = f"{alt.get('nombre', 'Horario')} (completado)"
         self.alternativas.insert(0, r)
         if avance:
             avance(100, 'Listo')
         return r
+
+    def horas_totales(self):
+        return sum(self.datos.ih(aid, self.cond) for aid in self.datos.asignaciones)
+
+    def en_vivo(self, sesiones, nombre='Generando'):
+        """Un horario provisional (solo para mirar) con lo que el generador lleva ubicado."""
+        alt = {'nombre': f'⏳ {nombre}…', 'vivo': True, 'sesiones': [dict(x, fijada=x.get('fijada', False)) for x in sesiones],
+               'costo': None, 'huecos': None, 'reuniones': [], 'divididas': [], 'choques': [],
+               'actividades': [], 'acompanamientos': [], 'avisos_extra': []}
+        faltan = nucleo.horas_faltantes(self.datos, alt['sesiones'], self.cond)
+        alt['sin_ubicar'] = [{'asignacion': a['id'], 'horas': n} for a, n in faltan]
+        alt['horas_sin_ubicar'] = sum(n for _, n in faltan)
+        return alt
 
     def en_blanco(self):
         alt = {'nombre': f'Horario a mano {sum(1 for a in self.alternativas if a.get("manual")) + 1}', 'manual': True,

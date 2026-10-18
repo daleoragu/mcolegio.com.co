@@ -9,10 +9,12 @@ Funciona sin internet:
      (fije lo que quiera y deje que el generador complete el resto).
   4. Guarde la alternativa (.mchr) y súbala en la plataforma.
 """
+import copy
 import os
 import queue
 import sys
 import threading
+import time
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
@@ -995,15 +997,24 @@ class App(tk.Tk):
         ttk.Spinbox(uno, from_=1, to=3, width=3, textvariable=self.var_alt).pack(side='left', padx=3)
         ttk.Label(uno, text='Segundos c/u:').pack(side='left')
         self.var_seg = tk.IntVar(value=60)
-        ttk.Spinbox(uno, from_=15, to=600, increment=15, width=5, textvariable=self.var_seg).pack(side='left', padx=3)
+        ttk.Spinbox(uno, from_=15, to=3600, increment=15, width=5, textvariable=self.var_seg).pack(side='left', padx=3)
         self.btn_gen = ttk.Button(uno, text='▶ Generar', command=self.generar)
         self.btn_gen.pack(side='left', padx=4)
         ttk.Button(uno, text='Completar lo que falta', command=self._completar).pack(side='left', padx=2)
         ttk.Button(uno, text='Regenerar lo no fijado', command=lambda: self._completar(solo_fijadas=True)).pack(side='left', padx=2)
+        self.btn_parar = ttk.Button(uno, text='⏹ Detener', command=self.detener, state='disabled')
+        self.btn_parar.pack(side='left', padx=2)
+        self.var_vivo = tk.BooleanVar(value=True)
+        ttk.Checkbutton(uno, text='Ver mientras acomoda', variable=self.var_vivo).pack(side='left', padx=4)
         self.barra = ttk.Progressbar(uno, length=160, mode='determinate')
         self.barra.pack(side='left', padx=6)
         self.lbl_prog = ttk.Label(uno, text='', style='Ayuda.TLabel')
         self.lbl_prog.pack(side='left')
+        # Zoom (todas las cuadrículas) · también Ctrl + rueda del mouse sobre una cuadrícula
+        ttk.Button(uno, text='🔍+', width=4, command=lambda: self.zoom_todas(0.1)).pack(side='right')
+        ttk.Button(uno, text='100%', width=5, command=lambda: self.zoom_todas(None)).pack(side='right', padx=1)
+        ttk.Button(uno, text='🔍−', width=4, command=lambda: self.zoom_todas(-0.1)).pack(side='right')
+        ttk.Label(uno, text='Tamaño:').pack(side='right', padx=(8, 2))
         dos = ttk.Frame(f)
         dos.pack(fill='x', pady=(4, 0))
         ttk.Button(dos, text='💾 Guardar para la plataforma (.mchr)', command=self._exportar).pack(side='left')
@@ -1013,6 +1024,11 @@ class App(tk.Tk):
         ttk.Separator(dos, orient='vertical').pack(side='left', fill='y', padx=6)
         ttk.Button(dos, text='➕ Otra pestaña', command=self.nueva_pestana).pack(side='left')
         ttk.Button(dos, text='🗗 Ventana aparte', command=self.nueva_ventana).pack(side='left', padx=3)
+        self.cb_mosaico = ttk.Combobox(dos, state='readonly', width=3, values=['2', '4', '6', '9'])
+        self.cb_mosaico.current(1)
+        self.cb_mosaico.pack(side='left')
+        ttk.Button(dos, text='▦ en una ventana', command=self.mosaico).pack(side='left', padx=(2, 3))
+        ttk.Button(dos, text='↶ Deshacer', command=self.deshacer).pack(side='left', padx=3)
         self.var_fijar = tk.BooleanVar(value=False)
         ttk.Checkbutton(dos, text='Fijar 🔒 lo que ubico a mano', variable=self.var_fijar).pack(side='left', padx=6)
         self.btn_avisos = ttk.Button(dos, text='⚠ Avisos', command=self._alternar_avisos)
@@ -1038,6 +1054,17 @@ class App(tk.Tk):
         self.sueltas = set()            # clases que el usuario quiere ubicar de a una hora
         self.ventana_asistente = None   # «¿Por qué faltan horas?»
         self.sug_asistente = []
+        self.parar_evt = threading.Event()
+        self.alt_vivo = None            # lo que el generador lleva acomodado (solo para mirar)
+        self._vivo_pendiente = None
+        self._vivo_dibujado = 0.0
+        self._historial = []            # para «Deshacer»
+        self.bind('<Control-z>', self._tecla_deshacer)
+        self.bind('<Control-Z>', self._tecla_deshacer)
+        self.bind_all('<Control-MouseWheel>', self._zoom_rueda)
+        self.bind('<Control-plus>', lambda e: self.zoom_todas(0.1))
+        self.bind('<Control-equal>', lambda e: self.zoom_todas(0.1))
+        self.bind('<Control-minus>', lambda e: self.zoom_todas(-0.1))
         self.bind('<Escape>', lambda e: self.quitar_seleccion())
         self.nueva_pestana()
         self._llenar_alternativas()
@@ -1054,12 +1081,14 @@ class App(tk.Tk):
         self._pintar_seleccion()
 
     def _en_blanco(self):
+        if self._esperar():
+            return
         self.p.en_blanco()
         self._llenar_alternativas()
         self.avisar('Horario en blanco: arrastre las fichas de la izquierda a la cuadrícula.')
 
     def generar(self):
-        if self.generando:
+        if self._esperar():
             return
         errores = [t for n, t in nucleo.diagnostico(self.p.datos, self.p.cond) if n == 'error']
         if errores and not messagebox.askyesno(TITULO, 'Hay problemas en los datos:\n\n' + '\n'.join(errores[:6]) +
@@ -1071,8 +1100,8 @@ class App(tk.Tk):
         if fijadas and not messagebox.askyesno(TITULO, f'Se van a respetar las {fijadas} fichas fijadas (🔒) del '
                                                         f'horario «{base["nombre"]}». ¿Seguir?'):
             base = None
-        self._lanzar(lambda av: self.p.generar(max(1, min(3, self.var_alt.get())), max(5, self.var_seg.get()), av,
-                                               base=base if fijadas else None))
+        self._lanzar(lambda av, vv, pa: self.p.generar(max(1, min(3, self.var_alt.get())), max(5, self.var_seg.get()), av,
+                                                       base=base if fijadas else None, vivo=vv, parar=pa))
 
     def _preguntar_descanso(self):
         """Si hay bloques y no se ha dicho, pregunta si un bloque puede quedar partido por el descanso."""
@@ -1089,19 +1118,45 @@ class App(tk.Tk):
             self.cb_bd.current(1 if r else 2)
 
     def _completar(self, solo_fijadas=False):
+        if self._esperar():
+            return
         alt = self._alt()
         if not alt:
             return messagebox.showinfo(TITULO, 'Escoja un horario de la lista.')
         self._preguntar_descanso()
-        self._lanzar(lambda av: self.p.completar(alt, max(5, self.var_seg.get()), av, solo_fijadas=solo_fijadas))
+        self._lanzar(lambda av, vv, pa: self.p.completar(alt, max(5, self.var_seg.get()), av, solo_fijadas=solo_fijadas,
+                                                         vivo=vv, parar=pa))
+
+    def _esperar(self):
+        """True (y avisa) si está generando: mientras tanto el horario solo se mira."""
+        if self.generando:
+            self.avisar('Espere a que termine de generar, o use ⏹ Detener.', error=True)
+            return True
+        return False
+
+    def detener(self):
+        if self.generando:
+            self.parar_evt.set()
+            self.lbl_prog.configure(text='Deteniendo… se queda con lo mejor que lleve')
 
     def _lanzar(self, trabajo):
         self.generando = True
+        self.parar_evt.clear()
+        self.alt_vivo = None
+        self._vivo_pendiente = None
+        self._t_inicio = time.monotonic()
         self.btn_gen.configure(state='disabled')
+        self.btn_parar.configure(state='normal')
+        self.quitar_seleccion(redibujar=False)
+        ver = bool(self.var_vivo.get())
+
+        def vivo(ses, nombre):
+            self.cola.put(('vivo', ses, nombre))
 
         def correr():
             try:
-                trabajo(lambda pct, txt: self.cola.put(('avance', pct, txt)))
+                trabajo(lambda pct, txt: self.cola.put(('avance', pct, txt)), vivo if ver else None,
+                        self.parar_evt.is_set)
                 self.cola.put(('listo', None, None))
             except Exception as e:
                 self.cola.put(('error', 0, str(e)))
@@ -1114,15 +1169,26 @@ class App(tk.Tk):
                 tipo, pct, txt = self.cola.get_nowait()
                 if tipo == 'avance':
                     self.barra['value'] = pct
-                    self.lbl_prog.configure(text=txt)
+                    seg = int(time.monotonic() - getattr(self, '_t_inicio', time.monotonic()))
+                    self.lbl_prog.configure(text=f'{txt} ({seg} s)')
+                elif tipo == 'vivo':
+                    self._vivo_pendiente = (pct, txt)
                 else:
                     self.generando = False
+                    self.alt_vivo = None
+                    self._vivo_pendiente = None
                     self.btn_gen.configure(state='normal')
+                    self.btn_parar.configure(state='disabled')
                     if tipo == 'listo':
                         self.barra['value'] = 100
-                        self.lbl_prog.configure(text='Listo')
+                        detenido = self.p.alternativas and self.p.alternativas[0].get('detenido')
+                        usados = self.p.alternativas[0].get('segundos_usados') if self.p.alternativas else None
+                        self.lbl_prog.configure(text=('Detenido' if detenido else 'Listo') +
+                                                (f' en {usados:g} s' if usados else ''))
                         self._llenar_alternativas()
                         alt = self._alt()
+                        if detenido:
+                            self.avisar('⏹ Detenido: quedó lo mejor que llevaba. Puede completar lo que falta después.')
                         if alt and alt.get('horas_sin_ubicar'):
                             self.avisar(f'Listo, pero quedaron {alt["horas_sin_ubicar"]} horas sin ubicar. '
                                         'Mire las sugerencias.', error=True)
@@ -1130,15 +1196,124 @@ class App(tk.Tk):
                         else:
                             self.avisar('Listo. Revise el horario; puede seguir ajustándolo con las fichas.')
                     else:
+                        self._ver()
                         messagebox.showerror(TITULO, f'No se pudo generar: {txt}')
                     return
         except queue.Empty:
             pass
+        self._mostrar_vivo()
         self.after(200, self._revisar_cola)
+
+    def _mostrar_vivo(self, ya=False):
+        """Dibuja lo que el generador lleva acomodado (cada segundo y medio, para no trabar la ventana)."""
+        if not self._vivo_pendiente or not self.generando:
+            return
+        if not ya and time.monotonic() - self._vivo_dibujado < 1.5:
+            return
+        ses, nombre = self._vivo_pendiente
+        self._vivo_pendiente = None
+        self._vivo_dibujado = time.monotonic()
+        self.alt_vivo = self.p.en_vivo(ses, nombre)
+        total = self.p.horas_totales()
+        hechas = total - self.alt_vivo['horas_sin_ubicar']
+        self.avisar(f'⏳ {nombre}: {hechas} de {total} horas acomodadas. Mientras genera, el horario solo se mira.')
+        for v in list(self.vistas):
+            v.dibujar()
+
+    # --- Deshacer ------------------------------------------------------------------
+    def _paso(self, alt):
+        """Guarda cómo estaba el horario antes de un cambio a mano."""
+        if alt and not alt.get('vivo'):
+            self._historial.append((alt, copy.deepcopy(alt['sesiones'])))
+            del self._historial[:-40]
+
+    def _tecla_deshacer(self, e):
+        if e.widget.winfo_class() in ('Entry', 'TEntry', 'TSpinbox', 'Spinbox', 'Text', 'TCombobox'):
+            return None                 # en una casilla de texto, Ctrl+Z es de la casilla
+        self.deshacer()
+        return 'break'
+
+    def deshacer(self):
+        if self._esperar():
+            return
+        while self._historial:
+            alt, ses = self._historial.pop()
+            if alt not in self.p.alternativas or ses == alt['sesiones']:
+                continue
+            alt['sesiones'] = ses
+            self.p.revisar(alt)
+            self.quitar_seleccion(redibujar=False)
+            self._actualizar_fila()
+            self._ver()
+            return self.avisar('↶ Se deshizo el último cambio.')
+        self.avisar('No hay nada que deshacer.')
+
+    # --- Zoom y varias cuadrículas en una ventana ----------------------------------
+    def zoom_todas(self, delta):
+        for v in self.vistas:
+            v.cambiar_zoom(delta)
+
+    def _zoom_rueda(self, e):
+        try:
+            w = self.winfo_containing(e.x_root, e.y_root)
+        except (tk.TclError, KeyError):
+            w = None
+        while w is not None and getattr(w, 'vista_duena', None) is None:
+            w = getattr(w, 'master', None)
+        v = getattr(w, 'vista_duena', None) if w is not None else None
+        (v or self.vista_actual()).cambiar_zoom(0.1 if e.delta > 0 else -0.1)
+        return 'break'
+
+    def mosaico(self, n=None):
+        """Una ventana con 2, 4, 6 o 9 cuadrículas (cada una escoge horario, curso o docente)."""
+        try:
+            n = int(n or self.cb_mosaico.get() or 4)
+        except ValueError:
+            n = 4
+        filas, cols = {2: (1, 2), 4: (2, 2), 6: (2, 3), 9: (3, 3)}.get(n, (2, 2))
+        w = tk.Toplevel(self)
+        w.title(f'{TITULO} · {n} horarios')
+        w.geometry('1300x850')
+        try:
+            w.state('zoomed')
+        except tk.TclError:
+            pass
+        for r in range(filas):
+            w.rowconfigure(r, weight=1, uniform='fila')
+        for c in range(cols):
+            w.columnconfigure(c, weight=1, uniform='col')
+        idx = self.vista_actual().indice() if self.vistas else 0
+        nuevas = []
+        for k in range(filas * cols):
+            marco = ttk.Frame(w, padding=3, relief='groove')
+            marco.grid(row=k // cols, column=k % cols, sticky='nsew', padx=2, pady=2)
+            v = Vista(self, marco, compacta=True)
+            v.ventana = w
+            v.zoom = {2: 0.9, 4: 0.8, 6: 0.7, 9: 0.6}.get(n, 0.8)
+            v.idx = idx
+            self.vistas.append(v)
+            nuevas.append(v)
+            v.poner_alternativas(self.nombres_alternativas(), None, redibujar=False)
+            v.opciones()
+            if v.quien_l:
+                v.cb_quien.current(min(k, len(v.quien_l) - 1))     # cada una con el curso siguiente
+                v.dibujar()
+
+        def cerrar():
+            for v in nuevas:
+                if v in self.vistas:
+                    self.vistas.remove(v)
+            w.destroy()
+        w.protocol('WM_DELETE_WINDOW', cerrar)
+        w.bind('<Escape>', lambda e: self.quitar_seleccion())
+        w.cerrar = cerrar
+        return nuevas
 
     # --- Asistente: cuando quedan horas sin ubicar --------------------------------
     def asistente(self, alt=None):
         """Ventana con lo que faltó y qué hacer: más tiempo, aflojar condiciones o consejos."""
+        if self._esperar():
+            return None
         alt = alt or self._alt()
         if not alt:
             return messagebox.showinfo(TITULO, 'Escoja un horario de la lista.')
@@ -1292,6 +1467,8 @@ class App(tk.Tk):
         return self.vista_actual().alt()
 
     def _renombrar_alt(self):
+        if self._esperar():
+            return
         alt = self._alt()
         if not alt:
             return
@@ -1387,7 +1564,7 @@ class App(tk.Tk):
 
     def escoger(self, datos):
         alt = self._vista_de(datos).alt()
-        if not alt:
+        if not alt or (alt.get('vivo') and self._esperar()):
             return
         self._sel_alt = alt
         self.sel = datos
@@ -1456,8 +1633,9 @@ class App(tk.Tk):
         t.config(state='disabled')
 
     # Fichas que se arrastran (o se tocan para escogerlas)
-    def _ficha(self, padre, texto, color, datos):
-        lbl = tk.Label(padre, text=texto, bg=color, font=('Segoe UI', 8), justify='center', wraplength=140,
+    def _ficha(self, padre, texto, color, datos, z=1.0):
+        lbl = tk.Label(padre, text=texto, bg=color, font=('Segoe UI', max(6, round(8 * z))), justify='center',
+                       wraplength=int(140 * z),
                        relief='raised' if datos else 'flat', bd=1, cursor='hand2' if datos else '')
         if datos:
             lbl.bind('<ButtonPress-1>', lambda e: self._tomar(e, datos, texto, color))
@@ -1505,8 +1683,9 @@ class App(tk.Tk):
     def soltar(self, datos, destino):
         """Aplica una ficha soltada en una celda o en la paleta."""
         alt = self._vista_de(datos).alt()
-        if not alt:
+        if not alt or (alt.get('vivo') and self._esperar()):
             return
+        self._paso(alt)
         if len(destino) > 3 and destino[3] is not None and destino[3].alt() is not alt:
             self.avisar('✖ Esa pestaña muestra otro horario: suelte la ficha en una que muestre el mismo.', error=True)
             self.bell()
@@ -1592,17 +1771,19 @@ class App(tk.Tk):
 
     def _menu_ficha(self, e, i, vista=None):
         alt = (vista or self.vista_actual()).alt()
-        if not alt:
+        if not alt or (alt.get('vivo') and self._esperar()):
             return
         m = tk.Menu(self, tearoff=0)
         fijada = alt['sesiones'][i].get('fijada')
         m.add_command(label='Soltar (el generador la puede mover)' if fijada else 'Fijar 🔒 (el generador no la mueve)',
-                      command=lambda: (self.p.alternar_fijada(alt, i), self._ver()))
+                      command=lambda: (self._paso(alt), self.p.alternar_fijada(alt, i), self._ver()))
         m.add_command(label='Quitar del horario', command=lambda: self.soltar({'tipo': 'puesta', 'i': i, 'vista': vista},
                                                                              ('paleta',)))
         m.tk_popup(e.x_root, e.y_root)
 
     def _exportar(self):
+        if self._esperar():
+            return
         alt = self._alt()
         if not alt:
             return messagebox.showwarning(TITULO, 'Escoja un horario de la lista.')
@@ -1619,6 +1800,8 @@ class App(tk.Tk):
             messagebox.showinfo(TITULO, 'Listo. Súbalo en la plataforma: Horarios → Importar un horario.')
 
     def _excel(self):
+        if self._esperar():
+            return
         alt = self._alt()
         if not alt:
             return
@@ -1632,6 +1815,8 @@ class App(tk.Tk):
                 messagebox.showerror(TITULO, f'No se pudo guardar el Excel: {e}')
 
     def _quitar_alt(self):
+        if self._esperar():
+            return
         v = self.vista_actual()
         k = v.indice()
         if k is None or not messagebox.askyesno(TITULO, '¿Quitar este horario de la lista?'):
@@ -1650,32 +1835,38 @@ class Vista:
     """Una cuadrícula del horario (por curso o por docente). Puede haber varias: en pestañas o en
     ventanas aparte. Cada una escoge qué horario (alternativa) muestra."""
 
-    def __init__(self, app, padre, cerrable=False):
+    def __init__(self, app, padre, cerrable=False, compacta=False):
         self.app = app
         self.quien_l = []
         self.celdas = []
         self.idx = 0
         self.filtros = []
+        self.zoom = 1.0
+        self._necesario = 0
+        anchos = (22, 10, 14, 22) if compacta else (34, 12, 20, 34)
         sel = ttk.Frame(padre)
         sel.pack(fill='x', pady=(4, 0))
-        ttk.Label(sel, text='Horario:').pack(side='left')
-        self.cb_alt = ttk.Combobox(sel, state='readonly', width=34)
+        if not compacta:
+            ttk.Label(sel, text='Horario:').pack(side='left')
+        self.cb_alt = ttk.Combobox(sel, state='readonly', width=anchos[0])
         self.cb_alt.pack(side='left', padx=(3, 8))
         self.cb_alt.bind('<<ComboboxSelected>>', lambda e: self._cambio_alt())
-        self.cb_ver = ttk.Combobox(sel, state='readonly', values=['Por curso', 'Por docente'], width=12)
+        self.cb_ver = ttk.Combobox(sel, state='readonly', values=['Por curso', 'Por docente'], width=anchos[1])
         self.cb_ver.current(0)
         self.cb_ver.pack(side='left')
-        self.cb_filtro = ttk.Combobox(sel, state='readonly', width=20)
+        self.cb_filtro = ttk.Combobox(sel, state='readonly', width=anchos[2])
         self.cb_filtro.pack(side='left', padx=4)
-        self.cb_quien = ttk.Combobox(sel, state='readonly', width=34)
+        self.cb_quien = ttk.Combobox(sel, state='readonly', width=anchos[3])
         self.cb_quien.pack(side='left', padx=2)
         self.cb_ver.bind('<<ComboboxSelected>>', lambda e: self.opciones())
         self.cb_filtro.bind('<<ComboboxSelected>>', lambda e: self.opciones(conservar_filtro=True))
         self.cb_quien.bind('<<ComboboxSelected>>', lambda e: (self.dibujar(), app._renombrar_pestanas()))
         if cerrable:
             ttk.Button(sel, text='✖ Cerrar pestaña', command=lambda: app.cerrar_vista(self)).pack(side='right')
-        self.var_paleta = tk.BooleanVar(value=True)
+        self.var_paleta = tk.BooleanVar(value=not compacta)
         ttk.Checkbutton(sel, text='Fichas', variable=self.var_paleta, command=self._mostrar_paleta).pack(side='right', padx=6)
+        ttk.Button(sel, text='+', width=2, command=lambda: self.cambiar_zoom(0.1)).pack(side='right')
+        ttk.Button(sel, text='−', width=2, command=lambda: self.cambiar_zoom(-0.1)).pack(side='right')
         abajo = ttk.Frame(padre)
         abajo.pack(fill='both', expand=True, pady=4)
         self.paleta = tk.Frame(abajo, background=GRIS, width=190)
@@ -1687,14 +1878,34 @@ class Vista:
         self.marco = marco
         self.lienzo = tk.Canvas(marco, background=BLANCO, highlightthickness=0)
         sy = ttk.Scrollbar(marco, orient='vertical', command=self.lienzo.yview)
-        self.lienzo.configure(yscrollcommand=sy.set)
+        sx = ttk.Scrollbar(marco, orient='horizontal', command=self.lienzo.xview)
+        self.lienzo.configure(yscrollcommand=sy.set, xscrollcommand=sx.set)
         sy.pack(side='right', fill='y')
+        sx.pack(side='bottom', fill='x')
         self.lienzo.pack(side='left', fill='both', expand=True)
         self.rejilla = tk.Frame(self.lienzo, background=BLANCO)
         self.ventana_rejilla = self.lienzo.create_window((0, 0), window=self.rejilla, anchor='nw')
         self.rejilla.bind('<Configure>', lambda e: self.lienzo.configure(scrollregion=self.lienzo.bbox('all')))
-        # La cuadrícula ocupa todo el ancho de la pantalla
-        self.lienzo.bind('<Configure>', lambda e: self.lienzo.itemconfigure(self.ventana_rejilla, width=e.width))
+        # La cuadrícula ocupa todo el ancho (y si con el zoom no cabe, aparece la barra de abajo)
+        self.lienzo.bind('<Configure>', lambda e: self._ajustar_ancho(e.width))
+        self.lienzo.vista_duena = self
+        self.rejilla.vista_duena = self
+        self.paleta.vista_duena = self
+
+    def _ajustar_ancho(self, ancho=None):
+        try:
+            ancho = ancho or self.lienzo.winfo_width() or 0
+            self.lienzo.itemconfigure(self.ventana_rejilla, width=max(int(ancho), self._necesario))
+        except (tk.TclError, TypeError, ValueError):
+            pass
+
+    def cambiar_zoom(self, delta):
+        """Agranda o achica esta cuadrícula (None = tamaño normal)."""
+        z = 1.0 if delta is None else round(min(2.0, max(0.5, self.zoom + delta)), 2)
+        if z != self.zoom:
+            self.zoom = z
+            self.dibujar()
+        self.app.avisar(f'Tamaño de la cuadrícula: {int(round(self.zoom * 100))} %  (Ctrl + rueda del mouse también sirve)')
 
     def _mostrar_paleta(self):
         if self.var_paleta.get():
@@ -1708,6 +1919,8 @@ class Vista:
         return self.idx if self.idx is not None and 0 <= self.idx < n else (0 if n else None)
 
     def alt(self):
+        if self.app.generando and self.app.alt_vivo is not None:
+            return self.app.alt_vivo
         k = self.indice()
         return self.app.p.alternativas[k] if k is not None else None
 
@@ -1802,6 +2015,11 @@ class Vista:
             return
         tipo, ident = self.quien_l[self.cb_quien.current()]
         D = app.p.datos
+        z = self.zoom
+        chica, negrita = ('Segoe UI', max(6, round(8 * z))), ('Segoe UI', max(6, round(9 * z)), 'bold')
+        if alt.get('vivo'):
+            tk.Label(self.rejilla, text=f"{alt['nombre']}  ·  faltan {alt['horas_sin_ubicar']} h", bg=AMARILLO,
+                     font=negrita).grid(row=0, column=0, columnspan=7, sticky='ew', pady=(0, 3))
         tk.Label(self.paleta, text='Fichas por ubicar', bg=GRIS, font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=6, pady=4)
         pend = app.p.pendientes(alt, ident) if tipo == 'c' else app.p.pendientes_docente(alt, ident)
         for a, n in pend:
@@ -1824,7 +2042,7 @@ class Vista:
                     texto = f"{D.nombre_curso(a['curso'])} · {D.nombre_materia(a['materia'])} · {que}{f' ×{k}' if k > 1 else ''}"
                 color = BLOQUE if largo > 1 else SUELTA
                 ficha = app._ficha(self.paleta, texto, color, {'tipo': 'nueva', 'asig': a['id'], 'largo': largo,
-                                                               'vista': self})
+                                                               'vista': self}, z)
                 ficha.pack(fill='x', padx=6, pady=2)
                 ficha.bind('<Button-3>', lambda e, aid=a['id']: app._menu_paleta(e, aid))
         if not pend:
@@ -1835,31 +2053,34 @@ class Vista:
         n_dias = max((len(t['dias']) for t in tablas if t), default=5)
         for c in range(1, 7):
             self.rejilla.columnconfigure(c, weight=1 if c <= n_dias else 0, uniform='dia' if c <= n_dias else '')
-        fila = 0
+        self._necesario = int((60 + n_dias * 114) * z)
+        self._ajustar_ancho()
+        fila = 1 if alt.get('vivo') else 0
         for t in tablas:
             if not t:
                 continue
             if len(tablas) > 1:
-                tk.Label(self.rejilla, text=t['jornada']['nombre'], font=('Segoe UI', 10, 'bold'), bg=BLANCO).grid(
+                tk.Label(self.rejilla, text=t['jornada']['nombre'], font=negrita, bg=BLANCO).grid(
                     row=fila, column=0, sticky='w', pady=(8, 2))
                 fila += 1
             for c, (_, nombre) in enumerate(t['dias'], start=1):
-                tk.Label(self.rejilla, text=nombre, font=('Segoe UI', 9, 'bold'), bg=AZUL, fg='white', width=12).grid(
+                tk.Label(self.rejilla, text=nombre, font=negrita, bg=AZUL, fg='white').grid(
                     row=fila, column=c, padx=1, pady=1, sticky='nsew')
             fila += 1
             for fr, celdas in t['filas']:
-                tk.Label(self.rejilla, text=f"{fr['inicio']}\n{fr['fin']}", bg=BLANCO, fg='#555', width=6).grid(row=fila, column=0)
+                tk.Label(self.rejilla, text=f"{fr['inicio']}\n{fr['fin']}", bg=BLANCO, fg='#555', font=chica).grid(
+                    row=fila, column=0, padx=(0, 2))
                 if fr['descanso'] and not any(celdas):
-                    tk.Label(self.rejilla, text=fr.get('etiqueta') or 'Descanso', bg=GRIS, fg='#888').grid(
+                    tk.Label(self.rejilla, text=fr.get('etiqueta') or 'Descanso', bg=GRIS, fg='#888', font=chica).grid(
                         row=fila, column=1, columnspan=len(t['dias']), sticky='nsew', padx=1, pady=1)
                 elif fr['descanso']:
                     for c, xs in enumerate(celdas, start=1):
                         texto = '\n'.join(f"{x['titulo']}" for x in xs) or (fr.get('etiqueta') or 'Descanso')
                         tk.Label(self.rejilla, text=texto, bg=TURNO if xs else GRIS, fg='#0f172a' if xs else '#888',
-                                 font=('Segoe UI', 8)).grid(row=fila, column=c, sticky='nsew', padx=1, pady=1)
+                                 font=chica).grid(row=fila, column=c, sticky='nsew', padx=1, pady=1)
                 else:
                     for c, ((dia, _), xs) in enumerate(zip(t['dias'], celdas), start=1):
-                        celda = tk.Frame(self.rejilla, bg=GRIS if not xs else BLANCO, width=110, height=50,
+                        celda = tk.Frame(self.rejilla, bg=GRIS if not xs else BLANCO, width=int(110 * z), height=int(50 * z),
                                          highlightthickness=1, highlightbackground='#e2e8f0')
                         celda.grid(row=fila, column=c, padx=1, pady=1, sticky='nsew')
                         celda.grid_propagate(False)
@@ -1872,7 +2093,9 @@ class Vista:
                                      else FIJA if x['fijada'] else SUELTA)
                             texto = ('🔒 ' if x.get('i') is not None and x['fijada'] else '') + f"{x['titulo']}\n{x['sub']}"
                             datos = {'tipo': 'puesta', 'i': x['i'], 'vista': self} if x.get('i') is not None else None
-                            app._ficha(celda, texto, color, datos).pack(fill='both', expand=True, padx=1, pady=1)
+                            if alt.get('vivo'):
+                                datos = None                      # mientras genera, solo se mira
+                            app._ficha(celda, texto, color, datos, z).pack(fill='both', expand=True, padx=1, pady=1)
                 fila += 1
 
 

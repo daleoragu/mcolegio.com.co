@@ -77,3 +77,9 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
   2. **Cambiar condiciones**: sugerencias concretas para las clases que faltan y las que más costó ubicar (pasar «no puede» a «mejor no», subir la permanencia de un docente, quitar el día libre o el máximo de horas seguidas, dejar partir un bloque, volver «si se puede» la regla de la 1.ª y la última, ampliar un espacio, soltar una reunión fija…). Se marcan las que se aceptan y se aplican con un clic; quedan en Reglas y Docentes, donde se pueden deshacer.
   3. **Consejos** generales y el botón **Ubicar a mano**, que abre las fichas.
 - El asistente también se abre con el botón **🩺 ¿Por qué faltan horas?** de la pestaña 6.
+- **Para solo cuando ya no mejora**: aunque se pongan muchos segundos, el generador termina cuando ya ubicó todo y lleva un rato sin mejorar el horario (más o menos un 10 % del tiempo, máximo 3 minutos). Si quedan clases por fuera, usa el tiempo para volver a intentarlo sacando otras, y se queda con el mejor intento.
+- **⏹ Detener**: para en cualquier momento y se queda con lo mejor que llevaba.
+- **Ver mientras acomoda**: mientras genera, la cuadrícula va mostrando las materias que ya ubicó y cuántas horas faltan (solo se mira; al terminar ya se puede mover).
+- **Tamaño (zoom)**: botones 🔍− / 100% / 🔍+ arriba (todas las cuadrículas), − / + en cada cuadrícula, o Ctrl + rueda del mouse encima de una cuadrícula. Si se agranda mucho, aparece la barra para correr de lado.
+- **Varias cuadrículas en una ventana**: escoja 2, 4, 6 o 9 y toque «▦ en una ventana». Cada cuadrícula escoge su horario, curso o docente (arranca cada una con un curso distinto) y se puede arrastrar entre ellas si muestran el mismo horario.
+- **↶ Deshacer** (o Ctrl+Z): deshace los últimos cambios hechos a mano (hasta 40).

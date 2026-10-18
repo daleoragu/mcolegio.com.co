@@ -475,3 +475,25 @@ class IdeasDeGHC(SimpleTestCase):
         alt = p.generar(cuantas=1, segundos=4)[0]
         self.assertEqual(alt['horas_sin_ubicar'], 0)
         self.assertEqual(p.sugerencias(alt), [])
+
+    def test_detener_parar_solo_y_en_vivo(self):
+        import time as _t
+        D = datos()
+        p = proyecto(D)
+        vistos = []
+        t0 = _t.monotonic()
+        alt = p.generar(cuantas=2, segundos=40, vivo=lambda ses, nombre: vistos.append((len(ses), nombre)),
+                        parar=lambda: len(vistos) >= 3)
+        self.assertLess(_t.monotonic() - t0, 15)
+        self.assertEqual(len(alt), 1)                      # al detener no sigue con la segunda alternativa
+        self.assertTrue(alt[0]['detenido'])
+        self.assertTrue(vistos and vistos[0][1] == 'Alternativa 1')
+        prov = p.en_vivo([dict(s) for s in alt[0]['sesiones']], 'Alternativa 1')
+        self.assertTrue(prov['vivo'] and prov['nombre'].startswith('⏳'))
+        self.assertEqual(prov['horas_sin_ubicar'], alt[0]['horas_sin_ubicar'])
+        # Con mucho tiempo, termina solo cuando ya no mejora
+        t0 = _t.monotonic()
+        r = nucleo.generar(D, nucleo.condiciones_vacias(), segundos=300, semilla=3)
+        self.assertLess(_t.monotonic() - t0, 250)                 # de 300 s, para antes
+        self.assertEqual(r['sin_ubicar'], [])
+        self.assertFalse(r['detenido'])
