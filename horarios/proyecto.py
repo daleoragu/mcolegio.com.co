@@ -237,6 +237,7 @@ class Proyecto:
                 alt['choques'].append(f'{self.datos.nombre_curso(a["curso"])} no tiene clase el '
                                       f'{nucleo.DIAS[s["dia"]]} a las {self.datos.franjas[s["franja"]]["inicio"]}.')
         alt['choques'] += self._revisar_excluyente(alt)
+        alt['choques'] += self._revisar_compensacion(alt)
         faltan = nucleo.horas_faltantes(self.datos, alt['sesiones'], self.cond)
         alt['sin_ubicar'] = [{'asignacion': a['id'], 'horas': n} for a, n in faltan]
         alt['horas_sin_ubicar'] = sum(n for _, n in faltan)
@@ -260,7 +261,7 @@ class Proyecto:
                 por[(did, dia, D.franjas[f]['jornada'])].append(f)
         out = []
         for (did, dia, _), fs in por.items():
-            if self.docente(did).get('sin_excluyente') or self.extra_docente(did):
+            if self.docente(did).get('sin_excluyente') or self.extra_docente(did) or self.compensa_docente(did):
                 continue
             if any(self._es_hora(f, a) for f in fs) and any(self._es_hora(f, b) for f in fs):
                 out.append(f'{D.nombre_docente(did)} tiene la hora {a} y la hora {b} el {nucleo.DIAS[dia]}.')
@@ -406,11 +407,16 @@ class Proyecto:
                                                      >= D.ih(s['asignacion'], self.cond) > 0)]
                 tramos += [D.intervalo(x) for x in reus]       # las reuniones de área van dentro de la permanencia
                 tramos.append((ini, fin))
-                if max(b for _, b in tramos) - min(x for x, _ in tramos) > perm * 60:
+                comp = self.compensa_docente(did)
+                ancho = max(b for _, b in tramos) - min(x for x, _ in tramos)
+                if ancho > perm * 60 + (comp or 0):
+                    if comp:
+                        return (f'Se pasa de {perm:g} + {comp / 60:g} horas de permanencia de {D.nombre_docente(did)} '
+                                'ese día (ni compensando con otro día).')
                     return f'Se pasa de las {perm:g} horas de permanencia de {D.nombre_docente(did)} ese día.'
             k_extra = self.extra_docente(did)
             m = self._motivo_excluyente(did, dia, fid, [(None, {'franja': x}) for x in reus] + mias)
-            if m and not k_extra:
+            if m and not k_extra and not self.compensa_docente(did):
                 return m
             # Días largos: uno por cada hora extra del docente
             if k_extra:
@@ -480,6 +486,85 @@ class Proyecto:
     def _es_hora(self, fid, n):
         k, total = self._numero_hora(fid)
         return k == min(n, total)
+
+    # --- Compensar días largos (docentes sin horas extra) -----------------------------
+    def compensa_docente(self, did):
+        """Minutos que un día puede pasar de la permanencia si otro día lo compensa (None si no aplica)."""
+        comp = self.cond.get('compensar') or {}
+        if not comp.get('activa') or not did or self.extra_docente(did) or not self._permanencia(did):
+            return None
+        return int(float(comp.get('max') or 1) * 60)
+
+    def _permanencia(self, did):
+        perm = self.docente(did).get('permanencia')
+        return float(perm) if perm not in (None, '') else float(self.cond.get('permanencia_horas') or 0)
+
+    def perfil_docente(self, alt, did, sesiones=None):
+        """{dia: (minutos desde la primera hasta la última, ¿tiene la 1.ª y la última?)}, con reuniones."""
+        D = self.datos
+        por = defaultdict(list)
+        for s in (alt['sesiones'] if sesiones is None else sesiones):
+            if s['franja'] in D.franjas and D.asignaciones.get(s['asignacion'], {}).get('docente') == did:
+                por[s['dia']].append(s['franja'])
+        for (d, dia), fs in nucleo.franjas_de_reuniones(D, alt.get('reuniones')).items():
+            if d == did:
+                por[dia] += [f for f in fs if f in D.franjas]
+        regla = nucleo.regla_excluyente(self.cond)
+        duro = bool(regla and regla[2] and not self.docente(did).get('sin_excluyente'))
+        salida = {}
+        for dia, fs in por.items():
+            tramos = [D.intervalo(f) for f in fs]
+            ancho = max(b for _, b in tramos) - min(a for a, _ in tramos)
+            par = duro and any(D.franjas[x]['jornada'] == D.franjas[y]['jornada'] and self._es_hora(x, regla[0])
+                               and self._es_hora(y, regla[1]) for x in fs for y in fs)
+            salida[dia] = (ancho, par)
+        return salida
+
+    def semana_docente(self, alt, did):
+        """(total de la semana, tope = permanencia × días, perfil {dia: (minutos, par)}) en minutos."""
+        D = self.datos
+        perfil = self.perfil_docente(alt, did)
+        dias = {d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']} or set(perfil)
+        tope = int(self._permanencia(did) * 60) * max(1, len(dias))
+        return sum(a for a, _ in perfil.values()), tope, perfil
+
+    def _revisar_compensacion(self, alt):
+        D = self.datos
+        out = []
+        for did in sorted({a.get('docente') for a in D.asignaciones.values() if a.get('docente')}):
+            comp = self.compensa_docente(did)
+            if comp is None:
+                continue
+            total, tope, perfil = self.semana_docente(alt, did)
+            perm = self._permanencia(did)
+            for d, (a, _) in perfil.items():
+                if a > perm * 60 + comp:
+                    out.append(f'{D.nombre_docente(did)}: el {nucleo.DIAS[d]} pasa de {perm:g} + '
+                               f'{comp / 60:g} horas de permanencia.')
+            if total > tope:
+                out.append(f'{D.nombre_docente(did)}: la semana suma {texto_horas(total)} de permanencia y el máximo '
+                           f'es {texto_horas(tope)} ({perm:g} h × {tope // int(perm * 60)} días). Acorte algún día.')
+        return out
+
+    def texto_compensacion(self, alt):
+        """Para los avisos: docentes con días largos y cómo queda su semana."""
+        D = self.datos
+        out = []
+        for did in sorted({a.get('docente') for a in D.asignaciones.values() if a.get('docente')}, key=D.nombre_docente):
+            if self.compensa_docente(did) is None:
+                continue
+            total, tope, perfil = self.semana_docente(alt, did)
+            perm = self._permanencia(did) * 60
+            largos = [d for d, (a, par) in sorted(perfil.items()) if a > perm or par]
+            if not largos:
+                continue
+            cortos = [d for d, (a, par) in sorted(perfil.items()) if a < perm and not par]
+            t = (f'{D.nombre_docente(did)}: {texto_horas(total)} de {texto_horas(tope)} · largos: '
+                 + ', '.join(f'{nucleo.DIAS[d]} {texto_horas(perfil[d][0])}' for d in largos))
+            if cortos:
+                t += ' · cortos: ' + ', '.join(f'{nucleo.DIAS[d]} {texto_horas(perfil[d][0])}' for d in cortos)
+            out.append(t + (' ✖ se pasa' if total > tope else ''))
+        return out
 
     def _motivo_excluyente(self, did, dia, fid, mias):
         regla = nucleo.regla_excluyente(self.cond)
@@ -904,6 +989,9 @@ class Proyecto:
                     sug(f'seguidas-{did}', f'Quitarle a {nom_d} el máximo de horas seguidas', 'seguidas', did=did)
                 perm = rd.get('permanencia')
                 perm = float(perm) if perm not in (None, '') else float(c.get('permanencia_horas') or 0)
+                if perm and not (c.get('compensar') or {}).get('activa') and not self.extra_docente(did):
+                    sug('compensar', 'Permitir días de hasta 1 hora más de permanencia si la semana no pasa de '
+                                     'permanencia × días (ej.: 6 h × 5 = 30 h)', 'compensar')
                 if perm:
                     sug(f'perm-{did}', f'Subirle a {nom_d} la permanencia de {perm:g} a {perm + 1:g} horas', 'permanencia',
                         did=did, horas=perm + 1)
@@ -954,6 +1042,8 @@ class Proyecto:
             self.docente(d['did'])['permanencia'] = d['horas']
         elif t == 'excluyente_doc':
             self.docente(d['did'])['sin_excluyente'] = True
+        elif t == 'compensar':
+            c['compensar'] = {'activa': True, 'max': (c.get('compensar') or {}).get('max') or 1}
         elif t == 'excluyente':
             c['excluyente']['obligatoria'] = False
         elif t == 'reunion':
@@ -1131,3 +1221,9 @@ class Proyecto:
             for x in sorted(alt['actividades'], key=lambda x: (D.nombre_docente(x['docente']), x['dia'])):
                 h.append([D.nombre_docente(x['docente']), x['nombre'], nucleo.DIAS[x['dia']], D.franjas[x['franja']]['inicio']])
             h.column_dimensions['A'].width = 34
+
+
+def texto_horas(minutos):
+    """95 → «1 h 35»; 300 → «5 h»."""
+    h, m = divmod(int(round(minutos)), 60)
+    return f'{h} h {m:02d}' if m else f'{h} h'

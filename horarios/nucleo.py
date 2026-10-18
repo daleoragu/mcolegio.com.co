@@ -76,7 +76,10 @@ def condiciones_vacias():
             # Multigrado (Escuela Nueva): cursos que ven clase juntos, con el mismo docente y en la misma aula
             'multigrado': [],                 # [{'nombre', 'cursos': [cid…]}]
             # Con horas extra, el día puede alargarse hasta estas horas más de la permanencia (0 = sin límite)
-            'permanencia_extra': 2}
+            'permanencia_extra': 2,
+            # Docentes sin horas extra: un día largo (hasta «max» horas más, o con la 1.ª y la última)
+            # se permite si la semana no pasa de permanencia × días (ej.: 6 h × 5 = 30 h).
+            'compensar': {'activa': False, 'max': 1}}
 
 
 def horas_extra(cond, aid, ih):
@@ -770,6 +773,15 @@ def armar(datos, cond):
         # Un día largo (pasa de la permanencia o tiene la 1.ª y la última) por cada hora extra
         dias_largos_max[did] = sum(horas_extra(cond, a['id'], D.ih(a['id'], cond))
                                    for a in D.asignaciones.values() if a.get('docente') == did)
+    compensar = {}
+    comp = cond.get('compensar') or {}
+    if comp.get('activa'):
+        tope_comp = int(float(comp.get("max") or 1) * 60)
+        for did in permanencia:
+            if did not in con_extra:
+                compensar[did] = tope_comp
+    dias_de_docente = {did: sorted({d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']})
+                       for did in compensar}
     reuniones, no_puede = ubicar_reuniones(D, cond, no_puede)
     reuniones_doc = franjas_de_reuniones(D, reuniones)
     dias_docente = {did: {d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']} for did in dia_libre}
@@ -799,7 +811,8 @@ def armar(datos, cond):
                  excluyentes=[regla_excluyente(cond)[:2]] if regla_excluyente(cond) else [],
                  excluyente_duro=bool(regla_excluyente(cond) and regla_excluyente(cond)[2]),
                  sin_excluyente=sin_excluyente, reuniones_doc=reuniones_doc, siguiente_bloque=sig_bloque,
-                 permanencia_extra=permanencia_extra, dias_largos_max=dias_largos_max)
+                 permanencia_extra=permanencia_extra, dias_largos_max=dias_largos_max,
+                 compensar=compensar, dias_de_docente=dias_de_docente)
     p.reuniones = reuniones
     return p
 

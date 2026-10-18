@@ -497,3 +497,40 @@ class IdeasDeGHC(SimpleTestCase):
         self.assertLess(_t.monotonic() - t0, 250)                 # de 300 s, para antes
         self.assertEqual(r['sin_ubicar'], [])
         self.assertFalse(r['detenido'])
+
+    def test_dias_largos_compensados_en_la_semana(self):
+        D = datos()
+        sin, con = [], []
+        for activa, lista in ((False, sin), (True, con)):
+            p = proyecto(D)
+            p.cond['permanencia_horas'] = 5                   # con 5 h no caben todas las clases de la semana
+            p.cond['compensar'] = {'activa': activa, 'max': 1}
+            alt = p.generar(cuantas=1, segundos=10)[0]
+            self.assertEqual(alt['choques'], [])
+            lista.append((alt['horas_sin_ubicar'], p, alt))
+        self.assertLess(con[0][0], sin[0][0])
+        _, p, alt = con[0]
+        largos = 0
+        for did in range(1, 7):
+            total, tope, perfil = p.semana_docente(alt, did)
+            self.assertEqual(tope, 5 * 60 * 5)                # 5 h × 5 días = 25 h
+            self.assertLessEqual(total, tope, (did, perfil))
+            self.assertTrue(all(a <= 6 * 60 for a, _ in perfil.values()))       # máximo 5 + 1 horas por día
+            largos += sum(1 for a, _ in perfil.values() if a > 5 * 60)
+        self.assertGreater(largos, 0)
+        self.assertTrue(p.texto_compensacion(alt))
+        # A mano: días largos (1.ª y última) hasta que la semana pase de 25 h
+        p.cond['compensar']['activa'] = True
+        blanco = p.en_blanco()
+        clase = [f for f in D.franjas_de(1) if not f['descanso']]
+        pares = [(11, 21), (31, 41), (11, 21), (31, 41), (11, 21)]
+        for dia, (x, y) in enumerate(pares, start=1):
+            self.assertIsNone(p.poner_ficha(blanco, x, dia, clase[0]['id']))
+            self.assertIsNone(p.poner_ficha(blanco, y, dia, clase[-1]['id']))
+            se_pasa = [c for c in blanco['choques'] if 'la semana suma' in c]
+            self.assertEqual(bool(se_pasa), dia == 5, (dia, blanco['choques']))   # 4 × 6 h = 24 ≤ 25; 5 × 6 = 30
+        # Sin compensar, la permanencia es un tope fijo
+        p.cond['compensar']['activa'] = False
+        otro = p.en_blanco()
+        self.assertIsNone(p.poner_ficha(otro, 11, 1, clase[0]['id']))
+        self.assertIn('permanencia', p.motivo(otro, 21, 1, clase[-1]['id']))

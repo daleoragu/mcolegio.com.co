@@ -83,3 +83,9 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 - **Tamaño (zoom)**: botones 🔍− / 100% / 🔍+ arriba (todas las cuadrículas), − / + en cada cuadrícula, o Ctrl + rueda del mouse encima de una cuadrícula. Si se agranda mucho, aparece la barra para correr de lado.
 - **Varias cuadrículas en una ventana**: escoja 2, 4, 6 o 9 y toque «▦ en una ventana». Cada cuadrícula escoge su horario, curso o docente (arranca cada una con un curso distinto) y se puede arrastrar entre ellas si muestran el mismo horario.
 - **↶ Deshacer** (o Ctrl+Z): deshace los últimos cambios hechos a mano (hasta 40).
+
+## Versión 3.1
+
+- **Compensar días largos** (pestaña 2, Reglas): un docente **sin horas extra** puede tener un día más largo que su permanencia (hasta 1 hora más, o lo que escoja; o con la 1.ª y la última hora) **si la semana no pasa de permanencia × días**. Ej.: 6 h × 5 días = 30 h: dos días de 7 h se pagan con un día de 4 h o con dos días de 5 h, como mejor encaje. Un día sin clases cuenta 0 h.
+- En **⚠ Avisos** se ve cada docente con días largos: «29 h 10 de 30 h · largos: Lunes 6 h 55, Jueves 6 h 55 · cortos: Martes 4 h 10…». Si al armar a mano la semana se pasa, aparece como choque hasta que se acorte algún día.
+- El asistente «¿Por qué faltan horas?» la sugiere cuando la permanencia está trabando el horario.
