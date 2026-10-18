@@ -402,8 +402,33 @@ def prueba():
     p.cond['compensar']['activa'] = False
     p.guardar(os.path.join(tmp, 'p.mchp'))
     Proyecto.abrir(os.path.join(tmp, 'p.mchp'))
+    if os.environ.get('CAPTURA'):
+        _captura(app)
     app.destroy()
     print('VENTANA OK')
+
+
+def _captura(app):
+    """Foto de la pestaña 6 en una pantalla de 1366 × 768 (para revisar que no se corten botones)."""
+    try:
+        import time
+        from PIL import ImageGrab
+        app.deiconify()
+        app.state('normal')
+        app.geometry('1366x768+0+0')
+        app.nb.select(5)
+        for _ in range(10):
+            app.update()
+            time.sleep(0.2)
+        ImageGrab.grab(bbox=(0, 0, 1366, 768)).save(os.path.join(AQUI, 'captura_horario.png'))
+        app.geometry('1024x700+0+0')
+        for _ in range(10):
+            app.update()
+            time.sleep(0.2)
+        ImageGrab.grab(bbox=(0, 0, 1024, 700)).save(os.path.join(AQUI, 'captura_1024.png'))
+        print('captura lista')
+    except Exception as e:                      # la foto es solo para revisar; no tumba la prueba
+        print('sin captura:', e)
 
 
 try:
