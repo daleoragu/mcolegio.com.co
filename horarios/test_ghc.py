@@ -620,3 +620,34 @@ class IdeasDeGHC(SimpleTestCase):
             est.poner(uni[2], 1, clase[0])             # lunes desde la primera
             est.poner(uni[3], 5, clase[-2])            # viernes sale antes de la última
             self.assertEqual(est.compensacion_faltante(1), esperado, modo)
+
+    def test_reunion_en_el_horario_armado(self):
+        D = datos()                                    # Ciencias: docentes 1 y 2
+        p = proyecto(D)
+        alt = p.generar(cuantas=1, segundos=4)[0]      # sin reuniones: el horario no les dejó hora libre a propósito
+        self.assertEqual(p.reuniones_por_area(), 2)
+        r = next(x for x in p.cond['reuniones'] if x['area'] == 'Ciencias')
+        r['jefe'] = 1
+        prop = p.reuniones_en_horario(alt)
+        x = next(x for x in prop if x['nombre'] == r['nombre'])
+        self.assertIsNotNone(x['dia'])
+        self.assertNotIn(1, x['no'])                   # el jefe siempre puede
+        self.assertEqual(set(x['libres']) | set(x['mover']) | set(x['no']), {1, 2})
+        self.assertTrue(p.texto_reuniones_en_horario(prop, alt))
+        antes = len(alt['sesiones'])
+        movidas = sum(len(k) for y in prop for k in y['mover'].values())
+        n = p.acomodar_reuniones(alt, prop)
+        self.assertEqual(n, movidas)
+        self.assertEqual(len(alt['sesiones']), antes - n)
+        self.assertEqual(r['modo'], 'fija')
+        self.assertEqual(int(r['dia']), x['dia'])
+        reu = next(y for y in alt['reuniones'] if y['nombre'] == r['nombre'])
+        self.assertEqual((reu['dia'], reu['inicio']), (x['dia'], x['inicio']))
+        # Completar ubica de nuevo lo que salió, sin pisar la reunión
+        nuevo = p.completar(alt, segundos=4)
+        self.assertEqual(nuevo['horas_sin_ubicar'], 0)
+        self.assertEqual(nuevo['choques'], [])
+        ocupadas = nucleo.franjas_de_reuniones(D, nuevo['reuniones'])
+        for s in nuevo['sesiones']:
+            did = D.asignaciones[s['asignacion']]['docente']
+            self.assertNotIn(s['franja'], ocupadas.get((did, s['dia']), []))

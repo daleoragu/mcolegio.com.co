@@ -95,3 +95,13 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 
 - **Bloquear horas por área** (pestaña 3, al final de la lista, en verde): toque las casillas: rojo = las clases de las materias del área **no van** a esa hora; amarillo = mejor no. Vale para todos los cursos y docentes del área (ej.: que Educación Física no vaya a la 1.ª hora).
 - **Docente que viaja: escoge su preferencia**: junto a la casilla 🚌, escoja si compensa **el lunes (entrar más tarde)**, **el viernes (salir más temprano)** o **lo que mejor encaje**.
+
+## Versión 3.3
+
+- **Filtros** en «3. Docentes y cursos» y en «1. Datos»: por **grado**, **área**, **materia** y **docente**.
+- **Docente que viaja**: la compensación se escoge como **lunes: primeras horas libres**, **viernes: últimas horas libres**, o cualquiera de las dos.
+- **Colores** en la cuadrícula del horario: en cada vista, «Color por área» o «Color por docente», con la leyenda arriba.
+- **Reuniones de área**:
+  - Al «Crear una por área» se abre la ventana **Jefes de área** para escoger el jefe de cada una (también con su botón).
+  - **🤝 Buscar hora en el horario armado**: con el horario que se está viendo, busca la hora de cada reunión donde estén libres la mayoría (el jefe siempre) y dice qué clases habría que mover. **Acomodar** deja la reunión fija en esa hora, saca esas clases y las vuelve a ubicar en otra hora.
+  - Si un docente queda con clase a la hora de su reunión, sale como choque. Al completar un horario, las reuniones automáticas esquivan las clases que ya están puestas.

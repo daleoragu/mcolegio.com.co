@@ -232,6 +232,96 @@ class Proyecto:
             nuevas += 1
         return nuevas
 
+    def reuniones_en_horario(self, alt):
+        """Con el horario ya armado, la mejor hora para cada reunión: donde estén libres la mayoría
+        (el jefe siempre) y, si hace falta, qué clases habría que mover para que vengan todos.
+
+        [{'i', 'nombre', 'dia', 'inicio', 'fin', 'libres': [did], 'mover': {did: [índices de sesiones]},
+          'no': [did]}] (None en 'dia' si no se encontró hora)."""
+        D = self.datos
+        no_puede = {int(k): {tuple(int(x) for x in v.split('-')) for v in r.get('no_puede', [])}
+                    for k, r in self.cond['docentes'].items()}
+        por_doc = defaultdict(list)
+        for k, s in enumerate(alt['sesiones']):
+            did = D.asignaciones.get(s['asignacion'], {}).get('docente')
+            if did and s['franja'] in D.franjas:
+                por_doc[(did, s['dia'])].append((D.intervalo(s['franja']), k, bool(s.get('fijada'))))
+        tomadas = defaultdict(list)          # reuniones ya escogidas: (did, dia) -> [(ini, fin)]
+        salida = []
+        for i, r in enumerate(self.cond.get('reuniones', [])):
+            miembros = [int(x) for x in r.get('docentes', []) if int(x) in D.docentes]
+            jefe = int(r['jefe']) if r.get('jefe') else None
+            if jefe and jefe not in miembros:
+                miembros.append(jefe)
+            mejor, puntos = None, None
+            for (dia, ini, fin, _) in nucleo._horas_de_clase(D):
+                libres, mover, no = [], {}, []
+                for did in miembros:
+                    if nucleo._puede_reunirse(D, did, dia, ini, fin, no_puede) is None or any(
+                            a < fin and ini < b for a, b in tomadas[(did, dia)]):
+                        no.append(did)
+                        continue
+                    choca = [(k, fija) for (a, b), k, fija in por_doc[(did, dia)] if a < fin and ini < b]
+                    if not choca:
+                        libres.append(did)
+                    elif any(f for _, f in choca):
+                        no.append(did)
+                    else:
+                        mover[did] = [k for k, _ in choca]
+                if jefe and jefe in no:
+                    continue
+                pts = ((len(libres) + len(mover)) * 10000, len(libres) * 100, ini)
+                if puntos is None or pts > puntos:
+                    mejor, puntos = (dia, ini, fin, libres, mover, no), pts
+            res = {'i': i, 'nombre': r.get('nombre') or 'Reunión de área', 'dia': None, 'inicio': None, 'fin': None,
+                   'libres': [], 'mover': {}, 'no': miembros}
+            if mejor:
+                dia, ini, fin, libres, mover, no = mejor
+                res.update({'dia': dia, 'inicio': ini, 'fin': fin, 'libres': libres, 'mover': mover, 'no': no})
+                for did in libres + list(mover):
+                    tomadas[(did, dia)].append((ini, fin))
+            salida.append(res)
+        return salida
+
+    def texto_reuniones_en_horario(self, propuestas, alt):
+        D = self.datos
+        out = []
+        for x in propuestas:
+            if x['dia'] is None:
+                out.append(f'{x["nombre"]}: no hay una hora en que pueda el jefe de área.')
+                continue
+            t = (f'{x["nombre"]}: {nucleo.DIAS[x["dia"]]} {nucleo.texto_hora(x["inicio"])} · '
+                 f'{len(x["libres"])} libre(s)')
+            if x['mover']:
+                clases = []
+                for did, ks in x['mover'].items():
+                    for k in ks:
+                        s = alt['sesiones'][k]
+                        a = D.asignaciones[s['asignacion']]
+                        clases.append(f'{D.nombre_docente(did)} ({D.nombre_curso(a["curso"])} '
+                                      f'{D.nombre_materia(a["materia"])})')
+                t += ' · hay que mover: ' + '; '.join(clases)
+            if x['no']:
+                t += ' · no pueden: ' + ', '.join(D.nombre_docente(d) for d in x['no'])
+            out.append(t)
+        return out
+
+    def acomodar_reuniones(self, alt, propuestas):
+        """Fija cada reunión en la hora propuesta y saca las clases que estorban (quedan por ubicar,
+        para «Completar lo que falta»). Devuelve cuántas horas de clase salieron."""
+        quitar = set()
+        for x in propuestas:
+            if x['dia'] is None:
+                continue
+            r = self.cond['reuniones'][x['i']]
+            r.update({'modo': 'fija', 'dia': x['dia'], 'hora': nucleo.texto_hora(x['inicio'])})
+            for ks in x['mover'].values():
+                quitar.update(ks)
+        alt['sesiones'] = [s for k, s in enumerate(alt['sesiones']) if k not in quitar]
+        alt['reuniones'] = self.ver_reuniones()
+        self.revisar(alt)
+        return len(quitar)
+
     def ver_reuniones(self):
         no_puede = {int(k): {tuple(int(x) for x in v.split('-')) for v in r.get('no_puede', [])}
                     for k, r in self.cond['docentes'].items()}
@@ -278,11 +368,26 @@ class Proyecto:
                                       f'{self.datos.franjas[s["franja"]]["inicio"]}, hora bloqueada para el área.')
         alt['choques'] += self._revisar_excluyente(alt)
         alt['choques'] += self._revisar_compensacion(alt)
+        alt['choques'] += self._revisar_reuniones(alt)
         faltan = nucleo.horas_faltantes(self.datos, alt['sesiones'], self.cond)
         alt['sin_ubicar'] = [{'asignacion': a['id'], 'horas': n} for a, n in faltan]
         alt['horas_sin_ubicar'] = sum(n for _, n in faltan)
         self.complementos(alt)
         return alt
+
+    def _revisar_reuniones(self, alt):
+        """Docentes con clase a la hora de su reunión de área."""
+        D = self.datos
+        ocupadas = nucleo.franjas_de_reuniones(D, alt.get('reuniones'))
+        if not ocupadas:
+            return []
+        out = []
+        for s in alt['sesiones']:
+            did = D.asignaciones.get(s['asignacion'], {}).get('docente')
+            if did and s['franja'] in ocupadas.get((did, s['dia']), ()):
+                out.append(f'{D.nombre_docente(did)} tiene clase en {D.nombre_curso(s["curso"])} a la hora de su '
+                           f'reunión de área ({nucleo.DIAS[s["dia"]]} {D.franjas[s["franja"]]["inicio"]}).')
+        return out
 
     def _revisar_excluyente(self, alt):
         """Docentes que quedaron con las dos horas excluyentes el mismo día (si la regla es obligatoria)."""
