@@ -3,9 +3,13 @@
 Abre la app con el archivo de ejemplo, pone reglas, arrastra fichas, genera,
 completa, cambia de vista y exporta, sin que nadie toque nada.
 """
+import faulthandler
 import os
 import sys
 import tempfile
+
+# Si algo se queda esperando, a los 8 minutos muestra dónde y termina (para verlo en GitHub)
+faulthandler.dump_traceback_later(480, exit=True)
 
 # La consola de Windows no siempre es UTF-8: que los avisos con ✔ / ✖ no rompan la prueba.
 try:
@@ -26,6 +30,7 @@ def prueba():
     g.messagebox.showinfo = lambda *a, **k: print('info:', a[1:])
     g.messagebox.askyesno = lambda *a, **k: True
     g.messagebox.askyesnocancel = lambda *a, **k: True
+    g.messagebox.showerror = lambda *a, **k: print('ERROR:', a[1:], flush=True)
 
     app = g.App()
     app.withdraw()
@@ -230,6 +235,7 @@ def prueba():
     app.cb_ver.current(1)
     app._opciones_ver()
     app.update()
+    print('paso:', 'Asistente cuando fal', flush=True)
     # Asistente cuando faltan horas: más tiempo, cambiar condiciones, consejos
     vacio = p.en_blanco()
     app._llenar_alternativas()
@@ -248,6 +254,7 @@ def prueba():
     app._asistente_a_mano()
     p.alternativas.remove(vacio)
     app._llenar_alternativas()
+    print('paso:', 'Zoom: agranda', flush=True)
     # Zoom: agranda y achica la cuadrícula
     v0 = app.vista_actual()
     app.zoom_todas(0.3)
@@ -256,6 +263,7 @@ def prueba():
     assert v0.zoom == 0.5
     app.zoom_todas(None)
     assert v0.zoom == 1.0
+    print('paso:', 'Varias cuadrículas e', flush=True)
     # Varias cuadrículas en una ventana (4): cada una con un curso distinto
     antes_v = len(app.vistas)
     mos = app.mosaico(4)
@@ -265,6 +273,7 @@ def prueba():
     assert all(m.rejilla.winfo_children() for m in mos)
     mos[0].ventana.cerrar()
     assert len(app.vistas) == antes_v
+    print('paso:', 'Deshacer un cambio', flush=True)
     # Deshacer un cambio a mano
     alt = app._alt()
     k = next(k for k, x in enumerate(alt['sesiones']) if not x.get('fijada'))
@@ -273,6 +282,7 @@ def prueba():
     assert len(alt['sesiones']) == len(antes_s) - 1
     app.deshacer()
     assert alt['sesiones'] == antes_s, 'no deshizo'
+    print('paso:', 'Generar de verdad', flush=True)
     # Generar de verdad (en otro hilo), viendo lo que acomoda, y detener
     import time as _t
     app.var_alt.set(2)
