@@ -408,6 +408,23 @@ def prueba():
     print('VENTANA OK')
 
 
+def _cortados(app, ancho):
+    """Avisa (en GitHub) qué botones de la barra quedan cortados o por fuera con ese ancho de pantalla."""
+    fuera = []
+    for k, fila in enumerate(app.filas_barra, start=1):
+        w = fila.winfo_width()
+        for h in fila.winfo_children():
+            x, a = h.winfo_x(), h.winfo_width()
+            texto = ''
+            try:
+                texto = h.cget('text')
+            except Exception:
+                pass
+            if a <= 1 or x + a > w + 1:
+                fuera.append(f'fila {k}: {texto or h.winfo_class()}')
+    print(f'::notice::{ancho}px: ' + ('nada cortado' if not fuera else 'cortados -> ' + '; '.join(fuera)), flush=True)
+
+
 def _captura(app):
     """Foto de la pestaña 6 en una pantalla de 1366 × 768 (para revisar que no se corten botones)."""
     try:
@@ -420,11 +437,13 @@ def _captura(app):
         for _ in range(10):
             app.update()
             time.sleep(0.2)
+        _cortados(app, 1366)
         ImageGrab.grab(bbox=(0, 0, 1366, 768)).save(os.path.join(AQUI, 'captura_horario.png'))
         app.geometry('1024x700+0+0')
         for _ in range(10):
             app.update()
             time.sleep(0.2)
+        _cortados(app, 1024)
         ImageGrab.grab(bbox=(0, 0, 1024, 700)).save(os.path.join(AQUI, 'captura_1024.png'))
         print('captura lista')
     except Exception as e:                      # la foto es solo para revisar; no tumba la prueba

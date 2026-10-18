@@ -1221,6 +1221,7 @@ class App(tk.Tk):
         # Fila 3: guardar, imprimir y vistas
         tres = ttk.Frame(f)
         tres.pack(fill='x', pady=(4, 0))
+        self.filas_barra = [uno, dos, tres]
         # Zoom (todas las cuadrículas) · también Ctrl + rueda del mouse sobre una cuadrícula
         ttk.Button(tres, text='🔍+', width=4, command=lambda: self.zoom_todas(0.1)).pack(side='right')
         ttk.Button(tres, text='100%', width=5, command=lambda: self.zoom_todas(None)).pack(side='right', padx=1)
