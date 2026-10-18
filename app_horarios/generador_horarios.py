@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import impresion, nucleo         # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '3.4'
+VERSION = '3.4.1'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -1180,12 +1180,12 @@ class App(tk.Tk):
         self.nb.add(f, text='6. Horario')
         uno = ttk.Frame(f)
         uno.pack(fill='x')
-        ttk.Button(uno, text='📝 Horario en blanco', command=self._en_blanco).pack(side='left')
+        ttk.Button(uno, text='📝 En blanco', command=self._en_blanco).pack(side='left')
         ttk.Separator(uno, orient='vertical').pack(side='left', fill='y', padx=6)
         ttk.Label(uno, text='Alternativas:').pack(side='left')
         self.var_alt = tk.IntVar(value=3)
         ttk.Spinbox(uno, from_=1, to=3, width=3, textvariable=self.var_alt).pack(side='left', padx=3)
-        ttk.Label(uno, text='Segundos c/u:').pack(side='left')
+        ttk.Label(uno, text='Segundos:').pack(side='left')
         self.var_seg = tk.IntVar(value=60)
         ttk.Spinbox(uno, from_=15, to=3600, increment=15, width=5, textvariable=self.var_seg).pack(side='left', padx=3)
         self.btn_gen = ttk.Button(uno, text='▶ Generar', command=self.generar)
@@ -1195,44 +1195,51 @@ class App(tk.Tk):
         self.btn_parar = ttk.Button(uno, text='⏹ Detener', command=self.detener, state='disabled')
         self.btn_parar.pack(side='left', padx=2)
         self.var_vivo = tk.BooleanVar(value=True)
-        ttk.Checkbutton(uno, text='Ver mientras acomoda', variable=self.var_vivo).pack(side='left', padx=4)
-        self.barra = ttk.Progressbar(uno, length=160, mode='determinate')
+        ttk.Checkbutton(uno, text='Ver en vivo', variable=self.var_vivo).pack(side='left', padx=4)
+        self.barra = ttk.Progressbar(uno, length=110, mode='determinate')
         self.barra.pack(side='left', padx=6)
         self.lbl_prog = ttk.Label(uno, text='', style='Ayuda.TLabel')
         self.lbl_prog.pack(side='left')
-        # Zoom (todas las cuadrículas) · también Ctrl + rueda del mouse sobre una cuadrícula
-        ttk.Button(uno, text='🔍+', width=4, command=lambda: self.zoom_todas(0.1)).pack(side='right')
-        ttk.Button(uno, text='100%', width=5, command=lambda: self.zoom_todas(None)).pack(side='right', padx=1)
-        ttk.Button(uno, text='🔍−', width=4, command=lambda: self.zoom_todas(-0.1)).pack(side='right')
-        ttk.Label(uno, text='Tamaño:').pack(side='right', padx=(8, 2))
+        # Fila 2: revisar y editar (los colores van primero para que nunca queden por fuera de la pantalla)
         dos = ttk.Frame(f)
         dos.pack(fill='x', pady=(4, 0))
-        ttk.Button(dos, text='💾 Guardar para la plataforma (.mchr)', command=self._exportar).pack(side='left')
-        ttk.Button(dos, text='Exportar a Excel', command=self._excel).pack(side='left', padx=3)
-        ttk.Button(dos, text='📄 PDF uno por uno (.zip)', command=self._pdf_zip).pack(side='left')
-        ttk.Button(dos, text='📄 PDF todo junto', command=self._pdf_todo).pack(side='left', padx=3)
-        ttk.Button(dos, text='Renombrar', command=self._renombrar_alt).pack(side='left')
-        ttk.Button(dos, text='Quitar este horario', command=self._quitar_alt).pack(side='left', padx=3)
-        ttk.Separator(dos, orient='vertical').pack(side='left', fill='y', padx=6)
-        ttk.Button(dos, text='➕ Otra pestaña', command=self.nueva_pestana).pack(side='left')
-        ttk.Button(dos, text='🗗 Ventana aparte', command=self.nueva_ventana).pack(side='left', padx=3)
-        self.cb_mosaico = ttk.Combobox(dos, state='readonly', width=3, values=['2', '4', '6', '9'])
-        self.cb_mosaico.current(1)
-        self.cb_mosaico.pack(side='left')
-        ttk.Button(dos, text='▦ en una ventana', command=self.mosaico).pack(side='left', padx=(2, 3))
+        tk.Label(dos, text=' no se puede ', bg=ROJO_SEL).pack(side='right', padx=1)
+        tk.Label(dos, text=' ocupada: reemplazar ', bg=AMARILLO_SEL).pack(side='right', padx=1)
+        tk.Label(dos, text=' libre ', bg=VERDE_SEL).pack(side='right', padx=1)
+        ttk.Label(dos, text='Al escoger una ficha:', style='Ayuda.TLabel').pack(side='right', padx=(8, 3))
+        self.btn_avisos = ttk.Button(dos, text='⚠ Avisos', command=self._alternar_avisos)
+        self.btn_avisos.pack(side='left')
+        ttk.Button(dos, text='🩺 ¿Por qué faltan horas?', command=self.asistente).pack(side='left', padx=3)
         ttk.Button(dos, text='↶ Deshacer', command=self.deshacer).pack(side='left', padx=3)
+        ttk.Separator(dos, orient='vertical').pack(side='left', fill='y', padx=6)
         self.var_fijar = tk.BooleanVar(value=False)
-        ttk.Checkbutton(dos, text='Fijar 🔒 lo que ubico a mano', variable=self.var_fijar).pack(side='left', padx=6)
+        ttk.Checkbutton(dos, text='Fijar 🔒 lo que ubico a mano', variable=self.var_fijar).pack(side='left')
         self.btn_soltar = ttk.Button(dos, text='🔓 Soltar marcadas', command=lambda: self.fijar_marcadas(False))
         self.btn_soltar.pack(side='left', padx=(6, 0))
         ttk.Button(dos, text='🔒 Fijar marcadas', command=lambda: self.fijar_marcadas(True)).pack(side='left', padx=2)
         ttk.Button(dos, text='🔓 Soltar todo', command=self.soltar_todo).pack(side='left')
-        self.btn_avisos = ttk.Button(dos, text='⚠ Avisos', command=self._alternar_avisos)
-        self.btn_avisos.pack(side='left', padx=3)
-        ttk.Button(dos, text='🩺 ¿Por qué faltan horas?', command=self.asistente).pack(side='left', padx=3)
-        tk.Label(dos, text=' no se puede ', bg=ROJO_SEL).pack(side='right', padx=1)
-        tk.Label(dos, text=' ocupada: reemplazar ', bg=AMARILLO_SEL).pack(side='right', padx=1)
-        tk.Label(dos, text=' libre ', bg=VERDE_SEL).pack(side='right', padx=1)
+        # Fila 3: guardar, imprimir y vistas
+        tres = ttk.Frame(f)
+        tres.pack(fill='x', pady=(4, 0))
+        self.filas_barra = [uno, dos, tres]
+        # Zoom (todas las cuadrículas) · también Ctrl + rueda del mouse sobre una cuadrícula
+        ttk.Button(tres, text='🔍+', width=4, command=lambda: self.zoom_todas(0.1)).pack(side='right')
+        ttk.Button(tres, text='100%', width=5, command=lambda: self.zoom_todas(None)).pack(side='right', padx=1)
+        ttk.Button(tres, text='🔍−', width=4, command=lambda: self.zoom_todas(-0.1)).pack(side='right')
+        ttk.Label(tres, text='Tamaño:').pack(side='right', padx=(8, 2))
+        ttk.Button(tres, text='💾 Guardar (.mchr)', command=self._exportar).pack(side='left')
+        ttk.Button(tres, text='Excel', command=self._excel).pack(side='left', padx=3)
+        ttk.Button(tres, text='📄 PDF por separado (.zip)', command=self._pdf_zip).pack(side='left')
+        ttk.Button(tres, text='📄 PDF todo junto', command=self._pdf_todo).pack(side='left', padx=3)
+        ttk.Button(tres, text='Renombrar', command=self._renombrar_alt).pack(side='left')
+        ttk.Button(tres, text='Quitar', command=self._quitar_alt).pack(side='left', padx=3)
+        ttk.Separator(tres, orient='vertical').pack(side='left', fill='y', padx=6)
+        ttk.Button(tres, text='➕ Pestaña', command=self.nueva_pestana).pack(side='left')
+        ttk.Button(tres, text='🗗 Ventana', command=self.nueva_ventana).pack(side='left', padx=3)
+        self.cb_mosaico = ttk.Combobox(tres, state='readonly', width=3, values=['2', '4', '6', '9'])
+        self.cb_mosaico.current(1)
+        self.cb_mosaico.pack(side='left')
+        ttk.Button(tres, text='▦ en una ventana', command=self.mosaico).pack(side='left', padx=(2, 3))
         ttk.Label(f, text='Toque una ficha para ver dónde cabe; arrástrela o toque una casilla vacía. Ctrl + clic: marcar '
                           'varias fichas (para soltarlas o fijarlas juntas). Clic derecho: fijar o quitar. Esc: soltar la '
                           'selección.',
@@ -1412,6 +1419,8 @@ class App(tk.Tk):
                         alt = self._alt()
                         if detenido:
                             self.avisar('⏹ Detenido: quedó lo mejor que llevaba. Puede completar lo que falta después.')
+                        if alt and (alt.get('horas_sin_ubicar') or alt.get('choques')) and not self.avisos_visibles:
+                            self._alternar_avisos()
                         if alt and alt.get('horas_sin_ubicar'):
                             self.avisar(f'Listo, pero quedaron {alt["horas_sin_ubicar"]} horas sin ubicar. '
                                         'Mire las sugerencias.', error=True)
