@@ -65,3 +65,7 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 
 - **Horas extra escogidas**: en la pestaña 1, doble clic en «Hora extra» y escriba cuántas de las horas de esa clase son extra (por ejemplo 2 de 5). Las extra no cuentan en la permanencia.
 - **Permanencia mayor con horas extra** (pestaña 2): con horas extra, el día del docente puede alargarse hasta N horas más de su permanencia (2 por defecto; 0 = sin límite). En la pestaña 3 se puede poner otro valor para un docente.
+
+## Versión 2.9
+
+- **Días largos según las horas extra**: un docente con horas extra puede tener tantos días largos (que pasan de su permanencia, o con la 1.ª y la última hora cuando esa regla está) como horas extra tenga. Con 2 horas extra, máximo 2 días; con 4, máximo 4. El generador prefiere que las extra queden dentro de la jornada normal (nueva prioridad en Reglas).

@@ -113,6 +113,7 @@ CRITERIOS = [
     ('ultima', 'Sacar de la última hora las materias marcadas'),
     ('excluyente', 'Evitar que un docente tenga la primera y la última hora el mismo día (si es preferencia)'),
     ('bloque', 'Que las horas de una materia el mismo día queden seguidas (bloques)'),
+    ('dia_largo', 'Que las horas extra queden dentro de la jornada normal (pocos días largos)'),
 ]
 
 
@@ -759,12 +760,16 @@ def armar(datos, cond):
     general_extra = float(cond.get('permanencia_extra') or 0)
     con_extra = {a.get('docente') for a in D.asignaciones.values()
                  if a.get('docente') and horas_extra(cond, a['id'], D.ih(a['id'], cond))}
+    dias_largos_max = {}
     for did in con_extra:
         r = cond.get('docentes', {}).get(str(did), {})
         h = r.get('permanencia_extra')
         h = float(h) if h not in (None, '') else general_extra
         if h and did in permanencia:
             permanencia_extra[did] = int(h * 60)
+        # Un día largo (pasa de la permanencia o tiene la 1.ª y la última) por cada hora extra
+        dias_largos_max[did] = sum(horas_extra(cond, a['id'], D.ih(a['id'], cond))
+                                   for a in D.asignaciones.values() if a.get('docente') == did)
     reuniones, no_puede = ubicar_reuniones(D, cond, no_puede)
     reuniones_doc = franjas_de_reuniones(D, reuniones)
     dias_docente = {did: {d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']} for did in dia_libre}
@@ -794,7 +799,7 @@ def armar(datos, cond):
                  excluyentes=[regla_excluyente(cond)[:2]] if regla_excluyente(cond) else [],
                  excluyente_duro=bool(regla_excluyente(cond) and regla_excluyente(cond)[2]),
                  sin_excluyente=sin_excluyente, reuniones_doc=reuniones_doc, siguiente_bloque=sig_bloque,
-                 permanencia_extra=permanencia_extra)
+                 permanencia_extra=permanencia_extra, dias_largos_max=dias_largos_max)
     p.reuniones = reuniones
     return p
 
