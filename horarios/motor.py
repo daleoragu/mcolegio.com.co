@@ -69,7 +69,7 @@ class Problema:
                  ultimas=None, permanencia=None, desplazamiento=0, espacios=None, pesos=None, evitar=None,
                  dia_libre=None, dias_docente=None, excluyentes=None, excluyente_duro=True, sin_excluyente=None,
                  reuniones_doc=None, siguiente_bloque=None, permanencia_extra=None, dias_largos_max=None,
-                 compensar=None, dias_de_docente=None, viajan=None):
+                 compensar=None, dias_de_docente=None, viajan=None, bloqueo_materia=None, mejor_no_materia=None):
         self.franjas = franjas
         self.siguiente = siguiente
         self.anterior = {b: a for a, b in siguiente.items()}
@@ -113,7 +113,11 @@ class Problema:
         self.dias_de_docente = dias_de_docente or {}
         # Docentes que no viven en el municipio: si tienen días largos, que lo que se compensa caiga
         # el primer día entrando más tarde o el último día saliendo más temprano.
-        self.viajan = set(viajan or ())
+        # {docente: 'ambos' | 'lunes' | 'viernes'} (el primer día o el último del docente)
+        self.viajan = dict(viajan or {}) if isinstance(viajan, dict) else {d: 'ambos' for d in (viajan or ())}
+        # Horas bloqueadas por área: {materia: {(dia, franja)}} no van · «mejor no» cuesta
+        self.bloqueo_materia = bloqueo_materia or {}
+        self.mejor_no_materia = mejor_no_materia or {}
         self.por_jornada = defaultdict(list)
         for fid, (jid, orden, ini, fin) in franjas.items():
             self.por_jornada[jid].append((orden, fid))
@@ -182,6 +186,11 @@ class Estado:
 
         tramos = [(p.franjas[f][2], p.franjas[f][3], f) for f in celdas]
         ini_u, fin_u = tramos[0][0], tramos[-1][1]
+        if p.bloqueo_materia:                       # horas bloqueadas para el área de la materia
+            for parte in u['partes']:
+                bloq = p.bloqueo_materia.get(parte['materia'])
+                if bloq and any((dia, f) in bloq for f in celdas):
+                    return False, []
         for parte in u['partes']:
             doc = parte['docente']
             no_puede = p.no_puede.get(doc, ())
@@ -428,6 +437,7 @@ class Estado:
         dias = sorted(p.dias_de_docente.get(docente) or {d for (x, d) in list(self.docente.keys()) if x == docente})
         if not dias:
             return 0
+        modo = p.viajan.get(docente, 'ambos')
         exceso = 0
         for d in dias:
             lst = self.docente.get((docente, d))
@@ -438,6 +448,8 @@ class Estado:
         horas = -(-exceso // 60)
         libres = 0
         for d, primero in ((dias[0], True), (dias[-1], False)):
+            if (primero and modo == 'viernes') or (not primero and modo == 'lunes'):
+                continue
             fs = [f for (_, _, _, f) in self.docente.get((docente, d)) or () if f in p.indice]
             if not fs:
                 libres += horas                       # ese día no viene: compensa de sobra
@@ -460,6 +472,9 @@ class Estado:
         dia, franja = self.pos[uid]
         c = 0.0
         for parte in u['partes']:
+            mn = self.p.mejor_no_materia.get(parte['materia'])
+            if mn and (dia, franja) in mn:
+                c += self.w['prefiere_no']
             if parte['materia'] in self.p.primeras:
                 c += self.w['tarde'] * self.p.indice[franja]
             if parte['materia'] in self.p.ultimas:
@@ -487,7 +502,7 @@ class Estado:
         c += sum(self.costo_curso_dia(cu, dia) for (cu, dia) in list(self.cd.keys()))
         c += sum(self.costo_repeticion(cu, m, dia) for (cu, m, dia) in list(self.cm.keys()))
         c += sum(self.costo_unidad(uid) for uid in self.pos)
-        c += sum(self.costo_docente_semana(d) for d in set(self.p.dia_libre) | self.p.viajan)
+        c += sum(self.costo_docente_semana(d) for d in set(self.p.dia_libre) | set(self.p.viajan))
         return c
 
 
@@ -531,12 +546,15 @@ def _posiciones(p, est, u):
     orden = p.slots.get(cursos[0], [])
     comunes = comunes or set()
     out = []
+    bloq = set()
+    for q in u['partes']:
+        bloq |= p.bloqueo_materia.get(q['materia'], set())
     for (d, f) in orden:
         if (d, f) not in comunes:
             continue
         cs = est.celdas(u, d, f)
-        # Todas las horas del bloque (no solo la primera) tienen que ser horas permitidas del curso
-        if cs and all((d, x) in comunes for x in cs):
+        # Todas las horas del bloque (no solo la primera) tienen que ser horas permitidas del curso (y del área)
+        if cs and all((d, x) in comunes and (d, x) not in bloq for x in cs):
             out.append((d, f))
     return out
 

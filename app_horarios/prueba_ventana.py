@@ -284,6 +284,26 @@ def prueba():
     app.deshacer()
     assert alt['sesiones'] == antes_s, 'no deshizo'
     print('paso:', 'Generar de verdad', flush=True)
+    # Bloquear horas por área (en la lista de la pestaña 3, después de los cursos)
+    app._llenar_lista_docentes()
+    assert app.areas_l, 'el ejemplo no tiene áreas'
+    app.lb_doc.selection_clear(0, 'end')
+    app.lb_doc.selection_set(len(app.docs) + len(app.cursos_l))
+    app._ver_docente()
+    assert app.panel_doc.winfo_children()
+    area = app.areas_l[0]
+    j_area = p.jornadas_de_area(area)[0]
+    f_area = [f for f in D.franjas_de(j_area['id']) if not f['descanso']][0]
+    app._celda_area(area, j_area['dias'][0], f_area['id'], g.tk.Label(app))
+    assert p.estado_celda_area(area, j_area['dias'][0], f_area['id']) == 'no_puede'
+    p.cond['areas'] = {}
+    # Docente que viaja: escoge lunes, viernes o cualquiera
+    app.lb_doc.selection_clear(0, 'end')
+    app.lb_doc.selection_set(0)
+    app._ver_docente()
+    p.docente(app.docs[0]['id'])['viaja'] = 'viernes'
+    app._llenar_lista_docentes()
+    p.docente(app.docs[0]['id'])['viaja'] = False
     # Docentes que viven fuera: se pregunta una vez (y lleva a la pestaña 3 para marcarlos)
     p.cond['compensar'] = {'activa': True, 'max': 1}
     p.cond.pop('preguntado_viajan', None)

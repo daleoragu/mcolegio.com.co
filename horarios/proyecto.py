@@ -139,6 +139,41 @@ class Proyecto:
         r.setdefault('no_puede', [])
         return r
 
+    # Horas bloqueadas por área (para todas las materias del área): libre → no van → mejor no → libre
+    def area(self, nombre):
+        r = self.cond.setdefault('areas', {}).setdefault(nombre, {})
+        r.setdefault('no_puede', [])
+        r.setdefault('prefiere_no', [])
+        return r
+
+    def estado_celda_area(self, nombre, dia, fid):
+        r = (self.cond.get('areas') or {}).get(nombre) or {}
+        clave = f'{dia}-{fid}'
+        if clave in (r.get('no_puede') or []):
+            return 'no_puede'
+        if clave in (r.get('prefiere_no') or []):
+            return 'prefiere_no'
+        return 'libre'
+
+    def siguiente_estado_area(self, nombre, dia, fid):
+        r = self.area(nombre)
+        clave = f'{dia}-{fid}'
+        actual = self.estado_celda_area(nombre, dia, fid)
+        for k in ('no_puede', 'prefiere_no'):
+            if clave in r[k]:
+                r[k].remove(clave)
+        nuevo = {'libre': 'no_puede', 'no_puede': 'prefiere_no', 'prefiere_no': 'libre'}[actual]
+        if nuevo != 'libre':
+            r[nuevo].append(clave)
+        return nuevo
+
+    def jornadas_de_area(self, nombre):
+        """Las jornadas donde se dictan materias del área."""
+        D = self.datos
+        mats = set(D.areas.get(nombre, []))
+        jids = {D.jornada_de_curso.get(a['curso']) for a in D.asignaciones.values() if a['materia'] in mats}
+        return [D.jornadas[j] for j in sorted(x for x in jids if x in D.jornadas)]
+
     def celda_curso(self, cid, dia, fid):
         return f'{dia}-{fid}' in self.curso(cid)['no_puede']
 
@@ -236,6 +271,11 @@ class Proyecto:
             if a and s['franja'] in self.datos.franjas and self.celda_curso(a['curso'], s['dia'], s['franja']):
                 alt['choques'].append(f'{self.datos.nombre_curso(a["curso"])} no tiene clase el '
                                       f'{nucleo.DIAS[s["dia"]]} a las {self.datos.franjas[s["franja"]]["inicio"]}.')
+            area = a and self.datos.materias.get(a['materia'], {}).get('area')
+            if area and s['franja'] in self.datos.franjas and self.estado_celda_area(area, s['dia'], s['franja']) == 'no_puede':
+                alt['choques'].append(f'{self.datos.nombre_materia(a["materia"])} ({area}) en '
+                                      f'{self.datos.nombre_curso(a["curso"])} quedó el {nucleo.DIAS[s["dia"]]} a las '
+                                      f'{self.datos.franjas[s["franja"]]["inicio"]}, hora bloqueada para el área.')
         alt['choques'] += self._revisar_excluyente(alt)
         alt['choques'] += self._revisar_compensacion(alt)
         faltan = nucleo.horas_faltantes(self.datos, alt['sesiones'], self.cond)
@@ -364,6 +404,9 @@ class Proyecto:
             return 'Ese día no hay clases en la jornada del curso.'
         if self.celda_curso(a['curso'], dia, fid):
             return f'{D.nombre_curso(a["curso"])} no tiene clase a esa hora (marcado en Docentes y cursos).'
+        area = D.materias.get(a['materia'], {}).get('area')
+        if area and self.estado_celda_area(area, dia, fid) == 'no_puede':
+            return f'Las clases de {area} no van a esa hora (bloqueado por área en Docentes y cursos).'
         ign = set(ignorar) if isinstance(ignorar, (set, list, tuple)) else {ignorar}
         otras = [s for i, s in enumerate(alt['sesiones']) if i not in ign]
         ini, fin = D.intervalo(fid)
@@ -580,8 +623,11 @@ class Proyecto:
             if not perm or not exceso:
                 continue
             dias = sorted({d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']})
+            modo = nucleo.modo_viaja(r.get('viaja'))
             partes = []
             for d, primero in ((dias[0], True), (dias[-1], False)):
+                if (primero and modo == 'viernes') or (not primero and modo == 'lunes'):
+                    continue
                 fs = [s['franja'] for s in alt['sesiones'] if s['dia'] == d and s['franja'] in D.franjas
                       and D.asignaciones.get(s['asignacion'], {}).get('docente') == did]
                 if not fs:
@@ -593,8 +639,9 @@ class Proyecto:
                     partes.append(f'{nucleo.DIAS[d]} entra a la {min(idx) + 1}.ª hora')
                 elif not primero and max(idx) < len(orden) - 1:
                     partes.append(f'{nucleo.DIAS[d]} sale después de la {max(idx) + 1}.ª hora')
-            out.append(f'{D.nombre_docente(did)} (viaja): días largos suman {texto_horas(exceso)} de más · '
-                       + (', '.join(partes) if partes else 'sin compensar lunes ni viernes'))
+            pide = {'lunes': 'prefiere el lunes', 'viernes': 'prefiere el viernes', 'ambos': 'lunes o viernes'}[modo]
+            out.append(f'{D.nombre_docente(did)} (viaja, {pide}): días largos suman {texto_horas(exceso)} de más · '
+                       + (', '.join(partes) if partes else 'no quedó compensado ahí'))
         return out
 
     def _motivo_excluyente(self, did, dia, fid, mias):
@@ -1046,6 +1093,9 @@ class Proyecto:
             esp = r.get('espacio') or regla_m.get('espacio')
             if esp:
                 sug(f'esp-{esp}', f'Ampliar «{esp}» a un curso más a la vez', 'espacio', nombre=esp)
+            area = D.materias.get(mid, {}).get('area')
+            if area and ((c.get('areas') or {}).get(area) or {}).get('no_puede'):
+                sug(f'area-{area}', f'Quitar las horas bloqueadas del área {area}', 'area_sin', area=area)
             if c.get('cursos', {}).get(str(cid), {}).get('no_puede'):
                 sug(f'cursosin-{cid}', f'Quitar las horas sin clase marcadas para {nom_c}', 'curso_sin', cid=cid)
         if regla_ex and regla_ex[2]:
@@ -1089,6 +1139,8 @@ class Proyecto:
             for e in c.get('espacios', []):
                 if e.get('nombre') == d['nombre']:
                     e['capacidad'] = int(e.get('capacidad') or 1) + 1
+        elif t == 'area_sin':
+            self.area(d['area'])['no_puede'] = []
         elif t == 'curso_sin':
             self.curso(d['cid'])['no_puede'] = []
 
