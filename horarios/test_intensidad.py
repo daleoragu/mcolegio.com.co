@@ -90,3 +90,63 @@ class Intensidad(Base):
         h.estado = 'PUBLICADO'
         h.save()
         self.assertContains(self.cliente(self.estudiantes[0].user).get('/horarios/mi-horario/'), 'Química')
+
+
+class Ciclo(Base):
+    """Horario por días de ciclo: si un día no hay clase, el Día N pasa al siguiente."""
+
+    def test_dias_que_se_corren(self):
+        import datetime
+        from . import ciclo, reemplazos
+        from .models import ConfiguracionHorario, DiaSinClase
+        c = self.cliente(self.rectora)
+        c.post(f'/horarios/jornada/{self.j.pk}/', {'nombre': 'Mañana', 'tipo_dias': 'ciclo', 'n_ciclo': '6',
+                                                   'cursos': [self.curso.id], 'accion': 'guardar'})
+        self.j.refresh_from_db()
+        self.assertEqual(self.j.dias, [101, 102, 103, 104, 105, 106])
+        lunes = datetime.date(2026, 10, 19)
+        c.post('/horarios/ciclo/', {'accion': 'config', 'inicio': f'{lunes:%Y-%m-%d}', 'semana': ['1', '2', '3', '4', '5']})
+        self.assertEqual(ciclo.dia_del_ciclo(self.a, lunes), 1)
+        self.assertEqual(ciclo.dia_del_ciclo(self.a, lunes + datetime.timedelta(days=1)), 2)
+        self.assertIsNone(ciclo.dia_del_ciclo(self.a, lunes + datetime.timedelta(days=5)))      # sábado
+        self.assertEqual(ciclo.dia_del_ciclo(self.a, lunes + datetime.timedelta(days=7)), 6)    # lunes siguiente
+        self.assertEqual(ciclo.dia_del_ciclo(self.a, lunes + datetime.timedelta(days=8)), 1)    # vuelve a empezar
+        # El martes no hubo clase: el Día 2 pasa al miércoles
+        c.post('/horarios/ciclo/', {'accion': 'sin_clase', 'fecha': f'{lunes + datetime.timedelta(days=1):%Y-%m-%d}',
+                                    'motivo': 'Paro'})
+        self.assertIsNone(ciclo.dia_del_ciclo(self.a, lunes + datetime.timedelta(days=1)))
+        self.assertEqual(ciclo.dia_del_ciclo(self.a, lunes + datetime.timedelta(days=2)), 2)
+        self.assertContains(c.get('/horarios/ciclo/'), 'Paro')
+        # Las clases del «Día 2» salen el miércoles (asistencia y reemplazos)
+        h = Horario.objects.create(colegio=self.a, nombre='Ciclo', estado='PUBLICADO')
+        Sesion.objects.create(horario=h, curso=self.curso, asignacion=self.asig, materia=self.materia, dia=102,
+                              franja=self.f[0])
+        miercoles = lunes + datetime.timedelta(days=2)
+        self.assertEqual(len(reemplazos.clases_de_hoy(self.a, self.docente, miercoles)), 1)
+        self.assertEqual(len(reemplazos.clases_de_hoy(self.a, self.docente, lunes + datetime.timedelta(days=1))), 0)
+        r = self.cliente(self.estudiantes[0].user).get('/horarios/mi-horario/')
+        self.assertContains(r, 'Día 2')
+        # Un festivo del calendario escolar también corre el ciclo
+        from calendario.models import Evento
+        Evento.objects.create(colegio=self.a, titulo='Festivo', tipo='FESTIVO', fecha=lunes + datetime.timedelta(days=3))
+        self.assertIsNone(ciclo.dia_del_ciclo(self.a, lunes + datetime.timedelta(days=3)))
+        self.assertEqual(ciclo.dia_del_ciclo(self.a, lunes + datetime.timedelta(days=4)), 3)
+        DiaSinClase.objects.all().delete()
+        self.assertTrue(ConfiguracionHorario.objects.get(colegio=self.a).ciclo_inicio)
+
+    def test_excel_con_dias_de_ciclo(self):
+        self.j.dias = [101, 102, 103, 104, 105, 106, 107, 108, 109, 110]
+        self.j.save()
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['CURSO', 'DIA', 'HORA', 'MATERIA'])
+        ws.append(['601', 'Día 9', 1, 'Matemáticas'])
+        ws.append(['601', 10, 2, 'Inglés'])
+        buf = io.BytesIO()
+        wb.save(buf)
+        self.cliente(self.rectora).post('/horarios/importar/', {'archivo': SimpleUploadedFile('h.xlsx', buf.getvalue())})
+        h = Horario.objects.get()
+        self.assertEqual(sorted(h.sesiones.values_list('dia', flat=True)), [109, 110])
+        self.assertContains(self.cliente(self.rectora).get(f'/horarios/{h.pk}/'), 'Día 10')
+        d = intercambio.datos_del_colegio(self.a)
+        self.assertEqual(nucleo.DIAS[d['jornadas'][0]['dias'][-1]], 'Día 10')

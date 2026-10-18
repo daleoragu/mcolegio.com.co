@@ -1,0 +1,55 @@
+{% extends 'notas/base.html' %}
+{% block title %}Días de ciclo{% endblock %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0"><i class="fas fa-rotate me-2" style="color:#4338ca"></i>Días de ciclo</h4>
+        <p class="text-muted small mb-0">Para horarios que se corren: si un día no hay clase, ese «Día N» pasa al siguiente día hábil</p></div>
+    <a href="{% url 'horarios:panel' %}" class="btn btn-outline-secondary btn-sm">Volver a Horarios</a>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'horarios/_estilos.html' %}
+{% if not n %}
+<div class="alert alert-info">Ninguna jornada está «por días de ciclo». Si su colegio trabaja así, edite la jornada en Horarios
+    y escoja «Por días de ciclo» con el número de días (por ejemplo 6 ó 10).</div>
+{% endif %}
+<div class="row g-3">
+<div class="col-lg-5">
+    <div class="ho-tarjeta">
+        {% if hoy_dia %}<div class="alert alert-primary py-2">Hoy, {{ hoy|date:"l d/m" }}, es <strong>Día {{ hoy_dia }}</strong>{% if n %} de {{ n }}{% endif %}.</div>
+        {% elif n and conf.ciclo_inicio %}<div class="alert alert-secondary py-2">Hoy no es día de clase.</div>{% endif %}
+        <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="config">
+            <label class="form-label small fw-semibold">¿Qué fecha fue (o será) el Día 1?</label>
+            <input type="date" name="inicio" value="{{ conf.ciclo_inicio|date:'Y-m-d' }}" class="form-control form-control-sm mb-2" style="max-width:200px" required>
+            <label class="form-label small fw-semibold">Días de la semana con clase</label>
+            <div class="d-flex flex-wrap gap-3 mb-2">{% for d, nom in semana %}<div class="form-check"><input class="form-check-input" type="checkbox" name="semana" value="{{ d }}" id="s{{ d }}" {% if d in conf.ciclo_dias_semana %}checked{% endif %}><label class="form-check-label small" for="s{{ d }}">{{ nom }}</label></div>{% endfor %}</div>
+            <button class="btn btn-primary btn-sm">Guardar</button>
+        </form>
+    </div>
+    <div class="ho-tarjeta">
+        <h6 class="fw-bold">Días sin clase</h6>
+        <p class="ho-ayuda">Los festivos, recesos y días sin clase del Calendario escolar ya cuentan solos. Anote aquí lo imprevisto (paro, jornada pedagógica, lluvia…).</p>
+        <form method="post" class="mb-2">{% csrf_token %}<input type="hidden" name="accion" value="hoy">
+            <button class="btn btn-warning btn-sm" onclick="return confirm('¿Hoy no hubo clase? El ciclo se corre al siguiente día hábil.')"><i class="fas fa-forward me-1"></i>Hoy no hubo clase</button></form>
+        <form method="post" class="d-flex gap-2 flex-wrap">{% csrf_token %}<input type="hidden" name="accion" value="sin_clase">
+            <input type="date" name="fecha" class="form-control form-control-sm" style="max-width:170px" required>
+            <input name="motivo" placeholder="Motivo" maxlength="120" class="form-control form-control-sm" style="max-width:200px">
+            <button class="btn btn-outline-primary btn-sm">Agregar</button></form>
+        {% for d in sin_clase %}<form method="post" class="d-flex justify-content-between align-items-center border-bottom py-1 small">{% csrf_token %}
+            <input type="hidden" name="accion" value="quitar"><input type="hidden" name="id" value="{{ d.pk }}">
+            <span>{{ d.fecha|date:"D d/m/Y" }} · {{ d.motivo }}</span><button class="btn btn-link btn-sm text-danger p-0">Quitar</button></form>{% endfor %}
+    </div>
+</div>
+<div class="col-lg-7">
+    <div class="ho-tarjeta">
+        <h6 class="fw-bold">Cómo va el ciclo</h6>
+        {% if proximos %}
+        <div class="table-responsive"><table class="table table-sm mb-0">
+            {% for f, k in proximos %}<tr {% if f == hoy %}class="table-primary"{% endif %}><td>{{ f|date:"l d/m/Y" }}</td>
+                <td>{% if k %}<strong>Día {{ k }}</strong>{% else %}<span class="text-muted">sin clase</span>{% endif %}</td></tr>{% endfor %}
+        </table></div>
+        {% else %}<p class="text-muted small mb-0">Escoja la fecha del Día 1 para ver los próximos días.</p>{% endif %}
+    </div>
+</div>
+</div>
+{% endblock %}

@@ -94,6 +94,13 @@ def prueba():
     if p.cond['reuniones']:
         p.cond['reuniones'][0]['jefe'] = p.cond['reuniones'][0]['docentes'][0]
     app._llenar_grupos()
+    # Multigrado (Escuela Nueva): dos cursos que ven clase juntos
+    cs = [c['id'] for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso][:2]
+    assert p.agregar_multigrado('Sede rural', cs) is None
+    app._llenar_grupos()
+    assert app.tv_mg.get_children()
+    del p.cond['multigrado'][0]
+    app._llenar_grupos()
     # 5. Actividades complementarias y descansos
     p.cond['actividades'].append({'nombre': 'Atención a padres', 'horas': 1, 'max_dia': 1, 'docentes': []})
     p.cond['acompanamiento']['zonas'].append({'nombre': 'Patio', 'cuantos': 1})

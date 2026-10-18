@@ -9,8 +9,16 @@
     <div class="ho-tarjeta">
         <div class="row g-3">
             <div class="col-md-5"><label class="form-label small fw-semibold">Nombre</label><input name="nombre" class="form-control" value="{{ jornada.nombre|default:'Mañana' }}"></div>
-            <div class="col-md-7"><label class="form-label small fw-semibold">Días de clase</label><div class="d-flex flex-wrap gap-3">
-                {% for d, n in dias_todos %}<div class="form-check"><input class="form-check-input" type="checkbox" name="dias" value="{{ d }}" id="d{{ d }}" {% if d in dias %}checked{% endif %}><label class="form-check-label small" for="d{{ d }}">{{ n }}</label></div>{% endfor %}</div></div>
+            <div class="col-md-7"><label class="form-label small fw-semibold">Días de clase</label>
+                <div class="form-check"><input class="form-check-input" type="radio" name="tipo_dias" value="semana" id="ts" {% if not por_ciclo %}checked{% endif %}>
+                    <label class="form-check-label small" for="ts">Semana fija (lunes a viernes o sábado)</label></div>
+                <div class="d-flex flex-wrap gap-3 ms-4 mb-2">
+                {% for d, n in dias_todos %}<div class="form-check"><input class="form-check-input" type="checkbox" name="dias" value="{{ d }}" id="d{{ d }}" {% if d in dias %}checked{% endif %}><label class="form-check-label small" for="d{{ d }}">{{ n }}</label></div>{% endfor %}</div>
+                <div class="form-check"><input class="form-check-input" type="radio" name="tipo_dias" value="ciclo" id="tc" {% if por_ciclo %}checked{% endif %}>
+                    <label class="form-check-label small" for="tc">Por días de ciclo (el horario se corre): Día 1, Día 2… hasta el Día
+                        <input type="number" name="n_ciclo" min="2" max="20" value="{{ n_ciclo }}" class="form-control form-control-sm d-inline-block" style="width:70px"></label></div>
+                <div class="ho-ayuda ms-4">Si un día no hay clase, ese «Día N» pasa al siguiente día hábil. Se configura en Horarios → «Días de ciclo».</div>
+            </div>
         </div>
     </div>
     <div class="ho-tarjeta">

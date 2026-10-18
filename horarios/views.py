@@ -13,9 +13,9 @@ from notas.models import Curso, Docente
 from notas.modulos import esta_activo
 from notas.permisos import admin_requerido, es_admin
 
-from . import cuadricula, intensidad, intercambio, logica, nucleo, reemplazos
-from .models import (DIAS, AplicacionEscritorio, ConfiguracionHorario, Disponibilidad, Franja, Horario, Jornada,
-                     Reemplazo, Sesion)
+from . import ciclo, cuadricula, intensidad, intercambio, logica, nucleo, reemplazos
+from .models import (CICLO_MAX, DIAS, DIAS_CICLO, DIAS_SEMANA, AplicacionEscritorio, ConfiguracionHorario,
+                     DiaSinClase, Disponibilidad, Franja, Horario, Jornada, Reemplazo, Sesion)
 
 
 def _premium(request):
@@ -61,7 +61,18 @@ def jornadas(request, pk=None):
             messages.success(request, 'Jornada eliminada.')
             return redirect('horarios:panel')
         nombre = (request.POST.get('nombre') or '').strip() or 'Jornada'
-        dias = sorted(int(d) for d in request.POST.getlist('dias') if d.isdigit() and 1 <= int(d) <= 6) or [1, 2, 3, 4, 5]
+        if request.POST.get('tipo_dias') == 'ciclo':
+            try:
+                n = max(2, min(CICLO_MAX, int(request.POST.get('n_ciclo') or 5)))
+            except ValueError:
+                n = 5
+            dias = [100 + k for k in range(1, n + 1)]
+        else:
+            dias = sorted(int(d) for d in request.POST.getlist('dias') if d.isdigit() and 1 <= int(d) <= 6) or [1, 2, 3, 4, 5]
+        if jornada is not None and jornada.dias != dias and Sesion.objects.filter(franja__jornada=jornada).exclude(
+                dia__in=dias).exists():
+            messages.warning(request, 'Ojo: hay horarios con clases en días que ya no tiene esta jornada; '
+                                      'vuelva a generarlos o importarlos.')
         if jornada is None:
             jornada = Jornada.objects.create(colegio=colegio, nombre=nombre, dias=dias,
                                              orden=Jornada.objects.filter(colegio=colegio).count())
@@ -127,7 +138,8 @@ def jornadas(request, pk=None):
         messages.success(request, 'Jornada guardada.')
         return redirect('horarios:jornada', jornada.pk)
     return render(request, 'horarios/jornada.html', {
-        'colegio': colegio, 'jornada': jornada, 'cursos': cursos, 'otras': otras, 'dias_todos': DIAS,
+        'colegio': colegio, 'jornada': jornada, 'cursos': cursos, 'otras': otras, 'dias_todos': DIAS_SEMANA,
+        'por_ciclo': bool(jornada and jornada.por_ciclo), 'n_ciclo': jornada.dias_ciclo if jornada and jornada.por_ciclo else 5,
         'elegidos': {c.id for c in jornada.cursos.all()} if jornada else set(),
         'dias': jornada.dias if jornada else [1, 2, 3, 4, 5],
         'franjas': sorted(jornada.franjas.all(), key=lambda x: (x.orden, x.inicio)) if jornada else []})
@@ -205,6 +217,44 @@ def importar(request):
 
 
 # ---------------------------------------------------------------------------
+# Horario por días de ciclo (Día 1, Día 2…): qué día le toca a cada fecha
+# ---------------------------------------------------------------------------
+@admin_requerido
+def ciclo_vista(request):
+    colegio = request.colegio
+    conf, _ = ConfiguracionHorario.objects.get_or_create(colegio=colegio)
+    hoy = timezone.localdate()
+    if request.method == 'POST':
+        accion = request.POST.get('accion')
+        if accion == 'config':
+            try:
+                conf.ciclo_inicio = datetime.datetime.strptime(request.POST.get('inicio') or '', '%Y-%m-%d').date()
+            except ValueError:
+                conf.ciclo_inicio = None
+            conf.ciclo_dias_semana = sorted(int(d) for d in request.POST.getlist('semana') if d.isdigit()
+                                            and 1 <= int(d) <= 6) or [1, 2, 3, 4, 5]
+            conf.save()
+            messages.success(request, 'Ciclo guardado.')
+        elif accion in ('sin_clase', 'hoy'):
+            try:
+                f = hoy if accion == 'hoy' else datetime.datetime.strptime(request.POST.get('fecha') or '', '%Y-%m-%d').date()
+                DiaSinClase.objects.update_or_create(colegio=colegio, fecha=f, defaults={
+                    'motivo': (request.POST.get('motivo') or '').strip()[:120] or 'Sin clase'})
+                messages.success(request, f'El {f:%d/%m/%Y} queda sin clase: el ciclo se corre al día siguiente.')
+            except ValueError:
+                messages.error(request, 'Escoja la fecha.')
+        elif accion == 'quitar':
+            DiaSinClase.objects.filter(colegio=colegio, pk=request.POST.get('id')).delete()
+            messages.success(request, 'Día quitado: el ciclo vuelve a contarlo.')
+        return redirect('horarios:ciclo')
+    n = ciclo.largo_ciclo(colegio)
+    return render(request, 'horarios/ciclo.html', {
+        'colegio': colegio, 'conf': conf, 'n': n, 'hoy': hoy, 'hoy_dia': ciclo.dia_del_ciclo(colegio, hoy, n) if n else None,
+        'proximos': ciclo.proximos(colegio, hoy, 20), 'semana': DIAS_SEMANA,
+        'sin_clase': DiaSinClase.objects.filter(colegio=colegio, fecha__gte=hoy - datetime.timedelta(days=60))})
+
+
+# ---------------------------------------------------------------------------
 # Intensidad horaria por grado (para «empatar» y para armar sin docente)
 # ---------------------------------------------------------------------------
 @admin_requerido
@@ -263,7 +313,8 @@ def detalle(request, pk):
     actual = nucleo.Datos(intercambio.datos_del_colegio(request.colegio, con_firma=False))
     planes = intercambio.mapa_planes(request.colegio)
     claves = [intercambio.clave_sesion(s, planes) for s in todas]
-    choques = nucleo.revisar(actual, [{'asignacion': k, 'dia': s.dia, 'franja': s.franja_id} for k, s in zip(claves, todas)])
+    choques = nucleo.revisar(actual, [{'asignacion': k, 'dia': s.dia, 'franja': s.franja_id} for k, s in zip(claves, todas)],
+                             juntos=(h.informe or {}).get('multigrado'))
     faltan = nucleo.horas_faltantes(actual, [{'asignacion': k} for k in claves])
     return render(request, 'horarios/detalle.html', {
         'colegio': request.colegio, 'h': h, 'tablas': tablas, 'cursos': cursos, 'docentes': docentes, 'ver': ver,
@@ -283,7 +334,7 @@ def accion(request, pk):
         actual = nucleo.Datos(intercambio.datos_del_colegio(request.colegio, con_firma=False))
         planes = intercambio.mapa_planes(request.colegio)
         choques = nucleo.revisar(actual, [{'asignacion': intercambio.clave_sesion(s, planes), 'dia': s.dia,
-                                           'franja': s.franja_id} for s in todas])
+                                           'franja': s.franja_id} for s in todas], juntos=(h.informe or {}).get('multigrado'))
         if choques:
             messages.error(request, 'No se puede publicar un horario con choques. Corríjalos en el generador y vuelva a importarlo.')
             return redirect('horarios:detalle', h.pk)
@@ -360,7 +411,8 @@ def mi_horario(request):
         return _pdf(request, {'h': h, 'paginas': [{'titulo': titulo, 'tablas': tablas}]}, 'Mi horario')
     proximos = reemplazos.reemplazos_proximos(colegio, docente) if (h and docente) else []
     conf = ConfiguracionHorario.objects.filter(colegio=colegio).first()
-    return render(request, 'horarios/mi_horario.html', {'colegio': colegio, 'h': h, 'tablas': tablas,
+    hoy_ciclo = ciclo.dia_del_ciclo(colegio, timezone.localdate()) if (h and ciclo.largo_ciclo(colegio)) else None
+    return render(request, 'horarios/mi_horario.html', {'colegio': colegio, 'h': h, 'tablas': tablas, 'hoy_ciclo': hoy_ciclo,
                                                         'titulo': titulo or 'Horario de clases',
                                                         'es_admin': es_admin(request), 'proximos': proximos,
                                                         'otras_tareas': _otras_tareas(h, docente) if h and docente else [],
@@ -524,10 +576,11 @@ def reemplazos_vista(request):
                            'sesion__asignacion__materia').order_by('ausente__user__last_name', 'sesion__franja__inicio'))
     con_clase = set()
     if h:
-        con_clase = set(Sesion.objects.filter(horario=h, dia=fecha.isoweekday()).values_list('asignacion__docente_id', flat=True))
+        con_clase = set(Sesion.objects.filter(horario=h, dia__in=ciclo.dias_de_fecha(colegio, fecha))
+                        .values_list('asignacion__docente_id', flat=True))
     docentes = [d for d in Docente.objects.filter(colegio=colegio, user__is_active=True).select_related('user')]
     return render(request, 'horarios/reemplazos.html', {
         'colegio': colegio, 'h': h, 'fecha': fecha, 'docente': docente, 'plan': plan, 'dia': dia,
         'docentes': docentes, 'con_clase': con_clase,
         'motivo': next((r.motivo for p in plan if (r := p['reemplazo'])), ''),
-        'nombre_dia': dict(DIAS).get(fecha.isoweekday(), 'Domingo')})
+        'nombre_dia': dict(DIAS).get(fecha.isoweekday(), 'Domingo') + ciclo.nombre_fecha(colegio, fecha)})

@@ -5,6 +5,7 @@
         <p class="text-muted small mb-0">Jornadas, horas de clase y horario de cada curso y docente</p></div>
     <div class="d-flex gap-2 flex-wrap">
         <a href="{% url 'horarios:intensidad' %}" class="btn btn-outline-primary btn-sm"><i class="fas fa-table me-1"></i>Intensidad horaria por grado</a>
+        <a href="{% url 'horarios:ciclo' %}" class="btn btn-outline-primary btn-sm"><i class="fas fa-rotate me-1"></i>Días de ciclo</a>
         <a href="{% url 'horarios:reemplazos' %}" class="btn btn-primary btn-sm"><i class="fas fa-people-arrows me-1"></i>Reemplazos</a>
         <a href="{% url 'horarios:mi_horario' %}" class="btn btn-outline-secondary btn-sm">Ver como docente / estudiante</a>
     </div>
@@ -52,6 +53,17 @@
             <a href="{% url 'horarios:descargar_app' %}" class="btn btn-light btn-sm"><i class="fab fa-windows me-1"></i>Descargar app{% if app %} {{ app.version }}{% endif %}</a>
             <a href="{% url 'horarios:exportar_datos' %}" class="btn btn-warning btn-sm"><i class="fas fa-file-export me-1"></i>Datos del colegio (.mch)</a>
         </div>
+        <details class="small mt-2" style="opacity:.9">
+            <summary style="cursor:pointer">¿Chrome o Windows no dejan descargar o abrir la app?</summary>
+            <div class="mt-1">Es normal con programas nuevos que aún no tienen firma digital; el archivo es seguro.
+                <ol class="ps-3 mb-1 mt-1">
+                    <li><strong>Chrome bloquea la descarga:</strong> abra las descargas (Ctrl + J), busque el archivo y toque
+                        «Conservar» (o en ⋮ «Descargar archivo no seguro»).</li>
+                    <li><strong>Windows dice «Windows protegió su PC»:</strong> toque «Más información» y luego
+                        «Ejecutar de todas formas». Solo lo pide la primera vez.</li>
+                </ol>
+            </div>
+        </details>
         <div class="small mt-2" style="opacity:.85">Incluye las materias que aún no tienen docente (con su intensidad horaria).
             <a href="{% url 'horarios:exportar_datos' %}?sin_docente=0" class="text-white">Solo las que tienen docente</a></div>
         <a href="{% url 'horarios:disponibilidad' %}" class="d-inline-block mt-3 small text-white"><i class="fas fa-hand-paper me-1"></i>Pedir a los docentes su disponibilidad (antes de generar)</a>
