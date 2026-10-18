@@ -219,18 +219,71 @@ class Proyecto:
         return base, extra, sorted(sedes)
 
     # Reuniones, clases simultáneas y espacios
+    def area_principal(self, did):
+        """El área donde el docente dicta más horas (para su reunión de área)."""
+        D = self.datos
+        horas = defaultdict(int)
+        for a in D.asignaciones.values():
+            if a.get('docente') == did:
+                area = D.materias.get(a['materia'], {}).get('area')
+                if area:
+                    horas[area] += D.ih(a['id'], self.cond)
+        return max(sorted(horas), key=lambda x: horas[x]) if horas else None
+
+    def areas_de_docente(self, did):
+        D = self.datos
+        return sorted({D.materias.get(a['materia'], {}).get('area') for a in D.asignaciones.values()
+                       if a.get('docente') == did and D.materias.get(a['materia'], {}).get('area')})
+
     def reuniones_por_area(self):
-        """Una reunión por cada área que todavía no tenga la suya."""
+        """Una reunión por cada área que todavía no tenga la suya. Cada docente va a UNA sola reunión:
+        la de su área principal (donde dicta más horas), si todavía no está en otra."""
+        D = self.datos
         ya = {r.get('area') for r in self.cond['reuniones']}
+        ocupados = {int(d) for r in self.cond['reuniones'] for d in r.get('docentes', [])}
         nuevas = 0
-        for area in sorted(self.datos.areas):
-            docentes = self.datos.docentes_de_area(area)
-            if area in ya or len(docentes) < 2:
+        for area in sorted(D.areas):
+            if area in ya:
+                continue
+            docentes = [d for d in D.docentes_de_area(area) if d not in ocupados and self.area_principal(d) == area]
+            if len(docentes) < 2:              # un docente solo no hace reunión (se puede pasar a otra a mano)
                 continue
             self.cond['reuniones'].append({'nombre': f'Reunión de {area}', 'area': area, 'docentes': docentes,
-                                           'jefe': None, 'modo': 'auto', 'dos': True})
+                                           'jefe': None, 'modo': 'auto', 'dos': False})
+            ocupados.update(docentes)
             nuevas += 1
         return nuevas
+
+    def reunion_de(self, did):
+        """Índice de la reunión a la que va el docente (o None)."""
+        for i, r in enumerate(self.cond.get('reuniones', [])):
+            if did in [int(x) for x in r.get('docentes', [])]:
+                return i
+        return None
+
+    def poner_en_reunion(self, did, i):
+        """Pasa al docente a la reunión i (None = a ninguna). Un docente va a una sola reunión."""
+        for k, r in enumerate(self.cond.get('reuniones', [])):
+            docs = [int(x) for x in r.get('docentes', [])]
+            if k == i:
+                if did not in docs:
+                    docs.append(did)
+            else:
+                docs = [x for x in docs if x != did]
+                if r.get('jefe') and int(r['jefe']) == did:
+                    r['jefe'] = None
+            r['docentes'] = docs
+
+    def ordenar_reuniones(self):
+        """Quita a los docentes repetidos en varias reuniones (se quedan en la primera)."""
+        vistos = set()
+        for r in self.cond.get('reuniones', []):
+            docs = []
+            for x in r.get('docentes', []):
+                if int(x) not in vistos:
+                    vistos.add(int(x))
+                    docs.append(int(x))
+            r['docentes'] = docs
 
     def reuniones_en_horario(self, alt):
         """Con el horario ya armado, la mejor hora para cada reunión: donde estén libres la mayoría
@@ -331,7 +384,7 @@ class Proyecto:
                                       f'{D.nombre_materia(a["materia"])})')
                 t += ' · hay que mover: ' + '; '.join(clases)
             if x['no']:
-                t += ' · no pueden: ' + ', '.join(D.nombre_docente(d) for d in x['no'])
+                t += ' · no pueden (reciben el acta): ' + ', '.join(D.nombre_docente(d) for d in x['no'])
             out.append(t)
         return out
 
@@ -1345,7 +1398,7 @@ class Proyecto:
                 s = r['segunda']
                 t += f' y {nucleo.DIAS[s["dia"]]} {nucleo.texto_hora(s["inicio"])} (segundo grupo, con el jefe)'
             if r.get('faltan'):
-                t += ' · no pueden: ' + ', '.join(D.nombre_docente(x) for x in r['faltan'])
+                t += ' · no pueden (reciben el acta): ' + ', '.join(D.nombre_docente(x) for x in r['faltan'])
             out.append(t)
         return out
 

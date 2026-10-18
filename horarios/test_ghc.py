@@ -703,3 +703,36 @@ class IdeasDeGHC(SimpleTestCase):
         self.assertEqual((nc, nd), (4, 6))
         with open(os.path.join(tmp, 'c.pdf'), 'rb') as f:
             self.assertTrue(f.read(5) == b'%PDF-')
+
+    def test_cada_docente_en_una_sola_reunion(self):
+        # El docente 1 dicta Ciencias (materia 1, 4 cursos × 6 h) y también una Humanas (materia 3) en un curso
+        asign = [{'id': c * 10 + m, 'curso': c, 'materia': m, 'docente': m, 'ih': ih}
+                 for c in (1, 2, 3, 4) for m, ih in ((1, 6), (2, 4), (3, 5), (4, 5), (5, 4), (6, 4))]
+        asign[2]['docente'] = 1                       # curso 1, materia 3 (Humanas) → docente 1
+        D = datos(asignaciones=asign)
+        p = proyecto(D)
+        self.assertEqual(p.area_principal(1), 'Ciencias')
+        self.assertEqual(p.areas_de_docente(1), ['Ciencias', 'Humanas'])
+        self.assertEqual(p.reuniones_por_area(), 2)
+        todos = [d for r in p.cond['reuniones'] for d in r['docentes']]
+        self.assertEqual(len(todos), len(set(todos)))                  # nadie está en dos reuniones
+        cien = next(i for i, r in enumerate(p.cond['reuniones']) if r['area'] == 'Ciencias')
+        hum = 1 - cien
+        self.assertEqual(p.reunion_de(1), cien)
+        self.assertFalse(p.cond['reuniones'][cien]['dos'])           # los que no pueden reciben el acta
+        # Se puede pasar a otra reunión (y deja de ser jefe de la anterior)
+        p.cond['reuniones'][cien]['jefe'] = 1
+        p.poner_en_reunion(1, hum)
+        self.assertEqual(p.reunion_de(1), hum)
+        self.assertIsNone(p.cond['reuniones'][cien]['jefe'])
+        self.assertNotIn(1, p.cond['reuniones'][cien]['docentes'])
+        p.poner_en_reunion(1, None)
+        self.assertIsNone(p.reunion_de(1))
+        # Repetidos de versiones anteriores: se quedan en la primera
+        p.cond['reuniones'][0]['docentes'].append(5)
+        p.cond['reuniones'][1]['docentes'].append(5)
+        p.ordenar_reuniones()
+        self.assertEqual(sum(5 in r['docentes'] for r in p.cond['reuniones']), 1)
+        # En los avisos, los que no pueden «reciben el acta»
+        alt = {'reuniones': [{'nombre': 'R', 'ubicada': True, 'dia': 1, 'inicio': 420, 'faltan': [2]}]}
+        self.assertIn('reciben el acta', p.texto_reuniones(alt)[0])

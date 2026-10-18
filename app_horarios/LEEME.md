@@ -118,3 +118,10 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 
 - La barra de la pestaña 6 va en **tres filas**: (1) generar · (2) **⚠ Avisos, 🩺 ¿Por qué faltan horas?, ↶ Deshacer, fijar/soltar** y los colores verde/amarillo/rojo · (3) guardar, Excel, PDF, pestañas y tamaño. Así nada queda por fuera de la pantalla.
 - Si al generar quedan horas sin ubicar o choques, los avisos se abren solos.
+
+## Versión 3.5
+
+- **Cada docente va a una sola reunión de área.** «Crear una por área» pone a cada docente en la reunión de su área principal (donde dicta más horas).
+- **👥 Reunión de cada docente** (pestaña 4): una fila por docente para escoger a qué reunión va, o «(ninguna)». Muestra sus áreas; la ★ marca la principal.
+- **Participantes de cada reunión**: en «Editar», se marcan o desmarcan. Si se marca a uno que está en otra reunión, pasa a esta (y deja de ser jefe de la anterior).
+- **Los que no pueden asistir reciben el acta** (el acta se maneja en la plataforma, no en este programa). Por eso la «segunda reunión con el jefe» queda apagada en las reuniones nuevas; se puede encender en «Editar».

@@ -325,6 +325,14 @@ def prueba():
     cb0.current(1)
     app.guardar_jefes()
     assert r0['jefe'] == miembros0[0]
+    # Reunión de cada docente (una sola) y participantes de una reunión
+    app._reunion_de_cada()
+    did0, cb_r = app.cb_reunion_doc[0]
+    cb_r.current(0)                                  # (ninguna)
+    app.guardar_reunion_doc()
+    assert p.reunion_de(did0) is None
+    todos_r = [d for r in p.cond['reuniones'] for d in r['docentes']]
+    assert len(todos_r) == len(set(todos_r)), 'un docente quedó en dos reuniones'
     w_reu = app.reuniones_horario()
     assert w_reu is not None and app.propuestas_reu
     app.generando = True                     # que «Acomodar» no lance el generador en la prueba
