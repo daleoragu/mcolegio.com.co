@@ -304,6 +304,34 @@ def prueba():
     p.docente(app.docs[0]['id'])['viaja'] = 'viernes'
     app._llenar_lista_docentes()
     p.docente(app.docs[0]['id'])['viaja'] = False
+    # Filtros de la pestaña 3: grado, área, materia y docente
+    assert app.filtro_doc.valor('materia') == '' and app.filtro_doc.valor('docente') == ''
+    app._llenar_lista_docentes()
+    # Colores por área y por docente en la cuadrícula (con leyenda)
+    vc = app.vista_actual()
+    for k in (1, 2, 0):
+        vc.cb_color.current(k)
+        vc.dibujar()
+        assert bool(vc.leyenda.winfo_children()) == (k != 0), k
+    a_col = app._alt()['sesiones'][0]['asignacion']
+    vc.cb_color.current(1)
+    assert vc.color_de(a_col) in g.PALETA
+    vc.cb_color.current(0)
+    # Reuniones: jefes de área y buscar la hora en el horario armado
+    p.cond['reuniones'] = []
+    app._reuniones_area()
+    assert p.cond['reuniones'] and app.cb_jefes
+    r0, miembros0, cb0 = app.cb_jefes[0]
+    cb0.current(1)
+    app.guardar_jefes()
+    assert r0['jefe'] == miembros0[0]
+    w_reu = app.reuniones_horario()
+    assert w_reu is not None and app.propuestas_reu
+    app.generando = True                     # que «Acomodar» no lance el generador en la prueba
+    app._acomodar_reuniones()
+    app.generando = False
+    assert r0['modo'] == 'fija' or app.propuestas_reu[1][0]['dia'] is None
+    p.cond['reuniones'] = []
     # Docentes que viven fuera: se pregunta una vez (y lleva a la pestaña 3 para marcarlos)
     p.cond['compensar'] = {'activa': True, 'max': 1}
     p.cond.pop('preguntado_viajan', None)

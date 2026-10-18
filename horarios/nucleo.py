@@ -799,6 +799,10 @@ def armar(datos, cond):
                 mejor_no_materia.setdefault(mid, set()).update(mejor)
     dias_de_docente = {did: sorted({d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']})
                        for did in set(compensar) | set(viajan)}
+    # Las reuniones esquivan las clases que ya están puestas (fijas), p. ej. al completar un horario
+    for fx in fijas:
+        if fx.get('docente'):
+            no_puede.setdefault(fx['docente'], set()).add((fx['dia'], fx['franja']))
     reuniones, no_puede = ubicar_reuniones(D, cond, no_puede)
     reuniones_doc = franjas_de_reuniones(D, reuniones)
     dias_docente = {did: {d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']} for did in dia_libre}
