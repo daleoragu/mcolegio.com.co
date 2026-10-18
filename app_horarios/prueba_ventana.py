@@ -308,6 +308,11 @@ def prueba():
     assert p.alternativas[0].get('detenido'), 'no se detuvo'
     assert _t.monotonic() - t0 < 25, _t.monotonic() - t0
     print('detenido:', app.lbl_prog.cget('text'))
+    # Compensar días largos (docentes sin horas extra): se ve en los avisos
+    p.cond['compensar'] = {'activa': True, 'max': 1}
+    p.revisar(app._alt())
+    app._avisos(app._alt())
+    p.cond['compensar']['activa'] = False
     p.guardar(os.path.join(tmp, 'p.mchp'))
     Proyecto.abrir(os.path.join(tmp, 'p.mchp'))
     app.destroy()

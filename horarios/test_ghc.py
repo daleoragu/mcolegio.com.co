@@ -497,3 +497,44 @@ class IdeasDeGHC(SimpleTestCase):
         self.assertLess(_t.monotonic() - t0, 250)                 # de 300 s, para antes
         self.assertEqual(r['sin_ubicar'], [])
         self.assertFalse(r['detenido'])
+
+    def test_dia_largo_compensado_con_dia_corto(self):
+        from .motor import compensa
+        self.assertTrue(compensa([], []))
+        self.assertTrue(compensa([55], [60]))
+        self.assertFalse(compensa([55, 55], [120]))           # cada día largo necesita su propio día corto
+        self.assertFalse(compensa([60], [30]))
+        D = datos()
+        sin, con = [], []
+        for activa, lista in ((False, sin), (True, con)):
+            p = proyecto(D)
+            p.cond['permanencia_horas'] = 5                   # con 5 h no caben todas las clases de la semana
+            p.cond['compensar'] = {'activa': activa, 'max': 1}
+            alt = p.generar(cuantas=1, segundos=10)[0]
+            self.assertEqual(alt['choques'], [])
+            lista.append((alt['horas_sin_ubicar'], p, alt))
+        self.assertLess(con[0][0], sin[0][0])
+        _, p, alt = con[0]
+        largos = 0
+        for did in range(1, 7):
+            perfil = p.perfil_docente(alt, did)
+            l, cortos, ok = p._parejas(did, perfil)
+            self.assertTrue(ok, (did, perfil))
+            self.assertTrue(all(a <= 6 * 60 for a, _ in perfil.values()))       # máximo 5 + 1 horas
+            largos += len(l)
+        self.assertGreater(largos, 0)
+        self.assertTrue(p.texto_compensacion(alt))
+        # A mano: el día largo se deja poner, pero avisa hasta que haya un día corto
+        p.cond['compensar']['activa'] = True
+        blanco = p.en_blanco()
+        clase = [f for f in D.franjas_de(1) if not f['descanso']]
+        self.assertIsNone(p.poner_ficha(blanco, 11, 1, clase[0]['id']))
+        self.assertIsNone(p.poner_ficha(blanco, 21, 1, clase[-1]['id']))    # 6 h el lunes (permanencia 5)
+        self.assertTrue(any('sin compensar' in c for c in blanco['choques']), blanco['choques'])
+        self.assertIsNone(p.poner_ficha(blanco, 31, 2, clase[0]['id']))     # martes corto: queda compensado
+        self.assertFalse([c for c in blanco['choques'] if 'compens' in c], blanco['choques'])
+        # Sin compensar, la permanencia es un tope fijo
+        p.cond['compensar']['activa'] = False
+        otro = p.en_blanco()
+        self.assertIsNone(p.poner_ficha(otro, 11, 1, clase[0]['id']))
+        self.assertIn('permanencia', p.motivo(otro, 21, 1, clase[-1]['id']))
