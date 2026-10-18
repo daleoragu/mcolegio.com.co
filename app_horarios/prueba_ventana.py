@@ -3,9 +3,13 @@
 Abre la app con el archivo de ejemplo, pone reglas, arrastra fichas, genera,
 completa, cambia de vista y exporta, sin que nadie toque nada.
 """
+import faulthandler
 import os
 import sys
 import tempfile
+
+# Si algo se queda esperando, a los 8 minutos muestra dónde y termina (para verlo en GitHub)
+faulthandler.dump_traceback_later(480, exit=True)
 
 # La consola de Windows no siempre es UTF-8: que los avisos con ✔ / ✖ no rompan la prueba.
 try:
@@ -26,6 +30,8 @@ def prueba():
     g.messagebox.showinfo = lambda *a, **k: print('info:', a[1:])
     g.messagebox.askyesno = lambda *a, **k: True
     g.messagebox.askyesnocancel = lambda *a, **k: True
+    errores = []
+    g.messagebox.showerror = lambda *a, **k: errores.append(a[1:])
 
     app = g.App()
     app.withdraw()
@@ -230,6 +236,78 @@ def prueba():
     app.cb_ver.current(1)
     app._opciones_ver()
     app.update()
+    print('paso:', 'Asistente cuando fal', flush=True)
+    # Asistente cuando faltan horas: más tiempo, cambiar condiciones, consejos
+    vacio = p.en_blanco()
+    app._llenar_alternativas()
+    assert vacio['horas_sin_ubicar'] > 0
+    w = app.asistente(vacio)
+    assert w is not None and app.sug_asistente, 'el asistente no sugirió nada'
+    for _, var in app.sug_asistente:
+        var.set(False)
+    app.sug_asistente[0][1].set(True)
+    app.generando = True                     # que no lance el generador en la prueba
+    app._asistente_aplicar()
+    app.generando = False
+    assert app.ventana_asistente is None and len(app.nb.tabs()) == 6, app.nb.tabs()
+    assert 'cambio' in app.estado.cget('text'), app.estado.cget('text')
+    app.asistente(vacio)
+    app._asistente_a_mano()
+    p.alternativas.remove(vacio)
+    app._llenar_alternativas()
+    print('paso:', 'Zoom: agranda', flush=True)
+    # Zoom: agranda y achica la cuadrícula
+    v0 = app.vista_actual()
+    app.zoom_todas(0.3)
+    assert abs(v0.zoom - 1.3) < 1e-9 and v0._necesario > 600, (v0.zoom, v0._necesario)
+    v0.cambiar_zoom(-2)
+    assert v0.zoom == 0.5
+    app.zoom_todas(None)
+    assert v0.zoom == 1.0
+    print('paso:', 'Varias cuadrículas e', flush=True)
+    # Varias cuadrículas en una ventana (4): cada una con un curso distinto
+    antes_v = len(app.vistas)
+    mos = app.mosaico(4)
+    assert len(mos) == 4 and len(app.vistas) == antes_v + 4
+    cursos_m = [m.quien_l[m.cb_quien.current()] for m in mos]
+    assert len(set(cursos_m)) == min(4, len(mos[0].quien_l)), cursos_m
+    assert all(m.rejilla.winfo_children() for m in mos)
+    mos[0].ventana.cerrar()
+    assert len(app.vistas) == antes_v
+    print('paso:', 'Deshacer un cambio', flush=True)
+    # Deshacer un cambio a mano
+    alt = app._alt()
+    k = next(k for k, x in enumerate(alt['sesiones']) if not x.get('fijada'))
+    antes_s = [dict(x) for x in alt['sesiones']]
+    app.soltar({'tipo': 'puesta', 'i': k}, ('paleta',))
+    assert len(alt['sesiones']) == len(antes_s) - 1
+    app.deshacer()
+    assert alt['sesiones'] == antes_s, 'no deshizo'
+    print('paso:', 'Generar de verdad', flush=True)
+    # Generar de verdad (en otro hilo), viendo lo que acomoda, y detener
+    import time as _t
+    app.var_alt.set(2)
+    app.var_seg.set(30)
+    app.var_vivo.set(True)
+    app.generar()
+    assert app.generando
+    t0 = _t.monotonic()
+    vio = False
+    while app.generando and _t.monotonic() - t0 < 60:
+        _t.sleep(0.3)
+        app._revisar_cola()
+        if app.alt_vivo is not None:
+            vio = True
+            assert app._alt() is app.alt_vivo and app._alt()['vivo']
+            app.escoger({'tipo': 'nueva', 'asig': a0})          # mientras genera, solo se mira
+            assert 'Espere' in app.estado.cget('text'), app.estado.cget('text')
+            app.detener()
+    assert not errores, errores
+    assert vio, ('no mostró lo que iba acomodando', app.estado.cget('text'), app.lbl_prog.cget('text'))
+    assert not app.generando and app.alt_vivo is None
+    assert p.alternativas[0].get('detenido'), 'no se detuvo'
+    assert _t.monotonic() - t0 < 25, _t.monotonic() - t0
+    print('detenido:', app.lbl_prog.cget('text'))
     p.guardar(os.path.join(tmp, 'p.mchp'))
     Proyecto.abrir(os.path.join(tmp, 'p.mchp'))
     app.destroy()

@@ -804,23 +804,35 @@ def armar(datos, cond):
     return p
 
 
-def generar(datos, cond, segundos=30, semilla=0, avance=None):
-    """Un horario: {'sesiones': [...], 'sin_ubicar': [...], 'costo', 'huecos'}."""
-    from .motor import huecos_por_docente
-    p = armar(datos, cond)
-    r = resolver(p, segundos=segundos, semilla=semilla, avance=avance)
-    est = r['estado']
+def _sesiones_de(datos, cond, est, ubicadas):
     sesiones = []
     for fx in cond.get('fijas', []):
         a = datos.asignaciones.get(int(fx['asignacion']))
         if a:
             sesiones.append({'asignacion': a['id'], 'curso': a['curso'], 'dia': int(fx['dia']),
                              'franja': int(fx['franja']), 'fijada': True})
-    for uid, (dia, franja) in r['ubicadas'].items():
-        u = est.u[uid]
+    for uid, (dia, franja) in ubicadas.items():
+        u = est.u.get(uid)
+        if not u or uid in est.fijas:
+            continue
         for f in est.celdas(u, dia, franja):
             for q in u['partes']:
-                sesiones.append({'asignacion': q['asig'], 'curso': q['curso'], 'dia': dia, 'franja': f})
+                if q['asig'] in datos.asignaciones:
+                    sesiones.append({'asignacion': q['asig'], 'curso': q['curso'], 'dia': dia, 'franja': f})
+    return sesiones
+
+
+def generar(datos, cond, segundos=30, semilla=0, avance=None, vivo=None, parar=None):
+    """Un horario: {'sesiones': [...], 'sin_ubicar': [...], 'costo', 'huecos'}.
+
+    vivo(sesiones): va recibiendo lo que lleva ubicado (más o menos cada segundo).
+    parar(): si devuelve True, se detiene y entrega lo mejor que lleve."""
+    from .motor import huecos_por_docente
+    p = armar(datos, cond)
+    mostrar = (lambda e: vivo(_sesiones_de(datos, cond, e, dict(e.pos)))) if vivo else None
+    r = resolver(p, segundos=segundos, semilla=semilla, avance=avance, vivo=mostrar, parar=parar)
+    est = r['estado']
+    sesiones = _sesiones_de(datos, cond, est, r['ubicadas'])
     sin = defaultdict(int)
     for uid in r['sin_ubicar']:
         u = est.u[uid]
@@ -838,7 +850,8 @@ def generar(datos, cond, segundos=30, semilla=0, avance=None):
     dificiles = [{'asignacion': a, 'rechazos': n} for a, n in sorted(rech.items(), key=lambda x: -x[1])[:10] if n >= 3]
     return {'sesiones': sesiones, 'costo': r['costo'], 'huecos': sum(huecos.values()),
             'sin_ubicar': [{'asignacion': a, 'horas': h} for a, h in sin.items()],
-            'divididas': r.get('divididas', []), 'reuniones': getattr(p, 'reuniones', []), 'dificiles': dificiles}
+            'divididas': r.get('divididas', []), 'reuniones': getattr(p, 'reuniones', []), 'dificiles': dificiles,
+            'detenido': r.get('detenido', False), 'segundos_usados': r.get('segundos_usados')}
 
 
 # ---------------------------------------------------------------------------

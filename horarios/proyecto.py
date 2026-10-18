@@ -221,8 +221,8 @@ class Proyecto:
                              for s in base['sesiones'] if todas or s.get('fijada')]
         return cond
 
-    def _correr(self, cond, segundos, semilla, avance=None):
-        r = nucleo.generar(self.datos, cond, segundos=segundos, semilla=semilla, avance=avance)
+    def _correr(self, cond, segundos, semilla, avance=None, vivo=None, parar=None):
+        r = nucleo.generar(self.datos, cond, segundos=segundos, semilla=semilla, avance=avance, vivo=vivo, parar=parar)
         fijas = {(f['asignacion'], f['dia'], f['franja']) for f in cond.get('fijas', [])}
         for s in r['sesiones']:
             s['fijada'] = (s['asignacion'], s['dia'], s['franja']) in fijas
@@ -273,16 +273,21 @@ class Proyecto:
         alt['avisos_extra'] = av1 + av2
         return alt
 
-    def generar(self, cuantas=3, segundos=60, avance=None, base=None):
-        """Genera alternativas (cada una con otra semilla), respetando las fichas fijadas de `base`."""
+    def generar(self, cuantas=3, segundos=60, avance=None, base=None, vivo=None, parar=None):
+        """Genera alternativas (cada una con otra semilla), respetando las fichas fijadas de `base`.
+
+        vivo(sesiones, nombre): lo que va ubicando; parar(): detener y quedarse con lo que lleve."""
         cond = self._cond_con_fijas(base)
-        self.alternativas = [a for a in self.alternativas if a.get('manual')]
         nuevas = []
         for k in range(cuantas):
+            if nuevas and parar and parar():
+                break
             def av(p, k=k):
                 if avance:
                     avance(int((k + p / 100) * 100 / cuantas), f'Alternativa {k + 1} de {cuantas}…')
-            nuevas.append(self._correr(cond, segundos, int(time.time()) + k * 7919, av))
+            vv = (lambda ses, k=k: vivo(ses, f'Alternativa {k + 1}')) if vivo else None
+            nuevas.append(self._correr(cond, segundos, int(time.time()) + k * 7919, av, vv, parar))
+        self.alternativas = [a for a in self.alternativas if a.get('manual')]
         nuevas.sort(key=lambda r: (r['horas_sin_ubicar'], len(r['choques']), r['costo']))
         for i, r in enumerate(nuevas, start=1):
             r['nombre'] = f'Alternativa {i}'
@@ -291,16 +296,30 @@ class Proyecto:
             avance(100, 'Listo')
         return nuevas
 
-    def completar(self, alt, segundos=30, avance=None, solo_fijadas=False):
+    def completar(self, alt, segundos=30, avance=None, solo_fijadas=False, vivo=None, parar=None):
         """Deja quietas las fichas puestas (o solo las fijadas) y ubica lo que falta."""
         cond = self._cond_con_fijas(alt, todas=not solo_fijadas)
         r = self._correr(cond, segundos, int(time.time()),
-                         (lambda p: avance(p, 'Completando…')) if avance else None)
+                         (lambda p: avance(p, 'Completando…')) if avance else None,
+                         (lambda ses: vivo(ses, 'Completando')) if vivo else None, parar)
         r['nombre'] = f"{alt.get('nombre', 'Horario')} (completado)"
         self.alternativas.insert(0, r)
         if avance:
             avance(100, 'Listo')
         return r
+
+    def horas_totales(self):
+        return sum(self.datos.ih(aid, self.cond) for aid in self.datos.asignaciones)
+
+    def en_vivo(self, sesiones, nombre='Generando'):
+        """Un horario provisional (solo para mirar) con lo que el generador lleva ubicado."""
+        alt = {'nombre': f'⏳ {nombre}…', 'vivo': True, 'sesiones': [dict(x, fijada=x.get('fijada', False)) for x in sesiones],
+               'costo': None, 'huecos': None, 'reuniones': [], 'divididas': [], 'choques': [],
+               'actividades': [], 'acompanamientos': [], 'avisos_extra': []}
+        faltan = nucleo.horas_faltantes(self.datos, alt['sesiones'], self.cond)
+        alt['sin_ubicar'] = [{'asignacion': a['id'], 'horas': n} for a, n in faltan]
+        alt['horas_sin_ubicar'] = sum(n for _, n in faltan)
+        return alt
 
     def en_blanco(self):
         alt = {'nombre': f'Horario a mano {sum(1 for a in self.alternativas if a.get("manual")) + 1}', 'manual': True,
@@ -832,6 +851,125 @@ class Proyecto:
                                                             'fijada': True, 'descanso': True})
             tablas.append(self._tabla(j['id'], celdas))
         return tablas
+
+    # --- Cuando faltan horas: qué aflojar y consejos --------------------------------
+    CONSEJOS = [
+        'Use «mejor no» en vez de «no puede» cuando no sea indispensable: el generador tiene más espacio.',
+        'Dele más segundos: los horarios grandes o con muchas reglas necesitan más tiempo (2 a 5 minutos).',
+        'Fije a mano lo más difícil (los docentes con poca disponibilidad o las clases en espacios compartidos) '
+        'y deje que el generador complete el resto.',
+        'Revise en «1. Datos» que las horas de cada curso no pasen de las horas de su jornada.',
+        'Si muchas clases van en bloques de 2 horas, permitir que un bloque se parta cuando no cabe ayuda bastante.',
+    ]
+
+    def sugerencias(self, alt):
+        """Cambios concretos que pueden ayudar a ubicar lo que falta, de los más suaves a los más fuertes.
+
+        Mira las clases que no se ubicaron y las que más costó ubicar. Cada sugerencia:
+        {'clave', 'texto', 'tipo', 'datos'}; se aplica con aplicar_sugerencia()."""
+        D, c = self.datos, self.cond
+        ids = [x['asignacion'] for x in alt.get('sin_ubicar') or []]
+        ids += [x['asignacion'] for x in alt.get('dificiles') or []][:6]
+        vistas, out = set(), []
+        if not ids:
+            return out
+
+        def sug(clave, texto, tipo, **datos):
+            if clave not in vistas:
+                vistas.add(clave)
+                out.append({'clave': clave, 'texto': texto, 'tipo': tipo, 'datos': datos})
+        regla_ex = nucleo.regla_excluyente(c)
+        for aid in ids:
+            a = D.asignaciones.get(aid)
+            if not a:
+                continue
+            did, cid, mid = a.get('docente'), a['curso'], a['materia']
+            nom_d, nom_c, nom_m = D.nombre_docente(did), D.nombre_curso(cid), D.nombre_materia(mid)
+            r = c['asignaciones'].get(str(aid), {})
+            partes = nucleo.partes_completas(D, c, a)
+            if max(partes or [1]) > 1 and r.get('dividir') is False:
+                sug(f'partir-{aid}', f'Dejar partir los bloques de {nom_m} {nom_c} si no caben', 'partir', aid=aid)
+            if max(partes or [1]) > 1 and c.get('bloque_descanso') is False:
+                sug('bloque-descanso', 'Permitir que un bloque quede partido por el descanso', 'bloque_descanso')
+            if did:
+                rd = c['docentes'].get(str(did), {})
+                n_no = len(rd.get('no_puede', []))
+                if n_no:
+                    sug(f'nopuede-{did}', f'Cambiar las {n_no} horas «no puede» de {nom_d} a «mejor no»', 'no_puede', did=did)
+                if rd.get('dia_libre'):
+                    sug(f'dialibre-{did}', f'Quitarle a {nom_d} el día libre', 'dia_libre', did=did)
+                if rd.get('max_dia'):
+                    sug(f'maxdia-{did}', f'Quitarle a {nom_d} el máximo de {rd["max_dia"]} clases por día', 'max_dia_doc', did=did)
+                if rd.get('max_seguidas') or c.get('max_seguidas'):
+                    sug(f'seguidas-{did}', f'Quitarle a {nom_d} el máximo de horas seguidas', 'seguidas', did=did)
+                perm = rd.get('permanencia')
+                perm = float(perm) if perm not in (None, '') else float(c.get('permanencia_horas') or 0)
+                if perm:
+                    sug(f'perm-{did}', f'Subirle a {nom_d} la permanencia de {perm:g} a {perm + 1:g} horas', 'permanencia',
+                        did=did, horas=perm + 1)
+                if regla_ex and regla_ex[2] and not rd.get('sin_excluyente'):
+                    sug(f'excl-{did}', f'No aplicarle a {nom_d} la regla de la hora {regla_ex[1]} y la {regla_ex[0]}',
+                        'excluyente_doc', did=did)
+                for g in c.get('reuniones', []):
+                    if g.get('modo') == 'fija' and did in [int(x) for x in g.get('docentes', []) if str(x).isdigit()] + [
+                            int(g['jefe']) if str(g.get('jefe') or '').isdigit() else None]:
+                        sug(f'reu-{g.get("nombre")}', f'Dejar que «{g.get("nombre")}» busque sola su hora (ahora es fija)',
+                            'reunion', nombre=g.get('nombre'))
+                sedes = {D.sede_de_curso(x['curso']) for x in D.asignaciones.values() if x.get('docente') == did}
+                if len(sedes - {''}) > 1 and int(c.get('desplazamiento') or 0) > 15:
+                    sug('despl', f'Bajar el tiempo para cambiar de sede de {c.get("desplazamiento")} a 15 minutos', 'desplazamiento')
+            regla_m = c['materias'].get(str(mid), {})
+            tope = int(regla_m.get('max_dia') or c.get('max_por_dia') or 2)
+            jid = D.jornada_de_curso.get(cid)
+            n_dias = len(D.jornadas[jid]['dias']) if jid in D.jornadas else 5
+            if D.ih(aid, c) > tope * (n_dias - 1):
+                sug(f'maxmat-{mid}', f'Permitir {tope + 1} horas de {nom_m} el mismo día', 'max_dia_mat', mid=mid, tope=tope + 1)
+            esp = r.get('espacio') or regla_m.get('espacio')
+            if esp:
+                sug(f'esp-{esp}', f'Ampliar «{esp}» a un curso más a la vez', 'espacio', nombre=esp)
+            if c.get('cursos', {}).get(str(cid), {}).get('no_puede'):
+                sug(f'cursosin-{cid}', f'Quitar las horas sin clase marcadas para {nom_c}', 'curso_sin', cid=cid)
+        if regla_ex and regla_ex[2]:
+            sug('excl-general', f'Volver «si se puede» la regla de la hora {regla_ex[1]} y la {regla_ex[0]}', 'excluyente')
+        return out
+
+    def aplicar_sugerencia(self, s):
+        c, d = self.cond, s['datos']
+        t = s['tipo']
+        if t == 'partir':
+            self.asig(d['aid'])['dividir'] = True
+        elif t == 'bloque_descanso':
+            c['bloque_descanso'] = True
+        elif t == 'no_puede':
+            r = self.docente(d['did'])
+            r['prefiere_no'] = sorted(set(r.get('prefiere_no', [])) | set(r.get('no_puede', [])))
+            r['no_puede'] = []
+        elif t == 'dia_libre':
+            self.docente(d['did'])['dia_libre'] = False
+        elif t == 'max_dia_doc':
+            self.docente(d['did'])['max_dia'] = None
+        elif t == 'seguidas':
+            self.docente(d['did'])['max_seguidas'] = 99
+        elif t == 'permanencia':
+            self.docente(d['did'])['permanencia'] = d['horas']
+        elif t == 'excluyente_doc':
+            self.docente(d['did'])['sin_excluyente'] = True
+        elif t == 'excluyente':
+            c['excluyente']['obligatoria'] = False
+        elif t == 'reunion':
+            for g in c.get('reuniones', []):
+                if g.get('nombre') == d['nombre']:
+                    g['modo'] = 'auto'
+        elif t == 'desplazamiento':
+            c['desplazamiento'] = 15
+        elif t == 'max_dia_mat':
+            self.regla(d['mid'])['max_dia'] = d['tope']
+        elif t == 'espacio':
+            for e in c.get('espacios', []):
+                if e.get('nombre') == d['nombre']:
+                    e['capacidad'] = int(e.get('capacidad') or 1) + 1
+        elif t == 'curso_sin':
+            self.curso(d['cid'])['no_puede'] = []
 
     def texto_dificiles(self, alt):
         D = self.datos

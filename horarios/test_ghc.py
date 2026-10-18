@@ -445,3 +445,55 @@ class IdeasDeGHC(SimpleTestCase):
         self.assertIsNone(pr.poner_ficha(alt, 23, 1, f[-1], fijar=False))     # primer día largo: sí
         self.assertIsNone(pr.poner_ficha(alt, 13, 2, f[0], fijar=False))
         self.assertIn('día(s) largo', pr.poner_ficha(alt, 23, 2, f[-1], fijar=False))
+
+    def test_asistente_cuando_faltan_horas(self):
+        D = datos()
+        p = proyecto(D)
+        for f in D.franjas_de(1):
+            if not f['descanso']:
+                for d in (1, 2, 3):
+                    p.poner_celda(3, d, f['id'], 'no_puede')     # 20 horas en 2 días: no caben
+        p.docente(3)['dia_libre'] = True
+        alt = p.generar(cuantas=1, segundos=3)[0]
+        self.assertGreater(alt['horas_sin_ubicar'], 0)
+        p.cond['permanencia_horas'] = 5
+        sug = p.sugerencias(alt)
+        p.cond['permanencia_horas'] = 0
+        claves = [s['clave'] for s in sug]
+        self.assertIn('nopuede-3', claves)
+        self.assertIn('dialibre-3', claves)
+        self.assertIn('perm-3', claves)
+        self.assertEqual(len(claves), len(set(claves)))
+        self.assertTrue(p.CONSEJOS)
+        for s in sug:
+            if s['clave'] in ('nopuede-3', 'dialibre-3', 'perm-3'):
+                p.aplicar_sugerencia(s)
+        self.assertEqual(p.docente(3)['no_puede'], [])
+        self.assertTrue(p.docente(3)['prefiere_no'])
+        self.assertFalse(p.docente(3)['dia_libre'])
+        self.assertEqual(p.docente(3)['permanencia'], 6)
+        alt = p.generar(cuantas=1, segundos=4)[0]
+        self.assertEqual(alt['horas_sin_ubicar'], 0)
+        self.assertEqual(p.sugerencias(alt), [])
+
+    def test_detener_parar_solo_y_en_vivo(self):
+        import time as _t
+        D = datos()
+        p = proyecto(D)
+        vistos = []
+        t0 = _t.monotonic()
+        alt = p.generar(cuantas=2, segundos=40, vivo=lambda ses, nombre: vistos.append((len(ses), nombre)),
+                        parar=lambda: len(vistos) >= 3)
+        self.assertLess(_t.monotonic() - t0, 15)
+        self.assertEqual(len(alt), 1)                      # al detener no sigue con la segunda alternativa
+        self.assertTrue(alt[0]['detenido'])
+        self.assertTrue(vistos and vistos[0][1] == 'Alternativa 1')
+        prov = p.en_vivo([dict(s) for s in alt[0]['sesiones']], 'Alternativa 1')
+        self.assertTrue(prov['vivo'] and prov['nombre'].startswith('⏳'))
+        self.assertEqual(prov['horas_sin_ubicar'], alt[0]['horas_sin_ubicar'])
+        # Con mucho tiempo, termina solo cuando ya no mejora
+        t0 = _t.monotonic()
+        r = nucleo.generar(D, nucleo.condiciones_vacias(), segundos=300, semilla=3)
+        self.assertLess(_t.monotonic() - t0, 250)                 # de 300 s, para antes
+        self.assertEqual(r['sin_ubicar'], [])
+        self.assertFalse(r['detenido'])
