@@ -516,6 +516,31 @@ def _puede_reunirse(datos, did, dia, ini, fin, no_puede):
     return ocupa or None
 
 
+def hora_comun_reuniones(datos, cond, no_puede, horas=None, ocupado=None):
+    """(dia, inicio) para hacer TODAS las reuniones de área juntas: donde puedan todos los jefes y la
+    mayor cantidad de docentes. Si una reunión es fija, se usa su hora. ocupado(did, dia, ini, fin) -> True
+    si el docente ya tiene algo a esa hora (para buscar en un horario armado)."""
+    reus = cond.get('reuniones', [])
+    for r in reus:
+        if r.get('modo') == 'fija' and r.get('dia'):
+            return int(r['dia']), minutos(r.get('hora') or '00:00')
+    mejor, puntos = None, -1
+    for (dia, ini, fin, _) in horas or _horas_de_clase(datos):
+        total, ok = 0, True
+        for r in reus:
+            miembros = {int(x) for x in r.get('docentes', []) if int(x) in datos.docentes}
+            jefe = int(r['jefe']) if r.get('jefe') else None
+            pueden = {d for d in miembros | ({jefe} if jefe else set())
+                      if _puede_reunirse(datos, d, dia, ini, fin, no_puede) and not (ocupado and ocupado(d, dia, ini, fin))}
+            if jefe and jefe not in pueden:
+                ok = False
+                break
+            total += len(pueden)
+        if ok and total * 1000 + ini > puntos:
+            mejor, puntos = (dia, ini), total * 1000 + ini
+    return mejor
+
+
 def ubicar_reuniones(datos, cond, no_puede=None):
     """Escoge la hora de cada reunión de área y bloquea esa hora a los que asisten.
 
@@ -526,6 +551,7 @@ def ubicar_reuniones(datos, cond, no_puede=None):
     no_puede = {k: set(v) for k, v in (no_puede or {}).items()}
     horas = _horas_de_clase(datos)
     resultados = []
+    comun = hora_comun_reuniones(datos, cond, no_puede, horas) if cond.get('reuniones_juntas') else None
     for r in cond.get('reuniones', []):
         miembros = [int(x) for x in r.get('docentes', []) if int(x) in datos.docentes]
         jefe = int(r['jefe']) if r.get('jefe') else None
@@ -547,7 +573,9 @@ def ubicar_reuniones(datos, cond, no_puede=None):
             for (dia, ini, fin, _) in horas:
                 if (dia, ini) in excluir:
                     continue
-                if r.get('modo') == 'fija' and not excluir:
+                if comun and not excluir and (dia, ini) != comun:
+                    continue                     # todas las reuniones el mismo día y a la misma hora
+                if r.get('modo') == 'fija' and not excluir and not comun:
                     if dia != int(r.get('dia') or 0) or ini != minutos(r.get('hora') or '00:00'):
                         continue
                 asisten = evaluar(dia, ini, fin, quienes)

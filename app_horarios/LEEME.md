@@ -105,3 +105,11 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
   - Al «Crear una por área» se abre la ventana **Jefes de área** para escoger el jefe de cada una (también con su botón).
   - **🤝 Buscar hora en el horario armado**: con el horario que se está viendo, busca la hora de cada reunión donde estén libres la mayoría (el jefe siempre) y dice qué clases habría que mover. **Acomodar** deja la reunión fija en esa hora, saca esas clases y las vuelve a ubicar en otra hora.
   - Si un docente queda con clase a la hora de su reunión, sale como choque. Al completar un horario, las reuniones automáticas esquivan las clases que ya están puestas.
+
+## Versión 3.4
+
+- **Reuniones de área a la misma hora**: en «4. Reuniones», la casilla «Todas las reuniones de área el mismo día y a la misma hora» busca una sola hora para todas (donde puedan todos los jefes y la mayoría). También vale para «Buscar hora en el horario armado».
+- **Soltar fichas fijadas 🔒**: Ctrl + clic marca varias fichas (quedan con borde azul) → «🔓 Soltar marcadas» o «🔒 Fijar marcadas». «🔓 Soltar todo» suelta todas las del horario (siguen en su lugar, pero el generador ya las puede mover).
+- **Completar ya no fija todo**: «Completar lo que falta» respeta lo que estaba puesto, pero solo deja fijadas 🔒 las que usted había fijado.
+- **PDF**: «📄 PDF uno por uno (.zip)» guarda un .zip con un PDF por curso (carpeta Cursos) y uno por docente (carpeta Docentes). «📄 PDF todo junto» guarda dos PDF: todos los cursos y todos los docentes, una hoja cada uno. Con colores por área.
+- La lista de «3. Docentes y cursos» ahora va pegada a la izquierda, más ancha y con barra.
