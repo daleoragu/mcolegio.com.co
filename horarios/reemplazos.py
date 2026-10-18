@@ -22,7 +22,8 @@ def _cruzan(a, b):
 
 
 def _sesiones_del_dia(h, fecha):
-    return list(Sesion.objects.filter(horario=h, dia=fecha.isoweekday(), asignacion__isnull=False)
+    from .ciclo import dias_de_fecha
+    return list(Sesion.objects.filter(horario=h, dia__in=dias_de_fecha(h.colegio, fecha), asignacion__isnull=False)
                 .select_related('franja', 'curso', 'asignacion__materia', 'asignacion__docente__user'))
 
 

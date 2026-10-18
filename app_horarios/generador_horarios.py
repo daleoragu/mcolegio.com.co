@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import nucleo                     # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '2.6'
+VERSION = '2.7'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -682,6 +682,16 @@ class App(tk.Tk):
         bot.pack(fill='x', pady=4)
         ttk.Button(bot, text='Nueva', command=self._nueva_simultanea).pack(side='left')
         ttk.Button(bot, text='Quitar', command=self._quitar_simultanea).pack(side='left', padx=4)
+        mg = ttk.LabelFrame(f, text='Multigrado (Escuela Nueva): cursos que ven clase juntos, con el mismo docente y en la '
+                                    'misma aula. La misma materia del mismo docente va a la misma hora para todo el grupo.',
+                            padding=6)
+        mg.pack(fill='both', expand=True, pady=(8, 0))
+        marco, self.tv_mg = self._tabla(mg, [('nombre', 'Grupo', 200), ('cursos', 'Cursos', 620)], 4)
+        marco.pack(fill='both', expand=True)
+        bot = ttk.Frame(mg)
+        bot.pack(fill='x', pady=4)
+        ttk.Button(bot, text='Nuevo grupo', command=self._nuevo_multigrado).pack(side='left')
+        ttk.Button(bot, text='Quitar', command=self._quitar_multigrado).pack(side='left', padx=4)
         self._llenar_grupos()
 
     def _llenar_grupos(self):
@@ -700,6 +710,46 @@ class App(tk.Tk):
             clases = [f"{D.nombre_curso(D.asignaciones[a]['curso'])} {D.nombre_materia(D.asignaciones[a]['materia'])}"
                       for a in g['asignaciones'] if a in D.asignaciones]
             self.tv_sim.insert('', 'end', iid=str(i), values=(g.get('nombre'), ' + '.join(clases)))
+        if hasattr(self, 'tv_mg'):
+            self.tv_mg.delete(*self.tv_mg.get_children())
+            for i, g in enumerate(self.p.cond.get('multigrado', [])):
+                self.tv_mg.insert('', 'end', iid=str(i), values=(
+                    g.get('nombre'), ', '.join(D.nombre_curso(c) for c in g.get('cursos', []))))
+
+    def _nuevo_multigrado(self):
+        D = self.p.datos
+        cursos = [c for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso]
+        v = tk.Toplevel(self)
+        v.title('Grupo multigrado')
+        v.transient(self)
+        v.grab_set()
+        cuerpo = ttk.Frame(v, padding=12)
+        cuerpo.pack(fill='both', expand=True)
+        ttk.Label(cuerpo, text='Nombre (ej.: Sede La Esperanza 1.º a 5.º)').pack(anchor='w')
+        e = ttk.Entry(cuerpo, width=50)
+        e.pack(anchor='w')
+        ttk.Label(cuerpo, text='Cursos que ven clase juntos (Ctrl + clic):').pack(anchor='w', pady=(8, 2))
+        lb = tk.Listbox(cuerpo, selectmode='extended', height=14, width=50, exportselection=False)
+        for c in cursos:
+            lb.insert('end', f"{c['nombre']}" + (f" · {c.get('sede')}" if c.get('sede') else ''))
+        lb.pack(fill='both', expand=True)
+        ttk.Label(cuerpo, text='Para que vayan juntas, la materia de cada curso debe tener el mismo docente.',
+                  style='Ayuda.TLabel').pack(anchor='w', pady=4)
+
+        def aceptar():
+            m = self.p.agregar_multigrado(e.get().strip(), [cursos[k]['id'] for k in lb.curselection()])
+            if m:
+                return messagebox.showwarning(TITULO, m, parent=v)
+            v.destroy()
+            self._llenar_grupos()
+            self._llenar_datos()
+        ttk.Button(cuerpo, text='Guardar', command=aceptar).pack(anchor='e', pady=8)
+
+    def _quitar_multigrado(self):
+        sel = self.tv_mg.focus()
+        if sel:
+            del self.p.cond['multigrado'][int(sel)]
+            self._llenar_grupos()
 
     def _reuniones_area(self):
         n = self.p.reuniones_por_area()
@@ -747,8 +797,9 @@ class App(tk.Tk):
         ttk.Checkbutton(cuerpo, text='Poner yo el día y la hora:', variable=var_fija).grid(row=5, column=0, sticky='w')
         fila = ttk.Frame(cuerpo)
         fila.grid(row=5, column=1, sticky='w')
-        cb_dia = ttk.Combobox(fila, state='readonly', width=11, values=[nucleo.DIAS[d] for d in range(1, 7)])
-        cb_dia.current(max(0, int(r.get('dia') or 1) - 1))
+        dias_todos = sorted({d for j in D.jornadas.values() for d in j['dias']}) or [1, 2, 3, 4, 5]
+        cb_dia = ttk.Combobox(fila, state='readonly', width=11, values=[nucleo.DIAS[d] for d in dias_todos])
+        cb_dia.current(dias_todos.index(int(r['dia'])) if r.get('dia') and int(r['dia']) in dias_todos else 0)
         cb_dia.pack(side='left')
         horas = sorted({f['inicio'] for f in D.franjas.values() if not f['descanso']})
         cb_hora = ttk.Combobox(fila, state='readonly', width=7, values=horas)
@@ -764,7 +815,7 @@ class App(tk.Tk):
             r['jefe'] = docs[cb_jefe.current() - 1]['id'] if cb_jefe.current() > 0 else None
             r['dos'] = var_dos.get()
             r['modo'] = 'fija' if var_fija.get() else 'auto'
-            r['dia'] = cb_dia.current() + 1
+            r['dia'] = dias_todos[max(0, cb_dia.current())]
             r['hora'] = cb_hora.get()
             if i is None:
                 self.p.cond['reuniones'].append(r)

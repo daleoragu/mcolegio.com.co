@@ -147,7 +147,7 @@ def importar_resultado(archivo, colegio):
         sesiones.append({'asignacion': a, 'curso': actual.asignaciones[a]['curso'], 'dia': d, 'franja': f})
     avisos = sorted(set(avisos))
     informe = dict(r.get('informe') or {})
-    informe['choques'] = nucleo.revisar(actual, sesiones)
+    informe['choques'] = nucleo.revisar(actual, sesiones, juntos=informe.get('multigrado'))
     h = _crear(colegio, r.get('nombre') or 'Horario generado', 'GENERADO',
                [(s['asignacion'], s['dia'], s['franja']) for s in sesiones], informe)
     return h, avisos
@@ -188,10 +188,12 @@ def importar_excel(archivo, colegio):
         raise nucleo.ArchivoInvalido('Al Excel le faltan las columnas: ' + ', '.join(f.upper() for f in faltan) + '.')
     cursos = {_norm(c.nombre): c for c in Curso.objects.filter(colegio=colegio)}
     jornada_de = {}
+    ciclo_de = {}
     for j in Jornada.objects.filter(colegio=colegio).prefetch_related('franjas', 'cursos'):
         clase = [f for f in sorted(j.franjas.all(), key=lambda x: (x.orden, x.inicio)) if not f.descanso]
         for c in j.cursos.all():
             jornada_de[c.id] = clase
+            ciclo_de[c.id] = j.dias_ciclo
     materias = {}
     for m in Materia.objects.filter(colegio=colegio):
         materias.setdefault(_norm(m.nombre), m)
@@ -214,7 +216,14 @@ def importar_excel(archivo, colegio):
             errores.append(f'Fila {i}: no hay un curso «{v("curso")}».')
             continue
         dia_txt = str(v('dia') or '').strip()
-        dia = int(dia_txt) if dia_txt.isdigit() else DIA_POR_NOMBRE.get(_norm(dia_txt))
+        if dia_txt.endswith('.0'):
+            dia_txt = dia_txt[:-2]
+        if ciclo_de.get(curso.id):
+            # Horario por días de ciclo: «3», «Día 3», «D3» -> Día 3
+            num = re.sub(r'[^0-9]', '', dia_txt)
+            dia = 100 + int(num) if num and 1 <= int(num) <= ciclo_de[curso.id] else None
+        else:
+            dia = int(dia_txt) if dia_txt.isdigit() else DIA_POR_NOMBRE.get(_norm(dia_txt))
         clase = jornada_de.get(curso.id)
         if not clase:
             errores.append(f'Fila {i}: el curso {curso.nombre} no está en ninguna jornada.')

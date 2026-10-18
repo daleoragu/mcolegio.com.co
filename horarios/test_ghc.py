@@ -351,3 +351,37 @@ class IdeasDeGHC(SimpleTestCase):
         self.assertNotIn(f[2], nucleo_p.siguiente)                           # las «horas seguidas» del docente no cruzan
         p.cond['bloque_descanso'] = False
         self.assertNotIn(f[2], nucleo.armar(D, p.cond).siguiente_bloque)
+
+    def test_multigrado_escuela_nueva(self):
+        # Un docente (1) da Matemáticas a 101 y 202 a la vez, en la misma aula
+        materias = [{'id': 1, 'nombre': 'Matemáticas', 'area': 'Matemáticas'}, {'id': 2, 'nombre': 'Lenguaje', 'area': 'Humanas'}]
+        asig = [{'id': 11, 'curso': 1, 'materia': 1, 'docente': 1, 'ih': 5},
+                {'id': 21, 'curso': 2, 'materia': 1, 'docente': 1, 'ih': 5},
+                {'id': 12, 'curso': 1, 'materia': 2, 'docente': 1, 'ih': 5},
+                {'id': 22, 'curso': 2, 'materia': 2, 'docente': 1, 'ih': 5}]
+        D = datos(materias=materias, asignaciones=asig)
+        p = proyecto(D)
+        cond = nucleo.condiciones_vacias()
+        self.assertIsNone(p.agregar_multigrado('Sede rural', [1, 2]))
+        self.assertIn('ya está', p.agregar_multigrado('Otro', [2, 3]))
+        cond = p.cond
+        # Con el grupo, el docente tiene 10 horas (no 20): cabe
+        self.assertFalse([t for n, t in nucleo.diagnostico(D, cond) if n == 'error' and 'Docente 1' in t])
+        r = nucleo.generar(D, cond, segundos=2, semilla=1)
+        self.assertEqual(r['sin_ubicar'], [])
+        self.assertEqual(nucleo.revisar(D, r['sesiones'], cond), [])
+        self.assertTrue(nucleo.revisar(D, r['sesiones']))                     # sin el grupo serían choques
+        self.assertEqual(nucleo.revisar(D, r['sesiones'], juntos=[[1, 2]]), [])   # como lo revisa la plataforma
+        por = defaultdict(set)
+        for s in r['sesiones']:
+            por[s['asignacion']].add((s['dia'], s['franja']))
+        self.assertEqual(por[11], por[21])
+        # A mano: poner una ficha pone la del otro curso a la misma hora; quitarla las quita juntas
+        alt = p.en_blanco()
+        f = [x['id'] for x in D.franjas_de(1) if not x['descanso']]
+        self.assertIsNone(p.poner_ficha(alt, 11, 1, f[0], fijar=False))
+        self.assertEqual(sorted(s['asignacion'] for s in alt['sesiones']), [11, 21])
+        self.assertIsNone(p.mover_ficha(alt, 0, 2, f[1]))
+        self.assertEqual({(s['dia'], s['franja']) for s in alt['sesiones']}, {(2, f[1])})
+        p.quitar_ficha(alt, 0)
+        self.assertEqual(alt['sesiones'], [])

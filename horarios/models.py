@@ -12,8 +12,14 @@ from django.db import models
 
 from notas.models import AsignacionDocente, Colegio, Curso
 
-DIAS = [(1, 'Lunes'), (2, 'Martes'), (3, 'Miércoles'), (4, 'Jueves'), (5, 'Viernes'), (6, 'Sábado')]
+DIAS_SEMANA = [(1, 'Lunes'), (2, 'Martes'), (3, 'Miércoles'), (4, 'Jueves'), (5, 'Viernes'), (6, 'Sábado')]
+# Horario por días de ciclo (el que «se corre»: si el lunes no hubo clase, el Día 1 pasa al martes).
+# Se guardan como 101, 102… para no confundirlos con lunes, martes…
+CICLO_MAX = 20
+DIAS_CICLO = [(100 + k, f'Día {k}') for k in range(1, CICLO_MAX + 1)]
+DIAS = DIAS_SEMANA + DIAS_CICLO
 DIA_CORTO = {1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb'}
+DIA_CORTO.update({d: f'D{d - 100}' for d, _ in DIAS_CICLO})
 
 
 def _lunes_a_viernes():
@@ -35,6 +41,14 @@ class Jornada(models.Model):
 
     def franjas_de_clase(self):
         return [f for f in self.franjas.all() if not f.descanso]
+
+    @property
+    def por_ciclo(self):
+        return any(d > 100 for d in (self.dias or []))
+
+    @property
+    def dias_ciclo(self):
+        return sum(1 for d in (self.dias or []) if d > 100)
 
 
 class Franja(models.Model):
@@ -145,12 +159,30 @@ class Reemplazo(models.Model):
         return f'{self.fecha} · {self.sesion.curso} · {self.ausente}'
 
 
+def _lunes_a_viernes_lista():
+    return [1, 2, 3, 4, 5]
+
+
 class ConfiguracionHorario(models.Model):
-    """Ajustes del módulo por colegio: por ahora, si se le pide a los docentes su disponibilidad."""
+    """Ajustes del módulo por colegio: disponibilidad de los docentes y el ciclo de días."""
     colegio = models.OneToOneField(Colegio, on_delete=models.CASCADE, related_name='config_horario')
     pedir_disponibilidad = models.BooleanField(default=False)
     mensaje = models.CharField(max_length=250, blank=True)
     fecha_limite = models.DateField(null=True, blank=True)
+    # Horario por días de ciclo: qué fecha fue «Día 1» y qué días de la semana hay clase.
+    ciclo_inicio = models.DateField(null=True, blank=True)
+    ciclo_dias_semana = models.JSONField(default=_lunes_a_viernes_lista, blank=True)
+
+
+class DiaSinClase(models.Model):
+    """Un día en que no hubo clase: con horario por ciclo, ese día no cuenta y el ciclo se corre."""
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='dias_sin_clase')
+    fecha = models.DateField()
+    motivo = models.CharField(max_length=120, blank=True)
+
+    class Meta:
+        unique_together = ('colegio', 'fecha')
+        ordering = ['fecha']
 
 
 class Disponibilidad(models.Model):

@@ -256,15 +256,20 @@ class Estado:
     def poner(self, u, dia, franja):
         uid = u['id']
         celdas = self.celdas(u, dia, franja)
+        vistos = set()          # multigrado: el mismo docente con varios cursos a la vez cuenta una sola vez
         for parte in u['partes']:
+            nuevo = parte['docente'] not in vistos
+            vistos.add(parte['docente'])
             for f in celdas:
                 self.curso[(parte['curso'], dia, f)] = uid
                 _, _, ini, fin = self.p.franjas[f]
-                self.docente[(parte['docente'], dia)].append((ini, fin, uid, f))
+                if nuevo:
+                    self.docente[(parte['docente'], dia)].append((ini, fin, uid, f))
                 self.cd[(parte['curso'], dia)].add(f)
                 self.cmf[(parte['curso'], parte['materia'], dia)].append(f)
             self.cm[(parte['curso'], parte['materia'], dia)] += u['largo']
-            self.dd[(parte['docente'], dia)] += u['largo']
+            if nuevo:
+                self.dd[(parte['docente'], dia)] += u['largo']
         if u.get('espacio'):
             for f in celdas:
                 _, _, ini, fin = self.p.franjas[f]
@@ -275,7 +280,10 @@ class Estado:
         u = self.u[uid]
         dia, franja = self.pos.pop(uid)
         celdas = self.celdas(u, dia, franja)
+        vistos = set()
         for parte in u['partes']:
+            nuevo = parte['docente'] not in vistos
+            vistos.add(parte['docente'])
             for f in celdas:
                 self.curso.pop((parte['curso'], dia, f), None)
                 self.cd[(parte['curso'], dia)].discard(f)
@@ -285,7 +293,8 @@ class Estado:
             k = (parte['docente'], dia)
             self.docente[k] = [t for t in self.docente[k] if t[2] != uid]
             self.cm[(parte['curso'], parte['materia'], dia)] -= u['largo']
-            self.dd[k] -= u['largo']
+            if nuevo:
+                self.dd[k] -= u['largo']
         if u.get('espacio'):
             k = (u['espacio'], dia)
             self.espacio[k] = [t for t in self.espacio[k] if t[2] != uid]

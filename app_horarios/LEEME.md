@@ -55,3 +55,8 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 - **Pantalla del horario a lo ancho**: sin barra lateral; arriba los botones (generar, completar, guardar, Excel, renombrar, quitar, pestañas, avisos) y abajo las cuadrículas, que ocupan toda la pantalla. La app abre maximizada.
 - **Cada pestaña escoge su horario**: así se comparan alternativas lado a lado (o en ventanas aparte) y se edita cualquiera de ellas.
 - Los avisos se muestran con el botón «⚠ Avisos».
+
+## Versión 2.7
+
+- **Multigrado (Escuela Nueva)** (pestaña 4): grupos de cursos que ven clase juntos con el mismo docente y en la misma aula. La misma materia del mismo docente va a la misma hora para todo el grupo; al armar a mano, poner, mover o quitar una ficha hace lo mismo con los otros cursos del grupo. La plataforma lo entiende al importar (no lo cuenta como choque).
+- **Horario por días de ciclo**: si la jornada está «por días de ciclo» en la plataforma (Día 1… Día N, hasta 20), el generador trabaja con esos días. La plataforma lleva qué Día le toca a cada fecha y lo corre cuando no hay clase.

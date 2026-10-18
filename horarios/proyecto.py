@@ -86,6 +86,8 @@ class Proyecto:
         c['asignaciones'] = {k: v for k, v in c['asignaciones'].items() if int(k) in d.asignaciones}
         for g in c['simultaneas']:
             g['asignaciones'] = [a for a in g['asignaciones'] if int(a) in d.asignaciones]
+        for g in c.get('multigrado', []):
+            g['cursos'] = [x for x in g.get('cursos', []) if int(x) in d.cursos]
         c['cursos'] = {k: v for k, v in c.get('cursos', {}).items() if int(k) in d.cursos}
         nuevo.cond = c
         nuevo.ruta = self.ruta
@@ -356,6 +358,8 @@ class Proyecto:
                 return f'{D.nombre_curso(a["curso"])} ya tiene {D.nombre_materia(b["materia"])} a esa hora.'
             x, y = D.intervalo(s['franja'])
             if a.get('docente') and b.get('docente') == a['docente'] and x < fin and ini < y:
+                if self._juntos(a, b) and s['franja'] == fid:
+                    continue                 # multigrado: es la misma clase con otro curso del grupo
                 return f'{D.nombre_docente(a["docente"])} ya está en {D.nombre_curso(b["curso"])} a esa hora.'
         did = a.get('docente')
         if did:
@@ -423,21 +427,66 @@ class Proyecto:
                         f'no puede tener también la {a if self._es_hora(otra, b) else b}.')
         return None
 
+    # --- Multigrado (Escuela Nueva) -----------------------------------------------
+    def _juntos(self, a, b):
+        """¿Las dos clases son la misma clase multigrado (cursos del mismo grupo, mismo docente y materia)?"""
+        g = nucleo.grupos_multigrado(self.cond)
+        return (a['curso'] != b['curso'] and a['curso'] in g and g.get(b['curso']) == g[a['curso']]
+                and a.get('docente') and a.get('docente') == b.get('docente') and a['materia'] == b['materia'])
+
+    def companeros(self, aid):
+        """Las clases de los otros cursos del grupo multigrado que van junto con esta."""
+        D = self.datos
+        a = D.asignaciones[aid]
+        return [b['id'] for b in D.asignaciones.values() if b['id'] != aid and self._juntos(a, b)]
+
+    def agregar_multigrado(self, nombre, cursos):
+        cursos = sorted({int(c) for c in cursos})
+        if len(cursos) < 2:
+            return 'Escoja al menos dos cursos.'
+        ya = {c for g in self.cond['multigrado'] for c in g.get('cursos', [])}
+        if ya & set(cursos):
+            return 'Uno de esos cursos ya está en otro grupo multigrado.'
+        self.cond['multigrado'].append({'nombre': nombre or 'Multigrado', 'cursos': cursos})
+        return None
+
     def poner_ficha(self, alt, aid, dia, fid, fijar=True):
         m = self.motivo(alt, aid, dia, fid)
         if m:
             return m
         alt['sesiones'].append({'asignacion': aid, 'curso': self.datos.asignaciones[aid]['curso'], 'dia': dia,
                                 'franja': fid, 'fijada': fijar})
+        # Multigrado: los otros cursos del grupo quedan en la misma hora, con la misma clase
+        hechas = defaultdict(int)
+        for s in alt['sesiones']:
+            hechas[s['asignacion']] += 1
+        for b in self.companeros(aid):
+            if hechas[b] < self.datos.ih(b, self.cond) and not self.motivo(alt, b, dia, fid):
+                alt['sesiones'].append({'asignacion': b, 'curso': self.datos.asignaciones[b]['curso'], 'dia': dia,
+                                        'franja': fid, 'fijada': fijar})
         self.revisar(alt)
         return None
 
+    def _juntas_en(self, alt, i):
+        """Índices de las fichas multigrado que están en la misma hora que la ficha i."""
+        s = alt['sesiones'][i]
+        comp = set(self.companeros(s['asignacion']))
+        return [k for k, x in enumerate(alt['sesiones']) if k != i and x['asignacion'] in comp
+                and x['dia'] == s['dia'] and x['franja'] == s['franja']]
+
     def mover_ficha(self, alt, i, dia, fid, fijar=True):
         s = alt['sesiones'][i]
-        m = self.motivo(alt, s['asignacion'], dia, fid, ignorar=i)
+        juntas = self._juntas_en(alt, i)
+        todas = {i, *juntas}
+        m = self.motivo(alt, s['asignacion'], dia, fid, ignorar=todas)
         if m:
             return m
+        for k in juntas:
+            if self.motivo(alt, alt['sesiones'][k]['asignacion'], dia, fid, ignorar=todas):
+                juntas = [x for x in juntas if x != k]
         s.update(dia=dia, franja=fid, fijada=fijar or s.get('fijada', False))
+        for k in juntas:                      # multigrado: el grupo se mueve junto
+            alt['sesiones'][k].update(dia=dia, franja=fid, fijada=fijar or alt['sesiones'][k].get('fijada', False))
         self.revisar(alt)
         return None
 
@@ -458,6 +507,8 @@ class Proyecto:
             if b.get('curso') == a['curso'] and x['franja'] == fid:
                 out.append(k)
             elif a.get('docente') and b.get('docente') == a['docente'] and x['franja'] in D.franjas:
+                if self._juntos(a, b) and x['franja'] == fid:
+                    continue
                 y0, y1 = D.intervalo(x['franja'])
                 if y0 < fin and ini < y1:
                     out.append(k)
@@ -645,7 +696,8 @@ class Proyecto:
         return None
 
     def quitar_ficha(self, alt, i):
-        del alt['sesiones'][i]
+        for k in sorted([i] + self._juntas_en(alt, i), reverse=True):
+            del alt['sesiones'][k]
         self.revisar(alt)
 
     def alternar_fijada(self, alt, i):
@@ -781,6 +833,7 @@ class Proyecto:
                              {'huecos': alt.get('huecos'), 'costo': alt.get('costo'),
                               'horas_sin_ubicar': alt.get('horas_sin_ubicar', 0),
                               'reuniones': self.texto_reuniones(alt),
+                              'multigrado': [g.get('cursos', []) for g in self.cond.get('multigrado', [])],
                               'acompanamientos': [{'dia': x['dia'], 'franja': x['franja'], 'zona': x['zona'],
                                                    'docentes': x['docentes']} for x in alt.get('acompanamientos') or []],
                               'actividades': [{'dia': x['dia'], 'franja': x['franja'], 'nombre': x['nombre'],

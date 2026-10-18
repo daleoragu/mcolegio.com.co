@@ -15,7 +15,21 @@ from .motor import PESOS, Problema, resolver, unidad_simple
 TIPO_DATOS = 'mcolegio-horario-datos'
 TIPO_RESULTADO = 'mcolegio-horario-resultado'
 VERSION = 1
-DIAS = {1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado'}
+class _Dias(dict):
+    """Nombre de cada día: 1-6 son lunes a sábado; 101, 102… son «Día 1», «Día 2»… de un horario
+    por días de ciclo (el que se corre si un día no hubo clase)."""
+    def __missing__(self, k):
+        try:
+            k = int(k)
+        except (TypeError, ValueError):
+            return str(k)
+        return f'Día {k - 100}' if k > 100 else f'Día {k}'
+
+    def get(self, k, defecto=None):
+        return self[k]
+
+
+DIAS = _Dias({1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado'})
 
 
 class ArchivoInvalido(Exception):
@@ -58,7 +72,19 @@ def condiciones_vacias():
             # (2+2+1…) si la materia no tiene sus propios bloques. Si un bloque no cabe, se parte.
             'bloques_general': {'activa': False, 'desde': 2},
             # ¿Un bloque puede quedar partido por el descanso? None = todavía no se ha preguntado
-            'bloque_descanso': None}
+            'bloque_descanso': None,
+            # Multigrado (Escuela Nueva): cursos que ven clase juntos, con el mismo docente y en la misma aula
+            'multigrado': []}                 # [{'nombre', 'cursos': [cid…]}]
+
+
+def grupos_multigrado(cond=None, juntos=None):
+    """{curso: número de grupo} de los cursos que van juntos (de las condiciones o de un informe)."""
+    grupos = list(juntos or []) + [g.get('cursos', []) for g in (cond or {}).get('multigrado', [])]
+    out = {}
+    for k, cursos in enumerate(grupos):
+        for c in cursos or []:
+            out[int(c)] = k
+    return out
 
 
 # Los criterios que el coordinador puede subir o bajar (de 0 a 10; 5 = normal).
@@ -309,11 +335,19 @@ def diagnostico(datos, cond):
     salida = []
     por_curso = defaultdict(int)
     por_docente = defaultdict(int)
+    grupo = grupos_multigrado(cond)
+    juntas = defaultdict(int)          # multigrado: la clase del grupo cuenta una sola vez al docente
     for a in D.asignaciones.values():
         n = D.ih(a['id'], cond)
         por_curso[a['curso']] += n
         if a.get('docente'):
-            por_docente[a['docente']] += n
+            if a['curso'] in grupo:
+                k = (a['docente'], grupo[a['curso']], a['materia'])
+                if n > juntas[k]:
+                    por_docente[a['docente']] += n - juntas[k]
+                    juntas[k] = n
+            else:
+                por_docente[a['docente']] += n
     for a in D.asignaciones.values():
         if D.ih(a['id'], cond) == 0:
             salida.append(('aviso', f'{D.nombre_materia(a["materia"])} en {D.nombre_curso(a["curso"])} no tiene intensidad '
@@ -636,6 +670,25 @@ def armar(datos, cond):
                              'partes': [parte(a) for a in miembros]})
         for a in miembros:
             restantes[a['id']] -= n
+    # Multigrado (Escuela Nueva): en un grupo de cursos, la misma materia con el mismo docente se da
+    # a todos a la vez, en la misma aula. Va como una clase con varias partes (una por curso).
+    for g, grupo in enumerate(cond.get('multigrado', [])):
+        cursos = {int(c) for c in grupo.get('cursos', [])}
+        por = defaultdict(list)
+        for a in D.asignaciones.values():
+            if a['curso'] in cursos and a.get('docente') and restantes.get(a['id'], 0) > 0:
+                por[(a['docente'], a['materia'])].append(a)
+        for (_doc, _mat), miembros in por.items():
+            if len(miembros) < 2:
+                continue
+            n = min(restantes[a['id']] for a in miembros)
+            for largo in partes_de(miembros[0], n):
+                unidades.append({'id': f'M{g}-{len(unidades)}', 'asig': miembros[0]['id'], 'largo': largo,
+                                 'extra': all(asg.get(str(a['id']), {}).get('extra') for a in miembros),
+                                 'dividir': True, 'espacio': espacio_de(miembros[0]),
+                                 'partes': [parte(a) for a in miembros]})
+            for a in miembros:
+                restantes[a['id']] -= n
     for a in D.asignaciones.values():
         n = restantes.get(a['id'], 0)
         propia = asg.get(str(a['id']), {})
@@ -882,9 +935,13 @@ def asignar_acompanamientos(datos, cond, sesiones):
 # ---------------------------------------------------------------------------
 # Revisión de choques (la usan la app y la plataforma al importar)
 # ---------------------------------------------------------------------------
-def revisar(datos, sesiones, cond=None):
-    """[texto] con cada choque o incumplimiento."""
+def revisar(datos, sesiones, cond=None, juntos=None):
+    """[texto] con cada choque o incumplimiento.
+
+    juntos: grupos multigrado ([[curso…]…]); en ellos el mismo docente puede estar con varios cursos
+    a la misma hora (es la misma clase)."""
     D = datos
+    grupo = grupos_multigrado(cond, juntos)
     errores = []
     curso_ocupado = {}
     docente_dia = defaultdict(list)
@@ -906,6 +963,10 @@ def revisar(datos, sesiones, cond=None):
         if a.get('docente'):
             ini, fin = D.intervalo(s['franja'])
             for (x, y, otro) in docente_dia[(a['docente'], s['dia'])]:
+                oc = D.asignaciones[otro]['curso']
+                if (a['curso'] in grupo and grupo.get(oc) == grupo[a['curso']] and (x, y) == (ini, fin)
+                        and D.asignaciones[otro]['materia'] == a['materia']):
+                    continue                     # multigrado: es la misma clase con varios cursos
                 if x < fin and ini < y:
                     errores.append(f'{D.nombre_docente(a["docente"])} queda en dos clases el {DIAS.get(s["dia"])} a las '
                                    f'{D.franjas[s["franja"]]["inicio"]} ({D.nombre_curso(a["curso"])} y '
