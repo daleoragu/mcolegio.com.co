@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import nucleo                     # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '3.1'
+VERSION = '3.2'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'

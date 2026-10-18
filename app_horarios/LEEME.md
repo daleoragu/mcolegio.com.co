@@ -90,5 +90,8 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 - En **⚠ Avisos** se ve cada docente con días largos: «29 h 10 de 30 h · largos: Lunes 6 h 55, Jueves 6 h 55 · cortos: Martes 4 h 10…». Si al armar a mano la semana se pasa, aparece como choque hasta que se acorte algún día.
 - El asistente «¿Por qué faltan horas?» la sugiere cuando la permanencia está trabando el horario.
 - **Docentes que no viven en el municipio** (pestaña 3, casilla 🚌 en cada docente): si les tocan días largos, el generador busca que la compensación les quede **entrando más tarde el lunes** (primeras horas libres) **o saliendo más temprano el viernes** (últimas horas libres). La primera vez que se genera con días largos, el programa pregunta si hay docentes así. En ⚠ Avisos se ve: «(viaja): días largos suman 2 h de más · Viernes sale después de la 4.ª hora». Su importancia se ajusta en Prioridades.
+
+## Versión 3.2
+
 - **Bloquear horas por área** (pestaña 3, al final de la lista, en verde): toque las casillas: rojo = las clases de las materias del área **no van** a esa hora; amarillo = mejor no. Vale para todos los cursos y docentes del área (ej.: que Educación Física no vaya a la 1.ª hora).
 - **Docente que viaja: escoge su preferencia**: junto a la casilla 🚌, escoja si compensa **el lunes (entrar más tarde)**, **el viernes (salir más temprano)** o **lo que mejor encaje**.
