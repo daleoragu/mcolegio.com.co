@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import nucleo                     # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '2.9'
+VERSION = '3.0'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -1017,6 +1017,7 @@ class App(tk.Tk):
         ttk.Checkbutton(dos, text='Fijar 🔒 lo que ubico a mano', variable=self.var_fijar).pack(side='left', padx=6)
         self.btn_avisos = ttk.Button(dos, text='⚠ Avisos', command=self._alternar_avisos)
         self.btn_avisos.pack(side='left', padx=3)
+        ttk.Button(dos, text='🩺 ¿Por qué faltan horas?', command=self.asistente).pack(side='left', padx=3)
         tk.Label(dos, text=' no se puede ', bg=ROJO_SEL).pack(side='right', padx=1)
         tk.Label(dos, text=' ocupada: reemplazar ', bg=AMARILLO_SEL).pack(side='right', padx=1)
         tk.Label(dos, text=' libre ', bg=VERDE_SEL).pack(side='right', padx=1)
@@ -1035,6 +1036,8 @@ class App(tk.Tk):
         self.sel = None
         self._mapa = None
         self.sueltas = set()            # clases que el usuario quiere ubicar de a una hora
+        self.ventana_asistente = None   # «¿Por qué faltan horas?»
+        self.sug_asistente = []
         self.bind('<Escape>', lambda e: self.quitar_seleccion())
         self.nueva_pestana()
         self._llenar_alternativas()
@@ -1119,13 +1122,147 @@ class App(tk.Tk):
                         self.barra['value'] = 100
                         self.lbl_prog.configure(text='Listo')
                         self._llenar_alternativas()
-                        self.avisar('Listo. Revise el horario; puede seguir ajustándolo con las fichas.')
+                        alt = self._alt()
+                        if alt and alt.get('horas_sin_ubicar'):
+                            self.avisar(f'Listo, pero quedaron {alt["horas_sin_ubicar"]} horas sin ubicar. '
+                                        'Mire las sugerencias.', error=True)
+                            self.asistente(alt)
+                        else:
+                            self.avisar('Listo. Revise el horario; puede seguir ajustándolo con las fichas.')
                     else:
                         messagebox.showerror(TITULO, f'No se pudo generar: {txt}')
                     return
         except queue.Empty:
             pass
         self.after(200, self._revisar_cola)
+
+    # --- Asistente: cuando quedan horas sin ubicar --------------------------------
+    def asistente(self, alt=None):
+        """Ventana con lo que faltó y qué hacer: más tiempo, aflojar condiciones o consejos."""
+        alt = alt or self._alt()
+        if not alt:
+            return messagebox.showinfo(TITULO, 'Escoja un horario de la lista.')
+        faltan = self.p.sin_ubicar_texto(alt)
+        if not faltan:
+            return messagebox.showinfo(TITULO, 'En este horario no faltan horas por ubicar. 👍')
+        viejo = self.ventana_asistente
+        if viejo is not None:
+            try:
+                viejo.destroy()
+            except tk.TclError:
+                pass
+        w = tk.Toplevel(self)
+        self.ventana_asistente = w
+        w.title('¿Por qué faltan horas?')
+        w.transient(self)
+        cuerpo = ttk.Frame(w, padding=12)
+        cuerpo.pack(fill='both', expand=True)
+        ttk.Label(cuerpo, text=f'Quedaron {alt["horas_sin_ubicar"]} horas sin ubicar en «{alt.get("nombre", "Horario")}»',
+                  font=('Segoe UI', 11, 'bold')).pack(anchor='w')
+        ttk.Label(cuerpo, text='\n'.join('• ' + t for t in faltan[:8]) + (f'\n… y {len(faltan) - 8} más' if len(faltan) > 8 else ''),
+                  style='Ayuda.TLabel').pack(anchor='w', pady=(2, 6))
+        dificiles = self.p.texto_dificiles(alt)[:5]
+        if dificiles:
+            ttk.Label(cuerpo, text='Lo que más le costó ubicar: ' + '; '.join(dificiles), wraplength=640,
+                      style='Ayuda.TLabel').pack(anchor='w', pady=(0, 6))
+        seg = max(5, int(self.var_seg.get() or 60))
+        mas = min(600, max(120, seg * 2))
+        t1 = ttk.LabelFrame(cuerpo, text='1. Intentar con más tiempo', padding=8)
+        t1.pack(fill='x', pady=4)
+        ttk.Label(t1, text=f'Ahora usa {seg} segundos. Con más tiempo el generador prueba más combinaciones.',
+                  wraplength=640).pack(anchor='w')
+        fila = ttk.Frame(t1)
+        fila.pack(anchor='w', pady=(4, 0))
+        ttk.Button(fila, text=f'⏱ Completar lo que falta ({mas} s)',
+                   command=lambda: self._asistente_tiempo(mas, completar=True)).pack(side='left')
+        ttk.Button(fila, text=f'⏱ Generar de nuevo ({mas} s)',
+                   command=lambda: self._asistente_tiempo(mas, completar=False)).pack(side='left', padx=6)
+        sug = self.p.sugerencias(alt)
+        self.sug_asistente = []
+        t2 = ttk.LabelFrame(cuerpo, text='2. Cambiar condiciones (marque las que acepta)', padding=8)
+        t2.pack(fill='x', pady=4)
+        if sug:
+            for k, s_ in enumerate(sug[:14]):
+                var = tk.BooleanVar(value=k < 3)
+                ttk.Checkbutton(t2, text=s_['texto'], variable=var).pack(anchor='w')
+                self.sug_asistente.append((s_, var))
+            if len(sug) > 14:
+                ttk.Label(t2, text=f'(hay {len(sug) - 14} sugerencias más; aplique estas y vuelva a revisar)',
+                          style='Ayuda.TLabel').pack(anchor='w')
+            fila = ttk.Frame(t2)
+            fila.pack(anchor='w', pady=(6, 0))
+            ttk.Button(fila, text='Aplicar las marcadas y completar lo que falta',
+                       command=lambda: self._asistente_aplicar(completar=True)).pack(side='left')
+            ttk.Button(fila, text='Aplicar y generar de nuevo',
+                       command=lambda: self._asistente_aplicar(completar=False)).pack(side='left', padx=6)
+            ttk.Label(t2, text='Los cambios quedan en Reglas y Docentes; los puede deshacer allá.',
+                      style='Ayuda.TLabel').pack(anchor='w', pady=(4, 0))
+        else:
+            ttk.Label(t2, text='No encontré una condición clara que aflojar. Pruebe con más tiempo o ubique a mano.',
+                      wraplength=640).pack(anchor='w')
+        t3 = ttk.LabelFrame(cuerpo, text='3. Consejos', padding=8)
+        t3.pack(fill='x', pady=4)
+        for t in self.p.CONSEJOS:
+            ttk.Label(t3, text='• ' + t, wraplength=640).pack(anchor='w')
+        abajo = ttk.Frame(cuerpo)
+        abajo.pack(fill='x', pady=(8, 0))
+        ttk.Button(abajo, text='✋ Ubicar a mano', command=self._asistente_a_mano).pack(side='left')
+        ttk.Button(abajo, text='Cerrar', command=w.destroy).pack(side='right')
+        return w
+
+    def _cerrar_asistente(self):
+        w = self.ventana_asistente
+        self.ventana_asistente = None
+        if w is not None:
+            try:
+                w.destroy()
+            except tk.TclError:
+                pass
+
+    def _asistente_tiempo(self, segundos, completar=True):
+        self._cerrar_asistente()
+        self.var_seg.set(segundos)
+        self._completar() if completar else self.generar()
+
+    def _asistente_aplicar(self, completar=True):
+        elegidas = [s_ for s_, var in self.sug_asistente if var.get()]
+        if not elegidas:
+            return messagebox.showinfo(TITULO, 'Marque al menos un cambio.')
+        for s_ in elegidas:
+            self.p.aplicar_sugerencia(s_)
+        self._cerrar_asistente()
+        self._refrescar_condiciones()
+        self.avisar(f'Se aplicaron {len(elegidas)} cambio(s): ' + '; '.join(s_['texto'] for s_ in elegidas)[:300])
+        if self.generando:
+            return
+        self._completar() if completar else self.generar()
+
+    def _asistente_a_mano(self):
+        self._cerrar_asistente()
+        v = self.vista_actual()
+        if v is not None and not v.var_paleta.get():
+            v.var_paleta.set(True)
+            v._mostrar_paleta()
+        self.avisar('Las clases que faltan están en las fichas de la izquierda: arrástrelas a la cuadrícula. '
+                    'Rojo = no se puede, amarillo = reemplazar, verde = libre.')
+
+    def _refrescar_condiciones(self):
+        """Vuelve a dibujar las pestañas 1 a 5 con las condiciones nuevas (la 6 queda igual)."""
+        tabs = list(self.nb.tabs() or [])
+        if len(tabs) < 6:
+            return
+        horario = tabs[5]
+        for t in tabs[:5]:
+            w = self.nb.nametowidget(t) if isinstance(t, str) else t
+            self.nb.forget(t)
+            w.destroy()
+        self.tab_datos()
+        self.tab_reglas()
+        self.tab_docentes()
+        self.tab_grupos()
+        self.tab_tareas()
+        self.nb.insert('end', horario)
+        self.nb.select(horario)
 
     def nombres_alternativas(self):
         out = []

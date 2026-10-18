@@ -69,3 +69,11 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 ## Versión 2.9
 
 - **Días largos según las horas extra**: un docente con horas extra puede tener tantos días largos (que pasan de su permanencia, o con la 1.ª y la última hora cuando esa regla está) como horas extra tenga. Con 2 horas extra, máximo 2 días; con 4, máximo 4. El generador prefiere que las extra queden dentro de la jornada normal (nueva prioridad en Reglas).
+
+## Versión 3.0
+
+- **¿Por qué faltan horas?** Si al generar o completar quedan clases sin ubicar, se abre un asistente con tres caminos:
+  1. **Más tiempo**: completar lo que falta o generar de nuevo con el doble de segundos.
+  2. **Cambiar condiciones**: sugerencias concretas para las clases que faltan y las que más costó ubicar (pasar «no puede» a «mejor no», subir la permanencia de un docente, quitar el día libre o el máximo de horas seguidas, dejar partir un bloque, volver «si se puede» la regla de la 1.ª y la última, ampliar un espacio, soltar una reunión fija…). Se marcan las que se aceptan y se aplican con un clic; quedan en Reglas y Docentes, donde se pueden deshacer.
+  3. **Consejos** generales y el botón **Ubicar a mano**, que abre las fichas.
+- El asistente también se abre con el botón **🩺 ¿Por qué faltan horas?** de la pestaña 6.

@@ -230,6 +230,24 @@ def prueba():
     app.cb_ver.current(1)
     app._opciones_ver()
     app.update()
+    # Asistente cuando faltan horas: más tiempo, cambiar condiciones, consejos
+    vacio = p.en_blanco()
+    app._llenar_alternativas()
+    assert vacio['horas_sin_ubicar'] > 0
+    w = app.asistente(vacio)
+    assert w is not None and app.sug_asistente, 'el asistente no sugirió nada'
+    for _, var in app.sug_asistente:
+        var.set(False)
+    app.sug_asistente[0][1].set(True)
+    app.generando = True                     # que no lance el generador en la prueba
+    app._asistente_aplicar()
+    app.generando = False
+    assert app.ventana_asistente is None and len(app.nb.tabs()) == 6, app.nb.tabs()
+    assert 'cambio' in app.estado.cget('text'), app.estado.cget('text')
+    app.asistente(vacio)
+    app._asistente_a_mano()
+    p.alternativas.remove(vacio)
+    app._llenar_alternativas()
     p.guardar(os.path.join(tmp, 'p.mchp'))
     Proyecto.abrir(os.path.join(tmp, 'p.mchp'))
     app.destroy()
