@@ -385,3 +385,32 @@ class IdeasDeGHC(SimpleTestCase):
         self.assertEqual({(s['dia'], s['franja']) for s in alt['sesiones']}, {(2, f[1])})
         p.quitar_ficha(alt, 0)
         self.assertEqual(alt['sesiones'], [])
+
+    def test_horas_extra_escogidas_y_permanencia_mayor(self):
+        D = datos(cursos_tarde=(3, 4))
+        cond = nucleo.condiciones_vacias()
+        self.assertEqual(nucleo.horas_extra({'asignaciones': {'13': {'extra': True}}}, 13, 5), 5)   # lo de antes
+        cond['asignaciones'] = {'13': {'extra_horas': 2}}
+        self.assertEqual(nucleo.horas_extra(cond, 13, 5), 2)
+        p = nucleo.armar(D, cond)
+        extra = sum(u['largo'] for u in p.unidades if u['asig'] == 13 and u['extra'])
+        self.assertEqual(extra, 2)
+        # El docente 3 con permanencia de 5 h + hasta 2 h más por sus horas extra
+        D = datos()
+        cond['docentes'] = {'3': {'permanencia': 5}}
+        cond['permanencia_extra'] = 2
+        p = nucleo.armar(D, cond)
+        self.assertEqual(p.permanencia_extra, {3: 120})
+        r = nucleo.generar(D, cond, segundos=4, semilla=2)
+        self.assertEqual(r['sin_ubicar'], [])
+        por = defaultdict(list)
+        for s in r['sesiones']:
+            if D.asignaciones[s['asignacion']]['docente'] == 3:
+                por[s['dia']].append(D.intervalo(s['franja']))
+        for tr in por.values():
+            self.assertLessEqual(max(b for _, b in tr) - min(a for a, _ in tr), 7 * 60)
+        # En la app: el resumen del docente separa las extra
+        pr = proyecto(D)
+        pr.cond['asignaciones'] = {'13': {'extra_horas': 2}}
+        base, ext, _ = pr.resumen_docente(3)
+        self.assertEqual(ext, 2)

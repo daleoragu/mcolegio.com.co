@@ -60,3 +60,8 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 
 - **Multigrado (Escuela Nueva)** (pestaña 4): grupos de cursos que ven clase juntos con el mismo docente y en la misma aula. La misma materia del mismo docente va a la misma hora para todo el grupo; al armar a mano, poner, mover o quitar una ficha hace lo mismo con los otros cursos del grupo. La plataforma lo entiende al importar (no lo cuenta como choque).
 - **Horario por días de ciclo**: si la jornada está «por días de ciclo» en la plataforma (Día 1… Día N, hasta 20), el generador trabaja con esos días. La plataforma lleva qué Día le toca a cada fecha y lo corre cuando no hay clase.
+
+## Versión 2.8
+
+- **Horas extra escogidas**: en la pestaña 1, doble clic en «Hora extra» y escriba cuántas de las horas de esa clase son extra (por ejemplo 2 de 5). Las extra no cuentan en la permanencia.
+- **Permanencia mayor con horas extra** (pestaña 2): con horas extra, el día del docente puede alargarse hasta N horas más de su permanencia (2 por defecto; 0 = sin límite). En la pestaña 3 se puede poner otro valor para un docente.

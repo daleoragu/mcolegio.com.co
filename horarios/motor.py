@@ -66,7 +66,7 @@ class Problema:
                  max_materia_dia=None, max_docente_dia=None, max_seguidas=None, primeras=None, dobles=None,
                  ultimas=None, permanencia=None, desplazamiento=0, espacios=None, pesos=None, evitar=None,
                  dia_libre=None, dias_docente=None, excluyentes=None, excluyente_duro=True, sin_excluyente=None,
-                 reuniones_doc=None, siguiente_bloque=None):
+                 reuniones_doc=None, siguiente_bloque=None, permanencia_extra=None):
         self.franjas = franjas
         self.siguiente = siguiente
         self.anterior = {b: a for a, b in siguiente.items()}
@@ -99,6 +99,8 @@ class Problema:
         # Reuniones de área ya ubicadas: {(docente, dia): [franja…]}. Cuentan dentro de la
         # permanencia y para la regla de la 1.ª y la 7.ª hora, como si fueran una clase fija.
         self.reuniones_doc = reuniones_doc or {}
+        # Con horas extra el día puede alargarse hasta permanencia + esto (minutos), contando todo
+        self.permanencia_extra = permanencia_extra or {}
         self.por_jornada = defaultdict(list)
         for fid, (jid, orden, ini, fin) in franjas.items():
             self.por_jornada[jid].append((orden, fid))
@@ -195,6 +197,13 @@ class Estado:
                 lst = [(a, b) for (a, b, uid, _) in self.docente[(doc, dia)]
                        if uid not in ign and uid not in estorban and not self.u[uid].get('extra')] + [(ini_u, fin_u)]
                 if max(b for _, b in lst) - min(a for a, _ in lst) > perm:
+                    return False, []
+            # Con horas extra: todo el día (clases + extra) cabe en la permanencia más lo permitido
+            mas = p.permanencia_extra.get(doc)
+            if perm and mas:
+                lst = [(a, b) for (a, b, uid, _) in self.docente[(doc, dia)]
+                       if uid not in ign and uid not in estorban] + [(ini_u, fin_u)]
+                if max(b for _, b in lst) - min(a for a, _ in lst) > perm + mas:
                     return False, []
             # Horas que no van el mismo día (si tiene la 7.ª no tiene la 1.ª)
             if p.excluyentes and p.excluyente_duro and doc not in p.sin_excluyente:

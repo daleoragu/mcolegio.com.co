@@ -177,10 +177,9 @@ class Proyecto:
         for a in self.datos.asignaciones.values():
             if a.get('docente') == did:
                 n = self.datos.ih(a['id'], self.cond)
-                if self.cond['asignaciones'].get(str(a['id']), {}).get('extra'):
-                    extra += n
-                else:
-                    base += n
+                k = nucleo.horas_extra(self.cond, a['id'], n)
+                extra += k
+                base += n - k
                 sedes.add(self.datos.sede_de_curso(a['curso']) or 'Principal')
         return base, extra, sorted(sedes)
 
@@ -369,14 +368,23 @@ class Proyecto:
                 for reu in (r, r.get('segunda') or {}):
                     if reu.get('dia') == dia and did in reu.get('asisten', []) and reu['inicio'] < fin and ini < reu['fin']:
                         return f'{D.nombre_docente(did)} tiene {r["nombre"]} a esa hora.'
-            extra = self.cond['asignaciones'].get(str(aid), {}).get('extra')
+            extra = self._es_extra(alt, aid, otras)
             perm = self.docente(did).get('permanencia')
             perm = float(perm) if perm not in (None, '') else float(self.cond.get('permanencia_horas') or 0)
             mias = [(D.intervalo(s['franja']), s) for s in otras
                     if s['dia'] == dia and D.asignaciones.get(s['asignacion'], {}).get('docente') == did]
             reus = nucleo.franjas_de_reuniones(D, alt.get('reuniones')).get((did, dia), [])
+            mas = self.docente(did).get('permanencia_extra')
+            mas = float(mas) if mas not in (None, '') else float(self.cond.get('permanencia_extra') or 0)
+            if perm and mas and any(nucleo.horas_extra(self.cond, x['id'], D.ih(x['id'], self.cond))
+                                    for x in D.asignaciones.values() if x.get('docente') == did):
+                todo = [t for t, s in mias] + [D.intervalo(x) for x in reus] + [(ini, fin)]
+                if max(b for _, b in todo) - min(x for x, _ in todo) > (perm + mas) * 60:
+                    return (f'Ni con las horas extra cabe: se pasa de {perm:g} + {mas:g} horas de '
+                            f'{D.nombre_docente(did)} ese día.')
             if perm and not extra:
-                tramos = [t for t, s in mias if not self.cond['asignaciones'].get(str(s['asignacion']), {}).get('extra')]
+                tramos = [t for t, s in mias if not (nucleo.horas_extra(self.cond, s['asignacion'], D.ih(s['asignacion'], self.cond))
+                                                     >= D.ih(s['asignacion'], self.cond) > 0)]
                 tramos += [D.intervalo(x) for x in reus]       # las reuniones de área van dentro de la permanencia
                 tramos.append((ini, fin))
                 if max(b for _, b in tramos) - min(x for x, _ in tramos) > perm * 60:
@@ -449,6 +457,19 @@ class Proyecto:
             return 'Uno de esos cursos ya está en otro grupo multigrado.'
         self.cond['multigrado'].append({'nombre': nombre or 'Multigrado', 'cursos': cursos})
         return None
+
+    def _es_extra(self, alt, aid, otras=None):
+        """¿La próxima hora de esa clase cuenta como extra? Las primeras horas puestas son de clase y
+        las últimas (hasta completar las horas extra escogidas) son extra."""
+        D = self.datos
+        ih = D.ih(aid, self.cond)
+        k = nucleo.horas_extra(self.cond, aid, ih)
+        if not k:
+            return False
+        if k >= ih:
+            return True
+        puestas = sum(1 for s in (otras if otras is not None else alt['sesiones']) if s['asignacion'] == aid)
+        return puestas >= ih - k
 
     def poner_ficha(self, alt, aid, dia, fid, fijar=True):
         m = self.motivo(alt, aid, dia, fid)
