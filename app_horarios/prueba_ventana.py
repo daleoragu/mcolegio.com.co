@@ -332,6 +332,37 @@ def prueba():
     app.generando = False
     assert r0['modo'] == 'fija' or app.propuestas_reu[1][0]['dia'] is None
     p.cond['reuniones'] = []
+    # Marcar varias fichas (Ctrl + clic) y soltarlas o fijarlas; soltar todo
+    vm = app.vista_actual()
+    alt_m = vm.alt()
+    app.marcar({'tipo': 'puesta', 'i': 0, 'vista': vm})
+    app.marcar({'tipo': 'puesta', 'i': 1, 'vista': vm})
+    assert app.marcadas == {0, 1}
+    app.fijar_marcadas(True)
+    assert alt_m['sesiones'][0]['fijada'] and alt_m['sesiones'][1]['fijada'] and not app.marcadas
+    app.soltar_todo()
+    assert not any(x.get('fijada') for x in alt_m['sesiones'])
+    app.deshacer()
+    assert alt_m['sesiones'][0]['fijada']
+    app.soltar_todo()
+    # PDF: uno por uno en un zip, y todo junto
+    import zipfile
+    g.filedialog.asksaveasfilename = lambda *a, **k: os.path.join(tmp, 'horarios.zip')
+    g.filedialog.askdirectory = lambda *a, **k: tmp
+    app._pdf_zip()
+    nombres = zipfile.ZipFile(os.path.join(tmp, 'horarios.zip')).namelist()
+    assert any(x.startswith('Cursos/') for x in nombres) and any(x.startswith('Docentes/') for x in nombres), nombres
+    app._pdf_todo()
+    assert [x for x in os.listdir(tmp) if x.startswith('Horarios de cursos')], os.listdir(tmp)
+    # Reuniones todas a la misma hora
+    p.cond['reuniones'] = []
+    p.reuniones_por_area()
+    p.cond['reuniones_juntas'] = True
+    app._llenar_grupos()
+    horas_reu = {(r.get('dia'), r.get('inicio')) for r in p.ver_reuniones() if r.get('ubicada')}
+    assert len(horas_reu) <= 1, horas_reu
+    p.cond['reuniones'] = []
+    p.cond['reuniones_juntas'] = False
     # Docentes que viven fuera: se pregunta una vez (y lleva a la pestaña 3 para marcarlos)
     p.cond['compensar'] = {'activa': True, 'max': 1}
     p.cond.pop('preguntado_viajan', None)

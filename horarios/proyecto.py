@@ -247,27 +247,56 @@ class Proyecto:
             if did and s['franja'] in D.franjas:
                 por_doc[(did, s['dia'])].append((D.intervalo(s['franja']), k, bool(s.get('fijada'))))
         tomadas = defaultdict(list)          # reuniones ya escogidas: (did, dia) -> [(ini, fin)]
-        salida = []
-        for i, r in enumerate(self.cond.get('reuniones', [])):
-            miembros = [int(x) for x in r.get('docentes', []) if int(x) in D.docentes]
+        horas = nucleo._horas_de_clase(D)
+
+        def miembros_de(r):
+            ms = [int(x) for x in r.get('docentes', []) if int(x) in D.docentes]
             jefe = int(r['jefe']) if r.get('jefe') else None
-            if jefe and jefe not in miembros:
-                miembros.append(jefe)
+            if jefe and jefe not in ms:
+                ms.append(jefe)
+            return ms, jefe
+
+        def evaluar(miembros, dia, ini, fin):
+            libres, mover, no = [], {}, []
+            for did in miembros:
+                if nucleo._puede_reunirse(D, did, dia, ini, fin, no_puede) is None or any(
+                        a < fin and ini < b for a, b in tomadas[(did, dia)]):
+                    no.append(did)
+                    continue
+                choca = [(k, fija) for (a, b), k, fija in por_doc[(did, dia)] if a < fin and ini < b]
+                if not choca:
+                    libres.append(did)
+                elif any(f for _, f in choca):
+                    no.append(did)
+                else:
+                    mover[did] = [k for k, _ in choca]
+            return libres, mover, no
+
+        reus = self.cond.get('reuniones', [])
+        comun = None
+        if self.cond.get('reuniones_juntas') and reus:
+            # Todas juntas: la hora donde vengan más (los jefes siempre), moviendo lo menos posible
+            mejor_p = None
+            for (dia, ini, fin, _) in horas:
+                total, libres_t, ok = 0, 0, True
+                for r in reus:
+                    ms, jefe = miembros_de(r)
+                    libres, mover, no = evaluar(ms, dia, ini, fin)
+                    if jefe and jefe in no:
+                        ok = False
+                        break
+                    total += len(libres) + len(mover)
+                    libres_t += len(libres)
+                if ok and (mejor_p is None or (total, libres_t, ini) > mejor_p):
+                    comun, mejor_p = (dia, ini), (total, libres_t, ini)
+        salida = []
+        for i, r in enumerate(reus):
+            miembros, jefe = miembros_de(r)
             mejor, puntos = None, None
-            for (dia, ini, fin, _) in nucleo._horas_de_clase(D):
-                libres, mover, no = [], {}, []
-                for did in miembros:
-                    if nucleo._puede_reunirse(D, did, dia, ini, fin, no_puede) is None or any(
-                            a < fin and ini < b for a, b in tomadas[(did, dia)]):
-                        no.append(did)
-                        continue
-                    choca = [(k, fija) for (a, b), k, fija in por_doc[(did, dia)] if a < fin and ini < b]
-                    if not choca:
-                        libres.append(did)
-                    elif any(f for _, f in choca):
-                        no.append(did)
-                    else:
-                        mover[did] = [k for k, _ in choca]
+            for (dia, ini, fin, _) in horas:
+                if comun and (dia, ini) != comun:
+                    continue
+                libres, mover, no = evaluar(miembros, dia, ini, fin)
                 if jefe and jefe in no:
                     continue
                 pts = ((len(libres) + len(mover)) * 10000, len(libres) * 100, ini)
@@ -448,6 +477,10 @@ class Proyecto:
         r = self._correr(cond, segundos, int(time.time()),
                          (lambda p: avance(p, 'Completando…')) if avance else None,
                          (lambda ses: vivo(ses, 'Completando')) if vivo else None, parar)
+        # Las que ya estaban se respetaron, pero solo quedan fijadas 🔒 las que el usuario había fijado
+        candado = {(s['asignacion'], s['dia'], s['franja']) for s in alt['sesiones'] if s.get('fijada')}
+        for s in r['sesiones']:
+            s['fijada'] = (s['asignacion'], s['dia'], s['franja']) in candado
         r['nombre'] = f"{alt.get('nombre', 'Horario')} (completado)"
         self.alternativas.insert(0, r)
         if avance:
@@ -466,6 +499,17 @@ class Proyecto:
         alt['sin_ubicar'] = [{'asignacion': a['id'], 'horas': n} for a, n in faltan]
         alt['horas_sin_ubicar'] = sum(n for _, n in faltan)
         return alt
+
+    def fijar_varias(self, alt, indices=None, fijar=False):
+        """Suelta (o fija) varias fichas a la vez; indices=None = todas. Devuelve cuántas cambiaron."""
+        n = 0
+        for k, s in enumerate(alt['sesiones']):
+            if indices is not None and k not in indices:
+                continue
+            if bool(s.get('fijada')) != fijar:
+                s['fijada'] = fijar
+                n += 1
+        return n
 
     def en_blanco(self):
         alt = {'nombre': f'Horario a mano {sum(1 for a in self.alternativas if a.get("manual")) + 1}', 'manual': True,

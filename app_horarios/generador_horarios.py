@@ -21,10 +21,10 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(AQUI))
 
-from horarios import nucleo                     # noqa: E402
+from horarios import impresion, nucleo         # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '3.3'
+VERSION = '3.4'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -575,8 +575,13 @@ class App(tk.Tk):
         izq.pack(side='left', fill='y')
         ttk.Label(izq, text='Docentes y, al final, cursos y áreas').pack(anchor='w')
         self.filtro_doc = self._filtros(izq, ('grado', 'area', 'materia', 'docente'), lambda: self._llenar_lista_docentes())
-        self.lb_doc = tk.Listbox(izq, width=34, exportselection=False)
-        self.lb_doc.pack(fill='y', expand=True)
+        marco_lb = ttk.Frame(izq)
+        marco_lb.pack(fill='both', expand=True, anchor='w', pady=(4, 0))
+        self.lb_doc = tk.Listbox(marco_lb, width=48, exportselection=False)
+        sb_lb = ttk.Scrollbar(marco_lb, orient='vertical', command=self.lb_doc.yview)
+        self.lb_doc.configure(yscrollcommand=sb_lb.set)
+        sb_lb.pack(side='right', fill='y')
+        self.lb_doc.pack(side='left', fill='both', expand=True)
         self.lb_doc.bind('<<ListboxSelect>>', lambda e: self._ver_docente())
         self._llenar_lista_docentes()
         disp = self.p.disponibilidad_plataforma()
@@ -779,6 +784,13 @@ class App(tk.Tk):
         reu = ttk.LabelFrame(f, text='Reuniones de área: se busca una hora en que puedan todos (o la mayoría); '
                                      'si no, una segunda reunión con el jefe de área', padding=6)
         reu.pack(fill='both', expand=True)
+        var_juntas = tk.BooleanVar(value=bool(self.p.cond.get('reuniones_juntas')))
+
+        def cambio_juntas():
+            self.p.cond['reuniones_juntas'] = var_juntas.get()
+            self._llenar_grupos()
+        ttk.Checkbutton(reu, text='Todas las reuniones de área el mismo día y a la misma hora (ej.: la última hora del '
+                                  'martes para todos)', variable=var_juntas, command=cambio_juntas).pack(anchor='w')
         marco, self.tv_reu = self._tabla(reu, [('nombre', 'Reunión', 200), ('docentes', 'Docentes', 70),
                                                ('jefe', 'Jefe de área', 180), ('hora', 'Hora', 360)], 7)
         marco.pack(fill='both', expand=True)
@@ -1197,6 +1209,8 @@ class App(tk.Tk):
         dos.pack(fill='x', pady=(4, 0))
         ttk.Button(dos, text='💾 Guardar para la plataforma (.mchr)', command=self._exportar).pack(side='left')
         ttk.Button(dos, text='Exportar a Excel', command=self._excel).pack(side='left', padx=3)
+        ttk.Button(dos, text='📄 PDF uno por uno (.zip)', command=self._pdf_zip).pack(side='left')
+        ttk.Button(dos, text='📄 PDF todo junto', command=self._pdf_todo).pack(side='left', padx=3)
         ttk.Button(dos, text='Renombrar', command=self._renombrar_alt).pack(side='left')
         ttk.Button(dos, text='Quitar este horario', command=self._quitar_alt).pack(side='left', padx=3)
         ttk.Separator(dos, orient='vertical').pack(side='left', fill='y', padx=6)
@@ -1209,14 +1223,19 @@ class App(tk.Tk):
         ttk.Button(dos, text='↶ Deshacer', command=self.deshacer).pack(side='left', padx=3)
         self.var_fijar = tk.BooleanVar(value=False)
         ttk.Checkbutton(dos, text='Fijar 🔒 lo que ubico a mano', variable=self.var_fijar).pack(side='left', padx=6)
+        self.btn_soltar = ttk.Button(dos, text='🔓 Soltar marcadas', command=lambda: self.fijar_marcadas(False))
+        self.btn_soltar.pack(side='left', padx=(6, 0))
+        ttk.Button(dos, text='🔒 Fijar marcadas', command=lambda: self.fijar_marcadas(True)).pack(side='left', padx=2)
+        ttk.Button(dos, text='🔓 Soltar todo', command=self.soltar_todo).pack(side='left')
         self.btn_avisos = ttk.Button(dos, text='⚠ Avisos', command=self._alternar_avisos)
         self.btn_avisos.pack(side='left', padx=3)
         ttk.Button(dos, text='🩺 ¿Por qué faltan horas?', command=self.asistente).pack(side='left', padx=3)
         tk.Label(dos, text=' no se puede ', bg=ROJO_SEL).pack(side='right', padx=1)
         tk.Label(dos, text=' ocupada: reemplazar ', bg=AMARILLO_SEL).pack(side='right', padx=1)
         tk.Label(dos, text=' libre ', bg=VERDE_SEL).pack(side='right', padx=1)
-        ttk.Label(f, text='Toque una ficha para ver dónde cabe; arrástrela o toque una casilla vacía. Cada pestaña puede '
-                          'mostrar otro horario para compararlos. Clic derecho: fijar o quitar. Esc: soltar la selección.',
+        ttk.Label(f, text='Toque una ficha para ver dónde cabe; arrástrela o toque una casilla vacía. Ctrl + clic: marcar '
+                          'varias fichas (para soltarlas o fijarlas juntas). Clic derecho: fijar o quitar. Esc: soltar la '
+                          'selección.',
                   style='Ayuda.TLabel').pack(anchor='w', pady=(2, 0))
         self.marco_avisos = ttk.Frame(f)
         self.txt_avisos = tk.Text(self.marco_avisos, wrap='word', height=8, relief='flat', background=GRIS,
@@ -1237,6 +1256,8 @@ class App(tk.Tk):
         self._vivo_pendiente = None
         self._vivo_dibujado = 0.0
         self._historial = []            # para «Deshacer»
+        self.marcadas = set()           # fichas marcadas con Ctrl + clic (índices en el horario _marcadas_alt)
+        self._marcadas_alt = None
         self.bind('<Control-z>', self._tecla_deshacer)
         self.bind('<Control-Z>', self._tecla_deshacer)
         self.bind_all('<Control-MouseWheel>', self._zoom_rueda)
@@ -1428,12 +1449,99 @@ class App(tk.Tk):
         if alt and not alt.get('vivo'):
             self._historial.append((alt, copy.deepcopy(alt['sesiones'])))
             del self._historial[:-40]
+        self.marcadas = set()           # los índices cambian con el cambio
+        self._marcadas_alt = None
 
     def _tecla_deshacer(self, e):
         if e.widget.winfo_class() in ('Entry', 'TEntry', 'TSpinbox', 'Spinbox', 'Text', 'TCombobox'):
             return None                 # en una casilla de texto, Ctrl+Z es de la casilla
         self.deshacer()
         return 'break'
+
+    # --- Marcar varias fichas (Ctrl + clic) y soltarlas o fijarlas juntas -----------------
+    def marcar(self, datos):
+        self._arr = None
+        v = self._vista_de(datos)
+        alt = v.alt()
+        if not alt or alt.get('vivo'):
+            return 'break'
+        if alt is not self._marcadas_alt:
+            self.marcadas, self._marcadas_alt = set(), alt
+        i = datos['i']
+        self.marcadas.symmetric_difference_update({i})
+        self.btn_soltar.configure(text=f'🔓 Soltar marcadas ({len(self.marcadas)})' if self.marcadas
+                                  else '🔓 Soltar marcadas')
+        self.avisar(f'{len(self.marcadas)} ficha(s) marcada(s). Use «Soltar marcadas» o «Fijar marcadas».')
+        for vv in self.vistas:
+            if vv.alt() is alt:
+                vv.dibujar()
+        return 'break'
+
+    def fijar_marcadas(self, fijar):
+        if self._esperar():
+            return
+        alt = self._marcadas_alt
+        if not alt or not self.marcadas or alt not in self.p.alternativas:
+            return self.avisar('Primero marque fichas con Ctrl + clic.', error=True)
+        marcadas = set(self.marcadas)
+        self._paso(alt)
+        n = self.p.fijar_varias(alt, marcadas, fijar)
+        self.btn_soltar.configure(text='🔓 Soltar marcadas')
+        self._ver()
+        self.avisar(f'{n} ficha(s) {"fijada(s) 🔒" if fijar else "soltada(s) 🔓: el generador ya las puede mover"}.')
+
+    def soltar_todo(self):
+        if self._esperar():
+            return
+        alt = self._alt()
+        if not alt:
+            return
+        n = sum(1 for s in alt['sesiones'] if s.get('fijada'))
+        if not n:
+            return self.avisar('Este horario no tiene fichas fijadas.')
+        if not messagebox.askyesno(TITULO, f'¿Soltar las {n} fichas fijadas 🔒 de «{alt.get("nombre", "Horario")}»? '
+                                           'Siguen en su lugar, pero el generador ya las puede mover.'):
+            return
+        self._paso(alt)
+        self.p.fijar_varias(alt, None, False)
+        self._ver()
+        self.avisar(f'{n} ficha(s) soltada(s) 🔓.')
+
+    # --- PDF ---------------------------------------------------------------------
+    def _pdf_zip(self):
+        if self._esperar():
+            return
+        alt = self._alt()
+        if not alt:
+            return messagebox.showinfo(TITULO, 'Escoja un horario.')
+        nombre = impresion.nombre_archivo(f'Horarios {alt.get("nombre", "")}')
+        ruta = filedialog.asksaveasfilename(title='PDF de cada curso y cada docente', defaultextension='.zip',
+                                            filetypes=[('Archivo zip', '*.zip')], initialfile=f'{nombre}.zip')
+        if not ruta:
+            return
+        try:
+            n = impresion.zip_individuales(self.p, alt, ruta)
+            self.avisar(f'Listo: {n} PDF en el zip (carpetas Cursos y Docentes).')
+        except Exception as e:
+            messagebox.showerror(TITULO, f'No se pudieron hacer los PDF: {e}')
+
+    def _pdf_todo(self):
+        if self._esperar():
+            return
+        alt = self._alt()
+        if not alt:
+            return messagebox.showinfo(TITULO, 'Escoja un horario.')
+        carpeta = filedialog.askdirectory(title='Carpeta donde guardar los dos PDF (cursos y docentes)')
+        if not carpeta:
+            return
+        base = impresion.nombre_archivo(alt.get('nombre', 'Horario'))
+        rc = os.path.join(carpeta, f'Horarios de cursos - {base}.pdf')
+        rd = os.path.join(carpeta, f'Horarios de docentes - {base}.pdf')
+        try:
+            nc, nd = impresion.todo_junto(self.p, alt, rc, rd)
+            self.avisar(f'Listo: «{os.path.basename(rc)}» ({nc} cursos) y «{os.path.basename(rd)}» ({nd} docentes).')
+        except Exception as e:
+            messagebox.showerror(TITULO, f'No se pudieron hacer los PDF: {e}')
 
     def deshacer(self):
         if self._esperar():
@@ -1850,6 +1958,10 @@ class App(tk.Tk):
             lbl.bind('<ButtonRelease-1>', self._soltar_evento)
             if datos['tipo'] == 'puesta':
                 lbl.bind('<Button-3>', lambda e: self._menu_ficha(e, datos['i'], datos.get('vista')))
+                lbl.bind('<Control-Button-1>', lambda e: self.marcar(datos))
+                v = datos.get('vista')
+                if v is not None and v.alt() is self._marcadas_alt and datos['i'] in self.marcadas:
+                    lbl.configure(relief='solid', bd=3, highlightthickness=2, highlightbackground='#1d4ed8')
         return lbl
 
     def _tomar(self, e, datos, texto, color):

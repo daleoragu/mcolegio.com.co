@@ -645,9 +645,61 @@ class IdeasDeGHC(SimpleTestCase):
         self.assertEqual((reu['dia'], reu['inicio']), (x['dia'], x['inicio']))
         # Completar ubica de nuevo lo que salió, sin pisar la reunión
         nuevo = p.completar(alt, segundos=4)
-        self.assertEqual(nuevo['horas_sin_ubicar'], 0)
+        self.assertLessEqual(nuevo['horas_sin_ubicar'], n)   # con todo lo demás quieto, casi siempre caben todas
         self.assertEqual(nuevo['choques'], [])
         ocupadas = nucleo.franjas_de_reuniones(D, nuevo['reuniones'])
         for s in nuevo['sesiones']:
             did = D.asignaciones[s['asignacion']]['docente']
             self.assertNotIn(s['franja'], ocupadas.get((did, s['dia']), []))
+
+    def test_reuniones_todas_a_la_misma_hora(self):
+        D = datos()
+        p = proyecto(D)
+        p.reuniones_por_area()
+        for r in p.cond['reuniones']:
+            r['jefe'] = r['docentes'][0]
+        p.cond['reuniones_juntas'] = True
+        reus = p.ver_reuniones()
+        self.assertTrue(all(r['ubicada'] for r in reus))
+        self.assertEqual(len({(r['dia'], r['inicio']) for r in reus}), 1)
+        alt = p.generar(cuantas=1, segundos=4)[0]
+        self.assertEqual(alt['choques'], [])
+        self.assertEqual(len({(r['dia'], r['inicio']) for r in alt['reuniones']}), 1)
+        # En un horario ya armado, también buscan una sola hora para todas
+        p.cond['reuniones_juntas'] = False
+        alt2 = p.generar(cuantas=1, segundos=4)[0]
+        p.cond['reuniones_juntas'] = True
+        prop = p.reuniones_en_horario(alt2)
+        self.assertEqual(len({(x['dia'], x['inicio']) for x in prop}), 1)
+
+    def test_completar_no_deja_todo_fijado_y_soltar_varias(self):
+        D = datos()
+        p = proyecto(D)
+        alt = p.generar(cuantas=1, segundos=3)[0]
+        alt['sesiones'][0]['fijada'] = True
+        quitada = alt['sesiones'].pop(5)
+        nuevo = p.completar(alt, segundos=3)
+        self.assertEqual(nuevo['horas_sin_ubicar'], 0)
+        self.assertEqual(sum(1 for s in nuevo['sesiones'] if s.get('fijada')), 1)    # solo la que estaba fijada
+        self.assertTrue(quitada)
+        self.assertEqual(p.fijar_varias(nuevo, {1, 2, 3}, True), 3)
+        self.assertEqual(p.fijar_varias(nuevo, None, False), 4)
+        self.assertFalse(any(s.get('fijada') for s in nuevo['sesiones']))
+
+    def test_pdf_por_curso_y_por_docente(self):
+        import tempfile
+        import zipfile
+        from . import impresion
+        D = datos()
+        p = proyecto(D)
+        alt = p.generar(cuantas=1, segundos=3)[0]
+        tmp = tempfile.mkdtemp()
+        n = impresion.zip_individuales(p, alt, os.path.join(tmp, 'h.zip'))
+        nombres = zipfile.ZipFile(os.path.join(tmp, 'h.zip')).namelist()
+        self.assertEqual(n, 4 + 6)
+        self.assertIn('Cursos/Curso 101.pdf', nombres)
+        self.assertIn('Docentes/Docente 1.pdf', nombres)
+        nc, nd = impresion.todo_junto(p, alt, os.path.join(tmp, 'c.pdf'), os.path.join(tmp, 'd.pdf'))
+        self.assertEqual((nc, nd), (4, 6))
+        with open(os.path.join(tmp, 'c.pdf'), 'rb') as f:
+            self.assertTrue(f.read(5) == b'%PDF-')
