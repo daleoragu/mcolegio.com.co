@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import impresion, nucleo         # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '3.4.1'
+VERSION = '3.5'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -801,6 +801,7 @@ class App(tk.Tk):
         ttk.Button(bot, text='Editar', command=self._editar_reunion_sel).pack(side='left')
         ttk.Button(bot, text='Quitar', command=self._quitar_reunion).pack(side='left', padx=4)
         ttk.Button(bot, text='Jefes de área', command=self._jefes_area).pack(side='left')
+        ttk.Button(bot, text='👥 Reunión de cada docente', command=self._reunion_de_cada).pack(side='left', padx=4)
         ttk.Button(bot, text='🔎 Buscar horas', command=self._llenar_grupos).pack(side='left', padx=4)
         ttk.Button(bot, text='🤝 Buscar hora en el horario armado', command=self.reuniones_horario).pack(side='left')
         sim = ttk.LabelFrame(f, text='Clases simultáneas: van a la misma hora (inglés por niveles, media técnica, '
@@ -891,6 +892,56 @@ class App(tk.Tk):
         if n:
             self._jefes_area()
 
+    def _reunion_de_cada(self):
+        """Una fila por docente: a qué reunión de área va (una sola). Por defecto, la de su área principal."""
+        D = self.p.datos
+        reus = self.p.cond.get('reuniones', [])
+        if not reus:
+            return messagebox.showinfo(TITULO, 'Primero cree las reuniones (por ejemplo, «Crear una por área»).')
+        self.p.ordenar_reuniones()
+        v = tk.Toplevel(self)
+        v.title('Reunión de cada docente')
+        v.transient(self)
+        v.geometry('820x620')
+        ttk.Label(v, text='Cada docente va a una sola reunión de área. Escoja «(ninguna)» si no participa; los que no '
+                          'puedan asistir reciben el acta.', style='Ayuda.TLabel', wraplength=780, padding=(10, 8)).pack(
+            anchor='w')
+        marco = ttk.Frame(v)
+        marco.pack(fill='both', expand=True, padx=10)
+        lienzo = tk.Canvas(marco, highlightthickness=0)
+        sb = ttk.Scrollbar(marco, orient='vertical', command=lienzo.yview)
+        lienzo.configure(yscrollcommand=sb.set)
+        sb.pack(side='right', fill='y')
+        lienzo.pack(side='left', fill='both', expand=True)
+        filas = ttk.Frame(lienzo)
+        lienzo.create_window((0, 0), window=filas, anchor='nw')
+        filas.bind('<Configure>', lambda e: lienzo.configure(scrollregion=lienzo.bbox('all')))
+        nombres = ['(ninguna)'] + [r.get('nombre') or f'Reunión {k + 1}' for k, r in enumerate(reus)]
+        con_clase = {a.get('docente') for a in D.asignaciones.values() if a.get('docente')}
+        self.cb_reunion_doc = []
+        for k, d in enumerate(sorted((x for x in D.docentes.values() if x['id'] in con_clase), key=lambda x: x['nombre'])):
+            ttk.Label(filas, text=d['nombre'], width=36).grid(row=k, column=0, sticky='w', pady=1)
+            cb = ttk.Combobox(filas, state='readonly', width=34, values=nombres)
+            j = self.p.reunion_de(d['id'])
+            cb.current(0 if j is None else j + 1)
+            cb.grid(row=k, column=1, sticky='w', padx=4)
+            areas = self.p.areas_de_docente(d['id'])
+            principal = self.p.area_principal(d['id'])
+            ttk.Label(filas, text=', '.join(('★ ' if a == principal else '') + a for a in areas)[:70],
+                      style='Ayuda.TLabel').grid(row=k, column=2, sticky='w')
+            self.cb_reunion_doc.append((d['id'], cb))
+
+        def guardar():
+            for did, cb in self.cb_reunion_doc:
+                k = cb.current()
+                self.p.poner_en_reunion(did, None if k <= 0 else k - 1)
+            v.destroy()
+            self._llenar_grupos()
+            self.avisar('Listo: cada docente quedó en una sola reunión de área.')
+        self.guardar_reunion_doc = guardar
+        ttk.Button(v, text='Guardar', command=guardar).pack(anchor='e', padx=10, pady=8)
+        return v
+
     def _jefes_area(self):
         """Una ventana con cada reunión y una lista para escoger su jefe de área (entre sus docentes)."""
         D = self.p.datos
@@ -980,7 +1031,7 @@ class App(tk.Tk):
     def _editar_reunion(self, i):
         D = self.p.datos
         r = self.p.cond['reuniones'][i] if i is not None else {'nombre': 'Reunión de área', 'docentes': [], 'jefe': None,
-                                                               'modo': 'auto', 'dos': True}
+                                                               'modo': 'auto', 'dos': False}
         v = tk.Toplevel(self)
         v.title('Reunión de área')
         v.transient(self)
@@ -992,11 +1043,19 @@ class App(tk.Tk):
         e_nom.insert(0, r.get('nombre') or '')
         e_nom.grid(row=0, column=1, sticky='w')
         docs = sorted(D.docentes.values(), key=lambda d: d['nombre'])
-        ttk.Label(cuerpo, text='Docentes (Ctrl + clic para escoger varios)').grid(row=1, column=0, columnspan=2, sticky='w', pady=(8, 2))
-        lb = tk.Listbox(cuerpo, selectmode='extended', height=12, width=50, exportselection=False)
+        ttk.Label(cuerpo, text='Participantes (clic para marcar o desmarcar). Cada docente va a una sola reunión: si '
+                               'marca a uno que está en otra, pasa a esta.', wraplength=420).grid(
+            row=1, column=0, columnspan=2, sticky='w', pady=(8, 2))
+        lb = tk.Listbox(cuerpo, selectmode='multiple', height=14, width=60, exportselection=False)
+        reus = self.p.cond.get('reuniones', [])
         for k, d in enumerate(docs):
-            lb.insert('end', d['nombre'])
-            if d['id'] in r.get('docentes', []):
+            j = self.p.reunion_de(d['id'])
+            otra = f'   (está en {reus[j].get("nombre")})' if j is not None and j != i else ''
+            areas = ', '.join(self.p.areas_de_docente(d['id']))
+            lb.insert('end', d['nombre'] + (f' · {areas}' if areas else '') + otra)
+            if otra:
+                lb.itemconfig('end', foreground='#92400e')
+            if d['id'] in [int(x) for x in r.get('docentes', [])]:
                 lb.selection_set(k)
         lb.grid(row=2, column=0, columnspan=2, sticky='we')
         ttk.Label(cuerpo, text='Jefe de área').grid(row=3, column=0, sticky='w', pady=(8, 0))
@@ -1004,7 +1063,8 @@ class App(tk.Tk):
         cb_jefe.current(next((k + 1 for k, d in enumerate(docs) if d['id'] == r.get('jefe')), 0))
         cb_jefe.grid(row=3, column=1, sticky='w', pady=(8, 0))
         var_dos = tk.BooleanVar(value=r.get('dos', True))
-        ttk.Checkbutton(cuerpo, text='Si no pueden todos, hacer una segunda reunión con el jefe', variable=var_dos).grid(
+        ttk.Checkbutton(cuerpo, text='Si no pueden todos, hacer una segunda reunión con el jefe (si no, los que no '
+                                     'pueden reciben el acta)', variable=var_dos).grid(
             row=4, column=0, columnspan=2, sticky='w', pady=4)
         var_fija = tk.BooleanVar(value=r.get('modo') == 'fija')
         ttk.Checkbutton(cuerpo, text='Poner yo el día y la hora:', variable=var_fija).grid(row=5, column=0, sticky='w')
@@ -1024,7 +1084,8 @@ class App(tk.Tk):
 
         def aceptar():
             r['nombre'] = e_nom.get().strip() or 'Reunión de área'
-            r['docentes'] = [docs[k]['id'] for k in lb.curselection()]
+            elegidos = [docs[k]['id'] for k in lb.curselection()]
+            r['docentes'] = list(elegidos)
             r['jefe'] = docs[cb_jefe.current() - 1]['id'] if cb_jefe.current() > 0 else None
             r['dos'] = var_dos.get()
             r['modo'] = 'fija' if var_fija.get() else 'auto'
@@ -1032,6 +1093,9 @@ class App(tk.Tk):
             r['hora'] = cb_hora.get()
             if i is None:
                 self.p.cond['reuniones'].append(r)
+            idx = self.p.cond['reuniones'].index(r)
+            for did in elegidos:                     # cada docente, en una sola reunión
+                self.p.poner_en_reunion(did, idx)
             v.destroy()
             self._llenar_grupos()
         ttk.Button(cuerpo, text='Guardar', command=aceptar).grid(row=6, column=1, sticky='e', pady=10)
