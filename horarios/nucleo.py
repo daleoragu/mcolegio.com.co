@@ -117,6 +117,7 @@ CRITERIOS = [
     ('excluyente', 'Evitar que un docente tenga la primera y la última hora el mismo día (si es preferencia)'),
     ('bloque', 'Que las horas de una materia el mismo día queden seguidas (bloques)'),
     ('dia_largo', 'Que las horas extra queden dentro de la jornada normal (pocos días largos)'),
+    ('viaja', 'Docentes que viajan: compensar entrando tarde el lunes o saliendo temprano el viernes'),
 ]
 
 
@@ -780,8 +781,9 @@ def armar(datos, cond):
         for did in permanencia:
             if did not in con_extra:
                 compensar[did] = tope_comp
+    viajan = {int(did) for did, r in cond.get('docentes', {}).items() if r.get('viaja') and int(did) in D.docentes}
     dias_de_docente = {did: sorted({d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']})
-                       for did in compensar}
+                       for did in set(compensar) | viajan}
     reuniones, no_puede = ubicar_reuniones(D, cond, no_puede)
     reuniones_doc = franjas_de_reuniones(D, reuniones)
     dias_docente = {did: {d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']} for did in dia_libre}
@@ -812,7 +814,7 @@ def armar(datos, cond):
                  excluyente_duro=bool(regla_excluyente(cond) and regla_excluyente(cond)[2]),
                  sin_excluyente=sin_excluyente, reuniones_doc=reuniones_doc, siguiente_bloque=sig_bloque,
                  permanencia_extra=permanencia_extra, dias_largos_max=dias_largos_max,
-                 compensar=compensar, dias_de_docente=dias_de_docente)
+                 compensar=compensar, dias_de_docente=dias_de_docente, viajan=viajan)
     p.reuniones = reuniones
     return p
 

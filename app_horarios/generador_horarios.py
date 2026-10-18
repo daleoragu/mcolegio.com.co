@@ -587,7 +587,8 @@ class App(tk.Tk):
         disp = self.p.disponibilidad_plataforma()
         self.lb_doc.delete(0, 'end')
         for d in self.docs:
-            self.lb_doc.insert('end', d['nombre'] + ('  ✉' if d['id'] in disp else ''))
+            self.lb_doc.insert('end', d['nombre'] + ('  ✉' if d['id'] in disp else '')
+                               + ('  🚌' if self.p.docente(d['id']).get('viaja') else ''))
         for c in self.cursos_l:
             self.lb_doc.insert('end', f'Curso {c["nombre"]}')
             self.lb_doc.itemconfig('end', foreground='#3730a3')
@@ -653,6 +654,10 @@ class App(tk.Tk):
             self._numero(abajo, f'Tiene {extra} hora(s) extra (hasta {extra} día(s) largo(s)): su día puede alargarse '
                                 f'hasta (horas más; 0 = la regla general):',
                          r.get('permanencia_extra') or 0, 0, 6, guardar('permanencia_extra'), 0.5).pack(anchor='w', pady=2)
+        var_viaja = tk.BooleanVar(value=bool(r.get('viaja')))
+        ttk.Checkbutton(abajo, text='🚌 No vive en el municipio (viaja): si le tocan días largos, compensar entrando tarde '
+                                    'el lunes o saliendo temprano el viernes', variable=var_viaja,
+                        command=lambda: r.__setitem__('viaja', var_viaja.get())).pack(anchor='w', pady=(4, 0))
         var_libre = tk.BooleanVar(value=bool(r.get('dia_libre')))
         ttk.Checkbutton(abajo, text='Pide un día sin clases a la semana (si se puede)', variable=var_libre,
                         command=lambda: r.__setitem__('dia_libre', var_libre.get())).pack(anchor='w', pady=(4, 0))
@@ -1115,6 +1120,8 @@ class App(tk.Tk):
                                                '\n\nAsí pueden quedar clases sin ubicar. ¿Generar de todas formas?'):
             return
         self._preguntar_descanso()
+        if self._preguntar_viajan():
+            return
         base = self._alt()
         fijadas = sum(1 for s in (base or {}).get('sesiones', []) if s.get('fijada'))
         if fijadas and not messagebox.askyesno(TITULO, f'Se van a respetar las {fijadas} fichas fijadas (🔒) del '
@@ -1122,6 +1129,26 @@ class App(tk.Tk):
             base = None
         n, seg = max(1, min(3, int(self.var_alt.get()))), max(5, int(self.var_seg.get()))   # se leen aquí, no en el hilo
         self._lanzar(lambda av, vv, pa: self.p.generar(n, seg, av, base=base if fijadas else None, vivo=vv, parar=pa))
+
+    def _preguntar_viajan(self):
+        """La primera vez que se genera con días largos, pregunta por los docentes que viven fuera.
+        Devuelve True si el usuario quiere marcarlos antes de generar."""
+        c = self.p.cond
+        hay_largos = (c.get('compensar') or {}).get('activa') or any(
+            nucleo.horas_extra(c, a['id'], self.p.datos.ih(a['id'], c)) for a in self.p.datos.asignaciones.values())
+        if c.get('preguntado_viajan') or not hay_largos:
+            return False
+        c['preguntado_viajan'] = True
+        if any(r.get('viaja') for r in c.get('docentes', {}).values()):
+            return False
+        if messagebox.askyesno(TITULO, '¿Hay docentes que NO viven en el municipio?\n\nSi les tocan días largos, el '
+                                       'generador busca que la compensación les quede entrando tarde el lunes o '
+                                       'saliendo temprano el viernes.\n\n«Sí»: lo llevo a «3. Docentes y cursos» para '
+                                       'marcarlos (casilla 🚌).\n«No»: generar así.'):
+            self.nb.select(2)
+            self.avisar('Escoja cada docente que viaja y marque «🚌 No vive en el municipio». Luego genere de nuevo.')
+            return True
+        return False
 
     def _preguntar_descanso(self):
         """Si hay bloques y no se ha dicho, pregunta si un bloque puede quedar partido por el descanso."""
@@ -1629,7 +1656,7 @@ class App(tk.Tk):
                 t.insert('end', f'  • {x}\n')
             for c in alt.get('choques', [])[:8]:
                 t.insert('end', f'✖ {c}\n')
-            comp = self.p.texto_compensacion(alt)
+            comp = self.p.texto_compensacion(alt) + self.p.texto_viajan(alt)
             if comp:
                 t.insert('end', '\nDías largos compensados (día largo ↔ día corto):\n')
                 for x in comp[:12]:

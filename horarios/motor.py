@@ -42,6 +42,7 @@ PESO_EQUILIBRIO = 0.3     # repartir parejo las clases del docente en la semana
 PESO_DIA_LIBRE = 6.0      # el docente pidió tener un día sin clases
 PESO_EXCLUYENTE = 8.0     # el docente tiene el mismo día las dos horas que no deben juntarse (1.ª y 7.ª)
 PESO_BLOQUE = 3.0         # horas de la misma materia el mismo día que no quedaron seguidas (bloque roto)
+PESO_VIAJA = 6.0          # docente que viaja: por cada hora de compensación que no cae lunes temprano / viernes tarde
 PESO_DIA_LARGO = 4.0      # día del docente más largo que su permanencia (por sus horas extra)
 
 # Los «criterios ponderables» (como en GHC): el coordinador mueve cada uno de 0 a
@@ -49,7 +50,7 @@ PESO_DIA_LARGO = 4.0      # día del docente más largo que su permanencia (por 
 PESOS = {'hueco': PESO_HUECO, 'hueco_curso': PESO_HUECO_CURSO, 'repetida': PESO_REPETIDA, 'tarde': PESO_TARDE,
          'ultima': PESO_ULTIMA, 'prefiere_no': PESO_PREFIERE_NO, 'evitar': PESO_EVITAR, 'dia_suelto': PESO_DIA_SUELTO,
          'equilibrio': PESO_EQUILIBRIO, 'dia_libre': PESO_DIA_LIBRE, 'excluyente': PESO_EXCLUYENTE,
-         'bloque': PESO_BLOQUE, 'dia_largo': PESO_DIA_LARGO}
+         'bloque': PESO_BLOQUE, 'dia_largo': PESO_DIA_LARGO, 'viaja': PESO_VIAJA}
 
 
 class Problema:
@@ -68,7 +69,7 @@ class Problema:
                  ultimas=None, permanencia=None, desplazamiento=0, espacios=None, pesos=None, evitar=None,
                  dia_libre=None, dias_docente=None, excluyentes=None, excluyente_duro=True, sin_excluyente=None,
                  reuniones_doc=None, siguiente_bloque=None, permanencia_extra=None, dias_largos_max=None,
-                 compensar=None, dias_de_docente=None):
+                 compensar=None, dias_de_docente=None, viajan=None):
         self.franjas = franjas
         self.siguiente = siguiente
         self.anterior = {b: a for a, b in siguiente.items()}
@@ -110,6 +111,9 @@ class Problema:
         # 1.ª y la última) si la semana no pasa de permanencia × días (ej.: 6 h × 5 = 30 h).
         self.compensar = compensar or {}
         self.dias_de_docente = dias_de_docente or {}
+        # Docentes que no viven en el municipio: si tienen días largos, que lo que se compensa caiga
+        # el primer día entrando más tarde o el último día saliendo más temprano.
+        self.viajan = set(viajan or ())
         self.por_jornada = defaultdict(list)
         for fid, (jid, orden, ini, fin) in franjas.items():
             self.por_jornada[jid].append((orden, fid))
@@ -404,13 +408,45 @@ class Estado:
         return sum(1 for (d, dia) in list(self.docente.keys()) if d == docente and dia != sin and self.dia_largo(d, dia))
 
     def costo_docente_semana(self, docente):
-        """El docente pidió un día libre y tiene clase todos los días."""
-        if docente not in self.p.dia_libre:
-            return 0.0
-        dias = self.p.dias_docente.get(docente) or ()
-        if dias and all(self.docente.get((docente, d)) for d in dias):
-            return self.w['dia_libre']
-        return 0.0
+        """Día libre pedido (y tiene clase todos los días) · docente que viaja con compensación mal ubicada."""
+        c = 0.0
+        if docente in self.p.dia_libre:
+            dias = self.p.dias_docente.get(docente) or ()
+            if dias and all(self.docente.get((docente, d)) for d in dias):
+                c += self.w['dia_libre']
+        if docente in self.p.viajan:
+            c += self.w['viaja'] * self.compensacion_faltante(docente)
+        return c
+
+    def compensacion_faltante(self, docente):
+        """Horas de sus días largos que NO quedaron como horas libres al empezar el primer día (lunes)
+        o al terminar el último (viernes). 0 si no tiene días largos."""
+        p = self.p
+        perm = p.permanencia.get(docente)
+        if not perm:
+            return 0
+        dias = sorted(p.dias_de_docente.get(docente) or {d for (x, d) in list(self.docente.keys()) if x == docente})
+        if not dias:
+            return 0
+        exceso = 0
+        for d in dias:
+            lst = self.docente.get((docente, d))
+            if lst:
+                exceso += max(0, max(b for _, b, _, _ in lst) - min(a for a, _, _, _ in lst) - perm)
+        if not exceso:
+            return 0
+        horas = -(-exceso // 60)
+        libres = 0
+        for d, primero in ((dias[0], True), (dias[-1], False)):
+            fs = [f for (_, _, _, f) in self.docente.get((docente, d)) or () if f in p.indice]
+            if not fs:
+                libres += horas                       # ese día no viene: compensa de sobra
+            elif primero:
+                libres += min(p.indice[f] for f in fs)
+            else:
+                f = max(fs, key=lambda x: p.indice[x])
+                libres += p.ultimo[p.franjas[f][0]] - p.indice[f]
+        return max(0, horas - libres)
 
     def costo_curso_dia(self, curso, dia):
         fs = self.cd.get((curso, dia))
@@ -451,7 +487,7 @@ class Estado:
         c += sum(self.costo_curso_dia(cu, dia) for (cu, dia) in list(self.cd.keys()))
         c += sum(self.costo_repeticion(cu, m, dia) for (cu, m, dia) in list(self.cm.keys()))
         c += sum(self.costo_unidad(uid) for uid in self.pos)
-        c += sum(self.costo_docente_semana(d) for d in self.p.dia_libre)
+        c += sum(self.costo_docente_semana(d) for d in set(self.p.dia_libre) | self.p.viajan)
         return c
 
 
