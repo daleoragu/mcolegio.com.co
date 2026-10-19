@@ -141,3 +141,13 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 - Si un salón traba el horario, el asistente «¿Por qué faltan horas?» sugiere ampliarlo.
 - **Mínimo de clases por día**: en Reglas, «Mínimo de clases de un docente los días que viene» (así nadie viene por una sola clase); en cada profesor se puede poner otro mínimo, junto al máximo. Si algún día queda por debajo, sale en ⚠ Avisos. Su importancia se ajusta en Prioridades.
 - **Colores por curso y por materia**: en cada cuadrícula del Horario, además de «Color por área» y «por docente», ahora están «Color por curso» y «Color por materia» (con su leyenda arriba). Muy útil en la vista por docente o por salón.
+
+## Versión 4.1
+
+- **Menú lateral plegable**: «« Ocultar menú» deja solo los íconos (más espacio); al pasar el mouse por un ícono dice qué es. «»» lo vuelve a mostrar.
+- **Materias**: volvieron los botones «✂ Dividir en bloques automáticamente» y «Quitar todos los bloques». La raya entre la tabla y el detalle se puede arrastrar, y el detalle tiene barras para correr a los lados y abajo: ya no se pierden días de la cuadrícula.
+- **Profesores**: solo el filtro de profesor; el detalle también se puede correr y agrandar con la raya del medio.
+- **Botones azules** (Generar horario, Nuevo salón, Nueva agrupación): ya se ve la letra.
+- **Tablas**: al estirar una columna ya no se pierde la barra para subir y bajar; además hay barra para correr de lado.
+- **Reglas y prioridades**: dos pestañas, «Reglas» y «Prioridades», para que no se corte nada.
+- **Horario en su propia ventana**: al tocar «11. Horario» se abre aparte, a pantalla completa; el resto del programa sigue a mano. Cerrarla solo la esconde (no se pierde nada). El botón ☰ trae la ventana del menú.
