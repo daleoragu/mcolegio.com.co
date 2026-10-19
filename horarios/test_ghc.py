@@ -797,3 +797,27 @@ class IdeasDeGHC(SimpleTestCase):
         self.assertEqual(alt['choques'], [])
         self.assertFalse([s for s in alt['sesiones'] if s['franja'] == f0['id'] and s['dia'] in (1, 3)])
         self.assertFalse(p.alternar_celda_marco(3, f0['id']))
+
+    def test_minimo_de_clases_por_dia(self):
+        from .motor import Estado
+        D = datos()
+        cond = nucleo.condiciones_vacias()
+        cond['min_dia_docente'] = 3
+        cond['docentes']['5'] = {'min_dia': 2}           # el docente 5 tiene su propio mínimo
+        p = nucleo.armar(D, cond)
+        self.assertEqual(p.min_docente_dia[1], 3)
+        self.assertEqual(p.min_docente_dia[5], 2)
+        est = Estado(p)
+        for u in p.unidades:
+            est.u[u['id']] = u
+        u1 = next(u for u in p.unidades if u['partes'][0]['docente'] == 1 and u['largo'] == 1)
+        f0 = sorted((f for f in p.franjas if p.franjas[f][0] == 1), key=lambda f: p.indice[f])[0]
+        est.poner(u1, 2, f0)
+        self.assertGreaterEqual(est.costo_docente_dia(1, 2), p.w['minimo'] * 2)   # 1 clase de 3: le faltan 2
+        # Generando: nadie queda con menos que su mínimo (hay de sobra para cumplirlo)
+        pr = proyecto(D)
+        pr.cond['min_dia_docente'] = 2
+        alt = pr.generar(cuantas=1, segundos=6)[0]
+        self.assertEqual(alt['choques'], [])
+        self.assertEqual(alt['avisos_minimo'], [], alt['avisos_minimo'])
+        self.assertEqual(pr.minimo_docente(1), 2)

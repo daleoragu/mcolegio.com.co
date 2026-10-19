@@ -516,6 +516,9 @@ class App(tk.Tk):
         self._numero(gen, 'Con horas extra, el día del docente puede alargarse hasta (horas más de la permanencia; '
                           '0 = sin límite):', c.get('permanencia_extra', 2) or 0, 0, 6, poner('permanencia_extra'),
                      0.5).grid(row=5, column=0, columnspan=2, sticky='w', pady=(6, 0))
+        self._numero(gen, 'Mínimo de clases de un docente los días que viene (0 = sin mínimo; así nadie viene por una '
+                          'sola clase):', c.get('min_dia_docente') or 0, 0, 8, poner('min_dia_docente')).grid(
+            row=9, column=0, columnspan=2, sticky='w', pady=(8, 0))
         comp = c.setdefault('compensar', {'activa': False, 'max': 1})
         fila_cp = ttk.Frame(gen)
         fila_cp.grid(row=7, column=0, columnspan=2, sticky='w', pady=(8, 0))
@@ -1224,6 +1227,8 @@ class App(tk.Tk):
             return lambda v: r.__setitem__(k, v or None)
         self._numero(abajo, 'Máximo de clases por día (0 = sin límite):', r.get('max_dia') or 0, 0, 12,
                      guardar('max_dia')).pack(anchor='w')
+        self._numero(abajo, 'Mínimo de clases los días que viene (0 = la regla general):', r.get('min_dia') or 0, 0, 12,
+                     guardar('min_dia')).pack(anchor='w', pady=(2, 0))
         self._numero(abajo, 'Máximo de horas seguidas (0 = la regla general):', r.get('max_seguidas') or 0, 0, 10,
                      guardar('max_seguidas')).pack(anchor='w', pady=2)
         self._numero(abajo, 'Permanencia de este docente (horas, 0 = la regla general):', r.get('permanencia') or 0, 0, 14,
@@ -2544,6 +2549,13 @@ class App(tk.Tk):
                 t.insert('end', f'  • {x}\n')
             for c in alt.get('choques', [])[:8]:
                 t.insert('end', f'✖ {c}\n')
+            minimos = alt.get('avisos_minimo') or []
+            if minimos:
+                t.insert('end', '\nDías con menos clases que el mínimo del docente:\n')
+                for x in minimos[:10]:
+                    t.insert('end', f'  • {x}\n')
+            for x in (alt.get('avisos_salones') or [])[:8]:
+                t.insert('end', f'🏫 {x}\n')
             comp = self.p.texto_compensacion(alt) + self.p.texto_viajan(alt)
             if comp:
                 t.insert('end', '\nDías largos compensados (día largo ↔ día corto):\n')

@@ -130,6 +130,14 @@ def prueba():
     assert all(x.get('salon') for x in alt_sal['sesiones']), 'quedaron clases sin salón'
     p.alternativas.remove(alt_sal)
     p.cond['modo_salones'] = 'apagado'
+    # Mínimo de clases por día (general y por profesor)
+    p.cond['min_dia_docente'] = 2
+    p.docente(app.docs[0]['id'])['min_dia'] = 3
+    assert p.minimo_docente(app.docs[0]['id']) == 3
+    app.lb_doc.selection_set(0)
+    app._ver_docente()
+    p.cond['min_dia_docente'] = 0
+    p.docente(app.docs[0]['id']).pop('min_dia', None)
     # 4. Reuniones y clases simultáneas
     app._reuniones_area()
     if p.cond['reuniones']:

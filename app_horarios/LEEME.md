@@ -139,3 +139,4 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
   7. Asignación académica (con la columna **Salón** de cada clase) · 8. Reglas y prioridades · 9. Reuniones · 10. Actividades y descansos · 11. Horario.
 - **Prioridad del salón**: el de la clase > el de la materia > el del profesor > el del curso. Ningún salón recibe más cursos a la vez de los que caben; cada clase queda con su salón (se ve en la cuadrícula, en el PDF y en el Excel). En el Horario hay una vista nueva **«Por salón»**.
 - Si un salón traba el horario, el asistente «¿Por qué faltan horas?» sugiere ampliarlo.
+- **Mínimo de clases por día**: en Reglas, «Mínimo de clases de un docente los días que viene» (así nadie viene por una sola clase); en cada profesor se puede poner otro mínimo, junto al máximo. Si algún día queda por debajo, sale en ⚠ Avisos. Su importancia se ajusta en Prioridades.

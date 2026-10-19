@@ -65,6 +65,7 @@ def condiciones_vacias():
             # Salones: 'apagado' | 'curso' (cada curso con su salón) | 'profesor' (cada profesor con su salón).
             # La clase va a: el salón de la clase > el de la materia > el del profesor > el del curso.
             # Un salón propio se guarda como 'S:<id>' (ese salón) o 'G:<agrupación>' (cualquiera del grupo).
+            'min_dia_docente': 0,        # mínimo de clases de un docente los días que viene (0 = sin mínimo)
             'modo_salones': 'apagado',
             'marco_bloqueo': [],         # ['dia-franja'] horas sin clase para todo el colegio (izada, jornada pedagógica…)
             'salones': [],               # [{'id', 'nombre', 'capacidad', 'grupos': [nombre], 'no_puede': ['dia-franja']}]
@@ -125,6 +126,7 @@ CRITERIOS = [
     ('excluyente', 'Evitar que un docente tenga la primera y la última hora el mismo día (si es preferencia)'),
     ('bloque', 'Que las horas de una materia el mismo día queden seguidas (bloques)'),
     ('dia_largo', 'Que las horas extra queden dentro de la jornada normal (pocos días largos)'),
+    ('minimo', 'Que cada docente tenga su mínimo de clases los días que viene'),
     ('viaja', 'Docentes que viajan: compensar entrando tarde el lunes o saliendo temprano el viernes'),
 ]
 
@@ -900,6 +902,7 @@ def armar(datos, cond):
     sin_excluyente = set()
     max_seguidas = {}
     max_docente_dia = {}
+    min_docente_dia = {}
     permanencia = {}
     general = float(cond.get('permanencia_horas') or 0)
     seguidas = int(cond.get('max_seguidas') or 0)
@@ -920,6 +923,12 @@ def armar(datos, cond):
             max_seguidas[int(did)] = int(r['max_seguidas'])
         if r.get('max_dia'):
             max_docente_dia[int(did)] = int(r['max_dia'])
+    general_min = int(cond.get('min_dia_docente') or 0)
+    for did in D.docentes:
+        r = cond.get('docentes', {}).get(str(did), {})
+        m = int(r.get('min_dia') or general_min or 0)
+        if m > 1:
+            min_docente_dia[did] = m
         if r.get('permanencia') is not None and r.get('permanencia') != '':
             h = float(r['permanencia'])
             if h:
@@ -993,6 +1002,7 @@ def armar(datos, cond):
             (dia, f['id']) for jid in D.jornadas_de_docente(did) for f in D.franjas_de(jid) if not f['descanso'])
     p = Problema(franjas_clase, siguiente, slots, unidades, fijas=fijas, no_puede=no_puede, prefiere_no=prefiere_no,
                  max_materia_dia=max_materia_dia, max_docente_dia=max_docente_dia, max_seguidas=max_seguidas,
+                 min_docente_dia=min_docente_dia,
                  primeras=primeras, dobles=dobles, ultimas=ultimas, permanencia=permanencia,
                  desplazamiento=int(cond.get('desplazamiento') or 0), espacios=espacios, pesos=pesos_de(cond),
                  espacio_menos=menos_sal,

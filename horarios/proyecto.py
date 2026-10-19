@@ -630,11 +630,32 @@ class Proyecto:
         alt['choques'] += self._revisar_compensacion(alt)
         alt['choques'] += self._revisar_reuniones(alt)
         alt['avisos_salones'] = nucleo.asignar_salones(self.datos, self.cond, alt['sesiones'])
+        alt['avisos_minimo'] = self.revisar_minimo(alt)
         faltan = nucleo.horas_faltantes(self.datos, alt['sesiones'], self.cond)
         alt['sin_ubicar'] = [{'asignacion': a['id'], 'horas': n} for a, n in faltan]
         alt['horas_sin_ubicar'] = sum(n for _, n in faltan)
         self.complementos(alt)
         return alt
+
+    def minimo_docente(self, did):
+        r = self.cond.get('docentes', {}).get(str(did), {})
+        m = int(r.get('min_dia') or self.cond.get('min_dia_docente') or 0)
+        return m if m > 1 else 0
+
+    def revisar_minimo(self, alt):
+        """Docentes que un día vienen a menos clases que su mínimo (es un aviso, no un choque)."""
+        D = self.datos
+        por = defaultdict(int)
+        for s in alt['sesiones']:
+            did = D.asignaciones.get(s['asignacion'], {}).get('docente')
+            if did:
+                por[(did, s['dia'])] += 1
+        out = []
+        for (did, dia), n in sorted(por.items(), key=lambda x: (D.nombre_docente(x[0][0]), x[0][1])):
+            m = self.minimo_docente(did)
+            if m and n < m:
+                out.append(f'{D.nombre_docente(did)} tiene {n} clase(s) el {nucleo.DIAS[dia]} (mínimo {m}).')
+        return out
 
     def _revisar_reuniones(self, alt):
         """Docentes con clase a la hora de su reunión de área."""
