@@ -42,6 +42,7 @@ PESO_EQUILIBRIO = 0.3     # repartir parejo las clases del docente en la semana
 PESO_DIA_LIBRE = 6.0      # el docente pidió tener un día sin clases
 PESO_EXCLUYENTE = 8.0     # el docente tiene el mismo día las dos horas que no deben juntarse (1.ª y 7.ª)
 PESO_BLOQUE = 3.0         # horas de la misma materia el mismo día que no quedaron seguidas (bloque roto)
+PESO_MINIMO = 6.0         # por cada clase que le falta a un docente para el mínimo del día
 PESO_VIAJA = 6.0          # docente que viaja: por cada hora de compensación que no cae lunes temprano / viernes tarde
 PESO_DIA_LARGO = 4.0      # día del docente más largo que su permanencia (por sus horas extra)
 
@@ -50,7 +51,8 @@ PESO_DIA_LARGO = 4.0      # día del docente más largo que su permanencia (por 
 PESOS = {'hueco': PESO_HUECO, 'hueco_curso': PESO_HUECO_CURSO, 'repetida': PESO_REPETIDA, 'tarde': PESO_TARDE,
          'ultima': PESO_ULTIMA, 'prefiere_no': PESO_PREFIERE_NO, 'evitar': PESO_EVITAR, 'dia_suelto': PESO_DIA_SUELTO,
          'equilibrio': PESO_EQUILIBRIO, 'dia_libre': PESO_DIA_LIBRE, 'excluyente': PESO_EXCLUYENTE,
-         'bloque': PESO_BLOQUE, 'dia_largo': PESO_DIA_LARGO, 'viaja': PESO_VIAJA}
+         'bloque': PESO_BLOQUE, 'dia_largo': PESO_DIA_LARGO, 'viaja': PESO_VIAJA,
+         'minimo': PESO_MINIMO}
 
 
 class Problema:
@@ -69,7 +71,8 @@ class Problema:
                  ultimas=None, permanencia=None, desplazamiento=0, espacios=None, pesos=None, evitar=None,
                  dia_libre=None, dias_docente=None, excluyentes=None, excluyente_duro=True, sin_excluyente=None,
                  reuniones_doc=None, siguiente_bloque=None, permanencia_extra=None, dias_largos_max=None,
-                 compensar=None, dias_de_docente=None, viajan=None, bloqueo_materia=None, mejor_no_materia=None):
+                 compensar=None, dias_de_docente=None, viajan=None, bloqueo_materia=None, mejor_no_materia=None,
+                 espacio_menos=None, min_docente_dia=None):
         self.franjas = franjas
         self.siguiente = siguiente
         self.anterior = {b: a for a, b in siguiente.items()}
@@ -83,13 +86,16 @@ class Problema:
         self.prefiere_no = prefiere_no or {}
         self.max_materia_dia = max_materia_dia or {}
         self.max_docente_dia = max_docente_dia or {}
+        # Mínimo de clases de un docente los días que viene (si viene, que no sea por una sola clase…)
+        self.min_docente_dia = min_docente_dia or {}
         self.max_seguidas = max_seguidas or {}
         self.primeras = primeras or set()
         self.ultimas = ultimas or set()
         self.dobles = dobles or set()
         self.permanencia = permanencia or {}
         self.desplazamiento = desplazamiento or 0
-        self.espacios = espacios or {}               # {espacio: capacidad}
+        self.espacios = espacios or {}               # {espacio: capacidad} (también salones 'S:id' y agrupaciones 'G:x')
+        self.espacio_menos = espacio_menos or {}     # {espacio: {(dia, franja): capacidad que se pierde}}
         self.w = dict(PESOS, **(pesos or {}))
         self.evitar = evitar or {}                   # {docente: {(dia, franja)}} «mejor no» fuerte
         self.dia_libre = set(dia_libre or ())        # docentes que piden un día sin clases
@@ -127,6 +133,14 @@ class Problema:
             for i, (_, fid) in enumerate(lst):
                 self.indice[fid] = i
             self.ultimo[jid] = len(lst) - 1
+
+
+def _llaves(u):
+    """Los espacios/salones que gasta una clase (texto de antes o lista)."""
+    e = u.get('espacio')
+    if not e:
+        return []
+    return [e] if isinstance(e, str) else list(e)
 
 
 def unidad_simple(uid, asig, curso, docente, materia, largo=1, sede='', extra=False, dividir=True, espacio=''):
@@ -281,14 +295,19 @@ class Estado:
                     if not mismos:
                         return False, []
                     estorban.add(mismos[0])
-        # Espacio compartido
-        esp = u.get('espacio')
-        if esp and esp in p.espacios:
-            cap = p.espacios[esp]
+        # Espacios compartidos y salones (una clase puede gastar varias llaves: el salón y su agrupación)
+        pide = defaultdict(int)
+        for esp in _llaves(u):
+            if esp in p.espacios:
+                pide[esp] += 1
+        for esp, n in pide.items():
             for (ini, fin, f) in tramos:
+                cap = p.espacios[esp] - p.espacio_menos.get(esp, {}).get((dia, f), 0)
+                if cap < n:
+                    return False, []
                 usan = [uid for (a, b, uid) in self.espacio[(esp, dia)] if a < fin and ini < b and uid not in ign
                         and uid not in estorban]
-                while len(usan) >= cap:
+                while len(usan) + n > cap:
                     x = usan.pop()
                     if not estorba(x):
                         return False, []
@@ -317,10 +336,10 @@ class Estado:
             self.cm[(parte['curso'], parte['materia'], dia)] += u['largo']
             if nuevo:
                 self.dd[(parte['docente'], dia)] += u['largo']
-        if u.get('espacio'):
+        for esp in _llaves(u):
             for f in celdas:
                 _, _, ini, fin = self.p.franjas[f]
-                self.espacio[(u['espacio'], dia)].append((ini, fin, uid))
+                self.espacio[(esp, dia)].append((ini, fin, uid))
         self.pos[uid] = (dia, franja)
 
     def quitar(self, uid):
@@ -342,8 +361,8 @@ class Estado:
             self.cm[(parte['curso'], parte['materia'], dia)] -= u['largo']
             if nuevo:
                 self.dd[k] -= u['largo']
-        if u.get('espacio'):
-            k = (u['espacio'], dia)
+        for esp in set(_llaves(u)):
+            k = (esp, dia)
             self.espacio[k] = [t for t in self.espacio[k] if t[2] != uid]
 
     # --- Calidad (menor es mejor) ---------------------------------------
@@ -356,6 +375,11 @@ class Estado:
         w = self.w
         prefiere_no = self.p.prefiere_no.get(docente, ())
         evitar = self.p.evitar.get(docente, ())
+        minimo = self.p.min_docente_dia.get(docente)
+        if minimo:
+            n = self.dd.get((docente, dia), 0)
+            if 0 < n < minimo:
+                c += w['minimo'] * (minimo - n)
         for (ini, fin, uid, f) in lst:
             por_jornada[self.p.franjas[f][0]].add(self.p.indice[f])
             if (dia, f) in prefiere_no:

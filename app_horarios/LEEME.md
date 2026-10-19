@@ -111,7 +111,7 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 - **Reuniones de área a la misma hora**: en «4. Reuniones», la casilla «Todas las reuniones de área el mismo día y a la misma hora» busca una sola hora para todas (donde puedan todos los jefes y la mayoría). También vale para «Buscar hora en el horario armado».
 - **Soltar fichas fijadas 🔒**: Ctrl + clic marca varias fichas (quedan con borde azul) → «🔓 Soltar marcadas» o «🔒 Fijar marcadas». «🔓 Soltar todo» suelta todas las del horario (siguen en su lugar, pero el generador ya las puede mover).
 - **Completar ya no fija todo**: «Completar lo que falta» respeta lo que estaba puesto, pero solo deja fijadas 🔒 las que usted había fijado.
-- **PDF**: «📄 PDF por separado (.zip)» guarda un .zip con un PDF por curso (carpeta Cursos) y uno por docente (carpeta Docentes). «📄 PDF todo junto» guarda dos PDF: todos los cursos y todos los docentes, una hoja cada uno. Con colores por área.
+- **PDF**: «📄 PDF (.zip)» guarda un .zip con un PDF por curso (carpeta Cursos) y uno por docente (carpeta Docentes). «📄 PDF junto» guarda dos PDF: todos los cursos y todos los docentes, una hoja cada uno. Con colores por área.
 - La lista de «3. Docentes y cursos» ahora va pegada a la izquierda, más ancha y con barra.
 
 ## Versión 3.4.1
@@ -125,3 +125,19 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 - **👥 Reunión de cada docente** (pestaña 4): una fila por docente para escoger a qué reunión va, o «(ninguna)». Muestra sus áreas; la ★ marca la principal.
 - **Participantes de cada reunión**: en «Editar», se marcan o desmarcan. Si se marca a uno que está en otra reunión, pasa a esta (y deja de ser jefe de la anterior).
 - **Los que no pueden asistir reciben el acta** (el acta se maneja en la plataforma, no en este programa). Por eso la «segunda reunión con el jefe» queda apagada en las reuniones nuevas; se puede encender en «Editar».
+
+## Versión 4.0 — ventanas nuevas, salones y estilo moderno
+
+- **Estilo nuevo**: tema tipo Windows 11, menú lateral, tarjetas blancas y cuadrículas de bloqueo en verde (puede) y rojo (no). Arriba, el botón **Generar horario ⚡**.
+- **Menú lateral** con las ventanas en orden:
+  1. **Tiempos y marco**: las horas de cada jornada (vienen de la plataforma; no se cambian aquí) y una cuadrícula para dejar horas **sin clase para todo el colegio** (izada, jornada pedagógica…).
+  2. **Materias**: la tabla de reglas de cada materia y, al escoger una, **su salón** y **sus horas bloqueadas**. Abajo, las **áreas** con su cuadrícula.
+  3. **Grados y cursos**: horas sin clase y **salón propio** de cada curso.
+  4. **Profesores**: disponibilidad, reglas propias y **salón propio**.
+  5. **Salones**: cómo se usan (ninguno / cada curso con su salón / cada profesor con su salón), lista de salones, cuántos cursos caben a la vez, agrupaciones y **horas en que no se puede usar**. Botón «Crear un salón por curso».
+  6. **Bloques y agrupaciones**: tarjetas con Bloque A, B… y salas especiales (sistemas, laboratorios, biblioteca, aula múltiple). A una materia, profesor o curso se le puede dar «cualquiera de» una agrupación.
+  7. Asignación académica (con la columna **Salón** de cada clase) · 8. Reglas y prioridades · 9. Reuniones · 10. Actividades y descansos · 11. Horario.
+- **Prioridad del salón**: el de la clase > el de la materia > el del profesor > el del curso. Ningún salón recibe más cursos a la vez de los que caben; cada clase queda con su salón (se ve en la cuadrícula, en el PDF y en el Excel). En el Horario hay una vista nueva **«Por salón»**.
+- Si un salón traba el horario, el asistente «¿Por qué faltan horas?» sugiere ampliarlo.
+- **Mínimo de clases por día**: en Reglas, «Mínimo de clases de un docente los días que viene» (así nadie viene por una sola clase); en cada profesor se puede poner otro mínimo, junto al máximo. Si algún día queda por debajo, sale en ⚠ Avisos. Su importancia se ajusta en Prioridades.
+- **Colores por curso y por materia**: en cada cuadrícula del Horario, además de «Color por área» y «por docente», ahora están «Color por curso» y «Color por materia» (con su leyenda arriba). Muy útil en la vista por docente o por salón.

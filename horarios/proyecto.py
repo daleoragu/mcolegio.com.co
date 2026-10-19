@@ -139,6 +139,37 @@ class Proyecto:
         r.setdefault('no_puede', [])
         return r
 
+    def _motivo_salon(self, alt, a, dia, fid, ignorar=None):
+        """Si la clase necesita un salón (o uno de una agrupación) y a esa hora no queda ninguno."""
+        req = nucleo.salon_requerido(self.cond, a)
+        llaves = nucleo.claves_salon(self.cond, req)
+        if not llaves:
+            return None
+        D = self.datos
+        cap, menos = nucleo.capacidad_salones(self.cond)
+        ini, fin = D.intervalo(fid)
+        ign = set(ignorar) if isinstance(ignorar, (set, list, tuple)) else {ignorar}
+        juntos = nucleo.grupos_multigrado(self.cond)
+        for k in llaves:
+            libre = cap.get(k, 0) - menos.get(k, {}).get((dia, fid), 0)
+            if libre <= 0:
+                return f'{nucleo.nombre_salon(self.cond, req)} no está disponible a esa hora (bloqueado en Salones).'
+            usan = 0
+            for i, s in enumerate(alt['sesiones']):
+                if i in ign or s['dia'] != dia or s['franja'] not in D.franjas:
+                    continue
+                b = D.asignaciones.get(s['asignacion'])
+                x, y = D.intervalo(s['franja'])
+                if not b or not (x < fin and ini < y):
+                    continue
+                if juntos.get(b['curso']) is not None and juntos.get(b['curso']) == juntos.get(a['curso']):
+                    continue
+                if k in nucleo.claves_salon(self.cond, nucleo.salon_requerido(self.cond, b)):
+                    usan += 1
+            if usan >= libre:
+                return f'{nucleo.nombre_salon(self.cond, req)} ya está ocupado a esa hora.'
+        return None
+
     # Horas bloqueadas por área (para todas las materias del área): libre → no van → mejor no → libre
     def area(self, nombre):
         r = self.cond.setdefault('areas', {}).setdefault(nombre, {})
@@ -167,6 +198,135 @@ class Proyecto:
             r[nuevo].append(clave)
         return nuevo
 
+    # Horas bloqueadas por materia (libre → no va → mejor no → libre)
+    def estado_celda_materia(self, mid, dia, fid):
+        r = (self.cond.get('materias') or {}).get(str(mid)) or {}
+        clave = f'{dia}-{fid}'
+        if clave in (r.get('no_puede') or []):
+            return 'no_puede'
+        if clave in (r.get('prefiere_no') or []):
+            return 'prefiere_no'
+        return 'libre'
+
+    def siguiente_estado_materia(self, mid, dia, fid):
+        r = self.regla(mid)
+        r.setdefault('no_puede', [])
+        r.setdefault('prefiere_no', [])
+        clave = f'{dia}-{fid}'
+        actual = self.estado_celda_materia(mid, dia, fid)
+        for k in ('no_puede', 'prefiere_no'):
+            if clave in r[k]:
+                r[k].remove(clave)
+        nuevo = {'libre': 'no_puede', 'no_puede': 'prefiere_no', 'prefiere_no': 'libre'}[actual]
+        if nuevo != 'libre':
+            r[nuevo].append(clave)
+        return nuevo
+
+    def jornadas_de_materia(self, mid):
+        D = self.datos
+        jids = {D.jornada_de_curso.get(a['curso']) for a in D.asignaciones.values() if a['materia'] == mid}
+        return [D.jornadas[j] for j in sorted(x for x in jids if x in D.jornadas)]
+
+    # --- Salones y agrupaciones ------------------------------------------------------
+    def salones(self):
+        return self.cond.setdefault('salones', [])
+
+    def salon(self, sid):
+        return next((s for s in self.salones() if str(s['id']) == str(sid)), None)
+
+    def nuevo_salon(self, nombre, capacidad=1, grupos=()):
+        usados = {str(s['id']) for s in self.salones()}
+        k = len(usados) + 1
+        while f'S{k}' in usados:
+            k += 1
+        s = {'id': f'S{k}', 'nombre': nombre.strip() or f'Salón {k}', 'capacidad': max(1, int(capacidad or 1)),
+             'grupos': list(grupos), 'no_puede': []}
+        self.salones().append(s)
+        for g in grupos:
+            self.nueva_agrupacion(g)
+        return s
+
+    def quitar_salon(self, sid):
+        """Quita el salón y lo borra de cursos, profesores, materias y clases que lo pedían."""
+        self.cond['salones'] = [s for s in self.salones() if str(s['id']) != str(sid)]
+        clave = f'S:{sid}'
+        for grupo in ('cursos', 'docentes', 'materias', 'asignaciones'):
+            for r in self.cond.get(grupo, {}).values():
+                if r.get('salon') == clave:
+                    r.pop('salon', None)
+
+    def agrupaciones(self):
+        return self.cond.setdefault('grupos_salones', [])
+
+    def nueva_agrupacion(self, nombre, tipo='bloque'):
+        nombre = (nombre or '').strip()
+        if nombre and not any(g['nombre'] == nombre for g in self.agrupaciones()):
+            self.agrupaciones().append({'nombre': nombre, 'tipo': tipo})
+        return nombre
+
+    def quitar_agrupacion(self, nombre):
+        self.cond['grupos_salones'] = [g for g in self.agrupaciones() if g['nombre'] != nombre]
+        for s in self.salones():
+            s['grupos'] = [g for g in s.get('grupos') or [] if g != nombre]
+        clave = f'G:{nombre}'
+        for grupo in ('cursos', 'docentes', 'materias', 'asignaciones'):
+            for r in self.cond.get(grupo, {}).values():
+                if r.get('salon') == clave:
+                    r.pop('salon', None)
+
+    def opciones_salon(self):
+        """[(valor, texto)] para escoger dónde va algo: ninguno, un salón o cualquiera de una agrupación."""
+        out = [('', '(ninguno)')]
+        out += [(f'S:{s["id"]}', s['nombre']) for s in sorted(self.salones(), key=lambda s: s['nombre'])]
+        out += [(f'G:{g}', f'Cualquiera de {g}') for g in sorted(nucleo.grupos_de_salones(self.cond))]
+        return out
+
+    def usos_salon(self, sid):
+        """Quién tiene este salón (o una agrupación suya) como propio: ['Curso 601', 'Prof. …', 'Materia …']."""
+        D = self.datos
+        s = self.salon(sid) or {}
+        claves = {f'S:{sid}'} | {f'G:{g}' for g in s.get('grupos') or []}
+        out = []
+        for cid, r in self.cond.get('cursos', {}).items():
+            if r.get('salon') in claves and int(cid) in D.cursos:
+                out.append(f'Curso {D.nombre_curso(int(cid))}')
+        for did, r in self.cond.get('docentes', {}).items():
+            if r.get('salon') in claves and int(did) in D.docentes:
+                out.append(D.nombre_docente(int(did)))
+        for mid, r in self.cond.get('materias', {}).items():
+            if r.get('salon') in claves and int(mid) in D.materias:
+                out.append(f'Materia {D.nombre_materia(int(mid))}')
+        return out
+
+    def estado_celda_salon(self, sid, dia, fid):
+        s = self.salon(sid) or {}
+        return 'no_puede' if f'{dia}-{fid}' in (s.get('no_puede') or []) else 'libre'
+
+    def alternar_celda_salon(self, sid, dia, fid):
+        s = self.salon(sid)
+        if not s:
+            return 'libre'
+        lst = s.setdefault('no_puede', [])
+        clave = f'{dia}-{fid}'
+        if clave in lst:
+            lst.remove(clave)
+            return 'libre'
+        lst.append(clave)
+        return 'no_puede'
+
+    def salon_por_curso(self, grupo='Salones de curso'):
+        """Crea un salón para cada curso que no tenga (con el nombre del curso) y se lo asigna."""
+        D = self.datos
+        self.nueva_agrupacion(grupo)
+        n = 0
+        for c in D.crudo['cursos']:
+            if c['id'] not in D.jornada_de_curso or self.curso(c['id']).get('salon'):
+                continue
+            s = self.nuevo_salon(f'Salón {c["nombre"]}', 1, [grupo])
+            self.curso(c['id'])['salon'] = f'S:{s["id"]}'
+            n += 1
+        return n
+
     def jornadas_de_area(self, nombre):
         """Las jornadas donde se dictan materias del área."""
         D = self.datos
@@ -175,7 +335,21 @@ class Proyecto:
         return [D.jornadas[j] for j in sorted(x for x in jids if x in D.jornadas)]
 
     def celda_curso(self, cid, dia, fid):
-        return f'{dia}-{fid}' in self.curso(cid)['no_puede']
+        clave = f'{dia}-{fid}'
+        return clave in self.curso(cid)['no_puede'] or clave in (self.cond.get('marco_bloqueo') or [])
+
+    def celda_marco(self, dia, fid):
+        return f'{dia}-{fid}' in (self.cond.get('marco_bloqueo') or [])
+
+    def alternar_celda_marco(self, dia, fid):
+        """Hora sin clase para todo el colegio (sí / no)."""
+        lst = self.cond.setdefault('marco_bloqueo', [])
+        clave = f'{dia}-{fid}'
+        if clave in lst:
+            lst.remove(clave)
+            return False
+        lst.append(clave)
+        return True
 
     def alternar_celda_curso(self, cid, dia, fid):
         lst = self.curso(cid)['no_puede']
@@ -443,6 +617,10 @@ class Proyecto:
             if a and s['franja'] in self.datos.franjas and self.celda_curso(a['curso'], s['dia'], s['franja']):
                 alt['choques'].append(f'{self.datos.nombre_curso(a["curso"])} no tiene clase el '
                                       f'{nucleo.DIAS[s["dia"]]} a las {self.datos.franjas[s["franja"]]["inicio"]}.')
+            if a and s['franja'] in self.datos.franjas and self.estado_celda_materia(a['materia'], s['dia'], s['franja']) == 'no_puede':
+                alt['choques'].append(f'{self.datos.nombre_materia(a["materia"])} en {self.datos.nombre_curso(a["curso"])} '
+                                      f'quedó el {nucleo.DIAS[s["dia"]]} a las {self.datos.franjas[s["franja"]]["inicio"]}, '
+                                      'hora bloqueada para la materia.')
             area = a and self.datos.materias.get(a['materia'], {}).get('area')
             if area and s['franja'] in self.datos.franjas and self.estado_celda_area(area, s['dia'], s['franja']) == 'no_puede':
                 alt['choques'].append(f'{self.datos.nombre_materia(a["materia"])} ({area}) en '
@@ -451,11 +629,33 @@ class Proyecto:
         alt['choques'] += self._revisar_excluyente(alt)
         alt['choques'] += self._revisar_compensacion(alt)
         alt['choques'] += self._revisar_reuniones(alt)
+        alt['avisos_salones'] = nucleo.asignar_salones(self.datos, self.cond, alt['sesiones'])
+        alt['avisos_minimo'] = self.revisar_minimo(alt)
         faltan = nucleo.horas_faltantes(self.datos, alt['sesiones'], self.cond)
         alt['sin_ubicar'] = [{'asignacion': a['id'], 'horas': n} for a, n in faltan]
         alt['horas_sin_ubicar'] = sum(n for _, n in faltan)
         self.complementos(alt)
         return alt
+
+    def minimo_docente(self, did):
+        r = self.cond.get('docentes', {}).get(str(did), {})
+        m = int(r.get('min_dia') or self.cond.get('min_dia_docente') or 0)
+        return m if m > 1 else 0
+
+    def revisar_minimo(self, alt):
+        """Docentes que un día vienen a menos clases que su mínimo (es un aviso, no un choque)."""
+        D = self.datos
+        por = defaultdict(int)
+        for s in alt['sesiones']:
+            did = D.asignaciones.get(s['asignacion'], {}).get('docente')
+            if did:
+                por[(did, s['dia'])] += 1
+        out = []
+        for (did, dia), n in sorted(por.items(), key=lambda x: (D.nombre_docente(x[0][0]), x[0][1])):
+            m = self.minimo_docente(did)
+            if m and n < m:
+                out.append(f'{D.nombre_docente(did)} tiene {n} clase(s) el {nucleo.DIAS[dia]} (mínimo {m}).')
+        return out
 
     def _revisar_reuniones(self, alt):
         """Docentes con clase a la hora de su reunión de área."""
@@ -606,6 +806,11 @@ class Proyecto:
             return 'Ese día no hay clases en la jornada del curso.'
         if self.celda_curso(a['curso'], dia, fid):
             return f'{D.nombre_curso(a["curso"])} no tiene clase a esa hora (marcado en Docentes y cursos).'
+        m = self._motivo_salon(alt, a, dia, fid, ignorar)
+        if m:
+            return m
+        if self.estado_celda_materia(a['materia'], dia, fid) == 'no_puede':
+            return f'{D.nombre_materia(a["materia"])} no va a esa hora (bloqueado en Materias).'
         area = D.materias.get(a['materia'], {}).get('area')
         if area and self.estado_celda_area(area, dia, fid) == 'no_puede':
             return f'Las clases de {area} no van a esa hora (bloqueado por área en Docentes y cursos).'
@@ -1182,9 +1387,32 @@ class Proyecto:
             a = D.asignaciones.get(s['asignacion'])
             if a and a['curso'] == cid:
                 celdas[(s['dia'], s['franja'])].append({'i': i, 'titulo': D.nombre_materia(a['materia']),
-                                                        'sub': D.nombre_docente(a.get('docente')),
+                                                        'sub': D.nombre_docente(a.get('docente')) + self._en_salon(s),
                                                         'fijada': s.get('fijada', False), 'asig': a['id']})
         return self._tabla(jid, celdas)
+
+    def _en_salon(self, s):
+        if not s.get('salon'):
+            return ''
+        return ' · ' + ((nucleo.salones_de(self.cond).get(str(s['salon'])) or {}).get('nombre') or str(s['salon']))
+
+    def tabla_salon(self, alt, sid):
+        """Cuadrículas (una por jornada) de lo que pasa en un salón."""
+        D = self.datos
+        tablas = []
+        for jid in sorted(D.jornadas):
+            ids = {f['id'] for f in D.franjas_de(jid)}
+            celdas = defaultdict(list)
+            for i, s in enumerate(alt['sesiones']):
+                a = D.asignaciones.get(s['asignacion'])
+                if a and str(s.get('salon')) == str(sid) and s['franja'] in ids:
+                    celdas[(s['dia'], s['franja'])].append({'i': i, 'titulo': D.nombre_curso(a['curso']),
+                                                            'sub': f'{D.nombre_materia(a["materia"])} · '
+                                                                   f'{D.nombre_docente(a.get("docente"))}',
+                                                            'fijada': s.get('fijada', False), 'asig': a['id']})
+            if celdas or len(D.jornadas) == 1:
+                tablas.append(self._tabla(jid, celdas))
+        return tablas
 
     def tablas_docente(self, alt, did):
         D = self.datos
@@ -1196,7 +1424,7 @@ class Proyecto:
                 a = D.asignaciones.get(s['asignacion'])
                 if a and a.get('docente') == did and s['franja'] in ids:
                     celdas[(s['dia'], s['franja'])].append({'i': i, 'titulo': D.nombre_curso(a['curso']),
-                                                            'sub': D.nombre_materia(a['materia']),
+                                                            'sub': D.nombre_materia(a['materia']) + self._en_salon(s),
                                                             'fijada': s.get('fijada', False), 'asig': a['id']})
             for r in alt.get('reuniones') or []:
                 for reu in (r, r.get('segunda') or {}):
@@ -1295,6 +1523,11 @@ class Proyecto:
             esp = r.get('espacio') or regla_m.get('espacio')
             if esp:
                 sug(f'esp-{esp}', f'Ampliar «{esp}» a un curso más a la vez', 'espacio', nombre=esp)
+            req = nucleo.salon_requerido(c, a)
+            if req and str(req).startswith('S:'):
+                nombre_s = nucleo.nombre_salon(c, req)
+                sug(f'sal-{req}', f'Dejar que «{nombre_s}» reciba un curso más a la vez (o darle otro salón a '
+                                  f'{nom_m} {nom_c})', 'salon_cap', sid=str(req)[2:])
             area = D.materias.get(mid, {}).get('area')
             if area and ((c.get('areas') or {}).get(area) or {}).get('no_puede'):
                 sug(f'area-{area}', f'Quitar las horas bloqueadas del área {area}', 'area_sin', area=area)
@@ -1341,6 +1574,10 @@ class Proyecto:
             for e in c.get('espacios', []):
                 if e.get('nombre') == d['nombre']:
                     e['capacidad'] = int(e.get('capacidad') or 1) + 1
+        elif t == 'salon_cap':
+            sal = self.salon(d['sid'])
+            if sal:
+                sal['capacidad'] = int(sal.get('capacidad') or 1) + 1
         elif t == 'area_sin':
             self.area(d['area'])['no_puede'] = []
         elif t == 'curso_sin':
@@ -1427,7 +1664,7 @@ class Proyecto:
         wb = Workbook()
         ws = wb.active
         ws.title = 'Todas'
-        ws.append(['CURSO', 'DIA', 'HORA', 'INICIO', 'MATERIA', 'DOCENTE'])
+        ws.append(['CURSO', 'DIA', 'HORA', 'INICIO', 'MATERIA', 'DOCENTE', 'SALON'])
         orden = {}
         for jid in D.jornadas:
             for i, f in enumerate([f for f in D.franjas_de(jid) if not f['descanso']], start=1):
@@ -1436,7 +1673,8 @@ class Proyecto:
                                                          s['dia'], orden.get(s['franja'], 0))):
             a = D.asignaciones[s['asignacion']]
             ws.append([D.nombre_curso(a['curso']), nucleo.DIAS[s['dia']], orden.get(s['franja']),
-                       D.franjas[s['franja']]['inicio'], D.nombre_materia(a['materia']), D.nombre_docente(a.get('docente'))])
+                       D.franjas[s['franja']]['inicio'], D.nombre_materia(a['materia']), D.nombre_docente(a.get('docente')),
+                       self._en_salon(s)[3:]])
         for c in D.cursos.values():
             t = self.tabla_curso(alt, c['id'])
             if not t:
