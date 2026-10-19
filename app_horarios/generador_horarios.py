@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import impresion, nucleo         # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '4.1'
+VERSION = '4.1.1'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -288,8 +288,8 @@ class App(tk.Tk):
         texto = ('1. En la plataforma, entre a Horarios y descargue «Datos del colegio (.mch)».\n'
                  '   (Si pidió a los docentes su disponibilidad en la plataforma, ya viene en ese archivo.)\n'
                  '2. Aquí, toque «Abrir datos del colegio» y escoja ese archivo.\n'
-                 '3. Pestañas 1 a 5: revise los datos y ponga las reglas del colegio.\n'
-                 '4. Pestaña 6: arrastre fichas a mano, genere alternativas o combine las dos cosas.\n'
+                 '3. Menú de la izquierda, 1 a 10: revise los datos y ponga las reglas del colegio.\n'
+                 '4. «11. Horario» (se abre aparte): arrastre fichas a mano, genere alternativas o combine las dos cosas.\n'
                  '5. Guarde la alternativa «para la plataforma» (.mchr) y súbala en Horarios → Importar.\n\n'
                  'Consejo: ponga «no puede» solo cuando de verdad no se pueda. Para lo demás use «mejor no»:\n'
                  'así el generador tiene espacio para moverse y encuentra horarios mejores.\n\n'
@@ -308,7 +308,7 @@ class App(tk.Tk):
         self._armar_menu()
         self.ir('marco')
         disp = len(self.p.disponibilidad_plataforma())
-        self.avisar('Datos abiertos. Empiece por revisar la pestaña 1.' +
+        self.avisar('Datos abiertos. Empiece por «1. Tiempos y marco» y siga el menú de la izquierda.' +
                     (f' Trae la disponibilidad que marcaron {disp} docente(s) en la plataforma.' if disp else ''))
 
     # --- Archivos -------------------------------------------------------
@@ -698,17 +698,25 @@ class App(tk.Tk):
         var_a.trace_add('write', horas_ex)
         var_b.trace_add('write', horas_ex)
         ttk.Label(fila_ex, text='(si la jornada tiene menos horas, cuenta la última)', style='Ayuda.TLabel').pack(side='left', padx=6)
-        pri = ttk.LabelFrame(hoja_prior, text='Prioridades al mejorar el horario (0 = no importa · 5 = normal · 10 = muy importante)',
-                             padding=8)
-        pri.pack(fill='x', pady=(8, 0))
+        # Prioridades: dos columnas que se reparten el ancho, y barra para bajar si la pantalla es pequeña
+        _, contenido = self._desplazable(hoja_prior)
+        pri = tk.Frame(contenido, bg=CARD, highlightthickness=1, highlightbackground=BORDE, padx=14, pady=10)
+        pri.pack(fill='x', padx=2, pady=2)
+        tk.Label(pri, text='Prioridades al mejorar el horario  (0 = no importa · 5 = normal · 10 = muy importante)',
+                 bg=CARD, fg=TINTA, font=('Segoe UI', 10, 'bold')).grid(row=0, column=0, columnspan=4, sticky='w',
+                                                                       pady=(0, 6))
         pesos = c.setdefault('pesos', {})
         for k, (clave, texto) in enumerate(nucleo.CRITERIOS):
             fila, col = divmod(k, 2)
-            ttk.Label(pri, text=texto).grid(row=fila, column=col * 2, sticky='w', padx=(0 if col == 0 else 20, 4))
+            tk.Label(pri, text=texto, bg=CARD, fg=TINTA, wraplength=380, justify='left', anchor='w').grid(
+                row=fila + 1, column=col * 2, sticky='we', padx=(0 if col == 0 else 24, 6), pady=3)
             var = tk.IntVar(value=int(pesos.get(clave, 5)))
-            esc = tk.Scale(pri, from_=0, to=10, orient='horizontal', length=150, showvalue=True, variable=var,
+            esc = tk.Scale(pri, from_=0, to=10, orient='horizontal', length=170, showvalue=True, variable=var,
+                           bg=CARD, highlightthickness=0,
                            command=lambda v, clave=clave: pesos.__setitem__(clave, int(float(v))))
-            esc.grid(row=fila, column=col * 2 + 1, sticky='w')
+            esc.grid(row=fila + 1, column=col * 2 + 1, sticky='w')
+        pri.columnconfigure(0, weight=1)
+        pri.columnconfigure(2, weight=1)
 
     def _llenar_materias(self):
         D = self.p.datos
@@ -1673,9 +1681,9 @@ class App(tk.Tk):
             return None
         alt = self._alt()
         if not alt:
-            return messagebox.showinfo(TITULO, 'Primero arme o genere un horario (pestaña 6).')
+            return messagebox.showinfo(TITULO, 'Primero arme o genere un horario («11. Horario»).')
         if not self.p.cond.get('reuniones'):
-            return messagebox.showinfo(TITULO, 'No hay reuniones. Créelas en «4. Reuniones y clases juntas».')
+            return messagebox.showinfo(TITULO, 'No hay reuniones. Créelas en «9. Reuniones y clases juntas».')
         prop = self.p.reuniones_en_horario(alt)
         self.propuestas_reu = (alt, prop)
         v = tk.Toplevel(self)
@@ -2096,7 +2104,7 @@ class App(tk.Tk):
             return False
         if messagebox.askyesno(TITULO, '¿Hay docentes que NO viven en el municipio?\n\nSi les tocan días largos, el '
                                        'generador busca que la compensación les quede entrando tarde el lunes o '
-                                       'saliendo temprano el viernes.\n\n«Sí»: lo llevo a «3. Docentes y cursos» para '
+                                       'saliendo temprano el viernes.\n\n«Sí»: lo llevo a «4. Profesores» para '
                                        'marcarlos (casilla 🚌).\n«No»: generar así.'):
             self.ir('profesores')
             self.avisar('Escoja cada docente que viaja y marque «🚌 No vive en el municipio». Luego genere de nuevo.')
@@ -2420,8 +2428,25 @@ class App(tk.Tk):
         self.ventana_asistente = w
         w.title('¿Por qué faltan horas?')
         w.transient(self._encima())
-        cuerpo = ttk.Frame(w, padding=12)
-        cuerpo.pack(fill='both', expand=True)
+        try:
+            alto = max(400, min(900, w.winfo_screenheight() - 120))
+        except (tk.TclError, TypeError):
+            alto = 700
+        w.geometry(f'840x{alto}')
+        # Todo va dentro de un área con barra para bajar (la ventana no se sale de la pantalla)
+        lienzo = tk.Canvas(w, highlightthickness=0)
+        sb = ttk.Scrollbar(w, orient='vertical', command=lienzo.yview)
+        lienzo.configure(yscrollcommand=sb.set)
+        sb.pack(side='right', fill='y')
+        lienzo.pack(side='left', fill='both', expand=True)
+        cuerpo = ttk.Frame(lienzo, padding=12)
+        ventana = lienzo.create_window((0, 0), window=cuerpo, anchor='nw')
+        cuerpo.bind('<Configure>', lambda e: lienzo.configure(scrollregion=lienzo.bbox('all')))
+        lienzo.bind('<Configure>', lambda e: lienzo.itemconfigure(ventana, width=e.width))
+
+        def rueda(e):
+            lienzo.yview_scroll(-1 if e.delta > 0 else 1, 'units')
+        w.bind('<MouseWheel>', rueda)
         ttk.Label(cuerpo, text=f'Quedaron {alt["horas_sin_ubicar"]} horas sin ubicar en «{alt.get("nombre", "Horario")}»',
                   font=('Segoe UI', 11, 'bold')).pack(anchor='w')
         ttk.Label(cuerpo, text='\n'.join('• ' + t for t in faltan[:8]) + (f'\n… y {len(faltan) - 8} más' if len(faltan) > 8 else ''),

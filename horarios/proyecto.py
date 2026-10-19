@@ -1451,7 +1451,7 @@ class Proyecto:
         'Dele más segundos: los horarios grandes o con muchas reglas necesitan más tiempo (2 a 5 minutos).',
         'Fije a mano lo más difícil (los docentes con poca disponibilidad o las clases en espacios compartidos) '
         'y deje que el generador complete el resto.',
-        'Revise en «1. Datos» que las horas de cada curso no pasen de las horas de su jornada.',
+        'Revise en «7. Asignación académica» que las horas de cada curso no pasen de las horas de su jornada.',
         'Si muchas clases van en bloques de 2 horas, permitir que un bloque se parta cuando no cabe ayuda bastante.',
     ]
 

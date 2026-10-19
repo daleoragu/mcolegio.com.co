@@ -151,3 +151,9 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 - **Tablas**: al estirar una columna ya no se pierde la barra para subir y bajar; además hay barra para correr de lado.
 - **Reglas y prioridades**: dos pestañas, «Reglas» y «Prioridades», para que no se corte nada.
 - **Horario en su propia ventana**: al tocar «11. Horario» se abre aparte, a pantalla completa; el resto del programa sigue a mano. Cerrarla solo la esconde (no se pierde nada). El botón ☰ trae la ventana del menú.
+
+## Versión 4.1.1
+
+- **Prioridades**: las dos columnas se reparten el ancho de la pantalla (los textos largos pasan a dos renglones) y hay barra para bajar si no caben.
+- **¿Por qué faltan horas?**: la ventana ya no se sale de la pantalla; tiene barra para bajar (también con la rueda del mouse).
+- Textos de ayuda actualizados a los nombres nuevos del menú.
