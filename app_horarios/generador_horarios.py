@@ -1983,9 +1983,9 @@ class App(tk.Tk):
         ttk.Separator(dos, orient='vertical').pack(side='left', fill='y', padx=6)
         self.var_fijar = tk.BooleanVar(value=False)
         ttk.Checkbutton(dos, text='Fijar 🔒 al ubicar', variable=self.var_fijar).pack(side='left')
-        self.btn_soltar = ttk.Button(dos, text='🔓 Soltar marcadas', command=lambda: self.fijar_marcadas(False))
+        self.btn_soltar = ttk.Button(dos, text='🔓 Soltar', command=lambda: self.fijar_marcadas(False))
         self.btn_soltar.pack(side='left', padx=(6, 0))
-        ttk.Button(dos, text='🔒 Fijar marcadas', command=lambda: self.fijar_marcadas(True)).pack(side='left', padx=2)
+        ttk.Button(dos, text='🔒 Fijar', command=lambda: self.fijar_marcadas(True)).pack(side='left', padx=2)
         ttk.Button(dos, text='🔓 Soltar todo', command=self.soltar_todo).pack(side='left')
         # Fila 3: guardar, imprimir y vistas
         tres = ttk.Frame(f)
@@ -1995,7 +1995,6 @@ class App(tk.Tk):
         ttk.Button(tres, text='🔍+', width=4, command=lambda: self.zoom_todas(0.1)).pack(side='right')
         ttk.Button(tres, text='100%', width=5, command=lambda: self.zoom_todas(None)).pack(side='right', padx=1)
         ttk.Button(tres, text='🔍−', width=4, command=lambda: self.zoom_todas(-0.1)).pack(side='right')
-        ttk.Label(tres, text='Tamaño:').pack(side='right', padx=(8, 2))
         self.lbl_prog = ttk.Label(tres, text='', style='Ayuda.TLabel')
         self.lbl_prog.pack(side='right')
         self.barra = ttk.Progressbar(tres, length=70, mode='determinate')
@@ -2251,9 +2250,8 @@ class App(tk.Tk):
             self.marcadas, self._marcadas_alt = set(), alt
         i = datos['i']
         self.marcadas.symmetric_difference_update({i})
-        self.btn_soltar.configure(text=f'🔓 Soltar marcadas ({len(self.marcadas)})' if self.marcadas
-                                  else '🔓 Soltar marcadas')
-        self.avisar(f'{len(self.marcadas)} ficha(s) marcada(s). Use «Soltar marcadas» o «Fijar marcadas».')
+        self.btn_soltar.configure(text=f'🔓 Soltar ({len(self.marcadas)})' if self.marcadas else '🔓 Soltar')
+        self.avisar(f'{len(self.marcadas)} ficha(s) marcada(s). Use «🔓 Soltar» o «🔒 Fijar».')
         for vv in self.vistas:
             if vv.alt() is alt:
                 vv.dibujar()
@@ -2268,7 +2266,7 @@ class App(tk.Tk):
         marcadas = set(self.marcadas)
         self._paso(alt)
         n = self.p.fijar_varias(alt, marcadas, fijar)
-        self.btn_soltar.configure(text='🔓 Soltar marcadas')
+        self.btn_soltar.configure(text='🔓 Soltar')
         self._ver()
         self.avisar(f'{n} ficha(s) {"fijada(s) 🔒" if fijar else "soltada(s) 🔓: el generador ya las puede mover"}.')
 
