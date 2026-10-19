@@ -97,6 +97,7 @@ class App(tk.Tk):
             estilo.configure('TEntry', fieldbackground='#ffffff')
             estilo.configure('Treeview', background='#ffffff', fieldbackground='#ffffff', bordercolor=BORDE)
             estilo.configure('Treeview.Heading', background='#e2e8f0', font=('Segoe UI', 9, 'bold'))
+        estilo.configure('TButton', padding=(7, 3))
         estilo.configure('Pagina.TFrame', background=FONDO)
         estilo.configure('Pagina.TLabel', background=FONDO, foreground=TINTA, font=('Segoe UI', 15, 'bold'))
         estilo.configure('AyudaPagina.TLabel', background=FONDO, foreground='#475569')
@@ -149,6 +150,13 @@ class App(tk.Tk):
             self.nb.select(f)
         except tk.TclError:
             pass
+        # El Horario va a pantalla completa: sin menú lateral (vuelve con «☰ Menú»)
+        if clave == 'horario':
+            self.menu.pack_forget()
+        elif not self.menu.winfo_ismapped() or getattr(self, 'pagina_actual', None) == 'horario':
+            self.menu.pack(side='left', fill='y', padx=(10, 0), pady=(0, 8), before=self.nb)
+        if getattr(self, 'pagina_actual', None) and self.pagina_actual != 'horario':
+            self.pagina_previa = self.pagina_actual
         for c, it in self.items_menu.items():
             it.configure(bg=NAV_SEL if c == clave else NAV, fg=ACENTO if c == clave else TINTA,
                          font=('Segoe UI', 10, 'bold' if c == clave else 'normal'))
@@ -1791,7 +1799,8 @@ class App(tk.Tk):
         self.nb.add(f, text='11. Horario')
         uno = ttk.Frame(f)
         uno.pack(fill='x')
-        ttk.Button(uno, text='📝 En blanco', command=self._en_blanco).pack(side='left')
+        ttk.Button(uno, text='☰ Menú', command=lambda: self.ir(getattr(self, 'pagina_previa', 'marco'))).pack(side='left')
+        ttk.Button(uno, text='📝 En blanco', command=self._en_blanco).pack(side='left', padx=(4, 0))
         ttk.Separator(uno, orient='vertical').pack(side='left', fill='y', padx=6)
         ttk.Label(uno, text='Alternativas:').pack(side='left')
         self.var_alt = tk.IntVar(value=3)
