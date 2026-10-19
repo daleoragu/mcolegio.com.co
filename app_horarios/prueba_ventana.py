@@ -351,7 +351,7 @@ def prueba():
     app._llenar_lista_docentes()
     # Colores por área y por docente en la cuadrícula (con leyenda)
     vc = app.vista_actual()
-    for k in (1, 2, 0):
+    for k in (1, 2, 3, 4, 0):
         vc.cb_color.current(k)
         vc.dibujar()
         assert bool(vc.leyenda.winfo_children()) == (k != 0), k

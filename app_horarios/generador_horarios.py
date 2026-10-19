@@ -39,7 +39,9 @@ BLOQ_LIBRE, BLOQ_NO = '#4caf50', '#e53935'          # verde / rojo fuertes de la
 COLOR_ESTADO = {'libre': BLOQ_LIBRE, 'no_puede': BLOQ_NO, 'prefiere_no': '#fbc02d', 'evitar': '#fb8c00'}
 # Colores para distinguir áreas o docentes en la cuadrícula (claros, para que se lea el texto)
 PALETA = ['#bfdbfe', '#bbf7d0', '#fde68a', '#fecaca', '#ddd6fe', '#a5f3fc', '#fbcfe8', '#fed7aa', '#d9f99d',
-          '#c7d2fe', '#99f6e4', '#f5d0fe', '#e2e8f0', '#fef9c3', '#bae6fd', '#ffe4e6', '#dcfce7', '#e9d5ff']
+          '#c7d2fe', '#99f6e4', '#f5d0fe', '#e2e8f0', '#fef9c3', '#bae6fd', '#ffe4e6', '#dcfce7', '#e9d5ff',
+          '#fcd34d', '#86efac', '#93c5fd', '#fca5a5', '#c4b5fd', '#67e8f9', '#f9a8d4', '#fdba74', '#bef264',
+          '#a5b4fc', '#5eead4', '#f0abfc']
 COLOR_AREA = {'libre': BLOQ_LIBRE, 'no_puede': BLOQ_NO, 'prefiere_no': '#fbc02d'}
 TEXTO_AREA = {'libre': '', 'no_puede': 'No van', 'prefiere_no': 'Mejor no'}
 TEXTO_ESTADO = {'libre': '', 'no_puede': 'No puede', 'prefiere_no': 'Mejor no', 'evitar': 'Mejor no +'}
@@ -2822,7 +2824,8 @@ class Vista:
         if cerrable:
             ttk.Button(sel, text='✖ Cerrar pestaña', command=lambda: app.cerrar_vista(self)).pack(side='right')
         self.cb_color = ttk.Combobox(sel, state='readonly', width=16 if not compacta else 12,
-                                     values=['Color normal', 'Color por área', 'Color por docente'])
+                                     values=['Color normal', 'Color por área', 'Color por docente', 'Color por curso',
+                                             'Color por materia'])
         self.cb_color.current(0)
         self.cb_color.pack(side='right', padx=4)
         self.cb_color.bind('<<ComboboxSelected>>', lambda e: self.dibujar())
@@ -2989,6 +2992,12 @@ class Vista:
         if modo == 1:
             claves = sorted(D.areas)
             k = D.materias.get(a['materia'], {}).get('area')
+        elif modo == 3:
+            claves = [c['id'] for c in D.crudo['cursos']]
+            k = a['curso']
+        elif modo == 4:
+            claves = sorted(D.materias, key=D.nombre_materia)
+            k = a['materia']
         else:
             claves = sorted(D.docentes, key=D.nombre_docente)
             k = a.get('docente')
@@ -3010,6 +3019,10 @@ class Vista:
                 continue
             if modo == 1:
                 nombre = D.materias.get(a['materia'], {}).get('area') or 'Sin área'
+            elif modo == 3:
+                nombre = f'Curso {D.nombre_curso(a["curso"])}'
+            elif modo == 4:
+                nombre = D.nombre_materia(a['materia'])
             else:
                 nombre = D.nombre_docente(a.get('docente'))
             vistos.setdefault(nombre, self.color_de(s['asignacion']))
