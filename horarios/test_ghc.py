@@ -736,3 +736,64 @@ class IdeasDeGHC(SimpleTestCase):
         # En los avisos, los que no pueden «reciben el acta»
         alt = {'reuniones': [{'nombre': 'R', 'ubicada': True, 'dia': 1, 'inicio': 420, 'faltan': [2]}]}
         self.assertIn('reciben el acta', p.texto_reuniones(alt)[0])
+
+    def test_salones_y_agrupaciones(self):
+        D = datos()
+        p = proyecto(D)
+        c = p.cond
+        c['modo_salones'] = 'curso'
+        c['grupos_salones'] = [{'nombre': 'Bloque A', 'tipo': 'bloque'}, {'nombre': 'Especiales', 'tipo': 'especial'},
+                               {'nombre': 'Laboratorios', 'tipo': 'especial'}]
+        c['salones'] = [{'id': f'A{k}', 'nombre': f'A-10{k}', 'capacidad': 1, 'grupos': ['Bloque A']} for k in (1, 2, 3, 4)]
+        lunes = [f'1-{f["id"]}' for f in D.franjas_de(1) if not f['descanso']]
+        c['salones'] += [{'id': 'SIS', 'nombre': 'Sala de sistemas', 'capacidad': 1, 'grupos': ['Especiales'],
+                          'no_puede': lunes},
+                         {'id': 'L1', 'nombre': 'Lab 1', 'capacidad': 1, 'grupos': ['Laboratorios']},
+                         {'id': 'L2', 'nombre': 'Lab 2', 'capacidad': 1, 'grupos': ['Laboratorios']}]
+        for cid in (1, 2, 3, 4):
+            p.curso(cid)['salon'] = f'S:A{cid}'
+        p.regla(2)['salon'] = 'S:SIS'                 # materia 2 (4 cursos × 4 h) en la única sala de sistemas
+        p.regla(5)['salon'] = 'G:Laboratorios'        # materia 5: cualquiera de los 2 laboratorios
+        self.assertEqual(nucleo.salon_requerido(c, D.asignaciones[12]), 'S:SIS')
+        self.assertEqual(nucleo.claves_salon(c, 'S:SIS'), ['S:SIS', 'G:Especiales'])
+        alt = p.generar(cuantas=1, segundos=8)[0]
+        self.assertEqual(alt['choques'], [])
+        self.assertEqual(alt['horas_sin_ubicar'], 0)
+        self.assertEqual(alt.get('avisos_salones'), [])
+        vistos = defaultdict(list)
+        for s in alt['sesiones']:
+            a = D.asignaciones[s['asignacion']]
+            self.assertIn('salon', s)
+            if a['materia'] == 2:
+                self.assertEqual(s['salon'], 'SIS')
+                self.assertNotEqual(s['dia'], 1)                      # la sala está bloqueada el lunes
+            elif a['materia'] == 5:
+                self.assertIn(s['salon'], ('L1', 'L2'))
+            else:
+                self.assertEqual(s['salon'], f'A{a["curso"]}')
+            vistos[(s['salon'], s['dia'], s['franja'])].append(a['curso'])
+        self.assertTrue(all(len(v) == 1 for v in vistos.values()), [k for k, v in vistos.items() if len(v) > 1])
+        self.assertTrue(p.tabla_salon(alt, 'SIS'))
+        subs = [x['sub'] for fr, celdas in p.tabla_curso(alt, 1)['filas'] for xs in celdas for x in xs]
+        self.assertTrue(any('Sala de sistemas' in t for t in subs), subs)
+        # A mano: la sala ya está ocupada a esa hora
+        s0 = next(s for s in alt['sesiones'] if D.asignaciones[s['asignacion']]['materia'] == 2)
+        otro = next(cid for cid in (1, 2, 3, 4) if cid != D.asignaciones[s0['asignacion']]['curso'])
+        blanco = {'sesiones': [dict(s0)], 'reuniones': []}
+        self.assertIn('ocupado', p.motivo(blanco, otro * 10 + 2, s0['dia'], s0['franja']))
+        self.assertIn('bloqueado', p.motivo(blanco, otro * 10 + 2, 1, D.franjas_de(1)[0]['id']))
+        # Sin salones, nada cambia
+        c['modo_salones'] = 'apagado'
+        self.assertIsNone(nucleo.salon_requerido(c, D.asignaciones[12]))
+
+    def test_bloqueo_general_del_marco(self):
+        D = datos()
+        p = proyecto(D)
+        f0 = [f for f in D.franjas_de(1) if not f['descanso']][0]
+        for dia in (1, 3):
+            self.assertTrue(p.alternar_celda_marco(dia, f0['id']))
+        self.assertTrue(p.celda_marco(1, f0['id']) and p.celda_curso(2, 1, f0['id']))
+        alt = p.generar(cuantas=1, segundos=4)[0]
+        self.assertEqual(alt['choques'], [])
+        self.assertFalse([s for s in alt['sesiones'] if s['franja'] == f0['id'] and s['dia'] in (1, 3)])
+        self.assertFalse(p.alternar_celda_marco(3, f0['id']))

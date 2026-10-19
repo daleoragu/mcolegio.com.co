@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import impresion, nucleo         # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '3.5'
+VERSION = '4.0'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -32,11 +32,15 @@ NARANJA = '#fdba74'
 FIJA, SUELTA, REUNION = '#c7d2fe', '#ede9fe', '#fde68a'
 BLOQUE = '#ddd6fe'
 ACTIVIDAD, TURNO = '#bbf7d0', '#a5f3fc'
-COLOR_ESTADO = {'libre': VERDE, 'no_puede': ROJO, 'prefiere_no': AMARILLO, 'evitar': NARANJA}
+# Estilo (como la imagen de referencia): fondo gris claro, tarjetas blancas, azul oscuro de acento
+FONDO, CARD, BORDE, TINTA = '#eef1f6', '#ffffff', '#d9dee8', '#1e293b'
+NAV, NAV_SEL, ACENTO = '#ffffff', '#e0e7ff', '#312e81'
+BLOQ_LIBRE, BLOQ_NO = '#4caf50', '#e53935'          # verde / rojo fuertes de las cuadrículas de bloqueo
+COLOR_ESTADO = {'libre': BLOQ_LIBRE, 'no_puede': BLOQ_NO, 'prefiere_no': '#fbc02d', 'evitar': '#fb8c00'}
 # Colores para distinguir áreas o docentes en la cuadrícula (claros, para que se lea el texto)
 PALETA = ['#bfdbfe', '#bbf7d0', '#fde68a', '#fecaca', '#ddd6fe', '#a5f3fc', '#fbcfe8', '#fed7aa', '#d9f99d',
           '#c7d2fe', '#99f6e4', '#f5d0fe', '#e2e8f0', '#fef9c3', '#bae6fd', '#ffe4e6', '#dcfce7', '#e9d5ff']
-COLOR_AREA = {'libre': VERDE, 'no_puede': ROJO, 'prefiere_no': AMARILLO}
+COLOR_AREA = {'libre': BLOQ_LIBRE, 'no_puede': BLOQ_NO, 'prefiere_no': '#fbc02d'}
 TEXTO_AREA = {'libre': '', 'no_puede': 'No van', 'prefiere_no': 'Mejor no'}
 TEXTO_ESTADO = {'libre': '', 'no_puede': 'No puede', 'prefiere_no': 'Mejor no', 'evitar': 'Mejor no +'}
 ICONO = {'error': '✖ ', 'aviso': '⚠ ', 'info': 'ℹ '}
@@ -58,22 +62,105 @@ class App(tk.Tk):
         self.cola = queue.Queue()
         self.generando = False
         self._arr = None
-        estilo = ttk.Style(self)
-        try:
-            estilo.theme_use('vista')
-        except tk.TclError:
-            estilo.theme_use('clam')
-        estilo.configure('Titulo.TLabel', font=('Segoe UI', 13, 'bold'))
-        estilo.configure('Sub.TLabel', font=('Segoe UI', 10, 'bold'))
-        estilo.configure('Ayuda.TLabel', foreground='#555')
-        estilo.configure('Treeview', rowheight=24)
+        self._estilo()
         self._barra()
-        self.nb = ttk.Notebook(self)
-        self.nb.pack(fill='both', expand=True, padx=8, pady=(0, 4))
-        self.estado = ttk.Label(self, text='', anchor='w', padding=(10, 2))
+        cuerpo = tk.Frame(self, bg=FONDO)
+        cuerpo.pack(fill='both', expand=True)
+        # Menú lateral (como la imagen de referencia): se llena al abrir los datos
+        self.menu = tk.Frame(cuerpo, bg=NAV, width=230, highlightthickness=1, highlightbackground=BORDE)
+        self.menu.pack(side='left', fill='y', padx=(10, 0), pady=(0, 8))
+        self.menu.pack_propagate(False)
+        self.items_menu = {}
+        self.paginas = {}
+        self.nb = ttk.Notebook(cuerpo, style='SinPestanas.TNotebook')
+        self.nb.pack(side='left', fill='both', expand=True, padx=10, pady=(0, 8))
+        self.estado = ttk.Label(self, text='', anchor='w', padding=(12, 3), style='Estado.TLabel')
         self.estado.pack(fill='x')
         self._bienvenida()
         self.protocol('WM_DELETE_WINDOW', self.salir)
+
+    def _estilo(self):
+        """Tema moderno (Sun Valley, tipo Windows 11) si está; si no, uno claro hecho aquí."""
+        self.configure(bg=FONDO)
+        estilo = ttk.Style(self)
+        try:
+            import sv_ttk
+            sv_ttk.set_theme('light')
+        except Exception:
+            try:
+                estilo.theme_use('clam')
+            except tk.TclError:
+                pass
+            estilo.configure('.', background=FONDO, font=('Segoe UI', 9))
+            estilo.configure('TButton', padding=(10, 5), relief='flat', background='#ffffff', bordercolor=BORDE)
+            estilo.map('TButton', background=[('active', '#e2e8f0')])
+            estilo.configure('TEntry', fieldbackground='#ffffff')
+            estilo.configure('Treeview', background='#ffffff', fieldbackground='#ffffff', bordercolor=BORDE)
+            estilo.configure('Treeview.Heading', background='#e2e8f0', font=('Segoe UI', 9, 'bold'))
+        estilo.configure('Pagina.TFrame', background=FONDO)
+        estilo.configure('Pagina.TLabel', background=FONDO, foreground=TINTA, font=('Segoe UI', 15, 'bold'))
+        estilo.configure('AyudaPagina.TLabel', background=FONDO, foreground='#475569')
+        estilo.configure('Titulo.TLabel', font=('Segoe UI', 13, 'bold'))
+        estilo.configure('Sub.TLabel', font=('Segoe UI', 10, 'bold'))
+        estilo.configure('Ayuda.TLabel', foreground='#555')
+        estilo.configure('Estado.TLabel', background=FONDO)
+        estilo.configure('Treeview', rowheight=26)
+        estilo.configure('Acento.TButton', foreground='#ffffff', background=ACENTO, font=('Segoe UI', 10, 'bold'))
+        estilo.map('Acento.TButton', background=[('active', '#4338ca')], foreground=[('active', '#ffffff')])
+        # Las páginas se escogen con el menú lateral: el cuaderno no muestra pestañas
+        try:
+            estilo.layout('SinPestanas.TNotebook.Tab', [])
+            estilo.configure('SinPestanas.TNotebook', borderwidth=0, background=FONDO)
+        except tk.TclError:
+            pass
+
+    # --- Menú lateral ----------------------------------------------------------------
+    PAGINAS = [('marco', '1. Tiempos y marco', 'tab_marco'), ('materias', '2. Materias', 'tab_materias'),
+               ('cursos', '3. Grados y cursos', 'tab_cursos'), ('profesores', '4. Profesores', 'tab_docentes'),
+               ('salones', '5. Salones', 'tab_salones'), ('bloques', '6. Bloques y agrupaciones', 'tab_bloques'),
+               ('asignacion', '7. Asignación académica', 'tab_datos'),
+               ('reglas', '8. Reglas y prioridades', 'tab_reglas'),
+               ('reuniones', '9. Reuniones y clases juntas', 'tab_grupos'),
+               ('actividades', '10. Actividades y descansos', 'tab_tareas'), ('horario', '11. Horario', 'tab_horario')]
+
+    def _armar_menu(self):
+        for w in self.menu.winfo_children():
+            w.destroy()
+        self.items_menu = {}
+        tk.Label(self.menu, text='Planificación', bg=NAV, fg='#64748b', font=('Segoe UI', 9, 'bold')).pack(
+            anchor='w', padx=14, pady=(12, 4))
+        for clave, titulo, _ in self.PAGINAS:
+            if clave == 'asignacion':
+                tk.Label(self.menu, text='Reglas y horario', bg=NAV, fg='#64748b', font=('Segoe UI', 9, 'bold')).pack(
+                    anchor='w', padx=14, pady=(14, 4))
+            it = tk.Label(self.menu, text=titulo, bg=NAV, fg=TINTA, anchor='w', padx=14, pady=7, cursor='hand2',
+                          font=('Segoe UI', 10))
+            it.pack(fill='x', padx=6, pady=1)
+            it.bind('<Button-1>', lambda e, c=clave: self.ir(c))
+            self.items_menu[clave] = it
+        tk.Label(self.menu, text=f'Versión {VERSION}', bg=NAV, fg='#94a3b8').pack(side='bottom', pady=8)
+
+    def ir(self, clave):
+        """Muestra una página (por su clave: 'marco', 'materias', … 'horario')."""
+        f = self.paginas.get(clave)
+        if f is None:
+            return
+        try:
+            self.nb.select(f)
+        except tk.TclError:
+            pass
+        for c, it in self.items_menu.items():
+            it.configure(bg=NAV_SEL if c == clave else NAV, fg=ACENTO if c == clave else TINTA,
+                         font=('Segoe UI', 10, 'bold' if c == clave else 'normal'))
+        self.pagina_actual = clave
+
+    def _construir_paginas(self, menos=()):
+        """Arma las páginas (todas, o todas menos las de `menos`) y las registra para el menú."""
+        for clave, _, fn in self.PAGINAS:
+            if clave in menos:
+                continue
+            getattr(self, fn)()
+            self.paginas[clave] = self.nb.tabs()[-1]
 
     # ------------------------------------------------------------------
     def avisar(self, texto, error=False):
@@ -86,8 +173,16 @@ class App(tk.Tk):
         ttk.Button(b, text='Abrir proyecto', command=self.abrir_proyecto).pack(side='left', padx=4)
         ttk.Button(b, text='💾 Guardar proyecto', command=self.guardar).pack(side='left')
         ttk.Button(b, text='Actualizar datos', command=self.actualizar_datos).pack(side='left', padx=4)
+        ttk.Button(b, text='Generar horario ⚡', style='Acento.TButton', command=self._generar_desde_barra).pack(
+            side='left', padx=(10, 0))
         self.lbl_colegio = ttk.Label(b, text='Sin datos abiertos', style='Titulo.TLabel')
         self.lbl_colegio.pack(side='right')
+
+    def _generar_desde_barra(self):
+        if not self.p:
+            return messagebox.showinfo(TITULO, 'Primero abra los datos del colegio (.mch).')
+        self.ir('horario')
+        self.generar()
 
     def _bienvenida(self):
         f = ttk.Frame(self.nb, padding=30)
@@ -111,13 +206,10 @@ class App(tk.Tk):
         self.lbl_colegio.config(text=self.p.datos.colegio['nombre'])
         for t in self.nb.tabs():
             self.nb.forget(t)
-        self.tab_datos()
-        self.tab_reglas()
-        self.tab_docentes()
-        self.tab_grupos()
-        self.tab_tareas()
-        self.tab_horario()
-        self.nb.select(0)
+        self.paginas = {}
+        self._construir_paginas()
+        self._armar_menu()
+        self.ir('marco')
         disp = len(self.p.disponibilidad_plataforma())
         self.avisar('Datos abiertos. Empiece por revisar la pestaña 1.' +
                     (f' Trae la disponibilidad que marcaron {disp} docente(s) en la plataforma.' if disp else ''))
@@ -262,8 +354,7 @@ class App(tk.Tk):
 
     # --- 1. Datos ---------------------------------------------------------
     def tab_datos(self):
-        f = ttk.Frame(self.nb, padding=10)
-        self.nb.add(f, text='1. Datos')
+        f = self._pagina('7. Asignación académica')
         ttk.Label(f, text='Doble clic en una columna para cambiarla. «Bloques»: cómo se reparten las horas, '
                           'por ejemplo 2+2+1 (vacío = lo de la materia). «Hora extra»: cuántas de esas horas son extra '
                           '(no cuentan en la permanencia).', style='Ayuda.TLabel').pack(anchor='w')
@@ -278,7 +369,8 @@ class App(tk.Tk):
         cuerpo.pack(fill='both', expand=True, pady=6)
         marco, self.tv_asig = self._tabla(cuerpo, [
             ('curso', 'Curso', 80), ('materia', 'Materia', 170), ('docente', 'Docente', 190), ('horas', 'Horas', 55),
-            ('bloques', 'Bloques', 80), ('extra', 'Hora extra', 85), ('partir', 'Si no cabe', 90)], 20)
+            ('bloques', 'Bloques', 80), ('extra', 'Hora extra', 85), ('partir', 'Si no cabe', 90),
+            ('salon', 'Salón', 130)], 20)
         cuerpo.add(marco, weight=3)
         self.tv_asig.bind('<Double-1>', self._editar_asig)
         der = ttk.Frame(cuerpo, padding=(10, 0))
@@ -302,7 +394,8 @@ class App(tk.Tk):
                 D.ih(a['id'], c), r.get('bloques') or '',
                 (lambda k, n: '' if not k else ('Todas' if k >= n else f'{k} de {n}'))(
                     nucleo.horas_extra(c, a['id'], D.ih(a['id'], c)), D.ih(a['id'], c)),
-                'No partir' if r.get('dividir') is False else 'Partir'))
+                'No partir' if r.get('dividir') is False else 'Partir',
+                nucleo.nombre_salon(c, r.get('salon')) or ''))
         diag = nucleo.diagnostico(D, c)
         t = self.txt_diag
         t.config(state='normal')
@@ -366,13 +459,39 @@ class App(tk.Tk):
                 r.pop('extra', None)
         elif col == '#7':
             r['dividir'] = r.get('dividir') is False
+        elif col == '#8':
+            return self._salon_de_clase(aid)
         self._llenar_datos()
+
+    def _salon_de_clase(self, aid):
+        """Ventanita para escoger el salón de una clase (manda sobre el de la materia, profesor y curso)."""
+        D = self.p.datos
+        a = D.asignaciones[aid]
+        r = self.p.asig(aid)
+        v = tk.Toplevel(self)
+        v.title('Salón de la clase')
+        v.transient(self)
+        cuerpo = ttk.Frame(v, padding=12)
+        cuerpo.pack(fill='both', expand=True)
+        ttk.Label(cuerpo, text=f'{D.nombre_materia(a["materia"])} · {D.nombre_curso(a["curso"])}',
+                  style='Sub.TLabel').pack(anchor='w')
+        ttk.Label(cuerpo, text='Este salón manda sobre el de la materia, el del profesor y el del curso.',
+                  style='Ayuda.TLabel').pack(anchor='w', pady=(2, 6))
+
+        def guardar(val):
+            if val:
+                r['salon'] = val
+            else:
+                r.pop('salon', None)
+            self._llenar_datos()
+        self._combo_salon(cuerpo, r.get('salon'), guardar).pack(anchor='w')
+        ttk.Button(cuerpo, text='Cerrar', command=v.destroy).pack(anchor='e', pady=(10, 0))
+        return v
 
     # --- 2. Reglas ---------------------------------------------------------
     def tab_reglas(self):
         c = self.p.cond
-        f = ttk.Frame(self.nb, padding=10)
-        self.nb.add(f, text='2. Reglas')
+        f = self._pagina('8. Reglas y prioridades')
         gen = ttk.LabelFrame(f, text='Reglas generales', padding=10)
         gen.pack(fill='x')
 
@@ -480,24 +599,6 @@ class App(tk.Tk):
             esc = tk.Scale(pri, from_=0, to=10, orient='horizontal', length=150, showvalue=True, variable=var,
                            command=lambda v, clave=clave: pesos.__setitem__(clave, int(float(v))))
             esc.grid(row=fila, column=col * 2 + 1, sticky='w')
-        cuerpo = ttk.Frame(f)
-        cuerpo.pack(fill='both', expand=True, pady=8)
-        izq = ttk.LabelFrame(cuerpo, text='Materias (doble clic para cambiar)', padding=6)
-        izq.pack(side='left', fill='both', expand=True)
-        self.filtro_mat = self._filtros(izq, ('area',), lambda: self._llenar_materias())
-        marco, self.tv_mat = self._tabla(izq, [
-            ('materia', 'Materia', 170), ('area', 'Área', 120), ('bloques', 'Bloques', 80), ('max', 'Máx./día', 70),
-            ('primeras', 'Primeras horas', 100), ('ultima', 'Evitar última', 95), ('espacio', 'Espacio', 120)], 16)
-        marco.pack(fill='both', expand=True)
-        self.tv_mat.bind('<Double-1>', self._editar_materia)
-        der = ttk.LabelFrame(cuerpo, text='Espacios compartidos', padding=6)
-        der.pack(side='left', fill='y', padx=(8, 0))
-        ttk.Label(der, text='Sala de sistemas, laboratorio,\ncancha… y cuántos cursos caben.', style='Ayuda.TLabel').pack(anchor='w')
-        self.lb_esp = tk.Listbox(der, width=30, height=10)
-        self.lb_esp.pack(fill='y', expand=True, pady=4)
-        ttk.Button(der, text='Agregar espacio', command=self._agregar_espacio).pack(fill='x')
-        ttk.Button(der, text='Quitar', command=self._quitar_espacio).pack(fill='x', pady=2)
-        self._llenar_materias()
 
     def _llenar_materias(self):
         D = self.p.datos
@@ -512,10 +613,12 @@ class App(tk.Tk):
                 r.get('bloques') or ('2+2…' if r.get('doble') else
                                      '2+2… (general)' if (self.p.cond.get('bloques_general') or {}).get('activa') else '1+1…'),
                 r.get('max_dia') or 'General', 'Sí' if r.get('primeras') else '', 'Sí' if r.get('ultimas') else '',
-                r.get('espacio') or ''))
-        self.lb_esp.delete(0, 'end')
-        for e in self.p.cond['espacios']:
-            self.lb_esp.insert('end', f"{e['nombre']} · {e.get('capacidad', 1)} curso(s)")
+                nucleo.nombre_salon(self.p.cond, r.get('salon')) or r.get('espacio') or '',
+                len(r.get('no_puede') or [])))
+        if self.__dict__.get('lb_esp') is not None:
+            self.lb_esp.delete(0, 'end')
+            for e in self.p.cond['espacios']:
+                self.lb_esp.insert('end', f"{e['nombre']} · {e.get('capacidad', 1)} curso(s)")
 
     def _editar_materia(self, ev):
         mid = self.tv_mat.identify_row(ev.y)
@@ -567,17 +670,471 @@ class App(tk.Tk):
             del self.p.cond['espacios'][sel[0]]
             self._llenar_materias()
 
+    # --- Ayudas de dibujo: tarjetas y cuadrículas de bloqueo ------------------------
+    def _pagina(self, titulo, ayuda=''):
+        """Una página con su título; devuelve el marco donde va el contenido."""
+        f = ttk.Frame(self.nb, padding=(18, 12), style='Pagina.TFrame')
+        self.nb.add(f, text=titulo)
+        ttk.Label(f, text=titulo, style='Pagina.TLabel').pack(anchor='w')
+        if ayuda:
+            ttk.Label(f, text=ayuda, style='AyudaPagina.TLabel', wraplength=1100).pack(anchor='w', pady=(2, 8))
+        return f
+
+    def _tarjeta(self, padre, titulo='', **pack):
+        """Una tarjeta blanca con borde suave (como en la imagen de referencia)."""
+        t = tk.Frame(padre, bg=CARD, highlightthickness=1, highlightbackground=BORDE, padx=12, pady=10)
+        t.pack(**(pack or {'fill': 'x', 'pady': 6}))
+        if titulo:
+            tk.Label(t, text=titulo, bg=CARD, fg=TINTA, font=('Segoe UI', 11, 'bold')).pack(anchor='w', pady=(0, 6))
+        return t
+
+    def _rejilla(self, padre, jornadas, estado, siguiente, colores, textos, ancho=10):
+        """Cuadrícula días × horas de cada jornada. estado(dia, fid) -> clave; siguiente(dia, fid) -> nueva clave."""
+        D = self.p.datos
+        for j in jornadas:
+            if len(jornadas) > 1:
+                tk.Label(padre, text=j['nombre'], bg=padre.cget('bg'), font=('Segoe UI', 10, 'bold')).pack(
+                    anchor='w', pady=(6, 2))
+            g = tk.Frame(padre, bg=padre.cget('bg'))
+            g.pack(anchor='w')
+            for col, dia in enumerate(j['dias'], start=1):
+                tk.Label(g, text=nucleo.DIAS[dia], width=ancho + 1, bg=padre.cget('bg'), fg=TINTA,
+                         font=('Segoe UI', 9, 'bold')).grid(row=0, column=col)
+            for fila, fr in enumerate(D.franjas_de(j['id']), start=1):
+                tk.Label(g, text=fr['inicio'], width=6, anchor='e', bg=padre.cget('bg'), fg='#64748b').grid(
+                    row=fila, column=0, padx=4)
+                for col, dia in enumerate(j['dias'], start=1):
+                    if fr['descanso']:
+                        tk.Label(g, text='descanso', fg='#94a3b8', bg=padre.cget('bg'), width=ancho).grid(
+                            row=fila, column=col)
+                        continue
+                    est = estado(dia, fr['id'])
+                    c = tk.Label(g, width=ancho, height=1, bg=colores[est], text=textos[est], fg='#0f172a',
+                                 cursor='hand2', font=('Segoe UI', 8))
+
+                    def tocar(e=None, c=c, dia=dia, fid=fr['id']):
+                        nuevo = siguiente(dia, fid)
+                        c.configure(bg=colores[nuevo], text=textos[nuevo])
+                    c.bind('<Button-1>', tocar)
+                    c.tocar = tocar
+                    c.grid(row=fila, column=col, padx=1, pady=1, ipady=3)
+
+    def _combo_salon(self, padre, actual, guardar, ancho=34):
+        """Lista para escoger un salón propio: ninguno, un salón o cualquiera de una agrupación."""
+        ops = self.p.opciones_salon()
+        cb = ttk.Combobox(padre, state='readonly', width=ancho, values=[t for _, t in ops])
+        valores = [v for v, _ in ops]
+        cb.current(valores.index(actual) if actual in valores else 0)
+        cb.bind('<<ComboboxSelected>>', lambda e: guardar(valores[cb.current()] or None))
+        cb.valores = valores
+        return cb
+
+    # --- 1. Tiempos y marco ---------------------------------------------------
+    def tab_marco(self):
+        D = self.p.datos
+        f = self._pagina('1. Tiempos y marco', 'Las horas de cada jornada vienen de la plataforma (Horarios → Jornadas). '
+                                               'Aquí se ven y se pueden marcar horas SIN CLASE para todo el colegio '
+                                               '(izada de bandera, jornada pedagógica…).')
+        lienzo, cont = self._desplazable(f)
+        for jid in sorted(D.jornadas):
+            j = D.jornadas[jid]
+            t = self._tarjeta(cont, f'{j["nombre"]} · {", ".join(nucleo.DIAS[d] for d in j["dias"])}')
+            fila = tk.Frame(t, bg=CARD)
+            fila.pack(fill='x')
+            izq = tk.Frame(fila, bg=CARD)
+            izq.pack(side='left', anchor='n')
+            marco, tv = self._tabla(izq, [('n', 'Hora', 50), ('desde', 'Desde', 70), ('hasta', 'Hasta', 70),
+                                           ('min', 'Minutos', 70), ('tipo', 'Tipo', 90)],
+                                    len(D.franjas_de(jid)) + 1)
+            marco.pack()
+            n = 0
+            for fr in D.franjas_de(jid):
+                minutos = nucleo.minutos(fr['fin']) - nucleo.minutos(fr['inicio'])
+                if not fr['descanso']:
+                    n += 1
+                tv.insert('', 'end', values=('' if fr['descanso'] else n, fr['inicio'], fr['fin'], minutos,
+                                             fr.get('etiqueta') or 'Descanso' if fr['descanso'] else 'Clase'))
+            der = tk.Frame(fila, bg=CARD)
+            der.pack(side='left', anchor='n', padx=(24, 0))
+            tk.Label(der, text='Toque una hora para dejarla sin clase en todo el colegio:', bg=CARD, fg='#475569').pack(
+                anchor='w', pady=(0, 4))
+            self._rejilla(der, [j], lambda d, fid: 'no_puede' if self.p.celda_marco(d, fid) else 'libre',
+                          lambda d, fid: 'no_puede' if self.p.alternar_celda_marco(d, fid) else 'libre',
+                          {'libre': BLOQ_LIBRE, 'no_puede': BLOQ_NO}, {'libre': 'Clase', 'no_puede': 'Sin clase'})
+
+    def _desplazable(self, padre):
+        """Un área con barra para bajar (para páginas largas). Devuelve (lienzo, marco interior)."""
+        caja = ttk.Frame(padre, style='Pagina.TFrame')
+        caja.pack(fill='both', expand=True)
+        lienzo = tk.Canvas(caja, highlightthickness=0, bg=FONDO)
+        sb = ttk.Scrollbar(caja, orient='vertical', command=lienzo.yview)
+        lienzo.configure(yscrollcommand=sb.set)
+        sb.pack(side='right', fill='y')
+        lienzo.pack(side='left', fill='both', expand=True)
+        cont = tk.Frame(lienzo, bg=FONDO)
+        ventana = lienzo.create_window((0, 0), window=cont, anchor='nw')
+        cont.bind('<Configure>', lambda e: lienzo.configure(scrollregion=lienzo.bbox('all')))
+        lienzo.bind('<Configure>', lambda e: lienzo.itemconfigure(ventana, width=e.width))
+        return lienzo, cont
+
+    # --- 2. Materias ------------------------------------------------------------
+    def tab_materias(self):
+        f = self._pagina('2. Materias', 'Doble clic en la tabla para cambiar bloques, máximo por día, primeras horas o '
+                                        'última hora. Escoja una materia (o un área) para ver su salón y sus horas '
+                                        'bloqueadas.')
+        cuerpo = ttk.Frame(f, style='Pagina.TFrame')
+        cuerpo.pack(fill='both', expand=True)
+        izq = self._tarjeta(cuerpo, 'Materias', side='left', fill='both', expand=True)
+        self.filtro_mat = self._filtros(izq, ('area',), lambda: self._llenar_materias())
+        marco, self.tv_mat = self._tabla(izq, [
+            ('materia', 'Materia', 170), ('area', 'Área', 120), ('bloques', 'Bloques', 80), ('max', 'Máx./día', 70),
+            ('primeras', 'Primeras', 70), ('ultima', 'Evitar última', 90), ('salon', 'Salón', 140),
+            ('bloq', 'Bloqueadas', 80)], 14)
+        marco.pack(fill='both', expand=True)
+        self.tv_mat.bind('<Double-1>', self._editar_materia)
+        self.tv_mat.bind('<<TreeviewSelect>>', lambda e: self._ver_materia())
+        tk.Label(izq, text='Áreas (bloquear horas para todas sus materias)', bg=CARD, fg=TINTA,
+                 font=('Segoe UI', 10, 'bold')).pack(anchor='w', pady=(10, 2))
+        self.lb_areas = tk.Listbox(izq, height=6, exportselection=False, relief='flat', highlightthickness=1,
+                                   highlightbackground=BORDE)
+        self.lb_areas.pack(fill='x')
+        self.lb_areas.bind('<<ListboxSelect>>', lambda e: self._ver_area_sel())
+        self.panel_mat = self._tarjeta(cuerpo, '', side='left', fill='both', expand=True, padx=(10, 0))
+        tk.Label(self.panel_mat, text='Escoja una materia o un área.', bg=CARD, fg='#64748b').pack(anchor='w')
+        self._llenar_materias()
+        self._llenar_areas()
+
+    def _llenar_areas(self):
+        D = self.p.datos
+        self.areas_l = sorted(D.areas)
+        self.lb_areas.delete(0, 'end')
+        for x in self.areas_l:
+            r = (self.p.cond.get('areas') or {}).get(x) or {}
+            n = len(r.get('no_puede') or []) + len(r.get('prefiere_no') or [])
+            self.lb_areas.insert('end', x + (f'  ({n})' if n else ''))
+
+    def _limpiar(self, panel):
+        for w in panel.winfo_children():
+            w.destroy()
+
+    def _ver_materia(self, mid=None):
+        D = self.p.datos
+        if mid is None:
+            sel = self.tv_mat.selection() if hasattr(self.tv_mat, 'selection') else ()
+            mid = int(sel[0]) if sel else None
+        if mid is None or mid not in D.materias:
+            return
+        panel = self.panel_mat
+        self._limpiar(panel)
+        r = self.p.regla(mid)
+        tk.Label(panel, text=D.nombre_materia(mid), bg=CARD, fg=TINTA, font=('Segoe UI', 13, 'bold')).pack(anchor='w')
+        tk.Label(panel, text=f'Área: {D.materias[mid].get("area") or "—"}', bg=CARD, fg='#64748b').pack(anchor='w')
+        fila = tk.Frame(panel, bg=CARD)
+        fila.pack(anchor='w', pady=(8, 4))
+        tk.Label(fila, text='Salón donde se dicta:', bg=CARD).pack(side='left')
+
+        def guardar(v):
+            if v:
+                r['salon'] = v
+            else:
+                r.pop('salon', None)
+            self._llenar_materias()
+        self._combo_salon(fila, r.get('salon'), guardar).pack(side='left', padx=6)
+        tk.Label(panel, text='Ej.: Informática → Sala de sistemas; Química → cualquiera de Laboratorios. Se usa si en '
+                             '«5. Salones» están activados.', bg=CARD, fg='#64748b', wraplength=520,
+                 justify='left').pack(anchor='w')
+        tk.Label(panel, text='Horas: verde = puede · rojo = no va · amarillo = mejor no', bg=CARD, fg=TINTA,
+                 font=('Segoe UI', 10, 'bold')).pack(anchor='w', pady=(10, 4))
+        self._rejilla(panel, self.p.jornadas_de_materia(mid), lambda d, f: self.p.estado_celda_materia(mid, d, f),
+                      lambda d, f: (self.p.siguiente_estado_materia(mid, d, f), self._llenar_materias())[0],
+                      COLOR_AREA, TEXTO_AREA)
+
+    def _ver_area_sel(self):
+        sel = self.lb_areas.curselection()
+        if sel and sel[0] < len(self.areas_l):
+            self._ver_area(self.areas_l[sel[0]], self.panel_mat)
+
+    # --- 3. Grados y cursos -------------------------------------------------------
+    def tab_cursos(self):
+        f = self._pagina('3. Grados y cursos', 'Escoja un curso: marque las horas en que NO tiene clase y, si usa '
+                                               'salones, su salón propio.')
+        cuerpo = ttk.Frame(f, style='Pagina.TFrame')
+        cuerpo.pack(fill='both', expand=True)
+        izq = self._tarjeta(cuerpo, 'Cursos', side='left', fill='y')
+        self.filtro_cur = self._filtros(izq, ('grado',), lambda: self._llenar_cursos())
+        marco_lb = tk.Frame(izq, bg=CARD)
+        marco_lb.pack(fill='both', expand=True, pady=(4, 0))
+        self.lb_cur = tk.Listbox(marco_lb, width=34, exportselection=False, relief='flat', highlightthickness=1,
+                                 highlightbackground=BORDE)
+        sb = ttk.Scrollbar(marco_lb, orient='vertical', command=self.lb_cur.yview)
+        self.lb_cur.configure(yscrollcommand=sb.set)
+        sb.pack(side='right', fill='y')
+        self.lb_cur.pack(side='left', fill='both', expand=True)
+        self.lb_cur.bind('<<ListboxSelect>>', lambda e: self._ver_curso_sel())
+        self.panel_cur = self._tarjeta(cuerpo, '', side='left', fill='both', expand=True, padx=(10, 0))
+        tk.Label(self.panel_cur, text='Escoja un curso.', bg=CARD, fg='#64748b').pack(anchor='w')
+        self._llenar_cursos()
+
+    def _llenar_cursos(self):
+        D = self.p.datos
+        g = self.filtro_cur.valor('grado')
+        self.cursos_l = [c for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso and (g == '' or c.get('grado') == g)]
+        self.lb_cur.delete(0, 'end')
+        for c in self.cursos_l:
+            r = self.p.cond.get('cursos', {}).get(str(c['id'])) or {}
+            extra = []
+            if r.get('no_puede'):
+                extra.append(f'{len(r["no_puede"])} sin clase')
+            if r.get('salon'):
+                extra.append(nucleo.nombre_salon(self.p.cond, r['salon']))
+            self.lb_cur.insert('end', f'Curso {c["nombre"]}' + (f'  ({", ".join(extra)})' if extra else ''))
+
+    def _ver_curso_sel(self):
+        sel = self.lb_cur.curselection()
+        if sel and sel[0] < len(self.cursos_l):
+            self._ver_curso(self.cursos_l[sel[0]], self.panel_cur)
+
+    # --- 5. Salones ---------------------------------------------------------------
+    MODOS_SALON = [('apagado', 'No usar salones'),
+                   ('curso', 'Cada curso con su salón (sistemas, laboratorio o el salón de un profesor lo llevan a otro)'),
+                   ('profesor', 'Cada profesor con su salón (aula-taller: los cursos rotan)')]
+
+    def tab_salones(self):
+        f = self._pagina('5. Salones', 'Prioridad: el salón de la clase > el de la materia > el del profesor > el del '
+                                       'curso. Ningún salón recibe más cursos a la vez que su capacidad.')
+        modo = self._tarjeta(f, '¿Cómo se usan los salones en este colegio?')
+        self.var_modo_salon = tk.StringVar(value=self.p.cond.get('modo_salones') or 'apagado')
+        for clave, texto in self.MODOS_SALON:
+            ttk.Radiobutton(modo, text=texto, value=clave, variable=self.var_modo_salon,
+                            command=lambda: self.p.cond.__setitem__('modo_salones', self.var_modo_salon.get())).pack(
+                anchor='w')
+        cuerpo = ttk.Frame(f, style='Pagina.TFrame')
+        cuerpo.pack(fill='both', expand=True)
+        izq = self._tarjeta(cuerpo, 'Salones', side='left', fill='both', expand=True)
+        bot = tk.Frame(izq, bg=CARD)
+        bot.pack(fill='x', pady=(0, 6))
+        ttk.Button(bot, text='+ Nuevo salón', command=self._nuevo_salon, style='Acento.TButton').pack(side='left')
+        ttk.Button(bot, text='Crear un salón por curso', command=self._salon_por_curso).pack(side='left', padx=4)
+        ttk.Button(bot, text='Quitar salón', command=self._quitar_salon).pack(side='left')
+        marco, self.tv_sal = self._tabla(izq, [('nombre', 'Salón', 170), ('cap', 'Cursos a la vez', 100),
+                                               ('grupos', 'Agrupaciones', 170), ('usos', 'Lo usan', 260)], 14)
+        marco.pack(fill='both', expand=True)
+        self.tv_sal.bind('<<TreeviewSelect>>', lambda e: self._ver_salon())
+        self.panel_sal = self._tarjeta(cuerpo, '', side='left', fill='both', expand=True, padx=(10, 0))
+        tk.Label(self.panel_sal, text='Escoja un salón.', bg=CARD, fg='#64748b').pack(anchor='w')
+        self._llenar_salones()
+
+    def _llenar_salones(self):
+        self.tv_sal.delete(*self.tv_sal.get_children())
+        for s in sorted(self.p.salones(), key=lambda s: s['nombre']):
+            usos = self.p.usos_salon(s['id'])
+            self.tv_sal.insert('', 'end', iid=str(s['id']), values=(
+                s['nombre'], s.get('capacidad') or 1, ', '.join(s.get('grupos') or []) or '—',
+                (', '.join(usos[:4]) + (f' y {len(usos) - 4} más' if len(usos) > 4 else '')) or '—'))
+
+    def _nuevo_salon(self):
+        n = simpledialog.askstring(TITULO, 'Nombre del salón (ej.: A-101, Sala de sistemas 1, Biblioteca):', parent=self)
+        if not n or not n.strip():
+            return
+        s = self.p.nuevo_salon(n)
+        self._llenar_salones()
+        self._ver_salon(s['id'])
+        self.avisar(f'Salón «{s["nombre"]}» creado. Póngale agrupaciones y horas bloqueadas a la derecha.')
+
+    def _salon_por_curso(self):
+        n = self.p.salon_por_curso()
+        if self.p.cond.get('modo_salones') in (None, 'apagado'):
+            self.p.cond['modo_salones'] = 'curso'
+            self.var_modo_salon.set('curso')
+        self._llenar_salones()
+        self.avisar(f'{n} salón(es) creado(s), uno por curso (agrupación «Salones de curso»).')
+
+    def _quitar_salon(self):
+        sel = self.tv_sal.selection()
+        if not sel:
+            return
+        s = self.p.salon(sel[0])
+        if s and messagebox.askyesno(TITULO, f'¿Quitar el salón «{s["nombre"]}»? Los cursos, profesores y materias '
+                                             'que lo tenían quedan sin salón propio.'):
+            self.p.quitar_salon(sel[0])
+            self._llenar_salones()
+            self._limpiar(self.panel_sal)
+
+    def _ver_salon(self, sid=None):
+        if sid is None:
+            sel = self.tv_sal.selection()
+            sid = sel[0] if sel else None
+        s = self.p.salon(sid) if sid else None
+        if not s:
+            return
+        panel = self.panel_sal
+        self._limpiar(panel)
+        tk.Label(panel, text=s['nombre'], bg=CARD, fg=TINTA, font=('Segoe UI', 13, 'bold')).pack(anchor='w')
+        fila = tk.Frame(panel, bg=CARD)
+        fila.pack(anchor='w', pady=(6, 0))
+        tk.Label(fila, text='Nombre:', bg=CARD).pack(side='left')
+        var_n = tk.StringVar(value=s['nombre'])
+        ttk.Entry(fila, textvariable=var_n, width=28).pack(side='left', padx=4)
+
+        def cambio_nombre(*_):
+            if var_n.get().strip():
+                s['nombre'] = var_n.get().strip()
+                self._llenar_salones()
+        var_n.trace_add('write', cambio_nombre)
+        tk.Label(fila, text='Cursos a la vez:', bg=CARD).pack(side='left', padx=(12, 0))
+        var_c = tk.StringVar(value=str(s.get('capacidad') or 1))
+        ttk.Spinbox(fila, from_=1, to=10, width=4, textvariable=var_c).pack(side='left', padx=4)
+
+        def cambio_cap(*_):
+            try:
+                s['capacidad'] = max(1, int(var_c.get()))
+                self._llenar_salones()
+            except ValueError:
+                pass
+        var_c.trace_add('write', cambio_cap)
+        tk.Label(panel, text='Agrupaciones (bloques o salas especiales):', bg=CARD, fg=TINTA,
+                 font=('Segoe UI', 10, 'bold')).pack(anchor='w', pady=(10, 2))
+        grupos = tk.Frame(panel, bg=CARD)
+        grupos.pack(anchor='w')
+        nombres = [g['nombre'] for g in self.p.agrupaciones()]
+        if not nombres:
+            tk.Label(grupos, text='Todavía no hay agrupaciones: créelas en «6. Bloques y agrupaciones».', bg=CARD,
+                     fg='#64748b').pack(anchor='w')
+        for k, g in enumerate(nombres):
+            var = tk.BooleanVar(value=g in (s.get('grupos') or []))
+
+            def cambio(g=g, var=var):
+                gs = [x for x in s.get('grupos') or [] if x != g]
+                if var.get():
+                    gs.append(g)
+                s['grupos'] = gs
+                self._llenar_salones()
+            ttk.Checkbutton(grupos, text=g, variable=var, command=cambio).grid(row=k // 3, column=k % 3, sticky='w',
+                                                                           padx=(0, 12))
+        usos = self.p.usos_salon(s['id'])
+        tk.Label(panel, text='Lo tienen como salón propio: ' + (', '.join(usos) if usos else 'nadie todavía'), bg=CARD,
+                 fg='#475569', wraplength=560, justify='left').pack(anchor='w', pady=(8, 0))
+        tk.Label(panel, text='Horas en que NO se puede usar (rojo):', bg=CARD, fg=TINTA,
+                 font=('Segoe UI', 10, 'bold')).pack(anchor='w', pady=(10, 4))
+        D = self.p.datos
+        self._rejilla(panel, [D.jornadas[j] for j in sorted(D.jornadas)],
+                      lambda d, f: self.p.estado_celda_salon(s['id'], d, f),
+                      lambda d, f: self.p.alternar_celda_salon(s['id'], d, f),
+                      {'libre': BLOQ_LIBRE, 'no_puede': BLOQ_NO}, {'libre': '', 'no_puede': 'No se usa'}, ancho=8)
+
+    # --- 6. Bloques y agrupaciones ---------------------------------------------------
+    TIPOS_AGRUPACION = [('bloque', 'Bloque de salones'), ('especial', 'Salas especiales')]
+
+    def tab_bloques(self):
+        f = self._pagina('6. Bloques y agrupaciones', 'Agrupe salones: Bloque A, B, C… o salas especiales (sistemas, '
+                                                      'laboratorios, biblioteca, aula múltiple). A una materia, profesor '
+                                                      'o curso se le puede dar «cualquiera de» una agrupación.')
+        bot = ttk.Frame(f, style='Pagina.TFrame')
+        bot.pack(fill='x', pady=(0, 6))
+        ttk.Button(bot, text='+ Nueva agrupación', command=self._nueva_agrupacion, style='Acento.TButton').pack(side='left')
+        esp = self._tarjeta(f, 'Espacios compartidos (forma anterior, sin salón fijo)', side='bottom', fill='x', pady=6)
+        _, self.cont_bloques = self._desplazable(f)
+        tk.Label(esp, text='Sala de sistemas, cancha… y cuántos cursos caben. Se recomienda usar salones y agrupaciones.',
+                 bg=CARD, fg='#64748b').pack(anchor='w')
+        fila = tk.Frame(esp, bg=CARD)
+        fila.pack(fill='x')
+        self.lb_esp = tk.Listbox(fila, width=40, height=3)
+        self.lb_esp.pack(side='left', pady=4)
+        ttk.Button(fila, text='Agregar espacio', command=self._agregar_espacio).pack(side='left', padx=6)
+        ttk.Button(fila, text='Quitar', command=self._quitar_espacio).pack(side='left')
+        self._llenar_bloques()
+        self._llenar_materias()
+
+    def _llenar_bloques(self):
+        cont = self.cont_bloques
+        self._limpiar(cont)
+        grupos = nucleo.grupos_de_salones(self.p.cond)
+        tipos = {g['nombre']: g.get('tipo') or 'bloque' for g in self.p.agrupaciones()}
+        if not grupos:
+            tk.Label(cont, text='Todavía no hay agrupaciones. Cree una con «+ Nueva agrupación».', bg=FONDO,
+                     fg='#64748b').grid(row=0, column=0, sticky='w', pady=10)
+        for k, nombre in enumerate(sorted(grupos)):
+            t = tk.Frame(cont, bg=CARD, highlightthickness=1, highlightbackground=BORDE, padx=12, pady=10)
+            t.grid(row=k // 3, column=k % 3, sticky='nsew', padx=6, pady=6)
+            cab = tk.Frame(t, bg=CARD)
+            cab.pack(fill='x')
+            tk.Label(cab, text=nombre, bg=CARD, fg=TINTA, font=('Segoe UI', 11, 'bold')).pack(side='left')
+            tipo = tipos.get(nombre, 'bloque')
+            tk.Label(cab, text=' Bloque ' if tipo == 'bloque' else ' Especial ', bg=AZUL if tipo == 'bloque' else '#16a34a',
+                     fg='white', font=('Segoe UI', 8, 'bold')).pack(side='right')
+            for sid in grupos[nombre]:
+                s = self.p.salon(sid)
+                if not s:
+                    continue
+                fila = tk.Frame(t, bg='#f1f5f9')
+                fila.pack(fill='x', pady=2)
+                usos = self.p.usos_salon(sid)
+                tk.Label(fila, text=f'🏫 {s["nombre"]}' + (f'  ({usos[0]})' if len(usos) == 1 else
+                                                        f'  ({len(usos)} lo usan)' if usos else '  (libre)'),
+                         bg='#f1f5f9', anchor='w').pack(side='left', fill='x', expand=True, padx=6, pady=3)
+                tk.Label(fila, text='✖', bg='#f1f5f9', fg='#b91c1c', cursor='hand2').pack(side='right', padx=6)
+                fila.winfo_children()[-1].bind('<Button-1>', lambda e, s=s, nombre=nombre: self._sacar_de_grupo(s, nombre))
+            fila = tk.Frame(t, bg=CARD)
+            fila.pack(fill='x', pady=(6, 0))
+            fuera = [s for s in sorted(self.p.salones(), key=lambda s: s['nombre']) if nombre not in (s.get('grupos') or [])]
+            cb = ttk.Combobox(fila, state='readonly', width=18, values=[s['nombre'] for s in fuera] + ['+ Salón nuevo…'])
+            cb.pack(side='left')
+            cb.set('+ Añadir salón')
+            cb.bind('<<ComboboxSelected>>', lambda e, cb=cb, fuera=fuera, nombre=nombre: self._meter_en_grupo(cb, fuera, nombre))
+            ttk.Button(fila, text='Quitar agrupación', command=lambda nombre=nombre: self._quitar_agrupacion(nombre)).pack(
+                side='right')
+        for c in range(3):
+            cont.columnconfigure(c, weight=1, uniform='tarjeta')
+
+    def _nueva_agrupacion(self):
+        n = simpledialog.askstring(TITULO, 'Nombre de la agrupación (ej.: Bloque A, Salas de sistemas, Laboratorios):',
+                                   parent=self)
+        if not n or not n.strip():
+            return
+        especial = messagebox.askyesno(TITULO, '¿Son salas especiales (sistemas, laboratorio, biblioteca…)?\n\n'
+                                               '«No» = es un bloque de salones comunes.')
+        self.p.nueva_agrupacion(n, 'especial' if especial else 'bloque')
+        self._llenar_bloques()
+
+    def _meter_en_grupo(self, cb, fuera, nombre):
+        k = cb.current()
+        if k is None or k < 0:
+            return
+        if k >= len(fuera):
+            n = simpledialog.askstring(TITULO, f'Nombre del salón nuevo en «{nombre}»:', parent=self)
+            if n and n.strip():
+                self.p.nuevo_salon(n, 1, [nombre])
+        else:
+            fuera[k]['grupos'] = list(fuera[k].get('grupos') or []) + [nombre]
+        self._llenar_bloques()
+        if 'tv_sal' in self.__dict__:
+            self._llenar_salones()
+
+    def _sacar_de_grupo(self, s, nombre):
+        s['grupos'] = [g for g in s.get('grupos') or [] if g != nombre]
+        self._llenar_bloques()
+        if 'tv_sal' in self.__dict__:
+            self._llenar_salones()
+
+    def _quitar_agrupacion(self, nombre):
+        if messagebox.askyesno(TITULO, f'¿Quitar la agrupación «{nombre}»? Los salones siguen; solo se deshace el grupo.'):
+            self.p.quitar_agrupacion(nombre)
+            self._llenar_bloques()
+            if 'tv_sal' in self.__dict__:
+                self._llenar_salones()
+
     # --- 3. Docentes --------------------------------------------------------
     def tab_docentes(self):
-        f = ttk.Frame(self.nb, padding=10)
-        self.nb.add(f, text='3. Docentes y cursos')
-        izq = ttk.Frame(f)
-        izq.pack(side='left', fill='y')
-        ttk.Label(izq, text='Docentes y, al final, cursos y áreas').pack(anchor='w')
+        f = self._pagina('4. Profesores', 'Escoja un profesor: toque las casillas para marcar cuándo no puede o '
+                                          'prefiere no tener clase, y ponga sus reglas propias (salón, día libre, viaja…).')
+        cuerpo = ttk.Frame(f, style='Pagina.TFrame')
+        cuerpo.pack(fill='both', expand=True)
+        izq = self._tarjeta(cuerpo, 'Profesores', side='left', fill='y')
         self.filtro_doc = self._filtros(izq, ('grado', 'area', 'materia', 'docente'), lambda: self._llenar_lista_docentes())
-        marco_lb = ttk.Frame(izq)
+        marco_lb = tk.Frame(izq, bg=CARD)
         marco_lb.pack(fill='both', expand=True, anchor='w', pady=(4, 0))
-        self.lb_doc = tk.Listbox(marco_lb, width=48, exportselection=False)
+        self.lb_doc = tk.Listbox(marco_lb, width=44, exportselection=False, relief='flat', highlightthickness=1,
+                                 highlightbackground=BORDE)
         sb_lb = ttk.Scrollbar(marco_lb, orient='vertical', command=self.lb_doc.yview)
         self.lb_doc.configure(yscrollcommand=sb_lb.set)
         sb_lb.pack(side='right', fill='y')
@@ -588,37 +1145,23 @@ class App(tk.Tk):
         if disp:
             ttk.Label(izq, text=f'✉ = marcó su disponibilidad en la plataforma ({len(disp)})', style='Ayuda.TLabel').pack(anchor='w')
             ttk.Button(izq, text='Volver a traer la disponibilidad', command=self._traer_disp).pack(fill='x', pady=2)
-        self.panel_doc = ttk.Frame(f, padding=(14, 0))
+        self.panel_doc = ttk.Frame(cuerpo, padding=(14, 0), style='Pagina.TFrame')
         self.panel_doc.pack(side='left', fill='both', expand=True)
-        ttk.Label(self.panel_doc, text='Escoja un docente.', style='Ayuda.TLabel').pack(anchor='w')
+        ttk.Label(self.panel_doc, text='Escoja un profesor.', style='Ayuda.TLabel').pack(anchor='w')
 
     def _llenar_lista_docentes(self):
         D = self.p.datos
         filtro = self.filtro_doc
-        # Un docente pasa el filtro si tiene alguna clase en ese grado y de esa área
+        # Un docente pasa el filtro si tiene alguna clase en ese grado, de esa área y de esa materia
         pasan = {a.get('docente') for a in D.asignaciones.values() if a.get('docente') and filtro(a)}
         self.docs = [d for d in sorted(D.docentes.values(), key=lambda d: d['nombre']) if d['id'] in pasan]
-        g, m, dd = filtro.valor('grado'), filtro.valor('materia'), filtro.valor('docente')
-        con_filtro = {a['curso'] for a in D.asignaciones.values() if filtro(a)} if (m != '' or dd != '') else None
-        self.cursos_l = [c for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso and (g == '' or c.get('grado') == g)
-                         and (con_filtro is None or c['id'] in con_filtro)]
         disp = self.p.disponibilidad_plataforma()
         self.lb_doc.delete(0, 'end')
         for d in self.docs:
+            r = self.p.docente(d['id'])
             self.lb_doc.insert('end', d['nombre'] + ('  ✉' if d['id'] in disp else '')
-                               + ('  (viaja)' if self.p.docente(d['id']).get('viaja') else ''))
-        for c in self.cursos_l:
-            self.lb_doc.insert('end', f'Curso {c["nombre"]}')
-            self.lb_doc.itemconfig('end', foreground='#3730a3')
-        ar = filtro.valor('area')
-        de_filtro = ({D.materias.get(a['materia'], {}).get('area') for a in D.asignaciones.values() if filtro(a)}
-                     if (m != '' or dd != '' or g != '') else None)
-        self.areas_l = [x for x in sorted(D.areas) if (ar == '' or x == ar) and (de_filtro is None or x in de_filtro)]
-        for x in self.areas_l:
-            r = (self.p.cond.get('areas') or {}).get(x) or {}
-            n = len(r.get('no_puede') or []) + len(r.get('prefiere_no') or [])
-            self.lb_doc.insert('end', f'Área {x}' + (f'  ({n})' if n else ''))
-            self.lb_doc.itemconfig('end', foreground='#047857')
+                               + ('  (viaja)' if r.get('viaja') else '')
+                               + (f'  · {nucleo.nombre_salon(self.p.cond, r["salon"])}' if r.get('salon') else ''))
 
     def _traer_disp(self):
         if messagebox.askyesno(TITULO, 'Se reemplazan las horas marcadas aquí por las que cada docente marcó en la '
@@ -633,11 +1176,8 @@ class App(tk.Tk):
             return
         for w in self.panel_doc.winfo_children():
             w.destroy()
-        if sel[0] >= len(self.docs) + len(self.cursos_l):
-            k = sel[0] - len(self.docs) - len(self.cursos_l)
-            return self._ver_area(self.areas_l[k]) if k < len(self.areas_l) else None
         if sel[0] >= len(self.docs):
-            return self._ver_curso(self.cursos_l[sel[0] - len(self.docs)])
+            return
         d = self.docs[sel[0]]
         base, extra, sedes = self.p.resumen_docente(d['id'])
         ttk.Label(self.panel_doc, text=d['nombre'], style='Titulo.TLabel').pack(anchor='w')
@@ -702,6 +1242,16 @@ class App(tk.Tk):
                         variable=var_viaja, command=cambio_viaja).pack(side='left')
         cb_viaja.pack(side='left', padx=4)
         cb_viaja.bind('<<ComboboxSelected>>', cambio_viaja)
+        fila_s = ttk.Frame(abajo)
+        fila_s.pack(anchor='w', pady=(4, 0))
+        ttk.Label(fila_s, text='Salón propio (sus clases van allá):').pack(side='left')
+
+        def guardar_salon(v):
+            if v:
+                r['salon'] = v
+            else:
+                r.pop('salon', None)
+        self._combo_salon(fila_s, r.get('salon'), guardar_salon).pack(side='left', padx=6)
         var_libre = tk.BooleanVar(value=bool(r.get('dia_libre')))
         ttk.Checkbutton(abajo, text='Pide un día sin clases a la semana (si se puede)', variable=var_libre,
                         command=lambda: r.__setitem__('dia_libre', var_libre.get())).pack(anchor='w', pady=(4, 0))
@@ -711,53 +1261,52 @@ class App(tk.Tk):
             ttk.Checkbutton(abajo, text=f'A este docente no se le aplica la regla de la hora {ex.get("b")} y la hora {ex.get("a")}',
                             variable=var_sin, command=lambda: r.__setitem__('sin_excluyente', var_sin.get())).pack(anchor='w')
 
-    def _ver_curso(self, c):
-        ttk.Label(self.panel_doc, text=f'Curso {c["nombre"]}', style='Titulo.TLabel').pack(anchor='w')
-        ttk.Label(self.panel_doc, text='Marque en rojo las horas en que este curso NO tiene clase (sale temprano, '
-                                       'actividad fija, etc.). El generador no le pondrá clases ahí.',
-                  style='Ayuda.TLabel', wraplength=700).pack(anchor='w', pady=(4, 6))
-        jid = self.p.datos.jornada_de_curso[c['id']]
-        j = self.p.datos.jornadas[jid]
-        g = tk.Frame(self.panel_doc)
-        g.pack(anchor='w')
-        for col, dia in enumerate(j['dias'], start=1):
-            tk.Label(g, text=nucleo.DIAS[dia], width=11).grid(row=0, column=col)
-        for fila, fr in enumerate(self.p.datos.franjas_de(jid), start=1):
-            tk.Label(g, text=fr['inicio'], width=7, anchor='e').grid(row=fila, column=0, padx=4)
-            for col, dia in enumerate(j['dias'], start=1):
-                if fr['descanso']:
-                    tk.Label(g, text='descanso', fg='#999', width=11).grid(row=fila, column=col)
-                    continue
-                no = self.p.celda_curso(c['id'], dia, fr['id'])
-                b = tk.Button(g, width=10, relief='flat', bg=ROJO if no else VERDE, text='Sin clase' if no else '')
-                b.configure(command=lambda b=b, dia=dia, fid=fr['id']: self._celda_curso(c['id'], dia, fid, b))
-                b.grid(row=fila, column=col, padx=1, pady=1)
-
-    def _ver_area(self, area):
+    def _ver_curso(self, c, panel=None):
         D = self.p.datos
-        mats = ', '.join(sorted(D.nombre_materia(m) for m in D.areas.get(area, [])))
-        ttk.Label(self.panel_doc, text=f'Área {area}', style='Titulo.TLabel').pack(anchor='w')
-        ttk.Label(self.panel_doc, text=f'Materias: {mats}', style='Ayuda.TLabel', wraplength=700).pack(anchor='w')
-        ttk.Label(self.panel_doc, text='Toque una casilla: verde = puede, rojo = las clases del área NO van a esa hora, '
-                                       'amarillo = mejor no. Vale para todos los cursos y docentes del área.',
-                  style='Ayuda.TLabel', wraplength=700).pack(anchor='w', pady=(4, 6))
-        for j in self.p.jornadas_de_area(area):
-            ttk.Label(self.panel_doc, text=j['nombre'], style='Sub.TLabel').pack(anchor='w', pady=(6, 2))
-            g = tk.Frame(self.panel_doc)
-            g.pack(anchor='w')
-            for col, dia in enumerate(j['dias'], start=1):
-                tk.Label(g, text=nucleo.DIAS[dia], width=11).grid(row=0, column=col)
-            for fila, fr in enumerate(D.franjas_de(j['id']), start=1):
-                tk.Label(g, text=fr['inicio'], width=7, anchor='e').grid(row=fila, column=0, padx=4)
-                for col, dia in enumerate(j['dias'], start=1):
-                    if fr['descanso']:
-                        tk.Label(g, text='descanso', fg='#999', width=11).grid(row=fila, column=col)
-                        continue
-                    est = self.p.estado_celda_area(area, dia, fr['id'])
-                    b = tk.Button(g, width=10, relief='flat', bg=COLOR_AREA[est], text=TEXTO_AREA[est])
-                    b.configure(command=lambda b=b, dia=dia, fid=fr['id']: self._celda_area(area, dia, fid, b))
-                    b.grid(row=fila, column=col, padx=1, pady=1)
+        panel = panel or self.panel_cur
+        self._limpiar(panel)
+        r = self.p.curso(c['id'])
+        tk.Label(panel, text=f'Curso {c["nombre"]}', bg=CARD, fg=TINTA, font=('Segoe UI', 13, 'bold')).pack(anchor='w')
+        fila = tk.Frame(panel, bg=CARD)
+        fila.pack(anchor='w', pady=(6, 4))
+        tk.Label(fila, text='Salón propio:', bg=CARD).pack(side='left')
 
+        def guardar(v):
+            if v:
+                r['salon'] = v
+            else:
+                r.pop('salon', None)
+            self._llenar_cursos()
+        self._combo_salon(fila, r.get('salon'), guardar).pack(side='left', padx=6)
+        tk.Label(panel, text='Marque en rojo las horas en que este curso NO tiene clase (sale temprano, actividad fija, '
+                             'etc.). El generador no le pondrá clases ahí.', bg=CARD, fg='#475569', wraplength=560,
+                 justify='left').pack(anchor='w', pady=(6, 6))
+        jid = D.jornada_de_curso[c['id']]
+
+        def siguiente(d, f):
+            nuevo = 'no_puede' if self.p.alternar_celda_curso(c['id'], d, f) else 'libre'
+            self._llenar_cursos()
+            return nuevo
+        self._rejilla(panel, [D.jornadas[jid]], lambda d, f: 'no_puede' if self.p.celda_curso(c['id'], d, f) else 'libre',
+                      siguiente, {'libre': BLOQ_LIBRE, 'no_puede': BLOQ_NO}, {'libre': 'Clase', 'no_puede': 'Sin clase'})
+
+    def _ver_area(self, area, panel=None):
+        D = self.p.datos
+        panel = panel or self.panel_mat
+        self._limpiar(panel)
+        mats = ', '.join(sorted(D.nombre_materia(m) for m in D.areas.get(area, [])))
+        tk.Label(panel, text=f'Área {area}', bg=CARD, fg=TINTA, font=('Segoe UI', 13, 'bold')).pack(anchor='w')
+        tk.Label(panel, text=f'Materias: {mats}', bg=CARD, fg='#64748b', wraplength=560, justify='left').pack(anchor='w')
+        tk.Label(panel, text='Toque una casilla: verde = puede, rojo = las clases del área NO van a esa hora, '
+                             'amarillo = mejor no. Vale para todos los cursos y docentes del área.', bg=CARD,
+                 fg='#475569', wraplength=560, justify='left').pack(anchor='w', pady=(4, 6))
+
+        def siguiente(d, f):
+            nuevo = self.p.siguiente_estado_area(area, d, f)
+            self._llenar_areas()
+            return nuevo
+        self._rejilla(panel, self.p.jornadas_de_area(area), lambda d, f: self.p.estado_celda_area(area, d, f),
+                      siguiente, COLOR_AREA, TEXTO_AREA)
     def _celda_area(self, area, dia, fid, boton):
         est = self.p.siguiente_estado_area(area, dia, fid)
         boton.configure(bg=COLOR_AREA[est], text=TEXTO_AREA[est])
@@ -779,8 +1328,7 @@ class App(tk.Tk):
 
     # --- 4. Reuniones y grupos -----------------------------------------------
     def tab_grupos(self):
-        f = ttk.Frame(self.nb, padding=10)
-        self.nb.add(f, text='4. Reuniones y clases juntas')
+        f = self._pagina('9. Reuniones y clases juntas')
         reu = ttk.LabelFrame(f, text='Reuniones de área: se busca una hora en que puedan todos (o la mayoría); '
                                      'si no, una segunda reunión con el jefe de área', padding=6)
         reu.pack(fill='both', expand=True)
@@ -1016,7 +1564,7 @@ class App(tk.Tk):
         self._llenar_grupos()
         self._actualizar_fila()
         self._ver()
-        self.nb.select(5)
+        self.ir('horario')
         if n:
             self.avisar(f'Reuniones fijadas. {n} clase(s) salieron de esas horas; ubicándolas en otro lugar…')
             self._completar()
@@ -1143,8 +1691,7 @@ class App(tk.Tk):
 
     # --- 5. Otras tareas: actividades complementarias y descansos -------------
     def tab_tareas(self):
-        f = ttk.Frame(self.nb, padding=10)
-        self.nb.add(f, text='5. Actividades y descansos')
+        f = self._pagina('10. Actividades y descansos')
         act = ttk.LabelFrame(f, text='Actividades complementarias: atención a padres, planeación, proyectos… '
                                      'Se ubican después de las clases, primero en los huecos de cada docente.', padding=6)
         act.pack(fill='both', expand=True)
@@ -1240,8 +1787,8 @@ class App(tk.Tk):
     def tab_horario(self):
         """Pantalla completa: arriba los botones, abajo las cuadrículas (pestañas). Cada pestaña
         escoge qué horario muestra, así se pueden comparar alternativas lado a lado."""
-        f = ttk.Frame(self.nb, padding=(6, 4))
-        self.nb.add(f, text='6. Horario')
+        f = ttk.Frame(self.nb, padding=(6, 4), style='Pagina.TFrame')
+        self.nb.add(f, text='11. Horario')
         uno = ttk.Frame(f)
         uno.pack(fill='x')
         ttk.Button(uno, text='📝 En blanco', command=self._en_blanco).pack(side='left')
@@ -1390,7 +1937,7 @@ class App(tk.Tk):
                                        'generador busca que la compensación les quede entrando tarde el lunes o '
                                        'saliendo temprano el viernes.\n\n«Sí»: lo llevo a «3. Docentes y cursos» para '
                                        'marcarlos (casilla 🚌).\n«No»: generar así.'):
-            self.nb.select(2)
+            self.ir('profesores')
             self.avisar('Escoja cada docente que viaja y marque «🚌 No vive en el municipio». Luego genere de nuevo.')
             return True
         return False
@@ -1805,22 +2352,19 @@ class App(tk.Tk):
                     'Rojo = no se puede, amarillo = reemplazar, verde = libre.')
 
     def _refrescar_condiciones(self):
-        """Vuelve a dibujar las pestañas 1 a 5 con las condiciones nuevas (la 6 queda igual)."""
-        tabs = list(self.nb.tabs() or [])
-        if len(tabs) < 6:
+        """Vuelve a dibujar todas las páginas con las condiciones nuevas (el Horario queda igual)."""
+        horario = self.paginas.get('horario')
+        if horario is None:
             return
-        horario = tabs[5]
-        for t in tabs[:5]:
+        for clave, t in list(self.paginas.items()):
+            if clave == 'horario':
+                continue
             w = self.nb.nametowidget(t) if isinstance(t, str) else t
             self.nb.forget(t)
             w.destroy()
-        self.tab_datos()
-        self.tab_reglas()
-        self.tab_docentes()
-        self.tab_grupos()
-        self.tab_tareas()
+        self._construir_paginas(menos=('horario',))
         self.nb.insert('end', horario)
-        self.nb.select(horario)
+        self.ir('horario')
 
     def nombres_alternativas(self):
         out = []
@@ -2243,7 +2787,7 @@ class Vista:
         self.cb_alt = ttk.Combobox(sel, state='readonly', width=anchos[0])
         self.cb_alt.pack(side='left', padx=(3, 8))
         self.cb_alt.bind('<<ComboboxSelected>>', lambda e: self._cambio_alt())
-        self.cb_ver = ttk.Combobox(sel, state='readonly', values=['Por curso', 'Por docente'], width=anchos[1])
+        self.cb_ver = ttk.Combobox(sel, state='readonly', values=['Por curso', 'Por docente', 'Por salón'], width=anchos[1])
         self.cb_ver.current(0)
         self.cb_ver.pack(side='left')
         self.cb_filtro = ttk.Combobox(sel, state='readonly', width=anchos[2])
@@ -2351,6 +2895,8 @@ class Vista:
         D = self.app.p.datos
         if tipo == 'c':
             t = D.nombre_curso(ident)
+        elif tipo == 's':
+            t = (self.app.p.salon(ident) or {}).get('nombre') or 'Salón'
         else:
             partes = D.nombre_docente(ident).split(' ')
             t = ' '.join(partes[:2])
@@ -2362,8 +2908,12 @@ class Vista:
         """Llena la lista de cursos (filtrada por grado) o de docentes (filtrada por área)."""
         D = self.app.p.datos
         docente = self.cb_ver.current() == 1
+        salon = self.cb_ver.current() == 2
         if not conservar_filtro:
-            if docente:
+            if salon:
+                self.filtros = [('', 'Todas las agrupaciones')] + [
+                    (g, g) for g in sorted(nucleo.grupos_de_salones(self.app.p.cond))]
+            elif docente:
                 self.filtros = [('', 'Todas las áreas')] + [(ar, ar) for ar in sorted(D.areas)]
             else:
                 grados = sorted({c.get('grado') for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso},
@@ -2373,7 +2923,12 @@ class Vista:
             self.cb_filtro.current(0)
         k = self.cb_filtro.current()
         filtro = self.filtros[k][0] if k is not None and 0 <= k < len(self.filtros) else ''
-        if docente:
+        if salon:
+            grupos = nucleo.grupos_de_salones(self.app.p.cond)
+            self.quien_l = [('s', x['id']) for x in sorted(self.app.p.salones(), key=lambda x: x['nombre'])
+                            if filtro == '' or str(x['id']) in grupos.get(filtro, [])]
+            nombres = [self.app.p.salon(x)['nombre'] for _, x in self.quien_l]
+        elif docente:
             con_clase = {a.get('docente') for a in D.asignaciones.values()}
             del_area = set(D.docentes_de_area(filtro)) if filtro != '' else None
             self.quien_l = [('d', d['id']) for d in sorted(D.docentes.values(), key=lambda d: d['nombre'])
@@ -2457,7 +3012,8 @@ class Vista:
             tk.Label(self.rejilla, text=f"{alt['nombre']}  ·  faltan {alt['horas_sin_ubicar']} h", bg=AMARILLO,
                      font=negrita).grid(row=0, column=0, columnspan=7, sticky='ew', pady=(0, 3))
         tk.Label(self.paleta, text='Fichas por ubicar', bg=GRIS, font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=6, pady=4)
-        pend = app.p.pendientes(alt, ident) if tipo == 'c' else app.p.pendientes_docente(alt, ident)
+        pend = (app.p.pendientes(alt, ident) if tipo == 'c' else [] if tipo == 's'
+                else app.p.pendientes_docente(alt, ident))
         for a, n in pend:
             # Una ficha por cada tamaño de bloque que falta (2 h, 1 h…), en el orden que usted quiera.
             if a['id'] in app.sueltas:
@@ -2486,7 +3042,8 @@ class Vista:
         tk.Label(self.paleta, text='Suelte aquí una ficha\npara sacarla del horario.', bg=GRIS, fg='#888',
                  font=('Segoe UI', 8)).pack(side='bottom', pady=6)
         self._poner_leyenda(alt)
-        tablas = [app.p.tabla_curso(alt, ident)] if tipo == 'c' else app.p.tablas_docente(alt, ident)
+        tablas = ([app.p.tabla_curso(alt, ident)] if tipo == 'c' else app.p.tabla_salon(alt, ident) if tipo == 's'
+                  else app.p.tablas_docente(alt, ident))
         n_dias = max((len(t['dias']) for t in tablas if t), default=5)
         for c in range(1, 7):
             self.rejilla.columnconfigure(c, weight=1 if c <= n_dias else 0, uniform='dia' if c <= n_dias else '')

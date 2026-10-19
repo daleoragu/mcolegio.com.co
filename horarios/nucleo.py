@@ -61,7 +61,14 @@ def condiciones_vacias():
             'max_seguidas': 0,           # máximo de horas seguidas de un docente (0 = sin límite)
             'reuniones': [],
             'simultaneas': [],           # [{'nombre', 'asignaciones': [aid…]}] van a la misma hora
-            'espacios': [],              # [{'nombre', 'capacidad'}] sala de sistemas, laboratorio…
+            'espacios': [],              # [{'nombre', 'capacidad'}] sala de sistemas, laboratorio… (versión anterior)
+            # Salones: 'apagado' | 'curso' (cada curso con su salón) | 'profesor' (cada profesor con su salón).
+            # La clase va a: el salón de la clase > el de la materia > el del profesor > el del curso.
+            # Un salón propio se guarda como 'S:<id>' (ese salón) o 'G:<agrupación>' (cualquiera del grupo).
+            'modo_salones': 'apagado',
+            'marco_bloqueo': [],         # ['dia-franja'] horas sin clase para todo el colegio (izada, jornada pedagógica…)
+            'salones': [],               # [{'id', 'nombre', 'capacidad', 'grupos': [nombre], 'no_puede': ['dia-franja']}]
+            'grupos_salones': [],        # [{'nombre', 'tipo': 'bloque'|'especial'}] Bloque A, Salas de sistemas…
             'pesos': {},                 # {criterio: 0..10} prioridades al optimizar (5 = normal)
             'cursos': {},                # {cid: {'no_puede': ['dia-franja']}} horas sin clase del curso
             'areas': {},                 # {área: {'no_puede': [...], 'prefiere_no': [...]}} horas de las materias del área
@@ -134,6 +141,128 @@ def bloques_por_defecto(cond, ih):
     if ih < desde:
         return None
     return [2] * (ih // 2) + [1] * (ih % 2)
+
+
+# ---------------------------------------------------------------------------
+# Salones
+# ---------------------------------------------------------------------------
+def salones_de(cond):
+    return {str(s['id']): s for s in (cond.get('salones') or []) if s.get('id') is not None}
+
+
+def grupos_de_salones(cond):
+    """{agrupación: [id de salón]} (también las agrupaciones sin salones todavía)."""
+    out = {g['nombre']: [] for g in (cond.get('grupos_salones') or []) if g.get('nombre')}
+    for sid, s in salones_de(cond).items():
+        for g in s.get('grupos') or []:
+            out.setdefault(g, []).append(sid)
+    return out
+
+
+def salon_requerido(cond, a):
+    """'S:<id>', 'G:<agrupación>' o None: a dónde va la clase (si se usan salones)."""
+    if (cond.get('modo_salones') or 'apagado') == 'apagado':
+        return None
+    r = (cond.get('asignaciones', {}).get(str(a['id']), {}).get('salon')
+         or cond.get('materias', {}).get(str(a['materia']), {}).get('salon'))
+    if r:
+        return r
+    did = a.get('docente')
+    rd = cond.get('docentes', {}).get(str(did), {}).get('salon') if did else None
+    rc = cond.get('cursos', {}).get(str(a['curso']), {}).get('salon')
+    return rd or rc or None
+
+
+def claves_salon(cond, req):
+    """Las «llaves» de capacidad que gasta una clase: el salón y sus agrupaciones, o la agrupación."""
+    if not req:
+        return []
+    tipo, _, ident = str(req).partition(':')
+    if tipo == 'S':
+        s = salones_de(cond).get(ident)
+        return [f'S:{ident}'] + [f'G:{g}' for g in (s.get('grupos') or [])] if s else []
+    if tipo == 'G' and grupos_de_salones(cond).get(ident):
+        return [f'G:{ident}']
+    return []
+
+
+def capacidad_salones(cond):
+    """({llave: capacidad}, {llave: {(dia, franja): capacidad que se pierde}}) para el motor."""
+    cap, menos = {}, defaultdict(lambda: defaultdict(int))
+    sal = salones_de(cond)
+    for sid, s in sal.items():
+        c = max(1, int(s.get('capacidad') or 1))
+        cap[f'S:{sid}'] = c
+        for g in s.get('grupos') or []:
+            cap[f'G:{g}'] = cap.get(f'G:{g}', 0) + c
+        for celda in celdas(s.get('no_puede')):
+            menos[f'S:{sid}'][celda] += c
+            for g in s.get('grupos') or []:
+                menos[f'G:{g}'][celda] += c
+    return cap, {k: dict(v) for k, v in menos.items()}
+
+
+def nombre_salon(cond, req):
+    tipo, _, ident = str(req or '').partition(':')
+    if tipo == 'S':
+        return (salones_de(cond).get(ident) or {}).get('nombre') or ident
+    if tipo == 'G':
+        return f'{ident} (cualquiera)'
+    return ''
+
+
+def asignar_salones(datos, cond, sesiones):
+    """Pone en cada sesión el salón concreto ('salon': id) según lo que pide la clase.
+    Devuelve avisos de las que no alcanzaron salón."""
+    sal = salones_de(cond)
+    grupos = grupos_de_salones(cond)
+    if not sal or (cond.get('modo_salones') or 'apagado') == 'apagado':
+        for s in sesiones:
+            s.pop('salon', None)
+        return []
+    ocupado = defaultdict(list)         # (salón, día) -> [(ini, fin)]
+    bloq = {sid: celdas(s.get('no_puede')) for sid, s in sal.items()}
+    avisos = []
+    juntos = grupos_multigrado(cond)
+    pendientes = []
+    for s in sesiones:
+        a = datos.asignaciones.get(s['asignacion'])
+        if not a or s['franja'] not in datos.franjas:
+            continue
+        req = salon_requerido(cond, a)
+        s.pop('salon', None)
+        if req:
+            pendientes.append((0 if str(req).startswith('S:') else 1, s, a, req))
+    pendientes.sort(key=lambda x: (x[0], x[1]['dia'], datos.intervalo(x[1]['franja'])))
+    ultimo = {}                          # (asignación, día) -> salón de la hora anterior (bloques en el mismo)
+    for _, s, a, req in pendientes:
+        ini, fin = datos.intervalo(s['franja'])
+        tipo, _, ident = str(req).partition(':')
+        opciones = [ident] if tipo == 'S' else list(grupos.get(ident, []))
+        previo = ultimo.get((a['id'], s['dia']))
+        if previo in opciones:
+            opciones.remove(previo)
+            opciones.insert(0, previo)
+        escogido = None
+        for sid in opciones:
+            if sid not in sal or (s['dia'], s['franja']) in bloq.get(sid, ()):
+                continue
+            usos = [(x, y, cu) for x, y, cu in ocupado[(sid, s['dia'])] if x < fin and ini < y]
+            cap = max(1, int(sal[sid].get('capacidad') or 1))
+            # Multigrado: los cursos del mismo grupo comparten el salón (cuentan como uno)
+            mismos = [u for u in usos if juntos.get(u[2]) is not None and juntos.get(u[2]) == juntos.get(a['curso'])]
+            if len(usos) - len(mismos) < cap:
+                escogido = sid
+                break
+        if escogido:
+            s['salon'] = escogido
+            ocupado[(escogido, s['dia'])].append((ini, fin, a['curso']))
+            ultimo[(a['id'], s['dia'])] = escogido
+        else:
+            avisos.append(f'{datos.nombre_materia(a["materia"])} de {datos.nombre_curso(a["curso"])} el '
+                          f'{DIAS[s["dia"]]} {datos.franjas[s["franja"]]["inicio"]}: no quedó salón libre en '
+                          f'{nombre_salon(cond, req)}.')
+    return avisos
 
 
 def modo_viaja(valor):
@@ -382,7 +511,7 @@ def diagnostico(datos, cond):
             salida.append(('error', f'{D.nombre_curso(cid)} no está en ninguna jornada (asígnela en la plataforma).'))
             continue
         cupo = len([f for f in D.jornadas[jid]['franjas'] if not f['descanso']]) * len(D.jornadas[jid]['dias'])
-        cupo -= len(cond.get('cursos', {}).get(str(cid), {}).get('no_puede', []))
+        cupo -= len(set(cond.get('cursos', {}).get(str(cid), {}).get('no_puede', [])) | set(cond.get('marco_bloqueo') or []))
         if horas > cupo:
             salida.append(('error', f'{D.nombre_curso(cid)} tiene {horas} horas de clase y solo hay {cupo} espacios en la semana.'))
     for did, horas in por_docente.items():
@@ -650,7 +779,7 @@ def armar(datos, cond):
     slots = {}
     for cid, jid in D.jornada_de_curso.items():
         j = D.jornadas[jid]
-        sin = celdas(cond.get('cursos', {}).get(str(cid), {}).get('no_puede'))
+        sin = celdas(cond.get('cursos', {}).get(str(cid), {}).get('no_puede')) | celdas(cond.get('marco_bloqueo'))
         slots[cid] = [(d, f['id']) for d in j['dias'] for f in D.franjas_de(jid) if not f['descanso'] and (d, f['id']) not in sin]
     mat = cond.get('materias', {})
     asg = cond.get('asignaciones', {})
@@ -659,10 +788,14 @@ def armar(datos, cond):
     ultimas = {int(m) for m, r in mat.items() if r.get('ultimas')}
     defecto = int(cond.get('max_por_dia') or 2)
     espacios = {e['nombre']: max(1, int(e.get('capacidad') or 1)) for e in cond.get('espacios', []) if e.get('nombre')}
+    cap_sal, menos_sal = capacidad_salones(cond)
+    espacios.update(cap_sal)
 
     def espacio_de(a):
+        """Llaves de capacidad de la clase: el espacio compartido (versión anterior) y su salón."""
         e = asg.get(str(a['id']), {}).get('espacio') or mat.get(str(a['materia']), {}).get('espacio') or ''
-        return e if e in espacios else ''
+        llaves = [e] if e in espacios else []
+        return llaves + claves_salon(cond, salon_requerido(cond, a))
 
     def doc_de(a):
         # Sin docente: un número propio (negativo y que no se repite) para que no choque con nadie.
@@ -720,7 +853,7 @@ def armar(datos, cond):
             unidades.append({'id': f'S{g}-{len(unidades)}', 'asig': miembros[0]['id'], 'largo': largo,
                              'extra': all(horas_extra(cond, a['id'], D.ih(a['id'], cond)) >= D.ih(a['id'], cond) > 0
                                           for a in miembros),
-                             'dividir': True, 'espacio': espacio_de(miembros[0]),
+                             'dividir': True, 'espacio': [k for a in miembros for k in espacio_de(a)],
                              'partes': [parte(a) for a in miembros]})
         for a in miembros:
             restantes[a['id']] -= n
@@ -818,6 +951,12 @@ def armar(datos, cond):
     viajan = {int(did): modo_viaja(r.get('viaja')) for did, r in cond.get('docentes', {}).items()
               if r.get('viaja') and int(did) in D.docentes}
     bloqueo_materia, mejor_no_materia = {}, {}
+    for mid, r in (cond.get('materias') or {}).items():          # horas bloqueadas de una materia
+        no, mejor = celdas(r.get('no_puede')), celdas(r.get('prefiere_no'))
+        if no:
+            bloqueo_materia.setdefault(int(mid), set()).update(no)
+        if mejor:
+            mejor_no_materia.setdefault(int(mid), set()).update(mejor)
     for area, r in (cond.get('areas') or {}).items():
         no, mejor = celdas(r.get('no_puede')), celdas(r.get('prefiere_no'))
         for mid in D.areas.get(area, []):
@@ -856,6 +995,7 @@ def armar(datos, cond):
                  max_materia_dia=max_materia_dia, max_docente_dia=max_docente_dia, max_seguidas=max_seguidas,
                  primeras=primeras, dobles=dobles, ultimas=ultimas, permanencia=permanencia,
                  desplazamiento=int(cond.get('desplazamiento') or 0), espacios=espacios, pesos=pesos_de(cond),
+                 espacio_menos=menos_sal,
                  evitar=evitar, dia_libre=dia_libre, dias_docente=dias_docente,
                  excluyentes=[regla_excluyente(cond)[:2]] if regla_excluyente(cond) else [],
                  excluyente_duro=bool(regla_excluyente(cond) and regla_excluyente(cond)[2]),
@@ -896,6 +1036,7 @@ def generar(datos, cond, segundos=30, semilla=0, avance=None, vivo=None, parar=N
     r = resolver(p, segundos=segundos, semilla=semilla, avance=avance, vivo=mostrar, parar=parar)
     est = r['estado']
     sesiones = _sesiones_de(datos, cond, est, r['ubicadas'])
+    avisos_salones = asignar_salones(datos, cond, sesiones)
     sin = defaultdict(int)
     for uid in r['sin_ubicar']:
         u = est.u[uid]
@@ -914,7 +1055,8 @@ def generar(datos, cond, segundos=30, semilla=0, avance=None, vivo=None, parar=N
     return {'sesiones': sesiones, 'costo': r['costo'], 'huecos': sum(huecos.values()),
             'sin_ubicar': [{'asignacion': a, 'horas': h} for a, h in sin.items()],
             'divididas': r.get('divididas', []), 'reuniones': getattr(p, 'reuniones', []), 'dificiles': dificiles,
-            'detenido': r.get('detenido', False), 'segundos_usados': r.get('segundos_usados')}
+            'detenido': r.get('detenido', False), 'segundos_usados': r.get('segundos_usados'),
+            'avisos_salones': avisos_salones}
 
 
 # ---------------------------------------------------------------------------

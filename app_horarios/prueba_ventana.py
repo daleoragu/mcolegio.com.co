@@ -36,7 +36,10 @@ def prueba():
     app = g.App()
     app.withdraw()
     app.cargar(Proyecto.abrir_datos(os.path.join(AQUI, 'ejemplo_datos.mch')))
-    assert len(app.nb.tabs()) == 6, app.nb.tabs()
+    assert len(app.nb.tabs()) == 11 and set(app.paginas) >= {'marco', 'salones', 'bloques', 'horario'}, app.nb.tabs()
+    for clave, _, _ in app.PAGINAS:                 # el menú lateral lleva a cada página
+        app.ir(clave)
+        assert app.pagina_actual == clave
     p = app.p
     D = p.datos
     assert p.disponibilidad_plataforma(), 'el ejemplo trae disponibilidad'
@@ -87,14 +90,46 @@ def prueba():
     p.docente(d['id'])['dia_libre'] = True
     app._ver_docente()
     p.docente(d['id'])['sin_excluyente'] = False
-    # Cursos: horas sin clase
-    app.lb_doc.selection_clear(0, 'end')
-    app.lb_doc.selection_set(len(app.docs))
-    app._ver_docente()
+    # Cursos: horas sin clase (página 3)
+    app.lb_cur.selection_set(0)
+    app._ver_curso_sel()
+    assert app.panel_cur.winfo_children()
     c0 = app.cursos_l[0]
     jc0 = D.jornadas[D.jornada_de_curso[c0['id']]]
     ult = [f for f in D.franjas_de(jc0['id']) if not f['descanso']][-1]
     assert p.alternar_celda_curso(c0['id'], jc0['dias'][-1], ult['id'])
+    # 1. Marco: horas sin clase para todo el colegio
+    jm = D.jornadas[sorted(D.jornadas)[0]]
+    fm = [x for x in D.franjas_de(jm['id']) if not x['descanso']][0]
+    assert p.alternar_celda_marco(jm['dias'][0], fm['id']) and p.celda_marco(jm['dias'][0], fm['id'])
+    p.alternar_celda_marco(jm['dias'][0], fm['id'])
+    # 2. Materias: salón y horas bloqueadas de una materia
+    mid0 = sorted(D.materias)[0]
+    app._ver_materia(mid0)
+    assert app.panel_mat.winfo_children()
+    assert p.siguiente_estado_materia(mid0, jm['dias'][0], fm['id']) == 'no_puede'
+    p.siguiente_estado_materia(mid0, jm['dias'][0], fm['id'])
+    p.siguiente_estado_materia(mid0, jm['dias'][0], fm['id'])
+    # 5 y 6. Salones y agrupaciones
+    p.nueva_agrupacion('Salas especiales', 'especial')
+    sis = p.nuevo_salon('Sala de sistemas', 1, ['Salas especiales'])
+    app._llenar_salones()
+    assert str(sis['id']) in app.tv_sal.get_children()
+    app._ver_salon(sis['id'])
+    assert app.panel_sal.winfo_children()
+    assert p.alternar_celda_salon(sis['id'], jm['dias'][0], fm['id']) == 'no_puede'
+    p.alternar_celda_salon(sis['id'], jm['dias'][0], fm['id'])
+    app._salon_por_curso()
+    assert p.cond['modo_salones'] == 'curso' and all(p.curso(c['id']).get('salon') for c in D.crudo['cursos']
+                                                      if c['id'] in D.jornada_de_curso)
+    p.regla(mid0)['salon'] = f'S:{sis["id"]}'
+    app._llenar_bloques()
+    assert app.cont_bloques.winfo_children()
+    alt_sal = p.generar(cuantas=1, segundos=6)[0]
+    assert not alt_sal['choques'], alt_sal['choques']
+    assert all(x.get('salon') for x in alt_sal['sesiones']), 'quedaron clases sin salón'
+    p.alternativas.remove(alt_sal)
+    p.cond['modo_salones'] = 'apagado'
     # 4. Reuniones y clases simultáneas
     app._reuniones_area()
     if p.cond['reuniones']:
@@ -113,7 +148,7 @@ def prueba():
     app._llenar_tareas()
     assert app.tv_act.get_children() and app.tv_zon.get_children()
     # 6. Horario: en blanco, arrastrar fichas, generar y completar
-    app.nb.select(5)
+    app.ir('horario')
     app._en_blanco()
     app.update()
     alt = app._alt()
@@ -249,7 +284,7 @@ def prueba():
     app.generando = True                     # que no lance el generador en la prueba
     app._asistente_aplicar()
     app.generando = False
-    assert app.ventana_asistente is None and len(app.nb.tabs()) == 6, app.nb.tabs()
+    assert app.ventana_asistente is None and len(app.nb.tabs()) == 11, app.nb.tabs()
     assert 'cambio' in app.estado.cget('text'), app.estado.cget('text')
     app.asistente(vacio)
     app._asistente_a_mano()
@@ -285,12 +320,11 @@ def prueba():
     assert alt['sesiones'] == antes_s, 'no deshizo'
     print('paso:', 'Generar de verdad', flush=True)
     # Bloquear horas por área (en la lista de la pestaña 3, después de los cursos)
-    app._llenar_lista_docentes()
+    app._llenar_areas()
     assert app.areas_l, 'el ejemplo no tiene áreas'
-    app.lb_doc.selection_clear(0, 'end')
-    app.lb_doc.selection_set(len(app.docs) + len(app.cursos_l))
-    app._ver_docente()
-    assert app.panel_doc.winfo_children()
+    app.lb_areas.selection_set(0)
+    app._ver_area_sel()
+    assert app.panel_mat.winfo_children()
     area = app.areas_l[0]
     j_area = p.jornadas_de_area(area)[0]
     f_area = [f for f in D.franjas_de(j_area['id']) if not f['descanso']][0]
@@ -441,7 +475,7 @@ def _captura(app):
         app.deiconify()
         app.state('normal')
         app.geometry('1366x768+0+0')
-        app.nb.select(5)
+        app.ir('horario')
         for _ in range(10):
             app.update()
             time.sleep(0.2)
