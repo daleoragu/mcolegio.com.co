@@ -36,10 +36,17 @@ def prueba():
     app = g.App()
     app.withdraw()
     app.cargar(Proyecto.abrir_datos(os.path.join(AQUI, 'ejemplo_datos.mch')))
-    assert len(app.nb.tabs()) == 11 and set(app.paginas) >= {'marco', 'salones', 'bloques', 'horario'}, app.nb.tabs()
+    assert len(app.nb.tabs()) == 10 and set(app.paginas) >= {'marco', 'salones', 'bloques', 'horario'}, app.nb.tabs()
     for clave, _, _ in app.PAGINAS:                 # el menú lateral lleva a cada página
         app.ir(clave)
-        assert app.pagina_actual == clave
+        if clave != 'horario':                      # el horario se abre en su propia ventana
+            assert app.pagina_actual == clave
+    assert app.ventana_horario is app.paginas['horario']
+    app.plegar_menu()                               # menú solo con íconos (y letrero al pasar el mouse)
+    assert app.menu_plegado and app.items_menu
+    app.plegar_menu()
+    assert not app.menu_plegado
+    app.ir('materias')
     p = app.p
     D = p.datos
     assert p.disponibilidad_plataforma(), 'el ejemplo trae disponibilidad'
@@ -292,7 +299,7 @@ def prueba():
     app.generando = True                     # que no lance el generador en la prueba
     app._asistente_aplicar()
     app.generando = False
-    assert app.ventana_asistente is None and len(app.nb.tabs()) == 11, app.nb.tabs()
+    assert app.ventana_asistente is None and len(app.nb.tabs()) == 10, app.nb.tabs()
     assert 'cambio' in app.estado.cget('text'), app.estado.cget('text')
     app.asistente(vacio)
     app._asistente_a_mano()
@@ -474,7 +481,7 @@ def _cortados(app, ancho):
                 continue                         # rayitas divisorias y el texto de avance no cuentan
             if a <= 1 or x + a > w + 1:
                 fuera.append(f'fila {k}: {texto or h.winfo_class()}')
-    print(f'::notice::{ancho}px (ventana {app.winfo_width()}): ' + ('nada cortado' if not fuera else 'cortados -> ' + '; '.join(fuera)), flush=True)
+    print(f'::notice::{ancho}px (ventana {app.ventana_horario.winfo_width()}): ' + ('nada cortado' if not fuera else 'cortados -> ' + '; '.join(fuera)), flush=True)
 
 
 def _captura(app):
@@ -482,16 +489,17 @@ def _captura(app):
     try:
         import time
         from PIL import ImageGrab
-        app.deiconify()
-        app.state('normal')
-        app.geometry('1366x768+0+0')
+        w = app.ventana_horario
+        w.deiconify()
+        w.state('normal')
+        w.geometry('1366x768+0+0')
         app.ir('horario')
         for _ in range(10):
             app.update()
             time.sleep(0.2)
         _cortados(app, 1366)
         ImageGrab.grab(bbox=(0, 0, 1366, 768)).save(os.path.join(AQUI, 'captura_horario.png'))
-        app.geometry('1024x700+0+0')
+        w.geometry('1024x700+0+0')
         for _ in range(10):
             app.update()
             time.sleep(0.2)

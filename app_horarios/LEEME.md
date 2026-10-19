@@ -109,7 +109,7 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 ## Versión 3.4
 
 - **Reuniones de área a la misma hora**: en «4. Reuniones», la casilla «Todas las reuniones de área el mismo día y a la misma hora» busca una sola hora para todas (donde puedan todos los jefes y la mayoría). También vale para «Buscar hora en el horario armado».
-- **Soltar fichas fijadas 🔒**: Ctrl + clic marca varias fichas (quedan con borde azul) → «🔓 Soltar marcadas» o «🔒 Fijar marcadas». «🔓 Soltar todo» suelta todas las del horario (siguen en su lugar, pero el generador ya las puede mover).
+- **Soltar fichas fijadas 🔒**: Ctrl + clic marca varias fichas (quedan con borde azul) → «🔓 Soltar» o «🔒 Fijar». «🔓 Soltar todo» suelta todas las del horario (siguen en su lugar, pero el generador ya las puede mover).
 - **Completar ya no fija todo**: «Completar lo que falta» respeta lo que estaba puesto, pero solo deja fijadas 🔒 las que usted había fijado.
 - **PDF**: «📄 PDF (.zip)» guarda un .zip con un PDF por curso (carpeta Cursos) y uno por docente (carpeta Docentes). «📄 PDF junto» guarda dos PDF: todos los cursos y todos los docentes, una hoja cada uno. Con colores por área.
 - La lista de «3. Docentes y cursos» ahora va pegada a la izquierda, más ancha y con barra.
@@ -141,3 +141,13 @@ GitHub lo construye solo con `.github/workflows/app-horarios.yml` cada vez que c
 - Si un salón traba el horario, el asistente «¿Por qué faltan horas?» sugiere ampliarlo.
 - **Mínimo de clases por día**: en Reglas, «Mínimo de clases de un docente los días que viene» (así nadie viene por una sola clase); en cada profesor se puede poner otro mínimo, junto al máximo. Si algún día queda por debajo, sale en ⚠ Avisos. Su importancia se ajusta en Prioridades.
 - **Colores por curso y por materia**: en cada cuadrícula del Horario, además de «Color por área» y «por docente», ahora están «Color por curso» y «Color por materia» (con su leyenda arriba). Muy útil en la vista por docente o por salón.
+
+## Versión 4.1
+
+- **Menú lateral plegable**: «« Ocultar menú» deja solo los íconos (más espacio); al pasar el mouse por un ícono dice qué es. «»» lo vuelve a mostrar.
+- **Materias**: volvieron los botones «✂ Dividir en bloques automáticamente» y «Quitar todos los bloques». La raya entre la tabla y el detalle se puede arrastrar, y el detalle tiene barras para correr a los lados y abajo: ya no se pierden días de la cuadrícula.
+- **Profesores**: solo el filtro de profesor; el detalle también se puede correr y agrandar con la raya del medio.
+- **Botones azules** (Generar horario, Nuevo salón, Nueva agrupación): ya se ve la letra.
+- **Tablas**: al estirar una columna ya no se pierde la barra para subir y bajar; además hay barra para correr de lado.
+- **Reglas y prioridades**: dos pestañas, «Reglas» y «Prioridades», para que no se corte nada.
+- **Horario en su propia ventana**: al tocar «11. Horario» se abre aparte, a pantalla completa; el resto del programa sigue a mano. Cerrarla solo la esconde (no se pierde nada). El botón ☰ trae la ventana del menú.

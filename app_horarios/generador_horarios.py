@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import impresion, nucleo         # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '4.0'
+VERSION = '4.1'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -85,9 +85,11 @@ class App(tk.Tk):
         """Tema moderno (Sun Valley, tipo Windows 11) si está; si no, uno claro hecho aquí."""
         self.configure(bg=FONDO)
         estilo = ttk.Style(self)
+        self.acento = 'Acento.TButton'
         try:
             import sv_ttk
             sv_ttk.set_theme('light')
+            self.acento = 'Accent.TButton'          # el botón azul del tema (letra blanca sobre azul)
         except Exception:
             try:
                 estilo.theme_use('clam')
@@ -126,25 +128,76 @@ class App(tk.Tk):
                ('reuniones', '9. Reuniones y clases juntas', 'tab_grupos'),
                ('actividades', '10. Actividades y descansos', 'tab_tareas'), ('horario', '11. Horario', 'tab_horario')]
 
+    ICONOS = {'marco': '⏱', 'materias': '📚', 'cursos': '🎓', 'profesores': '👤', 'salones': '🚪', 'bloques': '🏫',
+              'asignacion': '📋', 'reglas': '⚙', 'reuniones': '🤝', 'actividades': '🎯', 'horario': '🗓'}
+
     def _armar_menu(self):
+        """Menú lateral. Se puede plegar («): quedan solo los íconos y, al pasar el mouse, dice qué es cada uno."""
         for w in self.menu.winfo_children():
             w.destroy()
         self.items_menu = {}
-        tk.Label(self.menu, text='Planificación', bg=NAV, fg='#64748b', font=('Segoe UI', 9, 'bold')).pack(
-            anchor='w', padx=14, pady=(12, 4))
+        plegado = self.__dict__.get('menu_plegado', False)
+        self.menu.configure(width=58 if plegado else 230)
+        boton = tk.Label(self.menu, text='»' if plegado else '«  Ocultar menú', bg=NAV, fg='#64748b', cursor='hand2',
+                         font=('Segoe UI', 10, 'bold'), anchor='center' if plegado else 'w', padx=14, pady=6)
+        boton.pack(fill='x', padx=4, pady=(6, 0))
+        boton.bind('<Button-1>', lambda e: self.plegar_menu())
+        self._ayuda_flotante(boton, 'Mostrar el menú' if plegado else 'Ocultar el menú (deja más espacio)')
+        if not plegado:
+            tk.Label(self.menu, text='Planificación', bg=NAV, fg='#64748b', font=('Segoe UI', 9, 'bold')).pack(
+                anchor='w', padx=14, pady=(8, 4))
         for clave, titulo, _ in self.PAGINAS:
-            if clave == 'asignacion':
+            if clave == 'asignacion' and not plegado:
                 tk.Label(self.menu, text='Reglas y horario', bg=NAV, fg='#64748b', font=('Segoe UI', 9, 'bold')).pack(
                     anchor='w', padx=14, pady=(14, 4))
-            it = tk.Label(self.menu, text=titulo, bg=NAV, fg=TINTA, anchor='w', padx=14, pady=7, cursor='hand2',
-                          font=('Segoe UI', 10))
-            it.pack(fill='x', padx=6, pady=1)
+            icono = self.ICONOS.get(clave, '•')
+            it = tk.Label(self.menu, text=icono if plegado else f'{icono}  {titulo}', bg=NAV, fg=TINTA,
+                          anchor='center' if plegado else 'w', padx=10 if plegado else 12, pady=7, cursor='hand2',
+                          font=('Segoe UI Emoji', 13) if plegado else ('Segoe UI', 10))
+            it.pack(fill='x', padx=4, pady=1)
             it.bind('<Button-1>', lambda e, c=clave: self.ir(c))
+            self._ayuda_flotante(it, titulo + (' (se abre en su propia ventana)' if clave == 'horario' else ''))
             self.items_menu[clave] = it
-        tk.Label(self.menu, text=f'Versión {VERSION}', bg=NAV, fg='#94a3b8').pack(side='bottom', pady=8)
+        if not plegado:
+            tk.Label(self.menu, text=f'Versión {VERSION}', bg=NAV, fg='#94a3b8').pack(side='bottom', pady=8)
+        actual = self.__dict__.get('pagina_actual')
+        if actual:
+            self._marcar_menu(actual)
+
+    def plegar_menu(self):
+        self.menu_plegado = not self.__dict__.get('menu_plegado', False)
+        self._armar_menu()
+
+    def _ayuda_flotante(self, w, texto):
+        """Un letrerito al pasar el mouse por encima (para los íconos del menú plegado)."""
+        def entrar(e):
+            salir(None)
+            t = tk.Toplevel(self)
+            t.overrideredirect(True)
+            t.geometry(f'+{e.x_root + 16}+{e.y_root + 8}')
+            tk.Label(t, text=texto, bg='#1e293b', fg='white', padx=8, pady=4, font=('Segoe UI', 9)).pack()
+            w._letrero = t
+
+        def salir(e):
+            t = w.__dict__.get('_letrero')
+            if t is not None:
+                try:
+                    t.destroy()
+                except tk.TclError:
+                    pass
+                w._letrero = None
+        w.bind('<Enter>', entrar, add='+')
+        w.bind('<Leave>', salir, add='+')
+        w.bind('<Button-1>', salir, add='+')
+
+    def _marcar_menu(self, clave):
+        for c, it in self.items_menu.items():
+            it.configure(bg=NAV_SEL if c == clave else NAV, fg=ACENTO if c == clave else TINTA)
 
     def ir(self, clave):
-        """Muestra una página (por su clave: 'marco', 'materias', … 'horario')."""
+        """Muestra una página (por su clave: 'marco', 'materias', …). El Horario se abre en su propia ventana."""
+        if clave == 'horario':
+            return self.abrir_horario()
         f = self.paginas.get(clave)
         if f is None:
             return
@@ -152,17 +205,44 @@ class App(tk.Tk):
             self.nb.select(f)
         except tk.TclError:
             pass
-        # El Horario va a pantalla completa: sin menú lateral (vuelve con «☰ Menú»)
-        if clave == 'horario':
-            self.menu.pack_forget()
-        elif not self.menu.winfo_ismapped() or getattr(self, 'pagina_actual', None) == 'horario':
-            self.menu.pack(side='left', fill='y', padx=(10, 0), pady=(0, 8), before=self.nb)
-        if getattr(self, 'pagina_actual', None) and self.pagina_actual != 'horario':
-            self.pagina_previa = self.pagina_actual
-        for c, it in self.items_menu.items():
-            it.configure(bg=NAV_SEL if c == clave else NAV, fg=ACENTO if c == clave else TINTA,
-                         font=('Segoe UI', 10, 'bold' if c == clave else 'normal'))
         self.pagina_actual = clave
+        self._marcar_menu(clave)
+        if self.__dict__.get('ventana_horario') is not None:
+            self._ver_principal()                     # si venía del horario, trae la ventana del menú
+
+    def _encima(self):
+        """La ventana sobre la que deben salir las ventanitas: la del horario si está abierta."""
+        w = self.__dict__.get('ventana_horario')
+        try:
+            if w is not None and w.winfo_ismapped():
+                return w
+        except tk.TclError:
+            pass
+        return self
+
+    def _ver_principal(self):
+        """Desde la ventana del horario, trae al frente la ventana con el menú (sin cerrar el horario)."""
+        try:
+            self.deiconify()
+        except tk.TclError:
+            pass
+        self.lift()
+
+    def abrir_horario(self):
+        """La ventana del horario (pantalla completa). Cerrarla solo la esconde: no se pierde nada."""
+        w = self.__dict__.get('ventana_horario')
+        if w is None:
+            return
+        try:
+            w.deiconify()
+            w.state('zoomed')
+        except tk.TclError:
+            pass
+        w.lift()
+        try:
+            w.focus_force()
+        except tk.TclError:
+            pass
 
     def _construir_paginas(self, menos=()):
         """Arma las páginas (todas, o todas menos las de `menos`) y las registra para el menú."""
@@ -170,11 +250,18 @@ class App(tk.Tk):
             if clave in menos:
                 continue
             getattr(self, fn)()
-            self.paginas[clave] = self.nb.tabs()[-1]
+            if clave != 'horario':
+                self.paginas[clave] = self.nb.tabs()[-1]
 
     # ------------------------------------------------------------------
     def avisar(self, texto, error=False):
         self.estado.configure(text=texto, foreground='#b42318' if error else '#14532d')
+        e = self.__dict__.get('estado_h')
+        if e is not None:
+            try:
+                e.configure(text=texto, foreground='#b42318' if error else '#14532d')
+            except tk.TclError:
+                pass
 
     def _barra(self):
         b = ttk.Frame(self, padding=8)
@@ -183,7 +270,7 @@ class App(tk.Tk):
         ttk.Button(b, text='Abrir proyecto', command=self.abrir_proyecto).pack(side='left', padx=4)
         ttk.Button(b, text='💾 Guardar proyecto', command=self.guardar).pack(side='left')
         ttk.Button(b, text='Actualizar datos', command=self.actualizar_datos).pack(side='left', padx=4)
-        ttk.Button(b, text='Generar horario ⚡', style='Acento.TButton', command=self._generar_desde_barra).pack(
+        ttk.Button(b, text='Generar horario ⚡', style=self.acento, command=self._generar_desde_barra).pack(
             side='left', padx=(10, 0))
         self.lbl_colegio = ttk.Label(b, text='Sin datos abiertos', style='Titulo.TLabel')
         self.lbl_colegio.pack(side='right')
@@ -274,10 +361,13 @@ class App(tk.Tk):
         for c, t, w in columnas:
             tv.heading(c, text=t)
             tv.column(c, width=w, anchor='w' if w > 120 else 'center')
+        # Las barras van primero: así, aunque se estire una columna, siempre se ven
         sb = ttk.Scrollbar(marco, orient='vertical', command=tv.yview)
-        tv.configure(yscrollcommand=sb.set)
-        tv.pack(side='left', fill='both', expand=True)
+        sx = ttk.Scrollbar(marco, orient='horizontal', command=tv.xview)
+        tv.configure(yscrollcommand=sb.set, xscrollcommand=sx.set)
         sb.pack(side='right', fill='y')
+        sx.pack(side='bottom', fill='x')
+        tv.pack(side='left', fill='both', expand=True)
         return marco, tv
 
     def _numero(self, padre, texto, valor, desde, hasta, al_cambiar, paso=1):
@@ -502,7 +592,14 @@ class App(tk.Tk):
     def tab_reglas(self):
         c = self.p.cond
         f = self._pagina('8. Reglas y prioridades')
-        gen = ttk.LabelFrame(f, text='Reglas generales', padding=10)
+        sub = ttk.Notebook(f)
+        sub.pack(fill='both', expand=True)
+        hoja_reglas = ttk.Frame(sub, padding=10)
+        hoja_prior = ttk.Frame(sub, padding=10)
+        sub.add(hoja_reglas, text='  Reglas  ')
+        sub.add(hoja_prior, text='  Prioridades  ')
+        self.sub_reglas = sub
+        gen = ttk.LabelFrame(hoja_reglas, text='Reglas generales', padding=10)
         gen.pack(fill='x')
 
         def poner(k):
@@ -601,7 +698,7 @@ class App(tk.Tk):
         var_a.trace_add('write', horas_ex)
         var_b.trace_add('write', horas_ex)
         ttk.Label(fila_ex, text='(si la jornada tiene menos horas, cuenta la última)', style='Ayuda.TLabel').pack(side='left', padx=6)
-        pri = ttk.LabelFrame(f, text='Prioridades al mejorar el horario (0 = no importa · 5 = normal · 10 = muy importante)',
+        pri = ttk.LabelFrame(hoja_prior, text='Prioridades al mejorar el horario (0 = no importa · 5 = normal · 10 = muy importante)',
                              padding=8)
         pri.pack(fill='x', pady=(8, 0))
         pesos = c.setdefault('pesos', {})
@@ -775,6 +872,27 @@ class App(tk.Tk):
                           lambda d, fid: 'no_puede' if self.p.alternar_celda_marco(d, fid) else 'libre',
                           {'libre': BLOQ_LIBRE, 'no_puede': BLOQ_NO}, {'libre': 'Clase', 'no_puede': 'Sin clase'})
 
+    def _panel_desplazable(self, padre):
+        """Una tarjeta blanca con barras para correr abajo y a los lados (para que nunca se pierdan días).
+        Devuelve (tarjeta, interior)."""
+        t = tk.Frame(padre, bg=CARD, highlightthickness=1, highlightbackground=BORDE)
+        lienzo = tk.Canvas(t, highlightthickness=0, bg=CARD)
+        sy = ttk.Scrollbar(t, orient='vertical', command=lienzo.yview)
+        sx = ttk.Scrollbar(t, orient='horizontal', command=lienzo.xview)
+        lienzo.configure(yscrollcommand=sy.set, xscrollcommand=sx.set)
+        sy.pack(side='right', fill='y')
+        sx.pack(side='bottom', fill='x')
+        lienzo.pack(side='left', fill='both', expand=True)
+        interior = tk.Frame(lienzo, bg=CARD, padx=12, pady=10)
+        lienzo.create_window((0, 0), window=interior, anchor='nw')
+        interior.bind('<Configure>', lambda e: lienzo.configure(scrollregion=lienzo.bbox('all')))
+
+        def rueda(e):
+            lienzo.yview_scroll(-1 if e.delta > 0 else 1, 'units')
+        lienzo.bind('<Enter>', lambda e: lienzo.bind_all('<MouseWheel>', rueda))
+        lienzo.bind('<Leave>', lambda e: lienzo.unbind_all('<MouseWheel>'))
+        return t, interior
+
     def _desplazable(self, padre):
         """Un área con barra para bajar (para páginas largas). Devuelve (lienzo, marco interior)."""
         caja = ttk.Frame(padre, style='Pagina.TFrame')
@@ -794,15 +912,22 @@ class App(tk.Tk):
     def tab_materias(self):
         f = self._pagina('2. Materias', 'Doble clic en la tabla para cambiar bloques, máximo por día, primeras horas o '
                                         'última hora. Escoja una materia (o un área) para ver su salón y sus horas '
-                                        'bloqueadas.')
-        cuerpo = ttk.Frame(f, style='Pagina.TFrame')
+                                        'bloqueadas. La raya del medio se puede arrastrar.')
+        bot = ttk.Frame(f, style='Pagina.TFrame')
+        bot.pack(fill='x', pady=(0, 6))
+        ttk.Button(bot, text='✂ Dividir en bloques automáticamente (2+2+1…)', command=self._dividir_bloques).pack(
+            side='left')
+        ttk.Button(bot, text='Quitar todos los bloques', command=self._quitar_bloques).pack(side='left', padx=4)
+        cuerpo = ttk.Panedwindow(f, orient='horizontal')
         cuerpo.pack(fill='both', expand=True)
-        izq = self._tarjeta(cuerpo, 'Materias', side='left', fill='both', expand=True)
+        izq = tk.Frame(cuerpo, bg=CARD, highlightthickness=1, highlightbackground=BORDE, padx=12, pady=10)
+        cuerpo.add(izq, weight=3)
+        tk.Label(izq, text='Materias', bg=CARD, fg=TINTA, font=('Segoe UI', 11, 'bold')).pack(anchor='w', pady=(0, 6))
         self.filtro_mat = self._filtros(izq, ('area',), lambda: self._llenar_materias())
         marco, self.tv_mat = self._tabla(izq, [
-            ('materia', 'Materia', 170), ('area', 'Área', 120), ('bloques', 'Bloques', 80), ('max', 'Máx./día', 70),
-            ('primeras', 'Primeras', 70), ('ultima', 'Evitar última', 90), ('salon', 'Salón', 140),
-            ('bloq', 'Bloqueadas', 80)], 14)
+            ('materia', 'Materia', 160), ('area', 'Área', 110), ('bloques', 'Bloques', 70), ('max', 'Máx./día', 65),
+            ('primeras', 'Primeras', 65), ('ultima', 'Evitar última', 85), ('salon', 'Salón', 120),
+            ('bloq', 'Bloqueadas', 75)], 14)
         marco.pack(fill='both', expand=True)
         self.tv_mat.bind('<Double-1>', self._editar_materia)
         self.tv_mat.bind('<<TreeviewSelect>>', lambda e: self._ver_materia())
@@ -812,7 +937,8 @@ class App(tk.Tk):
                                    highlightbackground=BORDE)
         self.lb_areas.pack(fill='x')
         self.lb_areas.bind('<<ListboxSelect>>', lambda e: self._ver_area_sel())
-        self.panel_mat = self._tarjeta(cuerpo, '', side='left', fill='both', expand=True, padx=(10, 0))
+        tarjeta, self.panel_mat = self._panel_desplazable(cuerpo)
+        cuerpo.add(tarjeta, weight=2)
         tk.Label(self.panel_mat, text='Escoja una materia o un área.', bg=CARD, fg='#64748b').pack(anchor='w')
         self._llenar_materias()
         self._llenar_areas()
@@ -926,7 +1052,7 @@ class App(tk.Tk):
         izq = self._tarjeta(cuerpo, 'Salones', side='left', fill='both', expand=True)
         bot = tk.Frame(izq, bg=CARD)
         bot.pack(fill='x', pady=(0, 6))
-        ttk.Button(bot, text='+ Nuevo salón', command=self._nuevo_salon, style='Acento.TButton').pack(side='left')
+        ttk.Button(bot, text='+ Nuevo salón', command=self._nuevo_salon, style=self.acento).pack(side='left')
         ttk.Button(bot, text='Crear un salón por curso', command=self._salon_por_curso).pack(side='left', padx=4)
         ttk.Button(bot, text='Quitar salón', command=self._quitar_salon).pack(side='left')
         marco, self.tv_sal = self._tabla(izq, [('nombre', 'Salón', 170), ('cap', 'Cursos a la vez', 100),
@@ -1044,7 +1170,7 @@ class App(tk.Tk):
                                                       'o curso se le puede dar «cualquiera de» una agrupación.')
         bot = ttk.Frame(f, style='Pagina.TFrame')
         bot.pack(fill='x', pady=(0, 6))
-        ttk.Button(bot, text='+ Nueva agrupación', command=self._nueva_agrupacion, style='Acento.TButton').pack(side='left')
+        ttk.Button(bot, text='+ Nueva agrupación', command=self._nueva_agrupacion, style=self.acento).pack(side='left')
         esp = self._tarjeta(f, 'Espacios compartidos (forma anterior, sin salón fijo)', side='bottom', fill='x', pady=6)
         _, self.cont_bloques = self._desplazable(f)
         tk.Label(esp, text='Sala de sistemas, cancha… y cuántos cursos caben. Se recomienda usar salones y agrupaciones.',
@@ -1140,13 +1266,15 @@ class App(tk.Tk):
     def tab_docentes(self):
         f = self._pagina('4. Profesores', 'Escoja un profesor: toque las casillas para marcar cuándo no puede o '
                                           'prefiere no tener clase, y ponga sus reglas propias (salón, día libre, viaja…).')
-        cuerpo = ttk.Frame(f, style='Pagina.TFrame')
+        cuerpo = ttk.Panedwindow(f, orient='horizontal')
         cuerpo.pack(fill='both', expand=True)
-        izq = self._tarjeta(cuerpo, 'Profesores', side='left', fill='y')
-        self.filtro_doc = self._filtros(izq, ('grado', 'area', 'materia', 'docente'), lambda: self._llenar_lista_docentes())
+        izq = tk.Frame(cuerpo, bg=CARD, highlightthickness=1, highlightbackground=BORDE, padx=12, pady=10)
+        cuerpo.add(izq, weight=1)
+        tk.Label(izq, text='Profesores', bg=CARD, fg=TINTA, font=('Segoe UI', 11, 'bold')).pack(anchor='w', pady=(0, 6))
+        self.filtro_doc = self._filtros(izq, ('docente',), lambda: self._llenar_lista_docentes())
         marco_lb = tk.Frame(izq, bg=CARD)
         marco_lb.pack(fill='both', expand=True, anchor='w', pady=(4, 0))
-        self.lb_doc = tk.Listbox(marco_lb, width=44, exportselection=False, relief='flat', highlightthickness=1,
+        self.lb_doc = tk.Listbox(marco_lb, width=34, exportselection=False, relief='flat', highlightthickness=1,
                                  highlightbackground=BORDE)
         sb_lb = ttk.Scrollbar(marco_lb, orient='vertical', command=self.lb_doc.yview)
         self.lb_doc.configure(yscrollcommand=sb_lb.set)
@@ -1158,8 +1286,8 @@ class App(tk.Tk):
         if disp:
             ttk.Label(izq, text=f'✉ = marcó su disponibilidad en la plataforma ({len(disp)})', style='Ayuda.TLabel').pack(anchor='w')
             ttk.Button(izq, text='Volver a traer la disponibilidad', command=self._traer_disp).pack(fill='x', pady=2)
-        self.panel_doc = ttk.Frame(cuerpo, padding=(14, 0), style='Pagina.TFrame')
-        self.panel_doc.pack(side='left', fill='both', expand=True)
+        tarjeta, self.panel_doc = self._panel_desplazable(cuerpo)
+        cuerpo.add(tarjeta, weight=3)
         ttk.Label(self.panel_doc, text='Escoja un profesor.', style='Ayuda.TLabel').pack(anchor='w')
 
     def _llenar_lista_docentes(self):
@@ -1552,7 +1680,7 @@ class App(tk.Tk):
         self.propuestas_reu = (alt, prop)
         v = tk.Toplevel(self)
         v.title('Reuniones en el horario')
-        v.transient(self)
+        v.transient(self._encima())
         cuerpo = ttk.Frame(v, padding=12)
         cuerpo.pack(fill='both', expand=True)
         ttk.Label(cuerpo, text=f'Horario «{alt.get("nombre", "Horario")}»', font=('Segoe UI', 11, 'bold')).pack(anchor='w')
@@ -1802,11 +1930,30 @@ class App(tk.Tk):
     def tab_horario(self):
         """Pantalla completa: arriba los botones, abajo las cuadrículas (pestañas). Cada pestaña
         escoge qué horario muestra, así se pueden comparar alternativas lado a lado."""
-        f = ttk.Frame(self.nb, padding=(6, 4), style='Pagina.TFrame')
-        self.nb.add(f, text='11. Horario')
+        viejo = self.__dict__.get('ventana_horario')
+        if viejo is not None:
+            try:
+                viejo.destroy()
+            except tk.TclError:
+                pass
+        w = tk.Toplevel(self)
+        w.title(f'{TITULO} · Horario')
+        w.configure(bg=FONDO)
+        w.geometry('1300x800')
+        w.withdraw()
+        w.protocol('WM_DELETE_WINDOW', w.withdraw)        # cerrar = esconder (no se pierde nada)
+        w.bind('<Escape>', lambda e: self.quitar_seleccion())
+        w.bind('<Control-z>', self._tecla_deshacer)
+        w.bind('<Control-Z>', self._tecla_deshacer)
+        self.ventana_horario = w
+        self.paginas['horario'] = w
+        self.estado_h = ttk.Label(w, text='', anchor='w', padding=(12, 3), style='Estado.TLabel')
+        self.estado_h.pack(side='bottom', fill='x')
+        f = ttk.Frame(w, padding=(6, 4), style='Pagina.TFrame')
+        f.pack(fill='both', expand=True)
         uno = ttk.Frame(f)
         uno.pack(fill='x')
-        ttk.Button(uno, text='☰', width=3, command=lambda: self.ir(getattr(self, 'pagina_previa', 'marco'))).pack(side='left')
+        ttk.Button(uno, text='☰', width=3, command=self._ver_principal).pack(side='left')
         ttk.Button(uno, text='📝 Blanco', command=self._en_blanco).pack(side='left', padx=(4, 0))
         ttk.Separator(uno, orient='vertical').pack(side='left', fill='y', padx=6)
         ttk.Label(uno, text='Opciones:').pack(side='left')
@@ -1836,9 +1983,9 @@ class App(tk.Tk):
         ttk.Separator(dos, orient='vertical').pack(side='left', fill='y', padx=6)
         self.var_fijar = tk.BooleanVar(value=False)
         ttk.Checkbutton(dos, text='Fijar 🔒 al ubicar', variable=self.var_fijar).pack(side='left')
-        self.btn_soltar = ttk.Button(dos, text='🔓 Soltar marcadas', command=lambda: self.fijar_marcadas(False))
+        self.btn_soltar = ttk.Button(dos, text='🔓 Soltar', command=lambda: self.fijar_marcadas(False))
         self.btn_soltar.pack(side='left', padx=(6, 0))
-        ttk.Button(dos, text='🔒 Fijar marcadas', command=lambda: self.fijar_marcadas(True)).pack(side='left', padx=2)
+        ttk.Button(dos, text='🔒 Fijar', command=lambda: self.fijar_marcadas(True)).pack(side='left', padx=2)
         ttk.Button(dos, text='🔓 Soltar todo', command=self.soltar_todo).pack(side='left')
         # Fila 3: guardar, imprimir y vistas
         tres = ttk.Frame(f)
@@ -1848,7 +1995,6 @@ class App(tk.Tk):
         ttk.Button(tres, text='🔍+', width=4, command=lambda: self.zoom_todas(0.1)).pack(side='right')
         ttk.Button(tres, text='100%', width=5, command=lambda: self.zoom_todas(None)).pack(side='right', padx=1)
         ttk.Button(tres, text='🔍−', width=4, command=lambda: self.zoom_todas(-0.1)).pack(side='right')
-        ttk.Label(tres, text='Tamaño:').pack(side='right', padx=(8, 2))
         self.lbl_prog = ttk.Label(tres, text='', style='Ayuda.TLabel')
         self.lbl_prog.pack(side='right')
         self.barra = ttk.Progressbar(tres, length=70, mode='determinate')
@@ -2104,9 +2250,8 @@ class App(tk.Tk):
             self.marcadas, self._marcadas_alt = set(), alt
         i = datos['i']
         self.marcadas.symmetric_difference_update({i})
-        self.btn_soltar.configure(text=f'🔓 Soltar marcadas ({len(self.marcadas)})' if self.marcadas
-                                  else '🔓 Soltar marcadas')
-        self.avisar(f'{len(self.marcadas)} ficha(s) marcada(s). Use «Soltar marcadas» o «Fijar marcadas».')
+        self.btn_soltar.configure(text=f'🔓 Soltar ({len(self.marcadas)})' if self.marcadas else '🔓 Soltar')
+        self.avisar(f'{len(self.marcadas)} ficha(s) marcada(s). Use «🔓 Soltar» o «🔒 Fijar».')
         for vv in self.vistas:
             if vv.alt() is alt:
                 vv.dibujar()
@@ -2121,7 +2266,7 @@ class App(tk.Tk):
         marcadas = set(self.marcadas)
         self._paso(alt)
         n = self.p.fijar_varias(alt, marcadas, fijar)
-        self.btn_soltar.configure(text='🔓 Soltar marcadas')
+        self.btn_soltar.configure(text='🔓 Soltar')
         self._ver()
         self.avisar(f'{n} ficha(s) {"fijada(s) 🔒" if fijar else "soltada(s) 🔓: el generador ya las puede mover"}.')
 
@@ -2274,7 +2419,7 @@ class App(tk.Tk):
         w = tk.Toplevel(self)
         self.ventana_asistente = w
         w.title('¿Por qué faltan horas?')
-        w.transient(self)
+        w.transient(self._encima())
         cuerpo = ttk.Frame(w, padding=12)
         cuerpo.pack(fill='both', expand=True)
         ttk.Label(cuerpo, text=f'Quedaron {alt["horas_sin_ubicar"]} horas sin ubicar en «{alt.get("nombre", "Horario")}»',
@@ -2380,8 +2525,7 @@ class App(tk.Tk):
         for nombre in ('lb_esp', 'tv_sal'):           # eran de las páginas que se borraron
             self.__dict__.pop(nombre, None)
         self._construir_paginas(menos=('horario',))
-        self.nb.insert('end', horario)
-        self.ir('horario')
+        self.ir(self.__dict__.get('pagina_actual') or 'marco')
 
     def nombres_alternativas(self):
         out = []
