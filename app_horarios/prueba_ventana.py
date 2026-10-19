@@ -462,6 +462,8 @@ def _cortados(app, ancho):
                 texto = h.cget('text')
             except Exception:
                 pass
+            if h.winfo_class() in ('TSeparator', 'TLabel') and a > 0:
+                continue                         # rayitas divisorias y el texto de avance no cuentan
             if a <= 1 or x + a > w + 1:
                 fuera.append(f'fila {k}: {texto or h.winfo_class()}')
     print(f'::notice::{ancho}px (ventana {app.winfo_width()}): ' + ('nada cortado' if not fuera else 'cortados -> ' + '; '.join(fuera)), flush=True)
