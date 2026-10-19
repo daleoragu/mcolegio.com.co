@@ -2362,6 +2362,8 @@ class App(tk.Tk):
             w = self.nb.nametowidget(t) if isinstance(t, str) else t
             self.nb.forget(t)
             w.destroy()
+        for nombre in ('lb_esp', 'tv_sal'):           # eran de las páginas que se borraron
+            self.__dict__.pop(nombre, None)
         self._construir_paginas(menos=('horario',))
         self.nb.insert('end', horario)
         self.ir('horario')
