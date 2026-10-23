@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import especiales, impresion, nucleo         # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '4.3.0'
+VERSION = '4.3.1'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -649,12 +649,15 @@ class App(tk.Tk):
         var_cpm.trace_add('write', cambio_cpm)
         ttk.Label(fila_cp, text='hora(s) más largo que su permanencia (o con la 1.ª y la última), si la semana no pasa de '
                                 'permanencia × días').pack(side='left')
-        self._numero(gen, 'Máximo de días largos a la semana para quien compensa (0 = los que quepan en la semana):',
-                     comp.get('max_dias') or 0, 0, 5, lambda v: comp.__setitem__('max_dias', int(v or 0))).grid(
-            row=10, column=0, columnspan=2, sticky='w', pady=(4, 0))
-        ttk.Label(gen, text='Ej.: 6 h × 5 días = 30 h a la semana. Dos días de 7 h se pagan con un día de 4 h o con dos de '
-                            '5 h, como mejor encaje. Un día sin clases cuenta 0 h.', style='Ayuda.TLabel').grid(row=8, column=0, columnspan=2,
-                                                                                         sticky='w')
+        bajo_cp = ttk.Frame(gen)
+        bajo_cp.grid(row=8, column=0, columnspan=2, sticky='w')
+        self._numero(bajo_cp, '      Máximo de días largos (ej.: días de 7 h de permanencia) a la semana por docente '
+                              '(0 = los que quepan en la semana):',
+                     comp.get('max_dias') or 0, 0, 5, lambda v: comp.__setitem__('max_dias', int(v or 0))).pack(
+            anchor='w', pady=(2, 0))
+        ttk.Label(bajo_cp, text='      Ej.: 6 h × 5 días = 30 h a la semana. Dos días de 7 h se pagan con un día de 4 h o con '
+                                'dos de 5 h, como mejor encaje. Un día sin clases cuenta 0 h.',
+                  style='Ayuda.TLabel').pack(anchor='w')
         ttk.Label(gen, text='Un docente con horas extra puede tener tantos «días largos» (más que su permanencia, o con la '
                             '1.ª y la última hora) como horas extra tenga: con 2 extra, máximo 2 días. Si caben dentro de '
                             'la jornada, mejor.', style='Ayuda.TLabel', wraplength=900).grid(row=6, column=0, columnspan=2,
