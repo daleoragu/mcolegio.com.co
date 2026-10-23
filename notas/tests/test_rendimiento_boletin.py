@@ -30,7 +30,6 @@ class RendimientoDelBoletinFinal(ColegioDePrueba):
             PonderacionAreaMateria.objects.create(colegio=cls.a, area=ar, materia=m, peso_porcentual=100)
             AsignacionDocente.objects.create(colegio=cls.a, docente=cls.docente, materia=m, curso=cls.curso)
             cls.materias.append(m)
-        cls.mas = [cls.crear_estudiante(f'extra{k}') for k in range(5)]
 
     def _notas(self, estudiantes):
         for e in estudiantes:
@@ -47,7 +46,8 @@ class RendimientoDelBoletinFinal(ColegioDePrueba):
     def test_las_consultas_no_crecen_con_estudiantes_ni_materias(self):
         self._notas(self.estudiantes)
         pocas, b1 = self._consultas()
-        self._notas(self.mas)                       # casi tres veces más estudiantes, mismas materias
+        mas = [self.crear_estudiante(f'extra{k}') for k in range(5)]
+        self._notas(mas)                            # casi tres veces más estudiantes, mismas materias
         muchas, b2 = self._consultas()
         self.assertEqual(len(b2), len(b1) + 5)
         self.assertLessEqual(muchas, pocas + 3, (pocas, muchas))

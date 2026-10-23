@@ -19,7 +19,7 @@ from ..models import (
     AsignacionDocente, RegistroObservador, Notificacion
 )
 from ..permisos import es_admin, es_admin_usuario, es_docente_usuario
-from .. import avisos_familia
+from .. import avisos_familia, observador_catalogo
 
 def es_docente_o_superuser(user):
     return es_admin_usuario(user) or es_docente_usuario(user)
@@ -123,7 +123,7 @@ def crear_registro_observador_vista(request, estudiante_id):
     docente = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
 
     if request.method == 'POST':
-        form = RegistroObservadorForm(request.POST)
+        form = RegistroObservadorForm(request.POST, colegio=request.colegio)
         if form.is_valid():
             nuevo_registro = form.save(commit=False)
             nuevo_registro.colegio = request.colegio
@@ -132,6 +132,7 @@ def crear_registro_observador_vista(request, estudiante_id):
             
             if nuevo_registro.tipo != 'COMPORTAMENTAL':
                 nuevo_registro.subtipo = None
+                nuevo_registro.tipo_falta, nuevo_registro.falta = '', None
                 
             nuevo_registro.save()
             
@@ -161,12 +162,13 @@ def crear_registro_observador_vista(request, estudiante_id):
                 for error in errors:
                     messages.error(request, f"Error en '{field.capitalize()}': {error}")
     else:
-        form = RegistroObservadorForm()
+        form = RegistroObservadorForm(colegio=request.colegio)
 
     context = {
         'colegio': request.colegio,
         'form': form,
         'estudiante': estudiante,
+        'catalogo_faltas': observador_catalogo.catalogo_para_buscar(request.colegio),
         'page_title': f"Nueva Observación para {estudiante.user.get_full_name()}"
     }
     return render(request, 'notas/observador/crear_registro.html', context)
@@ -188,11 +190,12 @@ def editar_registro_observador_vista(request, registro_id):
         return redirect('notas:vista_detalle_observador', estudiante_id=estudiante.id)
 
     if request.method == 'POST':
-        form = RegistroObservadorForm(request.POST, instance=registro)
+        form = RegistroObservadorForm(request.POST, instance=registro, colegio=request.colegio)
         if form.is_valid():
             registro_actualizado = form.save(commit=False)
             if registro_actualizado.tipo != 'COMPORTAMENTAL':
                 registro_actualizado.subtipo = None
+                registro_actualizado.tipo_falta, registro_actualizado.falta = '', None
             registro_actualizado.save()
             
             messages.success(request, "Observación actualizada correctamente.")
@@ -202,13 +205,14 @@ def editar_registro_observador_vista(request, registro_id):
                 for error in errors:
                     messages.error(request, f"Error en '{field.capitalize()}': {error}")
     else:
-        form = RegistroObservadorForm(instance=registro)
+        form = RegistroObservadorForm(instance=registro, colegio=request.colegio)
 
     context = {
         'colegio': request.colegio,
         'form': form,
         'estudiante': estudiante,
         'registro': registro,
+        'catalogo_faltas': observador_catalogo.catalogo_para_buscar(request.colegio),
         'page_title': f"Editar Observación de {estudiante.user.get_full_name()}"
     }
     return render(request, 'notas/observador/editar_registro.html', context)
@@ -372,3 +376,143 @@ def respuesta_acudiente_vista(request, token):
                     url=reverse('notas:vista_detalle_observador', args=[registro.estudiante_id]))
         return redirect('notas:respuesta_acudiente', token=token)
     return render(request, 'notas/observador/respuesta_acudiente.html', contexto)
+
+
+# ----------------------------------------------------------------------------- catálogo de faltas
+
+def _xlsx(datos, nombre):
+    r = HttpResponse(datos, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    r['Content-Disposition'] = f'attachment; filename="{nombre}.xlsx"'
+    return r
+
+
+@login_required
+@user_passes_test(es_admin_usuario)
+def catalogo_faltas_vista(request):
+    """El colegio arma su lista de faltas Tipo I, II y III (a mano, desde Excel o con ejemplos)."""
+    from ..models import FaltaCatalogo, TIPOS_FALTA
+    colegio = request.colegio
+    if not colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    if request.GET.get('descargar'):
+        return _xlsx(observador_catalogo.plantilla_catalogo(colegio), 'Catálogo de faltas')
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion')
+        if accion == 'ejemplos':
+            n = observador_catalogo.cargar_ejemplos(colegio)
+            messages.success(request, f'Se agregaron {n} ejemplos. Ajústelos a su manual de convivencia.' if n
+                             else 'Los ejemplos ya estaban en su catálogo.')
+        elif accion == 'importar':
+            archivo = request.FILES.get('archivo')
+            if not archivo:
+                messages.error(request, 'Escoja el archivo de Excel.')
+            else:
+                n, errores = observador_catalogo.importar_catalogo(colegio, archivo)
+                if n:
+                    messages.success(request, f'Se agregaron {n} faltas al catálogo.')
+                for e in errores[:15]:
+                    messages.warning(request, e)
+                if not n and not errores:
+                    messages.info(request, 'No había faltas nuevas en el archivo.')
+        elif accion in ('crear', 'editar'):
+            tipo = observador_catalogo.tipo_de(request.POST.get('tipo_falta'))
+            desc = (request.POST.get('descripcion') or '').strip()
+            numeral = (request.POST.get('numeral') or '').strip()[:40]
+            if not tipo or not desc:
+                messages.error(request, 'Escoja el tipo y escriba la descripción.')
+            elif accion == 'crear':
+                FaltaCatalogo.objects.create(colegio=colegio, tipo_falta=tipo, numeral=numeral, descripcion=desc)
+                messages.success(request, 'Falta agregada al catálogo.')
+            else:
+                FaltaCatalogo.objects.filter(colegio=colegio, id=request.POST.get('id')).update(
+                    tipo_falta=tipo, numeral=numeral, descripcion=desc)
+                messages.success(request, 'Falta actualizada.')
+        elif accion == 'alternar':
+            f = get_object_or_404(FaltaCatalogo, colegio=colegio, id=request.POST.get('id'))
+            f.activa = not f.activa
+            f.save(update_fields=['activa'])
+        elif accion == 'eliminar':
+            f = get_object_or_404(FaltaCatalogo, colegio=colegio, id=request.POST.get('id'))
+            usada = f.registros.exists()
+            f.delete()
+            messages.success(request, 'Falta eliminada.' + (' Las observaciones que la usaban conservan su texto y su tipo.' if usada else ''))
+        return redirect(request.get_full_path())
+
+    faltas = FaltaCatalogo.objects.filter(colegio=colegio)
+    tipo = request.GET.get('tipo', '')
+    q = (request.GET.get('q') or '').strip()
+    if tipo:
+        faltas = faltas.filter(tipo_falta=tipo)
+    if q:
+        from django.db.models import Q
+        for p in q.split():
+            faltas = faltas.filter(Q(descripcion__icontains=p) | Q(numeral__icontains=p))
+    from django.db.models import Count
+    conteo = dict(FaltaCatalogo.objects.filter(colegio=colegio).values_list('tipo_falta')
+                  .annotate(n=Count('id')).values_list('tipo_falta', 'n'))
+    return render(request, 'notas/observador/catalogo_faltas.html', {
+        'colegio': colegio, 'faltas': faltas.annotate(usos=Count('registros')), 'tipos': TIPOS_FALTA,
+        'tipo': tipo, 'q': q, 'conteo': conteo, 'page_title': 'Catálogo de faltas'})
+
+
+# ----------------------------------------------------------------------------- observaciones desde Excel
+
+def _cursos_permitidos(request):
+    if es_admin_usuario(request.user):
+        return Curso.objects.filter(colegio=request.colegio).order_by('nombre'), None
+    docente = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
+    if docente is None:
+        return Curso.objects.none(), None
+    return _cursos_de_la_sede_del_docente(docente, request.colegio), docente
+
+
+@login_required
+@user_passes_test(es_docente_o_superuser)
+def observador_excel_vista(request):
+    """Sin internet: el docente baja el Excel del curso, lo llena y lo sube después."""
+    if not request.colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    cursos, docente = _cursos_permitidos(request)
+    curso_id = request.POST.get('curso_id') or request.GET.get('curso_id')
+    curso = cursos.filter(id=curso_id).first() if curso_id and str(curso_id).isdigit() else None
+
+    def estudiantes_de(c):
+        return (Estudiante.objects.filter(colegio=request.colegio, is_active=True, curso=c)
+                .select_related('user', 'ficha').order_by('user__last_name', 'user__first_name'))
+
+    if request.GET.get('descargar') and curso:
+        return _xlsx(observador_catalogo.plantilla_observaciones(request.colegio, estudiantes_de(curso)),
+                     f'Observador {curso.nombre}')
+
+    resultado = None
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if not curso or not archivo:
+            messages.error(request, 'Escoja el curso y el archivo de Excel.')
+        else:
+            registros, errores = observador_catalogo.importar_observaciones(
+                request.colegio, docente, archivo, estudiantes_de(curso))
+            resultado = {'registros': registros, 'errores': errores}
+            if registros:
+                avisar = request.POST.get('avisar') == 'on'
+                correos = 0
+                url_destino = reverse('notas:mi_observador')
+                for r in registros:
+                    Notificacion.objects.create(
+                        colegio=request.colegio, destinatario=r.estudiante.user, tipo='OBSERVADOR', url=url_destino,
+                        mensaje=f"Se ha registrado una nueva anotación {r.get_tipo_display()} en tu observador.")
+                    if avisar:
+                        enviado, _ = avisos_familia.enviar_correo(
+                            r, request.build_absolute_uri('/'), _url_respuesta(request, r))
+                        correos += int(enviado)
+                messages.success(request, f'Se guardaron {len(registros)} observaciones de {curso.nombre}.'
+                                 + (f' Se avisó por correo a {correos} familias.' if avisar else ''))
+            elif not errores:
+                messages.info(request, 'El archivo no tenía observaciones (todas las filas sin descripción).')
+            else:
+                messages.error(request, 'No se guardó nada: corrija estas filas y vuelva a subir el archivo.')
+
+    return render(request, 'notas/observador/observador_excel.html', {
+        'colegio': request.colegio, 'cursos': cursos, 'curso': curso, 'resultado': resultado,
+        'page_title': 'Observador sin internet (Excel)'})

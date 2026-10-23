@@ -53,7 +53,7 @@ class RegistroObservadorForm(forms.ModelForm):
 
     class Meta:
         model = RegistroObservador
-        fields = ['fecha_suceso', 'tipo', 'subtipo', 'descripcion']
+        fields = ['fecha_suceso', 'tipo', 'subtipo', 'tipo_falta', 'descripcion']
         widgets = {
             # Forzamos a Django a esperar formato de fecha estándar de navegadores modernos
             'fecha_suceso': forms.DateInput(
@@ -61,12 +61,37 @@ class RegistroObservadorForm(forms.ModelForm):
                 attrs={'type': 'date', 'class': 'form-control'}
             ),
             'tipo': forms.Select(attrs={'class': 'form-select'}),
+            'tipo_falta': forms.Select(attrs={'class': 'form-select'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 5, 'placeholder': 'Describa detalladamente el suceso...'}),
         }
         help_texts = {
             'descripcion': 'Este texto le llega a la familia por correo y WhatsApp. '
                            'Evite escribir el nombre completo de otros estudiantes.',
         }
+
+    falta = forms.IntegerField(required=False, widget=forms.HiddenInput(attrs={'id': 'falta_catalogo'}))
+
+    def __init__(self, *args, colegio=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.colegio = colegio
+        self.fields['tipo_falta'].label = 'Tipo de falta (manual de convivencia)'
+        self.fields['tipo_falta'].choices = [('', '--- No aplica ---')] + list(RegistroObservador._meta.get_field('tipo_falta').choices)
+        if self.instance and self.instance.falta_id:
+            self.initial.setdefault('falta', self.instance.falta_id)
+
+    def clean(self):
+        datos = super().clean()
+        from ..models import FaltaCatalogo
+        fid = datos.get('falta')
+        falta = None
+        if fid and self.colegio is not None:
+            falta = FaltaCatalogo.objects.filter(colegio=self.colegio, id=fid).first()
+        self.instance.falta = falta
+        if falta and not datos.get('tipo_falta'):
+            datos['tipo_falta'] = falta.tipo_falta
+            self.instance.tipo_falta = falta.tipo_falta
+        return datos
+
 
 class EstudianteCompromisoForm(forms.ModelForm):
     compromiso_estudiante = forms.CharField(

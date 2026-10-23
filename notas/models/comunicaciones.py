@@ -43,6 +43,32 @@ class Mensaje(models.Model):
         ordering = ['-fecha_envio']
 
 # --- Los siguientes modelos no se modifican ---
+TIPOS_FALTA = [('I', 'Tipo I'), ('II', 'Tipo II'), ('III', 'Tipo III')]
+
+
+class FaltaCatalogo(models.Model):
+    """Una situación del manual de convivencia que el docente escoge al anotar en el observador.
+
+    Ley 1620 de 2013 y Decreto 1965 de 2013: situaciones Tipo I, II y III. El colegio
+    arma su lista (a mano, desde Excel o partiendo de los ejemplos) y el docente la
+    busca al escribir la observación en vez de redactarla cada vez.
+    """
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='faltas_catalogo')
+    tipo_falta = models.CharField(max_length=3, choices=TIPOS_FALTA, verbose_name='Tipo')
+    numeral = models.CharField(max_length=40, blank=True, default='', verbose_name='Numeral del manual',
+                               help_text='Por ejemplo «Art. 45, num. 3». Opcional.')
+    descripcion = models.TextField(verbose_name='Descripción')
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['tipo_falta', 'numeral', 'id']
+        verbose_name = 'Falta del catálogo'
+        verbose_name_plural = 'Catálogo de faltas'
+
+    def __str__(self):
+        return f'{self.get_tipo_falta_display()} · {self.numeral + " · " if self.numeral else ""}{self.descripcion[:60]}'
+
+
 class RegistroObservador(models.Model):
     # 👇 MODIFICADO: Se añade null=True para permitir la migración
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="registros_observador", null=True)
@@ -63,6 +89,10 @@ class RegistroObservador(models.Model):
     acudiente_enterado = models.DateTimeField(null=True, blank=True, verbose_name="Acudiente enterado el")
     firma_acudiente = models.CharField(max_length=160, blank=True, default='', verbose_name="Quién firmó como enterado")
     descargo_acudiente = models.TextField(blank=True, default='', verbose_name="Descargo o comentario del acudiente")
+    falta = models.ForeignKey(FaltaCatalogo, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='registros', verbose_name='Falta del catálogo')
+    tipo_falta = models.CharField(max_length=3, choices=TIPOS_FALTA, blank=True, default='',
+                                  verbose_name='Tipo de falta')
 
     def __str__(self):
         return f"Observación para {self.estudiante} del {self.fecha_suceso}"

@@ -1,0 +1,82 @@
+{% extends 'notas/base.html' %}
+
+{% block title %}Observador sin internet{% endblock %}
+{% block page_title %}Observador sin internet (Excel){% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 860px;">
+    <div class="card shadow-sm">
+        <div class="card-header bg-success text-white d-flex align-items-center">
+            <h4 class="mb-0"><i class="fas fa-file-excel me-2"></i>Observador sin internet</h4>
+            <a href="{% url 'notas:observador_selector' %}" class="btn btn-sm btn-light ms-auto"><i class="fas fa-arrow-left me-1"></i>Observador</a>
+        </div>
+        <div class="card-body p-4">
+            <ol class="mb-4">
+                <li>Escoja el curso y baje el Excel (trae la lista de estudiantes y el catálogo de faltas).</li>
+                <li>Llénelo cuando quiera, sin internet: fecha, falta o descripción y el descargo del estudiante.</li>
+                <li>Cuando tenga conexión, súbalo aquí. Si alguna fila tiene un error no se guarda nada y se le dice cuál corregir.</li>
+            </ol>
+
+            <form method="get" class="row g-2 align-items-end mb-3">
+                <div class="col-sm-8">
+                    <label class="form-label fw-bold" for="curso_id">Curso</label>
+                    <select name="curso_id" id="curso_id" class="form-select" required>
+                        <option value="">-- Seleccione --</option>
+                        {% for c in cursos %}<option value="{{ c.id }}" {% if curso and curso.id == c.id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-sm-4">
+                    <button name="descargar" value="1" class="btn btn-outline-success w-100"><i class="fas fa-download me-1"></i>Bajar el Excel</button>
+                </div>
+            </form>
+
+            <hr>
+
+            <form method="post" enctype="multipart/form-data">{% csrf_token %}
+                <div class="row g-2 align-items-end">
+                    <div class="col-sm-4">
+                        <label class="form-label fw-bold" for="curso_subir">Curso del archivo</label>
+                        <select name="curso_id" id="curso_subir" class="form-select" required>
+                            <option value="">-- Seleccione --</option>
+                            {% for c in cursos %}<option value="{{ c.id }}" {% if curso and curso.id == c.id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-sm-5">
+                        <label class="form-label fw-bold" for="archivo">Archivo lleno (.xlsx)</label>
+                        <input type="file" name="archivo" id="archivo" accept=".xlsx" class="form-control" required>
+                    </div>
+                    <div class="col-sm-3">
+                        <button class="btn btn-success w-100"><i class="fas fa-upload me-1"></i>Subir</button>
+                    </div>
+                </div>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="avisar" id="avisar" checked>
+                    <label class="form-check-label" for="avisar">Avisar por correo a las familias de cada observación</label>
+                </div>
+            </form>
+
+            {% if resultado %}
+            <div class="mt-4">
+                {% if resultado.errores %}
+                <div class="alert alert-danger"><strong>Corrija estas filas y vuelva a subir el archivo:</strong>
+                    <ul class="mb-0 small">{% for e in resultado.errores %}<li>{{ e }}</li>{% endfor %}</ul></div>
+                {% endif %}
+                {% if resultado.registros %}
+                <div class="alert alert-success mb-2"><strong>{{ resultado.registros|length }} observaciones guardadas.</strong></div>
+                <ul class="list-group small">
+                    {% for r in resultado.registros %}
+                    <li class="list-group-item d-flex gap-2">
+                        <span class="text-nowrap">{{ r.fecha_suceso|date:"d/m/Y" }}</span>
+                        <a href="{% url 'notas:vista_detalle_observador' r.estudiante.id %}">{{ r.estudiante.user.get_full_name }}</a>
+                        {% if r.tipo_falta %}<span class="badge bg-secondary">Falta {{ r.get_tipo_falta_display }}</span>{% endif %}
+                        <span class="text-muted text-truncate">{{ r.descripcion|truncatechars:90 }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

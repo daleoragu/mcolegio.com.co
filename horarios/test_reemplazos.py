@@ -13,7 +13,9 @@ from . import reemplazos
 from .models import Horario, Reemplazo, Sesion
 from .tests import Base
 
-LUNES = datetime.date(2026, 10, 19)
+# El próximo lunes: «Reemplazos que le tocan» solo muestra los que no han pasado.
+_hoy = datetime.date.today()
+LUNES = _hoy + datetime.timedelta(days=7 - _hoy.weekday())
 
 
 class Reemplazos(Base):

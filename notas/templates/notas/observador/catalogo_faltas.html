@@ -1,0 +1,97 @@
+{% extends 'notas/base.html' %}
+
+{% block title %}Catálogo de faltas{% endblock %}
+{% block page_title %}Catálogo de faltas{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 1100px;">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <h3 class="mb-0"><i class="fas fa-book-open me-2"></i>Catálogo de faltas</h3>
+        <span class="badge bg-info text-dark">Tipo I: {{ conteo.I|default:0 }}</span>
+        <span class="badge bg-warning text-dark">Tipo II: {{ conteo.II|default:0 }}</span>
+        <span class="badge bg-danger">Tipo III: {{ conteo.III|default:0 }}</span>
+        <a href="{% url 'notas:observador_selector' %}" class="btn btn-sm btn-outline-secondary ms-auto"><i class="fas fa-arrow-left me-1"></i>Observador</a>
+    </div>
+    <p class="text-muted">Las situaciones de su manual de convivencia (Ley 1620 y Decreto 1965 de 2013). Los docentes las buscan al
+        escribir una observación y las usan en el Excel para trabajar sin internet. Las que desactive no salen en el buscador,
+        pero las observaciones que ya las usaron no cambian.</p>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-7">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <h6 class="fw-bold"><i class="fas fa-plus me-1"></i>Agregar una falta</h6>
+                <form method="post" class="row g-2">{% csrf_token %}
+                    <input type="hidden" name="accion" value="crear">
+                    <div class="col-sm-3"><select name="tipo_falta" class="form-select form-select-sm" required>
+                        {% for v, n in tipos %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select></div>
+                    <div class="col-sm-9"><input name="numeral" class="form-control form-control-sm" maxlength="40" placeholder="Numeral del manual (opcional), p. ej. Art. 45, num. 3"></div>
+                    <div class="col-12"><textarea name="descripcion" rows="2" class="form-control form-control-sm" required placeholder="Descripción de la situación"></textarea></div>
+                    <div class="col-12 text-end"><button class="btn btn-sm btn-primary"><i class="fas fa-save me-1"></i>Agregar</button></div>
+                </form>
+            </div></div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <h6 class="fw-bold"><i class="fas fa-file-excel me-1 text-success"></i>Desde Excel</h6>
+                <p class="small text-muted mb-2">Columnas: Tipo (I, II o III) · Numeral · Descripción. Baje la plantilla
+                    (trae lo que ya tiene), agregue filas y súbala: no se repiten las que ya están.</p>
+                <form method="post" enctype="multipart/form-data" class="d-flex gap-2 mb-2">{% csrf_token %}
+                    <input type="hidden" name="accion" value="importar">
+                    <input type="file" name="archivo" accept=".xlsx" class="form-control form-control-sm" required>
+                    <button class="btn btn-sm btn-success text-nowrap"><i class="fas fa-upload me-1"></i>Subir</button>
+                </form>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="?descargar=1" class="btn btn-sm btn-outline-success"><i class="fas fa-download me-1"></i>Bajar plantilla</a>
+                    <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="ejemplos">
+                        <button class="btn btn-sm btn-outline-primary" title="Ejemplos generales del Decreto 1965 de 2013 para ajustar a su manual"><i class="fas fa-magic me-1"></i>Cargar ejemplos</button></form>
+                </div>
+            </div></div>
+        </div>
+    </div>
+
+    <form method="get" class="row g-2 mb-2">
+        <div class="col-sm-3"><select name="tipo" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Todos los tipos</option>
+            {% for v, n in tipos %}<option value="{{ v }}" {% if tipo == v %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="col-sm-7"><input type="search" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Buscar por palabra o numeral"></div>
+        <div class="col-sm-2"><button class="btn btn-sm btn-outline-primary w-100"><i class="fas fa-search me-1"></i>Filtrar</button></div>
+    </form>
+
+    <div class="card shadow-sm"><div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light"><tr><th style="width:8%">Tipo</th><th style="width:16%">Numeral</th><th>Descripción</th>
+                <th class="text-center" style="width:8%">Usos</th><th style="width:20%"></th></tr></thead>
+            <tbody>
+            {% for f in faltas %}
+            <tr class="{% if not f.activa %}text-muted{% endif %}">
+                <td><span class="badge {% if f.tipo_falta == 'III' %}bg-danger{% elif f.tipo_falta == 'II' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">{{ f.get_tipo_falta_display }}</span></td>
+                <td class="small">{{ f.numeral }}</td>
+                <td class="small">{{ f.descripcion }}{% if not f.activa %} <span class="badge bg-secondary">desactivada</span>{% endif %}</td>
+                <td class="text-center small">{{ f.usos }}</td>
+                <td class="text-end text-nowrap">
+                    <button type="button" class="btn btn-sm btn-outline-primary py-0" data-bs-toggle="collapse" data-bs-target="#editar{{ f.id }}" title="Editar"><i class="fas fa-pen"></i></button>
+                    <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="accion" value="alternar"><input type="hidden" name="id" value="{{ f.id }}">
+                        <button class="btn btn-sm btn-outline-secondary py-0" title="{% if f.activa %}Desactivar{% else %}Activar{% endif %}"><i class="fas {% if f.activa %}fa-eye-slash{% else %}fa-eye{% endif %}"></i></button></form>
+                    <form method="post" class="d-inline" onsubmit="return confirm('¿Eliminar esta falta del catálogo?');">{% csrf_token %}<input type="hidden" name="accion" value="eliminar"><input type="hidden" name="id" value="{{ f.id }}">
+                        <button class="btn btn-sm btn-outline-danger py-0" title="Eliminar"><i class="fas fa-trash"></i></button></form>
+                </td>
+            </tr>
+            <tr class="collapse" id="editar{{ f.id }}"><td colspan="5" class="bg-light">
+                <form method="post" class="row g-2">{% csrf_token %}
+                    <input type="hidden" name="accion" value="editar"><input type="hidden" name="id" value="{{ f.id }}">
+                    <div class="col-sm-2"><select name="tipo_falta" class="form-select form-select-sm">
+                        {% for v, n in tipos %}<option value="{{ v }}" {% if f.tipo_falta == v %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+                    <div class="col-sm-3"><input name="numeral" value="{{ f.numeral }}" maxlength="40" class="form-control form-control-sm"></div>
+                    <div class="col-sm-5"><textarea name="descripcion" rows="2" class="form-control form-control-sm" required>{{ f.descripcion }}</textarea></div>
+                    <div class="col-sm-2"><button class="btn btn-sm btn-primary w-100">Guardar</button></div>
+                </form>
+            </td></tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted p-4">Todavía no hay faltas{% if q or tipo %} con ese filtro{% endif %}.
+                Agréguelas, súbalas desde Excel o use «Cargar ejemplos».</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div></div>
+</div>
+{% endblock %}
