@@ -297,6 +297,12 @@ class PesoPeriodoForm(forms.ModelForm):
                 attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': 0, 'max': 100}),
         }
 
+def _firmas_director(colegio):
+    from ..models.perfiles import FIRMA_DIRECTOR_DOCUMENTOS
+    actual = colegio.firma_director
+    return [{'clave': c, 'etiqueta': e, 'activo': actual[c]} for c, e, _ in FIRMA_DIRECTOR_DOCUMENTOS]
+
+
 @user_passes_test(es_admin_usuario)
 def configuracion_calificaciones_vista(request):
     if not request.colegio:
@@ -326,6 +332,11 @@ def configuracion_calificaciones_vista(request):
         if formset.is_valid() and form_global.is_valid() and formset_pesos.is_valid():
             materias_guardadas = formset.save()
             form_global.save()
+            from ..models.perfiles import FIRMA_DIRECTOR_DOCUMENTOS
+            request.colegio.firmas_director = {
+                clave: request.POST.get(f'firma_director_{clave}') == 'on'
+                for clave, _, _ in FIRMA_DIRECTOR_DOCUMENTOS}
+            request.colegio.save(update_fields=['firmas_director'])
             formset_pesos.save()
 
             if form_global.cleaned_data.get('ponderar_periodos'):
@@ -377,6 +388,7 @@ def configuracion_calificaciones_vista(request):
         'form_global': form_global,
         'formset_pesos': formset_pesos,
         'periodos_colegio': periodos_colegio,
+        'firmas_director': _firmas_director(request.colegio),
         'page_title': 'Configuración de Calificaciones por Materia',
         'colegio': request.colegio,
     }

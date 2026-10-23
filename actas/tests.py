@@ -123,6 +123,13 @@ class Actas(ColegioDePrueba):
         filas = c.get(f'/actas/{acta.id}/sugerir-asistentes/?cursos={self.curso.id}').json()['filas']
         self.assertIn({'nombre': 'Pedro Profe', 'cargo': 'Director(a) de grado 601', 'asistio': False}, filas)
 
+    def test_sin_directores_si_el_colegio_los_quito(self):
+        self.a.firmas_director = {'acta_comision': False}
+        self.a.save()
+        filas = logica.asistentes_sugeridos(self._acta())
+        self.assertFalse([f for f in filas if f['cargo'].startswith('Director(a) de grado')])
+        self.assertTrue([f for f in filas if f['cargo'].startswith('Representante de padres')])
+
     def test_asistentes_y_firmas(self):
         acta = self._acta(asistencia=[{'nombre': 'Rosa', 'cargo': 'Rectora', 'asistio': True},
                                       {'nombre': '', 'cargo': '', 'asistio': True}, 'basura',

@@ -41,7 +41,7 @@
 <p>El(la) estudiante no tiene asignaturas reportadas con dificultades en este periodo.</p>
 {% endif %}
 <table class="firmas"><tr>
-    <td><div class="linea"></div>{{ estudiante.curso.director_grado.user.get_full_name|default:"&nbsp;" }}<br>Director(a) de grado</td>
+    {% if colegio.firma_director.informe_parcial %}<td><div class="linea"></div>{{ estudiante.curso.director_grado.user.get_full_name|default:"&nbsp;" }}<br>Director(a) de grado</td>{% endif %}
     <td><div class="linea"></div>&nbsp;<br>Acudiente</td>
 </tr></table>
 <p style="font-size:8px; color:#666; margin-top:24px;">Este informe es de seguimiento académico y no reemplaza el boletín del periodo.</p>

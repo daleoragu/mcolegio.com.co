@@ -189,6 +189,20 @@ class LibroFinal(ConNotas):
         fila = next(f for f in d['filas'] if f['documento'] == '1110555')
         self.assertEqual(fila['celdas'][0]['nota'], '4,2')
 
+    def test_firma_del_director_solo_si_el_colegio_la_quiere(self):
+        from django.template.loader import render_to_string
+        from . import libro
+        sec = libro.datos_curso(self.a, self.curso, 2026)
+        sec['director'] = 'Pedro Profe'
+
+        def html():
+            return render_to_string('certificados/libro_pdf.html', {
+                'colegio': self.a, 'ano': 2026, 'secciones': [sec], 'folio_inicial': 1,
+                'conf': ConfiguracionCertificados.de(self.a), 'rector': 'Rosa Rector'})
+        self.assertNotIn('<br>Director(a) de grado</td>', html())
+        self.a.firmas_director = {'libro': True}
+        self.assertIn('<br>Director(a) de grado</td>', html())
+
     def test_ano_sin_notas(self):
         r = self.cliente(self.rectora).get('/certificados/libro-final/?ano=2010')
         self.assertRedirects(r, '/certificados/libro-final/', fetch_redirect_response=False)

@@ -123,7 +123,8 @@ def _nombres_anteriores(acta):
 def asistentes_sugeridos(acta, cursos_ids=None):
     """[{'nombre', 'cargo', 'asistio': False}] para marcar con X.
 
-    Comisión: por cada grado, el director de grado de cada curso, un
+    Comisión: por cada grado, el director de grado de cada curso (si el colegio
+    no lo quitó en «Firmas en los documentos»), un
     representante de los padres y uno de los estudiantes. Antes, los directivos.
     Acta libre: los directivos. El nombre de un representante se toma de la
     última acta en que se escribió para ese mismo cargo.
@@ -150,8 +151,9 @@ def asistentes_sugeridos(acta, cursos_ids=None):
         for c in cursos:
             por_grado.setdefault((c.grado if c.grado is not None else 99,
                                   c.get_grado_display() if c.grado is not None else ''), []).append(c)
+        con_directores = acta.colegio.firma_director['acta_comision']
         for (_, nombre_grado), lista in sorted(por_grado.items()):
-            for c in lista:
+            for c in (lista if con_directores else []):
                 if c.director_grado_id:
                     poner(c.director_grado.user.get_full_name() or c.director_grado.user.username,
                           f'Director(a) de grado {c.nombre}')

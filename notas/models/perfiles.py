@@ -10,6 +10,19 @@ from django.db.models import Max # <--- IMPORTADO PARA EL ORDEN
 # MODELO CENTRAL PARA MULTI-COLEGIO (VERSIÓN COMPLETA Y CORREGIDA)
 # ==============================================================================
 
+# Documentos en los que puede salir la firma del director(a) de grado, con su valor de fábrica.
+# Por lo general el director firma el boletín; el libro final y otros documentos los firma rectoría.
+FIRMA_DIRECTOR_DOCUMENTOS = [
+    ('boletin', 'Boletín de periodo', True),
+    ('boletin_final', 'Boletín final', True),
+    ('preescolar', 'Boletines de preescolar', True),
+    ('informe_parcial', 'Informe parcial (a mitad de periodo)', True),
+    ('libro', 'Libro final de calificaciones', False),
+    ('piar', 'PIAR', True),
+    ('acta_comision', 'Actas de comisión (traer a los directores como asistentes)', True),
+]
+
+
 def _todos_los_modulos():
     """Un colegio nuevo arranca con el plan Completo (ver notas/modulos.py)."""
     from notas.modulos import COMPLETO
@@ -160,9 +173,19 @@ class Colegio(models.Model):
         help_text='Lo que aparece debajo del icono en el celular (máximo 12 letras). '
                   'Si lo deja vacío se usan las iniciales del colegio.')
     layout_portal = models.CharField(max_length=10, choices=LAYOUT_CHOICES, default='topbar', verbose_name="Diseño del Portal")
+    firmas_director = models.JSONField(
+        default=dict, blank=True, verbose_name='Firma del director(a) de grado',
+        help_text='En qué documentos sale la firma del director(a) de grado. '
+                  'Lo que no esté aquí usa el valor de fábrica.')
 
     def __str__(self):
         return self.nombre
+
+    @property
+    def firma_director(self):
+        """{documento: True/False}; en plantillas: {% if colegio.firma_director.libro %}."""
+        guardado = self.firmas_director if isinstance(self.firmas_director, dict) else {}
+        return {clave: bool(guardado.get(clave, defecto)) for clave, _, defecto in FIRMA_DIRECTOR_DOCUMENTOS}
 
     def save(self, *args, **kwargs):
         if not self.slug:

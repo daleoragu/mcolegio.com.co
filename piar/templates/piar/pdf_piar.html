@@ -41,7 +41,7 @@
 <p class="pre">{{ piar.recomendaciones|default:"—" }}</p>
 
 <table class="firmas">
-    <tr><td><div class="linea"></div>Docente de apoyo / orientación</td><td><div class="linea"></div>Director(a) de grupo</td></tr>
+    <tr><td><div class="linea"></div>Docente de apoyo / orientación</td><td>{% if colegio.firma_director.piar %}<div class="linea"></div>Director(a) de grupo{% endif %}</td></tr>
     <tr><td><div class="linea"></div>Acudiente</td><td><div class="linea"></div>Rector(a) o coordinador(a)</td></tr>
 </table>
 {% endblock %}
