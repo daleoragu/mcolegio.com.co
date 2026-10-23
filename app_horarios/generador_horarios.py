@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import especiales, impresion, nucleo         # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '4.4.0'
+VERSION = '4.4.1'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -388,6 +388,19 @@ class App(tk.Tk):
         var.trace_add('write', cambio)
         return f
 
+    def _opcion_dias(self, padre, texto, valor, especial, al_cambiar, hasta=5):
+        """Lista: la primera opción es la especial (None: regla general o sin límite); luego 0, 1, 2…
+        Así el 0 quiere decir de verdad «ningún día»."""
+        f = ttk.Frame(padre)
+        ttk.Label(f, text=texto).pack(side='left')
+        valores = [None] + list(range(0, hasta + 1))
+        cb = ttk.Combobox(f, state='readonly', width=max(14, len(especial) + 2),
+                          values=[especial] + [f'{n} día{"s" if n != 1 else ""}' for n in valores[1:]])
+        cb.current(valores.index(valor) if valor in valores else 0)
+        cb.bind('<<ComboboxSelected>>', lambda e: al_cambiar(valores[cb.current()]))
+        cb.pack(side='left', padx=6)
+        return f
+
     # Filtros por grado, área y docente (para las tablas)
     def _filtros(self, padre, cuales, al_cambiar, apilar=False):
         """Una fila de filtros (o uno debajo del otro, con apilar). Devuelve acepta(asignacion) -> bool."""
@@ -651,10 +664,9 @@ class App(tk.Tk):
                                 'permanencia × días').pack(side='left')
         bajo_cp = ttk.Frame(gen)
         bajo_cp.grid(row=8, column=0, columnspan=2, sticky='w')
-        self._numero(bajo_cp, '      Máximo de días largos (ej.: días de 7 h de permanencia) a la semana por docente '
-                              '(0 = los que quepan en la semana):',
-                     comp.get('max_dias') or 0, 0, 5, lambda v: comp.__setitem__('max_dias', int(v or 0))).pack(
-            anchor='w', pady=(2, 0))
+        self._opcion_dias(bajo_cp, '      Máximo de días largos (ej.: días de 7 h de permanencia) a la semana por docente:',
+                          nucleo.max_dias_largos_general(c), 'Sin límite (los que quepan)',
+                          lambda v: comp.update({'max_dias_largos': v, 'max_dias': 0})).pack(anchor='w', pady=(2, 0))
         ttk.Label(bajo_cp, text='      Ej.: 6 h × 5 días = 30 h a la semana. Dos días de 7 h se pagan con un día de 4 h o con '
                                 'dos de 5 h, como mejor encaje. Un día sin clases cuenta 0 h.',
                   style='Ayuda.TLabel').pack(anchor='w')
@@ -1393,8 +1405,11 @@ class App(tk.Tk):
                      guardar('max_seguidas')).pack(anchor='w', pady=2)
         self._numero(abajo, 'Permanencia de este docente (horas, 0 = la regla general):', r.get('permanencia') or 0, 0, 14,
                      guardar('permanencia'), 0.5).pack(anchor='w')
-        self._numero(abajo, 'Máximo de días largos a la semana (ej.: días de 7 h; 0 = la regla general):',
-                     r.get('max_dias_largos') or 0, 0, 5, guardar('max_dias_largos')).pack(anchor='w', pady=(2, 0))
+        general = nucleo.max_dias_largos_general(self.p.cond)
+        self._opcion_dias(abajo, 'Máximo de días largos a la semana (ej.: días de 7 h):',
+                          nucleo._entero_o_nada(r.get('max_dias_largos')),
+                          f'Regla general ({"sin límite" if general is None else general})',
+                          lambda v: r.__setitem__('max_dias_largos', v)).pack(anchor='w', pady=(2, 0))
         if extra:
             self._numero(abajo, f'Tiene {extra} hora(s) extra (hasta {extra} día(s) largo(s)): su día puede alargarse '
                                 f'hasta (horas más; 0 = la regla general):',

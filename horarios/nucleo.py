@@ -94,7 +94,8 @@ def condiciones_vacias():
             'permanencia_extra': 2,
             # Docentes sin horas extra: un día largo (hasta «max» horas más, o con la 1.ª y la última)
             # se permite si la semana no pasa de permanencia × días (ej.: 6 h × 5 = 30 h).
-            'compensar': {'activa': False, 'max': 1, 'max_dias': 0}}
+            # max_dias_largos: None = sin límite (los que quepan en la semana); 0, 1, 2… = ese máximo
+            'compensar': {'activa': False, 'max': 1, 'max_dias_largos': None}}
 
 
 def horas_extra(cond, aid, ih):
@@ -330,12 +331,28 @@ def pesos_de(cond):
     return w
 
 
+def _entero_o_nada(v):
+    if v in (None, ''):
+        return None
+    try:
+        return max(0, int(v))
+    except (TypeError, ValueError):
+        return None
+
+
+def max_dias_largos_general(cond):
+    """Máximo general de días largos: None = sin límite. (Antes se guardaba en 'max_dias' y 0 era sin límite.)"""
+    comp = cond.get('compensar') or {}
+    if 'max_dias_largos' in comp:
+        return _entero_o_nada(comp['max_dias_largos'])
+    return _entero_o_nada(comp.get('max_dias')) or None
+
+
 def max_dias_largos(cond, did):
-    """Máximo de días largos a la semana del docente: el suyo (en «Profesores») o el general (0 = sin tope)."""
-    propio = (cond.get('docentes', {}).get(str(did)) or {}).get('max_dias_largos')
-    if propio not in (None, '', 0, '0'):
-        return int(propio)
-    return int((cond.get('compensar') or {}).get('max_dias') or 0)
+    """Máximo de días largos a la semana del docente: el suyo (en «Profesores», 0 = ningún día largo)
+    o, si no tiene, el general. None = sin límite."""
+    propio = _entero_o_nada((cond.get('docentes', {}).get(str(did)) or {}).get('max_dias_largos'))
+    return propio if propio is not None else max_dias_largos_general(cond)
 
 
 def semana_de(cond):
@@ -1018,12 +1035,12 @@ def armar(datos, cond):
             if did not in con_extra:
                 compensar[did] = tope_comp
                 tope_dias = max_dias_largos(cond, did)
-                if tope_dias:
+                if tope_dias is not None:
                     compensar_max_dias[did] = tope_dias
     # Docentes con horas extra: su propio máximo de días largos, si es menor que sus horas extra
     for did in list(dias_largos_max):
-        propio = int((cond.get('docentes', {}).get(str(did)) or {}).get('max_dias_largos') or 0)
-        if propio:
+        propio = _entero_o_nada((cond.get('docentes', {}).get(str(did)) or {}).get('max_dias_largos'))
+        if propio is not None:
             dias_largos_max[did] = min(dias_largos_max[did], propio)
     viajan = {int(did): modo_viaja(r.get('viaja')) for did, r in cond.get('docentes', {}).items()
               if r.get('viaja') and int(did) in D.docentes}

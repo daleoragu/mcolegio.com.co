@@ -1002,7 +1002,7 @@ class Proyecto:
                                f'{comp / 60:g} horas de permanencia.')
             max_dias = nucleo.max_dias_largos(self.cond, did)
             largos = sum(1 for a, par in perfil.values() if a > perm * 60 or par)
-            if max_dias and largos > max_dias:
+            if max_dias is not None and largos > max_dias:
                 out.append(f'{D.nombre_docente(did)}: tiene {largos} días largos y el máximo es {max_dias}.')
             if total > tope:
                 out.append(f'{D.nombre_docente(did)}: la semana suma {texto_horas(total)} de permanencia y el máximo '
