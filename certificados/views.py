@@ -300,7 +300,9 @@ def libro(request):
     curso_id = request.GET.get('curso_id') or ''
     cursos = ([get_object_or_404(Curso, id=curso_id, colegio=colegio)] if curso_id
               else libro_mod.cursos_del_ano(colegio, ano))
-    secciones = [s for s in (libro_mod.datos_curso(colegio, c, ano) for c in cursos) if s['filas']]
+    from notas.boletin.ponderacion import en_lote
+    with en_lote():                      # la escala y la configuración se leen una sola vez para todos los cursos
+        secciones = [s for s in (libro_mod.datos_curso(colegio, c, ano) for c in cursos) if s['filas']]
     if not secciones:
         messages.error(request, f'No hay notas de {ano} para generar el libro.')
         return redirect('certificados:libro')

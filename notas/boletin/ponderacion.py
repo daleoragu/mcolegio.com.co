@@ -6,6 +6,9 @@ Lo usan el boletín y la sábana. Si algún día hay que cambiar la fórmula,
 se cambia aquí y las dos pantallas quedan de acuerdo. Antes cada una hacía
 su propio promedio y podían desincronizarse.
 """
+import contextvars
+import functools
+from contextlib import contextmanager
 from decimal import Decimal, ROUND_HALF_UP
 
 # Los modelos se importan dentro de cada función, no aquí arriba: este módulo lo
@@ -29,14 +32,54 @@ class AjustesPorDefecto:
     colapsar_area_unica = True
 
 
+# --- Memoria para cálculos grandes -------------------------------------------------
+# El boletín final y el libro calculan, por cada materia de cada estudiante, la nota del
+# año y su desempeño. Cada cálculo leía otra vez la configuración y la escala del colegio:
+# miles de consultas iguales en un libro con todos los cursos. Dentro de `en_lote()` se
+# leen una sola vez; fuera de él todo funciona igual que siempre (sin datos guardados).
+_memoria = contextvars.ContextVar('mcolegio_memoria_calculo', default=None)
+
+
+@contextmanager
+def en_lote():
+    """Mientras dure, la configuración y la escala del colegio se leen una sola vez."""
+    if _memoria.get() is not None:          # ya hay uno abierto: se usa el mismo
+        yield
+        return
+    token = _memoria.set({})
+    try:
+        yield
+    finally:
+        _memoria.reset(token)
+
+
+def calculo_en_lote(fn):
+    """Decorador: la función corre dentro de `en_lote()`."""
+    @functools.wraps(fn)
+    def envoltura(*a, **k):
+        with en_lote():
+            return fn(*a, **k)
+    return envoltura
+
+
+def recordar(clave, calcular):
+    """Dentro de `en_lote()`, calcula una sola vez por clave; fuera, calcula siempre."""
+    memoria = _memoria.get()
+    if memoria is None:
+        return calcular()
+    if clave not in memoria:
+        memoria[clave] = calcular()
+    return memoria[clave]
+
+
 def ajustes(colegio):
     """La configuración del colegio, o unos valores por defecto que no rompen nada."""
     from notas.models.academicos import ConfiguracionCalificaciones
 
     if colegio is None:
         return AjustesPorDefecto()
-    config = ConfiguracionCalificaciones.objects.filter(colegio=colegio).first()
-    return config or AjustesPorDefecto()
+    return recordar(('ajustes', colegio.pk), lambda: (
+        ConfiguracionCalificaciones.objects.filter(colegio=colegio).first() or AjustesPorDefecto()))
 
 
 def pesos(colegio, periodos):
@@ -49,7 +92,11 @@ def pesos(colegio, periodos):
     periodos = list(periodos)
     if not periodos:
         return {}
+    return recordar(('pesos', getattr(colegio, 'pk', None), tuple(p.id for p in periodos)),
+                    lambda: _pesos(colegio, periodos))
 
+
+def _pesos(colegio, periodos):
     if not ajustes(colegio).ponderar_periodos:
         igual = Decimal(1) / Decimal(len(periodos))
         return {p.id: igual for p in periodos}

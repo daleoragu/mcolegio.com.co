@@ -34,7 +34,9 @@ jobs:
       - name: Migraciones al día
         run: python manage.py makemigrations --check --dry-run
       - name: Pruebas
-        run: >
-          python manage.py test --noinput
-          notas certificados actas horarios calendario circulares cartera elecciones piar prematricula
-          salon_digital simat puntoexacto
+        run: |
+          set -o pipefail
+          python manage.py test --noinput notas certificados actas horarios calendario circulares cartera \
+            elecciones piar prematricula salon_digital simat puntoexacto 2>&1 | tee salida_pruebas.txt \
+            || { python .github/scripts/anotar_pruebas.py salida_pruebas.txt; exit 1; }
+          python .github/scripts/anotar_pruebas.py salida_pruebas.txt

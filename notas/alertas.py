@@ -20,7 +20,7 @@ from collections import defaultdict
 from decimal import Decimal
 
 from .boletin.logic import estudiantes_del_curso_en
-from .boletin.ponderacion import definitiva_anual, nota_aprobacion
+from .boletin.ponderacion import calculo_en_lote, definitiva_anual, nota_aprobacion
 from .models import AsignacionDocente, Calificacion, ConfiguracionSistema, PeriodoAcademico
 
 
@@ -36,6 +36,7 @@ def periodos_hasta(colegio, ano, periodo=None):
     return [p for p in periodos if p.fecha_inicio <= periodo.fecha_inicio]
 
 
+@calculo_en_lote
 def alertas_de_curso(colegio, curso, ano, periodo=None, aprobacion=None, maximo=None):
     """[{estudiante, perdidas: [...], perdidas_periodo: n, riesgo, …}] de un curso."""
     aprobacion = Decimal(aprobacion if aprobacion is not None else nota_aprobacion(colegio))

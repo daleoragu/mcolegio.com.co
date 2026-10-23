@@ -9,7 +9,7 @@ from ..models import (
     AsignacionDocente, AreaConocimiento, Materia, ConfiguracionSistema,
     PeriodoAcademico, FichaEstudiante, PonderacionAreaMateria, EscalaValoracion
 )
-from .ponderacion import ajustes as ajustes_colegio, definitiva_anual
+from .ponderacion import ajustes as ajustes_colegio, calculo_en_lote, definitiva_anual, recordar
 from .. import componentes as _comp
 from ..pesos_area import pesos_areas
 from django.db.models import Prefetch
@@ -44,20 +44,20 @@ def _get_valoracion(colegio, nota):
     if nota is None:
         return ""
     nota_decimal = Decimal(nota)
+    # La escala se lee una sola vez por cálculo (ver ponderacion.en_lote); misma regla de antes:
+    # vale solo si exactamente un rango contiene la nota.
+    escalas = recordar(('escalas', getattr(colegio, 'pk', None)),
+                       lambda: list(EscalaValoracion.objects.filter(colegio=colegio)))
+    cumplen = [e for e in escalas if e.valor_minimo is not None and e.valor_maximo is not None
+               and e.valor_minimo <= nota_decimal <= e.valor_maximo]
+    if len(cumplen) == 1:
+        return cumplen[0].nombre_desempeno.upper()
+    if nota_decimal >= Decimal('4.6'): return "SUPERIOR"
+    if nota_decimal >= Decimal('4.0'): return "ALTO"
+    if nota_decimal >= Decimal('3.0'): return "BASICO"
+    return "BAJO"
 
-    try:
-        escala = EscalaValoracion.objects.get(
-            colegio=colegio,
-            valor_minimo__lte=nota_decimal,
-            valor_maximo__gte=nota_decimal
-        )
-        return escala.nombre_desempeno.upper()
-    except (EscalaValoracion.DoesNotExist, EscalaValoracion.MultipleObjectsReturned):
-        if nota_decimal >= Decimal('4.6'): return "SUPERIOR"
-        if nota_decimal >= Decimal('4.0'): return "ALTO"
-        if nota_decimal >= Decimal('3.0'): return "BASICO"
-        return "BAJO"
-
+@calculo_en_lote
 def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None):
     """
     Calcula los datos de los boletines para un curso y periodo, incluyendo
@@ -222,6 +222,7 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
 
     return datos_completos_estudiantes
 
+@calculo_en_lote
 def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=None):
     try:
         config = ConfiguracionSistema.objects.get(colegio=colegio)
