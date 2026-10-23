@@ -13,7 +13,6 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django.conf import settings
 from django.core import signing
-from django.core.mail import send_mail
 from django.db.models import Count
 
 from . import componentes as _comp
@@ -114,8 +113,8 @@ def enviar_correo(estudiante, periodo, asignaturas, url_informe):
         return False, 'el correo de la plataforma no está configurado'
     asunto = f'Informe parcial · {estudiante.user.get_full_name()}'
     try:
-        send_mail(asunto, texto_aviso(estudiante, periodo, asignaturas, url_informe),
-                  settings.DEFAULT_FROM_EMAIL, [correo], fail_silently=False)
+        from .mensajeria import enviar_correo as mandar
+        mandar(estudiante.colegio, asunto, texto_aviso(estudiante, periodo, asignaturas, url_informe), [correo])
     except Exception as e:
         return False, f'no se pudo enviar ({type(e).__name__})'
     return True, correo

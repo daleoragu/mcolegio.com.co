@@ -1,11 +1,9 @@
-from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.mail import EmailMessage, get_connection
 from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from notas import avisos_familia
+from notas import avisos_familia, mensajeria
 from notas.models import Estudiante, FichaEstudiante, Notificacion
 
 from .models import Circular, Lectura
@@ -20,8 +18,11 @@ def destinatarios(circular):
         if circular.para == 'CURSOS':
             est = est.filter(curso__in=circular.cursos.all())
         salida += [(e.user, e) for e in est]
-    if circular.para in ('DOCENTES', 'TODOS'):
+    if circular.para in ('DOCENTES', 'PERSONAL', 'TODOS'):
         salida += [(u, None) for u in User.objects.filter(docente__colegio=colegio, is_active=True).distinct()]
+    if circular.para in ('PERSONAL', 'TODOS'):
+        salida += [(u, None) for u in User.objects.filter(administraciones__colegio=colegio,
+                                                          administraciones__activo=True, is_active=True).distinct()]
     vistos, unicos = set(), []
     for u, e in salida:
         if u.id not in vistos:
@@ -62,13 +63,9 @@ def publicar(circular, url_ver):
             if destino:
                 cuerpo = (f'{circular.cuerpo}\n\n—\nCircular N.º {circular.numero} de {circular.colegio.nombre}.\n'
                           f'Véala{" y confirme que la leyó" if circular.pide_confirmacion else ""} en: {url_ver}')
-                mensajes.append(EmailMessage(f'Circular N.º {circular.numero}: {circular.titulo}', cuerpo,
-                                             settings.DEFAULT_FROM_EMAIL, [destino]))
-        if mensajes:
-            try:
-                correos = get_connection(fail_silently=True).send_messages(mensajes) or 0
-            except Exception:
-                correos = 0
+                mensajes.append(mensajeria.mensaje(circular.colegio, f'Circular N.º {circular.numero}: {circular.titulo}',
+                                                   cuerpo, [destino]))
+        correos = mensajeria.enviar_varios(mensajes)
     return len(lista), correos
 
 

@@ -156,6 +156,9 @@ def crear_registro_observador_vista(request, estudiante_id):
                 nuevo_registro, request.build_absolute_uri('/'), _url_respuesta(request, nuevo_registro))
             if enviado:
                 messages.info(request, f"Se envió un aviso al correo del acudiente ({detalle}).")
+            enviado_wa, detalle_wa = avisos_familia.enviar_whatsapp(nuevo_registro, request.build_absolute_uri('/'))
+            if enviado_wa:
+                messages.info(request, f"Se envió el aviso por WhatsApp ({detalle_wa}).")
             return redirect('notas:aviso_familia', registro_id=nuevo_registro.id)
         else:
             for field, errors in form.errors.items():

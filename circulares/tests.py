@@ -36,6 +36,11 @@ class Circulares(ColegioDePrueba):
         self._publicar(titulo='Para profes', para='DOCENTES')
         self.assertEqual(list(Circular.objects.get(titulo='Para profes').lecturas.values_list('usuario__username', flat=True)), ['profe'])
 
+    def test_al_personal_le_llega_a_docentes_y_administrativos(self):
+        self._publicar(titulo='Reunión de personal', para='PERSONAL')
+        quienes = set(Circular.objects.get(titulo='Reunión de personal').lecturas.values_list('usuario__username', flat=True))
+        self.assertEqual(quienes, {'profe', 'rectora'})
+
     def test_cursos_sin_escoger_no_se_publica(self):
         self._publicar(para='CURSOS')
         self.assertFalse(Circular.objects.exists())

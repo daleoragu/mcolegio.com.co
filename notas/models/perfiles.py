@@ -173,6 +173,14 @@ class Colegio(models.Model):
         help_text='Lo que aparece debajo del icono en el celular (máximo 12 letras). '
                   'Si lo deja vacío se usan las iniciales del colegio.')
     layout_portal = models.CharField(max_length=10, choices=LAYOUT_CHOICES, default='topbar', verbose_name="Diseño del Portal")
+    whatsapp_automatico = models.BooleanField(
+        default=False, verbose_name='Avisos automáticos por WhatsApp',
+        help_text='Los avisos del observador salen solos por la línea de WhatsApp de la plataforma '
+                  '(cuando esté conectada). Si no, siguen saliendo con el botón de WhatsApp.')
+    correo_remitente_verificado = models.BooleanField(
+        default=False, verbose_name='Correos desde el correo del colegio',
+        help_text='Solo si el correo de contacto del colegio ya se verificó en el proveedor de correo de la '
+                  'plataforma. Si no, los correos salen con el nombre del colegio y las respuestas le llegan a ese correo.')
     firmas_director = models.JSONField(
         default=dict, blank=True, verbose_name='Firma del director(a) de grado',
         help_text='En qué documentos sale la firma del director(a) de grado. '

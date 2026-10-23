@@ -20,7 +20,6 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.core import signing
-from django.core.mail import send_mail
 from django.template.loader import render_to_string
 
 
@@ -163,8 +162,23 @@ def enviar_correo(registro, url_portal='', url_respuesta=''):
         'motivo': _motivo(registro), 'url_respuesta': url_respuesta, 'url_portal': url_portal,
         'dias': DIAS_ENLACE})
     try:
-        send_mail(asunto, texto, settings.DEFAULT_FROM_EMAIL, [correo],
-                  html_message=html, fail_silently=False)
+        from .mensajeria import enviar_correo as mandar
+        mandar(registro.colegio, asunto, texto, [correo], html=html)
     except Exception as e:      # un correo caído no debe impedir guardar la observación
         return False, f'no se pudo enviar ({type(e).__name__})'
     return True, correo
+
+
+def enviar_whatsapp(registro, url_portal=''):
+    """Por la línea de WhatsApp de la plataforma, al primer contacto de la ficha (acudiente, mamá o papá).
+
+    Solo si la línea está conectada y el colegio activó los avisos automáticos;
+    si no, el aviso sigue saliendo con el botón (enlace wa.me). Devuelve (enviado, detalle)."""
+    from .mensajeria import enviar_whatsapp as mandar, whatsapp_configurado
+    if not whatsapp_configurado() or not getattr(registro.colegio, 'whatsapp_automatico', False):
+        return False, 'WhatsApp automático no está activo'
+    cs = contactos(registro.estudiante)
+    if not cs:
+        return False, 'la ficha no tiene celular del acudiente'
+    ok, detalle = mandar(registro.colegio, cs[0]['numero'], texto_aviso(registro, url_portal))
+    return ok, (f'{cs[0]["rol"]} {cs[0]["visible"]}' if ok else detalle)

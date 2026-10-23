@@ -3,7 +3,6 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.urls import reverse, reverse_lazy
-from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.contrib.auth.models import User, Group
@@ -88,7 +87,8 @@ def enviar_notificacion_consolidada(request, estudiante, periodo, forzar_envio=F
     asunto = f"Informe Parcial Consolidado - {estudiante.user.get_full_name()} - {periodo}"
     
     try:
-        send_mail(asunto, plain_message, settings.DEFAULT_FROM_EMAIL, [acudiente_email], html_message=html_message)
+        from ..mensajeria import enviar_correo
+        enviar_correo(colegio, asunto, plain_message, [acudiente_email], html=html_message)
         return True
     except Exception as e:
         print(f"ERROR al enviar correo para {estudiante}: {e}")

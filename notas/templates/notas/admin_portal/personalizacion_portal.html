@@ -113,6 +113,11 @@
                                 <div class="col-md-4">{{ form.email_contacto|as_crispy_field }}</div>
                                 <div class="col-md-4">{{ form.whatsapp_numero|as_crispy_field }}</div>
                             </div>
+                            <div class="row">
+                                <div class="col-12">{{ form.whatsapp_automatico|as_crispy_field }}
+                                    <div class="form-text">Los correos de la plataforma salen con el nombre del colegio y, si escribió el
+                                        email de contacto, las respuestas de las familias llegan a ese correo.</div></div>
+                            </div>
                             <hr>
                              <div class="row">
                                 <div class="col-md-6">{{ form.url_facebook|as_crispy_field }}</div>
