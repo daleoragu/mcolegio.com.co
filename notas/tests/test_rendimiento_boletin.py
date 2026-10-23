@@ -54,7 +54,8 @@ class RendimientoDelBoletinFinal(ColegioDePrueba):
         # 8 estudiantes × 5 materias: antes eran cientos de consultas
         self.assertLess(muchas, 40, muchas)
         # Y las notas siguen bien: (3,5 + 4,2) / 2 = 3,9 → BÁSICO
-        area = next(a for a in b2[0]['areas'] if a['nombre'] == 'Matemáticas')
+        ana = next(b for b in b2 if b['estudiante'] == self.estudiantes[0])
+        area = next(a for a in ana['areas'] if a['nombre'].upper() == 'MATEMÁTICAS')
         self.assertEqual(area['nota_final_area'], Decimal('3.9'))
         self.assertEqual(area['desempeno_area'], 'BÁSICO')
 

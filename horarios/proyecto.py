@@ -12,8 +12,8 @@ from collections import defaultdict
 from . import nucleo
 
 TIPO_PROYECTO = 'mcolegio-horario-proyecto'
-ESTADOS_CELDA = ('libre', 'no_puede', 'prefiere_no', 'evitar')
-LISTAS_CELDA = ('no_puede', 'prefiere_no', 'evitar')
+ESTADOS_CELDA = ('libre', 'no_puede', 'prefiere_no', 'evitar', 'preferida')
+LISTAS_CELDA = ('no_puede', 'prefiere_no', 'evitar', 'preferida')
 
 
 class Proyecto:
@@ -127,7 +127,7 @@ class Proyecto:
             r[estado].append(clave)
 
     def siguiente_estado(self, did, dia, fid):
-        """Libre → no puede → mejor no → mejor no (fuerte) → libre."""
+        """Libre → no puede → mejor no → mejor no (fuerte) → preferida → libre."""
         actual = self.estado_celda(did, dia, fid)
         nuevo = ESTADOS_CELDA[(ESTADOS_CELDA.index(actual) + 1) % len(ESTADOS_CELDA)]
         self.poner_celda(did, dia, fid, nuevo)
@@ -991,6 +991,10 @@ class Proyecto:
                 if a > perm * 60 + comp:
                     out.append(f'{D.nombre_docente(did)}: el {nucleo.DIAS[d]} pasa de {perm:g} + '
                                f'{comp / 60:g} horas de permanencia.')
+            max_dias = int((self.cond.get('compensar') or {}).get('max_dias') or 0)
+            largos = sum(1 for a, par in perfil.values() if a > perm * 60 or par)
+            if max_dias and largos > max_dias:
+                out.append(f'{D.nombre_docente(did)}: tiene {largos} días largos y el máximo es {max_dias}.')
             if total > tope:
                 out.append(f'{D.nombre_docente(did)}: la semana suma {texto_horas(total)} de permanencia y el máximo '
                            f'es {texto_horas(tope)} ({perm:g} h × {tope // int(perm * 60)} días). Acorte algún día.')

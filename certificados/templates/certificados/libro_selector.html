@@ -21,6 +21,8 @@
         <div class="col-sm-3"><button class="btn btn-primary w-100"><i class="fas fa-file-pdf me-1"></i>Generar PDF</button></div>
     </form>
     <p class="small text-muted mt-3 mb-0">«Primer folio» sirve para seguir la numeración de un libro que ya tiene hojas. Las firmas salen de la
-        <a href="{% url 'certificados:configuracion' %}">configuración de certificados</a>.</p>
+        <a href="{% url 'certificados:configuracion' %}">configuración de certificados</a>; la del director(a) de grado se
+        activa o se quita en <a href="{% url 'notas:configuracion_calificaciones' %}#firmas">Firmas en los documentos</a>.</p>
+    <p class="small text-muted mb-0">Con «Todos los cursos» el PDF puede tardar uno o dos minutos: se abre en otra pestaña cuando esté listo.</p>
 </div>
 {% endblock %}

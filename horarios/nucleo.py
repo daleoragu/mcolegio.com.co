@@ -73,7 +73,8 @@ def condiciones_vacias():
             'pesos': {},                 # {criterio: 0..10} prioridades al optimizar (5 = normal)
             'cursos': {},                # {cid: {'no_puede': ['dia-franja']}} horas sin clase del curso
             'areas': {},                 # {área: {'no_puede': [...], 'prefiere_no': [...]}} horas de las materias del área
-            'actividades': [],           # [{'nombre', 'docentes': [did] (vacío = todos), 'horas', 'max_dia'}]
+            'actividades': [],           # [{'nombre', 'docentes': [did] (vacío = todos), 'horas', 'max_dia',
+                                         #   'fijas': ['dia-franja'] (horas escogidas a mano)}]
             'acompanamiento': {'zonas': [], 'max_semana': 2},   # turnos en los descansos
             # Si el docente tiene la hora «b» no tiene la hora «a» el mismo día (ej.: la 7.ª y la 1.ª)
             'excluyente': {'activa': False, 'a': 1, 'b': 7, 'obligatoria': True},
@@ -88,7 +89,7 @@ def condiciones_vacias():
             'permanencia_extra': 2,
             # Docentes sin horas extra: un día largo (hasta «max» horas más, o con la 1.ª y la última)
             # se permite si la semana no pasa de permanencia × días (ej.: 6 h × 5 = 30 h).
-            'compensar': {'activa': False, 'max': 1}}
+            'compensar': {'activa': False, 'max': 1, 'max_dias': 0}}
 
 
 def horas_extra(cond, aid, ih):
@@ -128,6 +129,7 @@ CRITERIOS = [
     ('dia_largo', 'Que las horas extra queden dentro de la jornada normal (pocos días largos)'),
     ('minimo', 'Que cada docente tenga su mínimo de clases los días que viene'),
     ('viaja', 'Docentes que viajan: compensar entrando tarde el lunes o saliendo temprano el viernes'),
+    ('preferida', 'Poner las clases en las horas «preferidas» (azules) de los docentes'),
 ]
 
 
@@ -202,6 +204,27 @@ def capacidad_salones(cond):
             for g in s.get('grupos') or []:
                 menos[f'G:{g}'][celda] += c
     return cap, {k: dict(v) for k, v in menos.items()}
+
+
+# Niveles para filtrar cursos y docentes (por el grado del curso)
+NIVELES = [('PRE', 'Preescolar y transición'), ('PRI', 'Primaria'), ('BAS', 'Básica secundaria (6.º a 9.º)'),
+           ('MED', 'Media (10.º y 11.º)'), ('BACH', 'Bachillerato (6.º a 11.º)')]
+
+
+def nivel_de_grado(g):
+    """'PRE', 'PRI', 'BAS', 'MED' o None (curso sin grado)."""
+    if g is None:
+        return None
+    try:
+        g = int(g)
+    except (TypeError, ValueError):
+        return None
+    return 'PRE' if g <= 0 else 'PRI' if g <= 5 else 'BAS' if g <= 9 else 'MED'
+
+
+def grado_en_nivel(g, nivel):
+    n = nivel_de_grado(g)
+    return n is not None and (n == nivel or (nivel == 'BACH' and n in ('BAS', 'MED')))
 
 
 def nombre_salon(cond, req):
@@ -461,6 +484,11 @@ class Datos:
 
     def sede_de_curso(self, cid):
         return self.cursos.get(cid, {}).get('sede') or ''
+
+    def docentes_de_nivel(self, nivel):
+        """Docentes con alguna clase en un curso de ese nivel ('PRE', 'PRI', 'BAS', 'MED' o 'BACH')."""
+        return sorted({a['docente'] for a in self.asignaciones.values() if a.get('docente')
+                       and grado_en_nivel(self.cursos.get(a['curso'], {}).get('grado'), nivel)}, key=self.nombre_docente)
 
     def docentes_de_area(self, area):
         mats = set(self.areas.get(area, []))
@@ -898,6 +926,7 @@ def armar(datos, cond):
     no_puede = {}
     prefiere_no = {}
     evitar = {}
+    preferida = {}
     dia_libre = set()
     sin_excluyente = set()
     max_seguidas = {}
@@ -915,6 +944,8 @@ def armar(datos, cond):
         no_puede[int(did)] = {tuple(int(x) for x in k.split('-')) for k in r.get('no_puede', [])}
         prefiere_no[int(did)] = {tuple(int(x) for x in k.split('-')) for k in r.get('prefiere_no', [])}
         evitar[int(did)] = celdas(r.get('evitar'))
+        if r.get('preferida'):
+            preferida[int(did)] = celdas(r.get('preferida'))
         if r.get('dia_libre'):
             dia_libre.add(int(did))
         if r.get('sin_excluyente'):
@@ -951,12 +982,16 @@ def armar(datos, cond):
         dias_largos_max[did] = sum(horas_extra(cond, a['id'], D.ih(a['id'], cond))
                                    for a in D.asignaciones.values() if a.get('docente') == did)
     compensar = {}
+    compensar_max_dias = {}
     comp = cond.get('compensar') or {}
     if comp.get('activa'):
         tope_comp = int(float(comp.get("max") or 1) * 60)
+        max_dias = int(comp.get('max_dias') or 0)
         for did in permanencia:
             if did not in con_extra:
                 compensar[did] = tope_comp
+                if max_dias:
+                    compensar_max_dias[did] = max_dias
     viajan = {int(did): modo_viaja(r.get('viaja')) for did, r in cond.get('docentes', {}).items()
               if r.get('viaja') and int(did) in D.docentes}
     bloqueo_materia, mejor_no_materia = {}, {}
@@ -975,6 +1010,13 @@ def armar(datos, cond):
                 mejor_no_materia.setdefault(mid, set()).update(mejor)
     dias_de_docente = {did: sorted({d for jid in D.jornadas_de_docente(did) for d in D.jornadas[jid]['dias']})
                        for did in set(compensar) | set(viajan)}
+    # Horas de actividades fijadas a mano (reunión de padres…): esos docentes no tienen clase ahí
+    con_clase = {a.get('docente') for a in D.asignaciones.values() if a.get('docente')}
+    for act in cond.get('actividades', []):
+        fijas_act = celdas(act.get('fijas'))
+        if fijas_act:
+            for did in ([int(x) for x in act.get('docentes') or []] or con_clase):
+                no_puede.setdefault(did, set()).update(fijas_act)
     # Las reuniones esquivan las clases que ya están puestas (fijas), p. ej. al completar un horario
     for fx in fijas:
         if fx.get('docente'):
@@ -1012,7 +1054,8 @@ def armar(datos, cond):
                  sin_excluyente=sin_excluyente, reuniones_doc=reuniones_doc, siguiente_bloque=sig_bloque,
                  permanencia_extra=permanencia_extra, dias_largos_max=dias_largos_max,
                  compensar=compensar, dias_de_docente=dias_de_docente, viajan=viajan,
-                 bloqueo_materia=bloqueo_materia, mejor_no_materia=mejor_no_materia)
+                 bloqueo_materia=bloqueo_materia, mejor_no_materia=mejor_no_materia,
+                 preferida=preferida, compensar_max_dias=compensar_max_dias)
     p.reuniones = reuniones
     return p
 
@@ -1089,7 +1132,8 @@ def _ocupado(datos, sesiones, reuniones=()):
 def ubicar_actividades(datos, cond, sesiones, reuniones=()):
     """Ubica las horas de actividades complementarias (atención a padres, planeación…).
 
-    Primero en los huecos del docente, luego pegadas a sus clases y dentro de su
+    Primero las horas que el coordinador fijó a mano (ej.: reunión de padres el jueves a
+    la última hora), luego en los huecos del docente, pegadas a sus clases y dentro de su
     permanencia; nunca en horas que no puede. Devuelve (lista, avisos).
     """
     D = datos
@@ -1099,7 +1143,7 @@ def ubicar_actividades(datos, cond, sesiones, reuniones=()):
     salida, avisos = [], []
     for act in cond.get('actividades', []):
         horas = int(act.get('horas') or 0)
-        if horas <= 0:
+        if horas <= 0 and not act.get('fijas'):
             continue
         max_dia = int(act.get('max_dia') or 1)
         quienes = [int(x) for x in act.get('docentes') or []] or sorted(con_clase)
@@ -1112,7 +1156,24 @@ def ubicar_actividades(datos, cond, sesiones, reuniones=()):
             perm = r.get('permanencia')
             perm = float(perm) if perm not in (None, '') else general
             puestas = defaultdict(int)
-            for _ in range(horas):
+            hechas = 0
+            mis_franjas = {(dia, f['id']): f for jid in D.jornadas_de_docente(did) for dia in D.jornadas[jid]['dias']
+                           for f in D.franjas_de(jid) if not f['descanso']}
+            for (dia, fid) in sorted(celdas(act.get('fijas'))):
+                f = mis_franjas.get((dia, fid))
+                if f is None:
+                    continue                                 # esa hora no es de la jornada del docente
+                ini, fin = minutos(f['inicio']), minutos(f['fin'])
+                if any(a < fin and ini < b for a, b in oc.get((did, dia), [])):
+                    avisos.append(f'{act.get("nombre")}: {D.nombre_docente(did)} tiene clase o reunión el '
+                                  f'{DIAS[dia]} a las {f["inicio"]} (hora fijada para la actividad).')
+                    continue
+                oc[(did, dia)].append((ini, fin))
+                puestas[dia] += 1
+                hechas += 1
+                salida.append({'nombre': act.get('nombre') or 'Actividad', 'docente': did, 'dia': dia,
+                               'franja': fid, 'fija': True})
+            for _ in range(max(0, horas - hechas)):
                 elegido, puntos = None, None
                 for jid in D.jornadas_de_docente(did):
                     j = D.jornadas[jid]
