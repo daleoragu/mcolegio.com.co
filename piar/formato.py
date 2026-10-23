@@ -108,12 +108,30 @@ Es recíproco en los intercambios comunicativos con otras personas.
 Su estilo de conversación parece extraño (demasiado formal, vocabulario rebuscado, sin expresiones coloquiales).
 Emplea un tono de voz ajustado a lo que dice."""
 
+# Quiénes firman. Cada colegio escoge cuáles van en el PIAR y cuáles en el acta, y si las firmas
+# salen en líneas (como siempre) o en un cuadro Nombre · Cargo · Firma (como el acta del MEN).
+FIRMANTES = [
+    ('docentes', 'Docentes de cada asignatura (nombre y área)'),
+    ('director', 'Director(a) de grupo'),
+    ('orientador', 'Docente orientador(a)'),
+    ('apoyo', 'Docente de apoyo pedagógico'),
+    ('coordinador', 'Coordinador(a)'),
+    ('rector', 'Rector(a)'),
+    ('acudiente', 'Acudiente / familia'),
+    ('estudiante', 'Estudiante'),
+]
+ESTILOS_FIRMA = [('lineas', 'Líneas de firma (como hasta ahora)'), ('cuadro', 'Cuadro: nombre, cargo y firma (como el acta)')]
+
 DEFECTO = {
     'secciones': {k: True for k, _ in SECCIONES},
     'columnas': {k: {'activa': True, 'titulo': t, 'ayuda': a} for k, t, a, _ in COLUMNAS},
     'escala': '1-4',
     'habilidades': HABILIDADES,
     'instrucciones': '',          # lo que la orientadora quiere que lean todos los docentes al llenar
+    'firmas': {'estilo': 'lineas',
+               'piar': ['docentes', 'director', 'orientador', 'acudiente', 'rector'],
+               'acta': ['acudiente', 'estudiante', 'docentes', 'orientador', 'rector'],
+               'otros_piar': '', 'otros_acta': ''},
 }
 
 
@@ -121,7 +139,10 @@ def de(colegio):
     """El formato del colegio, completo (lo que falte sale de fábrica)."""
     from .models import ConfiguracionPiar
     guardado = ConfiguracionPiar.de(colegio).formato or {}
-    return completar(guardado)
+    f = completar(guardado)
+    if not isinstance(guardado.get('firmas'), dict) and not colegio.firma_director.get('piar', True):
+        f['firmas']['piar'] = [k for k in f['firmas']['piar'] if k != 'director']
+    return f
 
 
 def completar(guardado):
@@ -143,7 +164,58 @@ def completar(guardado):
     if (guardado.get('habilidades') or '').strip():
         f['habilidades'] = guardado['habilidades']
     f['instrucciones'] = (guardado.get('instrucciones') or '').strip()
+    fi = guardado.get('firmas')
+    if isinstance(fi, dict):
+        validos = {k for k, _ in FIRMANTES}
+        if fi.get('estilo') in dict(ESTILOS_FIRMA):
+            f['firmas']['estilo'] = fi['estilo']
+        for doc in ('piar', 'acta'):
+            if isinstance(fi.get(doc), list):
+                f['firmas'][doc] = [k for k in fi[doc] if k in validos]
+            f['firmas'][f'otros_{doc}'] = (fi.get(f'otros_{doc}') or '').strip()
     return f
+
+
+def firmantes(piar, f, doc='piar', quienes=None, otros=None):
+    """[{'nombre', 'cargo'}] de quienes firman ese documento, en el orden de FIRMANTES.
+
+    `quienes` y `otros` cambian lo del formato solo para esa impresión."""
+    from notas.models import AsignacionDocente
+    est = piar.estudiante
+    quienes = f['firmas'][doc] if quienes is None else quienes
+    otros = f['firmas'][f'otros_{doc}'] if otros is None else otros
+    ficha = getattr(est, 'ficha', None)
+    salida = []
+    for clave, _ in FIRMANTES:
+        if clave not in quienes:
+            continue
+        if clave == 'docentes':
+            vistos = set()
+            for a in (AsignacionDocente.objects.filter(curso_id=est.curso_id, docente__isnull=False)
+                      .select_related('docente__user', 'materia').order_by('materia__nombre')):
+                nombre = a.docente.user.get_full_name() or a.docente.user.username
+                if (nombre, a.materia.nombre) not in vistos:
+                    vistos.add((nombre, a.materia.nombre))
+                    salida.append({'nombre': nombre, 'cargo': f'Docente · {a.materia.nombre}'})
+        elif clave == 'director':
+            d = est.curso.director_grado if est.curso_id and est.curso.director_grado_id else None
+            salida.append({'nombre': d.user.get_full_name() if d else '', 'cargo': 'Director(a) de grupo'})
+        elif clave == 'rector':
+            salida.append({'nombre': piar.colegio.nombre_rector or '', 'cargo': 'Rector(a)'})
+        elif clave == 'acudiente':
+            nombre = (getattr(ficha, 'nombre_acudiente', '') or getattr(ficha, 'nombre_madre', '') or '') if ficha else ''
+            salida.append({'nombre': nombre, 'cargo': 'Acudiente / familia'})
+        elif clave == 'estudiante':
+            salida.append({'nombre': est.user.get_full_name(), 'cargo': 'Estudiante'})
+        else:
+            salida.append({'nombre': '', 'cargo': dict(FIRMANTES)[clave]})
+    for linea in (otros or '').splitlines():
+        t = linea.strip()
+        if not t:
+            continue
+        nombre, _, cargo = t.partition('—') if '—' in t else t.partition(' - ')
+        salida.append({'nombre': nombre.strip(), 'cargo': cargo.strip()} if cargo else {'nombre': '', 'cargo': t})
+    return salida
 
 
 def _clave(texto):

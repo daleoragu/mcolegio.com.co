@@ -47,6 +47,26 @@
     <div class="pi-ayuda">Una línea por afirmación. «## NOMBRE» empieza un grupo (ej.: ## MEMORIA) y «# Subtítulo» pone un subtítulo
         (ej.: # Atención sostenida). Hoy tiene {{ grupos|length }} grupos. Si cambia el texto de una afirmación, la respuesta que ya tenía queda en blanco.</div>
 </div>
+<div class="pi-tarjeta">
+    <h6 class="fw-bold">4. Firmas</h6>
+    <div class="d-flex gap-3 flex-wrap mb-2">{% for v, t in estilos_firma %}
+        <div class="form-check"><input class="form-check-input" type="radio" name="estilo_firma" value="{{ v }}" id="ef_{{ v }}" {% if f.firmas.estilo == v %}checked{% endif %}>
+            <label class="form-check-label small" for="ef_{{ v }}">{{ t }}</label></div>{% endfor %}</div>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-2" style="max-width:640px">
+        <thead class="table-light"><tr><th>Quién firma</th><th class="text-center">PIAR</th><th class="text-center">Acta de acuerdo</th></tr></thead>
+        <tbody>{% for k, t, en_piar, en_acta in firmantes %}<tr><td class="small">{{ t }}</td>
+            <td class="text-center"><input class="form-check-input" type="checkbox" name="fp_{{ k }}" {% if en_piar %}checked{% endif %}></td>
+            <td class="text-center"><input class="form-check-input" type="checkbox" name="fa_{{ k }}" {% if en_acta %}checked{% endif %}></td></tr>{% endfor %}</tbody>
+    </table></div>
+    <div class="row g-2">
+        <div class="col-md-6"><label class="form-label small fw-semibold mb-1" for="otros_piar">Otros que firman el PIAR (uno por línea)</label>
+            <textarea name="otros_piar" id="otros_piar" class="form-control" rows="3" placeholder="Ej.: Psicóloga — Profesional de apoyo&#10;Representante del comité de convivencia">{{ f.firmas.otros_piar }}</textarea></div>
+        <div class="col-md-6"><label class="form-label small fw-semibold mb-1" for="otros_acta">Otros que firman el acta (uno por línea)</label>
+            <textarea name="otros_acta" id="otros_acta" class="form-control" rows="3">{{ f.firmas.otros_acta }}</textarea></div>
+    </div>
+    <div class="pi-ayuda">«Nombre — Cargo» o solo el cargo (queda la línea del nombre en blanco). Los nombres de docentes, director,
+        rector, acudiente y estudiante salen solos. Al imprimir se puede cambiar para ese PDF.</div>
+</div>
 <div class="d-flex gap-2 mb-4">
     <button class="btn btn-primary"><i class="fas fa-save me-1"></i>Guardar formato</button>
     <button class="btn btn-outline-secondary" name="restaurar" value="1" onclick="return confirm('¿Volver al formato de fábrica (Anexo 2 del MEN)?');">Volver al de fábrica</button>

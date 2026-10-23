@@ -1,0 +1,15 @@
+{# Firmas del PIAR o del acta: en líneas o en un cuadro nombre · cargo · firma #}
+{% if firmas %}
+{% if estilo_firma == 'cuadro' %}
+<table class="t cuadro-firmas" style="margin-top:14px">
+    <thead><tr><th style="width:34%">Nombre</th><th style="width:30%">Cargo / área</th><th>Firma</th></tr></thead>
+    {% for x in firmas %}<tr><td style="height:34px">{{ x.nombre }}</td><td>{{ x.cargo }}</td><td></td></tr>{% endfor %}
+</table>
+{% else %}
+<table class="firmas">
+    {% for x in firmas %}{% if forloop.counter0|divisibleby:3 %}<tr>{% endif %}
+        <td style="width:33%"><div class="linea"></div>{% if x.nombre %}<strong>{{ x.nombre|upper }}</strong><br>{% endif %}{{ x.cargo }}{% if x.cargo == 'Acudiente / familia' %}<br>C.C.{% endif %}</td>
+    {% if forloop.counter|divisibleby:3 or forloop.last %}</tr>{% endif %}{% endfor %}
+</table>
+{% endif %}
+{% endif %}

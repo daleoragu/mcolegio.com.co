@@ -22,8 +22,5 @@
 <p class="pre">{{ piar.compromisos_colegio|default:"______________________________________________________________________________________________" }}</p>
 
 <p style="margin-top:12px; text-align:justify">Las partes se comprometen a cumplir lo acordado. El PIAR se revisa en cada periodo y se actualiza cada año.</p>
-<table class="firmas">
-    <tr><td><div class="linea"></div>Acudiente<br>C.C.</td><td><div class="linea"></div>Estudiante</td></tr>
-    <tr><td><div class="linea"></div>Docente de apoyo / orientación</td><td><div class="linea"></div>Rector(a) o coordinador(a)</td></tr>
-</table>
+{% include 'piar/_firmas.html' %}
 {% endblock %}
