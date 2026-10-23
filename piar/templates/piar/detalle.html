@@ -16,8 +16,9 @@
 {% if otros %}<p class="small text-muted">Otros años: {% for o in otros %}<a href="{% url 'piar:detalle' o.pk %}">{{ o.ano_lectivo }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% endif %}
 
 {% if not general %}{% include 'piar/_matriz.html' %}{% endif %}
+{% if general and f.instrucciones %}<div class="alert alert-light border small" style="white-space:pre-line"><i class="fas fa-bullhorn me-1 text-primary"></i><strong>Instrucciones de orientación para los docentes:</strong> {{ f.instrucciones }}</div>{% endif %}
 <div class="pi-tarjeta">
-    <h6 class="fw-bold">1. Información del estudiante y valoración pedagógica</h6>
+    <h6 class="fw-bold">1. Información del estudiante y valoración pedagógica{% if not general %} <span class="pi-ayuda fw-normal">(para que la tenga en cuenta; la llena orientación o el director de grupo)</span>{% endif %}</h6>
     {% if general %}
     <form method="post">{% csrf_token %}<input type="hidden" name="que" value="general">
         <div class="row g-3">{% for campo in form %}
@@ -35,9 +36,45 @@
     {% endif %}
 </div>
 
-{% if general %}{% include 'piar/_matriz.html' %}{% endif %}
-
+{% if sec.habilidades %}
 <div class="pi-tarjeta">
+    <h6 class="fw-bold">Registro de habilidades</h6>
+    <p class="pi-ayuda">{% if escala|length == 4 %}Escala de 1 a 4: 1 = nunca está presente, 4 = siempre está presente. Si en un grupo más del 40 % queda en 1 o 2, hay que observar con más cuidado.{% else %}Marque Sí, No o N/A (no aplica).{% endif %}</p>
+    {% if alertas %}<div class="alert alert-warning py-2 small"><i class="fas fa-exclamation-triangle me-1"></i>Para observar con más cuidado: {{ alertas|join:", " }}.</div>{% endif %}
+    {% if general %}<form method="post">{% csrf_token %}<input type="hidden" name="que" value="habilidades">{% endif %}
+    <div class="table-responsive"><table class="table table-sm align-middle mb-2">
+    {% for g in habilidades %}
+        <thead class="table-light"><tr><th>{{ g.nombre }}</th>{% for v in escala %}<th class="text-center" style="width:52px">{{ v }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for x in g.filas %}
+            {% if x.tipo == 'sub' %}<tr><td colspan="{{ escala|length|add:1 }}" class="fw-semibold small text-muted">{{ x.texto }}</td></tr>
+            {% else %}<tr><td class="small">{{ x.texto }}</td>{% for v in escala %}<td class="text-center">
+                {% if general %}<input type="radio" class="form-check-input" name="h_{{ x.clave }}" value="{{ v }}" {% if x.valor == v %}checked{% endif %}>
+                {% elif x.valor == v %}<strong>X</strong>{% endif %}</td>{% endfor %}</tr>{% endif %}
+        {% endfor %}</tbody>
+    {% endfor %}
+    </table></div>
+    {% if general %}<label class="form-label small fw-semibold mb-1">Observaciones</label>
+        <textarea name="hobservaciones" class="form-control" rows="2">{{ piar.habilidades.observaciones }}</textarea>
+        <button class="btn btn-primary mt-2"><i class="fas fa-save me-1"></i>Guardar registro de habilidades</button></form>
+    {% elif piar.habilidades.observaciones %}<p class="small mb-0" style="white-space:pre-line">{{ piar.habilidades.observaciones }}</p>{% endif %}
+</div>
+{% endif %}
+{% if general and sec.ajustes %}{% include 'piar/_matriz.html' %}{% endif %}
+{% if sec.otras or sec.actores %}
+<div class="pi-tarjeta">
+    {% if general %}<form method="post">{% csrf_token %}<input type="hidden" name="que" value="otras">{% endif %}
+    {% if sec.otras %}<h6 class="fw-bold">Otras dimensiones</h6>
+    <div class="row g-2 mb-3">{% for k, v in otras %}<div class="col-md-6"><label class="form-label small fw-semibold mb-1">{{ k }}</label>
+        {% if general %}<textarea name="o_{{ k }}" class="form-control" rows="2">{{ v }}</textarea>{% else %}<div class="small" style="white-space:pre-line">{{ v|default:"—" }}</div>{% endif %}</div>{% endfor %}</div>{% endif %}
+    {% if sec.actores %}<h6 class="fw-bold">Recomendaciones para el plan de mejoramiento institucional</h6>
+    <p class="pi-ayuda">Acciones y estrategias para eliminar barreras, por actor.</p>
+    <div class="row g-2">{% for k, t, v in actores %}<div class="col-md-6"><label class="form-label small fw-semibold mb-1">{{ t }}</label>
+        {% if general %}<textarea name="r_{{ k }}" class="form-control" rows="2">{{ v }}</textarea>{% else %}<div class="small" style="white-space:pre-line">{{ v|default:"—" }}</div>{% endif %}</div>{% endfor %}</div>{% endif %}
+    {% if general %}<button class="btn btn-primary mt-3"><i class="fas fa-save me-1"></i>Guardar</button></form>{% endif %}
+</div>
+{% endif %}
+
+{% if sec.acta %}<div class="pi-tarjeta">
     <h6 class="fw-bold">3. Acta de acuerdo con la familia</h6>
     {% if general %}
     <form method="post">{% csrf_token %}<input type="hidden" name="que" value="acta">
@@ -58,7 +95,7 @@
         <dt class="col-sm-3">Compromisos del colegio</dt><dd class="col-sm-9" style="white-space:pre-line">{{ piar.compromisos_colegio|default:"—" }}</dd>
     </dl>
     {% endif %}
-</div>
+</div>{% endif %}
 {% if es_admin %}
 <form method="post" action="{% url 'piar:eliminar' piar.pk %}" onsubmit="return confirm('¿Eliminar este PIAR con todos sus ajustes? No se puede deshacer.');">{% csrf_token %}
     <button class="btn btn-link text-danger btn-sm px-0"><i class="fas fa-trash me-1"></i>Eliminar este PIAR</button></form>

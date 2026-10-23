@@ -125,6 +125,73 @@ class PiarTests(ColegioDePrueba):
         self.assertContains(self.cliente(self.u_docente).get('/panel-docente/'), "/piar/")
         self.assertContains(self.cliente(self.ana.user).get('/panel-estudiante/', follow=True), 'Mi PIAR')
 
+    def test_al_crear_a_cada_docente_le_llega_lo_suyo(self):
+        from notas.models import Notificacion
+        self.cliente(self.rectora).post('/piar/', {'accion': 'crear', 'estudiante': self.ana.id})
+        piar = Piar.objects.get()
+        a_profe = Notificacion.objects.get(destinatario=self.u_docente)
+        a_otra = Notificacion.objects.get(destinatario=self.otra.user)
+        self.assertIn('Matemáticas', a_profe.mensaje)
+        self.assertNotIn('Inglés', a_profe.mensaje)
+        self.assertIn('Inglés', a_otra.mensaje)
+        self.assertIn(f'/piar/{piar.pk}/', a_otra.url)
+        # En el PIAR, a la docente de Inglés solo le sale su asignatura
+        r = self.cliente(self.otra.user).get(f'/piar/{piar.pk}/')
+        self.assertEqual([f['materia'] for f in r.context['m']['filas']], [self.ingles])
+        self.assertContains(r, 'Lo que le toca llenar a usted')
+        # La orientación ve todas
+        r = self.cliente(self.rectora).get(f'/piar/{piar.pk}/')
+        self.assertEqual(len(r.context['m']['filas']), 2)
+
+    def test_no_requiere_ajustes(self):
+        piar = self._crear()
+        otra = self.cliente(self.otra.user)
+        otra.post(f'/piar/{piar.pk}/ajuste/{self.ingles.pk}/{self.p1.pk}/',
+                  {'no_requiere': 'on', 'todos_los_periodos': 'on', 'ajustes': 'Trabaja igual que el grupo'})
+        hechos = AjustePiar.objects.filter(piar=piar, materia=self.ingles)
+        self.assertEqual(hechos.count(), 2)
+        self.assertTrue(all(a.no_requiere and a.completo for a in hechos))
+        self.assertNotContains(otra.get('/piar/'), 'Inglés · ')
+        self.assertEqual(logica.avance(piar, hoy=self.p2.fecha_inicio)[:2], (2, 4))
+        r = self.cliente(self.rectora).get(f'/piar/{piar.pk}/piar.pdf')
+        self.assertEqual(r.status_code, 200)
+
+    def test_la_orientadora_escoge_el_formato(self):
+        from . import formato
+        piar = self._crear()
+        self.assertEqual(self.cliente(self.otra.user).get('/piar/configuracion/').status_code, 403)
+        ConfiguracionPiar.de(self.a).docentes_apoyo.add(self.ajena)
+        c = self.cliente(self.ajena.user)
+        self.assertEqual(c.get('/piar/configuracion/').status_code, 200)
+        datos = {'que': 'formato', 'escala': 'SINO', 'instrucciones': 'Escriban el número del DBA.',
+                 'habilidades': '## MEMORIA\nRecuerda lo aprendido.\n## ATENCIÓN\n# Sostenida\nSe concentra 40 minutos.',
+                 'tit_objetivos': 'DBA del periodo', 'col_objetivos': 'on', 'col_ajustes': 'on', 'col_evaluacion': 'on',
+                 'sec_ajustes': 'on', 'sec_habilidades': 'on', 'sec_acta': 'on'}
+        c.post('/piar/configuracion/', datos)
+        f = formato.de(self.a)
+        self.assertEqual(f['escala'], 'SINO')
+        self.assertFalse(f['columnas']['apoyos']['activa'])
+        self.assertFalse(f['secciones']['salud'])
+        self.assertEqual([g['nombre'] for g in formato.grupos(f)], ['MEMORIA', 'ATENCIÓN'])
+        r = self.cliente(self.otra.user).get(f'/piar/{piar.pk}/ajuste/{self.ingles.pk}/{self.p1.pk}/')
+        self.assertContains(r, 'DBA del periodo')
+        self.assertContains(r, 'Escriban el número del DBA.')
+        self.assertNotContains(r, 'Apoyo requerido')
+        # La sección de salud ya no sale en el formulario general
+        r = c.get(f'/piar/{piar.pk}/')
+        self.assertNotIn('diagnostico', r.context['form'].fields)
+        # Registro de habilidades con Sí/No
+        claves = [x['clave'] for g in formato.grupos(f) for x in g['filas'] if x['tipo'] == 'item']
+        c.post(f'/piar/{piar.pk}/', {'que': 'habilidades', f'h_{claves[0]}': 'No', f'h_{claves[1]}': 'Sí',
+                                     'hobservaciones': 'Se cansa rápido'})
+        piar.refresh_from_db()
+        self.assertEqual(piar.habilidades[claves[0]], 'No')
+        self.assertEqual(formato.alertas_habilidades(f, piar.habilidades), ['MEMORIA'])
+        self.assertEqual(c.get(f'/piar/{piar.pk}/piar.pdf').status_code, 200)
+        # Volver al de fábrica
+        c.post('/piar/configuracion/', {'que': 'formato', 'restaurar': '1'})
+        self.assertEqual(formato.de(self.a)['escala'], '1-4')
+
 
 class MigracionesDeModulos(ColegioDePrueba):
     """Al instalar: cartera apagada en los colegios que ya existían, PIAR encendido (salvo plan Básico)."""

@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -11,6 +12,7 @@ from django.views.decorators.http import require_POST
 from notas.models import Curso, Docente, Estudiante, Materia, PeriodoAcademico
 from notas.permisos import admin_requerido, es_admin
 
+from . import formato as fmt
 from . import logica
 from .models import TIPOS_AJUSTE, AjustePiar, ConfiguracionPiar, Piar
 
@@ -36,6 +38,20 @@ class GeneralForm(forms.ModelForm):
         }
 
 
+SECCION_DE_CAMPO = {'diagnostico': 'salud', 'fuente_diagnostico': 'salud', 'apoyos_salud': 'salud',
+                    'entorno_hogar': 'hogar', 'trayectoria': 'educativo', 'descripcion': 'valoracion',
+                    'fortalezas': 'valoracion', 'barreras': 'valoracion', 'apoyos_requeridos': 'valoracion',
+                    'expectativas_familia': 'valoracion', 'expectativas_estudiante': 'valoracion'}
+
+
+def _general_form(*args, secciones=None, **kwargs):
+    form = GeneralForm(*args, **kwargs)
+    for campo, sec in SECCION_DE_CAMPO.items():
+        if secciones is not None and not secciones.get(sec, True):
+            form.fields.pop(campo, None)
+    return form
+
+
 class ActaForm(forms.ModelForm):
     class Meta:
         model = Piar
@@ -50,14 +66,36 @@ class ActaForm(forms.ModelForm):
 
 
 class AjusteForm(forms.ModelForm):
+    """Las columnas que escogió la orientadora, con sus títulos e instrucciones."""
     tipos = forms.MultipleChoiceField(choices=TIPOS_AJUSTE, required=False,
                                       widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
                                       label='Tipo de ajuste')
+    todos_los_periodos = forms.BooleanField(required=False, label='Marcar «no requiere» en todos los periodos del año')
 
     class Meta:
         model = AjustePiar
-        fields = ['objetivos', 'barreras', 'tipos', 'ajustes', 'evaluacion']
-        widgets = {c: forms.Textarea(attrs=_TEXTO) for c in ('objetivos', 'barreras', 'ajustes', 'evaluacion')}
+        fields = ['no_requiere', 'objetivos', 'barreras', 'tipos', 'ajustes', 'apoyos', 'evaluacion']
+        widgets = {**{c: forms.Textarea(attrs=_TEXTO) for c in ('objetivos', 'barreras', 'ajustes', 'apoyos', 'evaluacion')},
+                   'no_requiere': forms.CheckboxInput(attrs={'class': 'form-check-input'})}
+
+    def __init__(self, *args, formato=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.formato = formato or fmt.completar({})
+        self.columnas = []
+        for clave, *_ in fmt.COLUMNAS:
+            col = self.formato['columnas'][clave]
+            if not col['activa']:
+                self.fields.pop(clave, None)
+                continue
+            self.fields[clave].label = col['titulo']
+            self.fields[clave].help_text = col['ayuda']
+            self.columnas.append(self[clave])
+
+    def clean(self):
+        datos = super().clean()
+        if not datos.get('no_requiere') and not (datos.get('ajustes') or '').strip() and self.data.get('exigir'):
+            self.add_error('ajustes', 'Escriba los ajustes, o marque que la asignatura no los requiere.')
+        return datos
 
 
 def _ano(request):
@@ -90,9 +128,14 @@ def panel(request):
         est = get_object_or_404(Estudiante, pk=request.POST.get('estudiante'), colegio=colegio)
         if not (coordina or logica.es_director(request, est)):
             return HttpResponseForbidden('Solo la administración, los docentes de apoyo o el director de grupo crean el PIAR.')
+        ya = Piar.objects.filter(estudiante=est, ano_lectivo=ano).exists()
         piar, copiado = logica.crear(est, ano, request.user)
         if copiado:
             messages.success(request, 'PIAR creado con la información del año anterior: revísela y actualícela.')
+        if not ya:
+            n = logica.avisar_docentes(piar, request.build_absolute_uri(reverse('piar:detalle', args=[piar.pk])))
+            if n:
+                messages.info(request, f'A {n} docente(s) del curso les llegó el aviso con las asignaturas que les toca llenar.')
         return redirect('piar:detalle', piar.pk)
 
     curso_id = request.GET.get('curso_id') or ''
@@ -126,16 +169,42 @@ def panel(request):
         'sin_piar': sum(1 for f in filas if not f['piar'])})
 
 
-@admin_requerido
+@login_required
 def configuracion(request):
+    """La administración escoge a los docentes de apoyo; ellos (la orientadora) y la administración
+    escogen el formato: secciones, columnas de los ajustes con sus instrucciones y habilidades."""
+    if not request.colegio or not logica.coordina(request):
+        return HttpResponseForbidden('Esta configuración es de la orientación, el docente de apoyo o la administración.')
     conf = ConfiguracionPiar.de(request.colegio)
     docentes = Docente.objects.filter(colegio=request.colegio).select_related('user')
     if request.method == 'POST':
-        conf.docentes_apoyo.set(docentes.filter(pk__in=request.POST.getlist('docentes')))
-        messages.success(request, 'Docentes de apoyo guardados.')
-        return redirect('piar:panel')
+        if request.POST.get('que') == 'docentes' and es_admin(request):
+            conf.docentes_apoyo.set(docentes.filter(pk__in=request.POST.getlist('docentes')))
+            messages.success(request, 'Docentes de apoyo guardados.')
+        elif request.POST.get('que') == 'formato':
+            p = request.POST
+            if p.get('restaurar'):
+                conf.formato = {}
+            else:
+                conf.formato = {
+                    'secciones': {k: bool(p.get(f'sec_{k}')) for k, _ in fmt.SECCIONES},
+                    'columnas': {k: {'activa': bool(p.get(f'col_{k}')) or not apagable,
+                                     'titulo': p.get(f'tit_{k}', '').strip()[:120],
+                                     'ayuda': p.get(f'ayu_{k}', '').strip()[:500]}
+                                 for k, _, _, apagable in fmt.COLUMNAS},
+                    'escala': p.get('escala') if p.get('escala') in fmt.ESCALAS else '1-4',
+                    'habilidades': p.get('habilidades', '').strip()[:20000],
+                    'instrucciones': p.get('instrucciones', '').strip()[:2000],
+                }
+            conf.save(update_fields=['formato'])
+            messages.success(request, 'Formato del PIAR guardado: así les sale a los docentes y así sale el PDF.')
+        return redirect('piar:configuracion')
+    f = fmt.de(request.colegio)
     return render(request, 'piar/configuracion.html', {
-        'colegio': request.colegio, 'docentes': docentes,
+        'colegio': request.colegio, 'docentes': docentes, 'es_admin': es_admin(request), 'f': f,
+        'secciones': [(k, t, f['secciones'][k]) for k, t in fmt.SECCIONES],
+        'columnas': [(k, f['columnas'][k], apagable) for k, _, _, apagable in fmt.COLUMNAS],
+        'grupos': fmt.grupos(f),
         'elegidos': set(conf.docentes_apoyo.values_list('id', flat=True))})
 
 
@@ -148,15 +217,32 @@ def detalle(request, pk):
     if not logica.puede_ver(request, piar):
         return HttpResponseForbidden('Este PIAR es de un estudiante que usted no tiene a cargo.')
     general = logica.puede_editar_general(request, piar)
-    form = GeneralForm(instance=piar)
+    secciones = fmt.de(request.colegio)['secciones']
+    form = _general_form(instance=piar, secciones=secciones)
     acta = ActaForm(instance=piar)
     if request.method == 'POST' and general:
         if request.POST.get('que') == 'general':
-            form = GeneralForm(request.POST, instance=piar)
+            form = _general_form(request.POST, instance=piar, secciones=secciones)
             if form.is_valid():
                 form.save()
                 messages.success(request, 'Información del estudiante guardada.')
                 return redirect('piar:detalle', piar.pk)
+        elif request.POST.get('que') == 'habilidades':
+            f = fmt.de(request.colegio)
+            validos = set(fmt.ESCALAS[f['escala']])
+            piar.habilidades = {fila['clave']: request.POST.get(f'h_{fila["clave"]}') for g in fmt.grupos(f)
+                                for fila in g['filas'] if fila['tipo'] == 'item'
+                                and request.POST.get(f'h_{fila["clave"]}') in validos}
+            piar.habilidades['observaciones'] = request.POST.get('hobservaciones', '').strip()
+            piar.save(update_fields=['habilidades', 'actualizado'])
+            messages.success(request, 'Registro de habilidades guardado.')
+            return redirect('piar:detalle', piar.pk)
+        elif request.POST.get('que') == 'otras':
+            piar.otras_dimensiones = {k: request.POST.get(f'o_{k}', '').strip() for k in fmt.OTRAS}
+            piar.recomendaciones_actores = {k: request.POST.get(f'r_{k}', '').strip() for k, _ in fmt.ACTORES}
+            piar.save(update_fields=['otras_dimensiones', 'recomendaciones_actores', 'actualizado'])
+            messages.success(request, 'Guardado.')
+            return redirect('piar:detalle', piar.pk)
         elif request.POST.get('que') == 'acta':
             acta = ActaForm(request.POST, instance=piar)
             if acta.is_valid():
@@ -165,9 +251,23 @@ def detalle(request, pk):
                 return redirect('piar:detalle', piar.pk)
     editables = logica.materias_editables(request, piar)
     otros = Piar.objects.filter(estudiante=piar.estudiante).exclude(pk=piar.pk).order_by('-ano_lectivo')
+    f = fmt.de(request.colegio)
     return render(request, 'piar/detalle.html', {
         'colegio': request.colegio, 'piar': piar, 'est': piar.estudiante, 'general': general, 'form': form,
-        'acta': acta, 'm': logica.matriz(piar, editables), 'otros': otros, 'es_admin': es_admin(request)})
+        'acta': acta, 'otros': otros, 'es_admin': es_admin(request), 'f': f, 'sec': f['secciones'],
+        # A cada docente le salen solo sus asignaturas; la orientación y el director ven todas.
+        'm': logica.matriz(piar, editables, solo=None if general else editables),
+        'habilidades': _filas_habilidades(f, piar.habilidades), 'escala': fmt.ESCALAS[f['escala']],
+        'alertas': fmt.alertas_habilidades(f, piar.habilidades),
+        'otras': [(k, (piar.otras_dimensiones or {}).get(k, '')) for k in fmt.OTRAS],
+        'actores': [(k, t, (piar.recomendaciones_actores or {}).get(k, '')) for k, t in fmt.ACTORES]})
+
+
+def _filas_habilidades(f, respuestas):
+    respuestas = respuestas or {}
+    return [{'nombre': g['nombre'],
+             'filas': [dict(x, valor=respuestas.get(x.get('clave'), '')) for x in g['filas']]}
+            for g in fmt.grupos(f)]
 
 
 @login_required
@@ -179,23 +279,35 @@ def ajuste(request, pk, materia_id, periodo_id):
         return HttpResponseForbidden('Esta asignatura no es suya en el curso del estudiante.')
     obj = AjustePiar.objects.filter(piar=piar, materia=materia, periodo=periodo).first()
     anterior = logica.ajuste_anterior(piar, materia, periodo)
+    f = fmt.de(request.colegio)
     if request.method == 'POST':
-        form = AjusteForm(request.POST, instance=obj or AjustePiar(piar=piar, materia=materia, periodo=periodo))
+        form = AjusteForm(request.POST, instance=obj or AjustePiar(piar=piar, materia=materia, periodo=periodo),
+                          formato=f)
         if form.is_valid():
             a = form.save(commit=False)
             a.docente = logica.docente_de(request) or a.docente
             a.save()
-            messages.success(request, f'Ajustes de {materia.nombre} · {periodo.get_nombre_display()} guardados.')
+            if a.no_requiere and form.cleaned_data.get('todos_los_periodos'):
+                for per in logica.periodos(piar.colegio, piar.ano_lectivo):
+                    if per.id == periodo.id:
+                        continue
+                    otro, _ = AjustePiar.objects.get_or_create(piar=piar, materia=materia, periodo=per)
+                    if not otro.ajustes.strip():
+                        otro.no_requiere = True
+                        otro.docente = a.docente
+                        otro.save()
+            messages.success(request, f'{materia.nombre} · {periodo.get_nombre_display()}: '
+                             + ('quedó como «no requiere ajustes razonables».' if a.no_requiere else 'ajustes guardados.'))
             return redirect('piar:detalle', piar.pk)
     else:
         inicial = None
         if obj is None and anterior and request.GET.get('copiar') == '1':
             inicial = {'objetivos': anterior.objetivos, 'barreras': anterior.barreras, 'tipos': anterior.tipos,
-                       'ajustes': anterior.ajustes}
-        form = AjusteForm(instance=obj, initial=inicial)
+                       'ajustes': anterior.ajustes, 'apoyos': anterior.apoyos, 'no_requiere': anterior.no_requiere}
+        form = AjusteForm(instance=obj, initial=inicial, formato=f)
     return render(request, 'piar/ajuste.html', {
         'colegio': request.colegio, 'piar': piar, 'est': piar.estudiante, 'materia': materia, 'periodo': periodo,
-        'form': form, 'obj': obj, 'anterior': anterior, 'copiado': request.GET.get('copiar') == '1'})
+        'form': form, 'obj': obj, 'anterior': anterior, 'copiado': request.GET.get('copiar') == '1', 'f': f})
 
 
 @require_POST
@@ -239,8 +351,20 @@ def _contexto_pdf(piar):
     if ficha and ficha.fecha_nacimiento:
         hoy, n = timezone.localdate(), ficha.fecha_nacimiento
         edad = hoy.year - n.year - ((hoy.month, hoy.day) < (n.month, n.day))
-    return {'piar': piar, 'est': piar.estudiante, 'ficha': ficha, 'edad': edad,
-            'por_materia': por_materia, 'periodos': m['periodos']}
+    f = fmt.de(piar.colegio)
+    columnas = [(k, f['columnas'][k]['titulo']) for k, *_ in fmt.COLUMNAS if f['columnas'][k]['activa'] and k != 'tipos']
+    firmantes = []
+    for b in por_materia:
+        for d in b['docentes']:
+            firmantes.append((d, b['materia'].nombre))
+    return {'piar': piar, 'est': piar.estudiante, 'ficha': ficha, 'edad': edad, 'f': f, 'sec': f['secciones'],
+            'columnas': columnas, 'con_tipos': f['columnas']['tipos']['activa'],
+            'por_materia': por_materia, 'periodos': m['periodos'],
+            'habilidades': _filas_habilidades(f, piar.habilidades), 'escala': fmt.ESCALAS[f['escala']],
+            'alertas': fmt.alertas_habilidades(f, piar.habilidades),
+            'otras': [(k, (piar.otras_dimensiones or {}).get(k, '')) for k in fmt.OTRAS],
+            'actores': [(t, (piar.recomendaciones_actores or {}).get(k, '')) for k, t in fmt.ACTORES],
+            'firmantes': firmantes}
 
 
 @login_required

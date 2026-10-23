@@ -1,16 +1,18 @@
 <div class="pi-tarjeta">
     <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
-        <h6 class="fw-bold mb-0">2. Ajustes razonables por asignatura</h6>
+        <h6 class="fw-bold mb-0">{% if general %}2. Ajustes razonables por asignatura{% else %}Lo que le toca llenar a usted{% endif %}</h6>
         <span class="small text-muted">{{ m.listos }} de {{ m.esperado }} hasta hoy ({{ m.porcentaje }}%)</span>
     </div>
     <p class="pi-ayuda">Cada docente llena los de su asignatura en cada periodo: <span class="pi-celda hecho" style="width:22px;height:20px"><i class="fas fa-check"></i></span> listo ·
-        <span class="pi-celda borr" style="width:22px;height:20px">…</span> empezado · <span class="pi-celda falta" style="width:22px;height:20px">!</span> falta · <span class="pi-celda futuro" style="width:22px;height:20px">·</span> periodo sin empezar.</p>
+        <span class="pi-celda borr" style="width:22px;height:20px">…</span> empezado · <span class="pi-celda falta" style="width:22px;height:20px">!</span> falta · <span class="pi-celda futuro" style="width:22px;height:20px">·</span> periodo sin empezar · N/A no requiere ajustes.
+        {% if not general %}Solo le salen sus asignaturas en el curso del estudiante: toque la casilla para llenarla.{% endif %}</p>
     <div class="table-responsive"><table class="table table-sm align-middle mb-0">
         <thead class="table-light"><tr><th>Asignatura</th><th>Docente</th>{% for p in m.periodos %}<th class="text-center">{{ p.get_nombre_display|cut:" Periodo"|slice:":3" }}</th>{% endfor %}</tr></thead>
         <tbody>{% for f in m.filas %}
         <tr><td class="fw-semibold">{{ f.materia.nombre }}</td><td class="small">{{ f.docentes|join:", " }}</td>
             {% for c in f.celdas %}<td class="text-center">
-                {% if c.ajuste and c.ajuste.completo %}{% if c.puede %}<a class="pi-celda hecho" href="{% url 'piar:ajuste' piar.pk f.materia.pk c.periodo.pk %}" title="Ver o editar"><i class="fas fa-check"></i></a>{% else %}<span class="pi-celda hecho"><i class="fas fa-check"></i></span>{% endif %}
+                {% if c.ajuste and c.ajuste.no_requiere %}{% if c.puede %}<a class="pi-celda hecho" href="{% url 'piar:ajuste' piar.pk f.materia.pk c.periodo.pk %}" title="No requiere ajustes">N/A</a>{% else %}<span class="pi-celda hecho" title="No requiere ajustes">N/A</span>{% endif %}
+                {% elif c.ajuste and c.ajuste.completo %}{% if c.puede %}<a class="pi-celda hecho" href="{% url 'piar:ajuste' piar.pk f.materia.pk c.periodo.pk %}" title="Ver o editar"><i class="fas fa-check"></i></a>{% else %}<span class="pi-celda hecho"><i class="fas fa-check"></i></span>{% endif %}
                 {% elif c.ajuste %}{% if c.puede %}<a class="pi-celda borr" href="{% url 'piar:ajuste' piar.pk f.materia.pk c.periodo.pk %}">…</a>{% else %}<span class="pi-celda borr">…</span>{% endif %}
                 {% elif c.empezado %}{% if c.puede %}<a class="pi-celda falta" href="{% url 'piar:ajuste' piar.pk f.materia.pk c.periodo.pk %}" title="Llenar">!</a>{% else %}<span class="pi-celda falta">!</span>{% endif %}
                 {% else %}{% if c.puede %}<a class="pi-celda futuro" href="{% url 'piar:ajuste' piar.pk f.materia.pk c.periodo.pk %}" title="Adelantar">·</a>{% else %}<span class="pi-celda futuro">·</span>{% endif %}{% endif %}
