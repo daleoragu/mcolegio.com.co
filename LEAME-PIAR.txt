@@ -1,0 +1,12 @@
+NUEVO     piar/formato.py
+CAMBIADO  piar/logica.py
+NUEVO     piar/migrations/0003_formato_y_no_requiere.py
+CAMBIADO  piar/models.py
+CAMBIADO  piar/templates/piar/_matriz.html
+CAMBIADO  piar/templates/piar/ajuste.html
+CAMBIADO  piar/templates/piar/configuracion.html
+CAMBIADO  piar/templates/piar/detalle.html
+CAMBIADO  piar/templates/piar/panel.html
+CAMBIADO  piar/templates/piar/pdf_piar.html
+CAMBIADO  piar/tests.py
+CAMBIADO  piar/views.py

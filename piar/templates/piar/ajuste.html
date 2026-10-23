@@ -15,19 +15,36 @@
             <span class="small">¿Siguen los mismos ajustes del {{ anterior.periodo.get_nombre_display|lower }}?</span>
             <a href="?copiar=1" class="btn btn-sm btn-info text-white"><i class="fas fa-copy me-1"></i>Traer los del periodo anterior</a></div>{% endif %}
         {% if copiado %}<div class="alert alert-info py-2 small">Se trajeron los ajustes del {{ anterior.periodo.get_nombre_display|lower }}. Revíselos y guarde.</div>{% endif %}
+        {% if f.instrucciones %}<div class="alert alert-light border small" style="white-space:pre-line"><i class="fas fa-bullhorn me-1 text-primary"></i>{{ f.instrucciones }}</div>{% endif %}
         <form method="post">{% csrf_token %}
-            <label class="form-label small fw-semibold mb-1">{{ form.objetivos.label }}</label>{{ form.objetivos }}
-            <div class="pi-ayuda mb-3">Lo que se espera que el estudiante aprenda este periodo, a partir de los aprendizajes del grado.</div>
-            <label class="form-label small fw-semibold mb-1">{{ form.barreras.label }}</label>{{ form.barreras }}
-            <div class="pi-ayuda mb-3">Lo que en su clase le impide o le dificulta aprender o participar.</div>
-            <label class="form-label small fw-semibold mb-1">{{ form.tipos.label }}</label>
-            <div class="d-flex gap-3 flex-wrap mb-2">{% for c in form.tipos %}<div class="form-check">{{ c.tag }}<label class="form-check-label" for="{{ c.id_for_label }}">{{ c.choice_label }}</label></div>{% endfor %}</div>
-            <label class="form-label small fw-semibold mb-1">{{ form.ajustes.label }}</label>{{ form.ajustes }}{{ form.ajustes.errors }}
-            <div class="pi-ayuda mb-3">Qué va a hacer distinto: materiales, tiempos, forma de explicar, forma de evaluar, ubicación, apoyos.</div>
-            <label class="form-label small fw-semibold mb-1">{{ form.evaluacion.label }}</label>{{ form.evaluacion }}
-            <div class="pi-ayuda mb-3">{{ form.evaluacion.help_text }} Puede llenarla al cierre del periodo.</div>
+            <div class="border rounded p-3 mb-3 bg-light">
+                <div class="form-check form-switch">{{ form.no_requiere }}
+                    <label class="form-check-label fw-semibold" for="{{ form.no_requiere.id_for_label }}">{{ form.no_requiere.label }}</label></div>
+                <div class="pi-ayuda">Márquelo si en {{ materia.nombre }} el estudiante trabaja igual que el grupo, sin ajustes. Puede dejar una
+                    observación en los ajustes (ej.: «No necesita ajustes; requiere acompañamiento en la actitud de trabajo»).</div>
+                <div class="form-check mt-2" id="caja-todos" style="display:none">{{ form.todos_los_periodos }}
+                    <label class="form-check-label small" for="{{ form.todos_los_periodos.id_for_label }}">{{ form.todos_los_periodos.label }}</label></div>
+            </div>
+            {% for campo in form.columnas %}
+            <div class="mb-3 {% if campo.name != 'ajustes' %}col-ajuste{% endif %}">
+                <label class="form-label small fw-semibold mb-1" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                {% if campo.name == 'tipos' %}<div class="d-flex gap-3 flex-wrap">{% for c in campo %}<div class="form-check">{{ c.tag }}<label class="form-check-label" for="{{ c.id_for_label }}">{{ c.choice_label }}</label></div>{% endfor %}</div>
+                {% else %}{{ campo }}{% endif %}{{ campo.errors }}
+                {% if campo.help_text %}<div class="pi-ayuda">{{ campo.help_text }}</div>{% endif %}
+            </div>
+            {% endfor %}
             <button class="btn btn-primary"><i class="fas fa-save me-1"></i>Guardar</button>
         </form>
+        <script>
+        (function () {
+            var c = document.getElementById('{{ form.no_requiere.id_for_label }}');
+            function ver() {
+                document.querySelectorAll('.col-ajuste').forEach(function (x) { x.style.display = c.checked ? 'none' : ''; });
+                document.getElementById('caja-todos').style.display = c.checked ? '' : 'none';
+            }
+            c.addEventListener('change', ver); ver();
+        })();
+        </script>
     </div>
 </div>
 <div class="col-lg-4">

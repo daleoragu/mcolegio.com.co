@@ -84,13 +84,18 @@ def asignaturas(curso_id):
     return list(por_materia.values())
 
 
-def matriz(piar, editables, hoy=None):
-    """Filas por asignatura con una celda por periodo, y el avance del año."""
+def matriz(piar, editables, hoy=None, solo=None):
+    """Filas por asignatura con una celda por periodo, y el avance del año.
+
+    Con `solo` (ids de materias) salen únicamente esas asignaturas: a cada docente le sale
+    solo lo que le toca llenar."""
     hoy = hoy or timezone.localdate()
     pers = periodos(piar.colegio, piar.ano_lectivo)
     hechos = {(a.materia_id, a.periodo_id): a for a in piar.ajustes.all()}
     filas, esperado, listos = [], 0, 0
     for materia, docentes in asignaturas(piar.estudiante.curso_id):
+        if solo is not None and materia.id not in solo:
+            continue
         celdas = []
         for p in pers:
             aj = hechos.get((materia.id, p.id))
@@ -136,6 +141,23 @@ def crear(estudiante, ano, usuario=None):
     return piar, bool(anterior)
 
 
+def avisar_docentes(piar, url):
+    """Al crear el PIAR, a cada docente del curso le llega un aviso con SUS asignaturas."""
+    from notas.models import Notificacion
+    por_docente = {}
+    for a in (AsignacionDocente.objects.filter(curso_id=piar.estudiante.curso_id, docente__isnull=False)
+              .select_related('materia', 'docente__user').order_by('materia__nombre')):
+        por_docente.setdefault(a.docente, []).append(a.materia.nombre)
+    nombre = piar.estudiante.user.get_full_name()
+    curso = piar.estudiante.curso.nombre if piar.estudiante.curso_id else ''
+    avisos = [Notificacion(colegio=piar.colegio, destinatario=d.user, tipo='GENERAL', url=url,
+                           mensaje=(f'PIAR de {nombre} ({curso}): le corresponde llenar los ajustes de '
+                                    f'{", ".join(mats)}.')[:255])
+              for d, mats in por_docente.items() if d.user_id]
+    Notificacion.objects.bulk_create(avisos)
+    return len(avisos)
+
+
 def ajuste_anterior(piar, materia, periodo):
     return (AjustePiar.objects.filter(piar=piar, materia=materia, periodo__fecha_inicio__lt=periodo.fecha_inicio)
             .order_by('-periodo__fecha_inicio').first())
@@ -152,7 +174,8 @@ def pendientes_docente(request, ano, hoy=None):
                  .select_related('estudiante__user', 'estudiante__curso'))
     if not piars:
         return []
-    hechos = {(a.piar_id, a.materia_id, a.periodo_id) for a in AjustePiar.objects.filter(piar__in=piars).exclude(ajustes='')}
+    hechos = {(a.piar_id, a.materia_id, a.periodo_id) for a in AjustePiar.objects.filter(piar__in=piars)
+              .filter(Q(no_requiere=True) | ~Q(ajustes=''))}
     salida = []
     for asig in AsignacionDocente.objects.filter(docente=d).select_related('materia').order_by('materia__nombre'):
         for piar in piars:

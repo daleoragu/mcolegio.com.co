@@ -1,15 +1,70 @@
 {% extends 'notas/base.html' %}
-{% block page_title %}<h4 class="mb-0">PIAR · Docentes de apoyo y orientación</h4>{% endblock %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="mb-0">PIAR · Formato del colegio</h4>
+    <a href="{% url 'piar:panel' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>PIAR</a>
+</div>
+{% endblock %}
 {% block content %}
 {% include 'piar/_estilos.html' %}
+<form method="post">{% csrf_token %}<input type="hidden" name="que" value="formato">
+<div class="pi-tarjeta">
+    <h6 class="fw-bold">1. Qué secciones lleva el PIAR</h6>
+    <p class="pi-ayuda">Lo que apague no sale en la pantalla ni en el PDF. Lo ya escrito no se borra.</p>
+    <div class="row">{% for k, t, activa in secciones %}
+        <div class="col-md-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="sec_{{ k }}" id="sec_{{ k }}" {% if activa %}checked{% endif %}>
+            <label class="form-check-label small" for="sec_{{ k }}">{{ t }}</label></div></div>{% endfor %}</div>
+</div>
+
+<div class="pi-tarjeta">
+    <h6 class="fw-bold">2. Lo que llena cada docente en su asignatura</h6>
+    <p class="pi-ayuda">Escoja las columnas, el título y la instrucción que le sale a cada docente al llenar sus ajustes. Siempre tienen además la
+        opción «No requiere ajustes razonables en esta asignatura».</p>
+    <div class="table-responsive"><table class="table table-sm align-middle">
+        <thead class="table-light"><tr><th style="width:70px">Sale</th><th style="width:32%">Título</th><th>Instrucción para el docente</th></tr></thead>
+        <tbody>{% for k, col, apagable in columnas %}<tr>
+            <td class="text-center"><input class="form-check-input" type="checkbox" name="col_{{ k }}" {% if col.activa %}checked{% endif %} {% if not apagable %}checked disabled title="Siempre sale"{% endif %}></td>
+            <td><input class="form-control form-control-sm" name="tit_{{ k }}" value="{{ col.titulo }}" maxlength="120"></td>
+            <td>{% if k != 'tipos' %}<input class="form-control form-control-sm" name="ayu_{{ k }}" value="{{ col.ayuda }}" maxlength="500">{% else %}<span class="pi-ayuda">Curriculares, didácticos, metodológicos, evaluativos</span>{% endif %}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    <label class="form-label small fw-semibold mb-1" for="instrucciones">Mensaje de orientación para todos los docentes (opcional)</label>
+    <textarea name="instrucciones" id="instrucciones" class="form-control" rows="3" maxlength="2000"
+              placeholder="Ej.: Escriban los objetivos por periodo con el número del DBA. En barreras, digan de qué tipo es cada una.">{{ f.instrucciones }}</textarea>
+    <div class="pi-ayuda">Les sale arriba del formulario cuando llenan sus ajustes.</div>
+</div>
+
+<div class="pi-tarjeta">
+    <h6 class="fw-bold">3. Registro de habilidades</h6>
+    <div class="d-flex gap-3 flex-wrap mb-2">
+        <div class="form-check"><input class="form-check-input" type="radio" name="escala" value="1-4" id="esc14" {% if f.escala == '1-4' %}checked{% endif %}>
+            <label class="form-check-label small" for="esc14">Escala de 1 a 4 (1 nunca, 4 siempre)</label></div>
+        <div class="form-check"><input class="form-check-input" type="radio" name="escala" value="SINO" id="escsn" {% if f.escala == 'SINO' %}checked{% endif %}>
+            <label class="form-check-label small" for="escsn">Sí / No / N/A</label></div>
+    </div>
+    <label class="form-label small fw-semibold mb-1" for="habilidades">Grupos y afirmaciones</label>
+    <textarea name="habilidades" id="habilidades" class="form-control font-monospace" rows="14" style="font-size:.8rem">{{ f.habilidades }}</textarea>
+    <div class="pi-ayuda">Una línea por afirmación. «## NOMBRE» empieza un grupo (ej.: ## MEMORIA) y «# Subtítulo» pone un subtítulo
+        (ej.: # Atención sostenida). Hoy tiene {{ grupos|length }} grupos. Si cambia el texto de una afirmación, la respuesta que ya tenía queda en blanco.</div>
+</div>
+<div class="d-flex gap-2 mb-4">
+    <button class="btn btn-primary"><i class="fas fa-save me-1"></i>Guardar formato</button>
+    <button class="btn btn-outline-secondary" name="restaurar" value="1" onclick="return confirm('¿Volver al formato de fábrica (Anexo 2 del MEN)?');">Volver al de fábrica</button>
+</div>
+</form>
+
+{% if es_admin %}
 <div class="pi-tarjeta" style="max-width:640px">
-    <p class="small text-muted">Los docentes que marque pueden crear y editar todos los PIAR del colegio. Los demás docentes llenan los ajustes de sus asignaturas, y el director de grupo, además, la información del estudiante.</p>
-    <form method="post">{% csrf_token %}
+    <h6 class="fw-bold">Docentes de apoyo y orientación</h6>
+    <p class="small text-muted">Los docentes que marque pueden crear y editar todos los PIAR del colegio y escoger este formato. Los demás docentes llenan
+        los ajustes de sus asignaturas, y el director de grupo, además, la información del estudiante.</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="que" value="docentes">
         <div style="max-height:420px; overflow:auto" class="border rounded p-2 mb-3">{% for d in docentes %}
             <div class="form-check"><input class="form-check-input" type="checkbox" name="docentes" value="{{ d.id }}" id="d{{ d.id }}" {% if d.id in elegidos %}checked{% endif %}>
                 <label class="form-check-label" for="d{{ d.id }}">{{ d.user.get_full_name|default:d.user.username }}</label></div>
         {% empty %}<p class="text-muted small mb-0">No hay docentes registrados.</p>{% endfor %}</div>
-        <button class="btn btn-primary">Guardar</button> <a href="{% url 'piar:panel' %}" class="btn btn-secondary">Volver</a>
+        <button class="btn btn-primary">Guardar docentes de apoyo</button>
     </form>
 </div>
+{% endif %}
 {% endblock %}

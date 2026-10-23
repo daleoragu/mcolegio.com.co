@@ -44,6 +44,8 @@ class ConfiguracionPiar(models.Model):
     docentes_apoyo = models.ManyToManyField(
         Docente, blank=True, related_name='+', verbose_name='Docentes de apoyo / orientación',
         help_text='Pueden crear y editar todos los PIAR del colegio, como la administración.')
+    formato = models.JSONField(default=dict, blank=True, verbose_name='Formato del PIAR',
+                               help_text='Qué secciones y columnas salen (lo escoge la orientadora). Ver piar/formato.py.')
 
     @classmethod
     def de(cls, colegio):
@@ -84,6 +86,13 @@ class Piar(models.Model):
     expectativas_familia = models.TextField(blank=True, verbose_name='Expectativas de la familia')
     expectativas_estudiante = models.TextField(blank=True, verbose_name='Expectativas del estudiante')
 
+    # Registro de habilidades {afirmación: valor}, otras dimensiones y recomendaciones por actor
+    habilidades = models.JSONField(default=dict, blank=True, verbose_name='Registro de habilidades')
+    otras_dimensiones = models.JSONField(default=dict, blank=True,
+                                         verbose_name='Convivencia, socialización, participación, autonomía, autocontrol')
+    recomendaciones_actores = models.JSONField(default=dict, blank=True,
+                                               verbose_name='Recomendaciones para el plan de mejoramiento por actor')
+
     # 3. Acta de acuerdo
     compromisos_familia = models.TextField(blank=True, verbose_name='Compromisos de la familia')
     compromisos_colegio = models.TextField(blank=True, verbose_name='Compromisos del colegio')
@@ -123,6 +132,8 @@ class AjustePiar(models.Model):
     barreras = models.TextField(blank=True, verbose_name='Barreras que se evidencian')
     tipos = models.JSONField(default=list, blank=True, verbose_name='Tipo de ajuste')
     ajustes = models.TextField(blank=True, verbose_name='Ajustes razonables')
+    apoyos = models.TextField(blank=True, verbose_name='Apoyo requerido')
+    no_requiere = models.BooleanField(default=False, verbose_name='No requiere ajustes razonables en esta asignatura')
     evaluacion = models.TextField(blank=True, verbose_name='Evaluación de los ajustes',
                                   help_text='¿Funcionaron? ¿Qué logró el estudiante? ¿Qué hay que cambiar?')
     actualizado = models.DateTimeField(auto_now=True)
@@ -136,7 +147,7 @@ class AjustePiar(models.Model):
 
     @property
     def completo(self):
-        return bool(self.ajustes.strip())
+        return self.no_requiere or bool(self.ajustes.strip())
 
     def tipos_texto(self):
         nombres = dict(TIPOS_AJUSTE)
