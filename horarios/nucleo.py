@@ -18,11 +18,16 @@ VERSION = 1
 class _Dias(dict):
     """Nombre de cada día: 1-6 son lunes a sábado; 101, 102… son «Día 1», «Día 2»… de un horario
     por días de ciclo (el que se corre si un día no hubo clase)."""
+    # Nombres propios de los días de ciclo (ej.: «Lunes A» … «Viernes B» en un proyecto de dos semanas)
+    nombres_ciclo = {}
+
     def __missing__(self, k):
         try:
             k = int(k)
         except (TypeError, ValueError):
             return str(k)
+        if k in self.nombres_ciclo:
+            return self.nombres_ciclo[k]
         return f'Día {k - 100}' if k > 100 else f'Día {k}'
 
     def get(self, k, defecto=None):
@@ -130,6 +135,7 @@ CRITERIOS = [
     ('minimo', 'Que cada docente tenga su mínimo de clases los días que viene'),
     ('viaja', 'Docentes que viajan: compensar entrando tarde el lunes o saliendo temprano el viernes'),
     ('preferida', 'Poner las clases en las horas «preferidas» (azules) de los docentes'),
+    ('semanas', 'Semana A y B: repartir parejo las horas de cada docente y de cada materia'),
 ]
 
 
@@ -322,6 +328,20 @@ def pesos_de(cond):
         if clave == 'prefiere_no':
             w['evitar'] = PESOS['evitar'] * f
     return w
+
+
+def semana_de(cond):
+    """{dia: 0 (semana A) | 1 (semana B)} si el proyecto es de dos semanas; {} si no."""
+    ab = cond.get('semanas_ab') or {}
+    if not ab.get('activa'):
+        return {}
+    return {**{int(d): 0 for d in ab.get('a') or []}, **{int(d): 1 for d in ab.get('b') or []}}
+
+
+def poner_nombres_de_dias(cond):
+    """Los días de un proyecto de dos semanas se llaman «Lunes A» … «Viernes B»."""
+    ab = (cond or {}).get('semanas_ab') or {}
+    _Dias.nombres_ciclo = {int(k): v for k, v in (ab.get('nombres') or {}).items()} if ab.get('activa') else {}
 
 
 def celdas(lista):
@@ -1055,7 +1075,7 @@ def armar(datos, cond):
                  permanencia_extra=permanencia_extra, dias_largos_max=dias_largos_max,
                  compensar=compensar, dias_de_docente=dias_de_docente, viajan=viajan,
                  bloqueo_materia=bloqueo_materia, mejor_no_materia=mejor_no_materia,
-                 preferida=preferida, compensar_max_dias=compensar_max_dias)
+                 preferida=preferida, compensar_max_dias=compensar_max_dias, semana_de=semana_de(cond))
     p.reuniones = reuniones
     return p
 

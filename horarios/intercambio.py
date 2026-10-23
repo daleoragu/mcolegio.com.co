@@ -65,7 +65,7 @@ def datos_del_colegio(colegio, con_firma=True, sin_docente=True):
                                   for f in sorted(j.franjas.all(), key=lambda x: (x.orden, x.inicio))]}
                      for j in jornadas],
         'cursos': [{'id': c.id, 'nombre': c.nombre, 'grado': c.grado,
-                    'sede': c.sede.nombre if c.sede_id else ''}
+                    'sede': c.sede.nombre if c.sede_id else '', 'director': c.director_grado_id}
                    for c in Curso.objects.filter(id__in=cursos_en_jornada).select_related('sede').order_by('orden')],
         'docentes': [{'id': x.id, 'nombre': x.user.get_full_name() or x.user.username}
                      for x in Docente.objects.filter(colegio=colegio).select_related('user')],

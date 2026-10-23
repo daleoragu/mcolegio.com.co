@@ -22,10 +22,10 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(AQUI))
 
-from horarios import impresion, nucleo         # noqa: E402
+from horarios import especiales, impresion, nucleo         # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '4.2.0'
+VERSION = '4.3.0'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -1447,6 +1447,19 @@ class App(tk.Tk):
                 r.pop('salon', None)
             self._llenar_cursos()
         self._combo_salon(fila, r.get('salon'), guardar).pack(side='left', padx=6)
+        fila_dir = tk.Frame(panel, bg=CARD)
+        fila_dir.pack(anchor='w', pady=(2, 4))
+        tk.Label(fila_dir, text='Director(a) de grado:', bg=CARD).pack(side='left')
+        docs = [None] + [d['id'] for d in sorted(D.docentes.values(), key=lambda d: d['nombre'])]
+        cb_dir = ttk.Combobox(fila_dir, state='readonly', width=34,
+                              values=['— Sin director —'] + [D.nombre_docente(x) for x in docs[1:]])
+        actual = especiales.director(self.p, c['id'])
+        cb_dir.current(docs.index(actual) if actual in docs else 0)
+
+        def guardar_dir(e=None):
+            r['director'] = docs[cb_dir.current()]
+        cb_dir.bind('<<ComboboxSelected>>', guardar_dir)
+        cb_dir.pack(side='left', padx=6)
         tk.Label(panel, text='Marque en rojo las horas en que este curso NO tiene clase (sale temprano, actividad fija, '
                              'etc.). El generador no le pondrá clases ahí.', bg=CARD, fg='#475569', wraplength=560,
                  justify='left').pack(anchor='w', pady=(6, 6))
@@ -2040,6 +2053,15 @@ class App(tk.Tk):
         self.btn_parar.pack(side='left', padx=2)
         self.var_vivo = tk.BooleanVar(value=True)
         ttk.Checkbutton(uno, text='En vivo', variable=self.var_vivo).pack(side='left', padx=4)
+        ttk.Separator(uno, orient='vertical').pack(side='left', fill='y', padx=6)
+        mb = ttk.Menubutton(uno, text='📅 Especiales')
+        menu_esp = tk.Menu(mb, tearoff=False)
+        menu_esp.add_command(label='Día con docentes ausentes…', command=self._dialogo_ausencias)
+        menu_esp.add_command(label='Semana de dirección de grado…', command=self._dialogo_direccion)
+        menu_esp.add_separator()
+        menu_esp.add_command(label='Crear proyecto de Semana A y Semana B…', command=self._crear_dos_semanas)
+        mb['menu'] = menu_esp
+        mb.pack(side='left')
         # Fila 2: revisar y editar (los colores van primero para que nunca queden por fuera de la pantalla)
         dos = ttk.Frame(f)
         dos.pack(fill='x', pady=(4, 0))
@@ -2069,14 +2091,14 @@ class App(tk.Tk):
         self.lbl_prog.pack(side='right')
         self.barra = ttk.Progressbar(tres, length=70, mode='determinate')
         self.barra.pack(side='right', padx=6)
-        ttk.Button(tres, text='💾 Guardar (.mchr)', command=self._exportar).pack(side='left')
+        ttk.Button(tres, text='💾 .mchr', command=self._exportar).pack(side='left')
         ttk.Button(tres, text='Excel', command=self._excel).pack(side='left', padx=3)
-        ttk.Button(tres, text='📄 PDF (.zip)', command=self._pdf_zip).pack(side='left')
+        ttk.Button(tres, text='📄 PDF zip', command=self._pdf_zip).pack(side='left')
         ttk.Button(tres, text='📄 PDF junto', command=self._pdf_todo).pack(side='left', padx=3)
-        ttk.Button(tres, text='Renombrar', command=self._renombrar_alt).pack(side='left')
+        ttk.Button(tres, text='✏ Nombre', command=self._renombrar_alt).pack(side='left')
         ttk.Button(tres, text='Quitar', command=self._quitar_alt).pack(side='left', padx=3)
         ttk.Separator(tres, orient='vertical').pack(side='left', fill='y', padx=6)
-        ttk.Button(tres, text='➕ Pestaña', command=self.nueva_pestana).pack(side='left')
+        ttk.Button(tres, text='➕ Pest.', command=self.nueva_pestana).pack(side='left')
         ttk.Button(tres, text='🗗 Ventana', command=self.nueva_ventana).pack(side='left', padx=3)
         self.cb_mosaico = ttk.Combobox(tres, state='readonly', width=3, values=['2', '4', '6', '9'])
         self.cb_mosaico.current(1)
@@ -2116,6 +2138,208 @@ class App(tk.Tk):
         self.bind('<Escape>', lambda e: self.quitar_seleccion())
         self.nueva_pestana()
         self._llenar_alternativas()
+
+    # --- Horarios especiales (sin cambiar el oficial) ----------------------------
+    def _ventana_simple(self, titulo):
+        v = tk.Toplevel(self._encima())
+        v.title(f'{TITULO} · {titulo}')
+        v.transient(self._encima())
+        v.geometry('980x640')
+        cuerpo = tk.Frame(v, bg=CARD, padx=14, pady=10)
+        cuerpo.pack(fill='both', expand=True)
+        tk.Label(cuerpo, text=titulo, bg=CARD, fg=TINTA, font=('Segoe UI', 12, 'bold')).pack(anchor='w')
+        return v, cuerpo
+
+    def _dias_del_horario(self):
+        D = self.p.datos
+        return sorted({d for j in D.jornadas.values() for d in j['dias']})
+
+    def _dialogo_ausencias(self):
+        """Faltan uno o varios docentes: los cursos salen más temprano o entran más tarde, o se cubren."""
+        alt = self._alt()
+        if not alt:
+            messagebox.showinfo(TITULO, 'Primero escoja o genere un horario.', parent=self._encima())
+            return
+        D = self.p.datos
+        v, cuerpo = self._ventana_simple('Día con docentes ausentes')
+        tk.Label(cuerpo, text='No cambia el horario oficial: arma el plan de ese día. Primero intenta que los cursos '
+                              'afectados salgan más temprano o entren más tarde corriendo sus clases; lo que no se pueda '
+                              'correr lo cubre un docente que ese día está en el colegio y tiene menos horas.',
+                 bg=CARD, fg='#475569', wraplength=900, justify='left').pack(anchor='w', pady=(2, 6))
+        arriba = tk.Frame(cuerpo, bg=CARD)
+        arriba.pack(fill='x')
+        izq = tk.Frame(arriba, bg=CARD)
+        izq.pack(side='left', fill='y')
+        tk.Label(izq, text='Día:', bg=CARD).pack(anchor='w')
+        dias = self._dias_del_horario()
+        cb_dia = ttk.Combobox(izq, state='readonly', width=16, values=[nucleo.DIAS[d] for d in dias])
+        cb_dia.current(0)
+        cb_dia.pack(anchor='w')
+        tk.Label(izq, text='Prioridad:', bg=CARD).pack(anchor='w', pady=(8, 0))
+        var_modo = tk.StringVar(value='auto')
+        for val, txt in (('auto', 'Lo que mueva menos clases'), ('temprano', 'Que salgan más temprano'),
+                         ('tarde', 'Que entren más tarde')):
+            ttk.Radiobutton(izq, text=txt, value=val, variable=var_modo).pack(anchor='w')
+        var_b, var_p = tk.StringVar(value=str(especiales.UMBRAL_BACHILLERATO)), tk.StringVar(value=str(especiales.UMBRAL_PRIMARIA))
+        fb = tk.Frame(izq, bg=CARD)
+        fb.pack(anchor='w', pady=(8, 0))
+        tk.Label(fb, text='Reemplazan docentes con menos de', bg=CARD).pack(anchor='w')
+        f2 = tk.Frame(fb, bg=CARD)
+        f2.pack(anchor='w')
+        ttk.Spinbox(f2, from_=1, to=40, width=4, textvariable=var_b).pack(side='left')
+        tk.Label(f2, text='h (bachillerato) ·', bg=CARD).pack(side='left', padx=3)
+        ttk.Spinbox(f2, from_=1, to=40, width=4, textvariable=var_p).pack(side='left')
+        tk.Label(f2, text='h (primaria)', bg=CARD).pack(side='left', padx=3)
+        der = tk.Frame(arriba, bg=CARD)
+        der.pack(side='left', fill='both', expand=True, padx=(16, 0))
+        tk.Label(der, text='Docentes que faltan (Ctrl + clic para escoger varios):', bg=CARD).pack(anchor='w')
+        con = sorted({a.get('docente') for a in D.asignaciones.values() if a.get('docente')}, key=D.nombre_docente)
+        lb = tk.Listbox(der, selectmode='extended', height=8, exportselection=False)
+        for did in con:
+            lb.insert('end', D.nombre_docente(did))
+        lb.pack(fill='x')
+        resultado = tk.Text(cuerpo, height=6, wrap='word', relief='flat', background=GRIS, font=('Segoe UI', 9))
+        marco, tv = self._tabla(cuerpo, [('curso', 'Curso', 120), ('hora', 'Hora', 70), ('antes', 'Horario oficial', 300),
+                                         ('ahora', 'Ese día', 340)], 12)
+        estado = {'plan': None}
+
+        def armar():
+            sel = [con[k] for k in lb.curselection()]
+            if not sel:
+                messagebox.showinfo(TITULO, 'Escoja al menos un docente.', parent=v)
+                return
+            try:
+                ub, up = int(var_b.get()), int(var_p.get())
+            except ValueError:
+                ub, up = especiales.UMBRAL_BACHILLERATO, especiales.UMBRAL_PRIMARIA
+            plan = especiales.plan_ausencias(self.p, alt, dias[cb_dia.current()], sel, var_modo.get(), ub, up)
+            estado['plan'] = plan
+            tv.delete(*tv.get_children())
+            for c in plan['cursos']:
+                tv.insert('', 'end', values=(c['nombre'], '', c['texto'], ''), tags=('curso',))
+                for f in c['filas']:
+                    tv.insert('', 'end', values=('', f['hora'], f['antes'], f['ahora']))
+            tv.tag_configure('curso', background='#e0e7ff')
+            resultado.config(state='normal')
+            resultado.delete('1.0', 'end')
+            if not plan['cursos']:
+                resultado.insert('end', 'Esos docentes no tienen clase ese día.\n')
+            resultado.insert('end', f"Reemplazos: {len(plan['reemplazos'])} · Horas sin cubrir: {len(plan['sin_cubrir'])}\n")
+            for did, textos in sorted(plan['avisos_docentes'].items(), key=lambda t: D.nombre_docente(t[0])):
+                resultado.insert('end', f'• {D.nombre_docente(did)}: ' + ' '.join(textos) + '\n')
+            resultado.config(state='disabled')
+
+        def excel():
+            plan = estado['plan']
+            if not plan:
+                return
+            ruta = filedialog.asksaveasfilename(parent=v, defaultextension='.xlsx', filetypes=[('Excel', '*.xlsx')],
+                                                initialfile=f'Plan {nucleo.DIAS[plan["dia"]]}.xlsx')
+            if not ruta:
+                return
+            from openpyxl import Workbook
+            wb = Workbook()
+            ws = wb.active
+            ws.title = 'Plan del día'
+            ws.append(['Curso', 'Hora', 'Horario oficial', 'Ese día'])
+            for c in plan['cursos']:
+                ws.append([c['nombre'], '', c['texto'], ''])
+                for f in c['filas']:
+                    ws.append(['', f['hora'], f['antes'], f['ahora']])
+            avisos = wb.create_sheet('Avisos a docentes')
+            for did, textos in plan['avisos_docentes'].items():
+                avisos.append([D.nombre_docente(did), ' '.join(textos)])
+            for hoja, anchos in ((ws, (16, 8, 45, 50)), (avisos, (34, 100))):
+                for k, w in enumerate(anchos):
+                    hoja.column_dimensions[chr(65 + k)].width = w
+            wb.save(ruta)
+            self.avisar(f'Plan guardado en {ruta}')
+        bot = tk.Frame(cuerpo, bg=CARD)
+        bot.pack(fill='x', pady=6)
+        ttk.Button(bot, text='▶ Armar el plan del día', style='Accent.TButton', command=armar).pack(side='left')
+        ttk.Button(bot, text='Excel', command=excel).pack(side='left', padx=6)
+        marco.pack(fill='both', expand=True)
+        resultado.pack(fill='x', pady=(6, 0))
+
+    def _dialogo_direccion(self):
+        """Semana de dirección de grado: una hora del director con su curso, rotando la materia que cede."""
+        alt = self._alt()
+        if not alt:
+            messagebox.showinfo(TITULO, 'Primero escoja o genere un horario.', parent=self._encima())
+            return
+        D = self.p.datos
+        sin = [D.nombre_curso(c) for c in D.jornada_de_curso if not especiales.director(self.p, c)]
+        v, cuerpo = self._ventana_simple('Semana de dirección de grado')
+        tk.Label(cuerpo, text='Se crea un horario aparte para esa semana: cada director(a) tiene una hora con su curso, que '
+                              'le cuenta dentro de sus horas, y esa hora la cede una materia del curso. Cada vez cede la '
+                              'materia que menos ha cedido. El horario oficial no cambia.'
+                              + (f' Cursos sin director: {", ".join(sin[:8])}' + ('…' if len(sin) > 8 else '') +
+                                 ' (se escoge en «Cursos»).' if sin else ''),
+                 bg=CARD, fg='#475569', wraplength=900, justify='left').pack(anchor='w', pady=(2, 6))
+        var_modo = tk.StringVar(value='generador')
+        ttk.Radiobutton(cuerpo, text='Que el generador escoja la hora de cada curso (cuando el director está libre)',
+                        value='generador', variable=var_modo).pack(anchor='w')
+        fila = tk.Frame(cuerpo, bg=CARD)
+        fila.pack(anchor='w')
+        ttk.Radiobutton(fila, text='El colegio escoge una hora para todos:', value='colegio',
+                        variable=var_modo).pack(side='left')
+        dias = self._dias_del_horario()
+        cb_dia = ttk.Combobox(fila, state='readonly', width=14, values=[nucleo.DIAS[d] for d in dias])
+        cb_dia.current(0)
+        cb_dia.pack(side='left', padx=4)
+        jid = sorted(D.jornadas)[0]
+        horas = [f for f in D.franjas_de(jid) if not f['descanso']]
+        cb_hora = ttk.Combobox(fila, state='readonly', width=14, values=[f'{f["inicio"]}-{f["fin"]}' for f in horas])
+        cb_hora.current(0)
+        cb_hora.pack(side='left')
+        marco, tv = self._tabla(cuerpo, [('docente', 'Docente', 300), ('antes', 'Horas en el horario oficial', 190),
+                                         ('despues', 'Horas esa semana (con la dirección)', 230)], 14)
+        txt = tk.Text(cuerpo, height=5, wrap='word', relief='flat', background=GRIS, font=('Segoe UI', 9))
+
+        def crear():
+            modo = var_modo.get()
+            nuevo, avisos, resumen = especiales.semana_direccion(
+                self.p, alt, modo, dias[cb_dia.current()] if modo == 'colegio' else None,
+                horas[cb_hora.current()]['id'] if modo == 'colegio' else None)
+            self.p.alternativas.insert(0, nuevo)
+            self._llenar_alternativas(0)
+            tv.delete(*tv.get_children())
+            for did, a, b in resumen:
+                tv.insert('', 'end', values=(D.nombre_docente(did), a, b))
+            txt.config(state='normal')
+            txt.delete('1.0', 'end')
+            txt.insert('end', f'Se creó «{nuevo["nombre"]}» con {len(nuevo["direccion"])} horas de dirección de grado.\n')
+            for x in nuevo['direccion']:
+                txt.insert('end', f'• {D.nombre_curso(x["curso"])}: {nucleo.DIAS[x["dia"]]} {D.franjas[x["franja"]]["inicio"]} '
+                                  f'con {D.nombre_docente(x["docente"])} (cede {D.nombre_materia(x["cede"])})\n')
+            for a in avisos:
+                txt.insert('end', f'⚠ {a}\n')
+            txt.config(state='disabled')
+        ttk.Button(cuerpo, text='▶ Crear el horario de esa semana', style='Accent.TButton', command=crear).pack(
+            anchor='w', pady=8)
+        marco.pack(fill='both', expand=True)
+        txt.pack(fill='x', pady=(6, 0))
+
+    def _crear_dos_semanas(self):
+        if not self.p:
+            return
+        if (self.p.cond.get('semanas_ab') or {}).get('activa'):
+            messagebox.showinfo(TITULO, 'Este proyecto ya es de Semana A y Semana B.', parent=self._encima())
+            return
+        if not messagebox.askyesno(TITULO, 'Se crea un proyecto APARTE con dos semanas (A y B): un ciclo de 10 días en '
+                                           'el que las horas de cada clase se reparten parejo entre las dos semanas. El '
+                                           'proyecto actual no cambia.\n\nEn la plataforma, la jornada debe estar por '
+                                           'días de ciclo (10 días). ¿Seguir?', parent=self._encima()):
+            return
+        ruta = filedialog.asksaveasfilename(title='Guardar el proyecto de dos semanas', defaultextension='.mchp',
+                                            filetypes=[('Proyecto de horario', '*.mchp')],
+                                            initialfile='horario semanas A y B.mchp', parent=self._encima())
+        if not ruta:
+            return
+        nuevo = especiales.dos_semanas(self.p, self._alt())
+        nuevo.guardar(ruta)
+        self.cargar(nuevo)
+        self.avisar('Proyecto de Semana A y Semana B listo. Genere el horario: las horas se reparten entre las dos semanas.')
 
     def _alternar_avisos(self):
         if self.avisos_visibles:
@@ -2794,6 +3018,13 @@ class App(tk.Tk):
                 t.insert('end', '\nDías largos compensados (día largo ↔ día corto):\n')
                 for x in comp[:12]:
                     t.insert('end', f'  • {x}\n')
+            if (self.p.cond.get('semanas_ab') or {}).get('activa'):
+                D = self.p.datos
+                dispar = [(d, a, b) for d, a, b in especiales.balance_semanas(self.p, alt) if abs(a - b) > 1]
+                t.insert('end', '\nSemana A y B: ' + ('todos los docentes quedan parejos.\n' if not dispar else
+                                                         'docentes con más horas en una semana:\n'))
+                for d, a, b in dispar[:12]:
+                    t.insert('end', f'  • {D.nombre_docente(d)}: {a} h en la A y {b} h en la B\n')
             reus = self.p.texto_reuniones(alt)
             if reus:
                 t.insert('end', '\nReuniones:\n')

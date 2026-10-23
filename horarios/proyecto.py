@@ -27,6 +27,7 @@ class Proyecto:
         for alt in self.alternativas:
             alt.setdefault('actividades', [])
             alt.setdefault('acompanamientos', [])
+        nucleo.poner_nombres_de_dias(self.cond)
 
     # --- Archivos -----------------------------------------------------------
     @classmethod
@@ -1393,6 +1394,11 @@ class Proyecto:
                 celdas[(s['dia'], s['franja'])].append({'i': i, 'titulo': D.nombre_materia(a['materia']),
                                                         'sub': D.nombre_docente(a.get('docente')) + self._en_salon(s),
                                                         'fijada': s.get('fijada', False), 'asig': a['id']})
+        for x in alt.get('direccion') or []:
+            if x['curso'] == cid:
+                celdas[(x['dia'], x['franja'])].append({'i': None, 'titulo': 'Dirección de grado',
+                                                        'sub': D.nombre_docente(x['docente']), 'fijada': True,
+                                                        'actividad': True})
         return self._tabla(jid, celdas)
 
     def _en_salon(self, s):
@@ -1438,6 +1444,11 @@ class Proyecto:
                             if not f['descanso'] and x < reu['fin'] and reu['inicio'] < y:
                                 celdas[(reu['dia'], f['id'])].append({'i': None, 'titulo': r['nombre'], 'sub': 'Reunión',
                                                                       'fijada': True, 'reunion': True})
+            for x in alt.get('direccion') or []:
+                if x['docente'] == did and x['franja'] in ids:
+                    celdas[(x['dia'], x['franja'])].append({'i': None, 'titulo': D.nombre_curso(x['curso']),
+                                                            'sub': 'Dirección de grado', 'fijada': True,
+                                                            'actividad': True})
             for x in alt.get('actividades') or []:
                 if x['docente'] == did and x['franja'] in ids:
                     celdas[(x['dia'], x['franja'])].append({'i': None, 'titulo': x['nombre'], 'sub': 'Actividad',

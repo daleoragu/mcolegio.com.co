@@ -469,6 +469,18 @@ def prueba():
     app._ir_a('d', con[0])
     assert app.vista_actual().quien_l[app.vista_actual().cb_quien.current()] == ('d', con[0])
     app._ir_a('c', cs[0])
+    # Horarios especiales: día con ausencias, semana de dirección de grado
+    app._dialogo_ausencias()
+    app._dialogo_direccion()
+    from horarios import especiales
+    for c in D.crudo['cursos'][:3]:
+        p.curso(c['id'])['director'] = con[0]
+    nuevo, _, _ = especiales.semana_direccion(p, app._alt())
+    p.alternativas.insert(0, nuevo)
+    app._llenar_alternativas(0)
+    app._avisos(app._alt())
+    del p.alternativas[0]
+    app._llenar_alternativas(0)
     # Filtro por nivel (docentes y cursos)
     app._llenar_lista_docentes()
     app._llenar_cursos()
