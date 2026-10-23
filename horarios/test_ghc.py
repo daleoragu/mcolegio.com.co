@@ -895,3 +895,40 @@ class IdeasDeGHC(SimpleTestCase):
         D.cursos[1]['grado'] = 6
         self.assertEqual(D.docentes_de_nivel('BAS'), [1, 2, 3, 4, 5, 6])
         self.assertEqual(D.docentes_de_nivel('PRI'), [])
+
+    def test_materia_con_hora_preferible(self):
+        D = datos()
+        p = proyecto(D)
+        clase = [f for f in D.franjas_de(1) if not f['descanso']]
+        f0 = clase[0]['id']
+        for esperado in ('no_puede', 'prefiere_no', 'preferida', 'libre'):
+            self.assertEqual(p.siguiente_estado_materia(4, 1, f0), esperado)
+        for d in (1, 2, 3, 4, 5):
+            for f in clase[:2]:
+                if p.estado_celda_materia(4, d, f['id']) != 'preferida':
+                    while p.siguiente_estado_materia(4, d, f['id']) != 'preferida':
+                        pass
+        prob = nucleo.armar(D, p.cond)
+        self.assertEqual(len(prob.preferida_materia[4]), 10)
+        alt = p.generar(cuantas=1, segundos=6)[0]
+        self.assertEqual(alt['choques'], [])
+        ses = [s for s in alt['sesiones'] if D.asignaciones[s['asignacion']]['materia'] == 4]
+        temprano = sum(1 for s in ses if s['franja'] in {f['id'] for f in clase[:2]})
+        self.assertGreaterEqual(temprano, len(ses) // 2, (temprano, len(ses)))      # 20 horas, 40 casillas azules
+        # El área también puede tener horas preferibles
+        self.assertEqual(p.siguiente_estado_area('Humanas', 2, f0), 'no_puede')
+        p.siguiente_estado_area('Humanas', 2, f0)
+        self.assertEqual(p.siguiente_estado_area('Humanas', 2, f0), 'preferida')
+        self.assertIn((2, f0), nucleo.armar(D, p.cond).preferida_materia[3])
+
+    def test_maximo_de_dias_largos_de_un_docente(self):
+        D = datos()
+        p = proyecto(D)
+        p.cond['permanencia_horas'] = 5
+        p.cond['compensar'] = {'activa': True, 'max': 1, 'max_dias': 2}
+        p.docente(1)['max_dias_largos'] = 1
+        prob = nucleo.armar(D, p.cond)
+        self.assertEqual((prob.compensar_max_dias[1], prob.compensar_max_dias[2]), (1, 2))
+        alt = p.generar(cuantas=1, segundos=8)[0]
+        _, _, perfil = p.semana_docente(alt, 1)
+        self.assertLessEqual(sum(1 for a, _ in perfil.values() if a > 5 * 60), 1, perfil)
