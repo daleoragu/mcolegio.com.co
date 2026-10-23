@@ -69,6 +69,7 @@ class MensajeForm(forms.ModelForm):
     def __init__(self, *args, user=None, colegio=None, borrador=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['asunto'].required = False
+        self.fields['cuerpo'].error_messages['required'] = 'Escriba el mensaje.'
         if user and colegio:
             self.fields['destinatario'].queryset = destinatarios_posibles(user, colegio)
             self.fields['destinatario'].colegio = colegio
