@@ -3,8 +3,8 @@
 Correo
 ------
 La plataforma manda por su servidor (variables EMAIL_* de DigitalOcean), pero cada
-correo sale con el NOMBRE del colegio y, si el colegio escribió su correo
-institucional, las respuestas le llegan a ese correo (Reply-To). Así no hay que
+correo sale con el NOMBRE del colegio y, si el colegio escribió su email de
+contacto (personalización del colegio), las respuestas le llegan a ese correo (Reply-To). Así no hay que
 guardar la contraseña del correo de cada colegio.
 
 Si el colegio verificó su dirección en el proveedor de correo de la plataforma
@@ -54,7 +54,7 @@ def remitente(colegio=None):
     correo = _correo_plataforma()
     if colegio is None:
         return correo
-    propio = (getattr(colegio, 'correo_institucional', '') or '').strip()
+    propio = (getattr(colegio, 'email_contacto', '') or '').strip()
     if propio and getattr(colegio, 'correo_remitente_verificado', False):
         correo = propio
     nombre = re.sub(r'[\r\n"<>]+', ' ', colegio.nombre or '').strip()[:70]
@@ -62,7 +62,7 @@ def remitente(colegio=None):
 
 
 def responder_a(colegio=None):
-    propio = (getattr(colegio, 'correo_institucional', '') or '').strip() if colegio is not None else ''
+    propio = (getattr(colegio, 'email_contacto', '') or '').strip() if colegio is not None else ''
     return [propio] if propio else None
 
 

@@ -74,7 +74,9 @@ class SemanaAyB(SimpleTestCase):
     def test_proyecto_de_dos_semanas(self):
         D, p, alt = _generado(4)
         clase = [f for f in D.franjas_de(1) if not f['descanso']]
-        p.poner_celda(3, 1, clase[0]['id'], 'no_puede')
+        ocupadas = {(s['dia'], s['franja']) for s in alt['sesiones'] if D.asignaciones[s['asignacion']]['docente'] == 3}
+        libre = next(f['id'] for f in clase if (1, f['id']) not in ocupadas)
+        p.poner_celda(3, 1, libre, 'no_puede')
         p.cond.setdefault('asignaciones', {})['11'] = {'bloques': '2+2+1+1'}
         q = especiales.dos_semanas(p, alt)
         self.assertEqual(q.datos.jornadas[1]['dias'], list(range(101, 111)))
@@ -82,8 +84,8 @@ class SemanaAyB(SimpleTestCase):
         self.assertEqual(nucleo.DIAS[110], 'Viernes B')
         self.assertEqual(q.datos.ih(11, q.cond), 12)
         self.assertEqual(q.cond['asignaciones']['11']['bloques'], '2+2+1+1+2+2+1+1')
-        self.assertEqual(q.estado_celda(3, 101, clase[0]['id']), 'no_puede')
-        self.assertEqual(q.estado_celda(3, 106, clase[0]['id']), 'no_puede')
+        self.assertEqual(q.estado_celda(3, 101, libre), 'no_puede')
+        self.assertEqual(q.estado_celda(3, 106, libre), 'no_puede')
         self.assertEqual(len(q.alternativas[0]['sesiones']), 2 * len(alt['sesiones']))
         self.assertEqual(q.alternativas[0]['choques'], [])
         prob = nucleo.armar(q.datos, q.cond)
