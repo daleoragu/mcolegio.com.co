@@ -5,7 +5,6 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseNotFound
 from django.utils import timezone
-from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.conf import settings
 import json
@@ -30,7 +29,8 @@ def _enviar_correo_inasistencia(estudiante, asignacion, fecha):
         from django.utils.html import strip_tags
         html_mensaje = render_to_string('notas/emails/inasistencia_email.html', contexto_email)
         texto_plano = strip_tags(html_mensaje)
-        send_mail(asunto, texto_plano, settings.DEFAULT_FROM_EMAIL, [acudiente_email], html_message=html_mensaje)
+        from ..mensajeria import enviar_correo
+        enviar_correo(estudiante.colegio, asunto, texto_plano, [acudiente_email], html=html_mensaje)
     except Exception as e:
         print(f"ERROR al enviar correo de inasistencia para {estudiante}: {e}")
 

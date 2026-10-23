@@ -215,6 +215,8 @@ urlpatterns = [
     
     # --- Rutas para Observador ---
     path('observador/seleccionar/', observador_views.observador_selector_vista, name='observador_selector'),
+    path('observador/catalogo-faltas/', observador_views.catalogo_faltas_vista, name='catalogo_faltas'),
+    path('observador/excel/', observador_views.observador_excel_vista, name='observador_excel'),
     path('observador/detalle/<int:estudiante_id>/', observador_views.vista_detalle_observador, name='vista_detalle_observador'),
     path('observador/crear/<int:estudiante_id>/', observador_views.crear_registro_observador_vista, name='crear_registro_observador'),
     path('observador/ficha/<int:estudiante_id>/editar/', observador_views.editar_ficha_vista, name='editar_ficha'),

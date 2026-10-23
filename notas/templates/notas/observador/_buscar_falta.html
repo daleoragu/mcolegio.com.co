@@ -1,0 +1,73 @@
+{# Buscador del catálogo de faltas: al escoger una, llena el tipo, la clase y la descripción. #}
+{{ form.falta }}
+{% if catalogo_faltas %}
+<div class="col-12">
+    <div class="border rounded p-3 bg-light">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <strong><i class="fas fa-book-open me-1"></i>Buscar en el catálogo de faltas</strong>
+            <div class="btn-group btn-group-sm ms-auto" role="group" id="cat-tipos">
+                <button type="button" class="btn btn-outline-secondary active" data-tipo="">Todas</button>
+                <button type="button" class="btn btn-outline-info" data-tipo="I">Tipo I</button>
+                <button type="button" class="btn btn-outline-warning" data-tipo="II">Tipo II</button>
+                <button type="button" class="btn btn-outline-danger" data-tipo="III">Tipo III</button>
+            </div>
+        </div>
+        <input type="search" id="cat-buscar" class="form-control form-control-sm mb-2" placeholder="Escriba una palabra: celular, uniforme, agresión…">
+        <div id="cat-lista" class="list-group small" style="max-height: 240px; overflow-y: auto;"></div>
+        <div id="cat-escogida" class="small mt-2 text-success" style="display:none;"></div>
+    </div>
+</div>
+{{ catalogo_faltas|json_script:"datos-catalogo-faltas" }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const datos = JSON.parse(document.getElementById('datos-catalogo-faltas').textContent);
+    const lista = document.getElementById('cat-lista'), buscar = document.getElementById('cat-buscar');
+    const escogida = document.getElementById('cat-escogida'), oculto = document.getElementById('falta_catalogo');
+    const tipo = document.getElementById('{{ form.tipo.id_for_label }}');
+    const subtipo = document.getElementById('{{ form.subtipo.id_for_label }}');
+    const tipoFalta = document.getElementById('{{ form.tipo_falta.id_for_label }}');
+    const desc = document.getElementById('{{ form.descripcion.id_for_label }}');
+    let filtroTipo = '';
+    const sinTildes = t => (t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const color = {I: 'info', II: 'warning', III: 'danger'};
+
+    function pintar() {
+        const q = sinTildes(buscar.value).split(/\s+/).filter(Boolean);
+        lista.innerHTML = '';
+        const vistas = datos.filter(f => (!filtroTipo || f.tipo === filtroTipo) &&
+            q.every(p => sinTildes(f.descripcion + ' ' + f.numeral).includes(p))).slice(0, 60);
+        vistas.forEach(f => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'list-group-item list-group-item-action py-1';
+            const chip = document.createElement('span');
+            chip.className = 'badge bg-' + color[f.tipo] + (f.tipo === 'III' ? '' : ' text-dark') + ' me-2';
+            chip.textContent = 'Tipo ' + f.tipo;
+            b.appendChild(chip);
+            if (f.numeral) { const n = document.createElement('span'); n.className = 'text-muted me-1'; n.textContent = f.numeral + ' ·'; b.appendChild(n); }
+            b.appendChild(document.createTextNode(f.descripcion));
+            b.addEventListener('click', () => escoger(f));
+            lista.appendChild(b);
+        });
+        if (!vistas.length) lista.innerHTML = '<div class="text-muted p-2">No hay faltas con ese texto.</div>';
+    }
+    function escoger(f) {
+        oculto.value = f.id;
+        tipo.value = 'COMPORTAMENTAL';
+        tipo.dispatchEvent(new Event('change'));
+        if (subtipo) subtipo.value = 'NEGATIVA';
+        if (tipoFalta) tipoFalta.value = f.tipo;
+        if (!desc.value.trim()) desc.value = f.descripcion;
+        else if (!desc.value.includes(f.descripcion)) desc.value = f.descripcion + '\n' + desc.value;
+        escogida.style.display = '';
+        escogida.textContent = '✔ Escogida: Tipo ' + f.tipo + (f.numeral ? ' · ' + f.numeral : '') + '. Puede agregar detalles en la descripción.';
+    }
+    document.querySelectorAll('#cat-tipos button').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('#cat-tipos button').forEach(x => x.classList.remove('active'));
+        b.classList.add('active'); filtroTipo = b.dataset.tipo; pintar();
+    }));
+    buscar.addEventListener('input', pintar);
+    pintar();
+});
+</script>
+{% endif %}

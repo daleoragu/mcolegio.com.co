@@ -200,6 +200,7 @@
                 <strong>Fecha Suceso:</strong> {{ registro.fecha_suceso|date:"d/m/Y" }} | 
                 <strong>Tipo:</strong> {{ registro.get_tipo_display }}
                 {% if registro.subtipo %} | <strong>Subtipo:</strong> {{ registro.get_subtipo_display }}{% endif %}
+                {% if registro.tipo_falta %} | <strong>Falta:</strong> {{ registro.get_tipo_falta_display }}{% if registro.falta.numeral %} ({{ registro.falta.numeral }}){% endif %}{% endif %}
                 | <strong>Reporta:</strong> {{ registro.docente_reporta.user.get_full_name|default:"Administrador" }}
             </div>
             <div class="registro-body">

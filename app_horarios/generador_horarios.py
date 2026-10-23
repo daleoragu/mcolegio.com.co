@@ -12,6 +12,7 @@ Funciona sin internet:
 import copy
 import os
 import queue
+import re
 import sys
 import threading
 import time
@@ -21,10 +22,10 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(AQUI))
 
-from horarios import impresion, nucleo         # noqa: E402
+from horarios import especiales, impresion, nucleo         # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '4.1.1'
+VERSION = '4.3.0'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -36,7 +37,8 @@ ACTIVIDAD, TURNO = '#bbf7d0', '#a5f3fc'
 FONDO, CARD, BORDE, TINTA = '#eef1f6', '#ffffff', '#d9dee8', '#1e293b'
 NAV, NAV_SEL, ACENTO = '#ffffff', '#e0e7ff', '#312e81'
 BLOQ_LIBRE, BLOQ_NO = '#4caf50', '#e53935'          # verde / rojo fuertes de las cuadrículas de bloqueo
-COLOR_ESTADO = {'libre': BLOQ_LIBRE, 'no_puede': BLOQ_NO, 'prefiere_no': '#fbc02d', 'evitar': '#fb8c00'}
+COLOR_ESTADO = {'libre': BLOQ_LIBRE, 'no_puede': BLOQ_NO, 'prefiere_no': '#fbc02d', 'evitar': '#fb8c00',
+                'preferida': '#60a5fa'}
 # Colores para distinguir áreas o docentes en la cuadrícula (claros, para que se lea el texto)
 PALETA = ['#bfdbfe', '#bbf7d0', '#fde68a', '#fecaca', '#ddd6fe', '#a5f3fc', '#fbcfe8', '#fed7aa', '#d9f99d',
           '#c7d2fe', '#99f6e4', '#f5d0fe', '#e2e8f0', '#fef9c3', '#bae6fd', '#ffe4e6', '#dcfce7', '#e9d5ff',
@@ -44,7 +46,8 @@ PALETA = ['#bfdbfe', '#bbf7d0', '#fde68a', '#fecaca', '#ddd6fe', '#a5f3fc', '#fb
           '#a5b4fc', '#5eead4', '#f0abfc']
 COLOR_AREA = {'libre': BLOQ_LIBRE, 'no_puede': BLOQ_NO, 'prefiere_no': '#fbc02d'}
 TEXTO_AREA = {'libre': '', 'no_puede': 'No van', 'prefiere_no': 'Mejor no'}
-TEXTO_ESTADO = {'libre': '', 'no_puede': 'No puede', 'prefiere_no': 'Mejor no', 'evitar': 'Mejor no +'}
+TEXTO_ESTADO = {'libre': '', 'no_puede': 'No puede', 'prefiere_no': 'Mejor no', 'evitar': 'Mejor no +',
+                'preferida': 'Preferida'}
 ICONO = {'error': '✖ ', 'aviso': '⚠ ', 'info': 'ℹ '}
 VERDE_SEL, AMARILLO_SEL, ROJO_SEL = '#4ade80', '#facc15', '#f87171'
 COLOR_SEL = {'libre': VERDE_SEL, 'ocupado': AMARILLO_SEL, 'imposible': ROJO_SEL}
@@ -386,14 +389,18 @@ class App(tk.Tk):
         return f
 
     # Filtros por grado, área y docente (para las tablas)
-    def _filtros(self, padre, cuales, al_cambiar):
-        """Una fila de filtros. Devuelve una función acepta(asignacion) -> bool."""
+    def _filtros(self, padre, cuales, al_cambiar, apilar=False):
+        """Una fila de filtros (o uno debajo del otro, con apilar). Devuelve acepta(asignacion) -> bool."""
         D = self.p.datos
         fila = ttk.Frame(padre)
         fila.pack(fill='x', pady=(4, 0))
-        ttk.Label(fila, text='Filtrar:').pack(side='left')
+        ttk.Label(fila, text='Filtrar:').pack(side='top' if apilar else 'left', anchor='w')
         cajas = {}
         opciones = {}
+        if 'nivel' in cuales:
+            hay = {nucleo.nivel_de_grado(c.get('grado')) for c in D.crudo['cursos']}
+            opciones['nivel'] = [('', 'Todos los niveles')] + [
+                (k, n) for k, n in nucleo.NIVELES if k in hay or (k == 'BACH' and len(hay & {'BAS', 'MED'}) == 2)]
         if 'grado' in cuales:
             gs = sorted({c.get('grado') for c in D.crudo['cursos']}, key=lambda g: (g is None, g if g is not None else 0))
             opciones['grado'] = [('', 'Todos los grados')] + [(g, nombre_grado(g)) for g in gs]
@@ -410,10 +417,13 @@ class App(tk.Tk):
         for clave in cuales:
             if clave == 'buscar':
                 continue
-            cb = ttk.Combobox(fila, state='readonly', width=24 if clave in ('docente', 'materia') else 18,
+            cb = ttk.Combobox(fila, state='readonly', width=24 if clave in ('docente', 'materia', 'nivel') else 18,
                               values=[n for _, n in opciones[clave]])
             cb.current(0)
-            cb.pack(side='left', padx=3)
+            if apilar:
+                cb.pack(side='top', fill='x', pady=1)
+            else:
+                cb.pack(side='left', padx=3)
             cb.bind('<<ComboboxSelected>>', lambda e: al_cambiar())
             cajas[clave] = cb
         var_buscar = tk.StringVar()
@@ -433,7 +443,10 @@ class App(tk.Tk):
             if a is not None:
                 materia, docente, curso = a['materia'], a.get('docente'), a['curso']
             g, ar, d, m = valor('grado'), valor('area'), valor('docente'), valor('materia')
+            nv = valor('nivel')
             if m != '' and materia is not None and materia != m:
+                return False
+            if nv != '' and curso is not None and not nucleo.grado_en_nivel(D.cursos.get(curso, {}).get('grado'), nv):
                 return False
             if g != '' and curso is not None and D.cursos.get(curso, {}).get('grado') != g:
                 return False
@@ -464,7 +477,8 @@ class App(tk.Tk):
         ttk.Button(bot, text='Quitar todos los bloques', command=self._quitar_bloques).pack(side='left', padx=4)
         ttk.Label(bot, text='Solo llena las clases que no tienen bloques; las que ya tienen se respetan.',
                   style='Ayuda.TLabel').pack(side='left', padx=6)
-        self.filtro_datos = self._filtros(f, ('grado', 'area', 'materia', 'docente', 'buscar'), lambda: self._llenar_datos())
+        self.filtro_datos = self._filtros(f, ('nivel', 'grado', 'area', 'materia', 'docente', 'buscar'),
+                                          lambda: self._llenar_datos())
         cuerpo = ttk.Panedwindow(f, orient='horizontal')
         cuerpo.pack(fill='both', expand=True, pady=6)
         marco, self.tv_asig = self._tabla(cuerpo, [
@@ -635,6 +649,9 @@ class App(tk.Tk):
         var_cpm.trace_add('write', cambio_cpm)
         ttk.Label(fila_cp, text='hora(s) más largo que su permanencia (o con la 1.ª y la última), si la semana no pasa de '
                                 'permanencia × días').pack(side='left')
+        self._numero(gen, 'Máximo de días largos a la semana para quien compensa (0 = los que quepan en la semana):',
+                     comp.get('max_dias') or 0, 0, 5, lambda v: comp.__setitem__('max_dias', int(v or 0))).grid(
+            row=10, column=0, columnspan=2, sticky='w', pady=(4, 0))
         ttk.Label(gen, text='Ej.: 6 h × 5 días = 30 h a la semana. Dos días de 7 h se pagan con un día de 4 h o con dos de '
                             '5 h, como mejor encaje. Un día sin clases cuenta 0 h.', style='Ayuda.TLabel').grid(row=8, column=0, columnspan=2,
                                                                                          sticky='w')
@@ -1008,7 +1025,7 @@ class App(tk.Tk):
         cuerpo = ttk.Frame(f, style='Pagina.TFrame')
         cuerpo.pack(fill='both', expand=True)
         izq = self._tarjeta(cuerpo, 'Cursos', side='left', fill='y')
-        self.filtro_cur = self._filtros(izq, ('grado',), lambda: self._llenar_cursos())
+        self.filtro_cur = self._filtros(izq, ('nivel', 'grado'), lambda: self._llenar_cursos(), apilar=True)
         marco_lb = tk.Frame(izq, bg=CARD)
         marco_lb.pack(fill='both', expand=True, pady=(4, 0))
         self.lb_cur = tk.Listbox(marco_lb, width=34, exportselection=False, relief='flat', highlightthickness=1,
@@ -1024,8 +1041,7 @@ class App(tk.Tk):
 
     def _llenar_cursos(self):
         D = self.p.datos
-        g = self.filtro_cur.valor('grado')
-        self.cursos_l = [c for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso and (g == '' or c.get('grado') == g)]
+        self.cursos_l = [c for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso and self.filtro_cur(curso=c['id'])]
         self.lb_cur.delete(0, 'end')
         for c in self.cursos_l:
             r = self.p.cond.get('cursos', {}).get(str(c['id'])) or {}
@@ -1279,7 +1295,8 @@ class App(tk.Tk):
         izq = tk.Frame(cuerpo, bg=CARD, highlightthickness=1, highlightbackground=BORDE, padx=12, pady=10)
         cuerpo.add(izq, weight=1)
         tk.Label(izq, text='Profesores', bg=CARD, fg=TINTA, font=('Segoe UI', 11, 'bold')).pack(anchor='w', pady=(0, 6))
-        self.filtro_doc = self._filtros(izq, ('docente',), lambda: self._llenar_lista_docentes())
+        self.filtro_doc = self._filtros(izq, ('nivel', 'area', 'docente'), lambda: self._llenar_lista_docentes(),
+                                        apilar=True)
         marco_lb = tk.Frame(izq, bg=CARD)
         marco_lb.pack(fill='both', expand=True, anchor='w', pady=(4, 0))
         self.lb_doc = tk.Listbox(marco_lb, width=34, exportselection=False, relief='flat', highlightthickness=1,
@@ -1333,7 +1350,8 @@ class App(tk.Tk):
         ttk.Label(self.panel_doc, text=f'{base} horas de clase' + (f' + {extra} extra' if extra else '') +
                   f' · {", ".join(sedes)}', style='Ayuda.TLabel').pack(anchor='w')
         ttk.Label(self.panel_doc, text='Toque una casilla: verde = puede, rojo = no puede, amarillo = mejor no, '
-                                       'naranja = mejor no (fuerte). Toque el día para cambiar el día completo.',
+                                       'naranja = mejor no (fuerte), azul = hora preferida (el generador procura '
+                                       'ponerle clase ahí). Toque el día para cambiar el día completo.',
                   style='Ayuda.TLabel').pack(anchor='w', pady=(4, 6))
         r = self.p.docente(d['id'])
         if r.get('nota'):
@@ -1429,6 +1447,19 @@ class App(tk.Tk):
                 r.pop('salon', None)
             self._llenar_cursos()
         self._combo_salon(fila, r.get('salon'), guardar).pack(side='left', padx=6)
+        fila_dir = tk.Frame(panel, bg=CARD)
+        fila_dir.pack(anchor='w', pady=(2, 4))
+        tk.Label(fila_dir, text='Director(a) de grado:', bg=CARD).pack(side='left')
+        docs = [None] + [d['id'] for d in sorted(D.docentes.values(), key=lambda d: d['nombre'])]
+        cb_dir = ttk.Combobox(fila_dir, state='readonly', width=34,
+                              values=['— Sin director —'] + [D.nombre_docente(x) for x in docs[1:]])
+        actual = especiales.director(self.p, c['id'])
+        cb_dir.current(docs.index(actual) if actual in docs else 0)
+
+        def guardar_dir(e=None):
+            r['director'] = docs[cb_dir.current()]
+        cb_dir.bind('<<ComboboxSelected>>', guardar_dir)
+        cb_dir.pack(side='left', padx=6)
         tk.Label(panel, text='Marque en rojo las horas en que este curso NO tiene clase (sale temprano, actividad fija, '
                              'etc.). El generador no le pondrá clases ahí.', bg=CARD, fg='#475569', wraplength=560,
                  justify='left').pack(anchor='w', pady=(6, 6))
@@ -1847,12 +1878,16 @@ class App(tk.Tk):
                                      'Se ubican después de las clases, primero en los huecos de cada docente.', padding=6)
         act.pack(fill='both', expand=True)
         marco, self.tv_act = self._tabla(act, [('nombre', 'Actividad', 220), ('docentes', 'Docentes', 260),
-                                               ('horas', 'Horas/semana', 95), ('max', 'Máx./día', 70)], 6)
+                                               ('horas', 'Horas/semana', 95), ('max', 'Máx./día', 70),
+                                               ('fijas', 'Horas fijadas a mano', 220)], 6)
         marco.pack(fill='both', expand=True)
         bot = ttk.Frame(act)
         bot.pack(fill='x', pady=4)
         ttk.Button(bot, text='Nueva', command=self._nueva_actividad).pack(side='left')
         ttk.Button(bot, text='Quitar', command=self._quitar_actividad).pack(side='left', padx=4)
+        ttk.Button(bot, text='🕑 Escoger las horas a mano…', command=self._horas_actividad).pack(side='left', padx=4)
+        ttk.Label(bot, text='Ej.: reunión de padres el jueves a la última hora. Esas horas quedan sin clase para sus '
+                            'docentes; las que falten las ubica el generador.', style='Ayuda.TLabel').pack(side='left', padx=6)
         des = ttk.LabelFrame(f, text='Acompañamiento de descansos: zonas (patio, tienda, baños…) y cuántos docentes '
                                      'cuidan cada una. Se escogen docentes que tienen clase justo antes o después.', padding=6)
         des.pack(fill='both', expand=True, pady=(8, 0))
@@ -1873,7 +1908,10 @@ class App(tk.Tk):
         for i, a in enumerate(self.p.cond['actividades']):
             quienes = 'Todos' if not a.get('docentes') else ', '.join(D.nombre_docente(x) for x in a['docentes'][:4]) + (
                 f' y {len(a["docentes"]) - 4} más' if len(a['docentes']) > 4 else '')
-            self.tv_act.insert('', 'end', iid=str(i), values=(a.get('nombre'), quienes, a.get('horas'), a.get('max_dia') or 1))
+            fijas = ', '.join(f'{nucleo.DIAS[d][:3]} {D.franjas[f]["inicio"]}' for d, f in sorted(nucleo.celdas(a.get('fijas')))
+                              if f in D.franjas) or '—'
+            self.tv_act.insert('', 'end', iid=str(i), values=(a.get('nombre'), quienes, a.get('horas'), a.get('max_dia') or 1,
+                                                              fijas))
         self.tv_zon.delete(*self.tv_zon.get_children())
         for i, z in enumerate(self.p.cond['acompanamiento']['zonas']):
             self.tv_zon.insert('', 'end', iid=str(i), values=(z['nombre'], z.get('cuantos', 1)))
@@ -1912,6 +1950,43 @@ class App(tk.Tk):
             v.destroy()
             self._llenar_tareas()
         ttk.Button(cuerpo, text='Guardar', command=aceptar).grid(row=5, column=1, sticky='e', pady=8)
+
+    def _horas_actividad(self):
+        """Escoger a mano las horas de una actividad (verde = la escoge el generador, azul = fijada aquí)."""
+        sel = self.tv_act.focus()
+        if not sel:
+            messagebox.showinfo(TITULO, 'Escoja primero una actividad de la lista.', parent=self._encima())
+            return
+        act = self.p.cond['actividades'][int(sel)]
+        act.setdefault('fijas', [])
+        D = self.p.datos
+        quienes = [int(x) for x in act.get('docentes') or []] or sorted(
+            {a.get('docente') for a in D.asignaciones.values() if a.get('docente')})
+        jornadas = sorted({j for did in quienes for j in D.jornadas_de_docente(did)})
+        v = tk.Toplevel(self._encima())
+        v.title(f'{TITULO} · {act.get("nombre")}')
+        v.transient(self._encima())
+        cuerpo = tk.Frame(v, bg=CARD, padx=14, pady=12)
+        cuerpo.pack(fill='both', expand=True)
+        tk.Label(cuerpo, text=act.get('nombre') or 'Actividad', bg=CARD, fg=TINTA, font=('Segoe UI', 12, 'bold')).pack(anchor='w')
+        tk.Label(cuerpo, text='Toque las horas en que va la actividad (azul). Sus docentes no tendrán clase a esas horas; '
+                              'si fija menos horas de las que tiene la actividad, el resto lo ubica el generador.',
+                 bg=CARD, fg='#475569', wraplength=620, justify='left').pack(anchor='w', pady=(2, 8))
+
+        def estado(d, f):
+            return 'fija' if f'{d}-{f}' in act['fijas'] else 'libre'
+
+        def siguiente(d, f):
+            k = f'{d}-{f}'
+            if k in act['fijas']:
+                act['fijas'].remove(k)
+            else:
+                act['fijas'].append(k)
+            self._llenar_tareas()
+            return estado(d, f)
+        self._rejilla(cuerpo, [D.jornadas[j] for j in jornadas], estado, siguiente,
+                      {'libre': BLOQ_LIBRE, 'fija': '#60a5fa'}, {'libre': '', 'fija': 'Actividad'})
+        ttk.Button(cuerpo, text='Listo', command=v.destroy).pack(anchor='e', pady=(10, 0))
 
     def _quitar_actividad(self):
         sel = self.tv_act.focus()
@@ -1964,7 +2039,7 @@ class App(tk.Tk):
         ttk.Button(uno, text='☰', width=3, command=self._ver_principal).pack(side='left')
         ttk.Button(uno, text='📝 Blanco', command=self._en_blanco).pack(side='left', padx=(4, 0))
         ttk.Separator(uno, orient='vertical').pack(side='left', fill='y', padx=6)
-        ttk.Label(uno, text='Opciones:').pack(side='left')
+        ttk.Label(uno, text='Opc.:').pack(side='left')
         self.var_alt = tk.IntVar(value=3)
         ttk.Spinbox(uno, from_=1, to=3, width=3, textvariable=self.var_alt).pack(side='left', padx=3)
         ttk.Label(uno, text='Seg.:').pack(side='left')
@@ -1973,11 +2048,22 @@ class App(tk.Tk):
         self.btn_gen = ttk.Button(uno, text='▶ Generar', command=self.generar)
         self.btn_gen.pack(side='left', padx=4)
         ttk.Button(uno, text='Completar', command=self._completar).pack(side='left', padx=2)
-        ttk.Button(uno, text='Regenerar no fijado', command=lambda: self._completar(solo_fijadas=True)).pack(side='left', padx=2)
+        b = ttk.Button(uno, text='↻ No fijado', command=lambda: self._completar(solo_fijadas=True))
+        b.pack(side='left', padx=2)
+        self._ayuda_flotante(b, 'Regenerar todo lo que no está fijado 🔒')
         self.btn_parar = ttk.Button(uno, text='⏹ Detener', command=self.detener, state='disabled')
         self.btn_parar.pack(side='left', padx=2)
         self.var_vivo = tk.BooleanVar(value=True)
         ttk.Checkbutton(uno, text='En vivo', variable=self.var_vivo).pack(side='left', padx=4)
+        ttk.Separator(uno, orient='vertical').pack(side='left', fill='y', padx=6)
+        mb = ttk.Menubutton(uno, text='📅 Especiales')
+        menu_esp = tk.Menu(mb, tearoff=False)
+        menu_esp.add_command(label='Día con docentes ausentes…', command=self._dialogo_ausencias)
+        menu_esp.add_command(label='Semana de dirección de grado…', command=self._dialogo_direccion)
+        menu_esp.add_separator()
+        menu_esp.add_command(label='Crear proyecto de Semana A y Semana B…', command=self._crear_dos_semanas)
+        mb['menu'] = menu_esp
+        mb.pack(side='left')
         # Fila 2: revisar y editar (los colores van primero para que nunca queden por fuera de la pantalla)
         dos = ttk.Frame(f)
         dos.pack(fill='x', pady=(4, 0))
@@ -2007,15 +2093,21 @@ class App(tk.Tk):
         self.lbl_prog.pack(side='right')
         self.barra = ttk.Progressbar(tres, length=70, mode='determinate')
         self.barra.pack(side='right', padx=6)
-        ttk.Button(tres, text='💾 Guardar (.mchr)', command=self._exportar).pack(side='left')
+        ttk.Button(tres, text='💾 .mchr', command=self._exportar).pack(side='left')
         ttk.Button(tres, text='Excel', command=self._excel).pack(side='left', padx=3)
-        ttk.Button(tres, text='📄 PDF (.zip)', command=self._pdf_zip).pack(side='left')
+        ttk.Button(tres, text='📄 PDF zip', command=self._pdf_zip).pack(side='left')
         ttk.Button(tres, text='📄 PDF junto', command=self._pdf_todo).pack(side='left', padx=3)
-        ttk.Button(tres, text='Renombrar', command=self._renombrar_alt).pack(side='left')
-        ttk.Button(tres, text='Quitar', command=self._quitar_alt).pack(side='left', padx=3)
+        for txt, fn, ayuda in (('✏', self._renombrar_alt, 'Cambiarle el nombre a este horario'),
+                               ('🗑', self._quitar_alt, 'Quitar este horario de la lista')):
+            b = ttk.Button(tres, text=txt, width=3, command=fn)
+            b.pack(side='left', padx=1)
+            self._ayuda_flotante(b, ayuda)
         ttk.Separator(tres, orient='vertical').pack(side='left', fill='y', padx=6)
-        ttk.Button(tres, text='➕ Pestaña', command=self.nueva_pestana).pack(side='left')
-        ttk.Button(tres, text='🗗 Ventana', command=self.nueva_ventana).pack(side='left', padx=3)
+        for txt, fn, ayuda in (('➕', self.nueva_pestana, 'Otra pestaña con otro horario o curso'),
+                               ('🗗', self.nueva_ventana, 'Abrir otra ventana (para otra pantalla)')):
+            b = ttk.Button(tres, text=txt, width=3, command=fn)
+            b.pack(side='left', padx=1)
+            self._ayuda_flotante(b, ayuda)
         self.cb_mosaico = ttk.Combobox(tres, state='readonly', width=3, values=['2', '4', '6', '9'])
         self.cb_mosaico.current(1)
         self.cb_mosaico.pack(side='left')
@@ -2054,6 +2146,208 @@ class App(tk.Tk):
         self.bind('<Escape>', lambda e: self.quitar_seleccion())
         self.nueva_pestana()
         self._llenar_alternativas()
+
+    # --- Horarios especiales (sin cambiar el oficial) ----------------------------
+    def _ventana_simple(self, titulo):
+        v = tk.Toplevel(self._encima())
+        v.title(f'{TITULO} · {titulo}')
+        v.transient(self._encima())
+        v.geometry('980x640')
+        cuerpo = tk.Frame(v, bg=CARD, padx=14, pady=10)
+        cuerpo.pack(fill='both', expand=True)
+        tk.Label(cuerpo, text=titulo, bg=CARD, fg=TINTA, font=('Segoe UI', 12, 'bold')).pack(anchor='w')
+        return v, cuerpo
+
+    def _dias_del_horario(self):
+        D = self.p.datos
+        return sorted({d for j in D.jornadas.values() for d in j['dias']})
+
+    def _dialogo_ausencias(self):
+        """Faltan uno o varios docentes: los cursos salen más temprano o entran más tarde, o se cubren."""
+        alt = self._alt()
+        if not alt:
+            messagebox.showinfo(TITULO, 'Primero escoja o genere un horario.', parent=self._encima())
+            return
+        D = self.p.datos
+        v, cuerpo = self._ventana_simple('Día con docentes ausentes')
+        tk.Label(cuerpo, text='No cambia el horario oficial: arma el plan de ese día. Primero intenta que los cursos '
+                              'afectados salgan más temprano o entren más tarde corriendo sus clases; lo que no se pueda '
+                              'correr lo cubre un docente que ese día está en el colegio y tiene menos horas.',
+                 bg=CARD, fg='#475569', wraplength=900, justify='left').pack(anchor='w', pady=(2, 6))
+        arriba = tk.Frame(cuerpo, bg=CARD)
+        arriba.pack(fill='x')
+        izq = tk.Frame(arriba, bg=CARD)
+        izq.pack(side='left', fill='y')
+        tk.Label(izq, text='Día:', bg=CARD).pack(anchor='w')
+        dias = self._dias_del_horario()
+        cb_dia = ttk.Combobox(izq, state='readonly', width=16, values=[nucleo.DIAS[d] for d in dias])
+        cb_dia.current(0)
+        cb_dia.pack(anchor='w')
+        tk.Label(izq, text='Prioridad:', bg=CARD).pack(anchor='w', pady=(8, 0))
+        var_modo = tk.StringVar(value='auto')
+        for val, txt in (('auto', 'Lo que mueva menos clases'), ('temprano', 'Que salgan más temprano'),
+                         ('tarde', 'Que entren más tarde')):
+            ttk.Radiobutton(izq, text=txt, value=val, variable=var_modo).pack(anchor='w')
+        var_b, var_p = tk.StringVar(value=str(especiales.UMBRAL_BACHILLERATO)), tk.StringVar(value=str(especiales.UMBRAL_PRIMARIA))
+        fb = tk.Frame(izq, bg=CARD)
+        fb.pack(anchor='w', pady=(8, 0))
+        tk.Label(fb, text='Reemplazan docentes con menos de', bg=CARD).pack(anchor='w')
+        f2 = tk.Frame(fb, bg=CARD)
+        f2.pack(anchor='w')
+        ttk.Spinbox(f2, from_=1, to=40, width=4, textvariable=var_b).pack(side='left')
+        tk.Label(f2, text='h (bachillerato) ·', bg=CARD).pack(side='left', padx=3)
+        ttk.Spinbox(f2, from_=1, to=40, width=4, textvariable=var_p).pack(side='left')
+        tk.Label(f2, text='h (primaria)', bg=CARD).pack(side='left', padx=3)
+        der = tk.Frame(arriba, bg=CARD)
+        der.pack(side='left', fill='both', expand=True, padx=(16, 0))
+        tk.Label(der, text='Docentes que faltan (Ctrl + clic para escoger varios):', bg=CARD).pack(anchor='w')
+        con = sorted({a.get('docente') for a in D.asignaciones.values() if a.get('docente')}, key=D.nombre_docente)
+        lb = tk.Listbox(der, selectmode='extended', height=8, exportselection=False)
+        for did in con:
+            lb.insert('end', D.nombre_docente(did))
+        lb.pack(fill='x')
+        resultado = tk.Text(cuerpo, height=6, wrap='word', relief='flat', background=GRIS, font=('Segoe UI', 9))
+        marco, tv = self._tabla(cuerpo, [('curso', 'Curso', 120), ('hora', 'Hora', 70), ('antes', 'Horario oficial', 300),
+                                         ('ahora', 'Ese día', 340)], 12)
+        estado = {'plan': None}
+
+        def armar():
+            sel = [con[k] for k in lb.curselection()]
+            if not sel:
+                messagebox.showinfo(TITULO, 'Escoja al menos un docente.', parent=v)
+                return
+            try:
+                ub, up = int(var_b.get()), int(var_p.get())
+            except ValueError:
+                ub, up = especiales.UMBRAL_BACHILLERATO, especiales.UMBRAL_PRIMARIA
+            plan = especiales.plan_ausencias(self.p, alt, dias[cb_dia.current()], sel, var_modo.get(), ub, up)
+            estado['plan'] = plan
+            tv.delete(*tv.get_children())
+            for c in plan['cursos']:
+                tv.insert('', 'end', values=(c['nombre'], '', c['texto'], ''), tags=('curso',))
+                for f in c['filas']:
+                    tv.insert('', 'end', values=('', f['hora'], f['antes'], f['ahora']))
+            tv.tag_configure('curso', background='#e0e7ff')
+            resultado.config(state='normal')
+            resultado.delete('1.0', 'end')
+            if not plan['cursos']:
+                resultado.insert('end', 'Esos docentes no tienen clase ese día.\n')
+            resultado.insert('end', f"Reemplazos: {len(plan['reemplazos'])} · Horas sin cubrir: {len(plan['sin_cubrir'])}\n")
+            for did, textos in sorted(plan['avisos_docentes'].items(), key=lambda t: D.nombre_docente(t[0])):
+                resultado.insert('end', f'• {D.nombre_docente(did)}: ' + ' '.join(textos) + '\n')
+            resultado.config(state='disabled')
+
+        def excel():
+            plan = estado['plan']
+            if not plan:
+                return
+            ruta = filedialog.asksaveasfilename(parent=v, defaultextension='.xlsx', filetypes=[('Excel', '*.xlsx')],
+                                                initialfile=f'Plan {nucleo.DIAS[plan["dia"]]}.xlsx')
+            if not ruta:
+                return
+            from openpyxl import Workbook
+            wb = Workbook()
+            ws = wb.active
+            ws.title = 'Plan del día'
+            ws.append(['Curso', 'Hora', 'Horario oficial', 'Ese día'])
+            for c in plan['cursos']:
+                ws.append([c['nombre'], '', c['texto'], ''])
+                for f in c['filas']:
+                    ws.append(['', f['hora'], f['antes'], f['ahora']])
+            avisos = wb.create_sheet('Avisos a docentes')
+            for did, textos in plan['avisos_docentes'].items():
+                avisos.append([D.nombre_docente(did), ' '.join(textos)])
+            for hoja, anchos in ((ws, (16, 8, 45, 50)), (avisos, (34, 100))):
+                for k, w in enumerate(anchos):
+                    hoja.column_dimensions[chr(65 + k)].width = w
+            wb.save(ruta)
+            self.avisar(f'Plan guardado en {ruta}')
+        bot = tk.Frame(cuerpo, bg=CARD)
+        bot.pack(fill='x', pady=6)
+        ttk.Button(bot, text='▶ Armar el plan del día', style='Accent.TButton', command=armar).pack(side='left')
+        ttk.Button(bot, text='Excel', command=excel).pack(side='left', padx=6)
+        marco.pack(fill='both', expand=True)
+        resultado.pack(fill='x', pady=(6, 0))
+
+    def _dialogo_direccion(self):
+        """Semana de dirección de grado: una hora del director con su curso, rotando la materia que cede."""
+        alt = self._alt()
+        if not alt:
+            messagebox.showinfo(TITULO, 'Primero escoja o genere un horario.', parent=self._encima())
+            return
+        D = self.p.datos
+        sin = [D.nombre_curso(c) for c in D.jornada_de_curso if not especiales.director(self.p, c)]
+        v, cuerpo = self._ventana_simple('Semana de dirección de grado')
+        tk.Label(cuerpo, text='Se crea un horario aparte para esa semana: cada director(a) tiene una hora con su curso, que '
+                              'le cuenta dentro de sus horas, y esa hora la cede una materia del curso. Cada vez cede la '
+                              'materia que menos ha cedido. El horario oficial no cambia.'
+                              + (f' Cursos sin director: {", ".join(sin[:8])}' + ('…' if len(sin) > 8 else '') +
+                                 ' (se escoge en «Cursos»).' if sin else ''),
+                 bg=CARD, fg='#475569', wraplength=900, justify='left').pack(anchor='w', pady=(2, 6))
+        var_modo = tk.StringVar(value='generador')
+        ttk.Radiobutton(cuerpo, text='Que el generador escoja la hora de cada curso (cuando el director está libre)',
+                        value='generador', variable=var_modo).pack(anchor='w')
+        fila = tk.Frame(cuerpo, bg=CARD)
+        fila.pack(anchor='w')
+        ttk.Radiobutton(fila, text='El colegio escoge una hora para todos:', value='colegio',
+                        variable=var_modo).pack(side='left')
+        dias = self._dias_del_horario()
+        cb_dia = ttk.Combobox(fila, state='readonly', width=14, values=[nucleo.DIAS[d] for d in dias])
+        cb_dia.current(0)
+        cb_dia.pack(side='left', padx=4)
+        jid = sorted(D.jornadas)[0]
+        horas = [f for f in D.franjas_de(jid) if not f['descanso']]
+        cb_hora = ttk.Combobox(fila, state='readonly', width=14, values=[f'{f["inicio"]}-{f["fin"]}' for f in horas])
+        cb_hora.current(0)
+        cb_hora.pack(side='left')
+        marco, tv = self._tabla(cuerpo, [('docente', 'Docente', 300), ('antes', 'Horas en el horario oficial', 190),
+                                         ('despues', 'Horas esa semana (con la dirección)', 230)], 14)
+        txt = tk.Text(cuerpo, height=5, wrap='word', relief='flat', background=GRIS, font=('Segoe UI', 9))
+
+        def crear():
+            modo = var_modo.get()
+            nuevo, avisos, resumen = especiales.semana_direccion(
+                self.p, alt, modo, dias[cb_dia.current()] if modo == 'colegio' else None,
+                horas[cb_hora.current()]['id'] if modo == 'colegio' else None)
+            self.p.alternativas.insert(0, nuevo)
+            self._llenar_alternativas(0)
+            tv.delete(*tv.get_children())
+            for did, a, b in resumen:
+                tv.insert('', 'end', values=(D.nombre_docente(did), a, b))
+            txt.config(state='normal')
+            txt.delete('1.0', 'end')
+            txt.insert('end', f'Se creó «{nuevo["nombre"]}» con {len(nuevo["direccion"])} horas de dirección de grado.\n')
+            for x in nuevo['direccion']:
+                txt.insert('end', f'• {D.nombre_curso(x["curso"])}: {nucleo.DIAS[x["dia"]]} {D.franjas[x["franja"]]["inicio"]} '
+                                  f'con {D.nombre_docente(x["docente"])} (cede {D.nombre_materia(x["cede"])})\n')
+            for a in avisos:
+                txt.insert('end', f'⚠ {a}\n')
+            txt.config(state='disabled')
+        ttk.Button(cuerpo, text='▶ Crear el horario de esa semana', style='Accent.TButton', command=crear).pack(
+            anchor='w', pady=8)
+        marco.pack(fill='both', expand=True)
+        txt.pack(fill='x', pady=(6, 0))
+
+    def _crear_dos_semanas(self):
+        if not self.p:
+            return
+        if (self.p.cond.get('semanas_ab') or {}).get('activa'):
+            messagebox.showinfo(TITULO, 'Este proyecto ya es de Semana A y Semana B.', parent=self._encima())
+            return
+        if not messagebox.askyesno(TITULO, 'Se crea un proyecto APARTE con dos semanas (A y B): un ciclo de 10 días en '
+                                           'el que las horas de cada clase se reparten parejo entre las dos semanas. El '
+                                           'proyecto actual no cambia.\n\nEn la plataforma, la jornada debe estar por '
+                                           'días de ciclo (10 días). ¿Seguir?', parent=self._encima()):
+            return
+        ruta = filedialog.asksaveasfilename(title='Guardar el proyecto de dos semanas', defaultextension='.mchp',
+                                            filetypes=[('Proyecto de horario', '*.mchp')],
+                                            initialfile='horario semanas A y B.mchp', parent=self._encima())
+        if not ruta:
+            return
+        nuevo = especiales.dos_semanas(self.p, self._alt())
+        nuevo.guardar(ruta)
+        self.cargar(nuevo)
+        self.avisar('Proyecto de Semana A y Semana B listo. Genere el horario: las horas se reparten entre las dos semanas.')
 
     def _alternar_avisos(self):
         if self.avisos_visibles:
@@ -2732,6 +3026,13 @@ class App(tk.Tk):
                 t.insert('end', '\nDías largos compensados (día largo ↔ día corto):\n')
                 for x in comp[:12]:
                     t.insert('end', f'  • {x}\n')
+            if (self.p.cond.get('semanas_ab') or {}).get('activa'):
+                D = self.p.datos
+                dispar = [(d, a, b) for d, a, b in especiales.balance_semanas(self.p, alt) if abs(a - b) > 1]
+                t.insert('end', '\nSemana A y B: ' + ('todos los docentes quedan parejos.\n' if not dispar else
+                                                         'docentes con más horas en una semana:\n'))
+                for d, a, b in dispar[:12]:
+                    t.insert('end', f'  • {D.nombre_docente(d)}: {a} h en la A y {b} h en la B\n')
             reus = self.p.texto_reuniones(alt)
             if reus:
                 t.insert('end', '\nReuniones:\n')
@@ -2755,7 +3056,59 @@ class App(tk.Tk):
                     if a in D.asignaciones:
                         t.insert('end', f"  • {D.nombre_materia(D.asignaciones[a]['materia'])} "
                                         f"{D.nombre_curso(D.asignaciones[a]['curso'])}\n")
+            self._enlazar_avisos()
         t.config(state='disabled')
+
+    def _enlazar_avisos(self):
+        """Los nombres de docentes y cursos en los avisos quedan como enlaces que abren su horario."""
+        t = self.txt_avisos
+        D = self.p.datos
+        try:
+            for tag in t.tag_names():
+                if str(tag).startswith('ir_'):
+                    t.tag_delete(tag)
+            con = {a.get('docente') for a in D.asignaciones.values() if a.get('docente')}
+            objetivos = [(D.nombre_docente(d), 'd', d) for d in con]
+            objetivos += [(c['nombre'], 'c', c['id']) for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso]
+            objetivos.sort(key=lambda x: -len(str(x[0])))
+            tomados = []
+            cuenta = tk.IntVar(self)
+            for nombre, tipo, ident in objetivos:
+                nombre = str(nombre or '').strip()
+                if len(nombre) < 2:
+                    continue
+                patron = r'\m' + re.escape(nombre) + r'\M'
+                ini = '1.0'
+                for _ in range(200):
+                    pos = t.search(patron, ini, stopindex='end', regexp=True, count=cuenta)
+                    if not pos or not cuenta.get():
+                        break
+                    fin = t.index(f'{pos}+{cuenta.get()}c')
+                    if not any(t.compare(pos, '<', b) and t.compare(a, '<', fin) for a, b in tomados):
+                        tag = f'ir_{tipo}_{ident}'
+                        t.tag_add(tag, pos, fin)
+                        tomados.append((pos, fin))
+                        t.tag_configure(tag, foreground='#1d4ed8', underline=True)
+                        t.tag_bind(tag, '<Button-1>', lambda e, tipo=tipo, ident=ident: self._ir_a(tipo, ident))
+                        t.tag_bind(tag, '<Enter>', lambda e: t.config(cursor='hand2'))
+                        t.tag_bind(tag, '<Leave>', lambda e: t.config(cursor=''))
+                    ini = fin
+        except (tk.TclError, AttributeError, TypeError):
+            pass
+
+    def _ir_a(self, tipo, ident):
+        """Abre el horario de ese docente ('d') o curso ('c') en la vista que está a la vista."""
+        if not self.vistas:
+            return
+        v = self.vista_actual()
+        v.mostrar(tipo, ident)
+        try:
+            ventana = v.__dict__.get('ventana') or self.__dict__.get('ventana_horario')
+            if ventana is not None:
+                ventana.deiconify()
+                ventana.lift()
+        except tk.TclError:
+            pass
 
     # Fichas que se arrastran (o se tocan para escogerlas)
     def _ficha(self, padre, texto, color, datos, z=1.0):
@@ -3098,6 +3451,20 @@ class Vista:
             t += f' · alt. {self.indice() + 1}'
         return t
 
+    def mostrar(self, tipo, ident):
+        """Pone en esta vista el horario del curso ('c') o del docente ('d')."""
+        self.cb_ver.current(1 if tipo == 'd' else 0)
+        self.opciones()
+        if (tipo, ident) not in self.quien_l:
+            return
+        self.cb_quien.current(self.quien_l.index((tipo, ident)))
+        self.dibujar()
+        self.app._renombrar_pestanas()
+
+    def _niveles(self):
+        hay = {nucleo.nivel_de_grado(c.get('grado')) for c in self.app.p.datos.crudo['cursos']}
+        return [(k, n) for k, n in nucleo.NIVELES if k in hay or (k == 'BACH' and len(hay & {'BAS', 'MED'}) == 2)]
+
     def opciones(self, conservar_filtro=False):
         """Llena la lista de cursos (filtrada por grado) o de docentes (filtrada por área)."""
         D = self.app.p.datos
@@ -3108,11 +3475,13 @@ class Vista:
                 self.filtros = [('', 'Todas las agrupaciones')] + [
                     (g, g) for g in sorted(nucleo.grupos_de_salones(self.app.p.cond))]
             elif docente:
-                self.filtros = [('', 'Todas las áreas')] + [(ar, ar) for ar in sorted(D.areas)]
+                self.filtros = ([('', 'Todos (por nivel o área)')] + [(('nivel', k), n) for k, n in self._niveles()]
+                                + [(ar, f'Área: {ar}') for ar in sorted(D.areas)])
             else:
                 grados = sorted({c.get('grado') for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso},
                                 key=lambda g: (g is None, g if g is not None else 0))
-                self.filtros = [('', 'Todos los grados')] + [(g, nombre_grado(g)) for g in grados]
+                self.filtros = ([('', 'Todos los grados')] + [(('nivel', k), n) for k, n in self._niveles()]
+                                + [(g, nombre_grado(g)) for g in grados])
             self.cb_filtro.configure(values=[n for _, n in self.filtros])
             self.cb_filtro.current(0)
         k = self.cb_filtro.current()
@@ -3124,13 +3493,17 @@ class Vista:
             nombres = [self.app.p.salon(x)['nombre'] for _, x in self.quien_l]
         elif docente:
             con_clase = {a.get('docente') for a in D.asignaciones.values()}
-            del_area = set(D.docentes_de_area(filtro)) if filtro != '' else None
+            if isinstance(filtro, tuple):
+                del_area = set(D.docentes_de_nivel(filtro[1]))
+            else:
+                del_area = set(D.docentes_de_area(filtro)) if filtro != '' else None
             self.quien_l = [('d', d['id']) for d in sorted(D.docentes.values(), key=lambda d: d['nombre'])
                             if d['id'] in con_clase and (del_area is None or d['id'] in del_area)]
             nombres = [D.nombre_docente(x) for _, x in self.quien_l]
         else:
             self.quien_l = [('c', c['id']) for c in D.crudo['cursos'] if c['id'] in D.jornada_de_curso
-                            and (filtro == '' or c.get('grado') == filtro)]
+                            and (filtro == '' or (nucleo.grado_en_nivel(c.get('grado'), filtro[1])
+                                                  if isinstance(filtro, tuple) else c.get('grado') == filtro))]
             nombres = [D.nombre_curso(x) for _, x in self.quien_l]
         self.cb_quien.configure(values=nombres)
         if nombres:

@@ -45,6 +45,8 @@ PESO_BLOQUE = 3.0         # horas de la misma materia el mismo día que no queda
 PESO_MINIMO = 6.0         # por cada clase que le falta a un docente para el mínimo del día
 PESO_VIAJA = 6.0          # docente que viaja: por cada hora de compensación que no cae lunes temprano / viernes tarde
 PESO_DIA_LARGO = 4.0      # día del docente más largo que su permanencia (por sus horas extra)
+PESO_PREFERIDA = 4.0      # premio por cada clase en una hora «preferida» del docente (pesa más que «mejor no»)
+PESO_SEMANAS = 3.0        # semana A y B: por cada hora de diferencia (de más de una) entre las dos semanas
 
 # Los «criterios ponderables» (como en GHC): el coordinador mueve cada uno de 0 a
 # 10 y el 5 es lo normal. Aquí quedan los pesos ya multiplicados.
@@ -52,7 +54,7 @@ PESOS = {'hueco': PESO_HUECO, 'hueco_curso': PESO_HUECO_CURSO, 'repetida': PESO_
          'ultima': PESO_ULTIMA, 'prefiere_no': PESO_PREFIERE_NO, 'evitar': PESO_EVITAR, 'dia_suelto': PESO_DIA_SUELTO,
          'equilibrio': PESO_EQUILIBRIO, 'dia_libre': PESO_DIA_LIBRE, 'excluyente': PESO_EXCLUYENTE,
          'bloque': PESO_BLOQUE, 'dia_largo': PESO_DIA_LARGO, 'viaja': PESO_VIAJA,
-         'minimo': PESO_MINIMO}
+         'minimo': PESO_MINIMO, 'preferida': PESO_PREFERIDA, 'semanas': PESO_SEMANAS}
 
 
 class Problema:
@@ -72,7 +74,7 @@ class Problema:
                  dia_libre=None, dias_docente=None, excluyentes=None, excluyente_duro=True, sin_excluyente=None,
                  reuniones_doc=None, siguiente_bloque=None, permanencia_extra=None, dias_largos_max=None,
                  compensar=None, dias_de_docente=None, viajan=None, bloqueo_materia=None, mejor_no_materia=None,
-                 espacio_menos=None, min_docente_dia=None):
+                 espacio_menos=None, min_docente_dia=None, preferida=None, compensar_max_dias=None, semana_de=None):
         self.franjas = franjas
         self.siguiente = siguiente
         self.anterior = {b: a for a, b in siguiente.items()}
@@ -116,6 +118,12 @@ class Problema:
         # Docentes SIN horas extra: un día puede pasar de la permanencia hasta estos minutos (o tener la
         # 1.ª y la última) si la semana no pasa de permanencia × días (ej.: 6 h × 5 = 30 h).
         self.compensar = compensar or {}
+        # Cuántos días largos puede tener (como máximo) un docente que compensa: {docente: n}
+        self.compensar_max_dias = compensar_max_dias or {}
+        # Horas en que el docente prefiere tener clase: {docente: {(dia, franja)}}; cada clase ahí resta costo
+        self.preferida = preferida or {}
+        # Proyecto de dos semanas: {dia: 0 (A) | 1 (B)}; se reparten parejo las horas entre las dos
+        self.semana_de = semana_de or {}
         self.dias_de_docente = dias_de_docente or {}
         # Docentes que no viven en el municipio: si tienen días largos, que lo que se compensa caiga
         # el primer día entrando más tarde o el último día saliendo más temprano.
@@ -245,6 +253,7 @@ class Estado:
                 if mas and ancho > perm + mas:
                     return False, []
                 largo_hoy = ancho > perm
+            par_hoy = False
             # Horas que no van el mismo día (si tiene la 7.ª no tiene la 1.ª)
             if p.excluyentes and p.excluyente_duro and doc not in p.sin_excluyente:
                 for (a, b, uid, f) in self.docente[(doc, dia)]:
@@ -254,7 +263,7 @@ class Estado:
                         if doc in p.dias_largos_max:
                             largo_hoy = True       # se permite como día largo (por sus horas extra)
                         elif doc in p.compensar:
-                            pass                   # se permite si otro día lo compensa (se mira abajo)
+                            par_hoy = True         # se permite si otro día lo compensa (se mira abajo)
                         elif not estorba(uid):
                             return False, []
             # Días largos: tantos como horas extra tenga el docente
@@ -264,6 +273,11 @@ class Estado:
             # Día largo de un docente sin horas extra: otro día tiene que ser igual de corto
             if doc in p.compensar and not self.compensado(doc, dia, tramos, ign, estorban):
                 return False, []
+            # …y no más de tantos días largos a la semana (el coordinador escribe el número)
+            tope_l = p.compensar_max_dias.get(doc)
+            if tope_l and doc in p.compensar and (largo_hoy or par_hoy) and not self.dia_largo(doc, dia):
+                if self.dias_largos(doc, sin=dia) >= tope_l:
+                    return False, []
             # Máximo de horas seguidas
             tope = p.max_seguidas.get(doc)
             if tope:
@@ -375,6 +389,7 @@ class Estado:
         w = self.w
         prefiere_no = self.p.prefiere_no.get(docente, ())
         evitar = self.p.evitar.get(docente, ())
+        preferida = self.p.preferida.get(docente, ())
         minimo = self.p.min_docente_dia.get(docente)
         if minimo:
             n = self.dd.get((docente, dia), 0)
@@ -386,6 +401,8 @@ class Estado:
                 c += w['prefiere_no']
             if (dia, f) in evitar:
                 c += w['evitar']
+            if (dia, f) in preferida:
+                c -= w['preferida']
         c += w['hueco'] * sum((max(i) - min(i) + 1) - len(i) for i in por_jornada.values())
         if len(lst) == 1:
             c += w['dia_suelto']
@@ -449,7 +466,21 @@ class Estado:
                 c += self.w['dia_libre']
         if docente in self.p.viajan:
             c += self.w['viaja'] * self.compensacion_faltante(docente)
+        if self.p.semana_de:
+            h = [0, 0]
+            for d, k in self.p.semana_de.items():
+                h[k] += self.dd.get((docente, d), 0)
+            c += self.w['semanas'] * max(0, abs(h[0] - h[1]) - 1)
         return c
+
+    def costo_semanas_materia(self, curso, materia):
+        """Semana A y B: la materia del curso con más o menos las mismas horas las dos semanas."""
+        if not self.p.semana_de:
+            return 0.0
+        h = [0, 0]
+        for d, k in self.p.semana_de.items():
+            h[k] += self.cm.get((curso, materia, d), 0)
+        return self.w['semanas'] * max(0, abs(h[0] - h[1]) - 1)
 
     def compensacion_faltante(self, docente):
         """Horas de sus días largos que NO quedaron como horas libres al empezar el primer día (lunes)
@@ -526,7 +557,11 @@ class Estado:
         c += sum(self.costo_curso_dia(cu, dia) for (cu, dia) in list(self.cd.keys()))
         c += sum(self.costo_repeticion(cu, m, dia) for (cu, m, dia) in list(self.cm.keys()))
         c += sum(self.costo_unidad(uid) for uid in self.pos)
-        c += sum(self.costo_docente_semana(d) for d in set(self.p.dia_libre) | set(self.p.viajan))
+        semanales = set(self.p.dia_libre) | set(self.p.viajan)
+        if self.p.semana_de:
+            semanales |= {d for (d, _) in list(self.docente.keys())}
+            c += sum(self.costo_semanas_materia(cu, m) for (cu, m) in {(cu, m) for (cu, m, _) in list(self.cm.keys())})
+        c += sum(self.costo_docente_semana(d) for d in semanales)
         return c
 
 
@@ -613,6 +648,8 @@ def _construir(p, est, cola, posibles, rnd, hasta, avance=None, total=1, tic=Non
                         c += w['prefiere_no']
                     if (d, f) in p.evitar.get(q['docente'], ()):
                         c += w['evitar']
+                    if (d, f) in p.preferida.get(q['docente'], ()):
+                        c -= w['preferida']
             if mejor_c is None or c < mejor_c - 1e-9:
                 mejores, mejor_c = [(d, f, estorban)], c
             elif abs(c - mejor_c) < 1e-9:
@@ -817,6 +854,9 @@ def _costo_local(est, uids, dias):
             c += est.costo_repeticion(cu, m, d)
     for doc in docentes:
         c += est.costo_docente_semana(doc)
+    if est.p.semana_de:
+        for (cu, m) in cms:
+            c += est.costo_semanas_materia(cu, m)
     for x in uids:
         if x in est.pos:
             c += est.costo_unidad(x)

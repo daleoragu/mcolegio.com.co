@@ -139,6 +139,7 @@
                             <div>
                                 <strong class="text-primary">{{ registro.get_tipo_display }}</strong>
                                 {% if registro.subtipo %}<span class="badge bg-secondary">{{ registro.get_subtipo_display }}</span>{% endif %}
+                                {% if registro.tipo_falta %}<span class="badge {% if registro.tipo_falta == 'III' %}bg-danger{% elif registro.tipo_falta == 'II' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">Falta {{ registro.get_tipo_falta_display }}</span>{% endif %}
                             </div>
                             <div class="registro-meta d-flex align-items-center gap-3">
                                 <span><strong>Fecha:</strong> {{ registro.fecha_suceso|date:"d/m/Y" }}</span>

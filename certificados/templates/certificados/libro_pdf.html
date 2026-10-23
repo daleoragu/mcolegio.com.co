@@ -46,7 +46,7 @@
     <table class="firmas"><tr>
         <td><div class="linea"></div><strong>{{ rector|upper|default:"&nbsp;" }}</strong><br>{{ conf.firma_cargo }}</td>
         <td><div class="linea"></div><strong>{{ conf.firma2_nombre|upper|default:"&nbsp;" }}</strong><br>{{ conf.firma2_cargo|default:"Secretario(a)" }}</td>
-        <td><div class="linea"></div><strong>{{ s.director|upper|default:"&nbsp;" }}</strong><br>Director(a) de grado</td>
+        {% if colegio.firma_director.libro %}<td><div class="linea"></div><strong>{{ s.director|upper|default:"&nbsp;" }}</strong><br>Director(a) de grado</td>{% endif %}
     </tr></table>
 </div>
 {% endfor %}

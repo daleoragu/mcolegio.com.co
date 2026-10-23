@@ -20,7 +20,6 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
-from django.core.mail import send_mail
 from django.db.models import Q
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -78,9 +77,10 @@ def enlace(request, user):
     return enlace_absoluto(request, reverse('notas:recuperar_clave_nueva', args=[uid, token]))
 
 
-def _mandar(asunto, texto, correo, html):
+def _mandar(asunto, texto, correo, html, colegio=None):
     try:
-        send_mail(asunto, texto, settings.DEFAULT_FROM_EMAIL, [correo], html_message=html, fail_silently=False)
+        from .mensajeria import enviar_correo
+        enviar_correo(colegio, asunto, texto, [correo], html=html)
     except Exception:
         pass
 
@@ -108,9 +108,9 @@ def enviar_enlace(request, colegio, user):
     html = render_to_string('notas/recuperar_clave/correo.html', contexto)
     asunto = f'{colegio.nombre}: recuperar contraseña'
     if getattr(settings, 'CORREO_EN_SEGUNDO_PLANO', True):
-        threading.Thread(target=_mandar, args=(asunto, texto, correo, html), daemon=True).start()
+        threading.Thread(target=_mandar, args=(asunto, texto, correo, html, colegio), daemon=True).start()
     else:
-        _mandar(asunto, texto, correo, html)
+        _mandar(asunto, texto, correo, html, colegio)
     return True
 
 

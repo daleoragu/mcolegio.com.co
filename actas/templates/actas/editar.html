@@ -78,7 +78,7 @@
             <div class="d-flex flex-wrap gap-2">
             <button type="button" class="btn btn-outline-success btn-sm" id="ac-todos-asistieron"><i class="fas fa-check-double me-1"></i>Marcar a todos</button>
             <button type="button" class="btn btn-outline-secondary btn-sm ac-traer" id="ac-sugerir"
-                    data-url="{% url 'actas:sugerir_asistentes' acta.id %}"><i class="fas fa-user-plus me-1"></i>{% if acta.es_comision %}Traer directores de grado y representantes{% else %}Traer directivos{% endif %}</button>
+                    data-url="{% url 'actas:sugerir_asistentes' acta.id %}"><i class="fas fa-user-plus me-1"></i>{% if acta.es_comision %}Traer {% if acta.colegio.firma_director.acta_comision %}directores de grado y {% endif %}representantes{% else %}Traer directivos{% endif %}</button>
             {% if es_admin_actas %}
             <button type="button" class="btn btn-outline-primary btn-sm ac-traer" id="ac-todos-docentes"
                     data-url="{% url 'actas:sugerir_asistentes' acta.id %}?todos=docentes"><i class="fas fa-users me-1"></i>Agregar a todos los docentes</button>

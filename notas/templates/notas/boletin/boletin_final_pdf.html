@@ -217,18 +217,20 @@
                         </div>
                         <div class="linea-firma" style="width: 40%;"></div>
                         <p style="margin: 0; text-transform: uppercase;">{{ director_nombre }}</p>
-                        <p style="margin: 0;"><strong>Rector(a) y Director(a) de Grupo</strong></p>
+                        <p style="margin: 0;"><strong>{% if colegio.firma_director.boletin_final %}Rector(a) y Director(a) de Grupo{% else %}Rector(a){% endif %}</strong></p>
                     </td>
                 {% else %}
+                    {% if colegio.firma_director.boletin_final %}
                     <td style="width: {% if colegio.mostrar_firma_rector_boletin %}50%{% else %}100%{% endif %};">
                         <div class="contenedor-firma"></div>
                         <div class="linea-firma"></div>
                         <p style="margin: 0; text-transform: uppercase;">{{ director_nombre|default_if_none:"NOMBRE DEL DIRECTOR" }}</p>
                         <p style="margin: 0;"><strong>Director(a) de Grupo</strong></p>
                     </td>
+                    {% endif %}
                     
                     {% if colegio.mostrar_firma_rector_boletin %}
-                    <td style="width: 50%;">
+                    <td style="width: {% if colegio.firma_director.boletin_final %}50%{% else %}100%{% endif %};">
                         <div class="contenedor-firma">
                             {% if colegio.firma_rector %}
                                 <img src="{{ colegio.firma_rector.url }}" class="img-firma">

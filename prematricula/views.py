@@ -7,7 +7,6 @@ import zipfile
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
-from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Count, Q
 from django.forms import modelformset_factory
@@ -44,7 +43,8 @@ def _avisar_familia(request, solicitud, asunto, cuerpo):
     texto = (f'{solicitud.colegio.nombre}\n\n{cuerpo}\n\nRadicado: {solicitud.radicado}\n'
              f'Consulte su solicitud aquí: {enlace}\n')
     try:
-        send_mail(asunto, texto, settings.DEFAULT_FROM_EMAIL, [solicitud.acudiente_correo])
+        from notas.mensajeria import enviar_correo
+        enviar_correo(solicitud.colegio, asunto, texto, [solicitud.acudiente_correo])
         return True
     except Exception:
         return False

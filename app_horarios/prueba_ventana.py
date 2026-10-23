@@ -91,6 +91,7 @@ def prueba():
     assert p.siguiente_estado(d['id'], j['dias'][0], fr['id']) == 'no_puede'
     assert p.siguiente_estado(d['id'], j['dias'][0], fr['id']) == 'prefiere_no'
     assert p.siguiente_estado(d['id'], j['dias'][0], fr['id']) == 'evitar'
+    assert p.siguiente_estado(d['id'], j['dias'][0], fr['id']) == 'preferida'
     assert p.siguiente_estado(d['id'], j['dias'][0], fr['id']) == 'libre'
     app._dia_docente(d['id'], j['dias'][-1])
     app._dia_docente(d['id'], j['dias'][-1])
@@ -162,6 +163,11 @@ def prueba():
     p.cond['acompanamiento']['zonas'].append({'nombre': 'Patio', 'cuantos': 1})
     app._llenar_tareas()
     assert app.tv_act.get_children() and app.tv_zon.get_children()
+    app.tv_act.focus('0')
+    app._horas_actividad()                       # escoger la hora a mano (reunión de padres)
+    fr0 = [f for f in D.franjas_de(D.jornada_de_curso[cs[0]]) if not f['descanso']][-1]
+    p.cond['actividades'][0]['fijas'] = [f'4-{fr0["id"]}']
+    app._llenar_tareas()
     # 6. Horario: en blanco, arrastrar fichas, generar y completar
     app.ir('horario')
     app._en_blanco()
@@ -457,6 +463,27 @@ def prueba():
     p.revisar(app._alt())
     app._avisos(app._alt())
     p.cond['compensar']['activa'] = False
+    # Avisos con enlaces: el nombre de un docente o curso abre su horario
+    app._enlazar_avisos()
+    con = sorted({x.get('docente') for x in D.asignaciones.values() if x.get('docente')})
+    app._ir_a('d', con[0])
+    assert app.vista_actual().quien_l[app.vista_actual().cb_quien.current()] == ('d', con[0])
+    app._ir_a('c', cs[0])
+    # Horarios especiales: día con ausencias, semana de dirección de grado
+    app._dialogo_ausencias()
+    app._dialogo_direccion()
+    from horarios import especiales
+    for c in D.crudo['cursos'][:3]:
+        p.curso(c['id'])['director'] = con[0]
+    nuevo, _, _ = especiales.semana_direccion(p, app._alt())
+    p.alternativas.insert(0, nuevo)
+    app._llenar_alternativas(0)
+    app._avisos(app._alt())
+    del p.alternativas[0]
+    app._llenar_alternativas(0)
+    # Filtro por nivel (docentes y cursos)
+    app._llenar_lista_docentes()
+    app._llenar_cursos()
     p.guardar(os.path.join(tmp, 'p.mchp'))
     Proyecto.abrir(os.path.join(tmp, 'p.mchp'))
     if os.environ.get('CAPTURA'):

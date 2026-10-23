@@ -49,6 +49,13 @@
                                 {{ form.whatsapp_numero }}
                                 <div class="form-text">{{ form.whatsapp_numero.help_text }}</div>
                             </div>
+                            <div class="col-12 mb-3">
+                                <div class="form-check form-switch">
+                                    {{ form.whatsapp_automatico }}
+                                    <label for="{{ form.whatsapp_automatico.id_for_label }}" class="form-check-label fw-bold">{{ form.whatsapp_automatico.label }}</label>
+                                    <div class="form-text">{{ form.whatsapp_automatico.help_text }}</div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- SECCIÓN DE IDENTIDAD VISUAL -->

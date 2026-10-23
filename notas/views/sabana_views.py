@@ -7,6 +7,7 @@ from django.http import HttpResponse, HttpResponseNotFound
 from django.contrib import messages
 from decimal import Decimal, ROUND_HALF_UP
 
+from notas.boletin.ponderacion import calculo_en_lote
 from notas.boletin.ponderacion import (
     ajustes as ajustes_colegio, definitiva_anual, nota_necesaria,
 )
@@ -26,6 +27,7 @@ from ..models import Curso, Sede, PeriodoAcademico, Docente, AsignacionDocente, 
 from .sabana_exports import generar_excel_sabana
 from ..permisos import es_admin, es_admin_usuario
 
+@calculo_en_lote
 def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
     """
     Lógica de negocio final para la sábana de notas.

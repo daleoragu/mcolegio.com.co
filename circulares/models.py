@@ -17,7 +17,8 @@ class Circular(models.Model):
         ('FAMILIAS', 'Todas las familias'),
         ('CURSOS', 'Familias de algunos cursos'),
         ('DOCENTES', 'Docentes'),
-        ('TODOS', 'Familias y docentes'),
+        ('PERSONAL', 'Docentes y personal administrativo'),
+        ('TODOS', 'Familias, docentes y personal administrativo'),
     ]
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='circulares')
     numero = models.PositiveIntegerField(default=0, help_text='Consecutivo del año.')

@@ -821,3 +821,77 @@ class IdeasDeGHC(SimpleTestCase):
         self.assertEqual(alt['choques'], [])
         self.assertEqual(alt['avisos_minimo'], [], alt['avisos_minimo'])
         self.assertEqual(pr.minimo_docente(1), 2)
+
+    def test_hora_preferida(self):
+        from .motor import Estado
+        D = datos()
+        p = proyecto(D)
+        clase = [f for f in D.franjas_de(1) if not f['descanso']]
+        self.assertEqual(p.siguiente_estado(3, 1, clase[0]['id']), 'no_puede')
+        for esperado in ('prefiere_no', 'evitar', 'preferida', 'libre'):
+            self.assertEqual(p.siguiente_estado(3, 1, clase[0]['id']), esperado)
+        for f in clase:
+            for d in (1, 2):
+                p.poner_celda(3, d, f['id'], 'preferida')
+        prob = nucleo.armar(D, p.cond)
+        self.assertEqual(len(prob.preferida[3]), 2 * len(clase))
+        self.assertGreater(prob.w['preferida'], prob.w['prefiere_no'])        # pesa más que «mejor no»
+        est = Estado(prob)
+        for u in prob.unidades:
+            est.u[u['id']] = u
+        u3 = next(u for u in prob.unidades if u['partes'][0]['docente'] == 3 and u['largo'] == 1)
+        est.poner(u3, 1, clase[2]['id'])
+        en_preferida = est.costo_docente_dia(3, 1)
+        est.quitar(u3['id'])
+        est.poner(u3, 3, clase[2]['id'])
+        self.assertLess(en_preferida, est.costo_docente_dia(3, 3))
+        alt = p.generar(cuantas=1, segundos=6)[0]
+        self.assertEqual(alt['choques'], [])
+        lunes_martes = sum(1 for s in alt['sesiones'] if D.asignaciones[s['asignacion']]['docente'] == 3 and s['dia'] in (1, 2))
+        self.assertGreaterEqual(lunes_martes, 10)          # 20 horas: sin preferencia serían unas 8
+
+    def test_maximo_de_dias_largos_al_compensar(self):
+        D = datos()
+        p = proyecto(D)
+        p.cond['permanencia_horas'] = 5
+        p.cond['compensar'] = {'activa': True, 'max': 1, 'max_dias': 1}
+        self.assertEqual(nucleo.armar(D, p.cond).compensar_max_dias[1], 1)
+        alt = p.generar(cuantas=1, segundos=10)[0]
+        self.assertEqual(alt['choques'], [])
+        for did in range(1, 7):
+            _, _, perfil = p.semana_docente(alt, did)
+            self.assertLessEqual(sum(1 for a, _ in perfil.values() if a > 5 * 60), 1, (did, perfil))
+        # A mano se avisa si se pasa
+        blanco = p.en_blanco()
+        clase = [f for f in D.franjas_de(1) if not f['descanso']]
+        for dia, (x, y) in enumerate([(11, 21), (31, 41)], start=1):
+            p.poner_ficha(blanco, x, dia, clase[0]['id'])
+            p.poner_ficha(blanco, y, dia, clase[-1]['id'])
+        self.assertTrue(any('días largos y el máximo es 1' in c for c in p._revisar_compensacion(blanco)))
+
+    def test_actividad_con_horas_escogidas_a_mano(self):
+        D = datos()
+        p = proyecto(D)
+        ultima = [f for f in D.franjas_de(1) if not f['descanso']][-1]['id']
+        p.cond['actividades'] = [{'nombre': 'Reunión de padres', 'docentes': [], 'horas': 2, 'max_dia': 1,
+                                  'fijas': [f'4-{ultima}']}]
+        alt = p.generar(cuantas=1, segundos=4)[0]
+        self.assertFalse([s for s in alt['sesiones'] if s['dia'] == 4 and s['franja'] == ultima])
+        for did in range(1, 7):
+            mias = [x for x in alt['actividades'] if x['docente'] == did]
+            self.assertEqual(len(mias), 2)
+            self.assertIn((4, ultima), {(x['dia'], x['franja']) for x in mias})
+        # Si a mano le ponen clase a esa hora, se avisa
+        s = next(s for s in alt['sesiones'] if D.asignaciones[s['asignacion']]['docente'] == 1)
+        s['dia'], s['franja'] = 4, ultima
+        _, avisos = nucleo.ubicar_actividades(D, p.cond, alt['sesiones'])
+        self.assertTrue(any('Docente 1 tiene clase' in a for a in avisos), avisos)
+
+    def test_niveles(self):
+        self.assertEqual([nucleo.nivel_de_grado(g) for g in (0, 3, 7, 11, None)], ['PRE', 'PRI', 'BAS', 'MED', None])
+        self.assertTrue(nucleo.grado_en_nivel(10, 'BACH') and nucleo.grado_en_nivel(6, 'BACH'))
+        self.assertFalse(nucleo.grado_en_nivel(5, 'BACH'))
+        D = datos()
+        D.cursos[1]['grado'] = 6
+        self.assertEqual(D.docentes_de_nivel('BAS'), [1, 2, 3, 4, 5, 6])
+        self.assertEqual(D.docentes_de_nivel('PRI'), [])

@@ -12,8 +12,8 @@ from collections import defaultdict
 from . import nucleo
 
 TIPO_PROYECTO = 'mcolegio-horario-proyecto'
-ESTADOS_CELDA = ('libre', 'no_puede', 'prefiere_no', 'evitar')
-LISTAS_CELDA = ('no_puede', 'prefiere_no', 'evitar')
+ESTADOS_CELDA = ('libre', 'no_puede', 'prefiere_no', 'evitar', 'preferida')
+LISTAS_CELDA = ('no_puede', 'prefiere_no', 'evitar', 'preferida')
 
 
 class Proyecto:
@@ -27,6 +27,7 @@ class Proyecto:
         for alt in self.alternativas:
             alt.setdefault('actividades', [])
             alt.setdefault('acompanamientos', [])
+        nucleo.poner_nombres_de_dias(self.cond)
 
     # --- Archivos -----------------------------------------------------------
     @classmethod
@@ -127,7 +128,7 @@ class Proyecto:
             r[estado].append(clave)
 
     def siguiente_estado(self, did, dia, fid):
-        """Libre → no puede → mejor no → mejor no (fuerte) → libre."""
+        """Libre → no puede → mejor no → mejor no (fuerte) → preferida → libre."""
         actual = self.estado_celda(did, dia, fid)
         nuevo = ESTADOS_CELDA[(ESTADOS_CELDA.index(actual) + 1) % len(ESTADOS_CELDA)]
         self.poner_celda(did, dia, fid, nuevo)
@@ -991,6 +992,10 @@ class Proyecto:
                 if a > perm * 60 + comp:
                     out.append(f'{D.nombre_docente(did)}: el {nucleo.DIAS[d]} pasa de {perm:g} + '
                                f'{comp / 60:g} horas de permanencia.')
+            max_dias = int((self.cond.get('compensar') or {}).get('max_dias') or 0)
+            largos = sum(1 for a, par in perfil.values() if a > perm * 60 or par)
+            if max_dias and largos > max_dias:
+                out.append(f'{D.nombre_docente(did)}: tiene {largos} días largos y el máximo es {max_dias}.')
             if total > tope:
                 out.append(f'{D.nombre_docente(did)}: la semana suma {texto_horas(total)} de permanencia y el máximo '
                            f'es {texto_horas(tope)} ({perm:g} h × {tope // int(perm * 60)} días). Acorte algún día.')
@@ -1389,6 +1394,11 @@ class Proyecto:
                 celdas[(s['dia'], s['franja'])].append({'i': i, 'titulo': D.nombre_materia(a['materia']),
                                                         'sub': D.nombre_docente(a.get('docente')) + self._en_salon(s),
                                                         'fijada': s.get('fijada', False), 'asig': a['id']})
+        for x in alt.get('direccion') or []:
+            if x['curso'] == cid:
+                celdas[(x['dia'], x['franja'])].append({'i': None, 'titulo': 'Dirección de grado',
+                                                        'sub': D.nombre_docente(x['docente']), 'fijada': True,
+                                                        'actividad': True})
         return self._tabla(jid, celdas)
 
     def _en_salon(self, s):
@@ -1434,6 +1444,11 @@ class Proyecto:
                             if not f['descanso'] and x < reu['fin'] and reu['inicio'] < y:
                                 celdas[(reu['dia'], f['id'])].append({'i': None, 'titulo': r['nombre'], 'sub': 'Reunión',
                                                                       'fijada': True, 'reunion': True})
+            for x in alt.get('direccion') or []:
+                if x['docente'] == did and x['franja'] in ids:
+                    celdas[(x['dia'], x['franja'])].append({'i': None, 'titulo': D.nombre_curso(x['curso']),
+                                                            'sub': 'Dirección de grado', 'fijada': True,
+                                                            'actividad': True})
             for x in alt.get('actividades') or []:
                 if x['docente'] == did and x['franja'] in ids:
                     celdas[(x['dia'], x['franja'])].append({'i': None, 'titulo': x['nombre'], 'sub': 'Actividad',

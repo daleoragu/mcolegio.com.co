@@ -161,11 +161,13 @@
             </tbody>
         </table>
 
+        {% if colegio.firma_director.preescolar %}
         <div class="pie-pagina">
              <p>_________________________</p>
             <p>{{ curso.director_grado.user.get_full_name|default_if_none:"DIRECTOR(A) DE GRUPO" }}</p>
             <p><strong>Director(a) de Grupo</strong></p>
         </div>
+        {% endif %}
     </div>
 {% endfor %}
 </body>
