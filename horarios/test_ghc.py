@@ -932,3 +932,20 @@ class IdeasDeGHC(SimpleTestCase):
         alt = p.generar(cuantas=1, segundos=8)[0]
         _, _, perfil = p.semana_docente(alt, 1)
         self.assertLessEqual(sum(1 for a, _ in perfil.values() if a > 5 * 60), 1, perfil)
+
+    def test_cero_dias_largos_y_regla_general(self):
+        D = datos()
+        p = proyecto(D)
+        p.cond['permanencia_horas'] = 5
+        p.cond['compensar'] = {'activa': True, 'max': 1, 'max_dias_largos': None}     # sin límite
+        p.docente(1)['max_dias_largos'] = 0                                          # ese docente: ninguno
+        p.docente(2)['max_dias_largos'] = None                                       # la regla general
+        prob = nucleo.armar(D, p.cond)
+        self.assertEqual(prob.compensar_max_dias.get(1), 0)
+        self.assertNotIn(2, prob.compensar_max_dias)
+        p.cond['compensar']['max_dias_largos'] = 0
+        self.assertEqual(nucleo.armar(D, p.cond).compensar_max_dias.get(2), 0)
+        p.cond['compensar']['max_dias_largos'] = None
+        alt = p.generar(cuantas=1, segundos=8)[0]
+        _, _, perfil = p.semana_docente(alt, 1)
+        self.assertFalse([a for a, _ in perfil.values() if a > 5 * 60], perfil)

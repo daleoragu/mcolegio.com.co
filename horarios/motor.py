@@ -278,7 +278,7 @@ class Estado:
                 return False, []
             # …y no más de tantos días largos a la semana (el coordinador escribe el número)
             tope_l = p.compensar_max_dias.get(doc)
-            if tope_l and doc in p.compensar and (largo_hoy or par_hoy) and not self.dia_largo(doc, dia):
+            if tope_l is not None and doc in p.compensar and (largo_hoy or par_hoy) and not self.dia_largo(doc, dia):
                 if self.dias_largos(doc, sin=dia) >= tope_l:
                     return False, []
             # Máximo de horas seguidas
