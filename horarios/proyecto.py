@@ -14,6 +14,8 @@ from . import nucleo
 TIPO_PROYECTO = 'mcolegio-horario-proyecto'
 ESTADOS_CELDA = ('libre', 'no_puede', 'prefiere_no', 'evitar', 'preferida')
 LISTAS_CELDA = ('no_puede', 'prefiere_no', 'evitar', 'preferida')
+# Áreas y materias: libre → no van → mejor no → preferible (azul) → libre
+CICLO_MATERIA = {'libre': 'no_puede', 'no_puede': 'prefiere_no', 'prefiere_no': 'preferida', 'preferida': 'libre'}
 
 
 class Proyecto:
@@ -185,18 +187,21 @@ class Proyecto:
             return 'no_puede'
         if clave in (r.get('prefiere_no') or []):
             return 'prefiere_no'
+        if clave in (r.get('preferida') or []):
+            return 'preferida'
         return 'libre'
 
     def siguiente_estado_area(self, nombre, dia, fid):
         r = self.area(nombre)
         clave = f'{dia}-{fid}'
         actual = self.estado_celda_area(nombre, dia, fid)
-        for k in ('no_puede', 'prefiere_no'):
-            if clave in r[k]:
+        r.setdefault('preferida', [])
+        for k in ('no_puede', 'prefiere_no', 'preferida'):
+            if clave in r.get(k, []):
                 r[k].remove(clave)
-        nuevo = {'libre': 'no_puede', 'no_puede': 'prefiere_no', 'prefiere_no': 'libre'}[actual]
+        nuevo = CICLO_MATERIA[actual]
         if nuevo != 'libre':
-            r[nuevo].append(clave)
+            r.setdefault(nuevo, []).append(clave)
         return nuevo
 
     # Horas bloqueadas por materia (libre → no va → mejor no → libre)
@@ -207,6 +212,8 @@ class Proyecto:
             return 'no_puede'
         if clave in (r.get('prefiere_no') or []):
             return 'prefiere_no'
+        if clave in (r.get('preferida') or []):
+            return 'preferida'
         return 'libre'
 
     def siguiente_estado_materia(self, mid, dia, fid):
@@ -215,12 +222,13 @@ class Proyecto:
         r.setdefault('prefiere_no', [])
         clave = f'{dia}-{fid}'
         actual = self.estado_celda_materia(mid, dia, fid)
-        for k in ('no_puede', 'prefiere_no'):
-            if clave in r[k]:
+        r.setdefault('preferida', [])
+        for k in ('no_puede', 'prefiere_no', 'preferida'):
+            if clave in r.get(k, []):
                 r[k].remove(clave)
-        nuevo = {'libre': 'no_puede', 'no_puede': 'prefiere_no', 'prefiere_no': 'libre'}[actual]
+        nuevo = CICLO_MATERIA[actual]
         if nuevo != 'libre':
-            r[nuevo].append(clave)
+            r.setdefault(nuevo, []).append(clave)
         return nuevo
 
     def jornadas_de_materia(self, mid):
@@ -992,7 +1000,7 @@ class Proyecto:
                 if a > perm * 60 + comp:
                     out.append(f'{D.nombre_docente(did)}: el {nucleo.DIAS[d]} pasa de {perm:g} + '
                                f'{comp / 60:g} horas de permanencia.')
-            max_dias = int((self.cond.get('compensar') or {}).get('max_dias') or 0)
+            max_dias = nucleo.max_dias_largos(self.cond, did)
             largos = sum(1 for a, par in perfil.values() if a > perm * 60 or par)
             if max_dias and largos > max_dias:
                 out.append(f'{D.nombre_docente(did)}: tiene {largos} días largos y el máximo es {max_dias}.')

@@ -330,6 +330,14 @@ def pesos_de(cond):
     return w
 
 
+def max_dias_largos(cond, did):
+    """Máximo de días largos a la semana del docente: el suyo (en «Profesores») o el general (0 = sin tope)."""
+    propio = (cond.get('docentes', {}).get(str(did)) or {}).get('max_dias_largos')
+    if propio not in (None, '', 0, '0'):
+        return int(propio)
+    return int((cond.get('compensar') or {}).get('max_dias') or 0)
+
+
 def semana_de(cond):
     """{dia: 0 (semana A) | 1 (semana B)} si el proyecto es de dos semanas; {} si no."""
     ab = cond.get('semanas_ab') or {}
@@ -1006,24 +1014,34 @@ def armar(datos, cond):
     comp = cond.get('compensar') or {}
     if comp.get('activa'):
         tope_comp = int(float(comp.get("max") or 1) * 60)
-        max_dias = int(comp.get('max_dias') or 0)
         for did in permanencia:
             if did not in con_extra:
                 compensar[did] = tope_comp
-                if max_dias:
-                    compensar_max_dias[did] = max_dias
+                tope_dias = max_dias_largos(cond, did)
+                if tope_dias:
+                    compensar_max_dias[did] = tope_dias
+    # Docentes con horas extra: su propio máximo de días largos, si es menor que sus horas extra
+    for did in list(dias_largos_max):
+        propio = int((cond.get('docentes', {}).get(str(did)) or {}).get('max_dias_largos') or 0)
+        if propio:
+            dias_largos_max[did] = min(dias_largos_max[did], propio)
     viajan = {int(did): modo_viaja(r.get('viaja')) for did, r in cond.get('docentes', {}).items()
               if r.get('viaja') and int(did) in D.docentes}
-    bloqueo_materia, mejor_no_materia = {}, {}
+    bloqueo_materia, mejor_no_materia, preferida_materia = {}, {}, {}
     for mid, r in (cond.get('materias') or {}).items():          # horas bloqueadas de una materia
         no, mejor = celdas(r.get('no_puede')), celdas(r.get('prefiere_no'))
+        if r.get('preferida'):
+            preferida_materia.setdefault(int(mid), set()).update(celdas(r['preferida']))
         if no:
             bloqueo_materia.setdefault(int(mid), set()).update(no)
         if mejor:
             mejor_no_materia.setdefault(int(mid), set()).update(mejor)
     for area, r in (cond.get('areas') or {}).items():
         no, mejor = celdas(r.get('no_puede')), celdas(r.get('prefiere_no'))
+        pref = celdas(r.get('preferida'))
         for mid in D.areas.get(area, []):
+            if pref:
+                preferida_materia.setdefault(mid, set()).update(pref)
             if no:
                 bloqueo_materia.setdefault(mid, set()).update(no)
             if mejor:
@@ -1075,7 +1093,8 @@ def armar(datos, cond):
                  permanencia_extra=permanencia_extra, dias_largos_max=dias_largos_max,
                  compensar=compensar, dias_de_docente=dias_de_docente, viajan=viajan,
                  bloqueo_materia=bloqueo_materia, mejor_no_materia=mejor_no_materia,
-                 preferida=preferida, compensar_max_dias=compensar_max_dias, semana_de=semana_de(cond))
+                 preferida=preferida, compensar_max_dias=compensar_max_dias, semana_de=semana_de(cond),
+                 preferida_materia=preferida_materia)
     p.reuniones = reuniones
     return p
 

@@ -74,7 +74,8 @@ class Problema:
                  dia_libre=None, dias_docente=None, excluyentes=None, excluyente_duro=True, sin_excluyente=None,
                  reuniones_doc=None, siguiente_bloque=None, permanencia_extra=None, dias_largos_max=None,
                  compensar=None, dias_de_docente=None, viajan=None, bloqueo_materia=None, mejor_no_materia=None,
-                 espacio_menos=None, min_docente_dia=None, preferida=None, compensar_max_dias=None, semana_de=None):
+                 espacio_menos=None, min_docente_dia=None, preferida=None, compensar_max_dias=None, semana_de=None,
+                 preferida_materia=None):
         self.franjas = franjas
         self.siguiente = siguiente
         self.anterior = {b: a for a, b in siguiente.items()}
@@ -132,6 +133,8 @@ class Problema:
         # Horas bloqueadas por área: {materia: {(dia, franja)}} no van · «mejor no» cuesta
         self.bloqueo_materia = bloqueo_materia or {}
         self.mejor_no_materia = mejor_no_materia or {}
+        # Horas «preferibles» de una materia o de su área (azules): premio si la clase cae ahí
+        self.preferida_materia = preferida_materia or {}
         self.por_jornada = defaultdict(list)
         for fid, (jid, orden, ini, fin) in franjas.items():
             self.por_jornada[jid].append((orden, fid))
@@ -530,6 +533,9 @@ class Estado:
             mn = self.p.mejor_no_materia.get(parte['materia'])
             if mn and (dia, franja) in mn:
                 c += self.w['prefiere_no']
+            pm = self.p.preferida_materia.get(parte['materia'])
+            if pm and (dia, franja) in pm:
+                c -= self.w['preferida']
             if parte['materia'] in self.p.primeras:
                 c += self.w['tarde'] * self.p.indice[franja]
             if parte['materia'] in self.p.ultimas:
@@ -649,6 +655,8 @@ def _construir(p, est, cola, posibles, rnd, hasta, avance=None, total=1, tic=Non
                     if (d, f) in p.evitar.get(q['docente'], ()):
                         c += w['evitar']
                     if (d, f) in p.preferida.get(q['docente'], ()):
+                        c -= w['preferida']
+                    if (d, f) in p.preferida_materia.get(q['materia'], ()):
                         c -= w['preferida']
             if mejor_c is None or c < mejor_c - 1e-9:
                 mejores, mejor_c = [(d, f, estorban)], c

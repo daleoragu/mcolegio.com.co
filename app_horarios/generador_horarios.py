@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(AQUI))
 from horarios import especiales, impresion, nucleo         # noqa: E402
 from horarios.proyecto import Proyecto           # noqa: E402
 
-VERSION = '4.3.1'
+VERSION = '4.4.0'
 TITULO = 'mcolegio · Generador de horarios'
 AZUL, AZUL_CLARO, GRIS, BLANCO = '#3730a3', '#e0e7ff', '#f1f5f9', '#ffffff'
 VERDE, ROJO, AMARILLO = '#dcfce7', '#fecaca', '#fef08a'
@@ -44,8 +44,8 @@ PALETA = ['#bfdbfe', '#bbf7d0', '#fde68a', '#fecaca', '#ddd6fe', '#a5f3fc', '#fb
           '#c7d2fe', '#99f6e4', '#f5d0fe', '#e2e8f0', '#fef9c3', '#bae6fd', '#ffe4e6', '#dcfce7', '#e9d5ff',
           '#fcd34d', '#86efac', '#93c5fd', '#fca5a5', '#c4b5fd', '#67e8f9', '#f9a8d4', '#fdba74', '#bef264',
           '#a5b4fc', '#5eead4', '#f0abfc']
-COLOR_AREA = {'libre': BLOQ_LIBRE, 'no_puede': BLOQ_NO, 'prefiere_no': '#fbc02d'}
-TEXTO_AREA = {'libre': '', 'no_puede': 'No van', 'prefiere_no': 'Mejor no'}
+COLOR_AREA = {'libre': BLOQ_LIBRE, 'no_puede': BLOQ_NO, 'prefiere_no': '#fbc02d', 'preferida': '#60a5fa'}
+TEXTO_AREA = {'libre': '', 'no_puede': 'No van', 'prefiere_no': 'Mejor no', 'preferida': 'Preferible'}
 TEXTO_ESTADO = {'libre': '', 'no_puede': 'No puede', 'prefiere_no': 'Mejor no', 'evitar': 'Mejor no +',
                 'preferida': 'Preferida'}
 ICONO = {'error': '✖ ', 'aviso': '⚠ ', 'info': 'ℹ '}
@@ -1010,7 +1010,8 @@ class App(tk.Tk):
         tk.Label(panel, text='Ej.: Informática → Sala de sistemas; Química → cualquiera de Laboratorios. Se usa si en '
                              '«5. Salones» están activados.', bg=CARD, fg='#64748b', wraplength=520,
                  justify='left').pack(anchor='w')
-        tk.Label(panel, text='Horas: verde = puede · rojo = no va · amarillo = mejor no', bg=CARD, fg=TINTA,
+        tk.Label(panel, text='Horas: verde = puede · rojo = no va · amarillo = mejor no · azul = preferible (procura ponerla ahí)',
+                 bg=CARD, fg=TINTA,
                  font=('Segoe UI', 10, 'bold')).pack(anchor='w', pady=(10, 4))
         self._rejilla(panel, self.p.jornadas_de_materia(mid), lambda d, f: self.p.estado_celda_materia(mid, d, f),
                       lambda d, f: (self.p.siguiente_estado_materia(mid, d, f), self._llenar_materias())[0],
@@ -1392,6 +1393,8 @@ class App(tk.Tk):
                      guardar('max_seguidas')).pack(anchor='w', pady=2)
         self._numero(abajo, 'Permanencia de este docente (horas, 0 = la regla general):', r.get('permanencia') or 0, 0, 14,
                      guardar('permanencia'), 0.5).pack(anchor='w')
+        self._numero(abajo, 'Máximo de días largos a la semana (ej.: días de 7 h; 0 = la regla general):',
+                     r.get('max_dias_largos') or 0, 0, 5, guardar('max_dias_largos')).pack(anchor='w', pady=(2, 0))
         if extra:
             self._numero(abajo, f'Tiene {extra} hora(s) extra (hasta {extra} día(s) largo(s)): su día puede alargarse '
                                 f'hasta (horas más; 0 = la regla general):',
@@ -1483,7 +1486,7 @@ class App(tk.Tk):
         tk.Label(panel, text=f'Área {area}', bg=CARD, fg=TINTA, font=('Segoe UI', 13, 'bold')).pack(anchor='w')
         tk.Label(panel, text=f'Materias: {mats}', bg=CARD, fg='#64748b', wraplength=560, justify='left').pack(anchor='w')
         tk.Label(panel, text='Toque una casilla: verde = puede, rojo = las clases del área NO van a esa hora, '
-                             'amarillo = mejor no. Vale para todos los cursos y docentes del área.', bg=CARD,
+                             'amarillo = mejor no, azul = preferible (el generador procura ponerlas ahí). Vale para todos los cursos y docentes del área.', bg=CARD,
                  fg='#475569', wraplength=560, justify='left').pack(anchor='w', pady=(4, 6))
 
         def siguiente(d, f):
