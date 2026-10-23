@@ -195,6 +195,12 @@ def configuracion(request):
                     'escala': p.get('escala') if p.get('escala') in fmt.ESCALAS else '1-4',
                     'habilidades': p.get('habilidades', '').strip()[:20000],
                     'instrucciones': p.get('instrucciones', '').strip()[:2000],
+                    'firmas': {'estilo': p.get('estilo_firma') if p.get('estilo_firma') in dict(fmt.ESTILOS_FIRMA)
+                               else 'lineas',
+                               'piar': [k for k, _ in fmt.FIRMANTES if p.get(f'fp_{k}')],
+                               'acta': [k for k, _ in fmt.FIRMANTES if p.get(f'fa_{k}')],
+                               'otros_piar': p.get('otros_piar', '').strip()[:1000],
+                               'otros_acta': p.get('otros_acta', '').strip()[:1000]},
                 }
             conf.save(update_fields=['formato'])
             messages.success(request, 'Formato del PIAR guardado: así les sale a los docentes y así sale el PDF.')
@@ -204,7 +210,8 @@ def configuracion(request):
         'colegio': request.colegio, 'docentes': docentes, 'es_admin': es_admin(request), 'f': f,
         'secciones': [(k, t, f['secciones'][k]) for k, t in fmt.SECCIONES],
         'columnas': [(k, f['columnas'][k], apagable) for k, _, _, apagable in fmt.COLUMNAS],
-        'grupos': fmt.grupos(f),
+        'grupos': fmt.grupos(f), 'estilos_firma': fmt.ESTILOS_FIRMA,
+        'firmantes': [(k, t, k in f['firmas']['piar'], k in f['firmas']['acta']) for k, t in fmt.FIRMANTES],
         'elegidos': set(conf.docentes_apoyo.values_list('id', flat=True))})
 
 
@@ -260,7 +267,10 @@ def detalle(request, pk):
         'habilidades': _filas_habilidades(f, piar.habilidades), 'escala': fmt.ESCALAS[f['escala']],
         'alertas': fmt.alertas_habilidades(f, piar.habilidades),
         'otras': [(k, (piar.otras_dimensiones or {}).get(k, '')) for k in fmt.OTRAS],
-        'actores': [(k, t, (piar.recomendaciones_actores or {}).get(k, '')) for k, t in fmt.ACTORES]})
+        'actores': [(k, t, (piar.recomendaciones_actores or {}).get(k, '')) for k, t in fmt.ACTORES],
+        'estilos_firma': fmt.ESTILOS_FIRMA,
+        'imprimir': [(doc, titulo, [(k, t, k in f['firmas'][doc]) for k, t in fmt.FIRMANTES], f['firmas'][f'otros_{doc}'])
+                     for doc, titulo in (('piar', 'PIAR'), ('acta', 'Acta de acuerdo'))]})
 
 
 def _filas_habilidades(f, respuestas):
@@ -367,12 +377,23 @@ def _contexto_pdf(piar):
             'firmantes': firmantes}
 
 
+def _con_firmas(request, piar, contexto, doc):
+    """Las firmas del formato; al imprimir se pueden cambiar (?estilo=cuadro&firma=…&otros=…)."""
+    f = contexto['f']
+    g = request.GET
+    quienes = g.getlist('firma') if g.get('cambiar') else None
+    otros = g.get('otros') if g.get('cambiar') else None
+    estilo = g.get('estilo') if g.get('estilo') in dict(fmt.ESTILOS_FIRMA) else f['firmas']['estilo']
+    contexto.update({'firmas': fmt.firmantes(piar, f, doc, quienes, otros), 'estilo_firma': estilo})
+    return contexto
+
+
 @login_required
 def pdf(request, pk):
     piar = _piar(request, pk)
     if not (logica.puede_ver(request, piar) or _es_su_familia(request, piar)):
         return HttpResponseForbidden('No tiene acceso a este PIAR.')
-    return _pdf(request, 'piar/pdf_piar.html', _contexto_pdf(piar),
+    return _pdf(request, 'piar/pdf_piar.html', _con_firmas(request, piar, _contexto_pdf(piar), 'piar'),
                 f'PIAR {piar.ano_lectivo} {piar.estudiante.user.get_full_name()}')
 
 
@@ -381,7 +402,7 @@ def acta_pdf(request, pk):
     piar = _piar(request, pk)
     if not (logica.puede_ver(request, piar) or _es_su_familia(request, piar)):
         return HttpResponseForbidden('No tiene acceso a este PIAR.')
-    return _pdf(request, 'piar/pdf_acta.html', _contexto_pdf(piar),
+    return _pdf(request, 'piar/pdf_acta.html', _con_firmas(request, piar, _contexto_pdf(piar), 'acta'),
                 f'Acta de acuerdo PIAR {piar.estudiante.user.get_full_name()}')
 
 

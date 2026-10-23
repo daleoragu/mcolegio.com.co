@@ -13,6 +13,18 @@
 {% endblock %}
 {% block content %}
 {% include 'piar/_estilos.html' %}
+<details class="pi-tarjeta py-2 mb-3"><summary class="small fw-semibold" style="cursor:pointer"><i class="fas fa-print me-1"></i>Imprimir con otras firmas</summary>
+    <div class="row g-3 mt-1">{% for doc, titulo, lista, otros_txt in imprimir %}
+        <div class="col-md-6"><form method="get" action="{% if doc == 'piar' %}{% url 'piar:pdf' piar.pk %}{% else %}{% url 'piar:acta' piar.pk %}{% endif %}" target="_blank" class="border rounded p-2">
+            <input type="hidden" name="cambiar" value="1"><div class="fw-semibold small mb-1">{{ titulo }}</div>
+            <select name="estilo" class="form-select form-select-sm mb-2">{% for v, t in estilos_firma %}<option value="{{ v }}" {% if f.firmas.estilo == v %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
+            {% for k, t, marcado in lista %}<div class="form-check"><input class="form-check-input" type="checkbox" name="firma" value="{{ k }}" id="{{ doc }}_{{ k }}" {% if marcado %}checked{% endif %}>
+                <label class="form-check-label small" for="{{ doc }}_{{ k }}">{{ t }}</label></div>{% endfor %}
+            <textarea name="otros" class="form-control form-control-sm mt-2" rows="2" placeholder="Otros que firman (uno por línea)">{{ otros_txt }}</textarea>
+            <button class="btn btn-sm btn-outline-primary mt-2"><i class="fas fa-file-pdf me-1"></i>Generar {{ titulo }}</button>
+        </form></div>{% endfor %}</div>
+    <div class="pi-ayuda mt-1">Solo cambia este PDF. Para dejarlo fijo, use «Formato del PIAR».</div>
+</details>
 {% if otros %}<p class="small text-muted">Otros años: {% for o in otros %}<a href="{% url 'piar:detalle' o.pk %}">{{ o.ano_lectivo }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% endif %}
 
 {% if not general %}{% include 'piar/_matriz.html' %}{% endif %}

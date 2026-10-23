@@ -192,6 +192,34 @@ class PiarTests(ColegioDePrueba):
         c.post('/piar/configuracion/', {'que': 'formato', 'restaurar': '1'})
         self.assertEqual(formato.de(self.a)['escala'], '1-4')
 
+    def test_firmas_en_lineas_o_cuadro_y_quien_firma(self):
+        from . import formato
+        piar = self._crear()
+        f = formato.de(self.a)
+        nombres = [(x['nombre'], x['cargo']) for x in formato.firmantes(piar, f, 'piar')]
+        self.assertIn(('Pedro Profe', 'Docente · Matemáticas'), nombres)
+        self.assertIn(('Olga Otra', 'Docente · Inglés'), nombres)
+        self.assertIn(('Pedro Profe', 'Director(a) de grupo'), nombres)
+        self.assertNotIn('Estudiante', [c for _, c in nombres])
+        self.assertIn('Estudiante', [x['cargo'] for x in formato.firmantes(piar, f, 'acta')])
+        # La orientadora deja el cuadro, quita a los docentes del acta y agrega a la psicóloga
+        datos = {'que': 'formato', 'estilo_firma': 'cuadro', 'fp_rector': 'on', 'fp_acudiente': 'on',
+                 'fa_acudiente': 'on', 'otros_acta': 'Laura Gil — Psicóloga\nComité de convivencia',
+                 'sec_ajustes': 'on', 'sec_acta': 'on', 'col_ajustes': 'on'}
+        self.cliente(self.rectora).post('/piar/configuracion/', datos)
+        f = formato.de(self.a)
+        self.assertEqual(f['firmas']['estilo'], 'cuadro')
+        self.assertEqual([x['cargo'] for x in formato.firmantes(piar, f, 'acta')],
+                         ['Acudiente / familia', 'Psicóloga', 'Comité de convivencia'])
+        self.assertEqual(formato.firmantes(piar, f, 'acta')[1]['nombre'], 'Laura Gil')
+        # Al imprimir se cambia solo para ese PDF
+        c = self.cliente(self.rectora)
+        for url in (f'/piar/{piar.pk}/piar.pdf', f'/piar/{piar.pk}/acta.pdf',
+                    f'/piar/{piar.pk}/acta.pdf?cambiar=1&estilo=lineas&firma=estudiante&firma=docentes&otros=Coordinador'):
+            r = c.get(url)
+            self.assertEqual((r.status_code, r['Content-Type']), (200, 'application/pdf'))
+        self.assertContains(c.get(f'/piar/{piar.pk}/'), 'Imprimir con otras firmas')
+
 
 class MigracionesDeModulos(ColegioDePrueba):
     """Al instalar: cartera apagada en los colegios que ya existían, PIAR encendido (salvo plan Básico)."""
