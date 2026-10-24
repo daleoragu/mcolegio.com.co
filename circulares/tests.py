@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
 """Circulares: publicar a quien corresponde, leer, confirmar y ver quién falta."""
+import os
+from unittest import mock
+
 from notas.models import Curso, FichaEstudiante, Notificacion
 from notas.tests.base import ColegioDePrueba
 
+from . import logica
 from .models import Circular, Lectura
+
+VARIABLES_WA = {'WHATSAPP_TOKEN': 'x', 'WHATSAPP_PHONE_ID': '123', 'WHATSAPP_PLANTILLA': 'aviso'}
 
 
 class Circulares(ColegioDePrueba):
@@ -76,3 +82,73 @@ class Circulares(ColegioDePrueba):
         vacio = Curso.objects.create(colegio=self.a, nombre='1101', grado=11)
         self._publicar(para='CURSOS', cursos=[vacio.id])
         self.assertTrue(Circular.objects.get().es_borrador)
+
+
+@mock.patch.object(logica, 'EN_SEGUNDO_PLANO', False)
+class CircularesPorWhatsApp(ColegioDePrueba):
+    """La casilla de WhatsApp: solo con la línea conectada; un mensaje por familia; reintento de las que faltan."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        FichaEstudiante.objects.create(estudiante=cls.estudiantes[0], celular_madre='3001234567',
+                                       celular_acudiente='3109998877')
+        FichaEstudiante.objects.create(estudiante=cls.estudiantes[1], celular_padre='3015550000')
+
+    def _publicar(self, **datos):
+        base = {'titulo': 'Reunión de padres', 'cuerpo': 'El lunes a las 7.', 'para': 'FAMILIAS',
+                'pide_confirmacion': 'on', 'por_whatsapp': 'on', 'accion': 'publicar'}
+        base.update(datos)
+        return self.cliente(self.rectora).post('/circulares/gestion/nueva/', base)
+
+    def test_sin_linea_no_se_ofrece_ni_se_envia(self):
+        os.environ.pop('WHATSAPP_TOKEN', None)
+        r = self.cliente(self.rectora).get('/circulares/gestion/nueva/')
+        self.assertNotIn('por_whatsapp', r.context['form'].fields)
+        with mock.patch('notas.mensajeria.enviar_whatsapp') as mandar:
+            self._publicar()
+        mandar.assert_not_called()
+        self.assertFalse(Circular.objects.get().por_whatsapp)
+
+    def test_un_whatsapp_por_familia_al_primer_celular(self):
+        self.a.whatsapp_automatico = True
+        self.a.save()
+        with mock.patch.dict(os.environ, VARIABLES_WA), \
+                mock.patch('notas.mensajeria.enviar_whatsapp', return_value=(True, 'ok')) as mandar:
+            self.assertIn('por_whatsapp', self.cliente(self.rectora).get('/circulares/gestion/nueva/').context['form'].fields)
+            self._publicar()
+        c = Circular.objects.get()
+        self.assertTrue(c.por_whatsapp)
+        numeros = sorted(llamada.args[1] for llamada in mandar.call_args_list)
+        self.assertEqual(numeros, ['573015550000', '573109998877'])      # acudiente antes que mamá; caro sin ficha
+        self.assertIn(f'/circulares/{c.id}/', mandar.call_args_list[0].args[2])
+        ana = Lectura.objects.get(usuario=self.estudiantes[0].user)
+        self.assertIsNotNone(ana.whatsapp_enviado)
+        self.assertEqual(ana.whatsapp_detalle, 'Acudiente 3109998877')
+        self.assertEqual(Lectura.objects.get(usuario=self.estudiantes[2].user).whatsapp_detalle, 'La ficha no tiene celular')
+        self.assertEqual(logica.resumen(c)['whatsapp'], 2)
+
+    def test_reintentar_solo_a_las_que_faltan(self):
+        self.a.whatsapp_automatico = True
+        self.a.save()
+        with mock.patch.dict(os.environ, VARIABLES_WA):
+            with mock.patch('notas.mensajeria.enviar_whatsapp', side_effect=[(True, 'ok'), (False, 'WhatsApp respondió 429')]):
+                self._publicar()
+            c = Circular.objects.get()
+            fallo = Lectura.objects.get(whatsapp_detalle__startswith='No salió')
+            self.assertIn('429', fallo.whatsapp_detalle)
+            r = self.cliente(self.rectora).get(f'/circulares/gestion/{c.id}/')
+            self.assertContains(r, 'Enviar a las que faltan')
+            with mock.patch('notas.mensajeria.enviar_whatsapp', return_value=(True, 'ok')) as mandar:
+                self.cliente(self.rectora).post(f'/circulares/gestion/{c.id}/whatsapp/')
+        self.assertEqual(mandar.call_count, 1)                           # solo la que había fallado
+        fallo.refresh_from_db()
+        self.assertIsNotNone(fallo.whatsapp_enviado)
+
+    def test_se_para_si_fallan_muchos_seguidos(self):
+        self.a.whatsapp_automatico = True
+        self.a.save()
+        with mock.patch.dict(os.environ, VARIABLES_WA), mock.patch.object(logica, 'MAX_FALLOS_SEGUIDOS', 1), \
+                mock.patch('notas.mensajeria.enviar_whatsapp', return_value=(False, 'límite')) as mandar:
+            self._publicar()
+        self.assertEqual(mandar.call_count, 1)

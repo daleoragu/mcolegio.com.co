@@ -18,7 +18,7 @@ from .models import Circular, Lectura
 class CircularForm(forms.ModelForm):
     class Meta:
         model = Circular
-        fields = ['titulo', 'cuerpo', 'adjunto', 'para', 'cursos', 'pide_confirmacion', 'fecha_limite']
+        fields = ['titulo', 'cuerpo', 'adjunto', 'para', 'cursos', 'pide_confirmacion', 'fecha_limite', 'por_whatsapp']
         widgets = {
             'titulo': forms.TextInput(attrs={'class': 'form-control'}),
             'cuerpo': forms.Textarea(attrs={'class': 'form-control', 'rows': 10}),
@@ -26,6 +26,7 @@ class CircularForm(forms.ModelForm):
             'para': forms.RadioSelect,
             'cursos': forms.CheckboxSelectMultiple,
             'pide_confirmacion': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'por_whatsapp': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'fecha_limite': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
         }
 
@@ -33,6 +34,8 @@ class CircularForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['cursos'].queryset = Curso.objects.filter(colegio=colegio).order_by('nombre')
         self.fields['cursos'].required = False
+        if not logica.whatsapp_disponible(colegio):      # sin línea conectada no se ofrece
+            del self.fields['por_whatsapp']
 
     def clean(self):
         datos = super().clean()
@@ -76,9 +79,13 @@ def editar(request, pk=None):
                 messages.error(request, 'No hay a quién enviarla: los cursos escogidos no tienen estudiantes activos. '
                                         'Quedó guardada como borrador.')
                 return redirect('circulares:editar', pk=nueva.pk)
-            total, correos = logica.publicar(nueva, _url_ver(request, nueva))
+            url = _url_ver(request, nueva)
+            total, correos = logica.publicar(nueva, url)
             messages.success(request, f'Circular N.º {nueva.numero} publicada para {total} destinatario'
                                       f'{"s" if total != 1 else ""}' + (f'; {correos} correo(s) enviados.' if correos else '.'))
+            if nueva.por_whatsapp and logica.whatsapp_disponible(request.colegio):
+                logica.lanzar_whatsapp(nueva, url)
+                messages.info(request, 'Los WhatsApp a las familias se están enviando. Aquí abajo ve a quién le llegó.')
             return redirect('circulares:detalle', pk=nueva.pk)
         messages.success(request, 'Borrador guardado.')
         return redirect('circulares:editar', pk=nueva.pk)
@@ -115,9 +122,31 @@ def detalle(request, pk):
         for c in contactos:
             c['enlace'] = avisos_familia.enlace_whatsapp(c['numero'], texto)
         filas.append({'l': l, 'contactos': contactos})
+    wa = logica.whatsapp_disponible(request.colegio)
     return render(request, 'circulares/detalle.html', {
         'colegio': request.colegio, 'c': circular, 'resumen': logica.resumen(circular), 'filas': filas,
-        'filtro': filtro, 'texto': texto})
+        'filtro': filtro, 'texto': texto, 'whatsapp_disponible': wa,
+        'faltan_whatsapp': logica.pendientes_whatsapp(circular).count() if wa else 0})
+
+
+@admin_requerido
+@require_POST
+def reenviar_whatsapp(request, pk):
+    """Manda el WhatsApp a las familias que faltan (por ejemplo, después del límite diario de Meta)."""
+    circular = get_object_or_404(Circular, pk=pk, colegio=request.colegio, publicada__isnull=False)
+    if not logica.whatsapp_disponible(request.colegio):
+        messages.error(request, 'La línea de WhatsApp no está conectada o el colegio no tiene activados los avisos automáticos.')
+    else:
+        faltan = logica.pendientes_whatsapp(circular).count()
+        if faltan:
+            if not circular.por_whatsapp:
+                circular.por_whatsapp = True
+                circular.save(update_fields=['por_whatsapp'])
+            logica.lanzar_whatsapp(circular, _url_ver(request, circular))
+            messages.info(request, f'Enviando el WhatsApp a {faltan} familia{"s" if faltan != 1 else ""} que faltaban.')
+        else:
+            messages.info(request, 'No falta ninguna familia por WhatsApp.')
+    return redirect('circulares:detalle', pk=circular.pk)
 
 
 # ---------------------------------------------------------------------------

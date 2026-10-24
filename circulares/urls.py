@@ -13,4 +13,5 @@ urlpatterns = [
     path('gestion/<int:pk>/', views.detalle, name='detalle'),
     path('gestion/<int:pk>/editar/', views.editar, name='editar'),
     path('gestion/<int:pk>/eliminar/', views.eliminar, name='eliminar'),
+    path('gestion/<int:pk>/whatsapp/', views.reenviar_whatsapp, name='reenviar_whatsapp'),
 ]

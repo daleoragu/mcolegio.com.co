@@ -1,5 +1,7 @@
+import threading
+
 from django.contrib.auth.models import User
-from django.db import transaction
+from django.db import close_old_connections, transaction
 from django.db.models import Max
 from django.utils import timezone
 
@@ -69,6 +71,72 @@ def publicar(circular, url_ver):
     return len(lista), correos
 
 
+# ----------------------------------------------------------------------------- WhatsApp
+
+# En las pruebas se pone en False para que el envío ocurra en el mismo hilo.
+EN_SEGUNDO_PLANO = True
+# Si fallan tantos seguidos, se para: casi siempre es el límite diario de Meta o la línea caída.
+MAX_FALLOS_SEGUIDOS = 5
+
+
+def whatsapp_disponible(colegio):
+    """La línea de la plataforma está conectada y el colegio activó los avisos automáticos."""
+    return mensajeria.whatsapp_configurado() and bool(getattr(colegio, 'whatsapp_automatico', False))
+
+
+def texto_whatsapp(circular, url):
+    return (f'Se publicó la circular N.º {circular.numero} «{circular.titulo}». '
+            f'Véala{" y confirme que la leyó" if circular.pide_confirmacion else ""} en: {url}')
+
+
+def pendientes_whatsapp(circular):
+    """Lecturas de familias a las que todavía no les ha llegado el WhatsApp (y que no la han leído)."""
+    ya = {'confirmada__isnull': True} if circular.pide_confirmacion else {'abierta__isnull': True}
+    return circular.lecturas.filter(estudiante__isnull=False, whatsapp_enviado__isnull=True, **ya)
+
+
+def enviar_whatsapp(circular, url):
+    """Manda el aviso de la circular por WhatsApp a cada familia que falta. Devuelve (enviados, fallidos).
+
+    A cada familia le llega un solo mensaje, al primer celular de la ficha (acudiente, mamá o papá)."""
+    if not whatsapp_disponible(circular.colegio):
+        return 0, 0
+    texto = texto_whatsapp(circular, url)
+    enviados = fallidos = seguidos = 0
+    for l in pendientes_whatsapp(circular).select_related('estudiante__ficha'):
+        cs = avisos_familia.contactos(l.estudiante)
+        if not cs:
+            l.whatsapp_detalle = 'La ficha no tiene celular'
+            l.save(update_fields=['whatsapp_detalle'])
+            continue
+        ok, detalle = mensajeria.enviar_whatsapp(circular.colegio, cs[0]['numero'], texto)
+        if ok:
+            l.whatsapp_enviado = timezone.now()
+            l.whatsapp_detalle = f'{cs[0]["rol"]} {cs[0]["visible"]}'[:120]
+            enviados, seguidos = enviados + 1, 0
+        else:
+            l.whatsapp_detalle = f'No salió: {detalle}'[:120]
+            fallidos, seguidos = fallidos + 1, seguidos + 1
+        l.save(update_fields=['whatsapp_enviado', 'whatsapp_detalle'])
+        if seguidos >= MAX_FALLOS_SEGUIDOS:
+            break
+    return enviados, fallidos
+
+
+def lanzar_whatsapp(circular, url):
+    """Envía en segundo plano para no dejar la página esperando mientras salen cientos de mensajes."""
+    if not EN_SEGUNDO_PLANO:
+        return enviar_whatsapp(circular, url)
+
+    def trabajo():
+        try:
+            enviar_whatsapp(circular, url)
+        finally:
+            close_old_connections()
+    threading.Thread(target=trabajo, daemon=True).start()
+    return None
+
+
 def resumen(circular):
     lecturas = circular.lecturas.all()
     total = lecturas.count()
@@ -76,4 +144,5 @@ def resumen(circular):
     confirmadas = lecturas.filter(confirmada__isnull=False).count()
     base = confirmadas if circular.pide_confirmacion else abiertas
     return {'total': total, 'abiertas': abiertas, 'confirmadas': confirmadas,
-            'pct': round(100 * base / total) if total else 0}
+            'pct': round(100 * base / total) if total else 0,
+            'whatsapp': lecturas.filter(whatsapp_enviado__isnull=False).count()}
