@@ -64,7 +64,7 @@ def cursos_del_docente(docente):
 # Datos
 # ---------------------------------------------------------------------------
 def periodos(colegio, ano):
-    return list(PeriodoAcademico.objects.filter(colegio=colegio, ano_lectivo=ano).order_by('fecha_inicio'))
+    return list(PeriodoAcademico.objects.filter(colegio=colegio, ano_lectivo=ano).order_by('orden'))
 
 
 def periodo_en_curso(colegio, ano, hoy=None):
@@ -159,8 +159,8 @@ def avisar_docentes(piar, url):
 
 
 def ajuste_anterior(piar, materia, periodo):
-    return (AjustePiar.objects.filter(piar=piar, materia=materia, periodo__fecha_inicio__lt=periodo.fecha_inicio)
-            .order_by('-periodo__fecha_inicio').first())
+    return (AjustePiar.objects.filter(piar=piar, materia=materia, periodo__orden__lt=periodo.orden)
+            .order_by('-periodo__orden').first())
 
 
 def pendientes_docente(request, ano, hoy=None):

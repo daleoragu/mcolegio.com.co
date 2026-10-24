@@ -189,7 +189,17 @@ def panel_control_periodos_vista(request):
         
         return redirect('notas:panel_control_periodos')
 
-    periodos = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', '-fecha_inicio')
+    periodos = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'orden')
+    # Aviso si las fechas no van en el mismo orden que los periodos (ej.: el primero empieza después del segundo)
+    por_ano = {}
+    for p in periodos:
+        por_ano.setdefault(p.ano_lectivo, []).append(p)
+    for ano, lista in por_ano.items():
+        for a, b in zip(lista, lista[1:]):
+            if a.fecha_inicio and b.fecha_inicio and a.fecha_inicio >= b.fecha_inicio:
+                messages.warning(request, f'{ano}: el {a.get_nombre_display().lower()} empieza el {a.fecha_inicio:%d/%m/%Y}, '
+                                          f'después del {b.get_nombre_display().lower()} ({b.fecha_inicio:%d/%m/%Y}). '
+                                          'Revise las fechas: la plataforma los muestra en orden de todas formas.')
     context = {
         'periodos': periodos,
         'colegio': request.colegio,
@@ -319,7 +329,7 @@ def configuracion_calificaciones_vista(request):
     ano_actual = PeriodoAcademico.objects.filter(colegio=request.colegio).aggregate(
         maximo=Max('ano_lectivo'))['maximo']
     periodos_colegio = PeriodoAcademico.objects.filter(
-        colegio=request.colegio, ano_lectivo=ano_actual).order_by('fecha_inicio')
+        colegio=request.colegio, ano_lectivo=ano_actual).order_by('orden')
 
     if request.method == 'POST':
         formset = MateriaFormSet(request.POST, queryset=materias_colegio, form_kwargs={'componentes': lista_componentes})

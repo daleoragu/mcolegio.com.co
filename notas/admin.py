@@ -55,7 +55,7 @@ class PeriodoAcademicoAdmin(BaseColegioAdmin):
     list_display = ('__str__', 'esta_activo', 'colegio')
     list_filter = ('colegio', 'ano_lectivo', 'esta_activo')
     search_fields = ('nombre', 'ano_lectivo__exact')
-    ordering = ('-ano_lectivo', 'fecha_inicio')
+    ordering = ('-ano_lectivo', 'orden')
 
 @admin.register(Curso)
 class CursoAdmin(BaseColegioAdmin):

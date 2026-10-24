@@ -61,7 +61,7 @@ class ExamenForm(forms.ModelForm):
             asignaciones = asignaciones.select_related('materia', 'curso').order_by(
                 'curso__orden', 'materia__nombre')
             periodos = PeriodoAcademico.objects.filter(colegio=colegio).order_by(
-                '-ano_lectivo', 'fecha_inicio')
+                '-ano_lectivo', 'orden')
         self.fields['asignacion'].queryset = asignaciones
         self.fields['periodo'].queryset = periodos
         self.fields['asignacion'].empty_label = 'Seleccione asignatura y curso'

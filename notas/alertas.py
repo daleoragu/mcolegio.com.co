@@ -30,10 +30,10 @@ def maximo_permitido(colegio):
 
 
 def periodos_hasta(colegio, ano, periodo=None):
-    periodos = list(PeriodoAcademico.objects.filter(colegio=colegio, ano_lectivo=ano).order_by('fecha_inicio'))
+    periodos = list(PeriodoAcademico.objects.filter(colegio=colegio, ano_lectivo=ano).order_by('orden'))
     if periodo is None:
         return periodos
-    return [p for p in periodos if p.fecha_inicio <= periodo.fecha_inicio]
+    return [p for p in periodos if p.orden <= periodo.orden]
 
 
 @calculo_en_lote

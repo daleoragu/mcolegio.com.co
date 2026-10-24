@@ -37,7 +37,7 @@ class ActaForm(forms.ModelForm):
         comision = self.instance.tipo == Acta.COMISION
         if comision:
             self.fields['periodo'].queryset = PeriodoAcademico.objects.filter(colegio=colegio).order_by(
-                '-ano_lectivo', '-fecha_inicio')
+                '-ano_lectivo', 'orden')
             self.fields['periodo'].required = True
             self.fields['cursos'].queryset = Curso.objects.filter(colegio=colegio).order_by('grado', 'nombre')
             self.fields['sede'].queryset = Sede.objects.filter(colegio=colegio)

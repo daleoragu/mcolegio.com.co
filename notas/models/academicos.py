@@ -62,6 +62,9 @@ class Materia(models.Model):
 class PeriodoAcademico(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="periodos_academicos", null=True)
     nombre = models.CharField(max_length=20, choices=[('PRIMERO', 'Primer Periodo'), ('SEGUNDO', 'Segundo Periodo'), ('TERCERO', 'Tercer Periodo'), ('CUARTO', 'Cuarto Periodo')])
+    # 1 a 4 según el nombre: los periodos siempre salen del primero al último, aunque las fechas
+    # se hayan escrito mal (se llena solo al guardar).
+    orden = models.PositiveSmallIntegerField(default=0, editable=False, db_index=True)
     ano_lectivo = models.PositiveIntegerField(default=datetime.date.today().year)
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
@@ -82,8 +85,14 @@ class PeriodoAcademico(models.Model):
                                                verbose_name="Cierre programado de las nivelaciones")
     class Meta:
         unique_together = ('nombre', 'ano_lectivo', 'colegio')
-        verbose_name = "Periodo Académico"; verbose_name_plural = "Periodos Académicos"; ordering = ['-ano_lectivo', 'fecha_inicio']
+        verbose_name = "Periodo Académico"; verbose_name_plural = "Periodos Académicos"; ordering = ['-ano_lectivo', 'orden', 'fecha_inicio']
+    ORDEN = {'PRIMERO': 1, 'SEGUNDO': 2, 'TERCERO': 3, 'CUARTO': 4}
     def __str__(self): return f"{self.get_nombre_display()} - {self.ano_lectivo}"
+    def save(self, *args, **kwargs):
+        self.orden = self.ORDEN.get(self.nombre, 9)
+        if kwargs.get('update_fields') is not None and 'nombre' in kwargs['update_fields']:
+            kwargs['update_fields'] = set(kwargs['update_fields']) | {'orden'}
+        super().save(*args, **kwargs)
     def clean(self):
         if self.fecha_inicio >= self.fecha_fin: raise ValidationError("La fecha de inicio debe ser anterior a la fecha de fin.")
 
@@ -243,7 +252,7 @@ class PublicacionBoletin(models.Model):
     esta_visible = models.BooleanField(default=False, verbose_name="¿Visible para Estudiantes?")
     def __str__(self): return f"Publicación del {self.periodo} - Visible: {self.esta_visible}"
     class Meta:
-        verbose_name = "Publicación de Boletín de Periodo"; verbose_name_plural = "Publicaciones de Boletines de Periodo"; ordering = ['-periodo__ano_lectivo', '-periodo__fecha_inicio']
+        verbose_name = "Publicación de Boletín de Periodo"; verbose_name_plural = "Publicaciones de Boletines de Periodo"; ordering = ['-periodo__ano_lectivo', '-periodo__orden']
 
 class PublicacionBoletinFinal(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="publicaciones_finales", null=True)

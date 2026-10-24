@@ -140,7 +140,7 @@ class AjustePiar(models.Model):
 
     class Meta:
         unique_together = ('piar', 'materia', 'periodo')
-        ordering = ['materia__nombre', 'periodo__fecha_inicio']
+        ordering = ['materia__nombre', 'periodo__orden']
 
     def __str__(self):
         return f'{self.piar} · {self.materia} · {self.periodo}'

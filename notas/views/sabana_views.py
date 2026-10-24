@@ -50,8 +50,8 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
                 return escala.nombre_desempeno.upper()
         return "SIN ESCALA"
 
-    periodos_del_ano = PeriodoAcademico.objects.filter(colegio=colegio, ano_lectivo=periodo_actual.ano_lectivo).order_by('fecha_inicio')
-    periodos_transcurridos = periodos_del_ano.filter(fecha_inicio__lte=periodo_actual.fecha_inicio)
+    periodos_del_ano = PeriodoAcademico.objects.filter(colegio=colegio, ano_lectivo=periodo_actual.ano_lectivo).order_by('orden')
+    periodos_transcurridos = periodos_del_ano.filter(orden__lte=periodo_actual.orden)
     
     materias_del_curso = Materia.objects.filter(colegio=colegio, asignaciondocente__curso=curso).distinct().order_by('nombre')
     
@@ -410,7 +410,7 @@ def selector_sabana_vista(request):
             return redirect('notas:dashboard')
             
     ano_actual = timezone.now().year
-    periodos = PeriodoAcademico.objects.filter(colegio=request.colegio, ano_lectivo=ano_actual).order_by('fecha_inicio')
+    periodos = PeriodoAcademico.objects.filter(colegio=request.colegio, ano_lectivo=ano_actual).order_by('orden')
     
  
     context = {

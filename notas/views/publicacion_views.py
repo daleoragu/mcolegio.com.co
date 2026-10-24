@@ -98,7 +98,7 @@ def panel_publicacion_vista(request):
         return redirect('notas:panel_publicacion')
 
     # CORRECCIÓN: Filtrar periodos por el colegio actual.
-    periodos = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'fecha_inicio')
+    periodos = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'orden')
     periodos_agrupados = {k: list(v) for k, v in groupby(periodos, key=lambda p: p.ano_lectivo)}
     
     # CORRECCIÓN: Filtrar publicaciones por el colegio actual.

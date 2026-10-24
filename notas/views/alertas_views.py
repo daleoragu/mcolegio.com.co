@@ -40,7 +40,7 @@ def alertas_tempranas(request):
         ano = int(request.GET.get('ano') or (anos[0] if anos else 0))
     except ValueError:
         ano = anos[0] if anos else 0
-    periodos = list(PeriodoAcademico.objects.filter(colegio=request.colegio, ano_lectivo=ano).order_by('fecha_inicio'))
+    periodos = list(PeriodoAcademico.objects.filter(colegio=request.colegio, ano_lectivo=ano).order_by('orden'))
     periodo = next((p for p in periodos if str(p.id) == request.GET.get('periodo')), None)
     if periodo is None and periodos:
         # Por defecto: el último periodo abierto, o el último del año.

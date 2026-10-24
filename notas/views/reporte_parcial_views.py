@@ -216,10 +216,10 @@ def acta_reporte_parcial_estudiante(request, estudiante_id):
         'asignacion__curso', 
         'periodo', 
         'asignacion__docente__user'
-    ).order_by('periodo__ano_lectivo', 'periodo__fecha_inicio', 'asignacion__materia__nombre')
+    ).order_by('periodo__ano_lectivo', 'periodo__orden', 'asignacion__materia__nombre')
 
     # Obtener todos los períodos para el selector
-    todos_los_periodos = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', '-fecha_inicio')
+    todos_los_periodos = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'orden')
 
     context = {
         'colegio': request.colegio,

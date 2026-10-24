@@ -25,7 +25,7 @@ def _rango_observador(acta):
     p = acta.periodo
     if acta.alcance == Acta.ACUMULADO:
         periodos = periodos_hasta(acta.colegio, p.ano_lectivo, p)
-        return (periodos[0].fecha_inicio if periodos else p.fecha_inicio), p.fecha_fin
+        return (min(x.fecha_inicio for x in periodos) if periodos else p.fecha_inicio), p.fecha_fin
     return p.fecha_inicio, p.fecha_fin
 
 

@@ -405,7 +405,7 @@ def panel_estadisticas_vista(request):
         except Docente.DoesNotExist:
             return HttpResponseForbidden("Acceso denegado.")
 
-    periodos = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', '-fecha_inicio')
+    periodos = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'orden')
     anos_lectivos = PeriodoAcademico.objects.filter(colegio=request.colegio).values_list('ano_lectivo', flat=True).distinct().order_by('-ano_lectivo')
     areas = Area.objects.filter(colegio=request.colegio).order_by('nombre')
     # Cada asignatura lleva el área a la que pertenece, para que el selector
