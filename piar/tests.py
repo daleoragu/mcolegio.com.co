@@ -163,16 +163,18 @@ class PiarTests(ColegioDePrueba):
         ConfiguracionPiar.de(self.a).docentes_apoyo.add(self.ajena)
         c = self.cliente(self.ajena.user)
         self.assertEqual(c.get('/piar/configuracion/').status_code, 200)
-        datos = {'que': 'formato', 'escala': 'SINO', 'instrucciones': 'Escriban el número del DBA.',
-                 'habilidades': '## MEMORIA\nRecuerda lo aprendido.\n## ATENCIÓN\n# Sostenida\nSe concentra 40 minutos.',
+        datos = {'que': 'formato', 'escala_BACH': 'SINO', 'instrucciones': 'Escriban el número del DBA.',
+                 'habilidades_BACH': '## MEMORIA\nRecuerda lo aprendido.\n## ATENCIÓN\n# Sostenida\nSe concentra 40 minutos.',
                  'tit_objetivos': 'DBA del periodo', 'col_objetivos': 'on', 'col_ajustes': 'on', 'col_evaluacion': 'on',
                  'sec_ajustes': 'on', 'sec_habilidades': 'on', 'sec_acta': 'on'}
         c.post('/piar/configuracion/', datos)
         f = formato.de(self.a)
-        self.assertEqual(f['escala'], 'SINO')
+        modelo = formato.modelo_de(f, piar)                  # Ana está en 601: bachillerato
+        self.assertEqual((modelo['nivel'], modelo['escala']), ('BACH', 'SINO'))
+        self.assertEqual(f['modelos']['PRI']['escala'], 'SNAV')        # los otros niveles quedan con lo suyo
         self.assertFalse(f['columnas']['apoyos']['activa'])
         self.assertFalse(f['secciones']['salud'])
-        self.assertEqual([g['nombre'] for g in formato.grupos(f)], ['MEMORIA', 'ATENCIÓN'])
+        self.assertEqual([g['nombre'] for g in formato.grupos(modelo)], ['MEMORIA', 'ATENCIÓN'])
         r = self.cliente(self.otra.user).get(f'/piar/{piar.pk}/ajuste/{self.ingles.pk}/{self.p1.pk}/')
         self.assertContains(r, 'DBA del periodo')
         self.assertContains(r, 'Escriban el número del DBA.')
@@ -181,16 +183,62 @@ class PiarTests(ColegioDePrueba):
         r = c.get(f'/piar/{piar.pk}/')
         self.assertNotIn('diagnostico', r.context['form'].fields)
         # Registro de habilidades con Sí/No
-        claves = [x['clave'] for g in formato.grupos(f) for x in g['filas'] if x['tipo'] == 'item']
+        claves = [x['clave'] for g in formato.grupos(modelo) for x in g['filas'] if x['tipo'] == 'item']
         c.post(f'/piar/{piar.pk}/', {'que': 'habilidades', f'h_{claves[0]}': 'No', f'h_{claves[1]}': 'Sí',
                                      'hobservaciones': 'Se cansa rápido'})
         piar.refresh_from_db()
         self.assertEqual(piar.habilidades[claves[0]], 'No')
-        self.assertEqual(formato.alertas_habilidades(f, piar.habilidades), ['MEMORIA'])
+        self.assertEqual(formato.alertas_habilidades(modelo, piar.habilidades), ['MEMORIA'])
         self.assertEqual(c.get(f'/piar/{piar.pk}/piar.pdf').status_code, 200)
         # Volver al de fábrica
         c.post('/piar/configuracion/', {'que': 'formato', 'restaurar': '1'})
-        self.assertEqual(formato.de(self.a)['escala'], '1-4')
+        self.assertEqual(formato.modelo_de(formato.de(self.a), piar)['escala'], 'SNAV')
+
+    def test_modelo_de_valoracion_segun_el_nivel(self):
+        from notas.models import Curso
+        from . import formato
+        transicion = Curso.objects.create(colegio=self.a, nombre='TRA', grado=0)
+        tercero = Curso.objects.create(colegio=self.a, nombre='301', grado=3)
+        nino = self.crear_estudiante('nino', curso=transicion)
+        nina = self.crear_estudiante('nina', curso=tercero)
+        f = formato.de(self.a)
+        p_pre = logica.crear(nino, 2026, self.rectora)[0]
+        p_pri = logica.crear(nina, 2026, self.rectora)[0]
+        p_bach = self._crear()
+        self.assertEqual([formato.modelo_de(f, p)['nivel'] for p in (p_pre, p_pri, p_bach)], ['PRE', 'PRI', 'BACH'])
+        c = self.cliente(self.rectora)
+        r = c.get(f'/piar/{p_pre.pk}/')
+        self.assertContains(r, 'Valoración pedagógica · Preescolar')
+        self.assertContains(r, 'Sube y baja escaleras')
+        self.assertNotContains(r, 'Redacta textos con coherencia')
+        # Afirmación, pregunta abierta, una opción y varias
+        modelo = formato.modelo_de(f, p_pre)
+        filas = {x['tipo']: x for g in formato.grupos(modelo) for x in g['filas']}
+        datos = {'que': 'habilidades', f'h_{filas["item"]["clave"]}': 'A veces',
+                 f'h_{filas["abierta"]["clave"]}': 'Repitió transición',
+                 f'h_{filas["opcion"]["clave"]}': filas['opcion']['opciones'][0],
+                 f'h_{filas["varias"]["clave"]}': filas['varias']['opciones'][:2] + ['inventada']}
+        c.post(f'/piar/{p_pre.pk}/', datos)
+        p_pre.refresh_from_db()
+        h = p_pre.habilidades
+        self.assertEqual(h[filas['item']['clave']], 'A veces')
+        self.assertEqual(h[filas['abierta']['clave']], 'Repitió transición')
+        self.assertEqual(h[filas['varias']['clave']], filas['varias']['opciones'][:2])
+        self.assertEqual(c.get(f'/piar/{p_pre.pk}/piar.pdf').status_code, 200)
+        # La orientadora puede escoger otro modelo para un estudiante
+        c.post(f'/piar/{p_pre.pk}/', {'que': 'modelo', 'modelo': 'PRI'})
+        p_pre.refresh_from_db()
+        self.assertEqual(formato.modelo_de(f, p_pre)['nivel'], 'PRI')
+        self.assertEqual(p_pre.habilidades[filas['item']['clave']], 'A veces')      # no se pierde lo respondido
+        c.post(f'/piar/{p_pre.pk}/', {'que': 'modelo', 'modelo': ''})
+        p_pre.refresh_from_db()
+        self.assertEqual(formato.modelo_de(f, p_pre)['nivel'], 'PRE')
+
+    def test_formato_de_antes_vale_para_los_tres_niveles(self):
+        from . import formato
+        f = formato.completar({'escala': 'SINO', 'habilidades': '## MEMORIA\nRecuerda.'})
+        self.assertEqual({m['escala'] for m in f['modelos'].values()}, {'SINO'})
+        self.assertEqual({m['habilidades'] for m in f['modelos'].values()}, {'## MEMORIA\nRecuerda.'})
 
     def test_firmas_en_lineas_o_cuadro_y_quien_firma(self):
         from . import formato

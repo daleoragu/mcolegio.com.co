@@ -16,7 +16,7 @@
 </table>
 
 {% if sec.valoracion %}
-<h2>Valoración pedagógica</h2>
+<h2>Descripción del estudiante</h2>
 <table class="t">
     <tr><th style="width:22%">Descripción del estudiante</th><td class="pre">{{ piar.descripcion|default:"—" }}</td></tr>
     <tr><th>Fortalezas y habilidades</th><td class="pre">{{ piar.fortalezas|default:"—" }}</td></tr>
@@ -28,17 +28,20 @@
 {% endif %}
 
 {% if sec.habilidades %}
-<h2>Registro de habilidades</h2>
-<p style="font-size:8.5px; color:#555">{% if escala|length == 4 %}Escala de 1 a 4: 1 = nunca está presente, 4 = siempre está presente.{% else %}Sí / No / N/A (no aplica).{% endif %}
+<h2>Valoración pedagógica · {{ modelo.nombre }}</h2>
+<p style="font-size:8.5px; color:#555">{% if escala.0 == '1' %}Escala de 1 a 4: 1 = nunca está presente, 4 = siempre está presente.{% else %}{{ escala|join:" / " }}.{% endif %}
     {% if alertas %}<strong>Para observar con más cuidado: {{ alertas|join:", " }}.</strong>{% endif %}</p>
-<table class="t">
 {% for g in habilidades %}
-    <tr><th>{{ g.nombre }}</th>{% for v in escala %}<th style="width:32px; text-align:center">{{ v }}</th>{% endfor %}</tr>
+<table class="t">
+    <tr><th>{{ g.nombre }}</th>{% if g.con_escala %}{% for v in escala %}<th style="width:40px; text-align:center">{{ v }}</th>{% endfor %}{% endif %}</tr>
     {% for x in g.filas %}{% if x.tipo == 'sub' %}<tr><td colspan="{{ escala|length|add:1 }}"><em>{{ x.texto }}</em></td></tr>
-    {% else %}<tr><td>{{ x.texto }}</td>{% for v in escala %}<td style="text-align:center">{% if x.valor == v %}<strong>X</strong>{% endif %}</td>{% endfor %}</tr>{% endif %}{% endfor %}
-{% endfor %}
+    {% elif x.tipo == 'item' %}<tr><td>{{ x.texto }}</td>{% for v in escala %}<td style="text-align:center">{% if x.valor == v %}<strong>X</strong>{% endif %}</td>{% endfor %}</tr>
+    {% elif x.tipo == 'abierta' %}<tr><td colspan="{{ escala|length|add:1 }}"><strong>{{ x.texto }}</strong><br><span class="pre">{{ x.valor|default:"—" }}</span></td></tr>
+    {% else %}<tr><td colspan="{{ escala|length|add:1 }}"><strong>{{ x.texto }}:</strong>
+        {% for o in x.opciones %}<span style="white-space:nowrap">({% if x.tipo == 'varias' and o in x.valor or x.valor == o %}X{% else %}&nbsp;&nbsp;{% endif %}) {{ o }}</span>&nbsp;&nbsp; {% endfor %}</td></tr>{% endif %}{% endfor %}
 </table>
-{% if piar.habilidades.observaciones %}<p class="pre"><strong>Observaciones:</strong> {{ piar.habilidades.observaciones }}</p>{% endif %}
+{% endfor %}
+{% if piar.habilidades.observaciones %}<p class="pre"><strong>Observaciones generales:</strong> {{ piar.habilidades.observaciones }}</p>{% endif %}
 {% endif %}
 
 {% if sec.ajustes %}

@@ -1,0 +1,14 @@
+CAMBIADO  notas/forms/mensajeria_forms.py
+NUEVO     notas/migrations/0047_mensaje_destacado_y_purgado.py
+CAMBIADO  notas/models/comunicaciones.py
+NUEVO     notas/templates/notas/mensajeria/_correo_base.html
+BORRAR    notas/templates/notas/mensajeria/bandeja_entrada.html
+BORRAR    notas/templates/notas/mensajeria/borradores.html
+CAMBIADO  notas/templates/notas/mensajeria/componer_mensaje.html
+CAMBIADO  notas/templates/notas/mensajeria/detalle_mensaje.html
+NUEVO     notas/templates/notas/mensajeria/lista.html
+BORRAR    notas/templates/notas/mensajeria/mensajes_enviados.html
+BORRAR    notas/templates/notas/mensajeria/papelera.html
+NUEVO     notas/tests/test_correo_interno.py
+CAMBIADO  notas/urls.py
+CAMBIADO  notas/views/mensajeria_views.py

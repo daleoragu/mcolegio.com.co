@@ -212,6 +212,9 @@ urlpatterns = [
     path('mensajeria/restaurar/<int:mensaje_id>/', mensajeria_views.restaurar_mensaje_vista, name='restaurar_mensaje'),
     path('mensajeria/borrar-definitivo/<int:mensaje_id>/', mensajeria_views.borrar_definitivamente_vista, name='borrar_permanentemente_mensaje'),
     path('mensajeria/borradores/', mensajeria_views.borradores_vista, name='borradores'),
+    path('mensajeria/borrador/<int:mensaje_id>/', mensajeria_views.editar_borrador_vista, name='editar_borrador'),
+    path('mensajeria/destacados/', mensajeria_views.destacados_vista, name='destacados'),
+    path('mensajeria/acciones/', mensajeria_views.acciones_mensajes_vista, name='acciones_mensajes'),
     
     # --- Rutas para Observador ---
     path('observador/seleccionar/', observador_views.observador_selector_vista, name='observador_selector'),

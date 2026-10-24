@@ -33,6 +33,11 @@ class Mensaje(models.Model):
     eliminado_por_remitente = models.BooleanField(default=False)
     eliminado_por_destinatario = models.BooleanField(default=False)
     fecha_eliminacion = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Eliminación")
+    # Cada lado decide por su cuenta: destacar, y sacar de la papelera para siempre sin borrárselo al otro.
+    destacado_por_remitente = models.BooleanField(default=False)
+    destacado_por_destinatario = models.BooleanField(default=False)
+    purgado_por_remitente = models.BooleanField(default=False)
+    purgado_por_destinatario = models.BooleanField(default=False)
 
     def __str__(self):
         return f"De: {self.remitente.username} | Para: {self.destinatario.username} | Asunto: {self.asunto}"

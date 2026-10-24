@@ -1,0 +1,87 @@
+{% extends 'notas/mensajeria/_correo_base.html' %}
+{% block correo %}
+<form method="get" class="cm-barra">
+    <div class="cm-buscar"><i class="fas fa-search"></i>
+        <input type="search" name="q" class="form-control" placeholder="Buscar en {{ page_title|lower }}…" value="{{ search_query }}"></div>
+    {% if search_query %}<a href="?" class="btn btn-sm btn-link">Quitar búsqueda</a>{% endif %}
+</form>
+<form method="post" action="{% url 'notas:acciones_mensajes' %}" id="form-correo">{% csrf_token %}
+    <input type="hidden" name="volver" value="{{ request.get_full_path }}">
+    {% if filas %}
+    <div class="cm-barra" style="top:auto">
+        <div class="form-check mb-0"><input class="form-check-input" type="checkbox" id="todos" aria-label="Marcar todos"></div>
+        <select name="accion" class="form-select form-select-sm" style="width:auto">
+            {% if carpeta == 'papelera' %}<option value="restaurar">Restaurar</option><option value="eliminar">Eliminar para siempre</option>
+            {% else %}{% if carpeta == 'recibidos' or carpeta == 'destacados' %}<option value="leido">Marcar como leído</option><option value="no_leido">Marcar como no leído</option>{% endif %}
+                {% if carpeta != 'borradores' %}<option value="destacar">Destacar</option><option value="quitar_destacado">Quitar destacado</option>{% endif %}
+                <option value="papelera">Mover a la papelera</option>{% endif %}
+        </select>
+        <button class="btn btn-sm btn-outline-primary" id="aplicar" disabled>Aplicar</button>
+        <span class="small text-muted ms-auto" id="marcados"></span>
+        {% if carpeta == 'papelera' %}<button class="btn btn-sm btn-outline-danger" name="vaciar" value="1"
+            onclick="return confirm('¿Eliminar para siempre todo lo que hay en la papelera?');"><i class="fas fa-broom me-1"></i>Vaciar papelera</button>{% endif %}
+    </div>
+    {% endif %}
+    {% for f in filas %}
+    <div class="cm-fila {% if f.no_leido %}no-leido{% endif %}">
+        <input class="form-check-input cm-marca-uno" type="checkbox" name="ids" value="{{ f.m.id }}" aria-label="Marcar">
+        {% if carpeta != 'borradores' and carpeta != 'papelera' %}
+        <button class="cm-estrella {% if f.destacado %}si{% endif %}" name="accion_uno" value="{% if f.destacado %}quitar_destacado{% else %}destacar{% endif %}:{{ f.m.id }}"
+                title="{% if f.destacado %}Quitar destacado{% else %}Destacar{% endif %}"><i class="fas fa-star"></i></button>{% endif %}
+        <a class="cm-texto" href="{% if carpeta == 'borradores' %}{% url 'notas:editar_borrador' f.m.id %}{% else %}{% url 'notas:ver_mensaje' f.m.id %}{% endif %}">
+            <div class="cm-linea1">
+                <span class="cm-quien">{% if f.lado == 'rem' %}<span class="text-muted fw-normal">Para:</span> {% endif %}{{ f.otro.get_full_name|default:f.otro.username }}</span>
+                <span class="cm-fecha">{% if f.m.fecha_envio|date:"Ymd" == hoy|date:"Ymd" %}{{ f.m.fecha_envio|date:"h:i a" }}{% else %}{{ f.m.fecha_envio|date:"d M" }}{% endif %}</span>
+            </div>
+            <div class="cm-asunto">{% if carpeta == 'borradores' %}<span class="text-danger fw-normal">Borrador · </span>{% endif %}{{ f.m.asunto }}</div>
+            <div class="cm-resumen">{{ f.m.cuerpo|striptags|truncatechars:110 }}</div>
+        </a>
+        <div class="cm-acciones-fila">
+            {% if carpeta == 'papelera' %}
+            <button class="btn btn-sm btn-light" name="accion_uno" value="restaurar:{{ f.m.id }}" title="Restaurar"><i class="fas fa-rotate-left"></i></button>
+            <button class="btn btn-sm btn-light text-danger" name="accion_uno" value="eliminar:{{ f.m.id }}" title="Eliminar para siempre"
+                    onclick="return confirm('¿Eliminar este mensaje para siempre?');"><i class="fas fa-xmark"></i></button>
+            {% else %}
+            <button class="btn btn-sm btn-light" name="accion_uno" value="papelera:{{ f.m.id }}" title="Mover a la papelera"><i class="fas fa-trash-can"></i></button>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="cm-vacio">
+        <i class="fas {% if search_query %}fa-search{% else %}fa-envelope-open{% endif %} fa-3x mb-3 opacity-50"></i>
+        {% if search_query %}<h6 class="mb-1">No hay mensajes con «{{ search_query }}»</h6><p class="small mb-0">Pruebe con otra palabra.</p>
+        {% elif carpeta == 'recibidos' %}<h6 class="mb-1">No tiene mensajes</h6><p class="small mb-0">Aquí le llegan los mensajes de docentes, directivos y estudiantes.</p>
+        {% elif carpeta == 'papelera' %}<h6 class="mb-0">La papelera está vacía</h6>
+        {% elif carpeta == 'destacados' %}<h6 class="mb-1">No hay destacados</h6><p class="small mb-0">Toque la estrella de un mensaje para tenerlo a la mano.</p>
+        {% else %}<h6 class="mb-0">No hay mensajes aquí</h6>{% endif %}
+    </div>
+    {% endfor %}
+</form>
+{% if pagina.paginator.num_pages > 1 %}
+<nav class="d-flex justify-content-between align-items-center p-2 small">
+    {% if pagina.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?pagina={{ pagina.previous_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"><i class="fas fa-chevron-left"></i> Más nuevos</a>{% else %}<span></span>{% endif %}
+    <span class="text-muted">{{ pagina.start_index }}–{{ pagina.end_index }} de {{ pagina.paginator.count }}</span>
+    {% if pagina.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?pagina={{ pagina.next_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Más viejos <i class="fas fa-chevron-right"></i></a>{% else %}<span></span>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    var todos = document.getElementById('todos'), casillas = document.querySelectorAll('.cm-marca-uno');
+    var aplicar = document.getElementById('aplicar'), cuenta = document.getElementById('marcados');
+    function ver() {
+        var n = Array.prototype.filter.call(casillas, function (c) { return c.checked; }).length;
+        if (aplicar) aplicar.disabled = n === 0;
+        if (cuenta) cuenta.textContent = n ? n + ' marcado' + (n > 1 ? 's' : '') : '';
+        if (todos) todos.checked = n > 0 && n === casillas.length;
+    }
+    if (todos) todos.addEventListener('change', function () { casillas.forEach(function (c) { c.checked = todos.checked; }); ver(); });
+    casillas.forEach(function (c) { c.addEventListener('change', ver); });
+    if (aplicar) aplicar.addEventListener('click', function (e) {
+        var sel = document.querySelector('#form-correo select[name=accion]');
+        if (sel && sel.value === 'eliminar' && !confirm('¿Eliminar para siempre los mensajes marcados?')) e.preventDefault();
+    });
+})();
+</script>
+{% endblock %}
