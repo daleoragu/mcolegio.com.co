@@ -192,8 +192,9 @@ def configuracion(request):
                                      'titulo': p.get(f'tit_{k}', '').strip()[:120],
                                      'ayuda': p.get(f'ayu_{k}', '').strip()[:500]}
                                  for k, _, _, apagable in fmt.COLUMNAS},
-                    'escala': p.get('escala') if p.get('escala') in fmt.ESCALAS else '1-4',
-                    'habilidades': p.get('habilidades', '').strip()[:20000],
+                    'modelos': {n: {'escala': p.get(f'escala_{n}') if p.get(f'escala_{n}') in fmt.ESCALAS else 'SNAV',
+                                    'habilidades': p.get(f'habilidades_{n}', '').strip()[:20000]}
+                                for n, _ in fmt.NIVELES_PIAR},
                     'instrucciones': p.get('instrucciones', '').strip()[:2000],
                     'firmas': {'estilo': p.get('estilo_firma') if p.get('estilo_firma') in dict(fmt.ESTILOS_FIRMA)
                                else 'lineas',
@@ -210,7 +211,10 @@ def configuracion(request):
         'colegio': request.colegio, 'docentes': docentes, 'es_admin': es_admin(request), 'f': f,
         'secciones': [(k, t, f['secciones'][k]) for k, t in fmt.SECCIONES],
         'columnas': [(k, f['columnas'][k], apagable) for k, _, _, apagable in fmt.COLUMNAS],
-        'grupos': fmt.grupos(f), 'estilos_firma': fmt.ESTILOS_FIRMA,
+        'modelos': [(n, t, f['modelos'][n], len(fmt.grupos(f['modelos'][n]))) for n, t in fmt.NIVELES_PIAR],
+        'escalas': list(fmt.NOMBRES_ESCALA.items()), 'plantillas': fmt.plantillas_para_cargar(),
+        'plantillas_json': {k: texto for k, _, texto in fmt.plantillas_para_cargar()},
+        'estilos_firma': fmt.ESTILOS_FIRMA,
         'firmantes': [(k, t, k in f['firmas']['piar'], k in f['firmas']['acta']) for k, t in fmt.FIRMANTES],
         'elegidos': set(conf.docentes_apoyo.values_list('id', flat=True))})
 
@@ -234,15 +238,24 @@ def detalle(request, pk):
                 form.save()
                 messages.success(request, 'Información del estudiante guardada.')
                 return redirect('piar:detalle', piar.pk)
+        elif request.POST.get('que') == 'modelo':
+            nivel = request.POST.get('modelo')
+            piar.habilidades = dict(piar.habilidades or {})
+            if nivel in dict(fmt.NIVELES_PIAR):
+                piar.habilidades['modelo'] = nivel
+            else:
+                piar.habilidades.pop('modelo', None)        # vuelve al del grado
+            piar.save(update_fields=['habilidades', 'actualizado'])
+            return redirect('piar:detalle', piar.pk)
         elif request.POST.get('que') == 'habilidades':
-            f = fmt.de(request.colegio)
-            validos = set(fmt.ESCALAS[f['escala']])
-            piar.habilidades = {fila['clave']: request.POST.get(f'h_{fila["clave"]}') for g in fmt.grupos(f)
-                                for fila in g['filas'] if fila['tipo'] == 'item'
-                                and request.POST.get(f'h_{fila["clave"]}') in validos}
+            modelo = fmt.modelo_de(fmt.de(request.colegio), piar)
+            anteriores = piar.habilidades or {}
+            piar.habilidades = fmt.leer_respuestas(modelo, request.POST, anteriores)
+            if anteriores.get('modelo'):
+                piar.habilidades['modelo'] = anteriores['modelo']
             piar.habilidades['observaciones'] = request.POST.get('hobservaciones', '').strip()
             piar.save(update_fields=['habilidades', 'actualizado'])
-            messages.success(request, 'Registro de habilidades guardado.')
+            messages.success(request, 'Valoración pedagógica guardada.')
             return redirect('piar:detalle', piar.pk)
         elif request.POST.get('que') == 'otras':
             piar.otras_dimensiones = {k: request.POST.get(f'o_{k}', '').strip() for k in fmt.OTRAS}
@@ -264,8 +277,8 @@ def detalle(request, pk):
         'acta': acta, 'otros': otros, 'es_admin': es_admin(request), 'f': f, 'sec': f['secciones'],
         # A cada docente le salen solo sus asignaturas; la orientación y el director ven todas.
         'm': logica.matriz(piar, editables, solo=None if general else editables),
-        'habilidades': _filas_habilidades(f, piar.habilidades), 'escala': fmt.ESCALAS[f['escala']],
-        'alertas': fmt.alertas_habilidades(f, piar.habilidades),
+        **_valoracion(f, piar),
+        'niveles': fmt.NIVELES_PIAR,
         'otras': [(k, (piar.otras_dimensiones or {}).get(k, '')) for k in fmt.OTRAS],
         'actores': [(k, t, (piar.recomendaciones_actores or {}).get(k, '')) for k, t in fmt.ACTORES],
         'estilos_firma': fmt.ESTILOS_FIRMA,
@@ -273,11 +286,19 @@ def detalle(request, pk):
                      for doc, titulo in (('piar', 'PIAR'), ('acta', 'Acta de acuerdo'))]})
 
 
-def _filas_habilidades(f, respuestas):
-    respuestas = respuestas or {}
-    return [{'nombre': g['nombre'],
-             'filas': [dict(x, valor=respuestas.get(x.get('clave'), '')) for x in g['filas']]}
-            for g in fmt.grupos(f)]
+def _valoracion(f, piar):
+    """El modelo de valoración del estudiante (por su nivel) con lo que ya se respondió."""
+    modelo = fmt.modelo_de(f, piar)
+    respuestas = piar.habilidades or {}
+    grupos = []
+    for g in fmt.grupos(modelo):
+        filas = [dict(x, valor=respuestas.get(x.get('clave'), '') if x['tipo'] != 'varias'
+                      else respuestas.get(x.get('clave')) or []) for x in g['filas']]
+        grupos.append({'nombre': g['nombre'], 'filas': filas,
+                       'con_escala': any(x['tipo'] == 'item' for x in filas)})
+    return {'modelo': modelo, 'habilidades': grupos, 'escala': fmt.ESCALAS[modelo['escala']],
+            'alertas': fmt.alertas_habilidades(modelo, respuestas),
+            'modelo_elegido': respuestas.get('modelo', '')}
 
 
 @login_required
@@ -370,8 +391,7 @@ def _contexto_pdf(piar):
     return {'piar': piar, 'est': piar.estudiante, 'ficha': ficha, 'edad': edad, 'f': f, 'sec': f['secciones'],
             'columnas': columnas, 'con_tipos': f['columnas']['tipos']['activa'],
             'por_materia': por_materia, 'periodos': m['periodos'],
-            'habilidades': _filas_habilidades(f, piar.habilidades), 'escala': fmt.ESCALAS[f['escala']],
-            'alertas': fmt.alertas_habilidades(f, piar.habilidades),
+            **_valoracion(f, piar),
             'otras': [(k, (piar.otras_dimensiones or {}).get(k, '')) for k in fmt.OTRAS],
             'actores': [(t, (piar.recomendaciones_actores or {}).get(k, '')) for k, t in fmt.ACTORES],
             'firmantes': firmantes}

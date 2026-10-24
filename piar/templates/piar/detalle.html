@@ -50,25 +50,41 @@
 
 {% if sec.habilidades %}
 <div class="pi-tarjeta">
-    <h6 class="fw-bold">Registro de habilidades</h6>
-    <p class="pi-ayuda">{% if escala|length == 4 %}Escala de 1 a 4: 1 = nunca está presente, 4 = siempre está presente. Si en un grupo más del 40 % queda en 1 o 2, hay que observar con más cuidado.{% else %}Marque Sí, No o N/A (no aplica).{% endif %}</p>
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+        <h6 class="fw-bold mb-0">Valoración pedagógica · {{ modelo.nombre }}</h6>
+        {% if general %}<form method="post" class="ms-auto d-flex gap-1 align-items-center">{% csrf_token %}<input type="hidden" name="que" value="modelo">
+            <label class="small text-muted" for="modelo-sel">Modelo:</label>
+            <select name="modelo" id="modelo-sel" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+                <option value="" {% if not modelo_elegido %}selected{% endif %}>El de su grado</option>
+                {% for n, t in niveles %}<option value="{{ n }}" {% if modelo_elegido == n %}selected{% endif %}>{{ t }}</option>{% endfor %}
+            </select></form>{% endif %}
+    </div>
+    <p class="pi-ayuda">{% if escala|length == 4 and escala.0 == '1' %}Escala de 1 a 4: 1 = nunca está presente, 4 = siempre está presente. Si en un grupo más del 40 % queda en 1 o 2, hay que observar con más cuidado.{% else %}Marque {{ escala|join:", " }} en cada afirmación.{% endif %}</p>
     {% if alertas %}<div class="alert alert-warning py-2 small"><i class="fas fa-exclamation-triangle me-1"></i>Para observar con más cuidado: {{ alertas|join:", " }}.</div>{% endif %}
     {% if general %}<form method="post">{% csrf_token %}<input type="hidden" name="que" value="habilidades">{% endif %}
-    <div class="table-responsive"><table class="table table-sm align-middle mb-2">
     {% for g in habilidades %}
-        <thead class="table-light"><tr><th>{{ g.nombre }}</th>{% for v in escala %}<th class="text-center" style="width:52px">{{ v }}</th>{% endfor %}</tr></thead>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-3">
+        <thead class="table-light"><tr><th>{{ g.nombre }}</th>{% if g.con_escala %}{% for v in escala %}<th class="text-center" style="width:62px">{{ v }}</th>{% endfor %}{% endif %}</tr></thead>
         <tbody>{% for x in g.filas %}
             {% if x.tipo == 'sub' %}<tr><td colspan="{{ escala|length|add:1 }}" class="fw-semibold small text-muted">{{ x.texto }}</td></tr>
-            {% else %}<tr><td class="small">{{ x.texto }}</td>{% for v in escala %}<td class="text-center">
-                {% if general %}<input type="radio" class="form-check-input" name="h_{{ x.clave }}" value="{{ v }}" {% if x.valor == v %}checked{% endif %}>
-                {% elif x.valor == v %}<strong>X</strong>{% endif %}</td>{% endfor %}</tr>{% endif %}
+            {% elif x.tipo == 'item' %}<tr><td class="small">{{ x.texto }}</td>{% for v in escala %}<td class="text-center">
+                {% if general %}<input type="radio" class="form-check-input" name="h_{{ x.clave }}" value="{{ v }}" {% if x.valor == v %}checked{% endif %} aria-label="{{ v }}">
+                {% elif x.valor == v %}<strong>X</strong>{% endif %}</td>{% endfor %}</tr>
+            {% else %}<tr><td colspan="{{ escala|length|add:1 }}"><div class="small fw-semibold mb-1">{{ x.texto }}</div>
+                {% if x.tipo == 'abierta' %}{% if general %}<textarea name="h_{{ x.clave }}" class="form-control form-control-sm" rows="2">{{ x.valor }}</textarea>{% else %}<div class="small" style="white-space:pre-line">{{ x.valor|default:"—" }}</div>{% endif %}
+                {% else %}<div class="d-flex flex-wrap gap-3">{% for o in x.opciones %}
+                    {% if general %}<div class="form-check mb-0"><input class="form-check-input" type="{% if x.tipo == 'varias' %}checkbox{% else %}radio{% endif %}" name="h_{{ x.clave }}" value="{{ o }}" id="o{{ forloop.parentloop.counter }}{{ forloop.counter }}{{ x.clave|slugify }}"
+                        {% if x.tipo == 'varias' %}{% if o in x.valor %}checked{% endif %}{% elif x.valor == o %}checked{% endif %}><label class="form-check-label small" for="o{{ forloop.parentloop.counter }}{{ forloop.counter }}{{ x.clave|slugify }}">{{ o }}</label></div>
+                    {% else %}<span class="small {% if x.tipo == 'varias' and o in x.valor or x.valor == o %}fw-bold{% else %}text-muted{% endif %}">{% if x.tipo == 'varias' and o in x.valor or x.valor == o %}☒{% else %}☐{% endif %} {{ o }}</span>{% endif %}
+                {% endfor %}</div>{% endif %}</td></tr>{% endif %}
         {% endfor %}</tbody>
-    {% endfor %}
     </table></div>
-    {% if general %}<label class="form-label small fw-semibold mb-1">Observaciones</label>
-        <textarea name="hobservaciones" class="form-control" rows="2">{{ piar.habilidades.observaciones }}</textarea>
-        <button class="btn btn-primary mt-2"><i class="fas fa-save me-1"></i>Guardar registro de habilidades</button></form>
-    {% elif piar.habilidades.observaciones %}<p class="small mb-0" style="white-space:pre-line">{{ piar.habilidades.observaciones }}</p>{% endif %}
+    {% endfor %}
+    {% if general %}<label class="form-label small fw-semibold mb-1">Observaciones generales</label>
+        <div class="pi-ayuda mb-1">Comportamientos recurrentes, situaciones que le generan estrés o malestar, cualidades, habilidades observadas, relación con los compañeros…</div>
+        <textarea name="hobservaciones" class="form-control" rows="3">{{ piar.habilidades.observaciones }}</textarea>
+        <button class="btn btn-primary mt-2"><i class="fas fa-save me-1"></i>Guardar valoración</button></form>
+    {% elif piar.habilidades.observaciones %}<p class="small mb-0" style="white-space:pre-line"><strong>Observaciones:</strong> {{ piar.habilidades.observaciones }}</p>{% endif %}
 </div>
 {% endif %}
 {% if general and sec.ajustes %}{% include 'piar/_matriz.html' %}{% endif %}

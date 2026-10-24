@@ -35,17 +35,41 @@
 </div>
 
 <div class="pi-tarjeta">
-    <h6 class="fw-bold">3. Registro de habilidades</h6>
-    <div class="d-flex gap-3 flex-wrap mb-2">
-        <div class="form-check"><input class="form-check-input" type="radio" name="escala" value="1-4" id="esc14" {% if f.escala == '1-4' %}checked{% endif %}>
-            <label class="form-check-label small" for="esc14">Escala de 1 a 4 (1 nunca, 4 siempre)</label></div>
-        <div class="form-check"><input class="form-check-input" type="radio" name="escala" value="SINO" id="escsn" {% if f.escala == 'SINO' %}checked{% endif %}>
-            <label class="form-check-label small" for="escsn">Sí / No / N/A</label></div>
+    <h6 class="fw-bold">3. Valoración pedagógica por nivel</h6>
+    <p class="pi-ayuda">Un modelo para cada nivel. Al abrir el PIAR de un estudiante sale el de su grado (transición → preescolar,
+        1.º a 5.º → primaria, 6.º a 11.º y la media técnica → bachillerato). Agregue, quite o cambie preguntas como quiera.</p>
+    <ul class="nav nav-tabs" role="tablist">{% for n, t, m, cuantos in modelos %}
+        <li class="nav-item"><button type="button" class="nav-link {% if forloop.first %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#mod-{{ n }}">{{ t }}</button></li>{% endfor %}
+    </ul>
+    <div class="tab-content border border-top-0 rounded-bottom p-3 mb-2">{% for n, t, m, cuantos in modelos %}
+        <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="mod-{{ n }}">
+            <div class="d-flex flex-wrap gap-3 align-items-center mb-2">
+                <span class="small fw-semibold">Respuestas de las afirmaciones:</span>
+                {% for v, tx in escalas %}<div class="form-check form-check-inline mb-0"><input class="form-check-input" type="radio" name="escala_{{ n }}" value="{{ v }}" id="esc_{{ n }}_{{ v }}" {% if m.escala == v %}checked{% endif %}>
+                    <label class="form-check-label small" for="esc_{{ n }}_{{ v }}">{{ tx }}</label></div>{% endfor %}
+            </div>
+            <textarea name="habilidades_{{ n }}" id="hab_{{ n }}" class="form-control font-monospace" rows="16" style="font-size:.8rem">{{ m.habilidades }}</textarea>
+            <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+                <span class="small text-muted">{{ cuantos }} grupo{{ cuantos|pluralize }}.</span>
+                <select class="form-select form-select-sm ms-auto" style="width:auto" id="pla_{{ n }}">
+                    {% for k, tx, texto in plantillas %}<option value="{{ k }}">{{ tx }}</option>{% endfor %}</select>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cargarPlantilla('{{ n }}')">Cargar esta plantilla</button>
+            </div>
+        </div>{% endfor %}
     </div>
-    <label class="form-label small fw-semibold mb-1" for="habilidades">Grupos y afirmaciones</label>
-    <textarea name="habilidades" id="habilidades" class="form-control font-monospace" rows="14" style="font-size:.8rem">{{ f.habilidades }}</textarea>
-    <div class="pi-ayuda">Una línea por afirmación. «## NOMBRE» empieza un grupo (ej.: ## MEMORIA) y «# Subtítulo» pone un subtítulo
-        (ej.: # Atención sostenida). Hoy tiene {{ grupos|length }} grupos. Si cambia el texto de una afirmación, la respuesta que ya tenía queda en blanco.</div>
+    <div class="pi-ayuda">Cómo se escribe, una cosa por línea:
+        <code>## NOMBRE</code> empieza un grupo · <code># Subtítulo</code> · <code>? Pregunta</code> se responde con texto ·
+        <code>* Pregunta: opción 1 | opción 2</code> se escoge una · <code>+ Pregunta: opción 1 | opción 2</code> se marcan varias ·
+        cualquier otra línea es una afirmación que se responde con la escala. Si cambia el texto de una pregunta, la respuesta que ya tenía queda en blanco.</div>
+    {{ plantillas_json|json_script:"plantillas-piar" }}
+    <script>
+    function cargarPlantilla(n) {
+        var k = document.getElementById('pla_' + n).value;
+        var t = JSON.parse(document.getElementById('plantillas-piar').textContent)[k];
+        var caja = document.getElementById('hab_' + n);
+        if (!caja.value.trim() || confirm('¿Reemplazar lo que tiene este modelo por la plantilla escogida?')) caja.value = t;
+    }
+    </script>
 </div>
 <div class="pi-tarjeta">
     <h6 class="fw-bold">4. Firmas</h6>

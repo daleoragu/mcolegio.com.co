@@ -13,7 +13,7 @@ SECCIONES = [
     ('hogar', 'Entorno hogar'),
     ('educativo', 'Entorno educativo (trayectoria escolar)'),
     ('valoracion', 'Descripción del estudiante, fortalezas, barreras, apoyos y expectativas'),
-    ('habilidades', 'Registro de habilidades (atención, memoria, razonamiento, lenguaje…)'),
+    ('habilidades', 'Valoración pedagógica por nivel (preescolar, primaria, bachillerato): ámbitos, familia, trayectoria'),
     ('ajustes', 'Ajustes razonables por asignatura (los llena cada docente)'),
     ('otras', 'Otras dimensiones: convivencia, socialización, participación, autonomía, autocontrol'),
     ('actores', 'Recomendaciones para el plan de mejoramiento (familia, docentes, directivos, administrativos, pares)'),
@@ -39,7 +39,21 @@ OTRAS = ['Convivencia', 'Socialización', 'Participación', 'Autonomía', 'Autoc
 ACTORES = [('familia', 'Familia, cuidadores o con quienes vive'), ('docentes', 'Docentes'),
            ('directivos', 'Directivos'), ('administrativos', 'Administrativos'), ('pares', 'Pares (sus compañeros)')]
 
-ESCALAS = {'1-4': ['1', '2', '3', '4'], 'SINO': ['Sí', 'No', 'N/A']}
+ESCALAS = {'SNAV': ['Sí', 'No', 'A veces'], '1-4': ['1', '2', '3', '4'], 'SINO': ['Sí', 'No', 'N/A']}
+NOMBRES_ESCALA = {'SNAV': 'Sí / No / A veces', '1-4': 'Escala de 1 a 4 (1 nunca, 4 siempre)', 'SINO': 'Sí / No / N/A'}
+
+# Un modelo de valoración por nivel: al estudiante le sale el de su grado.
+NIVELES_PIAR = [('PRE', 'Preescolar'), ('PRI', 'Primaria'), ('BACH', 'Bachillerato (básica, media y técnica)')]
+
+
+def nivel_de_grado(grado):
+    if grado is None:
+        return 'BACH'
+    try:
+        g = int(grado)
+    except (TypeError, ValueError):
+        return 'BACH'
+    return 'PRE' if g <= 0 else 'PRI' if g <= 5 else 'BACH'
 
 # Los grupos del Anexo 2 del MEN (como vienen en los formatos de los colegios). Una línea
 # que empieza con «## » es un grupo; «# » un subtítulo dentro del grupo; lo demás, afirmaciones.
@@ -125,14 +139,38 @@ ESTILOS_FIRMA = [('lineas', 'Líneas de firma (como hasta ahora)'), ('cuadro', '
 DEFECTO = {
     'secciones': {k: True for k, _ in SECCIONES},
     'columnas': {k: {'activa': True, 'titulo': t, 'ayuda': a} for k, t, a, _ in COLUMNAS},
-    'escala': '1-4',
-    'habilidades': HABILIDADES,
+    'modelos': None,              # se llena abajo con los de cada nivel
     'instrucciones': '',          # lo que la orientadora quiere que lean todos los docentes al llenar
     'firmas': {'estilo': 'lineas',
                'piar': ['docentes', 'director', 'orientador', 'acudiente', 'rector'],
                'acta': ['acudiente', 'estudiante', 'docentes', 'orientador', 'rector'],
                'otros_piar': '', 'otros_acta': ''},
 }
+
+
+def _modelos_de_fabrica():
+    from . import plantillas
+    return {'PRE': {'escala': 'SNAV', 'habilidades': plantillas.PREESCOLAR},
+            'PRI': {'escala': 'SNAV', 'habilidades': plantillas.PRIMARIA},
+            'BACH': {'escala': 'SNAV', 'habilidades': plantillas.BACHILLERATO}}
+
+
+def plantillas_para_cargar():
+    """Lo que la orientadora puede cargar en un modelo para partir de ahí."""
+    from . import plantillas
+    return [('PRE', 'Preescolar (General Santander)', plantillas.PREESCOLAR),
+            ('PRI', 'Primaria (General Santander)', plantillas.PRIMARIA),
+            ('BACH', 'Bachillerato (General Santander)', plantillas.BACHILLERATO),
+            ('MEN', 'Registro de habilidades del MEN (Anexo 2)', HABILIDADES)]
+
+
+def modelo_de(f, piar):
+    """El modelo de valoración que le toca a este PIAR: el que se escogió, o el del grado del estudiante."""
+    nivel = (piar.habilidades or {}).get('modelo')
+    if nivel not in f['modelos']:
+        curso = piar.estudiante.curso if piar.estudiante.curso_id else None
+        nivel = nivel_de_grado(curso.grado if curso else None)
+    return dict(f['modelos'][nivel], nivel=nivel, nombre=dict(NIVELES_PIAR)[nivel])
 
 
 def de(colegio):
@@ -147,6 +185,7 @@ def de(colegio):
 
 def completar(guardado):
     f = copy.deepcopy(DEFECTO)
+    f['modelos'] = _modelos_de_fabrica()
     if not isinstance(guardado, dict):
         return f
     for k, v in (guardado.get('secciones') or {}).items():
@@ -159,10 +198,19 @@ def completar(guardado):
             c['titulo'] = (v.get('titulo') or '').strip() or c['titulo']
             if v.get('ayuda') is not None:
                 c['ayuda'] = v['ayuda'].strip()
-    if guardado.get('escala') in ESCALAS:
-        f['escala'] = guardado['escala']
-    if (guardado.get('habilidades') or '').strip():
-        f['habilidades'] = guardado['habilidades']
+    modelos = guardado.get('modelos')
+    if isinstance(modelos, dict):
+        for nivel, m in modelos.items():
+            if nivel in f['modelos'] and isinstance(m, dict):
+                if m.get('escala') in ESCALAS:
+                    f['modelos'][nivel]['escala'] = m['escala']
+                if (m.get('habilidades') or '').strip():
+                    f['modelos'][nivel]['habilidades'] = m['habilidades']
+    elif (guardado.get('habilidades') or '').strip():
+        # Formato de antes (un solo modelo): vale para los tres niveles
+        for m in f['modelos'].values():
+            m['habilidades'] = guardado['habilidades']
+            m['escala'] = guardado.get('escala') if guardado.get('escala') in ESCALAS else '1-4'
     f['instrucciones'] = (guardado.get('instrucciones') or '').strip()
     fi = guardado.get('firmas')
     if isinstance(fi, dict):
@@ -223,10 +271,11 @@ def _clave(texto):
     return t or 'x'
 
 
-def grupos(formato):
-    """[{'nombre', 'filas': [{'tipo': 'sub'|'item', 'texto', 'clave'}]}] del registro de habilidades."""
+def grupos(modelo):
+    """[{'nombre', 'filas': [...]}] de un modelo de valoración. Cada fila: {'tipo', 'texto', 'clave',
+    'opciones'}; tipo 'sub' (subtítulo), 'item' (escala), 'abierta' (texto), 'opcion' (una) o 'varias'."""
     salida, actual, vistas = [], None, set()
-    for linea in (formato.get('habilidades') or '').splitlines():
+    for linea in (modelo.get('habilidades') or '').splitlines():
         t = linea.strip()
         if not t:
             continue
@@ -240,21 +289,56 @@ def grupos(formato):
         if t.startswith('# '):
             actual['filas'].append({'tipo': 'sub', 'texto': t[2:].strip()})
             continue
-        t = re.sub(r'^(\d+|[a-z])[.)]\s+', '', t)
+        tipo, opciones = 'item', []
+        if t[:2] in ('? ', '* ', '+ '):
+            tipo = {'?': 'abierta', '*': 'opcion', '+': 'varias'}[t[0]]
+            t = t[2:].strip()
+            if tipo != 'abierta':
+                t, _, resto = t.partition(':')
+                opciones = [o.strip() for o in resto.split('|') if o.strip()]
+                if not opciones:
+                    tipo = 'abierta'
+        else:
+            t = re.sub(r'^(\d+|[a-z])[.)]\s+', '', t)
         clave = f'{_clave(actual["nombre"])}:{_clave(t)}'
         base, n = clave, 2
         while clave in vistas:
             clave, n = f'{base}-{n}', n + 1
         vistas.add(clave)
-        actual['filas'].append({'tipo': 'item', 'texto': t, 'clave': clave})
+        actual['filas'].append({'tipo': tipo, 'texto': t.strip(), 'clave': clave, 'opciones': opciones})
     return salida
 
 
-def alertas_habilidades(formato, respuestas):
+def leer_respuestas(modelo, datos, anteriores=None):
+    """Las respuestas del formulario (h_<clave>) que valen para ese modelo."""
+    validos = set(ESCALAS[modelo['escala']])
+    salida = {k: v for k, v in (anteriores or {}).items() if ':' in k}   # las de otros modelos no se pierden
+    for g in grupos(modelo):
+        for fila in g['filas']:
+            if fila['tipo'] == 'sub':
+                continue
+            nombre = f'h_{fila["clave"]}'
+            if fila['tipo'] == 'varias':
+                valor = [o for o in datos.getlist(nombre) if o in fila['opciones']]
+            else:
+                valor = (datos.get(nombre) or '').strip()
+                if fila['tipo'] == 'item' and valor not in validos:
+                    valor = ''
+                if fila['tipo'] == 'opcion' and valor not in fila['opciones']:
+                    valor = ''
+                valor = valor[:3000]
+            if valor:
+                salida[fila['clave']] = valor
+            else:
+                salida.pop(fila['clave'], None)
+    return salida
+
+
+def alertas_habilidades(modelo, respuestas):
     """Grupos donde más del 40 % de las afirmaciones quedaron en 1 o 2 (escala 1-4) o en No."""
-    bajas = {'1', '2'} if formato['escala'] == '1-4' else {'No'}
+    bajas = {'1', '2'} if modelo['escala'] == '1-4' else {'No'}
     out = []
-    for g in grupos(formato):
+    for g in grupos(modelo):
         items = [f for f in g['filas'] if f['tipo'] == 'item']
         valoradas = [f for f in items if (respuestas or {}).get(f['clave'])]
         if valoradas and sum(1 for f in valoradas if respuestas[f['clave']] in bajas) > 0.4 * len(valoradas):
