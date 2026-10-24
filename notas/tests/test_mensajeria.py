@@ -62,3 +62,19 @@ class WhatsApp(ColegioDePrueba):
         self.assertEqual(cuerpo['template']['name'], 'aviso')
         self.assertEqual([p['text'] for p in cuerpo['template']['components'][0]['parameters']],
                          ['Colegio A', 'Aviso con saltos'])
+
+
+class ErroresDeMeta(ColegioDePrueba):
+    """Cuando Meta rechaza, el motivo queda en palabras para quien administra."""
+
+    def test_motivo_en_palabras(self):
+        import io
+        import urllib.error
+        cuerpo = io.BytesIO(json.dumps({'error': {'code': 132001, 'message': 'Template name does not exist'}}).encode())
+        fallo = urllib.error.HTTPError('u', 404, 'Not Found', {}, cuerpo)
+        self.a.whatsapp_automatico = True
+        with mock.patch.dict(os.environ, VARIABLES_WA), mock.patch('urllib.request.urlopen', side_effect=fallo):
+            ok, detalle = mensajeria.enviar_whatsapp(self.a, '3105551234', 'hola')
+        self.assertFalse(ok)
+        self.assertIn('404', detalle)
+        self.assertIn('plantilla no existe', detalle)
