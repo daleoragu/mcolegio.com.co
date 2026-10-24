@@ -41,7 +41,7 @@ def mis_boletines_vista(request):
     ).values_list('periodo_id', flat=True)
     
     # La consulta a PeriodoAcademico ya está implícitamente segura porque los IDs vienen de una consulta filtrada.
-    periodos_publicados = PeriodoAcademico.objects.filter(id__in=periodos_publicados_ids).order_by('ano_lectivo', 'fecha_inicio')
+    periodos_publicados = PeriodoAcademico.objects.filter(id__in=periodos_publicados_ids).order_by('ano_lectivo', 'orden')
     
     # En qué curso estuvo cada año. Después de una promoción, los boletines de
     # años pasados se abren con el curso de ese año y no con el de hoy.

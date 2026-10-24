@@ -50,13 +50,15 @@ def _docente_y_asignaciones(request):
 
 def _periodo(request):
     """El periodo escogido, o el abierto más reciente, o el último."""
-    periodos = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', '-fecha_inicio')
+    periodos = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'orden')
     pid = request.GET.get('periodo') or request.POST.get('periodo')
     if pid and str(pid).isdigit():
         p = periodos.filter(id=pid).first()
         if p:
             return p, periodos
-    return (periodos.filter(esta_activo=True).first() or periodos.first()), periodos
+    # Por defecto, el periodo abierto más reciente (o el último del año más reciente)
+    recientes = periodos.order_by('-ano_lectivo', '-orden')
+    return (recientes.filter(esta_activo=True).first() or recientes.first()), periodos
 
 
 def _puede_editar(request, asignacion):

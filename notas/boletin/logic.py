@@ -81,8 +81,8 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
     ponderaciones_map = pesos_areas(colegio, curso.grado, materias_del_curso)
 
     periodos_transcurridos = PeriodoAcademico.objects.filter(
-        colegio=colegio, ano_lectivo=periodo.ano_lectivo, fecha_inicio__lte=periodo.fecha_inicio
-    ).order_by('fecha_inicio')
+        colegio=colegio, ano_lectivo=periodo.ano_lectivo, orden__lte=periodo.orden
+    ).order_by('orden')
 
     # Traemos las calificaciones completas para obtener el valor_nota y la observacion_inclusion
     calificaciones_acumuladas = Calificacion.objects.filter(
@@ -253,7 +253,7 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
 
     sorted_area_ids = sorted(areas_data.keys(), key=lambda k: areas_data[k]['nombre'])
 
-    periodos_del_ano = PeriodoAcademico.objects.filter(ano_lectivo=ano_lectivo, colegio=colegio).order_by('fecha_inicio')
+    periodos_del_ano = PeriodoAcademico.objects.filter(ano_lectivo=ano_lectivo, colegio=colegio).order_by('orden')
     nombres_periodos_ordenados = [p.get_nombre_display() for p in periodos_del_ano]
 
     calificaciones = Calificacion.objects.filter(
