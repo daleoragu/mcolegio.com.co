@@ -151,7 +151,7 @@ class SuscripcionPush(models.Model):
     del servicio de notificaciones del navegador (Google, Apple, Mozilla)."""
     usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='suscripciones_push')
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, null=True, blank=True, related_name='+')
-    endpoint = models.TextField(unique=True)
+    endpoint = models.TextField()
     p256dh = models.CharField(max_length=200)
     auth = models.CharField(max_length=100)
     dispositivo = models.CharField(max_length=200, blank=True)
@@ -159,6 +159,7 @@ class SuscripcionPush(models.Model):
     ultimo_envio = models.DateTimeField(null=True, blank=True)
 
     class Meta:
+        unique_together = ('endpoint', 'usuario')     # un celular puede tener abiertas las cuentas de varios hijos
         verbose_name = 'Celular con notificaciones'
         verbose_name_plural = 'Celulares con notificaciones'
 

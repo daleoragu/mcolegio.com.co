@@ -36,3 +36,18 @@ def colegio_context(request):
     # «mods»: los módulos activos del colegio, para mostrar u ocultar menús
     # ({% if 'circulares' in mods %}). Ver notas/modulos.py.
     return {'colegio': colegio, 'mods': activos(colegio)}
+
+
+def familia_context(request):
+    """Los hermanos del estudiante que tiene la sesión abierta, para cambiar de hijo con un toque."""
+    user = getattr(request, 'user', None)
+    if user is None or not user.is_authenticated:
+        return {}
+    try:
+        est = user.estudiante
+    except Exception:
+        return {}
+    if not est.familia_id:
+        return {'familia_hermanos': []}
+    from .familia import hermanos
+    return {'familia_hermanos': list(hermanos(est))}

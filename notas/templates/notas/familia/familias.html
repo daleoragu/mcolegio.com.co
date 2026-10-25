@@ -1,0 +1,46 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-people-roof me-2"></i>Familias (hermanos)</h4>{% endblock %}
+{% block content %}
+<style>
+  .fa-tarjeta { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:20px; margin-bottom:16px; }
+  .fa-chip { display:inline-flex; align-items:center; gap:6px; background:#f3f6fb; border-radius:999px; padding:4px 6px 4px 12px; margin:3px 6px 3px 0; font-size:.9rem; }
+  .fa-chip button { border:0; background:transparent; color:#b91c1c; padding:0 6px; }
+</style>
+<div class="fa-tarjeta">
+    <p class="mb-0">Al unir hermanos, el acudiente pasa de la cuenta de un hijo a la de otro sin clave, y en su celular le llegan los avisos de todos.
+        La plataforma <strong>sugiere</strong> los estudiantes que comparten el celular del acudiente, la mamá o el papá; nunca los une sola.
+        Las familias también pueden unirse desde su cuenta, en <em>Mi familia</em>, con el usuario y la clave del otro hijo.</p>
+</div>
+
+<div class="fa-tarjeta">
+    <h6 class="fw-bold">Sugerencias ({{ sugerencias|length }})</h6>
+    {% for grupo in sugerencias %}
+    <form method="post" class="d-flex flex-wrap align-items-center gap-2 py-2 border-bottom">{% csrf_token %}<input type="hidden" name="accion" value="unir">
+        {% for e in grupo %}<label class="fa-chip"><input type="checkbox" class="form-check-input m-0" name="estudiantes" value="{{ e.id }}" checked>
+            {{ e.user.get_full_name }} <span class="text-muted small">{{ e.curso.nombre|default:"" }}</span></label>{% endfor %}
+        <button class="btn btn-sm btn-primary ms-auto">Unir como hermanos</button>
+    </form>
+    {% empty %}<p class="text-muted small mb-0">No hay sugerencias: los estudiantes que comparten celulares ya están unidos, o las fichas no tienen celulares repetidos.</p>{% endfor %}
+</div>
+
+<div class="fa-tarjeta">
+    <h6 class="fw-bold">Unir a mano</h6>
+    <form method="post" class="row g-2">{% csrf_token %}<input type="hidden" name="accion" value="unir_manual">
+        <div class="col-md-5"><input class="form-control" name="uno" placeholder="Usuario o documento del primer hijo" required></div>
+        <div class="col-md-5"><input class="form-control" name="dos" placeholder="Usuario o documento del segundo hijo" required></div>
+        <div class="col-md-2"><button class="btn btn-primary w-100">Unir</button></div>
+    </form>
+</div>
+
+<div class="fa-tarjeta">
+    <h6 class="fw-bold">Familias unidas ({{ familias|length }})</h6>
+    {% for f in familias %}
+    <div class="py-2 border-bottom">{% for e in f.miembros.all %}
+        <form method="post" class="d-inline" onsubmit="return confirm('¿Sacar a {{ e.user.get_full_name|escapejs }} de esta familia?');">{% csrf_token %}
+            <input type="hidden" name="accion" value="separar"><input type="hidden" name="estudiante" value="{{ e.id }}">
+            <span class="fa-chip">{{ e.user.get_full_name }} <span class="text-muted small">{{ e.curso.nombre|default:"" }}</span>
+                <button title="Sacar de la familia">✕</button></span></form>{% endfor %}
+    </div>
+    {% empty %}<p class="text-muted small mb-0">Todavía no hay familias unidas.</p>{% endfor %}
+</div>
+{% endblock %}

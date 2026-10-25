@@ -506,8 +506,24 @@ class Docente(models.Model):
         verbose_name_plural = "Docentes"
         ordering = ['user__last_name', 'user__first_name']
 
+class Familia(models.Model):
+    """Hermanos del mismo colegio. El acudiente cambia de un hijo a otro sin volver a escribir la clave
+    y en su celular le llegan los avisos de todos."""
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='familias')
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Familia'
+        verbose_name_plural = 'Familias'
+
+    def __str__(self):
+        return ', '.join(str(e) for e in self.miembros.all()) or f'Familia {self.pk}'
+
+
 class Estudiante(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="estudiantes")
+    familia = models.ForeignKey(Familia, on_delete=models.SET_NULL, null=True, blank=True, related_name='miembros',
+                                verbose_name='Familia (hermanos)')
     user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Usuario de Login")
     curso = models.ForeignKey(Curso, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Curso Asignado")
     is_active = models.BooleanField(default=True, verbose_name="¿Estudiante Activo?")
