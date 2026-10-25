@@ -30,6 +30,7 @@ class Circular(models.Model):
     cursos = models.ManyToManyField(Curso, blank=True, related_name='circulares')
     pide_confirmacion = models.BooleanField(default=True, verbose_name='Pedir que confirmen «Leí la circular»')
     fecha_limite = models.DateField(null=True, blank=True, verbose_name='Confirmar a más tardar (opcional)')
+    por_whatsapp = models.BooleanField(default=False, verbose_name='Avisar también por WhatsApp a las familias')
     autor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+')
     creada = models.DateTimeField(auto_now_add=True)
     publicada = models.DateTimeField(null=True, blank=True)
@@ -55,6 +56,8 @@ class Lectura(models.Model):
     abierta = models.DateTimeField(null=True, blank=True)
     confirmada = models.DateTimeField(null=True, blank=True)
     quien_confirma = models.CharField(max_length=120, blank=True, verbose_name='Nombre de quien confirma')
+    whatsapp_enviado = models.DateTimeField(null=True, blank=True, help_text='Cuándo salió el aviso por WhatsApp.')
+    whatsapp_detalle = models.CharField(max_length=120, blank=True, help_text='A quién se le mandó o por qué no salió.')
 
     class Meta:
         unique_together = ('circular', 'usuario')

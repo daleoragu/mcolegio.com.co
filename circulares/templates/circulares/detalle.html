@@ -9,6 +9,20 @@
 {% endblock %}
 {% block content %}
 {% include 'circulares/_estilos.html' %}
+{% if whatsapp_disponible and c.por_whatsapp or whatsapp_disponible and resumen.whatsapp %}
+<div class="ci-tarjeta d-flex flex-wrap align-items-center gap-2">
+    <span><i class="fab fa-whatsapp text-success me-1"></i><strong>{{ resumen.whatsapp }}</strong> familia{{ resumen.whatsapp|pluralize }} recibieron el WhatsApp.
+        {% if faltan_whatsapp %}Faltan {{ faltan_whatsapp }} (sin celular en la ficha, aún enviándose o detenidas por el límite diario de WhatsApp).{% endif %}</span>
+    {% if faltan_whatsapp %}<form method="post" action="{% url 'circulares:reenviar_whatsapp' c.id %}" class="ms-auto">{% csrf_token %}
+        <button class="btn btn-sm ci-wa"><i class="fab fa-whatsapp me-1"></i>Enviar a las que faltan</button></form>{% endif %}
+</div>
+{% elif whatsapp_disponible %}
+<div class="ci-tarjeta d-flex flex-wrap align-items-center gap-2">
+    <span class="small"><i class="fab fa-whatsapp text-success me-1"></i>Esta circular no se avisó por WhatsApp.</span>
+    <form method="post" action="{% url 'circulares:reenviar_whatsapp' c.id %}" class="ms-auto" onsubmit="return confirm('¿Mandar el aviso por WhatsApp a las familias que no la han leído?');">{% csrf_token %}
+        <button class="btn btn-sm ci-wa"><i class="fab fa-whatsapp me-1"></i>Avisar por WhatsApp</button></form>
+</div>
+{% endif %}
 <div class="row g-3 mb-1">
     <div class="col-md-4"><div class="ci-tarjeta text-center"><div class="fs-2 fw-bold">{{ resumen.total }}</div><div class="small text-muted">destinatarios</div></div></div>
     <div class="col-md-4"><div class="ci-tarjeta text-center"><div class="fs-2 fw-bold">{{ resumen.abiertas }}</div><div class="small text-muted">la abrieron</div></div></div>
@@ -31,7 +45,7 @@
             <td>{{ f.l.usuario.last_name }} {{ f.l.usuario.first_name }}</td>
             <td class="small">{{ f.l.abierta|date:"d/m h:i a"|default:"—" }}</td>
             {% if c.pide_confirmacion %}<td class="small">{% if f.l.confirmada %}<span class="ci-chip ci-ok">{{ f.l.confirmada|date:"d/m h:i a" }}</span>{% if f.l.quien_confirma %} {{ f.l.quien_confirma }}{% endif %}{% else %}<span class="ci-chip ci-pend">Pendiente</span>{% endif %}</td>{% endif %}
-            <td class="text-end text-nowrap">{% for k in f.contactos %}<a class="btn btn-sm ci-wa ms-1" target="_blank" rel="noopener" href="{{ k.enlace }}" title="{{ k.rol }} {{ k.visible }}"><i class="fab fa-whatsapp me-1"></i>{{ k.rol }}</a>{% endfor %}</td></tr>
+            <td class="text-end text-nowrap">{% if f.l.whatsapp_enviado %}<span class="ci-chip ci-ok me-1" title="{{ f.l.whatsapp_detalle }}"><i class="fab fa-whatsapp"></i> {{ f.l.whatsapp_enviado|date:"d/m h:i a" }}</span>{% elif f.l.whatsapp_detalle %}<span class="ci-chip ci-pend me-1" title="{{ f.l.whatsapp_detalle }}"><i class="fab fa-whatsapp"></i> no salió</span>{% endif %}{% for k in f.contactos %}<a class="btn btn-sm ci-wa ms-1" target="_blank" rel="noopener" href="{{ k.enlace }}" title="{{ k.rol }} {{ k.visible }}"><i class="fab fa-whatsapp me-1"></i>{{ k.rol }}</a>{% endfor %}</td></tr>
         {% empty %}<tr><td colspan="5" class="text-muted text-center py-3">{% if filtro == 'pendientes' %}¡No falta nadie!{% else %}Nadie todavía.{% endif %}</td></tr>{% endfor %}
         </tbody>
     </table></div>

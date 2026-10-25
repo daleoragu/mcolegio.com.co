@@ -21,6 +21,14 @@
     <hr>
     <div class="form-check mb-2">{{ form.pide_confirmacion }}<label class="form-check-label" for="{{ form.pide_confirmacion.id_for_label }}">{{ form.pide_confirmacion.label }}</label></div>
     <div style="max-width:260px;"><label class="form-label small" for="{{ form.fecha_limite.id_for_label }}">{{ form.fecha_limite.label }}</label>{{ form.fecha_limite }}</div>
+    <hr>
+    {% if form.por_whatsapp %}
+    <div class="form-check">{{ form.por_whatsapp }}<label class="form-check-label" for="{{ form.por_whatsapp.id_for_label }}"><i class="fab fa-whatsapp text-success me-1"></i>{{ form.por_whatsapp.label }}</label>
+        <div class="form-text">Le llega un mensaje con el enlace a la circular al primer celular de la ficha (acudiente, mamá o papá). No se manda a los docentes.</div></div>
+    {% else %}
+    <div class="small text-muted"><i class="fab fa-whatsapp me-1"></i>Para avisar también por WhatsApp, la plataforma debe tener conectada la línea de
+        WhatsApp Business y el colegio debe activar «Avisos automáticos por WhatsApp» en la personalización del colegio.</div>
+    {% endif %}
 </div>
 <div class="d-flex gap-2 flex-wrap">
     <button name="accion" value="publicar" class="btn btn-primary" onclick="return confirm('¿Publicar la circular? Les llega de una vez a los destinatarios y ya no se puede cambiar.');"><i class="fas fa-paper-plane me-1"></i>Publicar y enviar</button>
