@@ -10,11 +10,13 @@ import json
 from django.conf import settings
 from django.contrib.staticfiles import finders
 from django.core.cache import cache
-from django.http import Http404, HttpResponse
+from django.contrib.auth.decorators import login_required
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.cache import cache_control
+from django.views.decorators.http import require_POST
 
-VERSION_SW = '1'
+VERSION_SW = '2'
 TAMANOS = (192, 512)
 
 
@@ -166,6 +168,28 @@ self.addEventListener('activate', (e) => {
     .then(() => self.clients.claim()));
 });
 
+// Notificaciones al celular: la plataforma manda {titulo, cuerpo, url, etiqueta}.
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { cuerpo: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.titulo || 'mcolegio', {
+    body: d.cuerpo || 'Tiene un aviso nuevo en la plataforma.',
+    icon: '/app/icono-192.png', badge: '/app/icono-192.png',
+    tag: d.etiqueta || undefined, data: { url: d.url || '/app/' },
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const destino = new URL((e.notification.data && e.notification.data.url) || '/app/', self.location.origin).href;
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((ventanas) => {
+    for (const v of ventanas) {
+      if (new URL(v.url).origin === self.location.origin && 'focus' in v) { v.navigate(destino); return v.focus(); }
+    }
+    return clients.openWindow(destino);
+  }));
+});
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
@@ -205,3 +229,58 @@ def inicio(request):
     if request.user.is_authenticated:
         return redirect('notas:dashboard')
     return redirect('/')
+
+
+# ----------------------------------------------------------------------------- notificaciones al celular
+
+@login_required
+def push_clave(request):
+    from notas import push
+    if not push.disponible():
+        return JsonResponse({'clave': ''})
+    return JsonResponse({'clave': push.clave_publica()})
+
+
+@login_required
+@require_POST
+def push_suscribir(request):
+    """Guarda el celular de quien tocó «Activar avisos» (lo manda el navegador)."""
+    from notas.models import SuscripcionPush
+    try:
+        datos = json.loads(request.body.decode('utf-8'))
+        endpoint = str(datos['endpoint'])
+        llaves = datos.get('keys') or {}
+        p256dh, auth = str(llaves['p256dh']), str(llaves['auth'])
+    except (ValueError, KeyError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'datos incompletos'}, status=400)
+    if not endpoint.startswith('https://') or len(endpoint) > 1000 or len(p256dh) > 200 or len(auth) > 100:
+        return JsonResponse({'ok': False, 'error': 'datos no válidos'}, status=400)
+    SuscripcionPush.objects.update_or_create(endpoint=endpoint, defaults={
+        'usuario': request.user, 'colegio': getattr(request, 'colegio', None), 'p256dh': p256dh, 'auth': auth,
+        'dispositivo': (request.META.get('HTTP_USER_AGENT') or '')[:200]})
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def push_quitar(request):
+    from notas.models import SuscripcionPush
+    try:
+        endpoint = str(json.loads(request.body.decode('utf-8'))['endpoint'])
+    except (ValueError, KeyError, TypeError):
+        return JsonResponse({'ok': False}, status=400)
+    SuscripcionPush.objects.filter(endpoint=endpoint, usuario=request.user).delete()
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def push_probar(request):
+    """Manda un aviso de prueba a los celulares de quien lo pide."""
+    from notas import push
+    from notas.models import Notificacion, SuscripcionPush
+    if not SuscripcionPush.objects.filter(usuario=request.user).exists():
+        return JsonResponse({'ok': False, 'enviados': 0})
+    prueba = Notificacion(colegio=getattr(request, 'colegio', None), destinatario=request.user, tipo='GENERAL',
+                          mensaje='Listo: así le llegarán los avisos del colegio a este celular.', url='/app/')
+    return JsonResponse({'ok': True, 'enviados': push.enviar([prueba])})

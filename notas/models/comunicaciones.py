@@ -107,7 +107,17 @@ class RegistroObservador(models.Model):
         verbose_name = "Registro del Observador"
         verbose_name_plural = "Registros del Observador"
 
+class NotificacionManager(models.Manager):
+    def bulk_create(self, objs, *args, **kwargs):
+        """Las que se crean de a muchas (circulares, plazos…) también salen al celular."""
+        creadas = super().bulk_create(objs, *args, **kwargs)
+        from notas import push
+        push.programar(creadas)
+        return creadas
+
+
 class Notificacion(models.Model):
+    objects = NotificacionManager()
     # 👇 MODIFICADO: Se añade null=True para permitir la migración
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="notificaciones", null=True)
     destinatario = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notificaciones")
@@ -132,3 +142,38 @@ class Notificacion(models.Model):
         ordering = ['-fecha_creacion']
         verbose_name = "Notificación"
         verbose_name_plural = "Notificaciones"
+
+
+class SuscripcionPush(models.Model):
+    """Un celular o computador que aceptó recibir las notificaciones de la plataforma.
+
+    Las guarda el navegador al tocar «Activar avisos»; el endpoint es la dirección
+    del servicio de notificaciones del navegador (Google, Apple, Mozilla)."""
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='suscripciones_push')
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, null=True, blank=True, related_name='+')
+    endpoint = models.TextField(unique=True)
+    p256dh = models.CharField(max_length=200)
+    auth = models.CharField(max_length=100)
+    dispositivo = models.CharField(max_length=200, blank=True)
+    creada = models.DateTimeField(auto_now_add=True)
+    ultimo_envio = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Celular con notificaciones'
+        verbose_name_plural = 'Celulares con notificaciones'
+
+    def __str__(self):
+        return f'{self.usuario} · {self.dispositivo[:40]}'
+
+
+class ClavePush(models.Model):
+    """Las llaves VAPID de la plataforma (una sola fila). Se crean solas la primera vez.
+
+    Si se cambian, todos los celulares tienen que volver a activar los avisos."""
+    privada = models.CharField(max_length=100)
+    publica = models.CharField(max_length=200)
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Llave de notificaciones'
+        verbose_name_plural = 'Llaves de notificaciones'
