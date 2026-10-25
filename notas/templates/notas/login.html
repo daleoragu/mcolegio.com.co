@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {% include "notas/includes/_app.html" %}
-    <title>Ingreso a Plataforma - I.E.T. Alfonso Palacio Rudas</title>
+    <title>Ingreso a Plataforma - {{ colegio.nombre|default:"mcolegio" }}</title>
     <style>
         :root {
             --color-primario: #923e2b; /* Rojo del escudo */
@@ -84,7 +84,7 @@
     <div class="login-container">
         <img src="https://placehold.co/100x100/923e2b/ffc000?text=APR" alt="Logo del Colegio">
         <h1>Bienvenido</h1>
-        <p>I.E.T. Alfonso Palacio Rudas</p>
+        <p>{{ colegio.nombre|default:"mcolegio" }}</p>
         <form class="login-form" action="" method="POST">
             {% csrf_token %} <input type="text" name="username" placeholder="Nombre de Usuario" required>
             <input type="password" name="password" placeholder="Contraseña" required>

@@ -57,6 +57,16 @@ class Familias(ColegioDePrueba):
         c.post(reverse('notas:cambiar_de_hijo', args=[self.caro.id]))       # caro no es de la familia
         self.assertEqual(int(c.session['_auth_user_id']), self.beto.user.id)
 
+    def test_en_ver_como_el_administrador_tambien_cambia_de_hermano(self):
+        familia.unir([self.ana, self.beto])
+        c = self.cliente(self.ana.user)
+        sesion = c.session
+        sesion['original_user_id'] = self.rectora.id          # la rectora está «viendo como» Ana
+        sesion.save()
+        c.post(reverse('notas:cambiar_de_hijo', args=[self.beto.id]))
+        self.assertEqual(int(c.session['_auth_user_id']), self.beto.user.id)
+        self.assertEqual(c.session['original_user_id'], self.rectora.id)   # puede volver a su cuenta
+
     def test_unir_junta_familias_y_separar_deshace(self):
         familia.unir([self.ana, self.beto])
         otro = self.crear_estudiante('dani')

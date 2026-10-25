@@ -19,7 +19,7 @@ de la imagen de portada ajustado.
                 <p class="text-uppercase small text-muted mb-1" style="letter-spacing: 2px;">Noticias · {{ colegio.nombre }}</p>
                 <h1 class="noticia-titulo d-inline-block align-middle me-3">{{ noticia.titulo }}</h1>
             </div>
-            <img src="{% static 'img/logo_colegio.png' %}" alt="Logo Alfonso Palacio Rudas" style="max-height: 80px; margin-left: 20px;">
+            {% if colegio.escudo %}<img src="{{ colegio.escudo.url }}" alt="Escudo {{ colegio.nombre }}" style="max-height: 80px; margin-left: 20px;">{% endif %}
         </div>
 
         <p class="text-muted text-center mb-4">

@@ -59,11 +59,15 @@ def cambiar_de_hijo(request, pk):
     """Entra a la cuenta de un hermano sin clave: ya se probó que es de la misma familia."""
     yo = _mi_estudiante(request)
     otro = get_object_or_404(Estudiante, pk=pk, colegio=request.colegio, is_active=True)
-    if yo is None or not yo.familia_id or otro.familia_id != yo.familia_id or otro.pk == yo.pk \
-            or request.session.get('original_user_id'):
+    if yo is None or not yo.familia_id or otro.familia_id != yo.familia_id or otro.pk == yo.pk:
         messages.error(request, 'No se puede cambiar a esa cuenta.')
         return redirect('notas:dashboard')
+    # Si un administrador está «viendo como» este estudiante, sigue en modo «ver como» con el hermano:
+    # login() limpia la sesión, así que se vuelve a guardar quién era el administrador.
+    original = request.session.get('original_user_id')
     login(request, otro.user, backend='django.contrib.auth.backends.ModelBackend')
+    if original:
+        request.session['original_user_id'] = original
     messages.success(request, f'Ahora está viendo a {otro.user.get_full_name() or otro.user.username}.')
     return redirect('notas:dashboard')
 

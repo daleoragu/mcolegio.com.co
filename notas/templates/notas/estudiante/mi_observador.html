@@ -17,7 +17,8 @@
 
     /* Estilos de la ficha del docente para unificar la apariencia */
     .ficha-container { border: 1px solid #aaa; padding: 20px; background-color: #fff; }
-    .ficha-encabezado-wrapper { border: 2px solid #000; margin-bottom: 15px; padding: 0; }
+    .ficha-encabezado-wrapper { margin-bottom: 15px; padding: 0; }
+    .ficha-encabezado-wrapper p { margin: 2px 0; }
     .ficha-encabezado-tabla { width: 100%; border-collapse: collapse; }
     .ficha-encabezado-tabla td { vertical-align: middle; padding: 8px 15px; }
     .td-logo-left { width: 20%; text-align: left; border-right: 1px solid #000; }
@@ -99,17 +100,7 @@
             <div class="tab-pane fade" id="ficha" role="tabpanel" aria-labelledby="ficha-tab">
                 <div class="ficha-container">
                     <div class="ficha-encabezado-wrapper">
-                        <table class="ficha-encabezado-tabla">
-                            <tr>
-                                <td class="td-logo-left"><img src="{% static 'img/Logo_govtolima.png' %}" class="ficha-escudo" alt="Escudo Gobernación"></td>
-                                <td class="td-info-center ficha-info-institucion">
-                                    <p>INSTITUCION EDUCATIVA TÉCNICA ALFONSO PALACIO RUDAS</p>
-                                    <p style="font-size: 9px; font-weight: normal;">Nit. 890.701.233-7</p>
-                                    <p style="font-size: 9px; font-weight: normal;">Honda Tolima</p>
-                                </td>
-                                <td class="td-logo-right"><img src="{% static 'img/logo_colegio.png' %}" class="ficha-escudo" alt="Logo Colegio"></td>
-                            </tr>
-                        </table>
+                        {% include "notas/fragmentos/encabezado_pdf.html" %}
                     </div>
                     <div class="ficha-titulo-principal">OBSERVADOR DEL ESTUDIANTE {% now "Y" %}</div>
                     <div class="ficha-cuerpo-principal">
