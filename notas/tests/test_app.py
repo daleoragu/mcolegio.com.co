@@ -1,6 +1,7 @@
 """App instalable: manifiesto por colegio, iconos, service worker y botón."""
 import io
 import json
+from unittest import mock
 
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -74,3 +75,33 @@ class AppInstalable(ColegioDePrueba):
             r = self.cliente().get('/app/icono-192.png')
         self.assertEqual(r.status_code, 200)
         self.assertEqual(Image.open(io.BytesIO(r.content)).size, (192, 192))
+
+
+class IconosYColores(ColegioDePrueba):
+
+    def setUp(self):
+        cache.clear()
+
+    def test_color_mal_escrito_no_daña_el_manifiesto(self):
+        self.a.color_topbar = 'rojo oscuro'
+        self.a.save()
+        m = json.loads(self.cliente().get('/manifest.webmanifest').content)
+        self.assertEqual(m['theme_color'], '#343A40')
+
+    def test_el_icono_del_escudo_queda_guardado(self):
+        from django.core.files.storage import default_storage
+
+        from notas.views.app_views import _ruta_icono
+        buf = io.BytesIO()
+        Image.new('RGB', (300, 150), (0, 120, 0)).save(buf, 'PNG')
+        self.a.escudo = SimpleUploadedFile('escudo.png', buf.getvalue(), content_type='image/png')
+        self.a.save()
+        r = self.cliente().get('/app/icono-192.png')
+        self.assertIn('public', r['Cache-Control'])
+        ruta = _ruta_icono(self.a, self.a.escudo, 192, False)
+        self.assertTrue(default_storage.exists(ruta))
+        cache.clear()
+        with mock.patch('notas.views.app_views._png_icono') as hacer:
+            self.cliente().get('/app/icono-192.png')
+        hacer.assert_not_called()                                  # sale del guardado, sin volver a dibujarlo
+        default_storage.delete(ruta)

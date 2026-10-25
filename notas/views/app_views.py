@@ -20,10 +20,17 @@ VERSION_SW = '2'
 TAMANOS = (192, 512)
 
 
+def _color_valido(valor, defecto='#343A40'):
+    """Chrome descarta el manifiesto entero con algunos colores mal escritos: solo #rgb o #rrggbb."""
+    import re
+    valor = (valor or '').strip()
+    return valor if re.fullmatch(r'#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})', valor) else defecto
+
+
 def _colores(colegio):
     if colegio is None:
         return '#1f2937', '#ffffff'
-    return (colegio.color_topbar or colegio.color_primario or '#343A40'), '#ffffff'
+    return _color_valido(colegio.color_topbar or colegio.color_primario), '#ffffff'
 
 
 def _nombre_de_app(colegio):
@@ -123,7 +130,39 @@ def _icono_de_letras(colegio, tam):
     return out.getvalue()
 
 
-@cache_control(max_age=86400)
+def _ruta_icono(colegio, archivo, tam, maskable):
+    import hashlib
+    huella = hashlib.sha1(f'{getattr(archivo, "name", "")}'.encode()).hexdigest()[:10]
+    return f'app_iconos/{getattr(colegio, "id", 0)}-{huella}-{tam}{"m" if maskable else ""}.png'
+
+
+def _icono_guardado(colegio, archivo, tam, maskable):
+    """El icono ya hecho, guardado en el almacenamiento: el servidor de Google que arma la app
+    instalable tiene poca paciencia, y bajar el escudo y redimensionarlo en cada petición tarda."""
+    if colegio is None or archivo is None:
+        return None
+    from django.core.files.storage import default_storage
+    try:
+        with default_storage.open(_ruta_icono(colegio, archivo, tam, maskable), 'rb') as fh:
+            return fh.read() or None
+    except Exception:
+        return None
+
+
+def _guardar_icono(colegio, archivo, tam, maskable, png):
+    if colegio is None or archivo is None or not png:
+        return
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+    ruta = _ruta_icono(colegio, archivo, tam, maskable)
+    try:
+        if not default_storage.exists(ruta):
+            default_storage.save(ruta, ContentFile(png))
+    except Exception:
+        pass
+
+
+@cache_control(max_age=86400, public=True)
 def icono(request, tam):
     if tam not in TAMANOS:
         raise Http404
@@ -136,15 +175,17 @@ def icono(request, tam):
     except Exception:
         png = None
     if png is None:
-        png = None
-        for origen in (colegio, None):                 # escudo dañado o Spaces caído: el de mcolegio
-            try:
-                png = _png_icono(origen, tam, maskable)
-            except Exception:
-                png = None
-            if png:
-                break
-        png = png or _icono_de_letras(colegio, tam)    # nunca falla: sin icono el celular no instala
+        png = _icono_guardado(colegio, archivo, tam, maskable)
+        if png is None:
+            for origen in (colegio, None):                 # escudo dañado o Spaces caído: el de mcolegio
+                try:
+                    png = _png_icono(origen, tam, maskable)
+                except Exception:
+                    png = None
+                if png:
+                    break
+            png = png or _icono_de_letras(colegio, tam)    # nunca falla: sin icono el celular no instala
+            _guardar_icono(colegio, archivo, tam, maskable, png)
         try:
             cache.set(clave, png, 6 * 3600)
         except Exception:

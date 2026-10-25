@@ -161,6 +161,10 @@
 
     .vc-caja { background:#fff; border:1px solid #e3e6ec; border-radius:12px; padding:14px 18px; margin:6px 20px 20px; }
     .vc-muestra .app-icon { cursor:default; opacity:.85; }
+    .icon-container.con-globo { position:relative; }
+    .globo { position:absolute; top:-6px; right:-6px; min-width:22px; height:22px; padding:0 6px; border-radius:11px;
+             background:#dc2626; color:#fff; font-size:.75rem; font-weight:700; line-height:22px; text-align:center;
+             box-shadow:0 0 0 2px #fff; }
     .vc-muestra .app-icon:hover { transform:none; }
 </style>
 {% endblock %}
@@ -193,6 +197,7 @@
 
             <div class="app-grid">
                 <!-- CORREGIDO: Se añade el namespace 'notas:' a todos los enlaces -->
+                {% if 'correo' in mods %}<a href="{% url 'notas:bandeja_entrada' %}" class="app-icon"><div class="icon-container con-globo" style="background:linear-gradient(135deg,#dc3545,#b02130);"><i class="fas fa-envelope"></i>{% if correo_sin_leer %}<span class="globo">{{ correo_sin_leer }}</span>{% endif %}</div><span class="app-label">{{ colegio.nombre_correo|default:"Correo interno" }}</span></a>{% endif %}
                 <a href="{% url 'notas:gestion_asignacion_academica' %}" class="app-icon">
                     <div class="icon-container bg-asignacion"><i class="fas fa-sitemap"></i></div>
                     <span class="app-label">Asignación Académica</span>
@@ -205,6 +210,7 @@
                 <a href="{% url 'notas:gestion_sedes' %}" class="app-icon"><div class="icon-container bg-sedes"><i class="fas fa-school"></i></div><span class="app-label">Sedes</span></a>
                 <a href="{% url 'notas:importacion_datos' %}" class="app-icon"><div class="icon-container bg-importar"><i class="fas fa-file-import"></i></div><span class="app-label">Importar datos</span></a>
                 <a href="{% url 'notas:gestion_estudiantes' %}" class="app-icon"><div class="icon-container bg-estudiantes"><i class="fas fa-users"></i></div><span class="app-label">Gestión Estudiantes</span></a>
+                <a href="{% url 'notas:familias' %}" class="app-icon"><div class="icon-container bg-estudiantes" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);"><i class="fas fa-people-roof"></i></div><span class="app-label">Familias (hermanos)</span></a>
                 <a href="{% url 'notas:gestion_materias' %}" class="app-icon"><div class="icon-container bg-materias"><i class="fas fa-book-open"></i></div><span class="app-label">Gestión Materias</span></a>
                 <a href="{% url 'notas:gestion_areas' %}" class="app-icon"><div class="icon-container bg-materias" style="filter:hue-rotate(40deg)"><i class="fas fa-layer-group"></i></div><span class="app-label">Áreas</span></a>
                 <a href="{% url 'notas:gestion_docentes' %}" class="app-icon"><div class="icon-container bg-docentes"><i class="fas fa-chalkboard-teacher"></i></div><span class="app-label">Gestión de Docentes</span></a>

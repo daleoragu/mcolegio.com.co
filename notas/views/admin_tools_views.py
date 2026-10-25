@@ -288,8 +288,11 @@ class ConfiguracionGlobalForm(forms.ModelForm):
             'docente_puede_modificar',
             'ponderar_periodos', 'exigir_periodos_completos',
             'colapsar_area_unica',
+            'inclusion_en_promedio_curso', 'inclusion_puesto',
         ]
         widgets = {
+            'inclusion_en_promedio_curso': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'inclusion_puesto': forms.RadioSelect(attrs={'class': 'form-check-input'}),
             'ponderar_periodos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'exigir_periodos_completos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'colapsar_area_unica': forms.CheckboxInput(attrs={'class': 'form-check-input'}),

@@ -430,3 +430,18 @@ def acta_pdf(request, pk):
 def mi_piar(request):
     piars = Piar.objects.filter(colegio=request.colegio, estudiante__user=request.user, compartido_familia=True)
     return render(request, 'piar/mi_piar.html', {'colegio': request.colegio, 'piars': piars})
+
+
+# ---------------------------------------------------------------------------
+# Estadísticas de inclusión
+# ---------------------------------------------------------------------------
+@login_required
+def estadisticas(request):
+    if not request.colegio:
+        return HttpResponseNotFound('<h1>Colegio no configurado</h1>')
+    if not logica.coordina(request):
+        return HttpResponseForbidden('Las estadísticas de inclusión son para la administración y los docentes de apoyo.')
+    from . import estadisticas as est
+    ano = _ano(request)
+    return render(request, 'piar/estadisticas.html', {'colegio': request.colegio, 'ano': ano,
+                                                       'd': est.calcular(request.colegio, ano)})

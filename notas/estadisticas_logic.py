@@ -13,6 +13,23 @@ from .models import (
 import statistics
 import random
 
+
+def _filtro_inclusion(filtros, prefijo=''):
+    """Qué estudiantes entran: filtros['inclusion'] = 'solo' | 'sin' | 'todos'.
+
+    Sin escoger, se sigue la regla del colegio: si los de inclusión no cuentan en el promedio
+    del curso, las estadísticas generales se calculan sin ellos."""
+    from .inclusion import cuentan_en_promedio
+    campo = f'{prefijo}es_inclusion'
+    eleccion = filtros.get('inclusion')
+    if eleccion == 'solo':
+        return {campo: True}
+    if eleccion == 'sin':
+        return {campo: False}
+    if eleccion != 'todos' and filtros.get('colegio') and not cuentan_en_promedio(filtros['colegio']):
+        return {campo: False}
+    return {}
+
 # ===================================================================
 # LÓGICA CENTRAL DE CÁLCULO
 # ===================================================================
@@ -38,7 +55,7 @@ def _get_rendimiento_estudiantes_bulk(filtros):
     """
     colegio = filtros.get('colegio')
 
-    estudiantes_qs = Estudiante.objects.filter(curso__colegio=colegio, is_active=True)
+    estudiantes_qs = Estudiante.objects.filter(curso__colegio=colegio, is_active=True, **_filtro_inclusion(filtros))
     if filtros.get('curso_ids'):
         estudiantes_qs = estudiantes_qs.filter(curso_id__in=filtros['curso_ids'])
 
@@ -223,6 +240,7 @@ def get_distribucion_por_materia(filtros=None):
 
 
 def get_cuadro_honor(filtros=None):
+    from .inclusion import modo_puesto
     if filtros is None or not filtros.get('curso_ids'): return []
     datos_rendimiento_crudo = _get_datos_rendimiento_cached(filtros)
 
@@ -231,6 +249,8 @@ def get_cuadro_honor(filtros=None):
          'curso': data['estudiante'].curso.nombre,
          'promedio': float(data['promedio_general'])}
         for data in datos_rendimiento_crudo.values() if data['promedio_general'] > 0
+        and (filtros.get('inclusion') == 'solo' or modo_puesto(filtros.get('colegio')) == 'GENERAL'
+             or not data['estudiante'].es_inclusion)
     ]
     ranking.sort(key=lambda x: x['promedio'], reverse=True)
     return [{'puesto': i + 1, **item} for i, item in enumerate(ranking[:3])]
@@ -256,7 +276,7 @@ def get_ranking_cursos(filtros=None):
 # ===================================================================
 
 def _get_base_query(filtros):
-    base_query = Calificacion.objects.filter(tipo_nota='PROM_PERIODO')
+    base_query = Calificacion.objects.filter(tipo_nota='PROM_PERIODO', **_filtro_inclusion(filtros, 'estudiante__'))
     if filtros.get('colegio'):
         base_query = base_query.filter(estudiante__curso__colegio=filtros['colegio'])
     if filtros.get('ano_lectivo'):

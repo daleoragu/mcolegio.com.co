@@ -529,7 +529,7 @@ class Estudiante(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="¿Estudiante Activo?")
     
     # NUEVO CAMPO AÑADIDO PARA INCLUSIÓN
-    es_inclusion = models.BooleanField(default=False, verbose_name="Estudiante de Inclusión", help_text="Marcar si el estudiante pertenece al programa de inclusión. Se ignorará para rankings.")
+    es_inclusion = models.BooleanField(default=False, verbose_name="Estudiante de Inclusión", help_text="Marcar si el estudiante pertenece al programa de inclusión. Cómo entra al puesto y al promedio del curso se define en la configuración de calificaciones.")
     
     def __str__(self): 
         return self.user.get_full_name() or self.user.username

@@ -234,14 +234,11 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
         sabana_data.append(estudiante_data)
 
     # --- 3. CÁLCULO DE PUESTO Y PODIO (BASADO EN NOTAS ORIGINALES) ---
+    from ..inclusion import asignar_puestos, para_podio
     sabana_data.sort(key=lambda x: x['fila_acumulada']['promedio_final_ranking'] or CERO, reverse=True)
-    mejores_estudiantes = sabana_data[:3]
-    rank_counter = 1
-    for k, group in groupby(sabana_data, key=lambda x: x['fila_acumulada']['promedio_final_ranking']):
-        group_list = list(group)
-        for item in group_list:
-            item.update({'puesto_final': rank_counter})
-        rank_counter += len(group_list)
+    mejores_estudiantes = para_podio(sabana_data, colegio, lambda x: x['info'])[:3]
+    asignar_puestos(sabana_data, colegio, lambda x: x['fila_acumulada']['promedio_final_ranking'],
+                    lambda x: x['info'], 'puesto_final', empates=True)
     sabana_data.sort(key=lambda x: (x['info'].user.last_name, x['info'].user.first_name))
         
     # El resto de la función no necesita cambios...

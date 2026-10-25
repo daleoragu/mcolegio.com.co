@@ -60,8 +60,16 @@ def admin_dashboard_vista(request):
         # Para las pestañas «Panel docente» y «Panel estudiante»: escoger a
         # alguien y ver la plataforma como lo ve él («Ver como»).
         'ver_como': _personas_para_ver_como(request),
+        'correo_sin_leer': _correo_sin_leer(request),
     }
     return render(request, 'notas/admin_tools/admin_dashboard.html', context)
+
+
+def _correo_sin_leer(request):
+    """Mensajes del correo interno que le llegaron y todavía no ha abierto."""
+    from ..models import Mensaje
+    return Mensaje.objects.filter(colegio=request.colegio, destinatario=request.user, estado='ENVIADO', leido=False,
+                                  eliminado_por_destinatario=False).count()
 
 
 def _personas_para_ver_como(request):

@@ -439,6 +439,7 @@ def datos_graficos_ajax(request):
         'curso_ids': request.GET.getlist('curso_ids[]'),
         'area_id': request.GET.get('area_id'),
         'materia_id': request.GET.get('materia_id'),
+        'inclusion': request.GET.get('inclusion') or None,
     }
 
     for key in ['ano_lectivo', 'periodo_id', 'area_id', 'materia_id']:
@@ -566,6 +567,7 @@ def estadisticas_pdf_vista(request):
         'curso_ids': request.GET.getlist('curso_ids[]'),
         'area_id': request.GET.get('area_id'),
         'materia_id': request.GET.get('materia_id'),
+        'inclusion': request.GET.get('inclusion') or None,
     }
     for key in ['ano_lectivo', 'periodo_id', 'area_id', 'materia_id']:
         if filtros[key] == 'todos' or not filtros[key]: filtros[key] = None
