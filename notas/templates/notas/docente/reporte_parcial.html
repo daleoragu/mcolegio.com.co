@@ -90,6 +90,7 @@
                         <th>Estudiante</th>
                         <th style="width:130px" class="text-center">Nota parcial</th>
                         <th>¿Presenta Dificultades?</th>
+                        <th style="min-width:220px">Qué le falta o qué debe entregar <span class="fw-normal text-muted small">(opcional)</span></th>
                         <th style="width:150px"></th>
                     </tr>
                 </thead>
@@ -110,6 +111,9 @@
                                 </label>
                                 {% if f.sugerido %}<span class="badge bg-warning text-dark">Sugerido por la nota</span>{% endif %}
                             </td>
+                            <td><textarea name="sugerencia_{{ f.est.id }}" rows="2" maxlength="500" class="form-control form-control-sm"
+                                          placeholder="Ej.: entregar el taller de fracciones y presentar la evaluación pendiente"
+                                          {% if plazo_reporte_cerrado %}disabled{% endif %}>{{ f.sugerencia }}</textarea></td>
                             <td class="text-end">
                                 {% if f.guardado %}
                                 <a class="btn btn-sm btn-outline-success" href="{% url 'notas:aviso_reporte_parcial' f.est.id %}?periodo_id={{ periodo_seleccionado_id }}&volver={{ request.get_full_path|urlencode }}">

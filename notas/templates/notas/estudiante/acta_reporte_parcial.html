@@ -216,6 +216,7 @@
                     <th>Materia</th>
                     <th>Docente</th>
                     <th>Estado de Dificultad</th>
+                    <th>Qué le falta o qué debe entregar</th>
                 </tr>
             </thead>
             <tbody>
@@ -231,6 +232,7 @@
                                 No
                             {% endif %}
                         </td>
+                        <td>{{ reporte.sugerencia|default:"—"|linebreaksbr }}</td>
                     </tr>
                 {% endfor %}
             </tbody>

@@ -94,14 +94,15 @@ def reporte_parcial_vista(request):
         for estudiante in estudiantes_del_curso:
             estado_reporte = request.POST.get(f'reporte_{estudiante.id}')
             presenta_dificultades = (estado_reporte == 'si')
-            
+            sugerencia = (request.POST.get(f'sugerencia_{estudiante.id}') or '').strip()[:500]
+
             # Asociar el reporte al colegio actual.
             reporte, creado = ReporteParcial.objects.update_or_create(
                 colegio=request.colegio,
                 estudiante=estudiante, 
                 asignacion=asignacion, 
                 periodo=periodo,
-                defaults={'presenta_dificultades': presenta_dificultades}
+                defaults={'presenta_dificultades': presenta_dificultades, 'sugerencia': sugerencia}
             )
 
             if presenta_dificultades and (creado or not reporte.presenta_dificultades):
@@ -151,6 +152,7 @@ def reporte_parcial_vista(request):
                     periodo_id=periodo_seleccionado_id
                 )
                 context['reportes_existentes_map'] = {r.estudiante_id: r.presenta_dificultades for r in reportes_existentes}
+                sugerencias = {r.estudiante_id: r.sugerencia for r in reportes_existentes}
                 # Nota parcial con lo que ya hay en la planilla: si está en bajo y
                 # el docente aún no ha guardado, el «Sí» sale marcado.
                 from .. import reporte_aviso
@@ -164,7 +166,8 @@ def reporte_parcial_vista(request):
                     filas.append({'est': est, 'nota': reporte_aviso.texto_nota(nota), 'bajo': bajo,
                                   'desempeno': reporte_aviso.desempeno(request.colegio, nota),
                                   'si': marcado, 'guardado': guardados.get(est.id) is True,
-                                  'sugerido': bajo and est.id not in guardados})
+                                  'sugerido': bajo and est.id not in guardados,
+                                  'sugerencia': sugerencias.get(est.id, '')})
                 context['filas'] = filas
                 context['hay_sugeridos'] = any(f['sugerido'] for f in filas)
         except Exception as e:
@@ -338,9 +341,10 @@ def _pdf_informe(request, estudiante, periodo):
     except ImportError:
         return HttpResponse('La generación de PDF no está disponible en este servidor.', status=500)
     from django.template.loader import render_to_string
+    asignaturas = reporte_aviso.asignaturas_reportadas(estudiante, periodo)
     html = render_to_string('notas/estudiante/informe_parcial_pdf.html', {
         'colegio': estudiante.colegio, 'estudiante': estudiante, 'periodo': periodo,
-        'asignaturas': reporte_aviso.asignaturas_reportadas(estudiante, periodo)}, request=request)
+        'asignaturas': asignaturas, 'hay_sugerencias': any(a['sugerencia'] for a in asignaturas)}, request=request)
     datos = HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
     r = HttpResponse(datos, content_type='application/pdf')
     nombre = f'Informe parcial {periodo.get_nombre_display()} {estudiante.user.get_full_name()}'

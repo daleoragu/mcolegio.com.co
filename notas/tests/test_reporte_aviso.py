@@ -64,3 +64,24 @@ class ReporteAviso(ColegioDePrueba):
             f'/reporte-parcial/informe/{self.ana.id}/pdf/?periodo_id={self.p1.id}').status_code, 200)
         self.assertEqual(self.cliente(self.beto.user).get(
             f'/reporte-parcial/informe/{self.ana.id}/pdf/?periodo_id={self.p1.id}').status_code, 403)
+
+
+    def test_sugerencia_del_docente_en_el_reporte_el_acta_y_el_aviso(self):
+        self.p1.reporte_parcial_activo = True
+        self.p1.save()
+        url = f'/docente/reporte-parcial/?asignacion_id={self.asig.id}&periodo_id={self.p1.id}'
+        datos = {'asignacion_id': self.asig.id, 'periodo_id': self.p1.id,
+                 f'reporte_{self.ana.id}': 'si', f'sugerencia_{self.ana.id}': '  Entregar el taller de fracciones  ',
+                 f'reporte_{self.beto.id}': 'no', f'reporte_{self.caro.id}': 'no'}
+        self.cliente(self.u_docente).post(url, datos)
+        r = ReporteParcial.objects.get(estudiante=self.ana, periodo=self.p1)
+        self.assertTrue(r.presenta_dificultades)
+        self.assertEqual(r.sugerencia, 'Entregar el taller de fracciones')
+        # Vuelve a salir en el formulario del docente
+        self.assertContains(self.cliente(self.u_docente).get(url), 'Entregar el taller de fracciones')
+        # En el acta, frente a la asignatura
+        acta = self.cliente(self.rectora).get(f'/reporte-parcial/acta/{self.ana.id}/?periodo_id={self.p1.id}')
+        self.assertContains(acta, 'Entregar el taller de fracciones')
+        # En el aviso a la familia
+        aviso = reporte_aviso.texto_aviso(self.ana, self.p1, reporte_aviso.asignaturas_reportadas(self.ana, self.p1))
+        self.assertIn('Matemáticas: Entregar el taller de fracciones', aviso)

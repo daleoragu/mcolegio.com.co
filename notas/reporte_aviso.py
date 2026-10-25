@@ -69,7 +69,8 @@ def asignaturas_reportadas(estudiante, periodo):
         salida.append({'materia': r.asignacion.materia.nombre,
                        'docente': r.asignacion.docente.user.get_full_name() if r.asignacion.docente_id else '',
                        'nota': nota, 'nota_texto': texto_nota(nota),
-                       'desempeno': desempeno(estudiante.colegio, nota)})
+                       'desempeno': desempeno(estudiante.colegio, nota),
+                       'sugerencia': (r.sugerencia or '').strip()})
     return salida
 
 
@@ -94,6 +95,9 @@ def texto_aviso(estudiante, periodo, asignaturas, url_informe=''):
              f'{nombre} presenta dificultades en: {lista}.\n'
              f'Todavía hay tiempo para mejorar antes del cierre del periodo: le pedimos acompañarlo(a) en casa '
              f'y comunicarse con los docentes si lo necesita.')
+    pendientes = [f'- {a["materia"]}: {a["sugerencia"]}' for a in asignaturas if a.get('sugerencia')]
+    if pendientes:
+        texto += '\nLo que le recomiendan los docentes para mejorar:\n' + '\n'.join(pendientes)
     if url_informe:
         texto += f'\nDescargue el informe parcial aquí: {url_informe}'
     return texto
