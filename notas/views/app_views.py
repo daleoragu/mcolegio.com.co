@@ -255,8 +255,8 @@ def push_suscribir(request):
         return JsonResponse({'ok': False, 'error': 'datos incompletos'}, status=400)
     if not endpoint.startswith('https://') or len(endpoint) > 1000 or len(p256dh) > 200 or len(auth) > 100:
         return JsonResponse({'ok': False, 'error': 'datos no válidos'}, status=400)
-    SuscripcionPush.objects.update_or_create(endpoint=endpoint, defaults={
-        'usuario': request.user, 'colegio': getattr(request, 'colegio', None), 'p256dh': p256dh, 'auth': auth,
+    SuscripcionPush.objects.update_or_create(endpoint=endpoint, usuario=request.user, defaults={
+        'colegio': getattr(request, 'colegio', None), 'p256dh': p256dh, 'auth': auth,
         'dispositivo': (request.META.get('HTTP_USER_AGENT') or '')[:200]})
     return JsonResponse({'ok': True})
 

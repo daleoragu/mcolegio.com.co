@@ -43,7 +43,8 @@ from .views import (
     sabana_views,
     gestion_docentes_views,
     gestion_estudiantes_views,
-    reporte_views # <--- === CORRECCIÓN 1: IMPORTAMOS EL ARCHIVO CORRECTO ===
+    reporte_views, # <--- === CORRECCIÓN 1: IMPORTAMOS EL ARCHIVO CORRECTO ===
+    familia_views,
 )
 
 # El nombre 'app_name' ayuda a Django a organizar las URLs. Es una buena práctica.
@@ -273,4 +274,7 @@ urlpatterns = [
     # Se corrigió el error de tipeo de 'gestion_acemica_views' a 'gestion_academica_views'.
     path('admin/gestion-academica/cursos/reordenar/<int:curso_id>/<str:direccion>/', gestion_academica_views.reordenar_curso_vista, name='reordenar_curso'),
     # === FIN DE LA CORRECCIÓN ===
+    path('familia/', familia_views.mi_familia, name='mi_familia'),
+    path('familia/cambiar/<int:pk>/', familia_views.cambiar_de_hijo, name='cambiar_de_hijo'),
+    path('admin/familias/', familia_views.familias, name='familias'),
 ]

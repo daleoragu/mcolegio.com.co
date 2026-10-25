@@ -161,44 +161,57 @@ def enviar_a(suscripcion, aviso, privada=None, publica=None):
         return 'error'
 
 
-def _aviso(n, nombres_colegio):
+def _aviso(n, nombres_colegio, hijo=''):
     return {
         'titulo': nombres_colegio.get(n.colegio_id) or 'mcolegio',
-        'cuerpo': n.mensaje,
+        'cuerpo': f'{hijo}: {n.mensaje}' if hijo else n.mensaje,
         'url': n.url or '/app/',
         'etiqueta': f'mc-{n.tipo.lower()}-{n.id or int(time.time())}',
     }
 
 
+def _destinos(notificaciones):
+    from notas.familia import destinos_por_usuario
+    return destinos_por_usuario({n.destinatario_id for n in notificaciones})
+
+
 def enviar(notificaciones):
-    """Manda cada notificación a todos los celulares activados de su destinatario. Devuelve cuántas salieron."""
+    """Manda cada notificación a los celulares activados de su destinatario (y de sus hermanos,
+    si es estudiante en familia: el acudiente puede tener abierta la cuenta de otro hijo).
+    Devuelve cuántas salieron."""
     from notas.models import Colegio, SuscripcionPush
     notificaciones = [n for n in notificaciones if getattr(n, 'destinatario_id', None)]
     if not notificaciones or not disponible():
         return 0
+    destinos = _destinos(notificaciones)
     por_usuario = {}
-    for s in SuscripcionPush.objects.filter(usuario_id__in={n.destinatario_id for n in notificaciones}):
+    for s in SuscripcionPush.objects.filter(usuario_id__in=set().union(*(u for u, _ in destinos.values()))):
         por_usuario.setdefault(s.usuario_id, []).append(s)
     if not por_usuario:
         return 0
     nombres = dict(Colegio.objects.filter(id__in={n.colegio_id for n in notificaciones if n.colegio_id})
                    .values_list('id', 'nombre'))
     privada, publica = llaves()
-    salieron, vencidas, usadas = 0, [], []
+    salieron, vencidas, usadas = 0, set(), set()
     for n in notificaciones:
-        for s in por_usuario.get(n.destinatario_id, ()):
-            if s.id in vencidas:
-                continue
-            resultado = enviar_a(s, _aviso(n, nombres), privada, publica)
-            if resultado == 'ok':
-                salieron += 1
-                usadas.append(s.id)
-            elif resultado == 'vencida':
-                vencidas.append(s.id)
+        usuarios, hijo = destinos.get(n.destinatario_id, ({n.destinatario_id}, ''))
+        aviso = _aviso(n, nombres, hijo)
+        ya = set()                                   # un celular con dos cuentas de hermanos recibe una sola vez
+        for uid in usuarios:
+            for s in por_usuario.get(uid, ()):
+                if s.endpoint in ya or s.endpoint in vencidas:
+                    continue
+                ya.add(s.endpoint)
+                resultado = enviar_a(s, aviso, privada, publica)
+                if resultado == 'ok':
+                    salieron += 1
+                    usadas.add(s.id)
+                elif resultado == 'vencida':
+                    vencidas.add(s.endpoint)
     if vencidas:
-        SuscripcionPush.objects.filter(id__in=vencidas).delete()
+        SuscripcionPush.objects.filter(endpoint__in=vencidas).delete()
     if usadas:
-        SuscripcionPush.objects.filter(id__in=set(usadas)).update(ultimo_envio=timezone.now())
+        SuscripcionPush.objects.filter(id__in=usadas).update(ultimo_envio=timezone.now())
     return salieron
 
 
@@ -220,7 +233,8 @@ def programar(notificaciones):
     def lanzar():
         from notas.models import SuscripcionPush
         # La consulta va aquí, en el hilo de la página: casi nadie tiene celulares activados y así no se abre un hilo en vano.
-        if not SuscripcionPush.objects.filter(usuario_id__in={n.destinatario_id for n in lista}).exists():
+        usuarios = set().union(*(u for u, _ in _destinos(lista).values()))
+        if not SuscripcionPush.objects.filter(usuario_id__in=usuarios).exists():
             return
         if EN_SEGUNDO_PLANO:
             threading.Thread(target=trabajo, daemon=True).start()

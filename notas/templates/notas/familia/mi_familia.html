@@ -1,0 +1,44 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-people-roof me-2"></i>Mi familia</h4>{% endblock %}
+{% block content %}
+<style>
+  .fa-tarjeta { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:20px; margin-bottom:16px; max-width:720px; }
+  .fa-hijo { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #f1f3f6; flex-wrap:wrap; }
+  .fa-hijo:last-child { border-bottom:0; }
+  .fa-avatar { width:42px; height:42px; border-radius:50%; background:#eef4ff; color:#1d4ed8; display:flex; align-items:center; justify-content:center; font-weight:700; flex:0 0 auto; }
+</style>
+<div class="fa-tarjeta">
+    <p class="mb-3">Si tiene varios hijos en el colegio, únalos aquí. Así pasa de la cuenta de uno a la de otro con un toque
+        y en este celular le llegan los avisos de todos, con el nombre de cada hijo.</p>
+    <div class="fa-hijo">
+        <div class="fa-avatar">{{ yo.user.first_name|slice:":1" }}</div>
+        <div class="flex-grow-1"><strong>{{ yo.user.get_full_name }}</strong><div class="small text-muted">{{ yo.curso.nombre|default:"Sin curso" }} · cuenta abierta ahora</div></div>
+    </div>
+    {% for h in hermanos %}
+    <div class="fa-hijo">
+        <div class="fa-avatar">{{ h.user.first_name|slice:":1" }}</div>
+        <div class="flex-grow-1"><strong>{{ h.user.get_full_name }}</strong><div class="small text-muted">{{ h.curso.nombre|default:"Sin curso" }}</div></div>
+        <form method="post" action="{% url 'notas:cambiar_de_hijo' h.id %}">{% csrf_token %}
+            <button class="btn btn-primary btn-sm"><i class="fas fa-right-left me-1"></i>Ver a {{ h.user.first_name }}</button></form>
+        <form method="post" onsubmit="return confirm('¿Quitar a {{ h.user.first_name|escapejs }} de su familia? Ya no le llegarán sus avisos a este celular.');">{% csrf_token %}
+            <input type="hidden" name="accion" value="separar"><input type="hidden" name="estudiante" value="{{ h.id }}">
+            <button class="btn btn-link btn-sm text-danger">Quitar</button></form>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="fa-tarjeta">
+    <h6 class="fw-bold mb-1"><i class="fas fa-user-plus me-1"></i>Agregar otro hijo</h6>
+    <p class="small text-muted">Escriba el usuario y la clave con que entra su otro hijo. Solo se piden esta vez, para comprobar que usted es su acudiente.</p>
+    <form method="post" class="row g-2" autocomplete="off">{% csrf_token %}<input type="hidden" name="accion" value="agregar">
+        <div class="col-sm-5"><input class="form-control" name="usuario" placeholder="Usuario del otro hijo" autocapitalize="none" required></div>
+        <div class="col-sm-4"><input class="form-control" name="clave" type="password" placeholder="Clave" required></div>
+        <div class="col-sm-3"><button class="btn btn-success w-100">Agregar</button></div>
+    </form>
+    <p class="small text-muted mt-2 mb-0">¿No tiene la clave? Pídale a la secretaría del colegio que una a sus hijos.</p>
+</div>
+{% if hermanos %}
+<div class="fa-tarjeta"><p class="small mb-0"><i class="fas fa-bell me-1 text-warning"></i>Para recibir en este celular los avisos de todos sus hijos,
+    basta con tocar <strong>Activar</strong> en el aviso de notificaciones de cualquiera de ellos.</p></div>
+{% endif %}
+{% endblock %}
