@@ -8,8 +8,7 @@
             {% if colegio.escudo %}
                 <img src="{{ colegio.escudo.url }}" alt="Escudo de {{ colegio.nombre }}" style="height: 60px; max-width: 70px;">
             {% else %}
-                 <!-- Imagen de fallback si no hay escudo -->
-                 <img src="{% static 'img/logo_colegio.png' %}" alt="Logo por defecto" style="height: 60px;">
+                 <img src="{% static 'img/mcolegio-icono.png' %}" alt="{{ colegio.nombre }}" style="height: 60px;">
             {% endif %}
             <span class="ms-3 fs-5 fw-bold text-dark">{{ colegio.nombre }}</span>
         </a>

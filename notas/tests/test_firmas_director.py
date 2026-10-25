@@ -1,4 +1,6 @@
 """El colegio escoge en qué documentos firma el director(a) de grado."""
+from django.urls import reverse
+
 from notas.models import Colegio
 
 from .base import ColegioDePrueba
@@ -24,3 +26,15 @@ class FirmaDelDirector(ColegioDePrueba):
         r = self.cliente(self.rectora).get('/admin/configuracion-calificaciones/')
         self.assertContains(r, 'Firmas en los documentos')
         self.assertContains(r, 'name="firma_director_libro"')
+
+
+class ObservadorDelEstudianteConSuColegio(ColegioDePrueba):
+    """La ficha del observador que ve el estudiante lleva el encabezado de SU colegio, no uno fijo."""
+
+    def test_encabezado_del_colegio(self):
+        self.a.linea_encabezado_1 = 'COLEGIO A DE PRUEBA'
+        self.a.save()
+        r = self.cliente(self.estudiantes[0].user).get(reverse('notas:mi_observador'))
+        self.assertContains(r, 'COLEGIO A DE PRUEBA')
+        self.assertNotContains(r, 'PALACIO RUDAS')
+        self.assertNotContains(r, 'Logo_govtolima')

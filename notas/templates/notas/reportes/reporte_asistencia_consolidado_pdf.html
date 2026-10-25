@@ -83,24 +83,7 @@
 <body>
     {% for reporte in reportes_por_materia %}
         <div class="reporte-materia">
-            <table class="header-table">
-                <tr>
-                    <td class="logo-cell">
-                        <!-- Reemplaza la URL por la de tu logo estático. Debe ser una ruta absoluta o una URL completa para que WeasyPrint la encuentre. -->
-                        <img src="https://i.imgur.com/your_logo_gobernacion.png" alt="Logo Gobernación">
-                    </td>
-                    <td class="info-cell">
-                        I.E.T ALFONSO PALACIO RUDAS<br>
-                        HONDA-TOLIMA<br>
-                        NIT 890.701.323-7<br>
-                        DANE 173349000026
-                    </td>
-                    <td class="logo-cell">
-                        <!-- Reemplaza la URL por la de tu logo estático. -->
-                        <img src="https://i.imgur.com/your_logo_colegio.png" alt="Logo Colegio">
-                    </td>
-                </tr>
-            </table>
+            {% include "notas/fragmentos/encabezado_pdf.html" %}
             
             <h2>Reporte de Asistencia: {{ reporte.asignacion.materia.nombre }} - {{ reporte.asignacion.curso.nombre }} ({{ periodo.nombre }})</h2>
             

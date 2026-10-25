@@ -5,8 +5,8 @@
             {% if colegio.logo_izquierdo %}
                 <img src="{{ colegio.logo_izquierdo.url }}" alt="Escudo Izquierdo" class="escudo" style="max-width: 100px; max-height: {{ colegio.alto_logos_pdf|default:100 }}px; height: auto; width: auto;">
             {% else %}
-                <!-- Fallback si no hay logo izquierdo configurado -->
-                <img src="{% static 'img/logo_colegio.png' %}" alt="Logo Por Defecto" class="escudo" style="max-width: 100px; opacity: 0.1;">
+                {# Sin logo izquierdo: el escudo del colegio; nunca el de otro colegio. #}
+                {% if colegio.escudo %}<img src="{{ colegio.escudo.url }}" alt="Escudo" class="escudo" style="max-width: 100px; max-height: {{ colegio.alto_logos_pdf|default:100 }}px; height: auto; width: auto;">{% endif %}
             {% endif %}
         </td>
         

@@ -158,9 +158,9 @@ def _modelos_de_fabrica():
 def plantillas_para_cargar():
     """Lo que la orientadora puede cargar en un modelo para partir de ahí."""
     from . import plantillas
-    return [('PRE', 'Preescolar (General Santander)', plantillas.PREESCOLAR),
-            ('PRI', 'Primaria (General Santander)', plantillas.PRIMARIA),
-            ('BACH', 'Bachillerato (General Santander)', plantillas.BACHILLERATO),
+    return [('PRE', 'Preescolar (modelo base)', plantillas.PREESCOLAR),
+            ('PRI', 'Primaria (modelo base)', plantillas.PRIMARIA),
+            ('BACH', 'Bachillerato (modelo base)', plantillas.BACHILLERATO),
             ('MEN', 'Registro de habilidades del MEN (Anexo 2)', HABILIDADES)]
 
 
