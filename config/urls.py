@@ -54,6 +54,10 @@ urlpatterns = [
     path('sin-conexion/', app_views.sin_conexion, name='app_sin_conexion'),
     path('app/', app_views.inicio, name='app_inicio'),
     path('app/revisar/', app_views.diagnostico, name='app_diagnostico'),
+    path('app/push/clave/', app_views.push_clave, name='app_push_clave'),
+    path('app/push/suscribir/', app_views.push_suscribir, name='app_push_suscribir'),
+    path('app/push/quitar/', app_views.push_quitar, name='app_push_quitar'),
+    path('app/push/probar/', app_views.push_probar, name='app_push_probar'),
     path('', include('notas.urls', namespace='notas')),
 ]
 

@@ -74,3 +74,11 @@ def avisar_docentes_del_curso(estudiante):
                 colegio_id=estudiante.colegio_id, destinatario=u, tipo='PLANILLA', url=url,
                 mensaje=(f'Nuevo estudiante {marca}: {nombre}. Si llena la planilla en Excel, '
                          f'descárguela de nuevo para que salga.')[:255])
+
+
+@receiver(post_save, sender=Notificacion)
+def _notificacion_al_celular(sender, instance, created, **kwargs):
+    """Cada notificación nueva sale también al celular de quien activó los avisos."""
+    if created:
+        from . import push
+        push.programar([instance])

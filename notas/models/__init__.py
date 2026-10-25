@@ -13,7 +13,7 @@ from .academicos import (
     ConfiguracionSistema, PublicacionBoletin, PublicacionBoletinFinal,PonderacionAreaMateria,
     PlanNotas, ComponenteEvaluacion, PonderacionGrado
 )
-from .comunicaciones import Mensaje, RegistroObservador, Notificacion, FaltaCatalogo, TIPOS_FALTA
+from .comunicaciones import Mensaje, RegistroObservador, Notificacion, FaltaCatalogo, TIPOS_FALTA, SuscripcionPush, ClavePush
 from .portal_models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, RecursoEducativo, VideoPortal
 
 # La variable __all__ es una buena práctica que define qué nombres
@@ -26,6 +26,6 @@ __all__ = [
     'Calificacion', 'NotaDetallada', 'IndicadorLogroPeriodo', 'ReporteParcial', 'Observacion',
     'PlanDeMejoramiento', 'Asistencia', 'InasistenciasManualesPeriodo','PonderacionAreaMateria',
     'ConfiguracionSistema', 'PublicacionBoletin', 'PublicacionBoletinFinal', 'PlanNotas', 'ComponenteEvaluacion', 'PonderacionGrado',
-    'RecursoEducativo', 'VideoPortal', 'Mensaje', 'FaltaCatalogo', 'TIPOS_FALTA', 'RegistroObservador', 'Notificacion',
+    'RecursoEducativo', 'VideoPortal', 'Mensaje', 'FaltaCatalogo', 'TIPOS_FALTA', 'RegistroObservador', 'Notificacion', 'SuscripcionPush', 'ClavePush',
     'DocumentoPublico', 'FotoGaleria', 'Noticia', 'ImagenCarrusel',
 ]
