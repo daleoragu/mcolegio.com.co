@@ -20,10 +20,7 @@ Se configura con variables de entorno, nunca en la base de datos:
     WHATSAPP_PHONE_ID     id del número de la línea
     WHATSAPP_PLANTILLA    nombre de la plantilla aprobada (por defecto «aviso_mcolegio»)
     WHATSAPP_IDIOMA       idioma de la plantilla (por defecto «es»)
-<<<<<<< HEAD
-=======
     WHATSAPP_API_VERSION  versión de la API de Meta (por defecto «v23.0»); Meta retira cada versión a los ~2 años
->>>>>>> origin/mejoras-23-octubre
 
 Meta solo deja escribir primero con una plantilla aprobada. La plantilla lleva dos
 variables: {{1}} = nombre del colegio y {{2}} = el aviso. Sin estas variables no se
@@ -39,11 +36,7 @@ from email.utils import formataddr
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 
-<<<<<<< HEAD
-API_WHATSAPP = 'https://graph.facebook.com/v20.0/{phone_id}/messages'
-=======
 API_WHATSAPP = 'https://graph.facebook.com/{version}/{phone_id}/messages'
->>>>>>> origin/mejoras-23-octubre
 
 
 # ----------------------------------------------------------------------------- correo
@@ -133,8 +126,6 @@ def _cuerpo_whatsapp(numero, colegio, texto):
     }
 
 
-<<<<<<< HEAD
-=======
 # Los errores de Meta que más salen, dichos en palabras para quien administra.
 ERRORES_META = {
     131030: 'el número no está en la lista de prueba (use el número real, no el de prueba)',
@@ -162,7 +153,6 @@ def _error_meta(e):
     return f' · {motivo}' if motivo else ''
 
 
->>>>>>> origin/mejoras-23-octubre
 def enviar_whatsapp(colegio, numero, texto):
     """Manda el aviso por la línea de WhatsApp de la plataforma. Devuelve (enviado, detalle)."""
     if not whatsapp_configurado():
@@ -173,23 +163,15 @@ def enviar_whatsapp(colegio, numero, texto):
     if not destino:
         return False, 'el número no es un celular válido'
     datos = json.dumps(_cuerpo_whatsapp(destino, colegio, texto)).encode('utf-8')
-<<<<<<< HEAD
-    req = urllib.request.Request(API_WHATSAPP.format(phone_id=os.getenv('WHATSAPP_PHONE_ID')), data=datos,
-=======
     req = urllib.request.Request(API_WHATSAPP.format(version=os.getenv('WHATSAPP_API_VERSION', 'v23.0'),
                                                      phone_id=os.getenv('WHATSAPP_PHONE_ID')), data=datos,
->>>>>>> origin/mejoras-23-octubre
                                  headers={'Authorization': f'Bearer {os.getenv("WHATSAPP_TOKEN")}',
                                           'Content-Type': 'application/json'}, method='POST')
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
             ok = 200 <= r.status < 300
     except urllib.error.HTTPError as e:
-<<<<<<< HEAD
-        return False, f'WhatsApp respondió {e.code}'
-=======
         return False, f'WhatsApp respondió {e.code}{_error_meta(e)}'
->>>>>>> origin/mejoras-23-octubre
     except Exception as e:                          # sin red, tiempo agotado…: no tumba la página
         return False, f'no se pudo enviar ({type(e).__name__})'
     return ok, destino if ok else 'WhatsApp no aceptó el mensaje'

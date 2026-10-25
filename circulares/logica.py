@@ -1,12 +1,7 @@
-<<<<<<< HEAD
-from django.contrib.auth.models import User
-from django.db import transaction
-=======
 import threading
 
 from django.contrib.auth.models import User
 from django.db import close_old_connections, transaction
->>>>>>> origin/mejoras-23-octubre
 from django.db.models import Max
 from django.utils import timezone
 

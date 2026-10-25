@@ -62,8 +62,6 @@ class WhatsApp(ColegioDePrueba):
         self.assertEqual(cuerpo['template']['name'], 'aviso')
         self.assertEqual([p['text'] for p in cuerpo['template']['components'][0]['parameters']],
                          ['Colegio A', 'Aviso con saltos'])
-<<<<<<< HEAD
-=======
 
 
 class ErroresDeMeta(ColegioDePrueba):
@@ -80,4 +78,3 @@ class ErroresDeMeta(ColegioDePrueba):
         self.assertFalse(ok)
         self.assertIn('404', detalle)
         self.assertIn('plantilla no existe', detalle)
->>>>>>> origin/mejoras-23-octubre
