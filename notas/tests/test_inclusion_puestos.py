@@ -3,7 +3,8 @@ from django.urls import reverse
 
 from notas import estadisticas_logic, inclusion
 from notas.boletin.ponderacion import en_lote
-from notas.models import ConfiguracionCalificaciones, Mensaje
+from notas.models import Mensaje
+from notas.models.academicos import ConfiguracionCalificaciones
 
 from .base import ColegioDePrueba
 
