@@ -237,6 +237,12 @@
                 {% endfor %}
             </tbody>
         </table>
+    {% elif periodo_aun_abierto %}
+        <div class="no-reportes">
+            <p><i class="fas fa-hourglass-half fa-3x mb-3" style="color: #b7791f;"></i></p>
+            <p>Los docentes todavía están haciendo el reporte parcial del <strong>{{ periodo_seleccionado }}</strong>.
+               Podrá verlo aquí cuando se cierre el plazo; le llegará un aviso.</p>
+        </div>
     {% else %}
         <div class="no-reportes">
             <p><i class="fas fa-check-circle fa-3x mb-3" style="color: #28a745;"></i></p>

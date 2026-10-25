@@ -60,6 +60,8 @@ class ReporteAviso(ColegioDePrueba):
     def test_el_estudiante_no_puede_avisar_pero_si_descargar_su_informe(self):
         self.assertEqual(self.cliente(self.ana.user).get(
             f'/reporte-parcial/aviso/{self.ana.id}/?periodo_id={self.p1.id}').status_code, 403)
+        self.p1.reporte_parcial_activo = False          # el estudiante lo ve cuando se cierra el plazo
+        self.p1.save()
         self.assertEqual(self.cliente(self.ana.user).get(
             f'/reporte-parcial/informe/{self.ana.id}/pdf/?periodo_id={self.p1.id}').status_code, 200)
         self.assertEqual(self.cliente(self.beto.user).get(
@@ -85,3 +87,32 @@ class ReporteAviso(ColegioDePrueba):
         # En el aviso a la familia
         aviso = reporte_aviso.texto_aviso(self.ana, self.p1, reporte_aviso.asignaturas_reportadas(self.ana, self.p1))
         self.assertIn('Matemáticas: Entregar el taller de fracciones', aviso)
+
+
+    def test_el_estudiante_solo_lo_ve_despues_del_cierre_y_ahi_le_llega_el_aviso(self):
+        from notas.models import Notificacion
+        from notas.plazos import aplicar_cierres
+        from django.utils import timezone
+        self.p1.reporte_parcial_activo = True
+        self.p1.save()
+        self.cliente(self.u_docente).post(
+            f'/docente/reporte-parcial/?asignacion_id={self.asig.id}&periodo_id={self.p1.id}',
+            {'asignacion_id': self.asig.id, 'periodo_id': self.p1.id, f'reporte_{self.ana.id}': 'si',
+             f'sugerencia_{self.ana.id}': 'Entregar el taller', f'reporte_{self.beto.id}': 'no',
+             f'reporte_{self.caro.id}': 'no'})
+        self.assertFalse(Notificacion.objects.filter(destinatario=self.ana.user).exists())   # todavía no
+        ana = self.cliente(self.ana.user)
+        acta = ana.get(f'/reporte-parcial/acta/{self.ana.id}/?periodo_id={self.p1.id}')
+        self.assertNotContains(acta, 'Entregar el taller')
+        self.assertContains(acta, 'todavía están haciendo el reporte parcial')
+        self.assertEqual(ana.get(f'/reporte-parcial/informe/{self.ana.id}/pdf/?periodo_id={self.p1.id}').status_code, 403)
+        # El docente sí lo ve mientras está abierto
+        self.assertContains(self.cliente(self.u_docente).get(
+            f'/reporte-parcial/acta/{self.ana.id}/?periodo_id={self.p1.id}'), 'Entregar el taller')
+        # Se cierra solo a la hora programada: ahí le llega el aviso y ya lo ve
+        self.p1.cierre_reporte_parcial = timezone.now()
+        self.p1.save()
+        aplicar_cierres(self.a)
+        aviso = Notificacion.objects.get(destinatario=self.ana.user, tipo='RENDIMIENTO')
+        self.assertIn('Ya puede ver su informe parcial', aviso.mensaje)
+        self.assertContains(ana.get(f'/reporte-parcial/acta/{self.ana.id}/?periodo_id={self.p1.id}'), 'Entregar el taller')

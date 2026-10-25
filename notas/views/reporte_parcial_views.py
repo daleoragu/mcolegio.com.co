@@ -105,13 +105,8 @@ def reporte_parcial_vista(request):
                 defaults={'presenta_dificultades': presenta_dificultades, 'sugerencia': sugerencia}
             )
 
-            if presenta_dificultades and (creado or not reporte.presenta_dificultades):
-                Notificacion.objects.create(
-                    colegio=request.colegio,
-                    destinatario=estudiante.user,
-                    mensaje=f"Se ha registrado un reporte de dificultades en la materia {asignacion.materia.nombre}.",
-                    tipo='RENDIMIENTO' 
-                )
+            # Al estudiante no se le avisa todavía: lo ve cuando se cierre el plazo del reporte parcial
+            # (reporte_aviso.avisar_estudiantes_al_cierre).
 
             if presenta_dificultades and creado:
                 docente_a_registrar = docente_que_reporta or asignacion.docente
@@ -176,6 +171,12 @@ def reporte_parcial_vista(request):
     return render(request, 'notas/docente/reporte_parcial.html', context)
 
 
+def _es_el_estudiante(request, estudiante):
+    """Quien mira es el propio estudiante (o su familia con su cuenta), no un docente ni la administración."""
+    return (estudiante.user_id == request.user.id and not es_admin_usuario(request.user)
+            and not Docente.objects.filter(user=request.user, colegio=request.colegio).exists())
+
+
 @login_required
 def acta_reporte_parcial_estudiante(request, estudiante_id):
     """
@@ -203,6 +204,10 @@ def acta_reporte_parcial_estudiante(request, estudiante_id):
         estudiante=estudiante,
         presenta_dificultades=True
     )
+    # El estudiante (y su familia con su cuenta) solo ve los periodos con el plazo ya cerrado.
+    solo_cerrados = _es_el_estudiante(request, estudiante)
+    if solo_cerrados:
+        reportes_query = reportes_query.filter(periodo__reporte_parcial_activo=False)
 
     if periodo_seleccionado_id:
         try:
@@ -228,6 +233,7 @@ def acta_reporte_parcial_estudiante(request, estudiante_id):
         'colegio': request.colegio,
         'estudiante': estudiante,
         'reportes_dificultades': reportes_dificultades,
+        'periodo_aun_abierto': bool(solo_cerrados and periodo_seleccionado and periodo_seleccionado.reporte_parcial_activo),
         'todos_los_periodos': todos_los_periodos, # Para el selector de períodos
         'periodo_seleccionado': periodo_seleccionado, # Para mantener la selección en el dropdown
         'puede_avisar': es_admin(request) or Docente.objects.filter(user=request.user, colegio=request.colegio).exists(),
@@ -360,6 +366,8 @@ def informe_parcial_pdf(request, estudiante_id):
         return HttpResponseForbidden('No tiene permiso para ver este informe.')
     estudiante = get_object_or_404(Estudiante, id=estudiante_id, colegio=request.colegio)
     periodo = get_object_or_404(PeriodoAcademico, id=request.GET.get('periodo_id'), colegio=request.colegio)
+    if _es_el_estudiante(request, estudiante) and not reporte_aviso.visible_para_estudiante(periodo):
+        return HttpResponseForbidden('El informe parcial de este periodo se podrá ver cuando se cierre el plazo del reporte.')
     return _pdf_informe(request, estudiante, periodo)
 
 

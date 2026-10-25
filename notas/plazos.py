@@ -46,6 +46,9 @@ def aplicar_cierres(colegio, ahora=None):
         for p in vencidos:
             if getattr(p, interruptor):
                 avisar_docentes(colegio, f'Se cerró el plazo de {nombre} del {p}, como estaba programado.', url)
+                if interruptor == 'reporte_parcial_activo':
+                    from .reporte_aviso import avisar_estudiantes_al_cierre
+                    avisar_estudiantes_al_cierre(p)
                 cerrados += 1
     return cerrados
 

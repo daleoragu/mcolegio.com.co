@@ -121,6 +121,12 @@ def panel_control_periodos_vista(request):
                 periodo.reporte_parcial_activo = not periodo.reporte_parcial_activo
                 estado = "abierto" if periodo.reporte_parcial_activo else "cerrado"
                 messages.success(request, f"El plazo para el Reporte Parcial de '{periodo}' ha sido {estado}.")
+                if not periodo.reporte_parcial_activo:
+                    from ..reporte_aviso import avisar_estudiantes_al_cierre
+                    periodo.save(update_fields=['reporte_parcial_activo'])
+                    n = avisar_estudiantes_al_cierre(periodo)
+                    if n:
+                        messages.info(request, f"{n} estudiante(s) recibieron el aviso de que ya pueden ver su informe parcial.")
                 mensaje_notificacion = f"El plazo para generar Reportes Parciales del {periodo} ha sido {estado}."
                 url_notificacion = reverse('notas:reporte_parcial')
 
@@ -550,9 +556,13 @@ def editar_periodo_vista(request, periodo_id):
         periodo.fecha_inicio = request.POST.get('fecha_inicio')
         periodo.fecha_fin = request.POST.get('fecha_fin')
         periodo.esta_activo = request.POST.get('esta_activo') == 'on'
+        reporte_estaba_abierto = periodo.reporte_parcial_activo
         periodo.reporte_parcial_activo = request.POST.get('reporte_parcial_activo') == 'on'
         periodo.nivelaciones_activas = request.POST.get('nivelaciones_activas') == 'on'
         periodo.save()
+        if reporte_estaba_abierto and not periodo.reporte_parcial_activo:
+            from ..reporte_aviso import avisar_estudiantes_al_cierre
+            avisar_estudiantes_al_cierre(periodo)
         messages.success(request, 'Período académico actualizado exitosamente.')
     except (ValueError, IntegrityError) as e:
         messages.error(request, f"Error al actualizar el período: {e}")
