@@ -285,3 +285,36 @@ class MigracionesDeModulos(ColegioDePrueba):
         self.b.refresh_from_db()
         self.assertEqual(self.a.modulos_activos, ['portal', 'actas', 'piar'])
         self.assertEqual(self.b.modulos_activos, ['circulares', 'certificados'])
+
+
+class EstadisticasInclusion(ColegioDePrueba):
+    """Cuántos son, cómo va su PIAR, los ajustes que faltan y su rendimiento frente a sus compañeros."""
+
+    def test_resumen_ajustes_y_rendimiento(self):
+        from decimal import Decimal
+
+        from notas.models import Calificacion
+
+        from . import estadisticas
+        ana, beto = self.estudiantes[0], self.estudiantes[1]
+        piar = logica.crear(ana, 2026, self.rectora)[0]
+        piar.categoria = 'TEA'
+        piar.save()
+        AjustePiar.objects.create(piar=piar, materia=self.materia, periodo=self.p1, ajustes='Guías con imágenes')
+        for est, nota in ((ana, '2.5'), (beto, '4.0')):
+            Calificacion.objects.create(colegio=self.a, estudiante=est, materia=self.materia, periodo=self.p1,
+                                        tipo_nota='PROM_PERIODO', valor_nota=Decimal(nota))
+        d = estadisticas.calcular(self.a, 2026, hoy=self.p2.fecha_inicio)
+        self.assertEqual(d['total'], 1)
+        self.assertEqual(d['estados'], {'vigente': 0, 'borrador': 1, 'sin': 0})
+        self.assertEqual(d['categorias'], [('Trastorno del espectro autista', 1)])
+        self.assertEqual((d['ajustes']['listos'], d['ajustes']['esperado']), (1, 2))   # falta el del 2.º periodo
+        self.assertEqual(d['por_docente'], [('Pedro Profe', 1)])
+        primero = d['rendimiento'][0]
+        self.assertEqual((primero['inclusion'], primero['resto']), (2.5, 4.0))
+        self.assertEqual(d['dificultad'][0]['materia'], 'Matemáticas')
+
+    def test_solo_para_quien_coordina(self):
+        logica.crear(self.estudiantes[0], 2026, self.rectora)
+        self.assertContains(self.cliente(self.rectora).get('/piar/estadisticas/?ano=2026'), 'Estadísticas de inclusión')
+        self.assertEqual(self.cliente(self.u_docente).get('/piar/estadisticas/').status_code, 403)

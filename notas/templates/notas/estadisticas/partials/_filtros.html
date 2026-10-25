@@ -106,6 +106,15 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="form-group">
+                <label for="inclusion_select">Estudiantes</label>
+                <select name="inclusion" id="inclusion_select" class="form-control">
+                    <option value="">Según la regla del colegio</option>
+                    <option value="todos">Todos</option>
+                    <option value="sin">Sin los de inclusión</option>
+                    <option value="solo">Solo los de inclusión</option>
+                </select>
+            </div>
             {% include 'notas/includes/_filtro_sede.html' with objetivo='cursos_select' %}
             <div class="form-group">
                 <label>Cursos</label>

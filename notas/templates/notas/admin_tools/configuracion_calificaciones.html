@@ -113,6 +113,29 @@
         </div>
     </div>
 
+    <div class="card shadow-sm mb-4" id="inclusion">
+        <div class="card-header bg-primary text-white">
+            <h4><i class="fas fa-universal-access me-2"></i>Estudiantes de inclusión</h4>
+        </div>
+        <div class="card-body p-4">
+            <p class="text-muted">Cómo se comparan los estudiantes de inclusión con su curso. Sus notas y su boletín no cambian.</p>
+            <div class="form-check form-switch p-3 border rounded bg-light mb-3">
+                {{ form_global.inclusion_en_promedio_curso }}
+                <label class="form-check-label ms-2" for="{{ form_global.inclusion_en_promedio_curso.id_for_label }}">
+                    <span class="fw-bold">{{ form_global.inclusion_en_promedio_curso.label }}</span>
+                    <div class="text-muted small">{{ form_global.inclusion_en_promedio_curso.help_text }}</div>
+                </label>
+            </div>
+            <div class="p-3 border rounded bg-light">
+                <div class="fw-bold mb-2">{{ form_global.inclusion_puesto.label }} <span class="text-muted small fw-normal">({{ form_global.inclusion_puesto.help_text }})</span></div>
+                {% for r in form_global.inclusion_puesto %}
+                <div class="form-check">{{ r.tag }}<label class="form-check-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>
+                {% endfor %}
+                <div class="text-muted small mt-2">Con «su propio puesto», en el boletín sale por ejemplo <strong>1 (inclusión)</strong>, y no entran al podio de la sábana ni al cuadro de honor.</div>
+            </div>
+        </div>
+    </div>
+
     <div class="card shadow-sm mb-4" id="firmas">
         <div class="card-header bg-primary text-white">
             <h4><i class="fas fa-signature me-2"></i>Firmas en los documentos</h4>

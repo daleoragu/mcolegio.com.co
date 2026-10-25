@@ -1,0 +1,101 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><h4 class="mb-0"><i class="fas fa-chart-column me-2" style="color:#7c3aed"></i>Estadísticas de inclusión · {{ ano }}</h4>
+        <p class="text-muted small mb-0">Estudiantes de inclusión y con PIAR, sus ajustes razonables y su rendimiento.</p></div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="?ano={{ ano|add:'-1' }}" class="btn btn-outline-secondary btn-sm">{{ ano|add:'-1' }}</a>
+        <a href="{% url 'piar:panel' %}?ano={{ ano }}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>PIAR</a>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'piar/_estilos.html' %}
+<style>
+  .ie-fila { display:grid; grid-template-columns:minmax(120px,34%) 1fr auto; gap:10px; align-items:center; padding:6px 0; font-size:.9rem; }
+  .ie-barra { height:14px; background:#eef2f6; border-radius:7px; overflow:hidden; display:flex; }
+  .ie-barra span { display:block; height:100%; }
+  .c-inc { background:#7c3aed; } .c-resto { background:#94a3b8; } .c-ok { background:#16a34a; } .c-borr { background:#f59e0b; } .c-sin { background:#d0d5dd; } .c-no { background:#60a5fa; } .c-falta { background:#ef4444; }
+  .ie-ley { display:inline-flex; align-items:center; gap:6px; font-size:.8rem; color:#475467; margin-right:12px; }
+  .ie-ley i { width:10px; height:10px; border-radius:3px; display:inline-block; }
+  @media (max-width:576px) { .ie-fila { grid-template-columns:1fr auto; } .ie-fila .ie-barra { grid-column:1 / -1; } }
+</style>
+{% if not d.total %}
+<div class="pi-tarjeta text-muted">No hay estudiantes de inclusión ni PIAR en {{ ano }}.</div>
+{% else %}
+<div class="row g-3 mb-1">
+    <div class="col-6 col-md-3"><div class="pi-tarjeta"><div class="pi-cifra">{{ d.total }}</div><div class="pi-ayuda">estudiantes de inclusión · {{ d.porcentaje }}% del colegio</div></div></div>
+    <div class="col-6 col-md-3"><div class="pi-tarjeta"><div class="pi-cifra text-success">{{ d.estados.vigente }}</div><div class="pi-ayuda">con PIAR vigente (acta firmada)</div></div></div>
+    <div class="col-6 col-md-3"><div class="pi-tarjeta"><div class="pi-cifra" style="color:#b45309">{{ d.estados.borrador }}</div><div class="pi-ayuda">con PIAR en elaboración</div></div></div>
+    <div class="col-6 col-md-3"><div class="pi-tarjeta"><div class="pi-cifra" style="color:#b42318">{{ d.estados.sin }}</div><div class="pi-ayuda">todavía sin PIAR</div></div></div>
+</div>
+
+<div class="row g-3">
+<div class="col-lg-6">
+    <div class="pi-tarjeta">
+        <h6 class="fw-bold mb-2">Rendimiento por periodo</h6>
+        <p class="pi-ayuda mb-2">Promedio de los estudiantes de inclusión frente al de sus compañeros de los mismos cursos.</p>
+        <div class="mb-2"><span class="ie-ley"><i class="c-inc"></i>Inclusión</span><span class="ie-ley"><i class="c-resto"></i>Sus compañeros</span></div>
+        {% for r in d.rendimiento %}
+        <div class="small fw-semibold mt-2">{{ r.periodo }}</div>
+        <div class="ie-fila"><span class="small">Inclusión ({{ r.n_inclusion }})</span>
+            <div class="ie-barra"><span class="c-inc" style="width:{% widthratio r.inclusion|default:0 d.maximo_nota 100 %}%"></span></div><strong>{{ r.inclusion|default:"—" }}</strong></div>
+        <div class="ie-fila"><span class="small">Compañeros</span>
+            <div class="ie-barra"><span class="c-resto" style="width:{% widthratio r.resto|default:0 d.maximo_nota 100 %}%"></span></div><strong>{{ r.resto|default:"—" }}</strong></div>
+        {% empty %}<p class="text-muted small mb-0">Todavía no hay notas de periodo.</p>{% endfor %}
+    </div>
+
+    <div class="pi-tarjeta">
+        <h6 class="fw-bold mb-2">Asignaturas con más desempeño bajo</h6>
+        <p class="pi-ayuda mb-2">Notas de periodo de los estudiantes de inclusión iguales o menores a {{ d.tope_bajo }}.</p>
+        {% for x in d.dificultad %}
+        <div class="ie-fila"><span>{{ x.materia }}</span>
+            <div class="ie-barra"><span class="c-falta" style="width:{{ x.porcentaje }}%"></span></div><strong>{{ x.bajas }} de {{ x.total }}</strong></div>
+        {% empty %}<p class="text-muted small mb-0">No tienen notas en desempeño bajo.</p>{% endfor %}
+    </div>
+
+    <div class="pi-tarjeta">
+        <h6 class="fw-bold mb-2">Por categoría</h6>
+        {% for nombre, n in d.categorias %}
+        <div class="ie-fila"><span class="small">{{ nombre }}</span>
+            <div class="ie-barra"><span class="c-inc" style="width:{% widthratio n d.total 100 %}%"></span></div><strong>{{ n }}</strong></div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="col-lg-6">
+    <div class="pi-tarjeta">
+        <h6 class="fw-bold mb-2">Ajustes razonables</h6>
+        <p class="mb-2"><strong>{{ d.ajustes.listos }}</strong> de <strong>{{ d.ajustes.esperado }}</strong> ajustes llenos hasta hoy ({{ d.ajustes.porcentaje }}%).</p>
+        <div class="ie-barra mb-3"><span class="c-ok" style="width:{{ d.ajustes.porcentaje }}%"></span></div>
+        <div class="mb-1"><span class="ie-ley"><i class="c-ok"></i>Con ajustes</span><span class="ie-ley"><i class="c-no"></i>No requiere</span><span class="ie-ley"><i class="c-falta"></i>Falta</span></div>
+        {% for materia, m in d.por_materia %}
+        {% with tot=m.listos|add:m.no_requiere|add:m.faltan %}
+        <div class="ie-fila"><span class="small">{{ materia }}</span>
+            <div class="ie-barra"><span class="c-ok" style="width:{% widthratio m.listos tot 100 %}%"></span><span class="c-no" style="width:{% widthratio m.no_requiere tot 100 %}%"></span><span class="c-falta" style="width:{% widthratio m.faltan tot 100 %}%"></span></div>
+            <span class="small">{% if m.faltan %}faltan {{ m.faltan }}{% else %}✓{% endif %}</span></div>
+        {% endwith %}
+        {% empty %}<p class="text-muted small mb-0">Todavía no hay periodos empezados o PIAR creados.</p>{% endfor %}
+    </div>
+
+    {% if d.por_docente %}
+    <div class="pi-tarjeta">
+        <h6 class="fw-bold mb-2">Docentes con ajustes pendientes</h6>
+        <table class="table table-sm mb-0"><tbody>{% for nombre, n in d.por_docente %}<tr><td>{{ nombre }}</td><td class="text-end"><span class="pi-chip borr">{{ n }} pendiente{{ n|pluralize }}</span></td></tr>{% endfor %}</tbody></table>
+    </div>
+    {% endif %}
+
+    <div class="pi-tarjeta">
+        <h6 class="fw-bold mb-2">Por curso</h6>
+        <div class="mb-1"><span class="ie-ley"><i class="c-ok"></i>PIAR vigente</span><span class="ie-ley"><i class="c-borr"></i>En elaboración</span><span class="ie-ley"><i class="c-sin"></i>Sin PIAR</span></div>
+        {% for curso, c in d.por_curso %}
+        <div class="ie-fila"><span class="small">{{ curso }}</span>
+            <div class="ie-barra"><span class="c-ok" style="width:{% widthratio c.vigente c.total 100 %}%"></span><span class="c-borr" style="width:{% widthratio c.borrador c.total 100 %}%"></span><span class="c-sin" style="width:{% widthratio c.sin c.total 100 %}%"></span></div>
+            <strong>{{ c.total }}</strong></div>
+        {% endfor %}
+    </div>
+</div>
+</div>
+<p class="pi-ayuda">En el panel de Estadísticas generales también puede filtrar «Solo los de inclusión» para ver todas las gráficas de rendimiento de ellos.</p>
+{% endif %}
+{% endblock %}

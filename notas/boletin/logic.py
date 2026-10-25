@@ -215,9 +215,9 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
         datos_completos_estudiantes.append(datos_estudiante)
 
     if not estudiante_especifico:
-        datos_completos_estudiantes.sort(key=lambda e: e['promedio_general'], reverse=True)
-        for i, estudiante_data in enumerate(datos_completos_estudiantes):
-            estudiante_data['puesto'] = i + 1
+        from ..inclusion import asignar_puestos
+        asignar_puestos(datos_completos_estudiantes, colegio, lambda e: e['promedio_general'],
+                        lambda e: e['estudiante'], 'puesto')
         datos_completos_estudiantes.sort(key=lambda e: (e['estudiante'].user.last_name, e['estudiante'].user.first_name))
 
     return datos_completos_estudiantes
@@ -402,9 +402,9 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
         boletines_finales.append(datos_estudiante)
 
     if not estudiante_especifico:
-        boletines_finales.sort(key=lambda e: e['promedio_general_final'], reverse=True)
-        for i, data in enumerate(boletines_finales):
-            data['puesto_final'] = i + 1
+        from ..inclusion import asignar_puestos
+        asignar_puestos(boletines_finales, colegio, lambda e: e['promedio_general_final'],
+                        lambda e: e['estudiante'], 'puesto_final')
         boletines_finales.sort(key=lambda e: (e['estudiante'].user.last_name, e['estudiante'].user.first_name))
 
     return boletines_finales, nombres_periodos_ordenados

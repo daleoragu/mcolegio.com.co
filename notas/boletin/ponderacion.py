@@ -30,6 +30,8 @@ class AjustesPorDefecto:
     etiqueta_hacer = 'HACER'
     abreviatura_ser = abreviatura_saber = abreviatura_hacer = ''
     colapsar_area_unica = True
+    inclusion_en_promedio_curso = True
+    inclusion_puesto = 'GENERAL'
 
 
 # --- Memoria para cálculos grandes -------------------------------------------------

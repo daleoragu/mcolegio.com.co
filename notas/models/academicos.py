@@ -305,6 +305,24 @@ class ConfiguracionCalificaciones(models.Model):
         help_text="Evita que la sábana y el boletín repitan la misma nota en dos filas."
     )
 
+    # --- Estudiantes de inclusión ---
+    PUESTO_INCLUSION = [
+        ('GENERAL', 'Compiten por el puesto con todo el curso'),
+        ('APARTE', 'Tienen su propio puesto, entre los estudiantes de inclusión del curso'),
+        ('SIN', 'No se les asigna puesto'),
+    ]
+    inclusion_en_promedio_curso = models.BooleanField(
+        default=True,
+        verbose_name="Los estudiantes de inclusión cuentan en el promedio del curso",
+        help_text="Si se apaga, el promedio del curso, el ranking de cursos y las estadísticas generales se "
+                  "calculan sin ellos. Sus notas y su boletín no cambian."
+    )
+    inclusion_puesto = models.CharField(
+        max_length=10, choices=PUESTO_INCLUSION, default='GENERAL',
+        verbose_name="Puesto de los estudiantes de inclusión",
+        help_text="En el boletín, el boletín final y la sábana."
+    )
+
     @property
     def pide_todos_los_periodos(self):
         """La ponderación obliga a tener todos los periodos para que el cálculo tenga sentido."""
