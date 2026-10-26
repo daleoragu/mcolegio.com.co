@@ -77,7 +77,7 @@ def plan_mejoramiento_vista(request):
             return redirect('notas:dashboard')
 
     context['asignaciones'] = asignaciones_docente.select_related('curso', 'materia').order_by('curso__nombre', 'materia__nombre')
-    context['periodos'] = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'nombre')
+    context['periodos'] = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'orden')
     context['docente_seleccionado_id'] = docente_seleccionado_id
     context['asignacion_seleccionada_id'] = asignacion_seleccionada_id_str
     context['periodo_seleccionado_id'] = periodo_seleccionado_id_str

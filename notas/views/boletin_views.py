@@ -57,7 +57,7 @@ def selector_boletin_vista(request):
 
     # Filtra periodos y años por el colegio actual
     context['sedes_filtro'] = list(Sede.objects.filter(colegio=request.colegio, activa=True))
-    context['periodos'] = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'nombre')
+    context['periodos'] = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'orden')
     context['anos_lectivos'] = PeriodoAcademico.objects.filter(colegio=request.colegio).values_list('ano_lectivo', flat=True).distinct().order_by('-ano_lectivo')
     
     return render(request, 'notas/admin_tools/selector_boletin.html', context)

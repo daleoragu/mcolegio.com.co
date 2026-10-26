@@ -55,7 +55,7 @@ def _rango_de_fechas(filtros):
     if filtros.get('ano_lectivo'):
         periodos = PeriodoAcademico.objects.filter(
             colegio=filtros.get('colegio'), ano_lectivo=filtros['ano_lectivo'],
-        ).order_by('fecha_inicio')
+        ).order_by('orden')
         primero, ultimo = periodos.first(), periodos.last()
         if primero and ultimo:
             return primero.fecha_inicio, ultimo.fecha_fin
