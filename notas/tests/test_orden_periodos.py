@@ -24,3 +24,23 @@ class OrdenDeLosPeriodos(ColegioDePrueba):
         r = self.cliente(self.rectora).get('/admin/panel-control-periodos/')
         self.assertEqual([p.nombre for p in r.context['periodos']], ['PRIMERO', 'SEGUNDO', 'TERCERO'])
         self.assertContains(r, 'Revise las fechas')
+
+    def test_los_menus_de_periodos_salen_en_orden(self):
+        # Con cuatro periodos, el orden alfabético daría Cuarto, Primero, Segundo, Tercero.
+        for nombre, mes in (('TERCERO', 7), ('CUARTO', 9)):
+            PeriodoAcademico.objects.create(colegio=self.a, nombre=nombre, ano_lectivo=2026,
+                                            fecha_inicio=datetime.date(2026, mes, 1),
+                                            fecha_fin=datetime.date(2026, mes + 1, 28))
+        esperado = ['PRIMERO', 'SEGUNDO', 'TERCERO', 'CUARTO']
+        paginas = [
+            (self.u_docente, '/docente/ingresar-notas/', 'todos_los_periodos'),
+            (self.u_docente, '/docente/reporte-parcial/', 'periodos'),
+            (self.u_docente, '/docente/plan-mejoramiento/', 'periodos'),
+            (self.u_docente, '/docente/consulta-asistencia/', 'periodos_academicos'),
+            (self.rectora, '/reportes/selector-boletin/', 'periodos'),
+        ]
+        for usuario, url, clave in paginas:
+            with self.subTest(url=url):
+                r = self.cliente(usuario).get(url)
+                self.assertEqual(r.status_code, 200)
+                self.assertEqual([p.nombre for p in r.context[clave]], esperado)

@@ -68,7 +68,7 @@ def reporte_parcial_vista(request):
             
     context['asignaciones'] = asignaciones.select_related('curso', 'materia')
     # Filtrar periodos por el colegio actual.
-    context['periodos'] = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', '-nombre')
+    context['periodos'] = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'orden')
     context['docente_seleccionado_id'] = docente_seleccionado_id
     context['asignacion_seleccionada_id'] = asignacion_seleccionada_id
     context['periodo_seleccionado_id'] = periodo_seleccionado_id

@@ -101,7 +101,7 @@ def consulta_asistencia_vista(request):
         'matriz_asistencia': matriz_asistencia,
         'fecha_consulta': fecha_consulta,
         # CORRECCIÓN: Filtrar periodos académicos por colegio.
-        'periodos_academicos': PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'nombre'),
+        'periodos_academicos': PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'orden'),
     })
 
     return render(request, 'notas/docente/consulta_asistencia.html', context)

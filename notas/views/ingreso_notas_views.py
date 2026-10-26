@@ -51,7 +51,7 @@ class IngresoNotasView(LoginRequiredMixin, View):
             except Docente.DoesNotExist:
                 return render(request, self.template_name, {'error_message': 'No tiene un perfil de docente asignado en este colegio.'})
 
-        periodos = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'nombre')
+        periodos = PeriodoAcademico.objects.filter(colegio=request.colegio).order_by('-ano_lectivo', 'orden')
         asignacion_id = request.GET.get('asignacion_id')
         periodo_id = request.GET.get('periodo_id')
         
