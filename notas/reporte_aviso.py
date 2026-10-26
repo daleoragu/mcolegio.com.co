@@ -69,7 +69,8 @@ def asignaturas_reportadas(estudiante, periodo):
         salida.append({'materia': r.asignacion.materia.nombre,
                        'docente': r.asignacion.docente.user.get_full_name() if r.asignacion.docente_id else '',
                        'nota': nota, 'nota_texto': texto_nota(nota),
-                       'desempeno': desempeno(estudiante.colegio, nota)})
+                       'desempeno': desempeno(estudiante.colegio, nota),
+                       'sugerencia': (r.sugerencia or '').strip()})
     return salida
 
 
@@ -94,6 +95,9 @@ def texto_aviso(estudiante, periodo, asignaturas, url_informe=''):
              f'{nombre} presenta dificultades en: {lista}.\n'
              f'Todavía hay tiempo para mejorar antes del cierre del periodo: le pedimos acompañarlo(a) en casa '
              f'y comunicarse con los docentes si lo necesita.')
+    pendientes = [f'- {a["materia"]}: {a["sugerencia"]}' for a in asignaturas if a.get('sugerencia')]
+    if pendientes:
+        texto += '\nLo que le recomiendan los docentes para mejorar:\n' + '\n'.join(pendientes)
     if url_informe:
         texto += f'\nDescargue el informe parcial aquí: {url_informe}'
     return texto
@@ -118,3 +122,29 @@ def enviar_correo(estudiante, periodo, asignaturas, url_informe):
     except Exception as e:
         return False, f'no se pudo enviar ({type(e).__name__})'
     return True, correo
+
+
+def avisar_estudiantes_al_cierre(periodo):
+    """Al cerrarse el plazo del reporte parcial, cada estudiante con dificultades recibe el aviso (y al celular).
+
+    Antes del cierre el estudiante no ve nada: los docentes todavía pueden estar llenándolo. Devuelve cuántos avisos."""
+    from django.db.models import Count
+    from django.urls import reverse
+    from .models import Notificacion
+    filas = (ReporteParcial.objects.filter(periodo=periodo, presenta_dificultades=True, estudiante__is_active=True)
+             .values('estudiante_id', 'estudiante__user_id').annotate(n=Count('id')))
+    avisos = []
+    for f in filas:
+        n = f['n']
+        url = reverse('notas:acta_reporte_parcial_estudiante', args=[f['estudiante_id']]) + f'?periodo_id={periodo.id}'
+        avisos.append(Notificacion(
+            colegio=periodo.colegio, destinatario_id=f['estudiante__user_id'], tipo='RENDIMIENTO', url=url,
+            mensaje=(f'Ya puede ver su informe parcial del {periodo.get_nombre_display().lower()}: '
+                     f'presenta dificultades en {n} asignatura{"s" if n != 1 else ""}.')[:255]))
+    Notificacion.objects.bulk_create(avisos)
+    return len(avisos)
+
+
+def visible_para_estudiante(periodo):
+    """El estudiante solo ve el reporte parcial de un periodo cuando su plazo ya se cerró."""
+    return not periodo.reporte_parcial_activo

@@ -31,9 +31,9 @@
 {% if asignaturas %}
 <p>A la fecha, el(la) estudiante presenta dificultades académicas en las siguientes asignaturas:</p>
 <table class="notas">
-    <thead><tr><th style="text-align:left">Asignatura</th><th style="text-align:left">Docente</th><th style="width:80px">Nota parcial</th><th style="width:90px">Desempeño</th></tr></thead>
+    <thead><tr><th style="text-align:left">Asignatura</th><th style="text-align:left">Docente</th><th style="width:70px">Nota parcial</th><th style="width:80px">Desempeño</th>{% if hay_sugerencias %}<th style="text-align:left">Qué le falta o qué debe entregar</th>{% endif %}</tr></thead>
     <tbody>{% for a in asignaturas %}<tr><td>{{ a.materia }}</td><td>{{ a.docente }}</td>
-        <td class="c {% if a.desempeno == 'BAJO' %}bajo{% endif %}">{{ a.nota_texto|default:"—" }}</td><td class="c">{{ a.desempeno }}</td></tr>{% endfor %}</tbody>
+        <td class="c {% if a.desempeno == 'BAJO' %}bajo{% endif %}">{{ a.nota_texto|default:"—" }}</td><td class="c">{{ a.desempeno }}</td>{% if hay_sugerencias %}<td>{{ a.sugerencia|default:"—"|linebreaksbr }}</td>{% endif %}</tr>{% endfor %}</tbody>
 </table>
 <div class="nota">La nota parcial se calcula con las notas registradas hasta hoy y puede cambiar antes del cierre del periodo.
     Todavía hay tiempo para mejorar: le pedimos acompañar al estudiante en casa y comunicarse con los docentes si lo necesita.</div>

@@ -94,23 +94,19 @@ def reporte_parcial_vista(request):
         for estudiante in estudiantes_del_curso:
             estado_reporte = request.POST.get(f'reporte_{estudiante.id}')
             presenta_dificultades = (estado_reporte == 'si')
-            
+            sugerencia = (request.POST.get(f'sugerencia_{estudiante.id}') or '').strip()[:500]
+
             # Asociar el reporte al colegio actual.
             reporte, creado = ReporteParcial.objects.update_or_create(
                 colegio=request.colegio,
                 estudiante=estudiante, 
                 asignacion=asignacion, 
                 periodo=periodo,
-                defaults={'presenta_dificultades': presenta_dificultades}
+                defaults={'presenta_dificultades': presenta_dificultades, 'sugerencia': sugerencia}
             )
 
-            if presenta_dificultades and (creado or not reporte.presenta_dificultades):
-                Notificacion.objects.create(
-                    colegio=request.colegio,
-                    destinatario=estudiante.user,
-                    mensaje=f"Se ha registrado un reporte de dificultades en la materia {asignacion.materia.nombre}.",
-                    tipo='RENDIMIENTO' 
-                )
+            # Al estudiante no se le avisa todavía: lo ve cuando se cierre el plazo del reporte parcial
+            # (reporte_aviso.avisar_estudiantes_al_cierre).
 
             if presenta_dificultades and creado:
                 docente_a_registrar = docente_que_reporta or asignacion.docente
@@ -151,6 +147,7 @@ def reporte_parcial_vista(request):
                     periodo_id=periodo_seleccionado_id
                 )
                 context['reportes_existentes_map'] = {r.estudiante_id: r.presenta_dificultades for r in reportes_existentes}
+                sugerencias = {r.estudiante_id: r.sugerencia for r in reportes_existentes}
                 # Nota parcial con lo que ya hay en la planilla: si está en bajo y
                 # el docente aún no ha guardado, el «Sí» sale marcado.
                 from .. import reporte_aviso
@@ -164,13 +161,20 @@ def reporte_parcial_vista(request):
                     filas.append({'est': est, 'nota': reporte_aviso.texto_nota(nota), 'bajo': bajo,
                                   'desempeno': reporte_aviso.desempeno(request.colegio, nota),
                                   'si': marcado, 'guardado': guardados.get(est.id) is True,
-                                  'sugerido': bajo and est.id not in guardados})
+                                  'sugerido': bajo and est.id not in guardados,
+                                  'sugerencia': sugerencias.get(est.id, '')})
                 context['filas'] = filas
                 context['hay_sugeridos'] = any(f['sugerido'] for f in filas)
         except Exception as e:
             messages.error(request, f"No se pudo cargar la información: {e}")
 
     return render(request, 'notas/docente/reporte_parcial.html', context)
+
+
+def _es_el_estudiante(request, estudiante):
+    """Quien mira es el propio estudiante (o su familia con su cuenta), no un docente ni la administración."""
+    return (estudiante.user_id == request.user.id and not es_admin_usuario(request.user)
+            and not Docente.objects.filter(user=request.user, colegio=request.colegio).exists())
 
 
 @login_required
@@ -200,6 +204,10 @@ def acta_reporte_parcial_estudiante(request, estudiante_id):
         estudiante=estudiante,
         presenta_dificultades=True
     )
+    # El estudiante (y su familia con su cuenta) solo ve los periodos con el plazo ya cerrado.
+    solo_cerrados = _es_el_estudiante(request, estudiante)
+    if solo_cerrados:
+        reportes_query = reportes_query.filter(periodo__reporte_parcial_activo=False)
 
     if periodo_seleccionado_id:
         try:
@@ -225,6 +233,7 @@ def acta_reporte_parcial_estudiante(request, estudiante_id):
         'colegio': request.colegio,
         'estudiante': estudiante,
         'reportes_dificultades': reportes_dificultades,
+        'periodo_aun_abierto': bool(solo_cerrados and periodo_seleccionado and periodo_seleccionado.reporte_parcial_activo),
         'todos_los_periodos': todos_los_periodos, # Para el selector de períodos
         'periodo_seleccionado': periodo_seleccionado, # Para mantener la selección en el dropdown
         'puede_avisar': es_admin(request) or Docente.objects.filter(user=request.user, colegio=request.colegio).exists(),
@@ -338,9 +347,10 @@ def _pdf_informe(request, estudiante, periodo):
     except ImportError:
         return HttpResponse('La generación de PDF no está disponible en este servidor.', status=500)
     from django.template.loader import render_to_string
+    asignaturas = reporte_aviso.asignaturas_reportadas(estudiante, periodo)
     html = render_to_string('notas/estudiante/informe_parcial_pdf.html', {
         'colegio': estudiante.colegio, 'estudiante': estudiante, 'periodo': periodo,
-        'asignaturas': reporte_aviso.asignaturas_reportadas(estudiante, periodo)}, request=request)
+        'asignaturas': asignaturas, 'hay_sugerencias': any(a['sugerencia'] for a in asignaturas)}, request=request)
     datos = HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
     r = HttpResponse(datos, content_type='application/pdf')
     nombre = f'Informe parcial {periodo.get_nombre_display()} {estudiante.user.get_full_name()}'
@@ -356,6 +366,8 @@ def informe_parcial_pdf(request, estudiante_id):
         return HttpResponseForbidden('No tiene permiso para ver este informe.')
     estudiante = get_object_or_404(Estudiante, id=estudiante_id, colegio=request.colegio)
     periodo = get_object_or_404(PeriodoAcademico, id=request.GET.get('periodo_id'), colegio=request.colegio)
+    if _es_el_estudiante(request, estudiante) and not reporte_aviso.visible_para_estudiante(periodo):
+        return HttpResponseForbidden('El informe parcial de este periodo se podrá ver cuando se cierre el plazo del reporte.')
     return _pdf_informe(request, estudiante, periodo)
 
 

@@ -182,6 +182,7 @@ class ReporteParcial(models.Model):
     asignacion = models.ForeignKey(AsignacionDocente, on_delete=models.CASCADE)
     periodo = models.ForeignKey(PeriodoAcademico, on_delete=models.CASCADE)
     presenta_dificultades = models.BooleanField(default=False)
+    sugerencia = models.TextField(blank=True, default='', verbose_name='Qué le falta o qué debe entregar para mejorar')
     class Meta:
         unique_together = ('estudiante', 'asignacion', 'periodo', 'colegio')
         verbose_name = "Reporte Parcial"; verbose_name_plural = "Reportes Parciales"
