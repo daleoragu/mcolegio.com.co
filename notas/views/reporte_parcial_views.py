@@ -380,3 +380,79 @@ def informe_parcial_publico(request, token):
     estudiante = get_object_or_404(Estudiante.objects.select_related('colegio', 'user'), id=datos[0])
     periodo = get_object_or_404(PeriodoAcademico, id=datos[1], colegio=estudiante.colegio)
     return _pdf_informe(request, estudiante, periodo)
+
+
+# ---------------------------------------------------------------------------
+# Sábana del reporte parcial (director de grupo y administración)
+# ---------------------------------------------------------------------------
+def _cursos_sabana(request):
+    if es_admin(request):
+        return Curso.objects.filter(colegio=request.colegio)
+    docente = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
+    if docente is None:
+        return Curso.objects.none()
+    return Curso.objects.filter(colegio=request.colegio, director_grado=docente)
+
+
+def _periodo_por_defecto(colegio, periodos):
+    """El que tiene el reporte abierto; si no, el último con reportes; si no, el primero."""
+    abierto = next((p for p in periodos if p.reporte_parcial_activo), None)
+    if abierto:
+        return abierto
+    con_reportes = set(ReporteParcial.objects.filter(colegio=colegio, periodo__in=periodos)
+                       .values_list('periodo_id', flat=True))
+    usados = [p for p in periodos if p.id in con_reportes]
+    return usados[-1] if usados else (periodos[0] if periodos else None)
+
+
+@login_required
+def sabana_reporte_parcial(request):
+    """Estudiantes × asignaturas con la marca de «va perdiendo» y los totales. Excel y PDF."""
+    from .. import reporte_sabana
+    if not request.colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    cursos = list(_cursos_sabana(request).order_by('grado', 'orden', 'nombre'))
+    if not cursos:
+        if es_admin(request):
+            messages.info(request, "Todavía no hay cursos creados.")
+            return redirect('notas:dashboard')
+        return HttpResponseForbidden('La sábana del reporte parcial la ven el director de grupo y la administración.')
+
+    anos = sorted(set(PeriodoAcademico.objects.filter(colegio=request.colegio)
+                      .values_list('ano_lectivo', flat=True)), reverse=True)
+    try:
+        ano = int(request.GET.get('ano') or (anos[0] if anos else 0))
+    except ValueError:
+        ano = anos[0] if anos else 0
+    periodos = list(PeriodoAcademico.objects.filter(colegio=request.colegio, ano_lectivo=ano).order_by('orden'))
+    periodo = next((p for p in periodos if str(p.id) == request.GET.get('periodo')), None) \
+        or _periodo_por_defecto(request.colegio, periodos)
+    curso = next((c for c in cursos if str(c.id) == request.GET.get('curso')), None) or cursos[0]
+
+    datos = reporte_sabana.calcular(curso, periodo) if periodo else None
+    formato = request.GET.get('formato')
+    if datos and formato == 'excel':
+        r = HttpResponse(reporte_sabana.excel(curso, periodo, datos, request.colegio),
+                         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        r['Content-Disposition'] = (f'attachment; filename="Reporte parcial {curso.nombre} '
+                                    f'{periodo.get_nombre_display()} {periodo.ano_lectivo}.xlsx"')
+        return r
+    if datos and formato == 'pdf':
+        try:
+            from weasyprint import HTML
+        except ImportError:
+            return HttpResponse('La generación de PDF no está disponible en este servidor.', status=500)
+        from django.template.loader import render_to_string
+        html = render_to_string('notas/reportes/sabana_reporte_parcial_pdf.html', {
+            'colegio': request.colegio, 'curso': curso, 'periodo': periodo, **datos}, request=request)
+        r = HttpResponse(HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf(),
+                         content_type='application/pdf')
+        r['Content-Disposition'] = (f'inline; filename="Reporte parcial {curso.nombre} '
+                                    f'{periodo.get_nombre_display()} {periodo.ano_lectivo}.pdf"')
+        return r
+
+    return render(request, 'notas/reportes/sabana_reporte_parcial.html', {
+        'colegio': request.colegio, 'cursos': cursos, 'curso': curso, 'anos': anos, 'ano': ano,
+        'periodos': periodos, 'periodo': periodo, 'datos': datos,
+        **(datos or {}),
+    })
