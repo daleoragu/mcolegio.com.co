@@ -1,0 +1,112 @@
+{% extends 'notas/base.html' %}
+
+{% block title %}Sábana del reporte parcial{% endblock %}
+
+{% block page_title %}
+    <h1>Sábana del reporte parcial</h1>
+{% endblock %}
+
+{% block content %}
+<style>
+    .srp-filtros { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; margin-bottom:16px; }
+    .srp-filtros .form-select { min-width:140px; }
+    .srp-resumen { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px; margin-bottom:16px; }
+    .srp-caja { border:1px solid #e3e6ec; border-left:5px solid #6c757d; border-radius:10px; padding:10px 14px; background:#fff; }
+    .srp-caja .num { font-size:1.7rem; font-weight:800; line-height:1.1; font-variant-numeric:tabular-nums; }
+    .srp-caja .txt { font-size:.85rem; color:#4b5563; }
+    .srp-caja.rojo { border-left-color:#dc3545; } .srp-caja.rojo .num { color:#b02a37; }
+    .srp-caja.oro { border-left-color:#f0ad00; } .srp-caja.oro .num { color:#8a6100; }
+    .srp-caja.verde { border-left-color:#198754; } .srp-caja.verde .num { color:#146c43; }
+    .srp-envoltura { overflow-x:auto; border:1px solid #e3e6ec; border-radius:10px; background:#fff; }
+    .srp-tabla { border-collapse:collapse; font-size:.85rem; min-width:100%; }
+    .srp-tabla th, .srp-tabla td { border:1px solid #dfe3ea; padding:4px 6px; text-align:center; }
+    .srp-tabla thead th { background:#f3f6fb; position:sticky; top:0; }
+    .srp-tabla th.mat { writing-mode:vertical-rl; transform:rotate(180deg); white-space:nowrap; height:150px; font-weight:600; vertical-align:bottom; }
+    .srp-tabla th.mat.pend { color:#9aa3b2; font-style:italic; }
+    .srp-tabla td.nom { text-align:left; white-space:nowrap; position:sticky; left:0; background:#fff; }
+    .srp-tabla td.x { background:#f8d7da; color:#b42318; font-weight:800; }
+    .srp-tabla td.tot { font-weight:800; font-variant-numeric:tabular-nums; }
+    .srp-tabla tr.alerta td.nom, .srp-tabla tr.alerta td.tot { background:#fff3cd; }
+    .srp-tabla tfoot td { background:#f3f6fb; font-weight:800; }
+    .srp-incl { font-size:.7rem; background:#e0ecff; color:#1f4e9c; border-radius:6px; padding:0 5px; margin-left:4px; }
+</style>
+
+<form method="get" class="srp-filtros">
+    <div>
+        <label class="form-label mb-1 small" for="srp-ano">Año</label>
+        <select name="ano" id="srp-ano" class="form-select" onchange="this.form.periodo.value='';this.form.submit()">
+            {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label mb-1 small" for="srp-periodo">Periodo</label>
+        <select name="periodo" id="srp-periodo" class="form-select" onchange="this.form.submit()">
+            {% for p in periodos %}<option value="{{ p.id }}" {% if periodo and p.id == periodo.id %}selected{% endif %}>{{ p.get_nombre_display }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label mb-1 small" for="srp-curso">Curso</label>
+        <select name="curso" id="srp-curso" class="form-select" onchange="this.form.submit()">
+            {% for c in cursos %}<option value="{{ c.id }}" {% if c.id == curso.id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
+        </select>
+    </div>
+    {% if datos %}
+    <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-success" href="?ano={{ ano }}&periodo={{ periodo.id }}&curso={{ curso.id }}&formato=excel"><i class="fas fa-file-excel me-1"></i>Excel</a>
+        <a class="btn btn-danger" target="_blank" href="?ano={{ ano }}&periodo={{ periodo.id }}&curso={{ curso.id }}&formato=pdf"><i class="fas fa-file-pdf me-1"></i>PDF</a>
+    </div>
+    {% endif %}
+</form>
+
+{% if not datos %}
+    <div class="alert alert-info">No hay periodos creados para este año.</div>
+{% else %}
+    {% if periodo.reporte_parcial_activo %}
+    <div class="alert alert-warning py-2"><i class="fas fa-hourglass-half me-1"></i>El plazo del reporte parcial de este periodo sigue abierto: los docentes todavía pueden cambiar sus marcas.</div>
+    {% endif %}
+
+    <div class="srp-resumen">
+        <div class="srp-caja rojo"><div class="num">{{ total_reportes }}</div><div class="txt">reportes en total</div></div>
+        <div class="srp-caja oro"><div class="num">{{ estudiantes_reportados }}<small class="fs-6 text-muted"> / {{ filas|length }}</small></div><div class="txt">estudiantes con al menos una asignatura</div></div>
+        <div class="srp-caja rojo"><div class="num">{{ estudiantes_alerta }}</div><div class="txt">con {{ limite_alerta }} o más asignaturas</div></div>
+        <div class="srp-caja verde"><div class="num">{{ estudiantes_sin_reporte }}</div><div class="txt">sin ningún reporte</div></div>
+    </div>
+
+    {% if pendientes %}
+    <div class="alert alert-light border py-2 small">
+        <i class="fas fa-circle-info me-1 text-primary"></i><strong>Asignaturas sin reporte guardado:</strong>
+        {% for m in pendientes %}{{ m.nombre }} <span class="text-muted">({{ m.docentes|join:", " }})</span>{% if not forloop.last %} · {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if filas and materias %}
+    <div class="srp-envoltura">
+    <table class="srp-tabla">
+        <thead><tr>
+            <th>N.º</th><th style="text-align:left">Estudiante</th>
+            {% for m in materias %}<th class="mat {% if not m.reportada %}pend{% endif %}" title="{{ m.nombre }} — {{ m.docentes|join:', ' }}{% if not m.reportada %} (sin reporte){% endif %}">{{ m.nombre }}</th>{% endfor %}
+            <th>Total</th>
+        </tr></thead>
+        <tbody>
+        {% for f in filas %}
+            <tr class="{% if f.alerta %}alerta{% endif %}">
+                <td>{{ f.n }}</td>
+                <td class="nom"><a href="{% url 'notas:acta_reporte_parcial_estudiante' f.est.id %}?periodo_id={{ periodo.id }}">{{ f.nombre }}</a>{% if f.inclusion %}<span class="srp-incl">Incl.</span>{% endif %}</td>
+                {% for c in f.celdas %}<td class="{% if c.marcada %}x{% endif %}"{% if c.sugerencia %} title="{{ c.sugerencia }}"{% endif %}>{% if c.marcada %}X{% endif %}</td>{% endfor %}
+                <td class="tot">{{ f.total }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr>
+            <td></td><td style="text-align:left">Total por asignatura</td>
+            {% for m in materias %}<td>{{ m.total }}</td>{% endfor %}
+            <td>{{ total_reportes }}</td>
+        </tr></tfoot>
+    </table>
+    </div>
+    <p class="small text-muted mt-2">X = el docente lo reporta con dificultades. En amarillo, los estudiantes con {{ limite_alerta }} o más asignaturas. Toque el nombre para ver su acta; pase el cursor sobre una X para ver qué le falta.</p>
+    {% else %}
+    <div class="alert alert-info">Este curso no tiene estudiantes activos o asignaturas asignadas.</div>
+    {% endif %}
+{% endif %}
+{% endblock %}

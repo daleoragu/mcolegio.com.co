@@ -1,0 +1,69 @@
+{% load nota_filters %}<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Sábana del reporte parcial</title>
+<style>
+    @page { size: letter landscape; margin: 1.2cm 1.2cm 1.4cm;
+            @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 7px; color: #666; font-family: Helvetica, Arial, sans-serif; } }
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 8px; color: #222; }
+    .encabezado-con-bordes, .encabezado-sin-bordes { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+    .encabezado-con-bordes td, .encabezado-sin-bordes td { vertical-align: middle; padding: 0 4px; border: none; }
+    .escudo { max-width: 80px; max-height: {{ colegio.alto_logos_pdf|default:60 }}px; height: auto; width: auto; }
+    h1 { text-align: center; font-size: 12px; letter-spacing: 1px; margin: 6px 0 2px; }
+    .sub { text-align: center; font-size: 9.5px; margin-bottom: 6px; }
+    .resumen { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+    .resumen td { border: 1px solid #ccd3de; padding: 3px 6px; text-align: center; }
+    .resumen b { font-size: 11px; }
+    table.s { border-collapse: collapse; margin: 0 auto; }
+    table.s th, table.s td { border: 1px solid #999; padding: 2px 3px; text-align: center; }
+    table.s thead th { background: #eef1f6; }
+    table.s th.mat { vertical-align: bottom; padding: 2px 1px; min-width: 16px; }
+    table.s th.pend { color: #8a8f99; font-style: italic; }
+    table.s td.nom { text-align: left; white-space: nowrap; }
+    table.s td.x { background: #f8d7da; color: #b42318; font-weight: bold; }
+    table.s td.tot { font-weight: bold; }
+    table.s tr.alerta td.nom, table.s tr.alerta td.tot { background: #ffe9a8; }
+    table.s tfoot td { background: #eef1f6; font-weight: bold; }
+    .nota { font-size: 7.5px; color: #444; margin-top: 6px; }
+    .firmas { width: 60%; margin: 34px auto 0; border-collapse: collapse; }
+    .firmas td { width: 50%; text-align: center; padding: 0 18px; }
+    .linea { border-top: 1px solid #222; margin-bottom: 2px; }
+</style></head>
+<body>
+{% include "notas/fragmentos/encabezado_pdf.html" %}
+<h1>SÁBANA DEL REPORTE PARCIAL</h1>
+<div class="sub">Curso <b>{{ curso.nombre }}</b> · {{ periodo.get_nombre_display }} {{ periodo.ano_lectivo }} · Generado el {% now "d/m/Y" %}{% if curso.director_grado %} · Director(a) de grupo: {{ curso.director_grado.user.get_full_name }}{% endif %}</div>
+<table class="resumen"><tr>
+    <td>Reportes en total<br><b>{{ total_reportes }}</b></td>
+    <td>Estudiantes con al menos una asignatura<br><b>{{ estudiantes_reportados }} de {{ filas|length }}</b></td>
+    <td>Con {{ limite_alerta }} o más asignaturas<br><b>{{ estudiantes_alerta }}</b></td>
+    <td>Sin ningún reporte<br><b>{{ estudiantes_sin_reporte }}</b></td>
+</tr></table>
+<table class="s">
+    <thead><tr>
+        <th>N.º</th><th style="text-align:left">Estudiante</th>
+        {% for m in materias %}<th class="mat {% if not m.reportada %}pend{% endif %}">{{ m.nombre|upper|truncatechars:26|svg_vertical:90 }}</th>{% endfor %}
+        <th>Total</th>
+    </tr></thead>
+    <tbody>
+    {% for f in filas %}
+        <tr class="{% if f.alerta %}alerta{% endif %}">
+            <td>{{ f.n }}</td>
+            <td class="nom">{{ f.nombre|upper }}{% if f.inclusion %} (I){% endif %}</td>
+            {% for c in f.celdas %}<td class="{% if c.marcada %}x{% endif %}">{% if c.marcada %}X{% endif %}</td>{% endfor %}
+            <td class="tot">{{ f.total }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr>
+        <td></td><td style="text-align:left">Total por asignatura</td>
+        {% for m in materias %}<td>{{ m.total }}</td>{% endfor %}
+        <td>{{ total_reportes }}</td>
+    </tr></tfoot>
+</table>
+<div class="nota">X = el docente reporta al estudiante con dificultades en la asignatura. En amarillo: {{ limite_alerta }} o más asignaturas. (I) = estudiante de inclusión.
+{% if pendientes %}<br><b>Asignaturas sin reporte guardado:</b> {% for m in pendientes %}{{ m.nombre }} ({{ m.docentes|join:", " }}){% if not forloop.last %}; {% endif %}{% endfor %}.{% endif %}
+{% if periodo.reporte_parcial_activo %}<br>El plazo del reporte parcial sigue abierto: las marcas todavía pueden cambiar.{% endif %}</div>
+<table class="firmas"><tr>
+    <td><div class="linea"></div>Director(a) de grupo</td>
+    <td><div class="linea"></div>Coordinación</td>
+</tr></table>
+</body></html>

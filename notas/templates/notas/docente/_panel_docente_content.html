@@ -34,4 +34,5 @@
     {% if 'correo' in mods %}<a href="{% url 'notas:bandeja_entrada' %}" class="app-icon"><div class="icon-container bg-mail"><i class="fas fa-envelope"></i></div><span class="app-label">{{ colegio.nombre_correo|default:"Correo interno" }}</span></a>{% endif %}
     {% if 'portal' in mods %}<a href="{% url 'notas:configuracion_portal' %}" class="app-icon"><div class="icon-container bg-portal-gestion"><i class="fas fa-newspaper"></i></div><span class="app-label">Gestionar Portal</span></a>{% endif %}
     {% if 'reporte_parcial' in mods %}<a href="{% url 'notas:lista_estudiantes_reporte' %}" class="app-icon"><div class="icon-container bg-reporte-estudiantes"><i class="fas fa-user-times"></i></div><span class="app-label">Reporte Estudiantes</span></a>{% endif %}
+    {% if 'reporte_parcial' in mods %}{% if user.es_admin_colegio or user.docente.cursos_dirigidos.all %}<a href="{% url 'notas:sabana_reporte_parcial' %}" class="app-icon"><div class="icon-container bg-reporte-estudiantes"><i class="fas fa-table-list"></i></div><span class="app-label">Sábana Reporte Parcial</span></a>{% endif %}{% endif %}
 </div>

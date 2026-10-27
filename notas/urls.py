@@ -198,6 +198,7 @@ urlpatterns = [
     path('estadisticas/', estadisticas_views.panel_estadisticas_vista, name='panel_estadisticas'),
     path('estadisticas/generar-pdf/', estadisticas_views.estadisticas_pdf_vista, name='estadisticas_pdf'),
     path('reporte-parcial/acta/<int:estudiante_id>/', reporte_parcial_views.acta_reporte_parcial_estudiante, name='acta_reporte_parcial_estudiante'),
+    path('reporte-parcial/sabana/', reporte_parcial_views.sabana_reporte_parcial, name='sabana_reporte_parcial'),
     path('reporte-parcial/estudiantes/', reporte_parcial_views.lista_estudiantes_reporte, name='lista_estudiantes_reporte'),
     path('reporte-parcial/aviso/<int:estudiante_id>/', reporte_parcial_views.aviso_reporte_parcial, name='aviso_reporte_parcial'),
     path('reporte-parcial/informe/<int:estudiante_id>/pdf/', reporte_parcial_views.informe_parcial_pdf, name='informe_parcial_pdf'),

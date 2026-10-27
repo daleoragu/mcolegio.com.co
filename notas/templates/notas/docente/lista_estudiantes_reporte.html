@@ -146,6 +146,9 @@
 <div class="container-lista-estudiantes">
     <h2>Listado de Estudiantes</h2>
     <p class="text-muted text-center mb-4">Seleccione un estudiante para ver su acta de reporte parcial de desempeño.</p>
+    {% if user.es_admin_colegio or user.docente.cursos_dirigidos.all %}
+    <div class="text-center mb-3"><a class="btn btn-outline-primary btn-sm" href="{% url 'notas:sabana_reporte_parcial' %}{% if curso_seleccionado_id %}?curso={{ curso_seleccionado_id }}{% endif %}"><i class="fas fa-table-list me-1"></i>Ver la sábana del reporte parcial del curso</a></div>
+    {% endif %}
 
     {# Formulario de filtro por grado #}
     <form method="GET" action="{% url 'notas:lista_estudiantes_reporte' %}" class="form-filtros-estudiantes">
