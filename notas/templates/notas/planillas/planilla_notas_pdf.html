@@ -68,7 +68,7 @@
         {% endfor %}
         </tbody>
     </table>
-    <div class="escala">Escala: {% for a, b, n in escala %}{{ n }} {{ a|floatformat:1 }}–{{ b|floatformat:1 }}{% if not forloop.last %} · {% endif %}{% endfor %}
+    <div class="escala">Escala: {% for a, b, n in p.escala %}{{ n }} {{ a|floatformat:1 }}–{{ b|floatformat:1 }}{% if not forloop.last %} · {% endif %}{% endfor %}
         {% if p.filas %} · * Estudiante de inclusión{% endif %}</div>
     <table class="firmas"><tr>
         <td><span>{{ p.docente|default:"Docente" }}<br>Docente</span></td>

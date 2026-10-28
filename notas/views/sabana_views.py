@@ -42,13 +42,15 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
     DESEMPENOS_NOMBRES = [e.nombre_desempeno.upper() for e in escala_valoracion_qs]
     DESEMPENOS_CON_DEFAULT = DESEMPENOS_NOMBRES + ["SIN ESCALA"]
 
-    def get_valoracion_desempeno(nota):
+    # Cada materia usa su escala (la especial si la tiene en este grado); las áreas, la de
+    # sus materias si todas comparten la misma; si no, la del colegio (notas/escalas.py).
+    from .. import escalas as _escalas
+    esc = _escalas.de(colegio)
+
+    def get_valoracion_desempeno(nota, niveles=None):
         if nota is None: return None
-        nota_decimal = Decimal(nota)
-        for escala in escala_valoracion_qs:
-            if escala.valor_minimo <= nota_decimal <= escala.valor_maximo:
-                return escala.nombre_desempeno.upper()
-        return "SIN ESCALA"
+        nivel = esc.nivel_de(niveles if niveles is not None else esc.general, nota)
+        return nivel.nombre_desempeno.upper() if nivel is not None else "SIN ESCALA"
 
     periodos_del_ano = PeriodoAcademico.objects.filter(colegio=colegio, ano_lectivo=periodo_actual.ano_lectivo).order_by('orden')
     periodos_transcurridos = periodos_del_ano.filter(orden__lte=periodo_actual.orden)
@@ -66,6 +68,7 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
     for _area in areas_con_materias:
         _area.colapsada = (reglas_colegio.colapsar_area_unica
                            and len(_area.materias_del_curso_ordenadas) == 1)
+        _area.niveles_escala = esc.niveles_area([m.id for m in _area.materias_del_curso_ordenadas], curso.grado)
 
     ultimo_periodo = periodos_del_ano.last()
     
@@ -114,7 +117,8 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
                         nota_para_calculo = (nota_recuperacion if usar_recuperacion else None) or nota_original
 
                         if not usar_recuperacion: # Solo construimos la celda una vez
-                           celdas_fila.append({'is_area': False, 'nota_original': nota_original, 'nota_recuperacion': nota_recuperacion})
+                           celdas_fila.append({'is_area': False, 'nota_original': nota_original, 'nota_recuperacion': nota_recuperacion,
+                                               'pierde': esc.en_bajo(nota_original, materia.id, curso.grado)})
 
                         if nota_para_calculo is not None:
                             peso = ponderaciones_map.get((area.id, materia.id))
@@ -126,7 +130,8 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
                     if area.colapsada:
                         pass  # la columna de la asignatura ya muestra esta misma nota
                     elif not usar_recuperacion:
-                        celdas_fila.append({'is_area': True, 'nota_original': nota_area}) # Guardamos la original
+                        celdas_fila.append({'is_area': True, 'nota_original': nota_area, 'niveles': area.niveles_escala,
+                                            'pierde': esc.en_bajo(nota_area, niveles=area.niveles_escala)}) # Guardamos la original
                     else:
                         # Buscamos la celda del área y le añadimos la nota recuperada si es diferente
                         for celda in celdas_fila:
@@ -154,7 +159,7 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
             for celda in celdas_periodo:
                 if celda.get('is_area'):
                     nota_final_area = celda.get('nota_recuperacion') or celda.get('nota_original')
-                    desempeno_area = get_valoracion_desempeno(nota_final_area)
+                    desempeno_area = get_valoracion_desempeno(nota_final_area, celda.get('niveles'))
                     if desempeno_area: fila_periodo['resumen_desempeno_periodo'][desempeno_area] += 1
             
             fila_periodo['resumen_desempeno_periodo_list'] = [fila_periodo['resumen_desempeno_periodo'][d] for d in DESEMPENOS_NOMBRES]
@@ -192,6 +197,7 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
                     celdas_acumuladas.append({
                         'is_area': False,
                         'nota': promedio_final_materia,
+                        'pierde': esc.en_bajo(promedio_final_materia, materia.id, curso.grado),
                         'faltantes': [p.get_nombre_display() for p in faltan],
                         'necesaria': proyeccion,
                     })
@@ -205,13 +211,14 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
                 
                 nota_area_final = (suma_ponderada_area_final / suma_pesos_area_final).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP) if suma_pesos_area_final > 0 else None
                 if not area.colapsada:
-                    celdas_acumuladas.append({'is_area': True, 'nota': nota_area_final})
+                    celdas_acumuladas.append({'is_area': True, 'nota': nota_area_final,
+                                              'pierde': esc.en_bajo(nota_area_final, niveles=area.niveles_escala)})
                 
                 if nota_area_final is not None:
                     notas_finales_areas_para_promedio.append(nota_area_final)
                     if usar_recuperacion:
                         notas_acumuladas_areas[area.id].append(nota_area_final)
-                        desempeno_area_acumulado = get_valoracion_desempeno(nota_area_final)
+                        desempeno_area_acumulado = get_valoracion_desempeno(nota_area_final, area.niveles_escala)
                         if desempeno_area_acumulado: estudiante_data['resumen_desempeno_acumulado'][desempeno_area_acumulado] += 1
             
             promedio_final = (sum(notas_finales_areas_para_promedio) / len(notas_finales_areas_para_promedio)).quantize(Decimal('0.2'), rounding=ROUND_HALF_UP) if notas_finales_areas_para_promedio else CERO
@@ -245,13 +252,13 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
     # --- 4. CÁLCULO DEL RESUMEN FINAL (CONTEOS Y PORCENTAJES) ---
     resumen_final_celdas = []
     
-    def calcular_resumen_columna(notas):
+    def calcular_resumen_columna(notas, niveles=None):
         notas_validas = [n for n in notas if n is not None]
         total_validos = len(notas_validas)
         promedio = sum(notas_validas) / total_validos if total_validos > 0 else CERO
         desempenos_map = {d: {'count': 0, 'percentage': 0.0} for d in DESEMPENOS_NOMBRES}
         for nota in notas_validas:
-            des = get_valoracion_desempeno(nota)
+            des = get_valoracion_desempeno(nota, niveles)
             if des and des in desempenos_map:
                 desempenos_map[des]['count'] += 1
         if total_validos > 0:
@@ -262,8 +269,9 @@ def _get_sabana_acumulada_data(colegio, curso, periodo_actual):
 
     for area in areas_con_materias:
         for materia in area.materias_del_curso_ordenadas:
-            resumen_final_celdas.append(calcular_resumen_columna(notas_acumuladas_materias.get(materia.id, [])))
-        resumen_final_celdas.append(calcular_resumen_columna(notas_acumuladas_areas.get(area.id, [])))
+            resumen_final_celdas.append(calcular_resumen_columna(notas_acumuladas_materias.get(materia.id, []),
+                                                                 esc.niveles(materia.id, curso.grado)))
+        resumen_final_celdas.append(calcular_resumen_columna(notas_acumuladas_areas.get(area.id, []), area.niveles_escala))
 
     resumen_global_niveles = []
     idx = 0

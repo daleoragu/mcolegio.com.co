@@ -146,7 +146,7 @@
                                 <td class="td-periodo">{{ fila.periodo_nombre }}</td>
                                 <!-- INICIO: Bucle de celdas con lógica de recuperación -->
                                 {% for celda in fila.celdas %}
-                                    <td class="{% if not celda.is_area and celda.nota_original|desempeno:colegio == 'BAJO' and not celda.nota_recuperacion %}nota-reprobada{% endif %} {% if celda.is_area %}nota-area{% endif %}">
+                                    <td class="{% if not celda.is_area and celda.pierde and not celda.nota_recuperacion %}nota-reprobada{% endif %} {% if celda.is_area %}nota-area{% endif %}">
                                         {{ celda.nota_original|coma_decimal|default_if_none:"-" }}
                                         {% if celda.nota_recuperacion is not None %}
                                             <span class="nota-recuperada"> ({{ celda.nota_recuperacion|coma_decimal }})</span>
@@ -181,7 +181,7 @@
                         <tr class="tr-acumulada">
                             <td class="td-periodo">{{ data.fila_acumulada.periodo_nombre }}</td>
                             {% for celda in data.fila_acumulada.celdas %}
-                                <td class="{% if celda.nota|desempeno:colegio == 'BAJO' %}nota-reprobada{% endif %} {% if celda.is_area %}nota-area{% endif %}"
+                                <td class="{% if celda.pierde %}nota-reprobada{% endif %} {% if celda.is_area %}nota-area{% endif %}"
                                     {% if celda.faltantes %}title="Faltan notas de: {{ celda.faltantes|join:', ' }}"{% endif %}>
                                     {{ celda.nota|coma_decimal|default_if_none:"-" }}
                                     {% if celda.faltantes %}<span class="aviso-faltante" title="Faltan notas de: {{ celda.faltantes|join:', ' }}">!</span>{% endif %}

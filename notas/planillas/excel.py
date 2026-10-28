@@ -98,6 +98,26 @@ def escala_del_colegio(colegio):
     return [(Decimal(a), Decimal(b), n) for a, b, n in filas] or ESCALA_POR_DEFECTO
 
 
+def escala_de(colegio, asignacion):
+    """La escala de esa materia en el grado del curso: la especial si la tiene, si no la del colegio."""
+    from .. import escalas
+    esc = escalas.de(colegio)
+    if not esc.es_especial(asignacion.materia_id, asignacion.curso.grado):
+        return escala_del_colegio(colegio)
+    return [(Decimal(n.valor_minimo), Decimal(n.valor_maximo), n.nombre_desempeno.upper())
+            for n in esc.niveles(asignacion.materia_id, asignacion.curso.grado)]
+
+
+def aprobacion_de(colegio, asignacion):
+    """Nota mínima para no perder esa materia en ese grado."""
+    from .. import escalas
+    from ..boletin.ponderacion import nota_aprobacion
+    esc = escalas.de(colegio)
+    if esc.es_especial(asignacion.materia_id, asignacion.curso.grado):
+        return esc.aprobacion(asignacion.materia_id, asignacion.curso.grado)
+    return nota_aprobacion(colegio)
+
+
 def _recortar_bordes(img):
     """Quita el margen blanco o transparente que traen muchos escudos."""
     from PIL import ImageChops
@@ -162,25 +182,34 @@ def generar_libro(colegio, periodo, asignaciones):
     primario = _hex(getattr(colegio, 'color_primario', ''))
     texto_primario = _hex(getattr(colegio, 'color_texto_primario', ''), 'FFFFFF')
     secundario = _hex(getattr(colegio, 'color_secundario', ''), '6C757D')
-    escala = escala_del_colegio(colegio)
 
     libro = Workbook()
     libro.remove(libro.active)
 
-    # Hoja oculta con la escala de valoración: la usa la fórmula de desempeño.
-    hoja_escala = libro.create_sheet('Escala')
-    hoja_escala.append(['Desde', 'Hasta', 'Desempeño'])
-    for a, b, n in escala:
-        hoja_escala.append([float(a), float(b), n])
-    hoja_escala.sheet_state = 'hidden'
-    fin_escala = len(escala) + 1
+    # Hojas ocultas con la escala de valoración: las usa la fórmula de desempeño.
+    # Una por cada escala distinta (la del colegio y las especiales de algunas materias).
+    hojas_escala = {}
 
-    usados = {'escala'}
+    def hoja_de_escala(escala):
+        clave = tuple(escala)
+        if clave not in hojas_escala:
+            nombre_esc = 'Escala' if not hojas_escala else f'Escala{len(hojas_escala) + 1}'
+            hoja_esc = libro.create_sheet(nombre_esc)
+            hoja_esc.append(['Desde', 'Hasta', 'Desempeño'])
+            for a, b, n in escala:
+                hoja_esc.append([float(a), float(b), n])
+            hoja_esc.sheet_state = 'hidden'
+            hojas_escala[clave] = (nombre_esc, len(escala) + 1)
+        return hojas_escala[clave]
+
+    usados = {'escala'} | {f'escala{k}' for k in range(2, 30)}
     for asignacion in asignaciones:
+        escala = escala_de(colegio, asignacion)
+        nombre_esc, fin_escala = hoja_de_escala(escala)
         nombre = _nombre_hoja(f'{asignacion.curso.nombre} {asignacion.materia.nombre}', usados)
         hoja = libro.create_sheet(nombre)
         _dibujar_hoja(hoja, colegio, periodo, asignacion, config, escala, fin_escala,
-                      primario, texto_primario, secundario)
+                      primario, texto_primario, secundario, hoja_escala=nombre_esc)
     if not asignaciones:
         libro.create_sheet('Sin asignaciones')['A1'] = 'No hay asignaturas para este docente.'
     # La primera hoja visible queda activa al abrir.
@@ -195,7 +224,7 @@ def generar_libro(colegio, periodo, asignaciones):
 
 
 def _dibujar_hoja(ws, colegio, periodo, asignacion, config, escala, fin_escala,
-                  primario, texto_primario, secundario):
+                  primario, texto_primario, secundario, hoja_escala='Escala'):
     # La escala que declaró el colegio manda: de dónde a dónde van las notas.
     MINIMA, MAXIMA = escala[0][0], max(b for _, b, _ in escala)
     estudiantes = estudiantes_de(asignacion, periodo)
@@ -314,8 +343,8 @@ def _dibujar_hoja(ws, colegio, periodo, asignacion, config, escala, fin_escala,
         fin_c.alignment = Alignment(horizontal='center')
         letra_final = f'{L(c_final)}{f}'
         desempeno = ws.cell(f, c_desemp,
-                            f'=IF({letra_final}="","",IFERROR(LOOKUP(ROUND({letra_final},1),Escala!$A$2:$A${fin_escala},'
-                            f'Escala!$C$2:$C${fin_escala}),""))')
+                            f'=IF({letra_final}="","",IFERROR(LOOKUP(ROUND({letra_final},1),{hoja_escala}!$A$2:$A${fin_escala},'
+                            f'{hoja_escala}!$C$2:$C${fin_escala}),""))')
         desempeno.alignment = Alignment(horizontal='center')
         desempeno.font = Font(name=FUENTE, bold=True, size=9)
         fa = ws.cell(f, c_fallas, fallas.get(est.id) or None)
@@ -366,8 +395,7 @@ def _dibujar_hoja(ws, colegio, periodo, asignacion, config, escala, fin_escala,
             ws.conditional_formatting.add(f'{L(ini)}{FILA_DATOS}:{L(fin)}{fila_fin}', FormulaRule(
                 formula=[f'AND({primera}<>"",OR(NOT(ISNUMBER({primera})),{primera}<{MINIMA},{primera}>{MAXIMA}))'],
                 fill=_relleno('F8D7DA'), font=Font(color='842029', bold=True)))
-        from ..boletin.ponderacion import nota_aprobacion
-        aprobar = nota_aprobacion(colegio)
+        aprobar = aprobacion_de(colegio, asignacion)
         for codigo in plan:
             cdef = mapa[codigo][2]
             ws.conditional_formatting.add(f'{L(cdef)}{FILA_DATOS}:{L(cdef)}{fila_fin}', CellIsRule(

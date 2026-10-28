@@ -431,6 +431,52 @@ class EscalaValoracion(models.Model):
         verbose_name_plural = "Escalas de Valoración"
 
 
+class EscalaEspecial(models.Model):
+    """Una escala distinta a la del colegio para algunas materias, y si se quiere solo en algunos grados.
+
+    Ej.: en Inglés el BAJO va hasta 3.4, y en Matemáticas de 10.° y 11.° otra escala.
+    Las materias que no estén en ninguna escala especial usan la del colegio
+    (EscalaValoracion). Ver notas/escalas.py.
+    """
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name='escalas_especiales')
+    nombre = models.CharField(max_length=80, verbose_name='Nombre de la escala',
+                              help_text='Ej.: «Escala de Inglés» o «Media técnica».')
+    materias = models.ManyToManyField('Materia', related_name='escalas_especiales', blank=True,
+                                      verbose_name='Materias que la usan')
+    # Lista de grados (números, como Curso.grado). Vacía = todos los grados.
+    grados = models.JSONField(default=list, blank=True, verbose_name='Grados (vacío = todos)')
+
+    class Meta:
+        ordering = ['nombre']
+        verbose_name = 'Escala especial'
+        verbose_name_plural = 'Escalas especiales'
+
+    def __str__(self):
+        return f'{self.nombre} ({self.colegio.nombre})'
+
+
+class NivelEscalaEspecial(models.Model):
+    """Un desempeño de una escala especial: mismos campos que EscalaValoracion."""
+    escala = models.ForeignKey(EscalaEspecial, on_delete=models.CASCADE, related_name='niveles')
+    nombre_desempeno = models.CharField(max_length=50, verbose_name='Desempeño')
+    valor_minimo = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Valor mínimo')
+    valor_maximo = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Valor máximo')
+    mensaje_boletin = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['valor_minimo']
+        unique_together = ('escala', 'nombre_desempeno')
+        verbose_name = 'Nivel de escala especial'
+        verbose_name_plural = 'Niveles de escala especial'
+
+    def save(self, *args, **kwargs):
+        self.nombre_desempeno = (self.nombre_desempeno or '').strip().upper()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.nombre_desempeno} ({self.valor_minimo} - {self.valor_maximo})'
+
+
 class ComponenteEvaluacion(models.Model):
     """Un componente de evaluación del colegio: «Saber», «Cognitivo», «Nota»…
 

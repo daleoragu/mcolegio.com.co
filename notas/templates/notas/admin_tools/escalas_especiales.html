@@ -1,0 +1,55 @@
+{% extends 'notas/base.html' %}
+
+{% block title %}Escalas especiales por materia{% endblock %}
+{% block page_title %}Escalas especiales por materia{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <p class="text-muted mb-0" style="max-width:720px">
+        Para materias que se valoran con otra escala (por ejemplo, el BAJO hasta 3,4), y si hace falta solo en
+        algunos grados. Las materias que no estén aquí siguen con la
+        <a href="{% url 'notas:configuracion_escala_valoracion' %}">escala del colegio</a>.
+    </p>
+    <a class="btn btn-primary" href="{% url 'notas:crear_escala_especial' %}"><i class="fas fa-plus me-1"></i>Nueva escala especial</a>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-header"><strong>Escala del colegio</strong> <span class="text-muted small">(la que usan todas las demás materias)</span></div>
+    <div class="card-body py-2">
+        {% for n in general %}<span class="badge bg-light text-dark border me-1">{{ n.nombre_desempeno }} {{ n.valor_minimo|floatformat:1 }}–{{ n.valor_maximo|floatformat:1 }}</span>{% empty %}<span class="text-muted">Sin configurar.</span>{% endfor %}
+    </div>
+</div>
+
+{% if filas %}
+<div class="table-responsive">
+<table class="table table-hover align-middle bg-white border">
+    <thead class="table-light"><tr><th>Escala</th><th>Materias</th><th>Grados</th><th>Desempeños</th><th class="text-end">Acciones</th></tr></thead>
+    <tbody>
+    {% for f in filas %}
+        <tr>
+            <td class="fw-bold">{{ f.escala.nombre }}</td>
+            <td>{{ f.materias }}</td>
+            <td>{{ f.grados }}</td>
+            <td>{% for n in f.niveles %}<span class="badge bg-light text-dark border me-1">{{ n.nombre_desempeno }} {{ n.valor_minimo|floatformat:1 }}–{{ n.valor_maximo|floatformat:1 }}</span>{% endfor %}</td>
+            <td class="text-end text-nowrap">
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'notas:editar_escala_especial' f.escala.pk %}"><i class="fas fa-pencil-alt"></i></a>
+                <form method="post" action="{% url 'notas:eliminar_escala_especial' f.escala.pk %}" class="d-inline"
+                      onsubmit="return confirm('¿Eliminar esta escala? Esas materias vuelven a la escala del colegio.');">
+                    {% csrf_token %}<button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i></button>
+                </form>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="alert alert-info">Este colegio no tiene escalas especiales: todas las materias usan la escala del colegio.</div>
+{% endif %}
+
+<p class="small text-muted mt-3">
+    Cómo se aplica: si una materia tiene una escala para su grado, manda esa; si tiene una para todos los grados, esa;
+    si no, la del colegio. El área usa la escala especial solo si todas sus materias tienen la misma; si no, la del colegio.
+    Rige en boletines, sábana, planillas, ingreso de notas, reporte parcial, alertas tempranas, plan de mejoramiento y estadísticas.
+</p>
+{% endblock %}

@@ -16,6 +16,10 @@
                 <p class="text-muted">
                     Estos son los niveles que se usarán para la valoración cualitativa en los boletines.
                 </p>
+                <div class="alert alert-light border py-2 small">
+                    <i class="fas fa-layer-group me-1 text-primary"></i>¿Alguna materia se valora con otra escala, o cambia según el grado?
+                    <a href="{% url 'notas:escalas_especiales' %}" class="fw-bold">Configure escalas especiales por materia</a>.
+                </div>
                 {% if escalas %}
                     <div class="table-responsive">
                         <table class="table table-hover table-sm">

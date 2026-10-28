@@ -11,7 +11,7 @@ from .academicos import (
     Calificacion, NotaDetallada, IndicadorLogroPeriodo, ReporteParcial, Observacion,
     PlanDeMejoramiento, Asistencia, InasistenciasManualesPeriodo, EscalaValoracion, 
     ConfiguracionSistema, PublicacionBoletin, PublicacionBoletinFinal,PonderacionAreaMateria,
-    PlanNotas, ComponenteEvaluacion, PonderacionGrado
+    PlanNotas, ComponenteEvaluacion, PonderacionGrado, EscalaEspecial, NivelEscalaEspecial
 )
 from .comunicaciones import Mensaje, RegistroObservador, Notificacion, FaltaCatalogo, TIPOS_FALTA, SuscripcionPush, ClavePush
 from .portal_models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, RecursoEducativo, VideoPortal
@@ -25,7 +25,7 @@ __all__ = [
     'AreaConocimiento', 'Materia', 'PeriodoAcademico', 'AsignacionDocente', 'EscalaValoracion', 
     'Calificacion', 'NotaDetallada', 'IndicadorLogroPeriodo', 'ReporteParcial', 'Observacion',
     'PlanDeMejoramiento', 'Asistencia', 'InasistenciasManualesPeriodo','PonderacionAreaMateria',
-    'ConfiguracionSistema', 'PublicacionBoletin', 'PublicacionBoletinFinal', 'PlanNotas', 'ComponenteEvaluacion', 'PonderacionGrado',
+    'ConfiguracionSistema', 'PublicacionBoletin', 'PublicacionBoletinFinal', 'PlanNotas', 'ComponenteEvaluacion', 'PonderacionGrado', 'EscalaEspecial', 'NivelEscalaEspecial',
     'RecursoEducativo', 'VideoPortal', 'Mensaje', 'FaltaCatalogo', 'TIPOS_FALTA', 'RegistroObservador', 'Notificacion', 'SuscripcionPush', 'ClavePush',
     'DocumentoPublico', 'FotoGaleria', 'Noticia', 'ImagenCarrusel',
 ]
