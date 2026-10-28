@@ -156,10 +156,10 @@ def reporte_parcial_vista(request):
                 filas = []
                 for est in estudiantes:
                     nota = parciales.get(est.id)
-                    bajo = reporte_aviso.esta_en_bajo(request.colegio, nota)
+                    bajo = reporte_aviso.esta_en_bajo(request.colegio, nota, asignacion_seleccionada)
                     marcado = guardados.get(est.id) if est.id in guardados else bajo
                     filas.append({'est': est, 'nota': reporte_aviso.texto_nota(nota), 'bajo': bajo,
-                                  'desempeno': reporte_aviso.desempeno(request.colegio, nota),
+                                  'desempeno': reporte_aviso.desempeno(request.colegio, nota, asignacion_seleccionada),
                                   'si': marcado, 'guardado': guardados.get(est.id) is True,
                                   'sugerido': bajo and est.id not in guardados,
                                   'sugerencia': sugerencias.get(est.id, '')})

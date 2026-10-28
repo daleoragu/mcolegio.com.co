@@ -151,11 +151,15 @@ class IngresoNotasView(LoginRequiredMixin, View):
                 'hay_indicadores': indicadores.exists()
             })
 
-        escala_valoracion = EscalaValoracion.objects.filter(colegio=request.colegio).values(
-            'nombre_desempeno', 'valor_minimo', 'valor_maximo'
-        ).order_by('valor_minimo')
+        # La escala de la materia en el grado del curso (la especial si tiene); si no, la del colegio.
+        from .. import escalas
+        _asig = context.get('asignacion_seleccionada')
+        niveles = escalas.de(request.colegio).niveles(
+            _asig.materia_id if _asig else None, _asig.curso.grado if _asig else None)
+        escala_valoracion = [{'nombre_desempeno': n.nombre_desempeno, 'valor_minimo': n.valor_minimo,
+                              'valor_maximo': n.valor_maximo} for n in niveles]
 
-        context['escala_valoracion_json'] = json.dumps(list(escala_valoracion), cls=DjangoJSONEncoder)
+        context['escala_valoracion_json'] = json.dumps(escala_valoracion, cls=DjangoJSONEncoder)
 
         return render(request, self.template_name, context)
 

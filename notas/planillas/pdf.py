@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from ..models.academicos import InasistenciasManualesPeriodo
 from .columnas import configuracion, plan_completo
-from .excel import escala_del_colegio, estudiantes_de
+from .excel import aprobacion_de, escala_de, estudiantes_de
 from .guardar import CENTESIMA
 
 
@@ -26,9 +26,8 @@ def _desempeno(nota, escala):
 def datos_planilla(colegio, periodo, asignacion, config=None, escala=None):
     """Todo lo de una asignación, listo para dibujar."""
     config = config or configuracion(colegio)
-    escala = escala or escala_del_colegio(colegio)
-    from ..boletin.ponderacion import nota_aprobacion
-    aprobacion = nota_aprobacion(colegio)
+    escala = escala or escala_de(colegio, asignacion)
+    aprobacion = aprobacion_de(colegio, asignacion)
     estudiantes = estudiantes_de(asignacion, periodo)
     plan = plan_completo(asignacion, periodo, estudiantes, config)
     fallas = dict(InasistenciasManualesPeriodo.objects.filter(
@@ -60,7 +59,7 @@ def datos_planilla(colegio, periodo, asignacion, config=None, escala=None):
         })
     total_columnas = sum(len(c['columnas']) + 1 for c in componentes)
     return {'asignacion': asignacion, 'componentes': componentes, 'filas': filas,
-            'total_columnas': total_columnas,
+            'total_columnas': total_columnas, 'escala': escala,
             'docente': asignacion.docente.user.get_full_name() if asignacion.docente_id else ''}
 
 
@@ -68,8 +67,9 @@ def generar(request, colegio, periodo, asignaciones):
     """Bytes del PDF con una página (o más) por asignación."""
     from weasyprint import HTML
     config = configuracion(colegio)
-    escala = escala_del_colegio(colegio)
-    planillas = [datos_planilla(colegio, periodo, a, config, escala) for a in asignaciones]
+    # Cada asignación con su escala (la especial de la materia, si tiene).
+    planillas = [datos_planilla(colegio, periodo, a, config) for a in asignaciones]
+    escala = planillas[0]['escala'] if planillas else []
     html = render_to_string('notas/planillas/planilla_notas_pdf.html', {
         'colegio': colegio, 'periodo': periodo, 'planillas': planillas, 'escala': escala,
         'generado': timezone.localtime(),

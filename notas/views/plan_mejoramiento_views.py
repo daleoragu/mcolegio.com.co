@@ -61,6 +61,16 @@ def plan_mejoramiento_vista(request):
     context['nota_minima_aprobatoria'] = nota_minima_aprobatoria
     # --- FIN: Lógica MEJORADA ---
 
+    from .. import escalas as _escalas
+    _esc = _escalas.de(request.colegio)
+
+    def _umbrales(asig):
+        """(tope del bajo, mínima aprobatoria) de la materia: los de su escala especial si tiene."""
+        if _esc.es_especial(asig.materia_id, asig.curso.grado):
+            niveles = _esc.niveles(asig.materia_id, asig.curso.grado)
+            return niveles[0].valor_maximo, _esc.aprobacion(niveles=niveles)
+        return nota_maxima_desempeno_bajo, nota_minima_aprobatoria
+
     if es_admin_usuario(user):
         context['todos_los_docentes'] = Docente.objects.filter(colegio=request.colegio).order_by('user__last_name', 'user__first_name')
         if docente_seleccionado_id:
@@ -97,6 +107,7 @@ def plan_mejoramiento_vista(request):
             
         try:
             asignacion = get_object_or_404(AsignacionDocente, id=asignacion_id, colegio=request.colegio)
+            nota_maxima_desempeno_bajo, nota_minima_aprobatoria = _umbrales(asignacion)
             docente_asignado = asignacion.docente
             if not es_admin_usuario(user) and asignacion.docente != docente_que_reporta:
                 raise Exception("Permiso denegado para esta asignación.")
@@ -177,6 +188,8 @@ def plan_mejoramiento_vista(request):
             periodo_obj = get_object_or_404(PeriodoAcademico, id=periodo_seleccionado_id_str, colegio=request.colegio)
             
             context['plazo_nivelaciones_cerrado'] = not periodo_obj.nivelaciones_activas
+            nota_maxima_desempeno_bajo, nota_minima_aprobatoria = _umbrales(asignacion_actual)
+            context['nota_minima_aprobatoria'] = nota_minima_aprobatoria
 
             calificaciones_bajas = Calificacion.objects.filter(
                 colegio=request.colegio,

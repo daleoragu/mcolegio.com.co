@@ -11,6 +11,7 @@ from ..models import (
 )
 from .ponderacion import ajustes as ajustes_colegio, calculo_en_lote, definitiva_anual, recordar
 from .. import componentes as _comp
+from .. import escalas
 from ..pesos_area import pesos_areas
 from django.db.models import Prefetch
 
@@ -37,25 +38,25 @@ def estudiantes_del_curso_en(colegio, curso, ano_lectivo):
         curso=curso, colegio=colegio, is_active=True
     ).select_related('user').order_by('user__last_name', 'user__first_name')
 
-def _get_valoracion(colegio, nota):
+def _get_valoracion(colegio, nota, materia_id=None, grado=None, niveles=None):
     """
-    Devuelve la valoración cualitativa según la escala configurada para el colegio.
+    Devuelve la valoración cualitativa según la escala que rige: la de la materia
+    en ese grado si tiene una escala especial, si no la del colegio (notas/escalas.py).
     """
-    if nota is None:
-        return ""
-    nota_decimal = Decimal(nota)
-    # La escala se lee una sola vez por cálculo (ver ponderacion.en_lote); misma regla de antes:
-    # vale solo si exactamente un rango contiene la nota.
-    escalas = recordar(('escalas', getattr(colegio, 'pk', None)),
-                       lambda: list(EscalaValoracion.objects.filter(colegio=colegio)))
-    cumplen = [e for e in escalas if e.valor_minimo is not None and e.valor_maximo is not None
-               and e.valor_minimo <= nota_decimal <= e.valor_maximo]
-    if len(cumplen) == 1:
-        return cumplen[0].nombre_desempeno.upper()
-    if nota_decimal >= Decimal('4.6'): return "SUPERIOR"
-    if nota_decimal >= Decimal('4.0'): return "ALTO"
-    if nota_decimal >= Decimal('3.0'): return "BASICO"
-    return "BAJO"
+    return escalas.de(colegio).desempeno(nota, materia_id, grado, niveles=niveles)
+
+
+def _umbral(colegio, materia_id, grado):
+    """Por debajo de esta nota la materia se pierde: 3.0 de siempre, o el piso de su escala especial."""
+    esc = escalas.de(colegio)
+    return esc.aprobacion(materia_id, grado) if esc.es_especial(materia_id, grado) else Decimal('3.0')
+
+
+def _area_en_bajo(colegio, desempeno, nota, niveles):
+    esc = escalas.de(colegio)
+    if niveles is esc.general:
+        return desempeno == 'BAJO'
+    return esc.pierde(nota, niveles=niveles)
 
 @calculo_en_lote
 def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None):
@@ -129,7 +130,7 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
                 observacion_inclusion_actual = (definitiva_obj.observacion_inclusion if definitiva_obj else "") or ""  # puede venir NULL (Excel, registros viejos)
                 lista_obs_inclusion = [obs.strip() for obs in observacion_inclusion_actual.split('\n') if obs.strip()]
 
-                if definitiva_valor_periodo is not None and definitiva_valor_periodo < UMBRAL_APROBACION:
+                if definitiva_valor_periodo is not None and definitiva_valor_periodo < _umbral(colegio, materia.id, curso.grado):
                     materias_reprobadas_en_area.append(materia.nombre)
 
                 peso = ponderaciones_map.get((area.id, materia.id))
@@ -154,7 +155,7 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
                         suma_ponderada_area_acum += (definitiva_acumulada * peso)
                         suma_pesos_area_acum += peso
 
-                valoracion_cualitativa = _get_valoracion(colegio, definitiva_valor_periodo)
+                valoracion_cualitativa = _get_valoracion(colegio, definitiva_valor_periodo, materia.id, curso.grado)
                 inasistencias = Asistencia.objects.filter(estudiante=estudiante, asignacion=asignacion, estado='A', fecha__range=(periodo.fecha_inicio, periodo.fecha_fin), colegio=colegio).count()
 
                 datos_materia = {
@@ -181,12 +182,14 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
 
             if suma_pesos_area_periodo > 0:
                 nota_area = (suma_ponderada_area_periodo / suma_pesos_area_periodo).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-                desempeno_nombre = _get_valoracion(colegio, nota_area)
+                niveles_area = escalas.de(colegio).niveles_area(
+                    [m.id for m in area.materias_del_area_ordenadas if m.id in asignaciones_map], curso.grado)
+                desempeno_nombre = _get_valoracion(colegio, nota_area, niveles=niveles_area)
                 datos_area.update({'nota_final_area': nota_area, 'desempeno_area': desempeno_nombre})
 
                 if desempeno_nombre:
                     datos_estudiante['contador_rendimiento_areas'][desempeno_nombre] += 1
-                    if desempeno_nombre == 'BAJO':
+                    if _area_en_bajo(colegio, desempeno_nombre, nota_area, niveles_area):
                         datos_area['estado_color_css_class'] = 'desempeno-reprobado'
                         datos_estudiante['detalle_areas_reprobadas'][area.nombre] = materias_reprobadas_en_area
                     else:
@@ -339,7 +342,7 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
                     suma_ponderada_final += (definitiva_para_calculo_area * ih_efectiva)
                     total_ih_anual += ih_efectiva
 
-                    if definitiva_para_calculo_area < UMBRAL_APROBACION:
+                    if definitiva_para_calculo_area < _umbral(colegio, materia_id, curso.grado):
                         materias_reprobadas_en_area.append(asignacion.materia.nombre)
 
                     peso = area_info['pesos'].get(materia_id)
@@ -347,7 +350,7 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
                         suma_ponderada_area += (definitiva_para_calculo_area * peso)
                         suma_pesos_area += peso
 
-                valoracion = _get_valoracion(colegio, definitiva_para_calculo_area)
+                valoracion = _get_valoracion(colegio, definitiva_para_calculo_area, materia_id, curso.grado)
 
                 datos_area_actual['materias'].append({
                     'nombre': asignacion.materia.nombre,
@@ -365,13 +368,15 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
 
             if suma_pesos_area > 0:
                 nota_area = (suma_ponderada_area / suma_pesos_area).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-                desempeno_nombre = _get_valoracion(colegio, nota_area)
+                niveles_area = escalas.de(colegio).niveles_area(
+                    [m for m in area_info['materias'] if m in asignaciones_map], curso.grado)
+                desempeno_nombre = _get_valoracion(colegio, nota_area, niveles=niveles_area)
                 datos_area_actual['nota_final_area'] = nota_area
                 datos_area_actual['desempeno_area'] = desempeno_nombre
 
                 if desempeno_nombre:
                     datos_estudiante['rendimiento_final_areas'][desempeno_nombre] += 1
-                    if desempeno_nombre == 'BAJO':
+                    if _area_en_bajo(colegio, desempeno_nombre, nota_area, niveles_area):
                         datos_area_actual['estado_color_css_class'] = 'desempeno-reprobado'
                         datos_estudiante['areas_reprobadas'] += 1
                         datos_estudiante['detalle_areas_reprobadas'][area_info['nombre']] = materias_reprobadas_en_area

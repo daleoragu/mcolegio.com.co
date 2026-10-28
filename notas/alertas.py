@@ -65,6 +65,12 @@ def alertas_de_curso(colegio, curso, ano, periodo=None, aprobacion=None, maximo=
         elif previo is None or previo[0] != 'niv':
             notas[clave][c.periodo_id] = ('prom', Decimal(c.valor_nota))
 
+    # Cada materia se pierde por debajo del piso de su escala (la especial si tiene una en este grado).
+    from . import escalas
+    esc = escalas.de(colegio)
+    piso = {m: (esc.aprobacion(m, curso.grado) if esc.es_especial(m, curso.grado) else aprobacion)
+            for m in materias}
+
     salida = []
     for est in estudiantes:
         perdidas, perdidas_periodo, con_notas = [], 0, False
@@ -76,16 +82,17 @@ def alertas_de_curso(colegio, curso, ano, periodo=None, aprobacion=None, maximo=
             con_notas = True
             acumulada, _ = definitiva_anual(colegio, por_periodo, periodos, exigir=False)
             del_periodo = por_periodo.get(actual.id)
-            pierde_periodo = del_periodo is not None and del_periodo < aprobacion
+            aprob_m = piso[materia_id]
+            pierde_periodo = del_periodo is not None and del_periodo < aprob_m
             perdidas_periodo += 1 if pierde_periodo else 0
             if pierde_periodo:
                 lista_periodo.append({'materia': a.materia.nombre, 'nota': del_periodo,
                                       'docente': a.docente.user.get_full_name() if a.docente_id else ''})
-            if acumulada is not None and acumulada < aprobacion:
+            if acumulada is not None and acumulada < aprob_m:
                 perdidas.append({'materia': a.materia.nombre,
                                  'docente': a.docente.user.get_full_name() if a.docente_id else '',
                                  'acumulada': acumulada, 'del_periodo': del_periodo,
-                                 'falta': (aprobacion - acumulada).quantize(Decimal('0.1'))})
+                                 'falta': (aprob_m - acumulada).quantize(Decimal('0.1'))})
         perdidas.sort(key=lambda x: x['acumulada'])
         n = len(perdidas)
         riesgo = 'alto' if n > maximo else ('medio' if n > 0 else ('sin_notas' if not con_notas else 'ok'))

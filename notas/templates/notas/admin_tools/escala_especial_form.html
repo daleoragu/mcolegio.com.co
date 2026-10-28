@@ -1,0 +1,103 @@
+{% extends 'notas/base.html' %}
+
+{% block title %}{% if escala %}Editar{% else %}Nueva{% endif %} escala especial{% endblock %}
+{% block page_title %}{% if escala %}Editar escala especial{% else %}Nueva escala especial{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+    .ee-grupo { border:1px solid #e3e6ec; border-radius:8px; padding:8px 12px; margin-bottom:8px; background:#fff; }
+    .ee-grupo .titulo { font-weight:700; font-size:.85rem; color:#1f3a68; }
+    .ee-materias { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:4px; }
+    .ee-niveles input { max-width:110px; }
+    .ee-niveles input.nom { max-width:none; }
+</style>
+
+{% if errores %}
+<div class="alert alert-danger"><ul class="mb-0">{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul></div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm mb-3"><div class="card-body">
+                <label class="form-label fw-bold" for="ee-nombre">Nombre de la escala</label>
+                <input class="form-control" id="ee-nombre" name="nombre" maxlength="80" value="{{ nombre }}" placeholder="Ej.: Escala de Inglés" required>
+            </div></div>
+
+            <div class="card shadow-sm mb-3">
+                <div class="card-header"><strong>Desempeños</strong> <span class="text-muted small">de menor a mayor; arranca con la escala del colegio</span></div>
+                <div class="card-body">
+                    <table class="table table-sm ee-niveles mb-1">
+                        <thead><tr><th>Desempeño</th><th>Desde</th><th>Hasta</th></tr></thead>
+                        <tbody>
+                        {% for n, a, b in niveles %}
+                            <tr>
+                                <td><input class="form-control form-control-sm nom" name="nivel_nombre" value="{{ n }}" placeholder="Ej.: BAJO"></td>
+                                <td><input class="form-control form-control-sm" name="nivel_min" inputmode="decimal" value="{% if a is not None %}{{ a|floatformat:1 }}{% endif %}"></td>
+                                <td><input class="form-control form-control-sm" name="nivel_max" inputmode="decimal" value="{% if b is not None %}{{ b|floatformat:1 }}{% endif %}"></td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                    <div class="form-text">El primer desempeño es el que se pierde: el piso del segundo es la nota mínima para aprobar. Deje vacías las filas que no use.</div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-3">
+                <div class="card-header"><strong>Grados</strong> <span class="text-muted small">sin marcar ninguno = todos los grados</span></div>
+                <div class="card-body d-flex flex-wrap gap-3">
+                    {% for n, nombre_g in grados %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="grados" value="{{ n }}" id="ee-g{{ n }}" {% if n in grados_sel %}checked{% endif %}>
+                        <label class="form-check-label" for="ee-g{{ n }}">{{ nombre_g }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header"><strong>Materias que la usan</strong> <span class="text-muted small">marque el área para escogerlas todas</span></div>
+                <div class="card-body">
+                    {% for area, materias in grupos %}
+                    <div class="ee-grupo">
+                        <div class="form-check">
+                            <input class="form-check-input ee-area" type="checkbox" id="ee-a{{ forloop.counter }}" data-grupo="{{ forloop.counter }}">
+                            <label class="form-check-label titulo" for="ee-a{{ forloop.counter }}">{{ area }}</label>
+                        </div>
+                        <div class="ee-materias">
+                            {% for m in materias %}
+                            <div class="form-check">
+                                <input class="form-check-input ee-m{{ forloop.parentloop.counter }}" type="checkbox" name="materias" value="{{ m.id }}" id="ee-m{{ forloop.parentloop.counter }}-{{ m.id }}" {% if m.id in materias_sel %}checked{% endif %}>
+                                <label class="form-check-label" for="ee-m{{ forloop.parentloop.counter }}-{{ m.id }}">{{ m.nombre }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted mb-0">No hay materias creadas.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary"><i class="fas fa-save me-1"></i>Guardar escala</button>
+        <a class="btn btn-outline-secondary" href="{% url 'notas:escalas_especiales' %}">Cancelar</a>
+    </div>
+</form>
+
+<script>
+document.querySelectorAll('.ee-area').forEach(function (caja) {
+    var hijos = document.querySelectorAll('.ee-m' + caja.dataset.grupo);
+    var todas = Array.prototype.every.call(hijos, function (h) { return h.checked; });
+    caja.checked = hijos.length > 0 && todas;
+    caja.addEventListener('change', function () {
+        hijos.forEach(function (h) { h.checked = caja.checked; });
+    });
+});
+</script>
+{% endblock %}

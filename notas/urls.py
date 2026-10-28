@@ -41,6 +41,7 @@ from .views import (
     alertas_views,
     administradores_views,
     sabana_views,
+    escalas_views,
     gestion_docentes_views,
     gestion_estudiantes_views,
     reporte_views, # <--- === CORRECCIÓN 1: IMPORTAMOS EL ARCHIVO CORRECTO ===
@@ -90,6 +91,10 @@ urlpatterns = [
     path('admin/encabezado-documentos/', encabezado_views.encabezado_documentos, name='encabezado_documentos'),
     path('admin/encabezado-documentos/prueba.pdf', encabezado_views.encabezado_prueba, name='encabezado_prueba'),
     path('admin/configuracion-escala/', admin_tools_views.configuracion_escala_valoracion_vista, name='configuracion_escala_valoracion'),
+    path('admin/escalas-especiales/', escalas_views.escalas_especiales, name='escalas_especiales'),
+    path('admin/escalas-especiales/nueva/', escalas_views.editar_escala_especial, name='crear_escala_especial'),
+    path('admin/escalas-especiales/<int:pk>/', escalas_views.editar_escala_especial, name='editar_escala_especial'),
+    path('admin/escalas-especiales/<int:pk>/eliminar/', escalas_views.eliminar_escala_especial, name='eliminar_escala_especial'),
     path('panel-administrador/configuracion/escala-valoracion/editar/<int:escala_id>/', admin_tools_views.editar_escala_valoracion_vista, name='editar_escala_valoracion'),
     path('admin/periodo/crear/', admin_tools_views.crear_periodo_vista, name='crear_periodo'),
     path('admin/periodo/editar/<int:periodo_id>/', admin_tools_views.editar_periodo_vista, name='editar_periodo'),

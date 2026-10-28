@@ -71,5 +71,5 @@ class RendimientoDelBoletinFinal(ColegioDePrueba):
                 ajustes(self.a)
                 _get_valoracion(self.a, Decimal('4.7'))
                 self.assertEqual(_get_valoracion(self.a, Decimal('2.0')), 'BAJO')
-            self.assertEqual(len(c.captured_queries), 2)      # una para ajustes y otra para la escala
+            self.assertEqual(len(c.captured_queries), 3)      # ajustes, la escala y las escalas especiales
         self.assertEqual(_get_valoracion(self.a, Decimal('4.7')), 'SUPERIOR')

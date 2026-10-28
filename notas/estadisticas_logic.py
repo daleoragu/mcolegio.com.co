@@ -214,14 +214,33 @@ def get_distribucion_por_materia(filtros=None):
     materias_qs = Materia.objects.filter(id__in=base_query.values_list('materia_id', flat=True).distinct()).order_by('nombre')
     resultado_final = []
 
+    from notas import escalas
+    esc = escalas.de(filtros.get('colegio'))
+
+    def _nivel_general(nota, materia_id, grado):
+        """En qué nivel de la escala del colegio se cuenta la nota, usando la escala de su materia."""
+        if not esc.es_especial(materia_id, grado):
+            return next((n['nombre'] for n in escala if n['min'] <= nota <= n['max']), None)
+        niveles = esc.niveles(materia_id, grado)
+        nivel = esc.nivel_de(niveles, nota)
+        if nivel is None:
+            return None
+        nombres = [n['nombre'].upper() for n in escala]
+        if nivel.nombre_desempeno.upper() in nombres:
+            return escala[nombres.index(nivel.nombre_desempeno.upper())]['nombre']
+        k = niveles.index(nivel)                     # mismo puesto: el más bajo con el más bajo
+        return escala[min(k, len(escala) - 1)]['nombre']
+
     for materia in materias_qs:
-        notas_materia = list(base_query.filter(materia=materia).values_list('valor_nota', flat=True))
+        filas_materia = list(base_query.filter(materia=materia).values_list('valor_nota', 'estudiante__curso__grado'))
+        notas_materia = [v for v, _ in filas_materia]
         total_estudiantes_materia = len(notas_materia)
         if total_estudiantes_materia == 0: continue
+        niveles_notas = [_nivel_general(v, materia.id, g) for v, g in filas_materia if v is not None]
 
         distribucion_materia = []
         for nivel in escala:
-            total_nivel = sum(1 for nota in notas_materia if nivel['min'] <= nota <= nivel['max'])
+            total_nivel = sum(1 for n in niveles_notas if n == nivel['nombre'])
             porcentaje = (total_nivel / total_estudiantes_materia * 100) if total_estudiantes_materia > 0 else 0
             distribucion_materia.append({
                 'nombre': nivel['nombre'],
@@ -447,8 +466,19 @@ def get_resumen_por_asignatura(filtros=None):
 
     totales = {r['materia__nombre']: r for r in base.values('materia__nombre')
                .annotate(promedio=Avg('valor_nota'), evaluados=Count('id'))}
-    perdidas = {r['materia__nombre']: r['n'] for r in base.filter(valor_nota__lt=minima)
-                .values('materia__nombre').annotate(n=Count('id'))}
+    from notas import escalas
+    esc = escalas.de(filtros.get('colegio'))
+    if esc.hay_especiales():
+        # Cada nota se compara con el piso de su escala (la especial de la materia en ese grado).
+        perdidas = defaultdict(int)
+        for r in base.values('materia_id', 'materia__nombre', 'valor_nota', 'estudiante__curso__grado'):
+            m, g = r['materia_id'], r['estudiante__curso__grado']
+            piso = esc.aprobacion(m, g) if esc.es_especial(m, g) else minima
+            if r['valor_nota'] is not None and r['valor_nota'] < piso:
+                perdidas[r['materia__nombre']] += 1
+    else:
+        perdidas = {r['materia__nombre']: r['n'] for r in base.filter(valor_nota__lt=minima)
+                    .values('materia__nombre').annotate(n=Count('id'))}
 
     filas = []
     for nombre, r in totales.items():

@@ -43,15 +43,32 @@ def notas_parciales(asignacion, periodo, estudiantes):
     return salida
 
 
-def esta_en_bajo(colegio, nota):
+def _escala_de(colegio, asignacion):
+    """(escalas, materia_id, grado) para la asignación; sin asignación, la escala del colegio."""
+    from . import escalas
+    esc = escalas.de(colegio)
+    if asignacion is None:
+        return esc, None, None
+    return esc, asignacion.materia_id, asignacion.curso.grado
+
+
+def esta_en_bajo(colegio, nota, asignacion=None):
+    esc, materia_id, grado = _escala_de(colegio, asignacion)
+    if esc.es_especial(materia_id, grado):
+        return esc.pierde(nota, materia_id, grado)
     return nota is not None and nota < nota_aprobacion(colegio)
 
 
-def desempeno(colegio, nota):
+def desempeno(colegio, nota, asignacion=None):
     if nota is None:
         return ''
-    e = EscalaValoracion.objects.filter(colegio=colegio, valor_minimo__lte=nota, valor_maximo__gte=nota).first()
-    return e.nombre_desempeno.upper() if e else ''
+    esc, materia_id, grado = _escala_de(colegio, asignacion)
+    nivel = esc.nivel_de(esc.niveles(materia_id, grado), nota)
+    if nivel is None and not esc.es_especial(materia_id, grado):
+        # Como antes: el primer rango del colegio que la contenga.
+        e = EscalaValoracion.objects.filter(colegio=colegio, valor_minimo__lte=nota, valor_maximo__gte=nota).first()
+        return e.nombre_desempeno.upper() if e else ''
+    return nivel.nombre_desempeno.upper() if nivel else ''
 
 
 def texto_nota(nota):
@@ -61,7 +78,7 @@ def texto_nota(nota):
 def asignaturas_reportadas(estudiante, periodo):
     """[(materia, docente, nota parcial)] de lo reportado con dificultades en el periodo."""
     reportes = (ReporteParcial.objects.filter(estudiante=estudiante, periodo=periodo, presenta_dificultades=True)
-                .select_related('asignacion__materia', 'asignacion__docente__user')
+                .select_related('asignacion__materia', 'asignacion__docente__user', 'asignacion__curso')
                 .order_by('asignacion__materia__nombre'))
     salida = []
     for r in reportes:
@@ -69,7 +86,7 @@ def asignaturas_reportadas(estudiante, periodo):
         salida.append({'materia': r.asignacion.materia.nombre,
                        'docente': r.asignacion.docente.user.get_full_name() if r.asignacion.docente_id else '',
                        'nota': nota, 'nota_texto': texto_nota(nota),
-                       'desempeno': desempeno(estudiante.colegio, nota),
+                       'desempeno': desempeno(estudiante.colegio, nota, r.asignacion),
                        'sugerencia': (r.sugerencia or '').strip()})
     return salida
 
