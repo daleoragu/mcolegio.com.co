@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import views, views_juegos as vj
 
 app_name = 'aula'
 
@@ -29,6 +29,21 @@ urlpatterns = [
     path('<int:pk>/tareas/<int:tid>/grilla/', views.grilla, name='grilla'),
     path('<int:pk>/tareas/<int:tid>/planilla/', views.pasar_planilla, name='pasar_planilla'),
     path('<int:pk>/calificaciones/', views.calificaciones, name='calificaciones'),
+
+    path('<int:pk>/actividades/', vj.actividades, name='actividades'),
+    path('<int:pk>/actividades/<int:aid>/', vj.actividad, name='actividad'),
+    path('<int:pk>/actividades/<int:aid>/resultado/', vj.actividad_resultado, name='actividad_resultado'),
+    path('<int:pk>/actividades/<int:aid>/accion/', vj.actividad_accion, name='actividad_accion'),
+    path('actividad-ejemplo.html', vj.actividad_ejemplo, name='actividad_ejemplo'),
+
+    path('<int:pk>/cuestionarios/', vj.cuestionarios, name='cuestionarios'),
+    path('<int:pk>/cuestionarios/<int:cid>/', vj.cuestionario, name='cuestionario'),
+    path('<int:pk>/cuestionarios/<int:cid>/editar/', vj.cuestionario_editar, name='cuestionario_editar'),
+    path('<int:pk>/cuestionarios/<int:cid>/accion/', vj.cuestionario_accion, name='cuestionario_accion'),
+    path('<int:pk>/cuestionarios/<int:cid>/jugar/', vj.jugar, name='jugar'),
+    path('<int:pk>/cuestionarios/<int:cid>/jugar/estado/', vj.jugar_estado, name='jugar_estado'),
+    path('<int:pk>/vivo/<int:sid>/', vj.vivo, name='vivo'),
+    path('<int:pk>/vivo/<int:sid>/estado/', vj.vivo_estado, name='vivo_estado'),
 
     path('escala/', views.escala, name='escala'),
     path('instrumentos/', views.instrumentos, name='instrumentos'),

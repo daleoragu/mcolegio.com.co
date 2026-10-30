@@ -1,0 +1,114 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<form method="post" id="q-form">
+{% csrf_token %}
+<input type="hidden" name="preguntas_json" id="q-json">
+<div class="row g-3">
+  <div class="col-lg-8">
+    {% if usado %}
+    <div class="alert alert-info small">Ya hay estudiantes que respondieron este cuestionario: las preguntas no se pueden cambiar. Si necesita cambiarlas, use «Duplicar».</div>
+    {% endif %}
+    <div id="q-preguntas"></div>
+    {% if not usado %}
+    <button type="button" class="btn btn-outline-primary w-100 mb-3" id="q-agregar"><i class="fas fa-plus me-1"></i>Agregar pregunta</button>
+    {% endif %}
+  </div>
+  <div class="col-lg-4">
+    <div class="au-tarjeta" style="position:sticky;top:12px">
+        <h6><i class="fas fa-bolt me-1"></i>Cuestionario</h6>
+        <input name="titulo" class="form-control mb-2" maxlength="60" value="{{ q.titulo }}" required>
+        <input name="descripcion" class="form-control mb-2" maxlength="300" value="{{ q.descripcion }}" placeholder="Descripción (opcional)">
+        <label class="form-label small fw-bold mb-1">Segundos por pregunta</label>
+        <input type="number" name="segundos" class="form-control mb-2" min="5" max="240" value="{{ q.segundos }}">
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="mezclar" id="q-mezclar" {% if q.mezclar %}checked{% endif %}>
+            <label class="form-check-label small" for="q-mezclar">Mezclar el orden de las preguntas</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="a_su_ritmo" id="q-ritmo" {% if q.a_su_ritmo %}checked{% endif %}>
+            <label class="form-check-label small" for="q-ritmo">Abierto para responder a su ritmo</label></div>
+        <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="reintentos" id="q-reint" {% if q.reintentos %}checked{% endif %}>
+            <label class="form-check-label small" for="q-reint">Permitir repetirlo (queda la mejor nota)</label></div>
+        {% include 'aula/_periodo_componente.html' with obj=q %}
+        <button class="btn au-oro w-100">Guardar</button>
+        <a href="{% url 'aula:cuestionario' aula.pk q.pk %}" class="btn btn-link btn-sm w-100">Volver sin guardar</a>
+    </div>
+  </div>
+</div>
+</form>
+</div>
+{{ preguntas|json_script:"q-datos" }}
+<script>
+(function () {
+  var usado = {{ usado|yesno:"true,false" }};
+  var caja = document.getElementById('q-preguntas');
+  var formas = ['▲', '◆', '●', '■', '★', '✚'];
+
+  function opcionHTML(o, k) {
+    var div = document.createElement('div');
+    div.className = 'input-group input-group-sm mb-1 q-op';
+    div.innerHTML = '<span class="input-group-text text-white au-op c' + k + '" style="min-height:0;padding:4px 10px">' + formas[k] + '</span>' +
+      '<input class="form-control q-op-texto" maxlength="300" placeholder="Opción ' + (k + 1) + '">' +
+      '<span class="input-group-text"><input class="form-check-input mt-0 q-op-ok" type="checkbox" title="Correcta"> <small class="ms-1">correcta</small></span>';
+    div.querySelector('.q-op-texto').value = o.texto || '';
+    div.querySelector('.q-op-ok').checked = !!o.correcta;
+    return div;
+  }
+
+  function agregar(p) {
+    p = p || {texto: '', segundos: '', opciones: [{}, {}, {}, {}]};
+    var tarjeta = document.createElement('div');
+    tarjeta.className = 'au-tarjeta q-pregunta';
+    tarjeta.innerHTML =
+      '<div class="d-flex align-items-center gap-2 mb-2"><strong class="q-num"></strong><span class="flex-grow-1"></span>' +
+      '<input type="number" class="form-control form-control-sm q-seg" style="width:110px" min="5" max="240" placeholder="seg. (igual)" title="Segundos solo para esta pregunta">' +
+      '<button type="button" class="btn btn-sm btn-link q-subir" title="Subir"><i class="fas fa-arrow-up"></i></button>' +
+      '<button type="button" class="btn btn-sm btn-link text-danger q-quitar" title="Quitar"><i class="far fa-trash-can"></i></button></div>' +
+      '<textarea class="form-control mb-2 q-texto" rows="2" maxlength="2000" placeholder="Escriba la pregunta"></textarea>' +
+      '<div class="q-ops"></div>' +
+      '<button type="button" class="btn btn-sm btn-link q-mas">+ opción</button>';
+    tarjeta.querySelector('.q-texto').value = p.texto || '';
+    tarjeta.querySelector('.q-seg').value = p.segundos || '';
+    var ops = tarjeta.querySelector('.q-ops');
+    (p.opciones || []).forEach(function (o, k) { if (k < 6) ops.appendChild(opcionHTML(o, k)); });
+    tarjeta.querySelector('.q-mas').onclick = function () {
+      var n = ops.children.length;
+      if (n < 6) ops.appendChild(opcionHTML({}, n));
+    };
+    tarjeta.querySelector('.q-quitar').onclick = function () { tarjeta.remove(); numerar(); };
+    tarjeta.querySelector('.q-subir').onclick = function () {
+      if (tarjeta.previousElementSibling) caja.insertBefore(tarjeta, tarjeta.previousElementSibling);
+      numerar();
+    };
+    if (usado) tarjeta.querySelectorAll('input,textarea,button').forEach(function (x) { x.disabled = true; });
+    caja.appendChild(tarjeta);
+    numerar();
+  }
+
+  function numerar() {
+    caja.querySelectorAll('.q-num').forEach(function (n, i) { n.textContent = 'Pregunta ' + (i + 1); });
+  }
+
+  var datos = JSON.parse(document.getElementById('q-datos').textContent);
+  if (datos.length) datos.forEach(agregar); else if (!usado) agregar();
+  var btn = document.getElementById('q-agregar');
+  if (btn) btn.onclick = function () { agregar(); window.scrollTo(0, document.body.scrollHeight); };
+
+  document.getElementById('q-form').addEventListener('submit', function (ev) {
+    var lista = [], sinCorrecta = 0;
+    caja.querySelectorAll('.q-pregunta').forEach(function (t) {
+      var opciones = [];
+      t.querySelectorAll('.q-op').forEach(function (o) {
+        opciones.push({texto: o.querySelector('.q-op-texto').value, correcta: o.querySelector('.q-op-ok').checked});
+      });
+      if (!opciones.some(function (o) { return o.correcta && o.texto.trim(); })) sinCorrecta++;
+      lista.push({texto: t.querySelector('.q-texto').value, segundos: t.querySelector('.q-seg').value, opciones: opciones});
+    });
+    if (!usado && sinCorrecta && !confirm(sinCorrecta + ' pregunta(s) no tienen marcada la respuesta correcta y no se guardarán. ¿Seguir?')) {
+      ev.preventDefault(); return;
+    }
+    document.getElementById('q-json').value = JSON.stringify(lista);
+  });
+})();
+</script>
+{% endblock %}

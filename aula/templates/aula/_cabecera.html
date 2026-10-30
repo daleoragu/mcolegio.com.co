@@ -18,6 +18,8 @@
     <a href="{% url 'aula:clase' aula.pk %}" class="{% if pestana == 'clase' %}activa{% endif %}"><i class="fas fa-video me-1"></i>Clase en vivo</a>
     <a href="{% url 'aula:material' aula.pk %}" class="{% if pestana == 'material' %}activa{% endif %}"><i class="far fa-folder-open me-1"></i>Material</a>
     <a href="{% url 'aula:tareas' aula.pk %}" class="{% if pestana == 'tareas' %}activa{% endif %}"><i class="fas fa-clipboard-check me-1"></i>Tareas</a>
+    <a href="{% url 'aula:actividades' aula.pk %}" class="{% if pestana == 'actividades' %}activa{% endif %}"><i class="fas fa-puzzle-piece me-1"></i>Actividades interactivas</a>
+    <a href="{% url 'aula:cuestionarios' aula.pk %}" class="{% if pestana == 'cuestionarios' %}activa{% endif %}"><i class="fas fa-bolt me-1"></i>Cuestionarios</a>
     {% if c.es_docente %}<a href="{% url 'aula:calificaciones' aula.pk %}" class="{% if pestana == 'calificaciones' %}activa{% endif %}"><i class="fas fa-table me-1"></i>Calificaciones</a>{% endif %}
 </nav>
 </div>

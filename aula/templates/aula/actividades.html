@@ -1,0 +1,69 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="row g-3">
+  <div class="{% if c.es_docente %}col-lg-8{% else %}col-12{% endif %}">
+    {% for a in actividades %}
+    <a href="{% url 'aula:actividad' aula.pk a.pk %}" class="au-tarjeta d-flex align-items-center gap-3 text-decoration-none text-reset">
+        <div class="au-icono" style="background:#f2b632;color:#1d2433"><i class="fas {% if a.archivo %}fa-puzzle-piece{% else %}fa-globe{% endif %}"></i></div>
+        <div class="flex-grow-1">
+            <div class="fw-bold">{{ a.titulo }}</div>
+            {% if a.descripcion %}<div class="small text-muted">{{ a.descripcion }}</div>{% endif %}
+            <div class="small mt-1">
+                {% if a.califica %}<span class="au-chip ok">Da nota</span>{% else %}<span class="au-chip gris">Práctica</span>{% endif %}
+                {% if a.pasada_planilla %}<span class="au-chip ok"><i class="fas fa-check"></i> En la planilla</span>{% endif %}
+            </div>
+        </div>
+        {% if c.es_docente %}
+            {% if a.califica %}<div class="text-center small text-muted"><div class="fw-bold fs-5 text-dark">{{ a.n_resultados }}</div>resultados</div>{% endif %}
+        {% elif a.mio %}
+            <div class="text-center"><div class="au-nota-grande" style="font-size:1.5rem">{{ a.mio.nota }}</div><div class="small text-muted">mejor nota</div></div>
+        {% else %}
+            <span class="btn btn-sm au-oro">Abrir</span>
+        {% endif %}
+    </a>
+    {% empty %}
+    <div class="au-tarjeta text-center text-muted py-5">
+        <i class="fas fa-puzzle-piece fa-2x mb-2 d-block"></i>
+        Todavía no hay actividades interactivas.
+        {% if c.es_docente %}<div class="small mt-2">Suba un juego en HTML o pegue un enlace de GeoGebra, PhET, Wordwall, Educaplay, Genially…</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% if c.es_docente %}
+  <div class="col-lg-4">
+    <form method="post" enctype="multipart/form-data" class="au-tarjeta">
+        {% csrf_token %}
+        <h6><i class="fas fa-plus me-1"></i>Nueva actividad interactiva</h6>
+        <input name="titulo" class="form-control mb-2" maxlength="60" placeholder="Título" required>
+        <input name="descripcion" class="form-control mb-2" maxlength="300" placeholder="Instrucciones cortas (opcional)">
+        <label class="form-label small fw-bold mb-1">Enlace de la aplicación</label>
+        <input type="url" name="enlace" class="form-control mb-1" placeholder="https://www.geogebra.org/m/…">
+        <div class="form-text mb-2">GeoGebra, PhET, Wordwall, Educaplay, Genially… Se abre dentro del aula si el sitio lo permite.</div>
+        <label class="form-label small fw-bold mb-1">o un archivo HTML</label>
+        <input type="file" name="archivo" class="form-control mb-1" accept=".html,.htm">
+        <div class="form-text mb-2">Juegos hechos con IA, eXeLearning, H5P exportado a HTML… (hasta 10 MB).</div>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" name="califica" id="act-califica">
+            <label class="form-check-label" for="act-califica">La actividad envía la nota al aula</label>
+        </div>
+        <div id="act-planilla" class="d-none">
+            {% include 'aula/_periodo_componente.html' with obj=None %}
+            <div class="form-text mb-2">Solo los archivos HTML preparados para mcolegio mandan la nota.
+                <a href="{% url 'aula:actividad_ejemplo' %}">Descargue el ejemplo</a> o pídale a la IA que lo use de modelo.</div>
+        </div>
+        <button class="btn au-oro w-100">Publicar</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+</div>
+<script>
+(function () {
+  var c = document.getElementById('act-califica'), p = document.getElementById('act-planilla');
+  if (c) c.addEventListener('change', function () { p.classList.toggle('d-none', !c.checked); });
+})();
+</script>
+{% endblock %}

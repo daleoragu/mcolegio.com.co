@@ -338,3 +338,145 @@ class EscalaDocente(models.Model):
         return sorted(salida, key=lambda x: x[1]) or [(n['nombre'], Decimal(n['min']), Decimal(n['max']))
                                                      for n in ESCALA_NACIONAL]
 
+
+
+# ---------------------------------------------------------------------------
+# Actividades interactivas (apps HTML o enlaces) que pueden devolver la nota
+# ---------------------------------------------------------------------------
+def _ruta_actividad(instancia, nombre):
+    return almacen.ruta_material(instancia, nombre).replace('/material/', '/actividades/')
+
+
+class Actividad(models.Model):
+    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, related_name='actividades')
+    titulo = models.CharField(max_length=60)
+    descripcion = models.CharField(max_length=300, blank=True)
+    archivo = models.FileField(upload_to=_ruta_actividad, storage=almacen.privado, blank=True)
+    nombre_archivo = models.CharField(max_length=150, blank=True)
+    enlace = models.URLField(blank=True, help_text='GeoGebra, PhET, Wordwall… (se abre dentro del aula si el sitio lo permite).')
+    califica = models.BooleanField(default=False, verbose_name='La actividad envía la nota')
+    periodo = models.ForeignKey('notas.PeriodoAcademico', on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='+')
+    componente = models.CharField(max_length=6, blank=True)
+    publicada = models.BooleanField(default=True)
+    creada = models.DateTimeField(auto_now_add=True)
+    pasada_planilla = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-creada']
+
+    def __str__(self):
+        return self.titulo
+
+
+class ResultadoActividad(models.Model):
+    actividad = models.ForeignKey(Actividad, on_delete=models.CASCADE, related_name='resultados')
+    estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    nota = models.DecimalField(max_digits=5, decimal_places=2)        # la mejor
+    ultima = models.DecimalField(max_digits=5, decimal_places=2)
+    intentos = models.PositiveSmallIntegerField(default=1)
+    actualizado = models.DateTimeField(auto_now=True)
+
+
+# ---------------------------------------------------------------------------
+# Cuestionarios estilo Quizizz (a su ritmo) y Kahoot (en vivo)
+# ---------------------------------------------------------------------------
+class Cuestionario(models.Model):
+    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, related_name='cuestionarios')
+    titulo = models.CharField(max_length=60)
+    descripcion = models.CharField(max_length=300, blank=True)
+    segundos = models.PositiveSmallIntegerField(default=20, verbose_name='Segundos por pregunta')
+    mezclar = models.BooleanField(default=True, verbose_name='Mezclar el orden de las preguntas')
+    reintentos = models.BooleanField(default=False, verbose_name='Permitir repetirlo (queda la mejor nota)')
+    a_su_ritmo = models.BooleanField(default=True, verbose_name='Abierto para responder a su ritmo')
+    periodo = models.ForeignKey('notas.PeriodoAcademico', on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='+')
+    componente = models.CharField(max_length=6, blank=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    pasada_planilla = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-creado']
+
+    def __str__(self):
+        return self.titulo
+
+
+class PreguntaQ(models.Model):
+    cuestionario = models.ForeignKey(Cuestionario, on_delete=models.CASCADE, related_name='preguntas')
+    orden = models.PositiveSmallIntegerField(default=0)
+    texto = models.TextField()
+    segundos = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['orden', 'id']
+
+    @property
+    def tiempo(self):
+        return self.segundos or self.cuestionario.segundos
+
+
+class OpcionQ(models.Model):
+    pregunta = models.ForeignKey(PreguntaQ, on_delete=models.CASCADE, related_name='opciones')
+    texto = models.CharField(max_length=300)
+    correcta = models.BooleanField(default=False)
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['orden', 'id']
+
+
+class SesionVivo(models.Model):
+    """Una partida en vivo (estilo Kahoot): el docente proyecta y avanza; los estudiantes responden."""
+    ESTADOS = [('espera', 'Sala de espera'), ('pregunta', 'Pregunta'), ('resultado', 'Resultado'), ('fin', 'Terminada')]
+    cuestionario = models.ForeignKey(Cuestionario, on_delete=models.CASCADE, related_name='sesiones')
+    estado = models.CharField(max_length=10, choices=ESTADOS, default='espera')
+    indice = models.SmallIntegerField(default=-1)
+    orden = models.JSONField(default=list)          # ids de las preguntas en el orden de la partida
+    inicio_pregunta = models.DateTimeField(null=True, blank=True)
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creada']
+
+
+class Intento(models.Model):
+    cuestionario = models.ForeignKey(Cuestionario, on_delete=models.CASCADE, related_name='intentos')
+    sesion = models.ForeignKey(SesionVivo, on_delete=models.CASCADE, null=True, blank=True, related_name='intentos')
+    estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    orden = models.JSONField(default=list)
+    actual = models.SmallIntegerField(default=0)
+    inicio_pregunta = models.DateTimeField(null=True, blank=True)
+    puntos = models.PositiveIntegerField(default=0)
+    aciertos = models.PositiveSmallIntegerField(default=0)
+    nota = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    iniciado = models.DateTimeField(auto_now_add=True)
+    terminado = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-puntos']
+
+    @property
+    def nombre(self):
+        if self.estudiante_id:
+            u = self.estudiante.user
+            return f'{u.first_name} {u.last_name}'.strip() or u.username
+        return self.integrante.completo if self.integrante_id else ''
+
+
+class RespuestaQ(models.Model):
+    intento = models.ForeignKey(Intento, on_delete=models.CASCADE, related_name='respuestas')
+    pregunta = models.ForeignKey(PreguntaQ, on_delete=models.CASCADE, related_name='respuestas')
+    opcion = models.ForeignKey(OpcionQ, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    correcta = models.BooleanField(default=False)
+    milisegundos = models.PositiveIntegerField(default=0)
+    puntos = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ('intento', 'pregunta')

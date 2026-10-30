@@ -1,0 +1,59 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="row g-3">
+  <div class="{% if c.es_docente %}col-lg-8{% else %}col-12{% endif %}">
+    {% for q in cuestionarios %}
+    <a href="{% url 'aula:cuestionario' aula.pk q.pk %}" class="au-tarjeta d-flex align-items-center gap-3 text-decoration-none text-reset">
+        <div class="au-icono" style="background:{% if q.vivo %}#198754{% else %}#6f42c1{% endif %}"><i class="fas fa-bolt"></i></div>
+        <div class="flex-grow-1">
+            <div class="fw-bold">{{ q.titulo }}</div>
+            <div class="small text-muted">{{ q.n_preguntas }} pregunta{{ q.n_preguntas|pluralize }} · {{ q.segundos }} s cada una</div>
+            <div class="small mt-1">
+                {% if q.vivo %}<span class="au-chip ok"><i class="fas fa-circle fa-beat" style="font-size:.5rem"></i> ¡En vivo ahora!</span>{% endif %}
+                {% if q.a_su_ritmo %}<span class="au-chip gris">A su ritmo</span>{% endif %}
+                {% if q.pasada_planilla %}<span class="au-chip ok"><i class="fas fa-check"></i> En la planilla</span>{% endif %}
+            </div>
+        </div>
+        {% if not c.es_docente %}
+            {% if q.mia %}<div class="text-center"><div class="au-nota-grande" style="font-size:1.5rem">{{ q.mia.nota }}</div><div class="small text-muted">{{ q.mia.puntos }} pts</div></div>
+            {% else %}<span class="btn btn-sm au-oro">{% if q.vivo %}Unirme{% else %}Jugar{% endif %}</span>{% endif %}
+        {% endif %}
+    </a>
+    {% empty %}
+    <div class="au-tarjeta text-center text-muted py-5">
+        <i class="fas fa-bolt fa-2x mb-2 d-block"></i>
+        Todavía no hay cuestionarios.
+    </div>
+    {% endfor %}
+  </div>
+  {% if c.es_docente %}
+  <div class="col-lg-4">
+    <form method="post" class="au-tarjeta">
+        {% csrf_token %}
+        <h6><i class="fas fa-plus me-1"></i>Nuevo cuestionario</h6>
+        <input name="titulo" class="form-control mb-2" maxlength="60" placeholder="Título" required>
+        <details class="mb-2">
+            <summary class="small fw-bold">Pegar preguntas de una vez (opcional)</summary>
+            <textarea name="aiken" class="form-control form-control-sm mt-2" rows="9" placeholder="¿Cuánto es 2 + 3?
+A) 4
+B) 5
+C) 6
+RESPUESTA: B
+
+¿Capital de Colombia?
+A) Bogotá
+B) Medellín
+RESPUESTA: A"></textarea>
+            <div class="form-text">Formato Aiken (el mismo de Moodle). También puede marcar la correcta con * : «*B) 5». Sirve para pegar lo que le genere una IA.</div>
+        </details>
+        <button class="btn au-oro w-100">Crear y editar</button>
+        <div class="form-text mt-2">Se juega <strong>en vivo</strong> proyectado en clase (como Kahoot) o <strong>a su ritmo</strong> desde la casa (como Quizizz). La nota sale de los aciertos; los puntos premian la rapidez.</div>
+    </form>
+  </div>
+  {% endif %}
+</div>
+</div>
+{% endblock %}
