@@ -249,3 +249,22 @@ class AulaSalonDigital(ColegioDePrueba):
         self.assertEqual(est.get(f'/aula/{aula.pk}/calificaciones/').status_code, 403)
         # Pasar a planilla no aplica en Salón Digital
         self.assertEqual(logica.pasar_a_planilla(tarea)[0], 0)
+
+        # Escala propia del docente: de 1 a 10, el bajo hasta 5,9
+        r = profe.post('/aula/escala/', {'nombre': ['bajo', 'básico', 'alto', 'superior', ''],
+                                         'min': ['1', '6', '8', '9,5', ''], 'max': ['5,9', '7,9', '9,4', '10', '']})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(logica.rango(aula), (Decimal('1.0'), Decimal('10.0')))
+        self.assertEqual(logica.desempeno(aula, Decimal('4.5')), 'BAJO')
+        self.assertEqual(logica.desempeno(aula, Decimal('8.5')), 'ALTO')
+        rub = logica.desde_plantilla(u, None, 'exposicion')
+        self.assertEqual([(n.nombre, n.valor) for n in rub.niveles.all()],
+                         [('BAJO', Decimal('3.5')), ('BÁSICO', Decimal('7.0')), ('ALTO', Decimal('8.7')),
+                          ('SUPERIOR', Decimal('10.0'))])
+        profe.post(f'/aula/{aula.pk}/tareas/{tarea.pk}/calificar/i{luis.pk}/', {'nota': '9'})
+        e.refresh_from_db()
+        self.assertEqual(e.nota, Decimal('9'))
+        self.assertContains(profe.get(f'/aula/{aula.pk}/calificaciones/'), 'ALTO')
+        # Rangos cruzados: no se guarda
+        r = profe.post('/aula/escala/', {'nombre': ['A', 'B'], 'min': ['1', '3'], 'max': ['4', '5']})
+        self.assertContains(r, 'se cruzan')

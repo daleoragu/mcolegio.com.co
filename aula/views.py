@@ -711,7 +711,7 @@ def instrumentos(request):
                 archivo = request.FILES.get('archivo')
                 filas = logica.leer_tabla(archivo=archivo) if archivo else \
                     logica.leer_tabla(texto=request.POST.get('tabla'))
-                criterios, niveles, descriptores, tipo = logica.interpretar_tabla(filas, colegio)
+                criterios, niveles, descriptores, tipo = logica.interpretar_tabla(filas, colegio, request.user)
             except Exception as ex:
                 messages.error(request, f'No se pudo leer la tabla: {ex}')
                 return redirect('aula:instrumentos')
@@ -823,3 +823,44 @@ def instrumento_accion(request, iid):
         inst.delete()
         messages.info(request, 'Instrumento eliminado.')
     return redirect('aula:instrumentos')
+
+
+# ---------------------------------------------------------------------------
+# Escala de valoración del docente (Salón Digital)
+# ---------------------------------------------------------------------------
+@login_required
+def escala(request):
+    """El docente de Salón Digital define su escala; en un colegio rige la del colegio."""
+    if getattr(request, 'colegio', None) is not None:
+        messages.info(request, 'En el colegio se usa la escala de valoración del colegio.')
+        return redirect('aula:inicio')
+    if not hasattr(request.user, 'cuenta_salon'):
+        return redirect('salon_digital:landing')
+    from notas.planillas.guardar import a_decimal
+    from .models import EscalaDocente
+    obj = EscalaDocente.objects.filter(usuario=request.user).first() or EscalaDocente(usuario=request.user)
+    niveles = obj.lista()
+    errores = []
+    if request.method == 'POST':
+        if request.POST.get('accion') == 'nacional':
+            from .models import ESCALA_NACIONAL
+            obj.niveles = [dict(n) for n in ESCALA_NACIONAL]
+            obj.save()
+            messages.success(request, 'Volvió a la escala nacional (1,0 a 5,0).')
+            return redirect('aula:escala')
+        niveles = []
+        for n, a, b in zip(request.POST.getlist('nombre'), request.POST.getlist('min'), request.POST.getlist('max')):
+            if not (n or '').strip() and not (a or '').strip() and not (b or '').strip():
+                continue
+            da, db = a_decimal(a), a_decimal(b)
+            niveles.append(((n or '').strip().upper()[:40], da.quantize(Decimal('0.1')) if da is not None else None,
+                            db.quantize(Decimal('0.1')) if db is not None else None))
+        errores = logica.validar_escala(niveles)
+        if not errores:
+            obj.niveles = [{'nombre': n, 'min': str(a), 'max': str(b)} for n, a, b in sorted(niveles, key=lambda x: x[1])]
+            obj.save()
+            messages.success(request, 'Escala guardada. Rige en sus aulas, rúbricas y calificaciones.')
+            return redirect('aula:escala')
+    filas = list(niveles) + [('', None, None)] * max(0, 6 - len(niveles))
+    return render(request, 'aula/escala.html', {'filas': filas, 'errores': errores, 'base': 'aula/base_salon.html'})
+

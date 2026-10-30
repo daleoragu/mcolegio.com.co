@@ -297,3 +297,44 @@ class Entrega(models.Model):
         if self.integrante_id:
             return self.integrante.completo
         return ''
+
+
+# ---------------------------------------------------------------------------
+# Escala de valoración del docente (Salón Digital)
+# ---------------------------------------------------------------------------
+ESCALA_NACIONAL = [
+    {'nombre': 'BAJO', 'min': '1.0', 'max': '2.9'},
+    {'nombre': 'BÁSICO', 'min': '3.0', 'max': '3.9'},
+    {'nombre': 'ALTO', 'min': '4.0', 'max': '4.5'},
+    {'nombre': 'SUPERIOR', 'min': '4.6', 'max': '5.0'},
+]
+
+
+def _escala_nacional():
+    return [dict(n) for n in ESCALA_NACIONAL]
+
+
+class EscalaDocente(models.Model):
+    """La escala del docente que trabaja por fuera de un colegio (en el colegio rige la del colegio).
+
+    niveles: [{'nombre', 'min', 'max'}] de menor a mayor, con los números como texto.
+    """
+    usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='escala_aula')
+    niveles = models.JSONField(default=_escala_nacional)
+    actualizada = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Escala del docente'
+        verbose_name_plural = 'Escalas de los docentes'
+
+    def lista(self):
+        """[(nombre, Decimal min, Decimal max)] de menor a mayor."""
+        salida = []
+        for n in self.niveles or []:
+            try:
+                salida.append((str(n['nombre']).upper(), Decimal(str(n['min'])), Decimal(str(n['max']))))
+            except Exception:
+                continue
+        return sorted(salida, key=lambda x: x[1]) or [(n['nombre'], Decimal(n['min']), Decimal(n['max']))
+                                                     for n in ESCALA_NACIONAL]
+

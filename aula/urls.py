@@ -30,6 +30,7 @@ urlpatterns = [
     path('<int:pk>/tareas/<int:tid>/planilla/', views.pasar_planilla, name='pasar_planilla'),
     path('<int:pk>/calificaciones/', views.calificaciones, name='calificaciones'),
 
+    path('escala/', views.escala, name='escala'),
     path('instrumentos/', views.instrumentos, name='instrumentos'),
     path('instrumentos/<int:iid>/', views.instrumento, name='instrumento'),
     path('instrumentos/<int:iid>/accion/', views.instrumento_accion, name='instrumento_accion'),

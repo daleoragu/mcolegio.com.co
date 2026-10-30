@@ -110,16 +110,48 @@ def filtro_persona(persona):
 # ---------------------------------------------------------------------------
 # Escala de notas
 # ---------------------------------------------------------------------------
+def escala_docente(usuario):
+    """[(nombre, min, max)] de la escala del docente de Salón Digital (la nacional si no ha puesto la suya)."""
+    from .models import EscalaDocente
+    escala = EscalaDocente.objects.filter(usuario=usuario).first() if usuario is not None else None
+    return (escala or EscalaDocente()).lista()
+
+
+def validar_escala(niveles):
+    """Errores en palabras de una escala [(nombre, min, max)]; vacía si está bien."""
+    errores = []
+    if len(niveles) < 2:
+        errores.append('La escala necesita al menos dos desempeños.')
+    nombres = [n for n, _, _ in niveles]
+    if len(set(nombres)) != len(nombres):
+        errores.append('Hay desempeños con el mismo nombre.')
+    for n, a, b in niveles:
+        if a is None or b is None:
+            errores.append(f'«{n}» necesita nota mínima y máxima.')
+        elif a >= b:
+            errores.append(f'En «{n}» la nota mínima debe ser menor que la máxima.')
+    buenos = sorted([x for x in niveles if x[1] is not None and x[2] is not None], key=lambda x: x[1])
+    for (n1, _, b1), (n2, a2, _) in zip(buenos, buenos[1:]):
+        if a2 <= b1:
+            errores.append(f'Los rangos de «{n1}» y «{n2}» se cruzan.')
+    return errores
+
+
 def rango(aula):
-    """(mínima, máxima) de las notas: la escala del colegio, o 1–5 en Salón Digital."""
+    """(mínima, máxima) de las notas: la escala del colegio, o la del docente en Salón Digital."""
     if aula.colegio_id:
         from notas.boletin.ponderacion import rango_notas
         return rango_notas(aula.colegio)
-    return Decimal('1'), Decimal('5')
+    escala = escala_docente(aula.docente_usuario)
+    return escala[0][1], escala[-1][2]
 
 
-def niveles_sugeridos(colegio):
-    """Los niveles de la escala del colegio con un valor representativo; si no tiene, los de siempre."""
+def niveles_sugeridos(colegio, usuario=None):
+    """Los niveles de la escala (del colegio o del docente) con un valor representativo; si no hay, los de siempre."""
+    if colegio is None and usuario is not None:
+        escala = escala_docente(usuario)
+        return [(n, b if i == len(escala) - 1 else ((a + b) / 2).quantize(UN_DECIMAL, rounding=ROUND_HALF_UP))
+                for i, (n, a, b) in enumerate(escala)]
     if colegio is not None:
         from notas.models import EscalaValoracion
         escala = list(EscalaValoracion.objects.filter(colegio=colegio).order_by('valor_minimo'))
@@ -171,8 +203,11 @@ def _entero(v):
 
 
 def desempeno(aula, nota):
-    if nota is None or not aula.colegio_id:
+    if nota is None:
         return ''
+    if not aula.colegio_id:
+        nota = Decimal(nota)
+        return next((n for n, a, b in escala_docente(aula.docente_usuario) if a <= nota <= b), '')
     from notas import escalas
     asig = aula.asignacion
     return escalas.de(aula.colegio).desempeno(nota, asig.materia_id, asig.curso.grado)
@@ -244,7 +279,7 @@ def crear_instrumento(propietario, colegio, nombre, tipo, criterios, niveles=Non
     inst = Instrumento.objects.create(propietario=propietario, colegio=colegio, nombre=nombre[:120], tipo=tipo)
     objs_niveles = []
     if tipo == 'rubrica':
-        for i, (n, v) in enumerate(niveles or niveles_sugeridos(colegio)):
+        for i, (n, v) in enumerate(niveles or niveles_sugeridos(colegio, propietario)):
             objs_niveles.append(Nivel.objects.create(instrumento=inst, nombre=str(n)[:40], valor=Decimal(v), orden=i))
     for i, (n, p) in enumerate(criterios):
         textos = (descriptores[i] if descriptores and i < len(descriptores) else None) or \
@@ -298,7 +333,7 @@ def _numero(texto):
         return None
 
 
-def interpretar_tabla(filas, colegio=None):
+def interpretar_tabla(filas, colegio=None, usuario=None):
     """De una tabla a (criterios, niveles, descriptores, tipo) listos para crear_instrumento.
 
     Primera fila = encabezados: «Criterio» (o «Category» de RubiStar), una columna
@@ -330,7 +365,7 @@ def interpretar_tabla(filas, colegio=None):
         cols_nivel, nombres = cols_nivel[::-1], nombres[::-1]
         numeros = [None] * len(nombres)
 
-    sugeridos = niveles_sugeridos(colegio)
+    sugeridos = niveles_sugeridos(colegio, usuario)
     niveles = []
     for k, nombre in enumerate(nombres):
         # Valor: el del nivel de la escala en el mismo puesto (el más bajo con el más bajo).
@@ -490,7 +525,8 @@ def tabla_calificaciones(aula):
         fila = [notas.get((p.id, t.id)) for t in tareas]
         validas = [n for n in fila if n is not None]
         prom = (sum(validas) / len(validas)).quantize(UN_DECIMAL, rounding=ROUND_HALF_UP) if validas else None
-        filas.append({'persona': p, 'nombre': nombre_de(p), 'notas': fila, 'promedio': prom})
+        filas.append({'persona': p, 'nombre': nombre_de(p), 'notas': fila, 'promedio': prom,
+                      'desempeno': desempeno(aula, prom) if prom is not None else ''})
     return {'tareas': tareas, 'filas': filas}
 
 
@@ -504,14 +540,14 @@ def excel_calificaciones(aula):
     ws.append([f'{aula.titulo} · {aula.subtitulo}'])
     ws['A1'].font = Font(bold=True, size=13)
     ws.append([])
-    ws.append(['N.º', 'Estudiante'] + [t.titulo for t in datos['tareas']] + ['Promedio'])
+    ws.append(['N.º', 'Estudiante'] + [t.titulo for t in datos['tareas']] + ['Promedio', 'Desempeño'])
     for c in ws[3]:
         c.font = Font(bold=True, color='FFFFFF')
         c.fill = PatternFill('solid', start_color='1F3A68')
         c.alignment = Alignment(horizontal='center', wrap_text=True)
     for i, f in enumerate(datos['filas'], 1):
         ws.append([i, f['nombre']] + [float(n) if n is not None else None for n in f['notas']]
-                  + [float(f['promedio']) if f['promedio'] is not None else None])
+                  + [float(f['promedio']) if f['promedio'] is not None else None, f['desempeno']])
     ws.column_dimensions['B'].width = 36
     salida = io.BytesIO()
     wb.save(salida)
