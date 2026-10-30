@@ -55,6 +55,7 @@
             </select>
         </div>
         {% endif %}
+        <div class="col-12">{% include 'aula/_para.html' with actual=para_actual prefijo='t' %}</div>
         <div class="col-12">
             <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="publicada" id="au-pub" {% if tarea.publicada %}checked{% endif %}>
                 <label class="form-check-label" for="au-pub">Publicada (los estudiantes la ven{% if not aula.es_salon %} y reciben el aviso{% endif %})</label></div>

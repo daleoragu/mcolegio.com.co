@@ -13,7 +13,8 @@
 <div class="row g-3">
 {% for a in asignaciones %}
   <div class="col-sm-6 col-lg-4">
-    <a href="{% url 'aula:por_asignacion' a.pk %}" class="au-tarjeta d-flex align-items-center gap-3 text-decoration-none h-100 mb-0">
+    <a href="{% url 'aula:por_asignacion' a.pk %}" class="au-tarjeta con-globo d-flex align-items-center gap-3 text-decoration-none h-100 mb-0">
+        {% if a.nuevos %}<span class="au-globo esquina" title="{{ a.nuevos }} novedad{{ a.nuevos|pluralize:'es' }}: material, tareas o publicaciones nuevas">{% if a.nuevos > 9 %}9+{% else %}{{ a.nuevos }}{% endif %}</span>{% endif %}
         <div class="au-icono"><i class="fas fa-book-open"></i></div>
         <div class="flex-grow-1">
             <div class="fw-bold" style="color:#1f3a68">{{ a.materia.nombre }}</div>

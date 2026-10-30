@@ -61,6 +61,10 @@ def vista_aula(fn):
 
 
 def _render(request, c, plantilla, datos, pestana):
+    if not c.es_docente:
+        persona = c.estudiante or c.integrante
+        logica.marcar_visto(c.aula, persona, pestana)
+        datos['nuevos'] = logica.novedades(c.aula, persona)
     datos.update({'c': c, 'aula': c.aula, 'base': c.base, 'pestana': pestana,
                   'hide_cuenta': c.aula.es_salon and not c.es_docente,
                   'colegio': getattr(request, 'colegio', None)})
@@ -91,7 +95,13 @@ def _persona(aula, clave):
 
 
 def _clave(persona):
-    return f'i{persona.pk}' if hasattr(persona, 'completo') else f'e{persona.pk}'
+    return logica.clave_de(persona)
+
+
+def _no_es_para(c, obj):
+    """Lo que el docente dejó solo para algunos: los demás no lo ven."""
+    if not logica.para_c(obj, c):
+        raise Http404
 
 
 # ---------------------------------------------------------------------------
@@ -123,14 +133,20 @@ def inicio(request):
         rol = 'docente'
     asignaciones = list(asignaciones)
     aulas = {a.asignacion_id: a for a in Aula.objects.filter(asignacion__in=asignaciones)}
-    pendientes = {}
+    pendientes, nuevos = {}, {}
     if rol == 'estudiante':
+        from .models import Visto
+        clave = logica.clave_de(est)
+        vistos = {v.aula_id: v.secciones for v in Visto.objects.filter(aula__in=aulas.values(), estudiante=est)}
         for a in aulas.values():
             hechas = set(Entrega.objects.filter(tarea__aula=a, estudiante=est).values_list('tarea_id', flat=True))
-            pendientes[a.asignacion_id] = sum(1 for t in a.tareas.filter(publicada=True) if t.id not in hechas)
+            pendientes[a.asignacion_id] = sum(1 for t in a.tareas.filter(publicada=True)
+                                              if t.id not in hechas and logica.es_para(t, clave))
+            nuevos[a.asignacion_id] = sum(logica.novedades(a, est, vistos.get(a.id, {})).values())
     for asig in asignaciones:
         asig.aula_virtual = aulas.get(asig.id)
         asig.pendientes = pendientes.get(asig.id, 0)
+        asig.nuevos = nuevos.get(asig.id, 0)
     return render(request, 'aula/inicio.html', {'asignaciones': asignaciones, 'rol': rol, 'colegio': colegio,
                                                 'base': 'notas/base.html'})
 
@@ -212,10 +228,12 @@ def muro(request, pk):
         return redirect('aula:muro', pk=aula.pk)
 
     pubs = list(aula.publicaciones.select_related('autor', 'tarea').prefetch_related('comentarios'))
+    if not c.es_docente:
+        pubs = [p for p in pubs if p.tarea is None or logica.para_c(p.tarea, c)]
     for p in pubs:
         p.visibles = [k for k in p.comentarios.all() if c.es_docente or not k.oculto]
     proximas = [t for t in aula.tareas.filter(publicada=True, fecha_limite__gte=timezone.now())
-                .order_by('fecha_limite')[:4]]
+                .order_by('fecha_limite') if logica.para_c(t, c)][:4]
     from .models import SesionVivo
     vivos = list(SesionVivo.objects.filter(cuestionario__aula=aula, creada__gte=timezone.now() - timedelta(hours=3))
                  .exclude(estado='fin').select_related('cuestionario'))
@@ -298,25 +316,38 @@ def material(request, pk):
         titulo = (request.POST.get('titulo') or '').strip()[:150]
         enlace = (request.POST.get('enlace') or '').strip()[:200]
         archivo = request.FILES.get('archivo')
+        para, error_para = logica.leer_para(request, aula)
         if not titulo or not (enlace or archivo):
             messages.warning(request, 'Escriba el título y adjunte un archivo o pegue un enlace.')
+        elif error_para:
+            messages.warning(request, error_para)
         elif logica.muy_grande(archivo):
             messages.error(request, f'El archivo pasa de {logica.MAX_ARCHIVO_MB} MB. Súbalo a Drive o YouTube y pegue el enlace.')
         else:
             m = Material(aula=aula, titulo=titulo, unidad=(request.POST.get('unidad') or '').strip()[:80],
-                         descripcion=(request.POST.get('descripcion') or '').strip()[:300], enlace=enlace)
+                         descripcion=(request.POST.get('descripcion') or '').strip()[:300], enlace=enlace,
+                         para=para)
             m.tipo = 'archivo' if archivo else 'enlace'
             _guardar_archivo(m, 'archivo', archivo)
             if not archivo and m.youtube_id:
                 m.tipo = 'video'
             m.save()
-            messages.success(request, 'Material agregado.')
+            if para:
+                logica.avisar_estudiantes(aula, f'{aula.titulo}: el docente le dejó material «{m.titulo}»',
+                                          _url(request, 'aula:material', aula.pk), para)
+            messages.success(request, 'Material agregado.' + (f' Solo lo ven {len(para)} estudiante(s).' if para else ''))
         return redirect('aula:material', pk=aula.pk)
     grupos = {}
-    for m in aula.materiales.all():
+    materiales = [m for m in aula.materiales.all() if logica.para_c(m, c)]
+    nombres = {p['clave']: p['nombre'] for p in logica.opciones_para(aula)} if c.es_docente else {}
+    for m in materiales:
+        m.para_nombres = [nombres.get(k, '') for k in m.para] if c.es_docente else []
         grupos.setdefault(m.unidad or 'General', []).append(m)
-    unidades = sorted({m.unidad for m in aula.materiales.all() if m.unidad})
-    return _render(request, c, 'aula/material.html', {'grupos': grupos, 'unidades': unidades}, 'material')
+    unidades = sorted({m.unidad for m in materiales if m.unidad})
+    datos = {'grupos': grupos, 'unidades': unidades}
+    if c.es_docente:
+        datos['opciones_para'] = logica.opciones_para(aula)
+    return _render(request, c, 'aula/material.html', datos, 'material')
 
 
 @require_POST
@@ -336,6 +367,10 @@ def archivo(request, pk, tipo, oid):
     modelos = {'pub': Publicacion, 'mat': Material, 'tarea': Tarea, 'act': Actividad}
     if tipo in modelos:
         obj = get_object_or_404(modelos[tipo], pk=oid, aula=c.aula)
+        if tipo != 'pub':
+            _no_es_para(c, obj)
+        elif obj.tarea_id:
+            _no_es_para(c, obj.tarea)
     elif tipo == 'entrega':
         obj = get_object_or_404(Entrega, pk=oid, tarea__aula=c.aula)
         if not c.es_docente and not (obj.estudiante_id == getattr(c.estudiante, 'id', -1)
@@ -357,17 +392,17 @@ def tareas(request, pk):
     aula = c.aula
     lista = list(aula.tareas.select_related('instrumento', 'periodo'))
     if not c.es_docente:
-        lista = [t for t in lista if t.publicada]
+        lista = [t for t in lista if t.publicada and logica.para_c(t, c)]
         persona = c.estudiante or c.integrante
         mias = {e.tarea_id: e for e in Entrega.objects.filter(tarea__in=lista, **logica.filtro_persona(persona))}
         for t in lista:
             t.mia = mias.get(t.id)
     else:
-        total = len(logica.estudiantes(aula))
+        todos = logica.estudiantes(aula)
         for t in lista:
             t.n_entregas = t.entregas.exclude(entregada__isnull=True).count()
             t.n_calificadas = t.entregas.filter(nota__isnull=False).count()
-            t.total = total
+            t.total = len(logica.personas_de(t, aula, todos))
     return _render(request, c, 'aula/tareas.html', {'tareas': lista}, 'tareas')
 
 
@@ -405,9 +440,12 @@ def tarea_form(request, pk, tid=None):
         comp = request.POST.get('componente') or ''
         tarea.componente = comp if comp in {k for k, _ in componentes} else ''
         tarea.publicada = request.POST.get('publicada') == 'on'
+        tarea.para, error_para = logica.leer_para(request, aula)
         archivo = request.FILES.get('archivo')
         if not tarea.titulo:
             messages.error(request, 'La tarea necesita un título.')
+        elif error_para:
+            messages.error(request, error_para)
         elif logica.muy_grande(archivo):
             messages.error(request, f'El archivo pasa de {logica.MAX_ARCHIVO_MB} MB.')
         else:
@@ -418,13 +456,14 @@ def tarea_form(request, pk, tid=None):
                 Publicacion.objects.create(aula=aula, autor=request.user, tarea=tarea,
                                            texto=f'Nueva tarea: {tarea.titulo}{limite}')
                 logica.avisar_estudiantes(aula, f'{aula.titulo}: nueva tarea «{tarea.titulo}»',
-                                          _url(request, 'aula:tarea', aula.pk, tarea.pk))
+                                          _url(request, 'aula:tarea', aula.pk, tarea.pk), tarea.para)
             messages.success(request, 'Tarea guardada.')
             return redirect('aula:tarea', pk=aula.pk, tid=tarea.pk)
     activo = next((p for p in periodos if p.esta_activo), periodos[0] if periodos else None)
     return _render(request, c, 'aula/tarea_form.html', {
         'tarea': tarea, 'instrumentos': instrumentos, 'periodos': periodos, 'componentes': componentes,
-        'periodo_sugerido': tarea.periodo or activo}, 'tareas')
+        'periodo_sugerido': tarea.periodo or activo, 'opciones_para': logica.opciones_para(aula),
+        'para_actual': tarea.para or request.GET.getlist('para')}, 'tareas')
 
 
 @require_POST
@@ -441,13 +480,14 @@ def tarea(request, pk, tid):
     c = _ctx(request, pk)
     aula = c.aula
     t = get_object_or_404(Tarea.objects.select_related('instrumento', 'periodo'), pk=tid, aula=aula)
-    datos = {'t': t}
+    _no_es_para(c, t)
+    datos = {'t': t, 'para_nombres': logica.nombres_para(t, aula) if c.es_docente else []}
     if c.es_docente:
         entregas = {}
         for e in t.entregas.all():
             entregas[e.integrante_id if aula.es_salon else e.estudiante_id] = e
         filas = []
-        for p in logica.estudiantes(aula):
+        for p in logica.personas_de(t, aula):
             e = entregas.get(p.id)
             filas.append({'persona': p, 'nombre': logica.nombre_de(p), 'clave': _clave(p), 'e': e,
                           'desempeno': logica.desempeno(aula, e.nota) if e and e.nota is not None else ''})
@@ -494,6 +534,7 @@ def entregar(request, pk, tid):
     if c.es_docente:
         raise _Prohibido('Las entregas son de los estudiantes.')
     t = get_object_or_404(Tarea, pk=tid, aula=c.aula, publicada=True)
+    _no_es_para(c, t)
     persona = c.estudiante or c.integrante
     e = logica.entrega_de(t, persona) or Entrega(tarea=t, **logica.filtro_persona(persona))
     if e.pk and e.estado == 'calificada':
@@ -618,7 +659,7 @@ def grilla(request, pk, tid):
     inst = t.instrumento
     criterios = list(inst.criterios.all())
     niveles = list(inst.niveles.all())
-    personas = logica.estudiantes(aula)
+    personas = logica.personas_de(t, aula)
     minima, maxima = logica.rango(aula)
     if request.method == 'POST':
         n = 0

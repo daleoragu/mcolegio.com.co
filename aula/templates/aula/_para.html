@@ -1,0 +1,40 @@
+{% comment %}«¿Para quién?»: toda la clase o solo algunos (PIAR, trabajo diferenciado, ausencias). Recibe opciones_para y actual.{% endcomment %}
+{% if opciones_para %}
+<div class="au-para mb-2">
+    <label class="form-label small fw-bold mb-1"><i class="fas fa-user-check me-1"></i>¿Para quién?</label>
+    <div class="d-flex flex-wrap gap-3">
+        <div class="form-check"><input class="form-check-input au-para-modo" type="radio" name="para_modo" value="todos" id="pm-todos-{{ prefijo }}" {% if not actual %}checked{% endif %}>
+            <label class="form-check-label small" for="pm-todos-{{ prefijo }}">Toda la clase</label></div>
+        <div class="form-check"><input class="form-check-input au-para-modo" type="radio" name="para_modo" value="algunos" id="pm-alg-{{ prefijo }}" {% if actual %}checked{% endif %}>
+            <label class="form-check-label small" for="pm-alg-{{ prefijo }}">Solo algunos estudiantes</label></div>
+    </div>
+    <div class="au-para-lista border rounded p-2 mt-1 {% if not actual %}d-none{% endif %}" style="max-height:240px;overflow:auto">
+        <div class="form-text mt-0 mb-1">Trabajo diferenciado (PIAR), estudiantes que viajaron, incapacitados o que se ponen al día. Solo ellos lo ven y reciben el aviso.</div>
+        <input type="search" class="form-control form-control-sm mb-1 au-para-buscar" placeholder="Buscar estudiante…">
+        {% for p in opciones_para %}
+        <label class="d-flex align-items-center gap-2 small py-1 au-para-fila">
+            <input type="checkbox" class="form-check-input mt-0" name="para" value="{{ p.clave }}" {% if p.clave in actual %}checked{% endif %} data-inclusion="{{ p.inclusion|yesno:'1,0' }}">
+            <span class="flex-grow-1">{{ p.nombre }}</span>{% if p.inclusion %}<span class="au-chip pend">Inclusión</span>{% endif %}
+        </label>
+        {% endfor %}
+        {% if opciones_para|length > 0 %}<button type="button" class="btn btn-link btn-sm p-0 au-para-inclusion">Marcar los estudiantes de inclusión</button>{% endif %}
+    </div>
+</div>
+<script>
+document.querySelectorAll('.au-para').forEach(function (caja) {
+  if (caja.dataset.listo) return; caja.dataset.listo = '1';
+  var lista = caja.querySelector('.au-para-lista');
+  caja.querySelectorAll('.au-para-modo').forEach(function (r) {
+    r.addEventListener('change', function () { lista.classList.toggle('d-none', r.value !== 'algunos' || !r.checked); });
+  });
+  caja.querySelector('.au-para-buscar').addEventListener('input', function () {
+    var t = this.value.toLowerCase();
+    caja.querySelectorAll('.au-para-fila').forEach(function (f) { f.style.display = f.textContent.toLowerCase().indexOf(t) >= 0 ? '' : 'none'; });
+  });
+  var inc = caja.querySelector('.au-para-inclusion');
+  if (inc) inc.addEventListener('click', function () {
+    caja.querySelectorAll('input[data-inclusion="1"]').forEach(function (x) { x.checked = true; });
+  });
+});
+</script>
+{% endif %}

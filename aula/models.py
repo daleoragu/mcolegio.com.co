@@ -149,6 +149,7 @@ class Material(models.Model):
     archivo = models.FileField(upload_to=almacen.ruta_material, storage=almacen.privado, blank=True)
     nombre_archivo = models.CharField(max_length=150, blank=True)
     enlace = models.URLField(blank=True)
+    para = models.JSONField(default=list, blank=True, help_text='Vacío: toda la clase. Si no, solo los estudiantes escogidos.')
     creado = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -243,6 +244,7 @@ class Tarea(models.Model):
                                 related_name='+')
     componente = models.CharField(max_length=6, blank=True)
     publicada = models.BooleanField(default=True)
+    para = models.JSONField(default=list, blank=True, help_text='Vacío: toda la clase. Si no, solo los estudiantes escogidos.')
     creada = models.DateTimeField(auto_now_add=True)
     pasada_planilla = models.DateTimeField(null=True, blank=True)
 
@@ -359,6 +361,7 @@ class Actividad(models.Model):
                                 related_name='+')
     componente = models.CharField(max_length=6, blank=True)
     publicada = models.BooleanField(default=True)
+    para = models.JSONField(default=list, blank=True, help_text='Vacío: toda la clase. Si no, solo los estudiantes escogidos.')
     creada = models.DateTimeField(auto_now_add=True)
     pasada_planilla = models.DateTimeField(null=True, blank=True)
 
@@ -480,3 +483,16 @@ class RespuestaQ(models.Model):
 
     class Meta:
         unique_together = ('intento', 'pregunta')
+
+
+class Visto(models.Model):
+    """Hasta cuándo vio el estudiante cada sección del aula (para el globo rojo de novedades)."""
+    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, related_name='vistos')
+    estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    secciones = models.JSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return f'Visto {self.aula_id}'
