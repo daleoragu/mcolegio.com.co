@@ -1,0 +1,92 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="au-juego" id="j">
+  <div class="d-flex align-items-center gap-3 mb-2">
+    <div class="fw-bold" id="j-num"></div>
+    <div class="flex-grow-1 au-barra"><div id="j-barra" style="width:100%"></div></div>
+    <div class="au-reloj" id="j-reloj">–</div>
+    <div class="fw-bold"><i class="fas fa-star text-warning"></i> <span id="j-puntos">0</span></div>
+  </div>
+  <div class="pregunta" id="j-pregunta">Cargando…</div>
+  <div class="au-ops" id="j-ops"></div>
+  <div class="au-mensaje d-none" id="j-mensaje"></div>
+</div>
+</div>
+<script>
+(function () {
+  var URL = '{% url "aula:jugar_estado" aula.pk q.pk %}', CSRF = '{{ csrf_token }}';
+  var formas = ['▲', '◆', '●', '■', '★', '✚'];
+  var $ = function (id) { return document.getElementById(id); };
+  var actual = null, fin = 0, total = 1, reloj = null, bloqueado = false;
+
+  function pedir(cuerpo) {
+    return fetch(URL, cuerpo ? {method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF}, body: JSON.stringify(cuerpo)}
+      : {credentials: 'same-origin'}).then(function (r) { return r.json(); });
+  }
+
+  function mostrar(d) {
+    clearInterval(reloj);
+    $('j-mensaje').classList.add('d-none');
+    if (d.fin) return terminar(d);
+    actual = d; bloqueado = false;
+    $('j-num').textContent = d.numero + ' / ' + d.total;
+    $('j-puntos').textContent = d.puntos;
+    $('j-pregunta').textContent = d.texto;
+    var ops = $('j-ops'); ops.innerHTML = '';
+    d.opciones.forEach(function (o, k) {
+      var b = document.createElement('button');
+      b.className = 'au-op c' + k; b.dataset.id = o.id;
+      b.innerHTML = '<span class="forma">' + formas[k] + '</span><span></span>';
+      b.lastChild.textContent = o.texto;
+      b.onclick = function () { responder(o.id); };
+      ops.appendChild(b);
+    });
+    total = d.segundos; fin = Date.now() + d.restante * 1000;
+    tic(); reloj = setInterval(tic, 200);
+  }
+
+  function tic() {
+    var r = Math.max(0, (fin - Date.now()) / 1000);
+    $('j-reloj').textContent = Math.ceil(r);
+    $('j-barra').style.width = (100 * r / total) + '%';
+    if (r <= 0 && !bloqueado) responder(null);
+  }
+
+  function responder(opcion) {
+    if (bloqueado || !actual) return;
+    bloqueado = true; clearInterval(reloj);
+    var botones = $('j-ops').querySelectorAll('button');
+    botones.forEach(function (b) { b.disabled = true; });
+    pedir({pregunta: actual.id, opcion: opcion}).then(function (r) {
+      if (r.error) return siguiente();
+      botones.forEach(function (b) {
+        var id = +b.dataset.id;
+        if (r.correctas.indexOf(id) >= 0) b.classList.add('bien'); else b.classList.add('apagada');
+      });
+      $('j-puntos').textContent = r.total_puntos;
+      var m = $('j-mensaje'); m.classList.remove('d-none');
+      m.textContent = r.correcta ? '¡Correcto! +' + r.puntos : (opcion === null ? '¡Se acabó el tiempo!' : 'Incorrecto');
+      setTimeout(siguiente, 1800);
+    }).catch(function () { bloqueado = false; alertaRed(); });
+  }
+
+  function siguiente() { pedir().then(mostrar).catch(alertaRed); }
+  function alertaRed() { var m = $('j-mensaje'); m.classList.remove('d-none'); m.textContent = 'Sin conexión… reintentando'; setTimeout(siguiente, 3000); }
+
+  function terminar(d) {
+    $('j-num').textContent = ''; $('j-reloj').textContent = '✓'; $('j-barra').style.width = '0';
+    $('j-puntos').textContent = d.puntos;
+    $('j-ops').innerHTML = '';
+    $('j-pregunta').innerHTML = '<div class="fs-2">¡Terminó!</div><div class="mt-2">' + d.aciertos + ' de ' + d.total + ' correctas · ' + d.puntos + ' puntos</div>' +
+      (d.nota ? '<div class="mt-2">Nota: <span class="fs-1 fw-bold">' + d.nota + '</span></div>' : '') +
+      '<a class="btn au-oro mt-3" href="{% url "aula:cuestionario" aula.pk q.pk %}">Ver la tabla de puntajes</a>';
+  }
+
+  siguiente();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,137 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="au-juego" id="v" style="min-height:75vh">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="fw-bold fs-5 flex-grow-1">{{ q.titulo }} <span class="ms-2 small" id="v-num"></span></div>
+    <span class="small"><i class="fas fa-users me-1"></i><span id="v-jugadores">0</span></span>
+    <button type="button" class="btn btn-sm btn-light" id="v-pantalla"><i class="fas fa-expand"></i></button>
+    <button type="button" class="btn au-oro fw-bold" id="v-siguiente">Empezar</button>
+  </div>
+
+  <div id="v-espera" class="text-center">
+    <div class="fs-4">Entren a <strong>Mi Salón Virtual → {{ aula.titulo }} → Cuestionarios</strong></div>
+    <div class="small opacity-75 mb-3">o con este enlace: {{ url_entrar }}</div>
+    <div class="au-jugadores" id="v-nombres"></div>
+  </div>
+
+  <div id="v-juego" class="d-none">
+    <div class="d-flex align-items-center gap-3 mb-2">
+      <div class="flex-grow-1 au-barra"><div id="v-barra" style="width:100%"></div></div>
+      <div class="au-reloj" id="v-reloj">–</div>
+      <div class="fw-bold"><span id="v-resp">0</span> respuestas</div>
+    </div>
+    <div class="pregunta" id="v-pregunta" style="font-size:1.8rem"></div>
+    <div class="au-ops" id="v-ops"></div>
+    <div class="row mt-3 d-none" id="v-res">
+      <div class="col-md-6"><div id="v-barras"></div></div>
+      <div class="col-md-6"><h5 class="fw-bold">Primeros puestos</h5><ol class="au-podio list-unstyled" id="v-rank"></ol></div>
+    </div>
+  </div>
+
+  <div id="v-fin" class="d-none text-center">
+    <div class="fs-1 fw-bold mb-3"><i class="fas fa-trophy text-warning"></i> ¡Resultados!</div>
+    <ol class="au-podio list-unstyled mx-auto text-start" id="v-final" style="max-width:520px"></ol>
+    <a class="btn au-oro mt-3" href="{% url 'aula:cuestionario' aula.pk q.pk %}">Ver notas y pasarlas a la planilla</a>
+  </div>
+</div>
+</div>
+<script>
+(function () {
+  var URL = '{% url "aula:vivo_estado" aula.pk s.pk %}', CSRF = '{{ csrf_token }}';
+  var formas = ['▲', '◆', '●', '■', '★', '✚'], colores = ['#e21b3c', '#1368ce', '#c58a00', '#26890c', '#6f42c1', '#0aa2c0'];
+  var $ = function (id) { return document.getElementById(id); };
+  var est = null, fin = 0, total = 1, preguntaId = null, ocupado = false, ultimoEstado = '';
+
+  function pedir(avanzar) {
+    return fetch(URL, avanzar ? {method: 'POST', credentials: 'same-origin', headers: {'X-CSRFToken': CSRF}}
+      : {credentials: 'same-origin'}).then(function (r) { return r.json(); });
+  }
+
+  function lista(ol, ranking) {
+    ol.innerHTML = '';
+    ranking.forEach(function (r, i) {
+      var li = document.createElement('li');
+      li.innerHTML = '<span></span><span>' + r.puntos + '</span>';
+      li.firstChild.textContent = (i + 1) + '. ' + r.nombre;
+      ol.appendChild(li);
+    });
+  }
+
+  function pintar(d) {
+    est = d;
+    $('v-jugadores').textContent = d.jugadores;
+    ['v-espera', 'v-juego', 'v-fin'].forEach(function (x) { $(x).classList.add('d-none'); });
+    var btn = $('v-siguiente');
+    if (d.estado === 'espera') {
+      $('v-espera').classList.remove('d-none');
+      var n = $('v-nombres'); n.innerHTML = '';
+      (d.nombres || []).forEach(function (t) { var s = document.createElement('span'); s.textContent = t; n.appendChild(s); });
+      btn.textContent = 'Empezar'; btn.disabled = !d.jugadores;
+    } else if (d.estado === 'fin') {
+      $('v-fin').classList.remove('d-none'); lista($('v-final'), d.ranking || []);
+      btn.classList.add('d-none'); $('v-num').textContent = '';
+    } else {
+      $('v-juego').classList.remove('d-none');
+      $('v-num').textContent = 'Pregunta ' + d.numero + ' de ' + d.total;
+      $('v-resp').textContent = d.respondidas;
+      var p = d.pregunta;
+      if (p.id !== preguntaId || d.estado !== ultimoEstado) {
+        preguntaId = p.id;
+        $('v-pregunta').textContent = p.texto;
+        var ops = $('v-ops'); ops.innerHTML = '';
+        p.opciones.forEach(function (o, k) {
+          var b = document.createElement('button');
+          b.className = 'au-op c' + k; b.disabled = true;
+          if (d.estado === 'resultado') b.classList.add(p.correcta.indexOf(o.id) >= 0 ? 'bien' : 'apagada');
+          b.innerHTML = '<span class="forma">' + formas[k] + '</span><span></span>';
+          b.lastChild.textContent = o.texto + (d.conteo ? '  (' + (d.conteo[o.id] || 0) + ')' : '');
+          ops.appendChild(b);
+        });
+        total = p.segundos; fin = Date.now() + d.restante * 1000;
+      }
+      $('v-res').classList.toggle('d-none', d.estado !== 'resultado');
+      if (d.estado === 'resultado') {
+        lista($('v-rank'), d.ranking || []);
+        var barras = $('v-barras'); barras.innerHTML = '';
+        var max = Math.max.apply(null, [1].concat(Object.values(d.conteo || {})));
+        p.opciones.forEach(function (o, k) {
+          var v = (d.conteo || {})[o.id] || 0;
+          barras.innerHTML += '<div class="d-flex align-items-center gap-2 mb-1"><span style="width:24px">' + formas[k] + '</span>' +
+            '<div style="height:22px;border-radius:6px;background:' + colores[k] + ';width:' + Math.max(4, 90 * v / max) + '%"></div><b>' + v + '</b></div>';
+        });
+        btn.textContent = d.numero >= d.total ? 'Ver resultados finales' : 'Siguiente pregunta';
+      } else {
+        btn.textContent = 'Mostrar respuesta';
+      }
+      btn.disabled = false;
+    }
+    ultimoEstado = d.estado;
+  }
+
+  function tic() {
+    if (!est || est.estado !== 'pregunta') return;
+    var r = Math.max(0, (fin - Date.now()) / 1000);
+    $('v-reloj').textContent = Math.ceil(r);
+    $('v-barra').style.width = (100 * r / total) + '%';
+    var todos = est.jugadores && est.respondidas >= est.jugadores;
+    if ((r <= 0 || todos) && !ocupado) avanzar();
+  }
+
+  function avanzar() {
+    if (ocupado) return;
+    ocupado = true;
+    pedir(true).then(pintar).finally(function () { ocupado = false; });
+  }
+
+  $('v-siguiente').onclick = avanzar;
+  $('v-pantalla').onclick = function () { var v = $('v'); if (v.requestFullscreen) v.requestFullscreen(); };
+  function sondear() { if (!ocupado) pedir().then(pintar).catch(function () {}); }
+  sondear();
+  setInterval(sondear, 1500);
+  setInterval(tic, 200);
+})();
+</script>
+{% endblock %}

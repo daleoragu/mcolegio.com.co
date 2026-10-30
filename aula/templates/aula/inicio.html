@@ -1,12 +1,15 @@
 {% extends base %}
 {% block page_title %}
-<h4 class="mb-0"><i class="fas fa-chalkboard-user me-2"></i>Aula virtual</h4>
+<h4 class="mb-0"><i class="fas fa-chalkboard-user me-2"></i>Mi Salón Virtual</h4>
 <p class="text-muted small mb-0">{% if rol == 'estudiante' %}Sus clases: muro, clase en vivo, material y tareas.{% else %}Un aula por cada asignatura y curso, con muro, clase en vivo, material, tareas y rúbricas.{% endif %}</p>
 {% endblock %}
 {% block content %}
 {% include 'aula/_estilos.html' %}
 <div class="au">
-{% if rol != 'estudiante' %}<div class="d-flex justify-content-end mb-2"><a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:instrumentos' %}"><i class="fas fa-list-check me-1"></i>Mis rúbricas y listas de chequeo</a></div>{% endif %}
+{% if rol != 'estudiante' %}<div class="d-flex justify-content-end flex-wrap gap-2 mb-2">
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:instrumentos' %}"><i class="fas fa-list-check me-1"></i>Mis rúbricas y listas de chequeo</a>
+    {% if rol == 'docente' %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:panel' %}"><i class="fas fa-code me-1"></i>Mis actividades HTML y pruebas</a>{% endif %}
+</div>{% endif %}
 <div class="row g-3">
 {% for a in asignaciones %}
   <div class="col-sm-6 col-lg-4">

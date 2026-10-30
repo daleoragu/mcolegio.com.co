@@ -1,5 +1,5 @@
 {% extends "salon_digital/base_salon.html" %}
-{% block titulo %}Mis grupos · Salón Digital{% endblock %}
+{% block titulo %}Mis grupos · Mi Salón Virtual{% endblock %}
 
 {% block contenido %}
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
@@ -29,7 +29,7 @@
         <div class="d-flex gap-2">
           <a href="{% url 'salon_digital:ver_grupo' g.pk %}"
              class="btn btn-sm btn-outline-primary">Abrir</a>
-          <a href="{% url 'aula:por_grupo' g.pk %}" class="btn btn-sm btn-primary">Aula virtual</a>
+          <a href="{% url 'aula:por_grupo' g.pk %}" class="btn btn-sm btn-primary">Abrir aula</a>
         </div>
       </div></div>
     </div>

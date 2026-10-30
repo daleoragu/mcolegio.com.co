@@ -35,8 +35,8 @@ class AulaDelColegio(ColegioDePrueba):
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
-        # El aula es del plan Premium: se activa para el colegio de prueba.
-        cls.a.modulos_activos = list(cls.a.modulos_activos) + ['aula']
+        # Mi Salón Virtual es del plan Premium: se activa para el colegio de prueba.
+        cls.a.modulos_activos = list(cls.a.modulos_activos) + ['salon']
         cls.a.save(update_fields=['modulos_activos'])
 
     def setUp(self):

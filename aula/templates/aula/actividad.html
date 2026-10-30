@@ -1,0 +1,97 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <a href="{% url 'aula:actividades' aula.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left"></i></a>
+    <h5 class="mb-0 fw-bold flex-grow-1" style="color:var(--au-azul)">{{ a.titulo }}</h5>
+    {% if not c.es_docente and a.califica %}
+        <span id="act-estado" class="small {% if mio %}text-success{% else %}text-muted{% endif %}">
+            {% if mio %}Su mejor nota: <strong>{{ mio.nota }}</strong> ({{ mio.intentos }} intento{{ mio.intentos|pluralize }}){% else %}Al terminar, la nota se guarda sola.{% endif %}
+        </span>
+    {% endif %}
+    {% if a.enlace %}<a class="btn btn-sm btn-outline-secondary" href="{{ a.enlace }}" target="_blank" rel="noopener"><i class="fas fa-up-right-from-square me-1"></i>Abrir en otra pestaña</a>{% endif %}
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="act-pantalla"><i class="fas fa-expand me-1"></i>Pantalla completa</button>
+</div>
+{% if a.descripcion %}<p class="text-muted small mb-2">{{ a.descripcion }}</p>{% endif %}
+
+{% if a.archivo %}
+<iframe id="act-marco" class="au-visor" src="{% url 'aula:archivo' aula.pk 'act' a.pk %}" title="{{ a.titulo }}"
+        sandbox="allow-scripts allow-forms allow-popups allow-modals" allow="fullscreen"></iframe>
+{% else %}
+<iframe id="act-marco" class="au-visor" src="{{ a.enlace }}" title="{{ a.titulo }}"
+        sandbox="allow-scripts allow-forms allow-popups allow-same-origin allow-modals" allow="fullscreen"></iframe>
+<div class="form-text">Si no se ve, el sitio no deja abrirse dentro de otras páginas: use «Abrir en otra pestaña».</div>
+{% endif %}
+
+{% if c.es_docente %}
+<div class="row g-3 mt-1">
+  <div class="col-lg-8">
+    {% if a.califica %}
+    <div class="au-tarjeta p-0">
+      <div class="table-responsive"><table class="table align-middle mb-0">
+        <thead class="table-light"><tr><th>Estudiante</th><th class="text-center">Mejor nota</th><th class="text-center">Última</th><th class="text-center">Intentos</th><th>Cuándo</th></tr></thead>
+        <tbody>
+        {% for f in filas %}
+        <tr><td>{{ f.nombre }}</td>
+            <td class="text-center fw-bold">{{ f.r.nota|default:"—" }}</td>
+            <td class="text-center">{{ f.r.ultima|default:"" }}</td>
+            <td class="text-center">{{ f.r.intentos|default:"" }}</td>
+            <td class="small text-muted">{% if f.r %}{{ f.r.actualizado|date:"d M, h:i a" }}{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">No hay estudiantes en la clase.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+    {% else %}
+    <div class="au-tarjeta small text-muted">Esta actividad es de práctica: no guarda notas.</div>
+    {% endif %}
+  </div>
+  <div class="col-lg-4">
+    {% if puede_planilla %}
+    <form method="post" action="{% url 'aula:actividad_accion' aula.pk a.pk %}" class="au-tarjeta">{% csrf_token %}
+        <input type="hidden" name="accion" value="planilla">
+        <h6><i class="fas fa-file-import me-1"></i>Pasar a la planilla</h6>
+        {% include 'aula/_periodo_componente.html' with obj=a %}
+        <div class="form-text mb-2">Pasa la mejor nota de cada estudiante a la columna «{{ a.titulo }}».{% if a.pasada_planilla %} Última vez: {{ a.pasada_planilla|date:"d M, h:i a" }}.{% endif %}</div>
+        <button class="btn au-oro w-100">Pasar notas</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{% url 'aula:actividad_accion' aula.pk a.pk %}" onsubmit="return confirm('¿Eliminar la actividad y sus resultados?')">{% csrf_token %}
+        <input type="hidden" name="accion" value="eliminar">
+        <button class="btn btn-outline-danger btn-sm w-100"><i class="far fa-trash-can me-1"></i>Eliminar actividad</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+</div>
+<script>
+(function () {
+  var marco = document.getElementById('act-marco');
+  document.getElementById('act-pantalla').addEventListener('click', function () {
+    if (marco.requestFullscreen) marco.requestFullscreen();
+  });
+  {% if a.califica and not c.es_docente %}
+  var estado = document.getElementById('act-estado');
+  var enviando = false;
+  window.addEventListener('message', function (ev) {
+    if (ev.source !== marco.contentWindow) return;
+    var d = ev.data || {};
+    if (d.tipo !== 'mcolegio-nota' || enviando) return;
+    var cuerpo = {};
+    if (d.nota !== undefined) cuerpo.nota = d.nota; else { cuerpo.puntaje = d.puntaje; cuerpo.maximo = d.maximo || 100; }
+    enviando = true;
+    fetch('{% url "aula:actividad_resultado" aula.pk a.pk %}', {
+      method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+      body: JSON.stringify(cuerpo)
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      estado.className = 'small ' + (j.ok ? 'text-success' : 'text-danger');
+      estado.innerHTML = j.ok ? 'Nota guardada: <strong>' + j.nota + '</strong> · su mejor nota: <strong>' + j.mejor + '</strong>' : (j.mensaje || 'No se pudo guardar.');
+    }).catch(function () { estado.className = 'small text-danger'; estado.textContent = 'Sin conexión: no se guardó la nota.'; })
+      .finally(function () { setTimeout(function () { enviando = false; }, 3000); });
+  });
+  {% endif %}
+})();
+</script>
+{% endblock %}

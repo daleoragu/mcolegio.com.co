@@ -1,0 +1,83 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="au-juego" id="e">
+  <div class="d-flex align-items-center gap-3 mb-2">
+    <div class="fw-bold flex-grow-1">{{ q.titulo }} <span class="small ms-1" id="e-num"></span></div>
+    <div class="au-reloj d-none" id="e-reloj">–</div>
+    <div class="fw-bold"><i class="fas fa-star text-warning"></i> <span id="e-total">0</span></div>
+  </div>
+  <div class="au-mensaje" id="e-mensaje">¡Ya está dentro! Espere a que el docente empiece…</div>
+  <div class="pregunta d-none" id="e-pregunta"></div>
+  <div class="au-ops" id="e-ops"></div>
+</div>
+</div>
+<script>
+(function () {
+  var URL = '{% url "aula:vivo_estado" aula.pk s.pk %}', CSRF = '{{ csrf_token }}';
+  var formas = ['▲', '◆', '●', '■', '★', '✚'];
+  var $ = function (id) { return document.getElementById(id); };
+  var clave = '', fin = 0, est = null;
+
+  function pintar(d) {
+    est = d;
+    $('e-total').textContent = d.mi_total || 0;
+    var msg = $('e-mensaje'), preg = $('e-pregunta'), ops = $('e-ops'), reloj = $('e-reloj');
+    if (d.estado === 'espera') {
+      msg.textContent = '¡Ya está dentro! Espere a que el docente empiece… (' + d.jugadores + ' conectados)';
+      return;
+    }
+    if (d.estado === 'fin') {
+      reloj.classList.add('d-none'); preg.classList.add('d-none'); ops.innerHTML = '';
+      msg.classList.remove('d-none');
+      msg.innerHTML = '¡Terminó!<div class="fs-5 mt-2">Puesto ' + d.mi_puesto + ' · ' + d.mi_total + ' puntos' +
+        (d.mi_nota ? ' · nota ' + d.mi_nota : '') + '</div>';
+      clearInterval(sondeo);
+      return;
+    }
+    $('e-num').textContent = d.numero + ' / ' + d.total;
+    var nueva = d.estado + d.pregunta.id + (d.respondio ? 'r' : '');
+    if (nueva === clave) return;
+    clave = nueva;
+    preg.classList.remove('d-none'); preg.textContent = d.pregunta.texto;
+    ops.innerHTML = '';
+    if (d.estado === 'pregunta' && !d.respondio) {
+      msg.classList.add('d-none'); reloj.classList.remove('d-none');
+      fin = Date.now() + d.restante * 1000;
+      d.pregunta.opciones.forEach(function (o, k) {
+        var b = document.createElement('button');
+        b.className = 'au-op c' + k;
+        b.innerHTML = '<span class="forma">' + formas[k] + '</span><span></span>';
+        b.lastChild.textContent = o.texto;
+        b.onclick = function () { responder(o.id); };
+        ops.appendChild(b);
+      });
+    } else if (d.estado === 'pregunta') {
+      reloj.classList.add('d-none'); msg.classList.remove('d-none');
+      msg.textContent = '¡Respuesta enviada! Esperando a los demás…';
+    } else {
+      reloj.classList.add('d-none'); msg.classList.remove('d-none');
+      msg.innerHTML = d.mi_correcta ? '<i class="fas fa-circle-check"></i> ¡Correcto! +' + d.mis_puntos
+        : (d.respondio ? '<i class="fas fa-circle-xmark"></i> Incorrecto' : '<i class="far fa-clock"></i> No alcanzó a responder');
+    }
+  }
+
+  function responder(id) {
+    $('e-ops').querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+    fetch(URL, {method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF}, body: JSON.stringify({opcion: id})})
+      .then(function (r) { return r.json(); }).then(function (d) { if (d.estado) pintar(d); else consultar(); })
+      .catch(consultar);
+  }
+
+  function consultar() { fetch(URL, {credentials: 'same-origin'}).then(function (r) { return r.json(); }).then(pintar).catch(function () {}); }
+  setInterval(function () {
+    if (est && est.estado === 'pregunta') $('e-reloj').textContent = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
+  }, 250);
+  var sondeo = setInterval(consultar, 1200);
+  consultar();
+})();
+</script>
+{% endblock %}

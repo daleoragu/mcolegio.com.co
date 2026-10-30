@@ -1,4 +1,5 @@
 """Vistas del aula virtual (las mismas para mcolegio y para Salón Digital)."""
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
@@ -14,7 +15,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from . import logica
-from .models import Aula, Comentario, Criterio, Entrega, Instrumento, Material, Nivel, Publicacion, Tarea
+from .models import Actividad, Aula, Comentario, Criterio, Entrega, Instrumento, Material, Nivel, Publicacion, Tarea
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +62,7 @@ def vista_aula(fn):
 
 def _render(request, c, plantilla, datos, pestana):
     datos.update({'c': c, 'aula': c.aula, 'base': c.base, 'pestana': pestana,
+                  'hide_cuenta': c.aula.es_salon and not c.es_docente,
                   'colegio': getattr(request, 'colegio', None)})
     return render(request, plantilla, datos)
 
@@ -172,6 +174,7 @@ def entrar(request, pk):
         error = 'No encontramos ese nombre en la clase.'
     return render(request, 'aula/entrar.html', {
         'aula': aula, 'codigo': codigo, 'valido': valido, 'error': error, 'base': 'aula/base_salon.html',
+        'hide_cuenta': True,
         'integrantes': grupo.integrantes.filter(activo=True) if valido else [],
     })
 
@@ -213,8 +216,11 @@ def muro(request, pk):
         p.visibles = [k for k in p.comentarios.all() if c.es_docente or not k.oculto]
     proximas = [t for t in aula.tareas.filter(publicada=True, fecha_limite__gte=timezone.now())
                 .order_by('fecha_limite')[:4]]
+    from .models import SesionVivo
+    vivos = list(SesionVivo.objects.filter(cuestionario__aula=aula, creada__gte=timezone.now() - timedelta(hours=3))
+                 .exclude(estado='fin').select_related('cuestionario'))
     return _render(request, c, 'aula/muro.html', {
-        'publicaciones': pubs, 'proximas': proximas, 'horario': logica.horario_de(aula)}, 'muro')
+        'publicaciones': pubs, 'proximas': proximas, 'horario': logica.horario_de(aula), 'vivos': vivos}, 'muro')
 
 
 @require_POST
@@ -327,7 +333,7 @@ def material_eliminar(request, pk, mid):
 def archivo(request, pk, tipo, oid):
     """Abre un archivo del aula (enlace firmado) solo para quien es de la clase."""
     c = _ctx(request, pk)
-    modelos = {'pub': Publicacion, 'mat': Material, 'tarea': Tarea}
+    modelos = {'pub': Publicacion, 'mat': Material, 'tarea': Tarea, 'act': Actividad}
     if tipo in modelos:
         obj = get_object_or_404(modelos[tipo], pk=oid, aula=c.aula)
     elif tipo == 'entrega':

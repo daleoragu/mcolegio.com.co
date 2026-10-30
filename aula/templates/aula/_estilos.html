@@ -36,4 +36,23 @@
   .au-nota-grande { font-size:2rem; font-weight:800; color:var(--au-azul); }
   .au-visor { width:100%; height:72vh; border:1px solid var(--au-linea); border-radius:12px; background:#fff; }
   @media (max-width: 768px) { .au-visor { height:55vh; } }
+  /* Juegos: cuestionarios estilo Kahoot / Quizizz */
+  .au-juego { background:linear-gradient(135deg,#1f3a68,#2f5597); color:#fff; border-radius:16px; padding:18px; min-height:60vh; }
+  .au-juego .pregunta { background:#fff; color:#1d2433; border-radius:14px; padding:18px; font-size:1.35rem; font-weight:700; text-align:center; white-space:pre-line; }
+  .au-ops { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+  @media (max-width: 576px) { .au-ops { grid-template-columns:1fr; } }
+  .au-op { border:none; border-radius:12px; color:#fff; font-weight:700; font-size:1.1rem; padding:18px 14px; text-align:left; display:flex; gap:12px; align-items:center; min-height:72px; transition:transform .08s, opacity .2s; }
+  .au-op:hover:not(:disabled) { transform:scale(1.02); }
+  .au-op .forma { font-size:1.5rem; flex:none; width:28px; text-align:center; }
+  .au-op.c0 { background:#e21b3c; } .au-op.c1 { background:#1368ce; } .au-op.c2 { background:#c58a00; } .au-op.c3 { background:#26890c; }
+  .au-op.c4 { background:#6f42c1; } .au-op.c5 { background:#0aa2c0; }
+  .au-op.apagada { opacity:.35; } .au-op.bien { outline:4px solid #fff; } .au-op:disabled { cursor:default; }
+  .au-reloj { font-size:1.6rem; font-weight:800; background:rgba(255,255,255,.15); border-radius:999px; padding:4px 16px; min-width:70px; text-align:center; }
+  .au-barra { height:8px; background:rgba(255,255,255,.2); border-radius:999px; overflow:hidden; }
+  .au-barra > div { height:100%; background:var(--au-oro); transition:width .25s linear; }
+  .au-podio li { background:rgba(255,255,255,.12); border-radius:10px; padding:8px 12px; margin-bottom:6px; display:flex; justify-content:space-between; font-weight:700; }
+  .au-podio li:first-child { background:var(--au-oro); color:#1d2433; }
+  .au-pin { font-size:3rem; font-weight:800; letter-spacing:2px; }
+  .au-jugadores span { display:inline-block; background:rgba(255,255,255,.15); border-radius:999px; padding:4px 12px; margin:3px; font-weight:600; }
+  .au-mensaje { text-align:center; padding:40px 10px; font-size:1.5rem; font-weight:800; }
 </style>

@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block titulo %}Salón Digital{% endblock %}</title>
+<title>{% block titulo %}Mi Salón Virtual{% endblock %}</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
 :root{
-  --vino:#5C1416; --mor:#9E1982; --fuc:#FF289A; --lila:#F7EFF5;
-  --line:#E6D6E2; --bg:#FBF7FA; --ink:#2A1620; --tenue:#6B5566;
-  --bs-primary:#9E1982;
+  /* Mismos colores de mcolegio: azul y dorado */
+  --vino:#1f3a68; --mor:#2b4f8a; --fuc:#f2b632; --lila:#eaf0f9;
+  --line:#dde3ec; --bg:#f5f7fb; --ink:#1d2433; --tenue:#5b6474;
+  --bs-primary:#2b4f8a;
 }
 body{background:var(--bg);color:var(--ink);font-family:'Segoe UI',system-ui,Arial,sans-serif}
 a{color:var(--mor)}
@@ -18,10 +19,13 @@ a:hover{color:var(--vino)}
 .btn-primary:hover,.btn-primary:focus{background:var(--vino);border-color:var(--vino)}
 .btn-outline-primary{color:var(--mor);border-color:var(--mor)}
 .btn-outline-primary:hover{background:var(--mor);border-color:var(--mor)}
-.form-control:focus,.form-select:focus{border-color:var(--mor);box-shadow:0 0 0 .2rem rgba(158,25,130,.15)}
-.navbar-salon{background:#fff;border-bottom:3px solid var(--mor)}
+.form-control:focus,.form-select:focus{border-color:var(--mor);box-shadow:0 0 0 .2rem rgba(43,79,138,.15)}
+.navbar-salon{background:#fff;border-bottom:3px solid var(--fuc)}
+.navbar-salon .marca img{height:30px;width:auto}
+.navbar-salon .marca small{font-weight:700;color:var(--vino);border-left:2px solid var(--line);padding-left:10px;font-size:.95rem}
+.navbar-salon .nav-link{color:var(--ink);font-weight:500}
+.navbar-salon .nav-link:hover,.navbar-salon .nav-link.activo{color:var(--mor)}
 .navbar-salon .marca{font-weight:800;color:var(--vino);font-size:1.15rem;text-decoration:none;letter-spacing:-.01em}
-.navbar-salon .marca span{color:var(--fuc)}
 .card{border-color:var(--line)}
 .card-header{background:var(--lila);border-bottom-color:var(--line);font-weight:600;color:var(--vino)}
 .tabla-limpia th{background:var(--vino);color:#fff;font-size:.74rem;letter-spacing:.04em;text-transform:uppercase}
@@ -34,25 +38,40 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
 </head>
 <body>
 
-<nav class="navbar navbar-salon py-2 mb-4">
+<nav class="navbar navbar-expand-lg navbar-salon py-2 mb-4">
   <div class="container">
-    <a class="marca" href="{% url 'salon_digital:landing' %}">Salón <span>Digital</span></a>
-    <div class="d-flex align-items-center gap-2">
-      {% if request.user.cuenta_salon %}
-        <a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:panel' %}">Mis páginas</a>
-        <a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:grupos' %}">Grupos</a>
-        <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:inicio' %}">Aulas</a>
-        <a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:ayuda' %}">Ayuda</a>
-        <a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:mi_cuenta' %}">Mi cuenta</a>
-        {% if request.user.is_staff %}
-          <a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:bandeja' %}">Revisión</a>
-        {% endif %}
-        <a class="btn btn-sm btn-link text-muted" href="{% url 'salon_digital:salir' %}">Salir</a>
-      {% else %}
-        <a class="btn btn-sm btn-outline-primary" href="{% url 'salon_digital:entrar' %}">Entrar</a>
-        <a class="btn btn-sm btn-primary" href="{% url 'salon_digital:registro' %}">Crear cuenta</a>
-      {% endif %}
+    <a class="marca d-flex align-items-center gap-2 text-decoration-none" href="{% if request.user.cuenta_salon %}{% url 'aula:inicio' %}{% else %}{% url 'salon_digital:landing' %}{% endif %}">
+      <img src="{% static 'img/mcolegio-logo-oscuro.png' %}" alt="mcolegio"><small>Mi Salón Virtual</small>
+    </a>
+    {% if request.user.cuenta_salon %}
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu-salon" aria-controls="menu-salon" aria-expanded="false" aria-label="Menú">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="menu-salon">
+      <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
+        <li class="nav-item"><a class="nav-link {% if request.resolver_match.app_name == 'aula' and request.resolver_match.url_name != 'instrumentos' and request.resolver_match.url_name != 'instrumento' and request.resolver_match.url_name != 'escala' %}activo{% endif %}" href="{% url 'aula:inicio' %}">Mis aulas</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'grupos' or request.resolver_match.url_name == 'ver_grupo' %}activo{% endif %}" href="{% url 'salon_digital:grupos' %}">Grupos</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'panel' %}activo{% endif %}" href="{% url 'salon_digital:panel' %}">Actividades y pruebas</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'instrumentos' or request.resolver_match.url_name == 'instrumento' %}activo{% endif %}" href="{% url 'aula:instrumentos' %}">Rúbricas</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'escala' %}activo{% endif %}" href="{% url 'aula:escala' %}">Mi escala</a></li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">{{ request.user.cuenta_salon.nombre_publico|default:"Mi cuenta" }}</a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{% url 'salon_digital:mi_cuenta' %}">Mi cuenta y plan</a></li>
+            <li><a class="dropdown-item" href="{% url 'salon_digital:ayuda' %}">Ayuda</a></li>
+            {% if request.user.is_staff %}<li><a class="dropdown-item" href="{% url 'salon_digital:bandeja' %}">Revisión de docentes</a></li>{% endif %}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-muted" href="{% url 'salon_digital:salir' %}">Salir</a></li>
+          </ul>
+        </li>
+      </ul>
     </div>
+    {% elif not hide_cuenta %}
+    <div class="d-flex align-items-center gap-2">
+      <a class="btn btn-sm btn-outline-primary" href="{% url 'salon_digital:entrar' %}">Entrar</a>
+      <a class="btn btn-sm btn-primary" href="{% url 'salon_digital:registro' %}">Crear cuenta</a>
+    </div>
+    {% endif %}
   </div>
 </nav>
 
@@ -71,7 +90,7 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
 
 <footer class="pie">
   <div class="container d-flex justify-content-between flex-wrap gap-2">
-    <span>Salón Digital · mcolegio.com.co</span>
+    <span>Mi Salón Virtual · mcolegio.com.co</span>
     <span>Herramientas para docentes</span>
   </div>
 </footer>

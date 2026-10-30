@@ -466,68 +466,93 @@ def componentes_de(aula):
 
 
 @transaction.atomic
-def pasar_a_planilla(tarea):
-    """Copia las notas calificadas de la tarea a su columna en la planilla. Devuelve (pasadas, error)."""
-    aula = tarea.aula
+def pasar_notas_a_planilla(aula, periodo, componente, titulo, pares):
+    """Pone las notas [(estudiante, nota)] en la columna «titulo» del componente. (pasadas, error)."""
     if not aula.asignacion_id:
         return 0, 'Esta aula no tiene planilla del colegio.'
-    if not tarea.periodo_id or not tarea.componente:
-        return 0, 'Escoja el periodo y el componente de la tarea antes de pasarla a la planilla.'
-    if not tarea.periodo.esta_activo:
-        return 0, f'El {tarea.periodo} está cerrado: la planilla no recibe notas.'
+    if periodo is None or not componente:
+        return 0, 'Escoja el periodo y el componente antes de pasar las notas a la planilla.'
+    if not periodo.esta_activo:
+        return 0, f'El {periodo} está cerrado: la planilla no recibe notas.'
     from notas.planillas.columnas import (columnas_del_plan, componentes_activos, guardar_plan,
                                           limpiar_columnas, notas_guardadas)
     from notas.planillas.guardar import guardar_estudiante
     asig = aula.asignacion
     activos = [c for c, _, _ in componentes_activos(asig)]
-    if tarea.componente not in activos:
+    if componente not in activos:
         return 0, 'Ese componente no cuenta en esta asignatura.'
-    columna = limpiar_columnas([tarea.titulo])[0]
-
-    entregas = [e for e in tarea.entregas.filter(estudiante__isnull=False, nota__isnull=False)
-                .select_related('estudiante')]
-    if not entregas:
-        return 0, 'Todavía no hay entregas calificadas.'
-
-    columnas = columnas_del_plan(asig, tarea.periodo, tarea.componente)
+    pares = [(e, n) for e, n in pares if e is not None and n is not None]
+    if not pares:
+        return 0, 'Todavía no hay notas para pasar.'
+    columna = limpiar_columnas([titulo])[0]
+    columnas = columnas_del_plan(asig, periodo, componente)
     if columna not in columnas:
-        guardar_plan(asig, tarea.periodo, tarea.componente, columnas + [columna])
-
+        guardar_plan(asig, periodo, componente, columnas + [columna])
     minima, maxima = rango(aula)
-    pasadas = 0
-    for e in entregas:
+    for estudiante, valor in pares:
         por_componente = {}
         for codigo in activos:
-            notas = notas_guardadas(asig, tarea.periodo, codigo, [e.estudiante]).get(e.estudiante.id, [])
-            if codigo == tarea.componente:
+            notas = notas_guardadas(asig, periodo, codigo, [estudiante]).get(estudiante.id, [])
+            if codigo == componente:
                 notas = [(d, v) for d, v in notas if d != columna]
-                notas.append((columna, max(minima, min(maxima, e.nota))))
+                notas.append((columna, max(minima, min(maxima, valor))))
             por_componente[codigo] = notas
-        guardar_estudiante(aula.colegio, asig, tarea.periodo, e.estudiante, por_componente)
-        pasadas += 1
-    tarea.pasada_planilla = timezone.now()
-    tarea.save(update_fields=['pasada_planilla'])
-    return pasadas, ''
+        guardar_estudiante(aula.colegio, asig, periodo, estudiante, por_componente)
+    return len(pares), ''
+
+
+def pasar_a_planilla(tarea):
+    """Copia las notas calificadas de la tarea a su columna en la planilla. Devuelve (pasadas, error)."""
+    pares = [(e.estudiante, e.nota) for e in tarea.entregas.filter(estudiante__isnull=False, nota__isnull=False)
+             .select_related('estudiante')]
+    n, error = pasar_notas_a_planilla(tarea.aula, tarea.periodo, tarea.componente, tarea.titulo, pares)
+    if n:
+        tarea.pasada_planilla = timezone.now()
+        tarea.save(update_fields=['pasada_planilla'])
+    return n, error
 
 
 # ---------------------------------------------------------------------------
 # Planilla propia (Salón Digital) y resumen de calificaciones
 # ---------------------------------------------------------------------------
-def tabla_calificaciones(aula):
-    """{'tareas': [...], 'filas': [{'nombre', 'notas': [nota|None…], 'promedio'}]}"""
-    tareas = list(aula.tareas.filter(publicada=True).order_by('creada'))
-    personas = estudiantes(aula)
+def columnas_calificaciones(aula):
+    """Todo lo que da nota en el aula: tareas, actividades que califican y cuestionarios.
+
+    [{'titulo', 'tipo', 'url', 'notas': {persona_id: nota}}]
+    """
+    from django.urls import reverse
+    from .models import Actividad, ResultadoActividad
     clave = 'integrante_id' if aula.es_salon else 'estudiante_id'
-    notas = {(getattr(e, clave), e.tarea_id): e.nota
-             for e in Entrega.objects.filter(tarea__in=tareas, nota__isnull=False)}
+    columnas = []
+    for t in aula.tareas.filter(publicada=True).order_by('creada'):
+        columnas.append({'titulo': t.titulo, 'tipo': 'Tarea', 'url': reverse('aula:tarea', args=[aula.pk, t.pk]),
+                         'notas': {getattr(e, clave): e.nota for e in t.entregas.filter(nota__isnull=False)}})
+    for a in aula.actividades.filter(publicada=True, califica=True).order_by('creada'):
+        columnas.append({'titulo': a.titulo, 'tipo': 'Actividad',
+                         'url': reverse('aula:actividad', args=[aula.pk, a.pk]),
+                         'notas': {getattr(r, clave): r.nota for r in a.resultados.all()}})
+    from . import juegos
+    for q in aula.cuestionarios.order_by('creado'):
+        mejores = juegos.mejores_notas(q)
+        if not mejores and not q.a_su_ritmo:
+            continue
+        columnas.append({'titulo': q.titulo, 'tipo': 'Cuestionario',
+                         'url': reverse('aula:cuestionario', args=[aula.pk, q.pk]),
+                         'notas': {(k[1] if aula.es_salon else k[0]): it.nota for k, it in mejores.items()}})
+    return columnas
+
+
+def tabla_calificaciones(aula):
+    """{'columnas': [...], 'filas': [{'nombre', 'notas': [nota|None…], 'promedio', 'desempeno'}]}"""
+    columnas = columnas_calificaciones(aula)
     filas = []
-    for p in personas:
-        fila = [notas.get((p.id, t.id)) for t in tareas]
+    for p in estudiantes(aula):
+        fila = [c['notas'].get(p.id) for c in columnas]
         validas = [n for n in fila if n is not None]
         prom = (sum(validas) / len(validas)).quantize(UN_DECIMAL, rounding=ROUND_HALF_UP) if validas else None
         filas.append({'persona': p, 'nombre': nombre_de(p), 'notas': fila, 'promedio': prom,
                       'desempeno': desempeno(aula, prom) if prom is not None else ''})
-    return {'tareas': tareas, 'filas': filas}
+    return {'columnas': columnas, 'filas': filas}
 
 
 def excel_calificaciones(aula):
@@ -540,7 +565,7 @@ def excel_calificaciones(aula):
     ws.append([f'{aula.titulo} · {aula.subtitulo}'])
     ws['A1'].font = Font(bold=True, size=13)
     ws.append([])
-    ws.append(['N.º', 'Estudiante'] + [t.titulo for t in datos['tareas']] + ['Promedio', 'Desempeño'])
+    ws.append(['N.º', 'Estudiante'] + [c['titulo'] for c in datos['columnas']] + ['Promedio', 'Desempeño'])
     for c in ws[3]:
         c.font = Font(bold=True, color='FFFFFF')
         c.fill = PatternFill('solid', start_color='1F3A68')

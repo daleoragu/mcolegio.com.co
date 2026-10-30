@@ -7,6 +7,13 @@
   <div class="col-lg-8">
     {% if aula.bienvenida %}<div class="au-tarjeta py-2"><i class="fas fa-hand-sparkles me-2 text-warning"></i>{{ aula.bienvenida }}</div>{% endif %}
 
+    {% for s in vivos %}
+    <div class="au-vivo" style="border-color:#198754">
+        <a class="btn btn-vivo ahora" href="{% url 'aula:vivo' aula.pk s.pk %}"><i class="fas fa-bolt me-1"></i>{% if c.es_docente %}Volver al juego en vivo{% else %}¡Unirme al juego!{% endif %}</a>
+        <span class="fw-semibold">{{ s.cuestionario.titulo }}</span>
+    </div>
+    {% endfor %}
+
     {% if aula.enlace_clase %}
     <div class="au-vivo">
         <a class="btn btn-vivo {% for h in horario %}{% if h.ahora %}ahora{% endif %}{% endfor %}" href="{{ aula.enlace_clase }}" target="_blank" rel="noopener"><i class="fas fa-video me-1"></i>Unirse a la clase en vivo</a>

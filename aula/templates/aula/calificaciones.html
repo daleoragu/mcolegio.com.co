@@ -11,7 +11,7 @@
     {% if not aula.es_salon %}<p class="small text-muted">Estas son las notas de las tareas del aula. Para que cuenten en el boletín, use «Pasar a la planilla» en cada tarea.</p>
     {% else %}<p class="small text-muted">Su planilla del grupo, con <a href="{% url 'aula:escala' %}">su escala de valoración</a>. Descárguela en Excel para pasarla a la plataforma de su colegio.</p>{% endif %}
     <div class="table-responsive"><table class="table table-sm table-bordered align-middle mb-0">
-        <thead class="table-light"><tr><th>#</th><th>Estudiante</th>{% for t in tareas %}<th class="small text-center"><a href="{% url 'aula:tarea' aula.pk t.pk %}">{{ t.titulo }}</a></th>{% endfor %}<th class="text-center">Promedio</th><th>Desempeño</th></tr></thead>
+        <thead class="table-light"><tr><th>#</th><th>Estudiante</th>{% for col in columnas %}<th class="small text-center"><a href="{{ col.url }}">{{ col.titulo }}</a><div class="text-muted fw-normal" style="font-size:.7rem">{{ col.tipo }}</div></th>{% endfor %}<th class="text-center">Promedio</th><th>Desempeño</th></tr></thead>
         <tbody>{% for f in filas %}<tr>
             <td class="text-muted">{{ forloop.counter }}</td><td class="text-nowrap">{{ f.nombre }}</td>
             {% for n in f.notas %}<td class="text-center">{% if n is not None %}{{ n|floatformat:1 }}{% endif %}</td>{% endfor %}

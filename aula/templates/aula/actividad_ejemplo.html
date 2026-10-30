@@ -1,0 +1,73 @@
+{% verbatim %}<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Actividad de ejemplo · Mi Salón Virtual</title>
+<!--
+  ACTIVIDAD DE EJEMPLO PARA MI SALÓN VIRTUAL (mcolegio)
+  ----------------------------------------------------
+  Cualquier página HTML puede ser una actividad. Para que la nota llegue sola al aula,
+  al terminar la actividad agregue esta línea (puntaje obtenido y puntaje máximo):
+
+      parent.postMessage({tipo: 'mcolegio-nota', puntaje: 7, maximo: 10}, '*');
+
+  El aula convierte el puntaje a la escala de su colegio (o a la suya en el plan individual)
+  y guarda la mejor nota de cada estudiante. También puede mandar la nota ya calculada:
+
+      parent.postMessage({tipo: 'mcolegio-nota', nota: 4.2}, '*');
+
+  Consejo: puede pedirle a una IA «haz un juego de … en un solo archivo HTML y al final
+  envía el puntaje con parent.postMessage({tipo:'mcolegio-nota', puntaje, maximo}, '*')».
+-->
+<style>
+  body { font-family: system-ui, sans-serif; background:#f5f7fb; margin:0; padding:20px; color:#1d2433; }
+  .caja { max-width:640px; margin:auto; background:#fff; border-radius:14px; padding:20px; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+  h1 { color:#1f3a68; font-size:1.4rem; }
+  .p { margin:14px 0; font-weight:600; }
+  button.op { display:block; width:100%; text-align:left; margin:6px 0; padding:10px 12px; border-radius:10px; border:2px solid #e3e7ef; background:#fff; font-size:1rem; cursor:pointer; }
+  button.op.bien { border-color:#26890c; background:#e6f4ea; } button.op.mal { border-color:#e21b3c; background:#fdecee; }
+  #fin { display:none; text-align:center; font-size:1.3rem; font-weight:800; color:#1f3a68; }
+</style>
+</head>
+<body>
+<div class="caja">
+  <h1>Repaso rápido: fracciones</h1>
+  <div id="preguntas"></div>
+  <div id="fin"></div>
+</div>
+<script>
+var preguntas = [
+  {t: '¿Cuánto es 1/2 + 1/4?', o: ['3/4', '2/6', '1/6'], c: 0},
+  {t: '¿Qué fracción es equivalente a 2/3?', o: ['3/2', '4/6', '2/6'], c: 1},
+  {t: '¿Cuál es mayor?', o: ['3/5', '1/2', '2/5'], c: 0}
+];
+var puntaje = 0, respondidas = 0, caja = document.getElementById('preguntas');
+preguntas.forEach(function (p) {
+  var div = document.createElement('div');
+  div.innerHTML = '<div class="p">' + p.t + '</div>';
+  p.o.forEach(function (texto, i) {
+    var b = document.createElement('button');
+    b.className = 'op'; b.textContent = texto;
+    b.onclick = function () {
+      div.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
+      b.classList.add(i === p.c ? 'bien' : 'mal');
+      if (i === p.c) puntaje++;
+      respondidas++;
+      if (respondidas === preguntas.length) terminar();
+    };
+    div.appendChild(b);
+  });
+  caja.appendChild(div);
+});
+function terminar() {
+  var fin = document.getElementById('fin');
+  fin.style.display = 'block';
+  fin.textContent = 'Obtuvo ' + puntaje + ' de ' + preguntas.length;
+  // ↓↓↓ Esta es la línea que manda la nota al aula ↓↓↓
+  parent.postMessage({tipo: 'mcolegio-nota', puntaje: puntaje, maximo: preguntas.length}, '*');
+}
+</script>
+</body>
+</html>
+{% endverbatim %}
