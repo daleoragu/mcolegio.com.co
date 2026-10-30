@@ -1,0 +1,53 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="row g-3">
+  <div class="{% if c.es_docente %}col-lg-8{% else %}col-12{% endif %}">
+    {% for unidad, lista in grupos.items %}
+    <div class="au-tarjeta">
+        <h6><i class="far fa-folder me-1"></i>{{ unidad }}</h6>
+        {% for m in lista %}
+        <div class="border-bottom py-2">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <div><strong>{{ m.titulo }}</strong>{% if m.descripcion %}<div class="small text-muted">{{ m.descripcion }}</div>{% endif %}</div>
+                {% if c.es_docente %}
+                <form method="post" action="{% url 'aula:material_eliminar' aula.pk m.pk %}" onsubmit="return confirm('¿Eliminar este material?')">{% csrf_token %}
+                    <button class="btn btn-sm btn-link text-danger" aria-label="Eliminar"><i class="far fa-trash-can"></i></button></form>
+                {% endif %}
+            </div>
+            {% if m.youtube_id %}
+                <div class="ratio ratio-16x9 mt-2" style="max-width:560px"><iframe src="https://www.youtube-nocookie.com/embed/{{ m.youtube_id }}" title="{{ m.titulo }}" allowfullscreen loading="lazy"></iframe></div>
+            {% elif m.enlace %}
+                <a class="au-adjunto" href="{{ m.enlace }}" target="_blank" rel="noopener"><i class="fas fa-link"></i><span class="text-truncate">{{ m.enlace }}</span></a>
+            {% endif %}
+            {% include 'aula/_adjunto.html' with obj=m tipo='mat' %}
+        </div>
+        {% endfor %}
+    </div>
+    {% empty %}
+    <div class="au-tarjeta text-center text-muted py-4">Todavía no hay material.</div>
+    {% endfor %}
+  </div>
+  {% if c.es_docente %}
+  <div class="col-lg-4">
+    <form method="post" enctype="multipart/form-data" class="au-tarjeta">
+        {% csrf_token %}
+        <h6><i class="fas fa-plus me-1"></i>Agregar material</h6>
+        <input name="titulo" class="form-control mb-2" maxlength="150" placeholder="Título" required>
+        <input name="unidad" class="form-control mb-2" maxlength="80" placeholder="Unidad o tema (opcional)" list="au-unidades">
+        <datalist id="au-unidades">{% for u in unidades %}<option value="{{ u }}">{% endfor %}</datalist>
+        <input name="descripcion" class="form-control mb-2" maxlength="300" placeholder="Descripción corta (opcional)">
+        <label class="form-label small fw-bold mb-1">Archivo (hasta 10 MB)</label>
+        <input type="file" name="archivo" class="form-control mb-2">
+        <label class="form-label small fw-bold mb-1">o un enlace</label>
+        <input type="url" name="enlace" class="form-control mb-2" placeholder="YouTube, Drive, una página…">
+        <div class="form-text mb-2">Los videos de YouTube se ven dentro del aula. Para videos largos use YouTube (no listado) o Drive.</div>
+        <button class="btn au-oro w-100">Agregar</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+</div>
+{% endblock %}

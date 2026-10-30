@@ -1,0 +1,9 @@
+{# obj: Publicacion/Material/Tarea con archivo; tipo: 'pub'|'mat'|'tarea' #}
+{% if obj.archivo %}
+<a class="au-adjunto" href="{% url 'aula:archivo' aula.pk tipo obj.pk %}" target="_blank" rel="noopener">
+    <i class="far {% if obj.es_html %}fa-file-code{% elif '.pdf' in obj.nombre_archivo|lower %}fa-file-pdf{% elif obj.es_imagen %}fa-file-image{% else %}fa-file-lines{% endif %}"></i>
+    <span class="flex-grow-1"><strong>{{ obj.nombre_archivo|default:"Archivo" }}</strong><br>
+        <small class="text-muted">{% if obj.es_html %}Actividad interactiva · se abre en otra pestaña{% else %}Abrir o descargar{% endif %}</small></span>
+    {% if obj.es_html %}<span class="btn btn-sm au-oro">Abrir actividad</span>{% endif %}
+</a>
+{% endif %}

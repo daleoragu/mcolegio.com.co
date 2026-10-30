@@ -1,0 +1,61 @@
+{% extends base %}
+{% block page_title %}
+<h4 class="mb-0"><i class="fas fa-list-check me-2"></i>Rúbricas y listas de chequeo</h4>
+<p class="text-muted small mb-0">Sus instrumentos de evaluación. Se usan en las tareas del aula y se califican con un clic.</p>
+{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au">
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="au-tarjeta">
+        <h6>Mis instrumentos</h6>
+        {% for i in mios %}
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+            <div><a href="{% url 'aula:instrumento' i.pk %}" class="fw-semibold text-decoration-none">{{ i.nombre }}</a>
+                <div class="small text-muted">{{ i.get_tipo_display }} · {{ i.criterios.count }} criterio(s){% if i.compartido %} · compartido con el colegio{% endif %}</div></div>
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'aula:instrumento' i.pk %}">Abrir</a>
+        </div>
+        {% empty %}<p class="text-muted mb-0">Todavía no tiene. Empiece con una plantilla o importe la tabla que ya tiene.</p>{% endfor %}
+    </div>
+    {% if compartidos %}
+    <div class="au-tarjeta">
+        <h6>Compartidos por otros docentes del colegio</h6>
+        {% for i in compartidos %}
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+            <div><a href="{% url 'aula:instrumento' i.pk %}" class="fw-semibold text-decoration-none">{{ i.nombre }}</a>
+                <div class="small text-muted">{{ i.get_tipo_display }} · {{ i.propietario.get_full_name }}</div></div>
+            <form method="post" action="{% url 'aula:instrumento_accion' i.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" name="accion" value="duplicar">Usar una copia</button></form>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="col-lg-5">
+    <form method="post" class="au-tarjeta">{% csrf_token %}
+        <h6><i class="fas fa-wand-magic-sparkles me-1"></i>Empezar con una plantilla</h6>
+        <select name="plantilla" class="form-select mb-2">
+            {% for clave, p in plantillas.items %}<option value="{{ clave }}">{{ p.0 }} ({% if p.1 == 'lista' %}lista de chequeo{% else %}rúbrica{% endif %})</option>{% endfor %}
+        </select>
+        <div class="form-text mb-2">Trae criterios y descriptores sugeridos; usted los ajusta.</div>
+        <button class="btn au-oro w-100" name="accion" value="plantilla">Crear desde la plantilla</button>
+    </form>
+    <form method="post" class="au-tarjeta">{% csrf_token %}
+        <h6><i class="far fa-square-plus me-1"></i>En blanco</h6>
+        <div class="d-flex gap-2"><select name="tipo" class="form-select"><option value="rubrica">Rúbrica</option><option value="lista">Lista de chequeo</option></select>
+            <button class="btn btn-outline-primary" name="accion" value="blanco">Crear</button></div>
+    </form>
+    <form method="post" enctype="multipart/form-data" class="au-tarjeta">{% csrf_token %}
+        <h6><i class="fas fa-file-import me-1"></i>Importar (Excel, RubiStar, Word)</h6>
+        <input name="nombre" class="form-control mb-2" placeholder="Nombre de la rúbrica">
+        <label class="form-label small fw-bold mb-1">Archivo de Excel (.xlsx)</label>
+        <input type="file" name="archivo" accept=".xlsx" class="form-control mb-2">
+        <label class="form-label small fw-bold mb-1">o pegue la tabla</label>
+        <textarea name="tabla" rows="5" class="form-control mb-1" placeholder="Copie la tabla de RubiStar, Word o Excel y péguela aquí"></textarea>
+        <div class="form-text mb-2">Primera fila: <em>Criterio</em>, una columna opcional <em>Peso</em> y un encabezado por nivel (4, 3, 2, 1 o Superior, Alto…). Sin columnas de nivel queda como lista de chequeo.</div>
+        <button class="btn btn-outline-primary w-100" name="accion" value="importar">Importar</button>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}

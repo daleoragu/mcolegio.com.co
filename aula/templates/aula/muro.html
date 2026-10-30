@@ -1,0 +1,98 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="row g-3">
+  <div class="col-lg-8">
+    {% if aula.bienvenida %}<div class="au-tarjeta py-2"><i class="fas fa-hand-sparkles me-2 text-warning"></i>{{ aula.bienvenida }}</div>{% endif %}
+
+    {% if aula.enlace_clase %}
+    <div class="au-vivo">
+        <a class="btn btn-vivo {% for h in horario %}{% if h.ahora %}ahora{% endif %}{% endfor %}" href="{{ aula.enlace_clase }}" target="_blank" rel="noopener"><i class="fas fa-video me-1"></i>Unirse a la clase en vivo</a>
+        <span class="text-muted small">{{ aula.plataforma_nombre }}{% for h in horario %}{% if h.hoy %} · Hoy {{ h.texto }}{% endif %}{% endfor %}</span>
+    </div>
+    {% endif %}
+
+    {% if c.es_docente %}
+    <form method="post" enctype="multipart/form-data" class="au-tarjeta">
+        {% csrf_token %}
+        <h6><i class="fas fa-bullhorn me-1"></i>Publicar en el muro</h6>
+        <textarea name="texto" rows="3" class="form-control mb-2" placeholder="Escriba un anuncio, una indicación o comparta una guía…"></textarea>
+        <div class="row g-2">
+            <div class="col-md-6"><input type="url" name="enlace" class="form-control form-control-sm" placeholder="Enlace (opcional): video, Drive, página…"></div>
+            <div class="col-md-6"><input type="file" name="archivo" class="form-control form-control-sm"></div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-2">
+            <small class="text-muted">PDF, imágenes, Word o una actividad HTML · hasta 10 MB. Los estudiantes reciben el aviso en el celular.</small>
+            <button class="btn au-oro btn-sm px-3">Publicar</button>
+        </div>
+    </form>
+    {% endif %}
+
+    {% for p in publicaciones %}
+    <div class="au-pub" id="pub-{{ p.pk }}">
+        <div class="cuerpo">
+            <div class="autor">
+                <div class="au-avatar">{{ p.autor.first_name|first|default:"D" }}</div>
+                <div class="flex-grow-1"><strong>{{ p.autor.get_full_name|default:p.autor.username }}</strong>
+                    <div class="small text-muted">{{ p.creada|date:"d M, h:i a" }}{% if p.fijada %} · <i class="fas fa-thumbtack"></i> Fijada{% endif %}</div></div>
+                {% if c.es_docente %}
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="Opciones"><i class="fas fa-ellipsis"></i></button>
+                    <div class="dropdown-menu dropdown-menu-end">
+                        <form method="post" action="{% url 'aula:moderar' aula.pk p.pk %}">{% csrf_token %}
+                            <button class="dropdown-item" name="accion" value="fijar">{% if p.fijada %}Desfijar{% else %}Fijar arriba{% endif %}</button>
+                            <button class="dropdown-item text-danger" name="accion" value="eliminar" onclick="return confirm('¿Eliminar la publicación?')">Eliminar</button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% if p.texto %}<div style="white-space:pre-line">{{ p.texto|urlize }}</div>{% endif %}
+            {% if p.tarea %}<a class="au-adjunto" href="{% url 'aula:tarea' aula.pk p.tarea.pk %}"><i class="fas fa-clipboard-check"></i><span class="flex-grow-1"><strong>{{ p.tarea.titulo }}</strong><br><small class="text-muted">{% if p.tarea.fecha_limite %}Entrega: {{ p.tarea.fecha_limite|date:"d M, h:i a" }}{% else %}Sin fecha límite{% endif %}</small></span><span class="btn btn-sm au-oro">Ver tarea</span></a>{% endif %}
+            {% if p.enlace %}<a class="au-adjunto" href="{{ p.enlace }}" target="_blank" rel="noopener"><i class="fas fa-link"></i><span class="text-truncate">{{ p.enlace }}</span></a>{% endif %}
+            {% include 'aula/_adjunto.html' with obj=p tipo='pub' %}
+        </div>
+        <div class="au-comentarios">
+            {% for k in p.visibles %}
+            <div class="au-com {% if k.oculto %}oculto{% endif %}">
+                <strong>{{ k.nombre }}:</strong> {{ k.texto }}
+                {% if c.es_docente %}
+                <form method="post" action="{% url 'aula:moderar' aula.pk p.pk %}" class="d-inline">{% csrf_token %}
+                    <input type="hidden" name="comentario" value="{{ k.pk }}">
+                    <button class="btn btn-link btn-sm p-0 ms-1 text-muted" name="accion" value="ocultar">{% if k.oculto %}mostrar{% else %}ocultar{% endif %}</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% if c.es_docente or aula.comentarios_activos %}
+            <form method="post" action="{% url 'aula:comentar' aula.pk p.pk %}" class="d-flex gap-2 mt-1">{% csrf_token %}
+                <input name="texto" class="form-control form-control-sm" maxlength="1000" placeholder="Escriba un comentario…" required>
+                <button class="btn btn-sm btn-outline-primary">Enviar</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="au-tarjeta text-center text-muted py-4">{% if c.es_docente %}Todavía no hay publicaciones. Escriba la primera: una bienvenida o la guía de la semana.{% else %}El docente todavía no ha publicado nada.{% endif %}</div>
+    {% endfor %}
+  </div>
+
+  <div class="col-lg-4">
+    <div class="au-tarjeta">
+        <h6><i class="far fa-calendar-check me-1"></i>Próximas entregas</h6>
+        {% for t in proximas %}
+            <div class="border-start border-3 border-warning ps-2 mb-2"><a href="{% url 'aula:tarea' aula.pk t.pk %}" class="fw-semibold text-decoration-none">{{ t.titulo }}</a><br><small class="text-muted">{{ t.fecha_limite|date:"l d M, h:i a" }}</small></div>
+        {% empty %}<p class="text-muted small mb-0">No hay entregas pendientes.</p>{% endfor %}
+    </div>
+    {% if horario %}
+    <div class="au-tarjeta">
+        <h6><i class="far fa-clock me-1"></i>Horario de la clase</h6>
+        {% for h in horario %}<div class="small {% if h.hoy %}fw-bold{% endif %}">{{ h.dia }} · {{ h.texto }}{% if h.ahora %} <span class="au-chip ok">ahora</span>{% endif %}</div>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+</div>
+{% endblock %}

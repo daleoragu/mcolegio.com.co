@@ -1,0 +1,57 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="au-tarjeta text-center py-4">
+        {% if aula.enlace_clase %}
+            <div class="mb-2 text-muted">Clase en {{ aula.plataforma_nombre|default:"línea" }}</div>
+            <a class="btn btn-lg btn-success px-4 fw-bold {% for h in horario %}{% if h.ahora %}au-vivo-ahora{% endif %}{% endfor %}" href="{{ aula.enlace_clase }}" target="_blank" rel="noopener"><i class="fas fa-video me-2"></i>Unirse a la clase</a>
+            {% if aula.nota_clase %}<p class="mt-3 mb-0">{{ aula.nota_clase }}</p>{% endif %}
+        {% else %}
+            <i class="fas fa-video-slash fa-2x text-muted mb-2"></i>
+            <p class="text-muted mb-0">{% if c.es_docente %}Pegue abajo el enlace de su clase de Meet, Zoom o Teams.{% else %}El docente todavía no ha puesto el enlace de la clase en vivo.{% endif %}</p>
+        {% endif %}
+    </div>
+    {% if horario %}
+    <div class="au-tarjeta">
+        <h6><i class="far fa-clock me-1"></i>Horario</h6>
+        <p class="small text-muted">Según el horario publicado del colegio. El botón se resalta 10 minutos antes de cada clase.</p>
+        <ul class="mb-0">{% for h in horario %}<li class="{% if h.hoy %}fw-bold{% endif %}">{{ h.dia }} · {{ h.texto }}{% if h.ahora %} <span class="au-chip ok">ahora</span>{% endif %}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+  </div>
+  {% if c.es_docente %}
+  <div class="col-lg-5">
+    <form method="post" class="au-tarjeta">
+        {% csrf_token %}
+        <h6><i class="fas fa-gear me-1"></i>Ajustes del aula</h6>
+        <label class="form-label small fw-bold">Enlace de la clase en vivo</label>
+        <input type="url" name="enlace_clase" class="form-control mb-1" value="{{ aula.enlace_clase }}" placeholder="https://meet.google.com/abc-defg-hij">
+        <div class="form-text mb-2">El enlace fijo de su reunión. Sirve Google Meet, Zoom, Teams o Jitsi (gratis y sin cuenta: meet.jit.si/NombreDeSuClase).</div>
+        <label class="form-label small fw-bold">Indicaciones para la clase</label>
+        <input name="nota_clase" class="form-control mb-2" maxlength="200" value="{{ aula.nota_clase }}" placeholder="Ej.: entrar con el nombre completo">
+        <label class="form-label small fw-bold">Mensaje de bienvenida del muro</label>
+        <input name="bienvenida" class="form-control mb-2" maxlength="200" value="{{ aula.bienvenida }}">
+        <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" name="comentarios_activos" id="au-com" {% if aula.comentarios_activos %}checked{% endif %}>
+            <label class="form-check-label" for="au-com">Los estudiantes pueden comentar en el muro</label>
+        </div>
+        {% if not aula.es_salon %}
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="avisar" id="au-avisar">
+            <label class="form-check-label" for="au-avisar">Avisar ahora a los estudiantes que la clase va a empezar</label>
+        </div>
+        {% else %}
+        <div class="alert alert-light border small">Sus estudiantes entran al aula con el código <strong>{{ aula.grupo.codigo }}</strong> en
+            <code>{{ request.scheme }}://{{ request.get_host }}{% url 'aula:entrar' aula.pk %}</code></div>
+        {% endif %}
+        <button class="btn au-oro">Guardar</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+</div>
+{% endblock %}

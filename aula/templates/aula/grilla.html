@@ -1,0 +1,34 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<form method="post" class="au-tarjeta">
+    {% csrf_token %}
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <h6 class="mb-0">{{ t.titulo }} · {{ inst.nombre }}</h6>
+        <div class="d-flex gap-2"><a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:tarea' aula.pk t.pk %}">Cancelar</a><button class="btn btn-sm au-oro px-3">Guardar todo</button></div>
+    </div>
+    <p class="small text-muted">Para exposiciones o trabajo en clase: escoja un nivel por criterio. Solo quedan calificados los estudiantes con todos los criterios marcados.</p>
+    <div class="table-responsive"><table class="table table-sm align-middle">
+        <thead class="table-light"><tr><th>Estudiante</th>{% for cr in criterios %}<th class="small" style="min-width:120px">{{ cr.nombre }}</th>{% endfor %}<th class="text-center">Nota</th></tr></thead>
+        <tbody>{% for f in filas %}<tr>
+            <td class="text-nowrap">{{ f.nombre }}</td>
+            {% for celda in f.celdas %}<td>
+                <select name="{{ f.clave }}-{{ celda.criterio.pk }}" class="form-select form-select-sm">
+                    <option value="">—</option>
+                    {% if inst.tipo == 'lista' %}
+                        <option value="si" {% if celda.valor is True %}selected{% endif %}>Sí</option>
+                        <option value="no" {% if celda.valor is False %}selected{% endif %}>No</option>
+                    {% else %}
+                        {% for n in niveles %}<option value="{{ n.pk }}" {% if celda.valor|stringformat:'s' == n.pk|stringformat:'s' %}selected{% endif %}>{{ n.nombre }}</option>{% endfor %}
+                    {% endif %}
+                </select>
+            </td>{% endfor %}
+            <td class="text-center fw-bold">{% if f.nota is not None %}{{ f.nota|floatformat:1 }}{% endif %}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    <button class="btn au-oro">Guardar todo</button>
+</form>
+</div>
+{% endblock %}

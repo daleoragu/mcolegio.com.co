@@ -1,0 +1,23 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="au-tarjeta">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <h6 class="mb-0">Calificaciones del aula</h6>
+        <a class="btn btn-sm btn-success" href="?formato=excel"><i class="fas fa-file-excel me-1"></i>Descargar en Excel</a>
+    </div>
+    {% if not aula.es_salon %}<p class="small text-muted">Estas son las notas de las tareas del aula. Para que cuenten en el boletín, use «Pasar a la planilla» en cada tarea.</p>
+    {% else %}<p class="small text-muted">Su planilla del grupo. Descárguela en Excel para pasarla a la plataforma de su colegio.</p>{% endif %}
+    <div class="table-responsive"><table class="table table-sm table-bordered align-middle mb-0">
+        <thead class="table-light"><tr><th>#</th><th>Estudiante</th>{% for t in tareas %}<th class="small text-center"><a href="{% url 'aula:tarea' aula.pk t.pk %}">{{ t.titulo }}</a></th>{% endfor %}<th class="text-center">Promedio</th></tr></thead>
+        <tbody>{% for f in filas %}<tr>
+            <td class="text-muted">{{ forloop.counter }}</td><td class="text-nowrap">{{ f.nombre }}</td>
+            {% for n in f.notas %}<td class="text-center">{% if n is not None %}{{ n|floatformat:1 }}{% endif %}</td>{% endfor %}
+            <td class="text-center fw-bold">{% if f.promedio is not None %}{{ f.promedio|floatformat:1 }}{% endif %}</td>
+        </tr>{% empty %}<tr><td colspan="3" class="text-muted text-center py-3">No hay estudiantes.</td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+</div>
+{% endblock %}

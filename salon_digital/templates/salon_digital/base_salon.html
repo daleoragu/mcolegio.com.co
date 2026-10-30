@@ -41,6 +41,7 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
       {% if request.user.cuenta_salon %}
         <a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:panel' %}">Mis páginas</a>
         <a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:grupos' %}">Grupos</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:inicio' %}">Aulas</a>
         <a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:ayuda' %}">Ayuda</a>
         <a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:mi_cuenta' %}">Mi cuenta</a>
         {% if request.user.is_staff %}

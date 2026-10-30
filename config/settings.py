@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'simat',           # <--- Exportar / importar SIMAT
     'horarios',        # <--- Horarios de clase (generador: plan Premium)
     'calendario',      # <--- Calendario escolar
+    'aula',            # <--- Aula virtual (mcolegio por asignación y Salón Digital por grupo)
 ]
 
 MIDDLEWARE = [

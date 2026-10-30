@@ -1,0 +1,36 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+{% if c.es_docente %}
+<div class="d-flex justify-content-end mb-2 gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'aula:instrumentos' %}"><i class="fas fa-list-check me-1"></i>Rúbricas y listas</a>
+    <a class="btn au-oro" href="{% url 'aula:tarea_nueva' aula.pk %}"><i class="fas fa-plus me-1"></i>Nueva tarea</a>
+</div>
+{% endif %}
+<div class="au-tarjeta p-0">
+<div class="table-responsive"><table class="table align-middle mb-0">
+    <thead class="table-light"><tr><th>Tarea</th><th>Entrega</th><th>Cómo se califica</th>
+        {% if c.es_docente %}<th class="text-center">Entregadas</th><th class="text-center">Calificadas</th>{% else %}<th>Estado</th><th class="text-center">Nota</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for t in tareas %}
+    <tr>
+        <td><a href="{% url 'aula:tarea' aula.pk t.pk %}" class="fw-semibold text-decoration-none">{{ t.titulo }}</a>{% if not t.publicada %} <span class="au-chip gris">borrador</span>{% endif %}
+            {% if t.pasada_planilla %}<div class="small text-success"><i class="fas fa-check"></i> En la planilla</div>{% endif %}</td>
+        <td class="small">{% if t.fecha_limite %}{{ t.fecha_limite|date:"d M, h:i a" }}{% if t.vencida %} <span class="au-chip gris">cerrada</span>{% endif %}{% else %}—{% endif %}</td>
+        <td class="small">{{ t.instrumento.nombre|default:"Nota directa" }}</td>
+        {% if c.es_docente %}
+            <td class="text-center">{{ t.n_entregas }} / {{ t.total }}</td>
+            <td class="text-center">{{ t.n_calificadas }}</td>
+        {% else %}
+            <td>{% if t.mia.estado == 'calificada' %}<span class="au-chip ok">Calificada</span>{% elif t.mia.estado == 'devuelta' %}<span class="au-chip mal">Corregir</span>{% elif t.mia.entregada %}<span class="au-chip ok">Entregada</span>{% elif t.vencida and not t.acepta_tardias %}<span class="au-chip mal">No entregada</span>{% else %}<span class="au-chip pend">Pendiente</span>{% endif %}</td>
+            <td class="text-center fw-bold">{{ t.mia.nota|default:"" }}</td>
+        {% endif %}
+    </tr>
+    {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">No hay tareas.</td></tr>{% endfor %}
+    </tbody>
+</table></div>
+</div>
+</div>
+{% endblock %}

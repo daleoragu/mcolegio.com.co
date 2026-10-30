@@ -1,0 +1,23 @@
+{% include 'aula/_estilos.html' %}
+<div class="au">
+<div class="au-cabecera">
+    <div class="au-icono"><i class="fas fa-chalkboard-user"></i></div>
+    <div class="flex-grow-1">
+        <h4>{{ aula.titulo }}</h4>
+        <div class="sub">{{ aula.subtitulo }}{% if not c.es_docente %} · {{ c.nombre }}{% endif %}</div>
+    </div>
+    {% if c.es_docente %}
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:instrumentos' %}"><i class="fas fa-list-check me-1"></i>Mis rúbricas</a>
+    {% elif c.integrante %}
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:salir' aula.pk %}">No soy {{ c.integrante.nombres }}</a>
+    {% endif %}
+    {% if not aula.es_salon %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:inicio' %}"><i class="fas fa-grip me-1"></i>Mis clases</a>{% endif %}
+</div>
+<nav class="au-pestanas">
+    <a href="{% url 'aula:muro' aula.pk %}" class="{% if pestana == 'muro' %}activa{% endif %}"><i class="far fa-comments me-1"></i>Muro</a>
+    <a href="{% url 'aula:clase' aula.pk %}" class="{% if pestana == 'clase' %}activa{% endif %}"><i class="fas fa-video me-1"></i>Clase en vivo</a>
+    <a href="{% url 'aula:material' aula.pk %}" class="{% if pestana == 'material' %}activa{% endif %}"><i class="far fa-folder-open me-1"></i>Material</a>
+    <a href="{% url 'aula:tareas' aula.pk %}" class="{% if pestana == 'tareas' %}activa{% endif %}"><i class="fas fa-clipboard-check me-1"></i>Tareas</a>
+    {% if c.es_docente %}<a href="{% url 'aula:calificaciones' aula.pk %}" class="{% if pestana == 'calificaciones' %}activa{% endif %}"><i class="fas fa-table me-1"></i>Calificaciones</a>{% endif %}
+</nav>
+</div>

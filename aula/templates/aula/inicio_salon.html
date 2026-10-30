@@ -1,0 +1,23 @@
+{% extends base %}
+{% block page_title %}<h2 class="mb-0">Mis aulas</h2><p class="text-muted mb-0">Un aula por grupo: muro, clase en vivo, material, tareas con rúbrica y su planilla.</p>{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au">
+<div class="d-flex justify-content-end gap-2 mb-2">
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:instrumentos' %}">Mis rúbricas</a>
+    <a class="btn btn-sm btn-outline-primary" href="{% url 'salon_digital:nuevo_grupo' %}">Nuevo grupo</a>
+</div>
+<div class="row g-3">
+{% for g in grupos %}
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'aula:por_grupo' g.pk %}" class="au-tarjeta d-flex align-items-center gap-3 text-decoration-none h-100 mb-0">
+        <div class="au-icono"><i class="fas fa-users"></i></div>
+        <div><div class="fw-bold">{{ g.nombre }}</div><div class="small text-muted">{{ g.total_integrantes }} estudiante(s) · código {{ g.codigo }}</div></div>
+    </a>
+  </div>
+{% empty %}
+  <div class="col-12"><div class="au-tarjeta text-center text-muted py-4">Cree un grupo con la lista de sus estudiantes para abrir su aula.</div></div>
+{% endfor %}
+</div>
+</div>
+{% endblock %}
