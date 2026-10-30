@@ -52,6 +52,7 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
         <li class="nav-item"><a class="nav-link {% if request.resolver_match.app_name == 'aula' and request.resolver_match.url_name != 'instrumentos' and request.resolver_match.url_name != 'instrumento' and request.resolver_match.url_name != 'escala' %}activo{% endif %}" href="{% url 'aula:inicio' %}">Mis aulas</a></li>
         <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'grupos' or request.resolver_match.url_name == 'ver_grupo' %}activo{% endif %}" href="{% url 'salon_digital:grupos' %}">Grupos</a></li>
         <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'panel' %}activo{% endif %}" href="{% url 'salon_digital:panel' %}">Actividades y pruebas</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.resolver_match.app_name == 'puntoexacto' %}activo{% endif %}" href="{% url 'puntoexacto:lista' %}">Exámenes</a></li>
         <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'instrumentos' or request.resolver_match.url_name == 'instrumento' %}activo{% endif %}" href="{% url 'aula:instrumentos' %}">Rúbricas</a></li>
         <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'escala' %}activo{% endif %}" href="{% url 'aula:escala' %}">Mi escala</a></li>
         <li class="nav-item dropdown">

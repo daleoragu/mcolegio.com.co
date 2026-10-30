@@ -5,20 +5,70 @@
 <div class="au">
 <div class="au-tarjeta">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-        <h6 class="mb-0">Calificaciones del aula</h6>
-        <a class="btn btn-sm btn-success" href="?formato=excel"><i class="fas fa-file-excel me-1"></i>Descargar en Excel</a>
+        <h6 class="mb-0">{% if aula.es_salon %}Planilla del grupo{% else %}Calificaciones del aula{% endif %}</h6>
+        <div class="d-flex gap-2 flex-wrap">
+            {% if aula.es_salon %}
+            <form method="post" class="d-flex gap-1">{% csrf_token %}
+                <input type="hidden" name="accion" value="agregar">
+                <input name="titulo" class="form-control form-control-sm" maxlength="60" placeholder="Nueva columna (quiz, exposición…)" required style="width:230px">
+                <button class="btn btn-sm btn-outline-primary text-nowrap"><i class="fas fa-plus me-1"></i>Columna</button>
+            </form>
+            {% endif %}
+            <a class="btn btn-sm btn-success" href="?formato=excel"><i class="fas fa-file-excel me-1"></i>Descargar en Excel</a>
+        </div>
     </div>
-    {% if not aula.es_salon %}<p class="small text-muted">Estas son las notas de las tareas del aula. Para que cuenten en el boletín, use «Pasar a la planilla» en cada tarea.</p>
-    {% else %}<p class="small text-muted">Su planilla del grupo, con <a href="{% url 'aula:escala' %}">su escala de valoración</a>. Descárguela en Excel para pasarla a la plataforma de su colegio.</p>{% endif %}
+    {% if not aula.es_salon %}<p class="small text-muted">Estas son las notas del aula: tareas, actividades, cuestionarios y exámenes PuntoExacto. Para que cuenten en el boletín, use «Pasar a la planilla» en cada una.</p>
+    {% else %}<p class="small text-muted mb-2">Las tareas, actividades, cuestionarios y exámenes entran solos. Agregue columnas para las notas que pone a mano y dele a cada columna su <strong>peso</strong>: el promedio es ponderado (peso 0 = no cuenta). La escala es <a href="{% url 'aula:escala' %}">la suya</a>.</p>{% endif %}
+
+    {% if aula.es_salon %}<form method="post" id="planilla">{% csrf_token %}<input type="hidden" name="accion" value="guardar">{% endif %}
     <div class="table-responsive"><table class="table table-sm table-bordered align-middle mb-0">
-        <thead class="table-light"><tr><th>#</th><th>Estudiante</th>{% for col in columnas %}<th class="small text-center"><a href="{{ col.url }}">{{ col.titulo }}</a><div class="text-muted fw-normal" style="font-size:.7rem">{{ col.tipo }}</div></th>{% endfor %}<th class="text-center">Promedio</th><th>Desempeño</th></tr></thead>
+        <thead class="table-light">
+        <tr><th>#</th><th>Estudiante</th>
+            {% for col in columnas %}<th class="small text-center" style="min-width:86px">
+                {% if col.url %}<a href="{{ col.url }}">{{ col.titulo }}</a>{% else %}{{ col.titulo }}{% endif %}
+                <div class="text-muted fw-normal" style="font-size:.7rem">{{ col.tipo }}</div>
+                {% if col.manual %}<button type="button" class="btn btn-link btn-sm p-0 text-danger" title="Eliminar columna"
+                    onclick="if(confirm('¿Eliminar la columna «{{ col.titulo|escapejs }}» y sus notas?')){var f=document.getElementById('borrar-col');f.columna.value='{{ col.manual.pk }}';f.submit();}"><i class="far fa-trash-can"></i></button>{% endif %}
+            </th>{% endfor %}
+            <th class="text-center">Promedio</th><th>Desempeño</th></tr>
+        {% if aula.es_salon and columnas %}
+        <tr class="small"><td></td><td class="text-end text-muted">Peso</td>
+            {% for col in columnas %}<td class="text-center"><input name="peso-{{ col.clave }}" value="{{ col.peso|floatformat:'-2' }}" class="form-control form-control-sm text-center mx-auto" style="width:60px" inputmode="decimal">
+                <div class="text-muted" style="font-size:.7rem">{{ col.porcentaje }} %</div></td>{% endfor %}
+            <td colspan="2"></td></tr>
+        {% endif %}
+        </thead>
         <tbody>{% for f in filas %}<tr>
             <td class="text-muted">{{ forloop.counter }}</td><td class="text-nowrap">{{ f.nombre }}</td>
-            {% for n in f.notas %}<td class="text-center">{% if n is not None %}{{ n|floatformat:1 }}{% endif %}</td>{% endfor %}
+            {% for col, n in f.celdas %}<td class="text-center">
+                {% if col.manual %}<input name="n-{{ col.manual.pk }}-{{ f.clave }}" value="{% if n is not None %}{{ n|floatformat:'-2' }}{% endif %}" class="form-control form-control-sm text-center mx-auto au-nota" style="width:64px" inputmode="decimal">
+                {% elif n is not None %}{{ n|floatformat:1 }}{% endif %}</td>{% endfor %}
             <td class="text-center fw-bold">{% if f.promedio is not None %}{{ f.promedio|floatformat:1 }}{% endif %}</td>
             <td class="small">{{ f.desempeno }}</td>
         </tr>{% empty %}<tr><td colspan="3" class="text-muted text-center py-3">No hay estudiantes.</td></tr>{% endfor %}</tbody>
     </table></div>
+    {% if aula.es_salon %}
+    <div class="d-flex flex-wrap align-items-center gap-3 mt-3">
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="faltantes_minima" id="faltantes" {% if faltantes_minima %}checked{% endif %}>
+            <label class="form-check-label small" for="faltantes">Contar lo que falta con la nota mínima (si no, lo que falta no cuenta en el promedio)</label></div>
+        <button class="btn au-oro ms-auto px-4">Guardar planilla</button>
+    </div>
+    </form>
+    <form method="post" id="borrar-col" class="d-none">{% csrf_token %}<input type="hidden" name="accion" value="eliminar"><input type="hidden" name="columna"></form>
+    {% endif %}
 </div>
 </div>
+<script>
+// Enter baja a la siguiente fila, como en Excel
+document.querySelectorAll('.au-nota').forEach(function (inp) {
+  inp.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    var celda = inp.closest('td'), fila = inp.closest('tr').nextElementSibling;
+    if (!fila) return;
+    var sig = fila.children[celda.cellIndex] && fila.children[celda.cellIndex].querySelector('input');
+    if (sig) { sig.focus(); sig.select(); }
+  });
+});
+</script>
 {% endblock %}

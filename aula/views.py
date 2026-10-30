@@ -65,6 +65,11 @@ def _render(request, c, plantilla, datos, pestana):
         persona = c.estudiante or c.integrante
         logica.marcar_visto(c.aula, persona, pestana)
         datos['nuevos'] = logica.novedades(c.aula, persona)
+    if c.aula.es_salon:
+        datos['pe_activo'] = True
+    else:
+        from notas.modulos import esta_activo
+        datos['pe_activo'] = esta_activo(c.aula.colegio, 'puntoexacto')
     datos.update({'c': c, 'aula': c.aula, 'base': c.base, 'pestana': pestana,
                   'hide_cuenta': c.aula.es_salon and not c.es_docente,
                   'colegio': getattr(request, 'colegio', None)})
@@ -717,7 +722,35 @@ def calificaciones(request, pk):
                          content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         r['Content-Disposition'] = f'attachment; filename="Calificaciones {c.aula.titulo}.xlsx"'
         return r
-    return _render(request, c, 'aula/calificaciones.html', logica.tabla_calificaciones(c.aula), 'calificaciones')
+    aula = c.aula
+    if request.method == 'POST':
+        if not aula.es_salon:
+            raise _Prohibido('En el colegio las notas se pasan a la planilla oficial desde cada tarea o examen.')
+        from .models import ColumnaManual
+        accion = request.POST.get('accion', 'guardar')
+        if accion == 'agregar':
+            titulo = (request.POST.get('titulo') or '').strip()[:60]
+            if titulo:
+                ColumnaManual.objects.create(aula=aula, titulo=titulo, orden=aula.columnas_manuales.count())
+                messages.success(request, f'Columna «{titulo}» agregada: escriba las notas y guarde.')
+        elif accion == 'eliminar':
+            col = get_object_or_404(ColumnaManual, pk=request.POST.get('columna'), aula=aula)
+            col.delete()
+            messages.info(request, f'Columna «{col.titulo}» eliminada.')
+        elif accion == 'renombrar':
+            col = get_object_or_404(ColumnaManual, pk=request.POST.get('columna'), aula=aula)
+            titulo = (request.POST.get('titulo') or '').strip()[:60]
+            if titulo:
+                col.titulo = titulo
+                col.save(update_fields=['titulo'])
+        else:
+            errores = logica.guardar_planilla(aula, request.POST)
+            for e in errores[:8]:
+                messages.error(request, e)
+            if not errores:
+                messages.success(request, 'Planilla guardada.')
+        return redirect('aula:calificaciones', pk=pk)
+    return _render(request, c, 'aula/calificaciones.html', logica.tabla_calificaciones(aula), 'calificaciones')
 
 
 # ---------------------------------------------------------------------------

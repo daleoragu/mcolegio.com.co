@@ -837,6 +837,10 @@ def generar_pdf(examen, hojas_examen, por_pagina=None):
     if examen.mostrar_docente and examen.docente_id:
         u = examen.docente.user
         nombre_docente = (u.get_full_name() or u.username).strip()
+    elif examen.mostrar_docente and examen.cuenta_id:
+        nombre_docente = examen.cuenta.nombre_publico or ''
+    # Plan individual: en vez del curso va el nombre del grupo.
+    nombre_grupo = examen.grupo.nombre if examen.grupo_id else ''
     texto_fecha = ''
     if examen.mostrar_fecha and examen.fecha:
         texto_fecha = examen.fecha.strftime('%d/%m/%Y')
@@ -854,7 +858,7 @@ def generar_pdf(examen, hojas_examen, por_pagina=None):
         curso_h = curso_de_hoja(h) or curso_asignacion
         datos.append({
             'colegio': colegio, 'materia': materia,
-            'curso': curso_h.nombre if curso_h else '',
+            'curso': curso_h.nombre if curso_h else nombre_grupo,
             'sede': curso_h.sede.nombre if curso_h and curso_h.sede_id else '',
             'periodo': periodo, 'titulo': examen.titulo, 'examen': examen.id,
             'estudiante': h.nombre, 'documento': h.documento or '',

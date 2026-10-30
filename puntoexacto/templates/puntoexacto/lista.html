@@ -45,7 +45,7 @@
                         <a href="{% url 'puntoexacto:hojas' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary">Hojas</a>
                         <a href="{% url 'puntoexacto:escanear' examen_id=e.id %}" class="btn btn-sm btn-outline-success">Cámara</a>
                         <a href="{% url 'puntoexacto:resultados' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary">Revisar</a>
-                        <a href="{% url 'puntoexacto:compartir' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary" title="Compartir con otros docentes"><i class="fas fa-share-nodes"></i></a>
+                        {% if not e.cuenta_id %}<a href="{% url 'puntoexacto:compartir' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary" title="Compartir con otros docentes"><i class="fas fa-share-nodes"></i></a>{% endif %}
                         <a href="{% url 'puntoexacto:archivar' examen_id=e.id %}" class="btn btn-sm btn-outline-secondary">
                             {% if e.archivado %}Restaurar{% else %}Archivar{% endif %}</a>
                     </td>

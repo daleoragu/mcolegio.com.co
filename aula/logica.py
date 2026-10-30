@@ -613,44 +613,153 @@ def pasar_a_planilla(tarea):
 # ---------------------------------------------------------------------------
 # Planilla propia (Salón Digital) y resumen de calificaciones
 # ---------------------------------------------------------------------------
-def columnas_calificaciones(aula):
-    """Todo lo que da nota en el aula: tareas, actividades que califican y cuestionarios.
+def examenes_de(aula):
+    """Los exámenes PuntoExacto de esta clase (misma asignatura y curso, o el mismo grupo)."""
+    from puntoexacto.models import Examen
+    if aula.asignacion_id:
+        return Examen.objects.filter(asignacion=aula.asignacion, archivado=False).order_by('fecha', 'id')
+    if aula.grupo_id:
+        return Examen.objects.filter(grupo=aula.grupo, archivado=False).order_by('fecha', 'id')
+    return Examen.objects.none()
 
-    [{'titulo', 'tipo', 'url', 'notas': {persona_id: nota}}]
+
+def columnas_calificaciones(aula):
+    """Todo lo que da nota en el aula: tareas, actividades, cuestionarios, exámenes PuntoExacto
+    y (en el plan individual) las columnas escritas a mano.
+
+    [{'clave', 'titulo', 'tipo', 'url', 'notas': {persona_id: nota}, 'peso', 'manual'}]
     """
     from django.urls import reverse
-    from .models import Actividad, ResultadoActividad
-    clave = 'integrante_id' if aula.es_salon else 'estudiante_id'
-    columnas = []
-    for t in aula.tareas.filter(publicada=True).order_by('creada'):
-        columnas.append({'titulo': t.titulo, 'tipo': 'Tarea', 'url': reverse('aula:tarea', args=[aula.pk, t.pk]),
-                         'notas': {getattr(e, clave): e.nota for e in t.entregas.filter(nota__isnull=False)}})
-    for a in aula.actividades.filter(publicada=True, califica=True).order_by('creada'):
-        columnas.append({'titulo': a.titulo, 'tipo': 'Actividad',
-                         'url': reverse('aula:actividad', args=[aula.pk, a.pk]),
-                         'notas': {getattr(r, clave): r.nota for r in a.resultados.all()}})
     from . import juegos
+    clave = 'integrante_id' if aula.es_salon else 'estudiante_id'
+    pesos = (aula.planilla or {}).get('pesos', {})
+    columnas = []
+
+    def agregar(k, titulo, tipo, url, notas, manual=None):
+        try:
+            peso = Decimal(str(pesos.get(k, 1)))
+        except Exception:
+            peso = Decimal(1)
+        columnas.append({'clave': k, 'titulo': titulo, 'tipo': tipo, 'url': url, 'notas': notas,
+                         'peso': peso, 'manual': manual})
+
+    for t in aula.tareas.filter(publicada=True).order_by('creada'):
+        agregar(f'tarea:{t.pk}', t.titulo, 'Tarea', reverse('aula:tarea', args=[aula.pk, t.pk]),
+                {getattr(e, clave): e.nota for e in t.entregas.filter(nota__isnull=False)})
+    for a in aula.actividades.filter(publicada=True, califica=True).order_by('creada'):
+        agregar(f'act:{a.pk}', a.titulo, 'Actividad', reverse('aula:actividad', args=[aula.pk, a.pk]),
+                {getattr(r, clave): r.nota for r in a.resultados.all()})
     for q in aula.cuestionarios.order_by('creado'):
         mejores = juegos.mejores_notas(q)
         if not mejores and not q.a_su_ritmo:
             continue
-        columnas.append({'titulo': q.titulo, 'tipo': 'Cuestionario',
-                         'url': reverse('aula:cuestionario', args=[aula.pk, q.pk]),
-                         'notas': {(k[1] if aula.es_salon else k[0]): it.nota for k, it in mejores.items()}})
+        agregar(f'quiz:{q.pk}', q.titulo, 'Cuestionario', reverse('aula:cuestionario', args=[aula.pk, q.pk]),
+                {(k[1] if aula.es_salon else k[0]): it.nota for k, it in mejores.items()})
+    for ex in examenes_de(aula):
+        notas = {getattr(h, clave): h.nota for h in ex.hojas.filter(estado='calificada', nota__isnull=False)
+                 if getattr(h, clave)}
+        agregar(f'examen:{ex.pk}', ex.titulo, 'Examen', reverse('aula:examen', args=[aula.pk, ex.pk]), notas)
+    if aula.es_salon:
+        for col in aula.columnas_manuales.prefetch_related('notas'):
+            agregar(f'manual:{col.pk}', col.titulo, 'A mano', '', {getattr(n, clave): n.nota for n in col.notas.all()},
+                    manual=col)
     return columnas
 
 
 def tabla_calificaciones(aula):
-    """{'columnas': [...], 'filas': [{'nombre', 'notas': [nota|None…], 'promedio', 'desempeno'}]}"""
+    """{'columnas': [...], 'filas': [{'nombre', 'notas': [nota|None…], 'promedio', 'desempeno'}]}
+
+    El promedio es ponderado con el peso de cada columna (1 si no se ha cambiado; 0 = no cuenta).
+    Lo que falta no cuenta, salvo que el docente pida contarlo con la nota mínima.
+    """
     columnas = columnas_calificaciones(aula)
+    faltantes_minima = bool((aula.planilla or {}).get('faltantes_minima'))
+    minima, _ = rango(aula)
+    total_pesos = sum(c['peso'] for c in columnas)
+    for c in columnas:
+        c['porcentaje'] = (c['peso'] * 100 / total_pesos).quantize(Decimal('1')) if total_pesos else 0
     filas = []
     for p in estudiantes(aula):
         fila = [c['notas'].get(p.id) for c in columnas]
-        validas = [n for n in fila if n is not None]
-        prom = (sum(validas) / len(validas)).quantize(UN_DECIMAL, rounding=ROUND_HALF_UP) if validas else None
-        filas.append({'persona': p, 'nombre': nombre_de(p), 'notas': fila, 'promedio': prom,
+        suma, pesos = Decimal(0), Decimal(0)
+        for c, n in zip(columnas, fila):
+            if c['peso'] <= 0:
+                continue
+            if n is None and faltantes_minima:
+                n = minima
+            if n is not None:
+                suma += Decimal(n) * c['peso']
+                pesos += c['peso']
+        prom = (suma / pesos).quantize(UN_DECIMAL, rounding=ROUND_HALF_UP) if pesos else None
+        filas.append({'persona': p, 'clave': clave_de(p), 'nombre': nombre_de(p), 'notas': fila,
+                      'celdas': list(zip(columnas, fila)), 'promedio': prom,
                       'desempeno': desempeno(aula, prom) if prom is not None else ''})
-    return {'columnas': columnas, 'filas': filas}
+    return {'columnas': columnas, 'filas': filas, 'faltantes_minima': faltantes_minima}
+
+
+def _numero_nota(texto):
+    texto = (str(texto or '')).strip().replace(',', '.')
+    if not texto:
+        return None
+    try:
+        return Decimal(texto)
+    except Exception:
+        raise ValueError(texto)
+
+
+@transaction.atomic
+def guardar_planilla(aula, datos):
+    """Guarda pesos, «contar lo que falta» y las notas de las columnas a mano. Devuelve [errores]."""
+    from .models import NotaManual
+    errores = []
+    columnas = columnas_calificaciones(aula)
+    pesos = {}
+    for c in columnas:
+        crudo = datos.get(f'peso-{c["clave"]}')
+        if crudo is None:
+            continue
+        try:
+            peso = _numero_nota(crudo)
+        except ValueError:
+            peso = None
+        if peso is None or peso < 0 or peso > 100:
+            errores.append(f'El peso de «{c["titulo"]}» debe ser un número entre 0 y 100.')
+            continue
+        pesos[c['clave']] = float(peso)
+    aula.planilla = dict(aula.planilla or {}, pesos=dict((aula.planilla or {}).get('pesos', {}), **pesos),
+                         faltantes_minima=datos.get('faltantes_minima') == 'on')
+    aula.save(update_fields=['planilla'])
+    minima, maxima = rango(aula)
+    personas = estudiantes(aula)
+    for c in columnas:
+        col = c['manual']
+        if col is None:
+            continue
+        actuales = {(n.integrante_id or n.estudiante_id): n for n in col.notas.all()}
+        for p in personas:
+            nombre = f'n-{col.pk}-{clave_de(p)}'
+            if nombre not in datos:
+                continue
+            try:
+                valor = _numero_nota(datos.get(nombre))
+            except ValueError:
+                errores.append(f'«{datos.get(nombre)}» no es una nota ({nombre_de(p)}, {col.titulo}).')
+                continue
+            existente = actuales.get(p.pk)
+            if valor is None:
+                if existente:
+                    existente.delete()
+                continue
+            if valor < minima or valor > maxima:
+                errores.append(f'{nombre_de(p)}, {col.titulo}: la nota debe estar entre {minima} y {maxima}.')
+                continue
+            if existente:
+                if existente.nota != valor:
+                    existente.nota = valor
+                    existente.save(update_fields=['nota'])
+            else:
+                NotaManual.objects.create(columna=col, nota=valor, **filtro_persona(p))
+    return errores
 
 
 def excel_calificaciones(aula):
@@ -668,6 +777,10 @@ def excel_calificaciones(aula):
         c.font = Font(bold=True, color='FFFFFF')
         c.fill = PatternFill('solid', start_color='1F3A68')
         c.alignment = Alignment(horizontal='center', wrap_text=True)
+    ws.append(['', 'Peso'] + [f"{c['porcentaje']} %" for c in datos['columnas']] + ['', ''])
+    for c in ws[4]:
+        c.font = Font(italic=True, color='5B6474')
+        c.alignment = Alignment(horizontal='center')
     for i, f in enumerate(datos['filas'], 1):
         ws.append([i, f['nombre']] + [float(n) if n is not None else None for n in f['notas']]
                   + [float(f['promedio']) if f['promedio'] is not None else None, f['desempeno']])

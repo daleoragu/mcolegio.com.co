@@ -36,6 +36,13 @@ from notas.permisos import es_admin
 # Quién puede entrar
 # ---------------------------------------------------------------------------
 
+def _cuenta_de(request):
+    """La cuenta de Mi Salón Virtual (plan individual) cuando no se está en un colegio."""
+    if getattr(request, 'colegio', None) or not request.user.is_authenticated:
+        return None
+    return getattr(request.user, 'cuenta_salon', None)
+
+
 def _docente_de(request):
     """El docente de la sesión, o None si es administrador."""
     if not request.colegio:
@@ -68,6 +75,9 @@ def _examenes_visibles(request):
     El director de grado ve además los exámenes por bloques de los cursos que
     dirige, aunque los haya creado otro: es quien responde por esa aplicación.
     """
+    if not getattr(request, 'colegio', None):
+        cuenta = _cuenta_de(request)
+        return Examen.objects.filter(cuenta=cuenta) if cuenta is not None else Examen.objects.none()
     base = Examen.objects.filter(colegio=request.colegio)
     if es_admin(request):
         return base
@@ -82,8 +92,10 @@ def _examenes_visibles(request):
 
 
 def es_personal(request):
-    """PuntoExacto es para docentes y administradores del colegio, no para estudiantes."""
-    return bool(getattr(request, 'colegio', None)) and (es_admin(request) or _docente_de(request) is not None)
+    """PuntoExacto es para docentes y administradores del colegio (o el docente del plan individual)."""
+    if not getattr(request, 'colegio', None):
+        return _cuenta_de(request) is not None
+    return es_admin(request) or _docente_de(request) is not None
 
 
 def personal_requerido(vista):
@@ -109,8 +121,6 @@ def _examen_o_404(request, examen_id):
 @login_required
 @personal_requerido
 def lista(request):
-    if not request.colegio:
-        return HttpResponseForbidden('No se identificó el colegio.')
     mostrar_archivados = request.GET.get('archivados') == '1'
     busqueda = (request.GET.get('q') or '').strip()
 
@@ -127,17 +137,28 @@ def lista(request):
 @login_required
 @personal_requerido
 def crear(request):
-    if not request.colegio:
-        return HttpResponseForbidden('No se identificó el colegio.')
     docente = _docente_de(request)
+    cuenta = _cuenta_de(request)
     inicial = {'fecha': datetime.date.today()}
-    form = ExamenForm(request.POST or None, colegio=request.colegio, docente=docente,
+    # Desde Mi Salón Virtual llega con la asignatura (o el grupo) ya escogida.
+    for campo in ('asignacion', 'grupo'):
+        valor = request.GET.get(campo, '')
+        if valor.isdigit():
+            inicial[campo] = int(valor)
+    if inicial.get('asignacion') and request.colegio:
+        from notas.models.academicos import PeriodoAcademico
+        activo = next((p for p in PeriodoAcademico.objects.filter(colegio=request.colegio)
+                       .order_by('-ano_lectivo', 'orden') if p.esta_activo), None)
+        if activo:
+            inicial['periodo'] = activo.pk
+    form = ExamenForm(request.POST or None, colegio=request.colegio, docente=docente, cuenta=cuenta,
                       initial=inicial)
     if request.method == 'POST' and form.is_valid():
         with transaction.atomic():
             examen = form.save(commit=False)
             examen.colegio = request.colegio
             examen.docente = docente
+            examen.cuenta = cuenta
             examen.save()
             form.save_m2m()
             _sincronizar_preguntas(examen)
@@ -185,7 +206,7 @@ def editar(request, examen_id):
     examen = _examen_o_404(request, examen_id)
     docente = _docente_de(request)
     form = ExamenForm(request.POST or None, instance=examen,
-                      colegio=request.colegio, docente=docente)
+                      colegio=request.colegio, docente=docente, cuenta=_cuenta_de(request))
     if request.method == 'POST' and form.is_valid():
         with transaction.atomic():
             examen = form.save()
@@ -542,11 +563,15 @@ def _leer_parciales(request, pregunta, letras):
 def hojas(request, examen_id):
     examen = _examen_o_404(request, examen_id)
     cursos = Curso.objects.filter(colegio=request.colegio).order_by('orden', 'nombre')
+    cuenta = _cuenta_de(request)
+    grupos = list(cuenta.grupos.filter(activo=True).order_by('nombre')) if cuenta is not None else []
 
     if request.method == 'POST':
-        ids = request.POST.getlist('curso_ids')
         sueltas = int(request.POST.get('sueltas') or 0)
-        creadas = _crear_hojas(examen, ids, sueltas)
+        if cuenta is not None:
+            creadas = _crear_hojas_grupos(examen, cuenta, request.POST.getlist('grupo_ids'), sueltas)
+        else:
+            creadas = _crear_hojas(examen, request.POST.getlist('curso_ids'), sueltas)
         messages.success(request, f'Se prepararon {creadas} hoja(s).')
         return redirect('puntoexacto:hojas', examen_id=examen.id)
 
@@ -568,7 +593,7 @@ def hojas(request, examen_id):
         })
 
     return render(request, 'puntoexacto/hojas.html', {
-        'examen': examen, 'cursos': cursos,
+        'examen': examen, 'cursos': cursos, 'grupos': grupos, 'es_salon': cuenta is not None,
         'hojas': examen.hojas.select_related('estudiante__user').all(),
         'bloques': examen.secciones(),
         'repartos': repartos,
@@ -576,6 +601,27 @@ def hojas(request, examen_id):
         'sugerir': sugerido > (examen.hojas_por_pagina or 1) and not examen.secciones(),
         'con_formas': examen.formas.exists(),
     })
+
+
+def _crear_hojas_grupos(examen, cuenta, grupo_ids, sueltas=0):
+    """Plan individual: una hoja por integrante de los grupos escogidos (y las sueltas)."""
+    from salon_digital.models import Integrante
+    grupos = list(cuenta.grupos.filter(id__in=[g for g in grupo_ids if str(g).isdigit()]))
+    creadas = 0
+    with transaction.atomic():
+        if grupos and examen.grupo_id is None:
+            examen.grupo = grupos[0]
+            examen.save(update_fields=['grupo'])
+        ya = set(examen.hojas.filter(integrante__isnull=False).values_list('integrante_id', flat=True))
+        integrantes = [i for i in Integrante.objects.filter(grupo__in=grupos, activo=True)
+                       .order_by('apellidos', 'nombres') if i.id not in ya]
+        siguiente = examen.hojas.count() + 1
+        for i in integrantes + [None] * sueltas:
+            Hoja.objects.create(examen=examen, integrante=i, nombre_libre=i.completo[:160] if i else '',
+                                identificador=f'PE-{examen.id:05d}-{siguiente:04d}')
+            siguiente += 1
+            creadas += 1
+    return creadas
 
 
 def _crear_hojas(examen, curso_ids, sueltas=0):

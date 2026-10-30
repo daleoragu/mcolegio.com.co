@@ -86,7 +86,8 @@
         </div>
     </div>
 
-    {% if bloques %}
+    {% if examen.cuenta_id %}
+    {% elif bloques %}
         <p style="font-size:.88rem;">
             <strong>Bloques de este examen:</strong>
             {% for b in bloques %}

@@ -27,13 +27,14 @@ def escala_del_colegio(colegio):
 class ExamenForm(forms.ModelForm):
     class Meta:
         model = Examen
-        fields = ['titulo', 'asignacion', 'periodo', 'fecha', 'componente',
+        fields = ['titulo', 'asignacion', 'grupo', 'periodo', 'fecha', 'componente',
                   'numero_preguntas', 'numero_opciones', 'hojas_por_pagina',
                   'mostrar_docente', 'mostrar_fecha', 'metodo',
                   'nota_maxima', 'nota_minima', 'nota_todo_mal', 'nota_nada_marcado']
         widgets = {
             'titulo': forms.TextInput(attrs={**CAJA, 'placeholder': 'Números racionales'}),
             'asignacion': forms.Select(attrs=SELECT),
+            'grupo': forms.Select(attrs=SELECT),
             'periodo': forms.Select(attrs=SELECT),
             'fecha': forms.DateInput(format='%Y-%m-%d',
                                      attrs={**CAJA, 'type': 'date'}),
@@ -50,8 +51,9 @@ class ExamenForm(forms.ModelForm):
             'nota_nada_marcado': forms.NumberInput(attrs={**CAJA, 'step': '0.01'}),
         }
 
-    def __init__(self, *args, colegio=None, docente=None, **kwargs):
+    def __init__(self, *args, colegio=None, docente=None, cuenta=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.cuenta = cuenta
         asignaciones = AsignacionDocente.objects.none()
         periodos = PeriodoAcademico.objects.none()
         if colegio:
@@ -88,6 +90,22 @@ class ExamenForm(forms.ModelForm):
         if self.escala:
             self.fields.pop('nota_maxima')
             self.fields.pop('nota_minima')
+
+        # Plan individual (Mi Salón Virtual): el examen es de un grupo, sin asignatura, periodo
+        # ni componente; la escala sale de la del docente.
+        if cuenta is not None:
+            for campo in ('asignacion', 'periodo', 'componente'):
+                self.fields.pop(campo, None)
+            self.fields['grupo'].queryset = cuenta.grupos.filter(activo=True).order_by('nombre')
+            self.fields['grupo'].required = True
+            self.fields['grupo'].empty_label = 'Escoja el grupo'
+            if not self.instance.pk and not self.is_bound:
+                from aula.logica import escala_docente
+                escala = escala_docente(cuenta.usuario)
+                self.initial.setdefault('nota_minima', escala[0][1])
+                self.initial.setdefault('nota_maxima', escala[-1][2])
+        else:
+            self.fields.pop('grupo', None)
 
     def save(self, commit=True):
         examen = super().save(commit=False)

@@ -45,6 +45,8 @@ class Aula(models.Model):
     nota_clase = models.CharField(max_length=200, blank=True, verbose_name='Indicaciones para la clase',
                                   help_text='Ej.: «Entrar con la cámara encendida».')
     comentarios_activos = models.BooleanField(default=True, verbose_name='Los estudiantes pueden comentar')
+    # Planilla del plan individual: {'pesos': {'tarea:12': 2, 'manual:3': 1}, 'faltantes_minima': false}
+    planilla = models.JSONField(default=dict, blank=True)
     creada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -496,3 +498,26 @@ class Visto(models.Model):
 
     def __str__(self):
         return f'Visto {self.aula_id}'
+
+
+class ColumnaManual(models.Model):
+    """Una columna de notas que el docente del plan individual escribe a mano (quiz en papel, exposición…)."""
+    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, related_name='columnas_manuales')
+    titulo = models.CharField(max_length=60)
+    orden = models.PositiveSmallIntegerField(default=0)
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['orden', 'id']
+
+    def __str__(self):
+        return self.titulo
+
+
+class NotaManual(models.Model):
+    columna = models.ForeignKey(ColumnaManual, on_delete=models.CASCADE, related_name='notas')
+    estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    nota = models.DecimalField(max_digits=5, decimal_places=2)
