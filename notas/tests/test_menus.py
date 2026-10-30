@@ -77,6 +77,8 @@ class MenusDeLoNuevo(ColegioDePrueba):
         self._abren(c, self._enlaces(r))
 
     def test_docente(self):
+        self.a.modulos_activos = list(self.a.modulos_activos) + ['salon']     # Premium
+        self.a.save(update_fields=['modulos_activos'])
         c = self.cliente(self.u_docente)
         r = c.get('/panel-docente/')
         for texto in ('Subir planilla', 'Circulares', 'Mi Salón Virtual'):
