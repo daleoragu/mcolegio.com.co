@@ -12,6 +12,9 @@ urlpatterns = [
     path('entrar/', views_cuentas.Entrar.as_view(), name='entrar'),
     path('salir/', views_cuentas.salir, name='salir'),
     path('crear-cuenta/', views_cuentas.crear_cuenta, name='crear_cuenta'),
+    path('auth/<str:proveedor>/', views_cuentas.social_iniciar, name='social_iniciar'),
+    path('auth/<str:proveedor>/vuelta/', views_cuentas.social_vuelta, name='social_vuelta'),
+    path('eliminar-datos/', views_cuentas.eliminar_datos, name='eliminar_datos'),
     path('ayuda/', views.ayuda, name='ayuda'),
     path('ayuda/descargar/<slug:cual>/', views.descargar, name='descargar'),
 

@@ -177,8 +177,10 @@ def landing(request):
     cuenta = getattr(request.user, 'cuenta_salon', None)
     if cuenta:
         return redirect('salon_digital:panel')
+    from . import social
     return render(request, 'salon_digital/landing.html', {
         'total_docentes': Cuenta.objects.filter(estado='verificada').count(),
+        'proveedores': social.disponibles(),
     })
 
 

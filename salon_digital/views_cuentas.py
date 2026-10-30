@@ -19,6 +19,12 @@ class Entrar(LoginView):
     authentication_form = EntrarForm
     redirect_authenticated_user = True
 
+    def get_context_data(self, **kwargs):
+        from . import social
+        datos = super().get_context_data(**kwargs)
+        datos['proveedores'] = social.disponibles()
+        return datos
+
     def get_success_url(self):
         siguiente = self.request.GET.get('siguiente')
         if siguiente and siguiente.startswith('/'):
@@ -53,7 +59,8 @@ def registro(request):
         )
         return redirect('salon_digital:mi_cuenta')
 
-    return render(request, 'salon_digital/registro.html', {'form': form})
+    from . import social
+    return render(request, 'salon_digital/registro.html', {'form': form, 'proveedores': social.disponibles()})
 
 
 @login_required
@@ -62,11 +69,16 @@ def crear_cuenta(request):
     if getattr(request.user, 'cuenta_salon', None):
         return redirect('salon_digital:panel')
 
-    form = CuentaForm(request.POST or None)
+    from . import social
+    inicial = {'nombre_publico': request.user.get_full_name() or request.user.username,
+               'slug': social.sugerir_usuario(request.user)}
+    form = CuentaForm(request.POST or None, initial=inicial)
     if request.method == 'POST' and form.is_valid():
         cuenta = form.save(commit=False)
         cuenta.usuario = request.user
         cuenta.save()
+        messages.success(request, 'Cuenta creada. Tienes 15 días de prueba. Para publicar, sube el documento '
+                                  'que acredita que eres docente.')
         return redirect('salon_digital:mi_cuenta')
 
     return render(request, 'salon_digital/crear_cuenta.html', {'form': form})
@@ -162,3 +174,41 @@ def cambiar_plan(request, pk):
             + (f', vence el {cuenta.vence_en}.' if cuenta.vence_en else ', sin vencimiento.'),
         )
     return redirect(request.META.get('HTTP_REFERER') or 'salon_digital:bandeja')
+
+
+# ---------------------------------------------------------------------------
+# Entrar con Google o Facebook
+# ---------------------------------------------------------------------------
+def social_iniciar(request, proveedor):
+    from . import social
+    try:
+        url = social.url_autorizar(request, proveedor, request.GET.get('siguiente', ''))
+    except social.ErrorSocial as e:
+        messages.error(request, str(e))
+        return redirect('salon_digital:registro')
+    return redirect(url)
+
+
+def social_vuelta(request, proveedor):
+    from . import social
+    try:
+        datos = social.datos_del_regreso(request, proveedor)
+        usuario, nuevo = social.usuario_para(datos)
+    except social.ErrorSocial as e:
+        messages.error(request, str(e))
+        return redirect('salon_digital:registro')
+    login(request, usuario, backend='django.contrib.auth.backends.ModelBackend')
+    if not getattr(usuario, 'cuenta_salon', None):
+        if nuevo:
+            messages.info(request, f'¡Bienvenido! Solo falta el nombre con el que te verán tus estudiantes.')
+        return redirect('salon_digital:crear_cuenta')
+    siguiente = datos.get('siguiente') or ''
+    if siguiente.startswith('/') and not siguiente.startswith('//'):
+        return redirect(siguiente)
+    return redirect('salon_digital:panel')
+
+
+def eliminar_datos(request):
+    """Instrucciones para borrar los datos (las pide Facebook para aprobar la app)."""
+    return render(request, 'salon_digital/eliminar_datos.html')
+
