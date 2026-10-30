@@ -57,7 +57,7 @@ class Modulos(ColegioDePrueba):
         self.assertEqual(set(self.a.modulos_activos), set(PLANES['basico'][1]))
         c.post('/plataforma/modulos/', {'colegio': self.a.pk, 'plan': 'publico'})
         self.a.refresh_from_db()
-        self.assertEqual(set(self.a.modulos_activos), set(TODOS) - {'cartera', 'generador_horarios', 'aula'})
+        self.assertEqual(set(self.a.modulos_activos), set(TODOS) - {'cartera', 'generador_horarios'})
         c.post('/plataforma/modulos/', {'colegio': self.a.pk, 'mod_actas': 'on'})
         self.a.refresh_from_db()
         self.assertEqual(self.a.modulos_activos, ['actas'])

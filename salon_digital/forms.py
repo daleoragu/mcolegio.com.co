@@ -237,7 +237,7 @@ class SubidaMultipleForm(forms.Form):
                   'se usa como título y como dirección.',
     )
     captura_resultados = forms.BooleanField(
-        label='Guardar los resultados en Salón Digital', initial=True, required=False)
+        label='Guardar los resultados en Mi Salón Virtual', initial=True, required=False)
     visible = forms.BooleanField(label='Publicarlas de una vez', initial=True, required=False)
 
 

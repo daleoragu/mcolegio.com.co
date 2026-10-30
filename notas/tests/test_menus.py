@@ -54,7 +54,7 @@ class Menus(ColegioDePrueba):
 
 
 class MenusDeLoNuevo(ColegioDePrueba):
-    """Lo de certificados, circulares, libro final y Salón Digital, y que todos los enlaces abran."""
+    """Lo de certificados, circulares, libro final y Mi Salón Virtual, y que todos los enlaces abran."""
 
     def _enlaces(self, r):
         html = r.content.decode()
@@ -79,7 +79,7 @@ class MenusDeLoNuevo(ColegioDePrueba):
     def test_docente(self):
         c = self.cliente(self.u_docente)
         r = c.get('/panel-docente/')
-        for texto in ('Subir planilla', 'Circulares', 'Salón Digital'):
+        for texto in ('Subir planilla', 'Circulares', 'Mi Salón Virtual'):
             self.assertContains(r, texto)
         self._abren(c, self._enlaces(r))
 

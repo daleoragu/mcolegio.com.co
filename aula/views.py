@@ -61,6 +61,7 @@ def vista_aula(fn):
 
 def _render(request, c, plantilla, datos, pestana):
     datos.update({'c': c, 'aula': c.aula, 'base': c.base, 'pestana': pestana,
+                  'hide_cuenta': c.aula.es_salon and not c.es_docente,
                   'colegio': getattr(request, 'colegio', None)})
     return render(request, plantilla, datos)
 
@@ -172,6 +173,7 @@ def entrar(request, pk):
         error = 'No encontramos ese nombre en la clase.'
     return render(request, 'aula/entrar.html', {
         'aula': aula, 'codigo': codigo, 'valido': valido, 'error': error, 'base': 'aula/base_salon.html',
+        'hide_cuenta': True,
         'integrantes': grupo.integrantes.filter(activo=True) if valido else [],
     })
 

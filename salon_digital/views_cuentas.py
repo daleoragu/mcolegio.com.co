@@ -29,7 +29,7 @@ class Entrar(LoginView):
         siguiente = self.request.GET.get('siguiente')
         if siguiente and siguiente.startswith('/'):
             return siguiente
-        return str(reverse_lazy('salon_digital:panel'))
+        return str(reverse_lazy('aula:inicio'))
 
 
 def salir(request):
@@ -205,7 +205,7 @@ def social_vuelta(request, proveedor):
     siguiente = datos.get('siguiente') or ''
     if siguiente.startswith('/') and not siguiente.startswith('//'):
         return redirect(siguiente)
-    return redirect('salon_digital:panel')
+    return redirect('aula:inicio')
 
 
 def eliminar_datos(request):
