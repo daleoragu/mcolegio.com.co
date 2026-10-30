@@ -44,6 +44,7 @@ urlpatterns = [
     path('simat/', include('simat.urls', namespace='simat')),
     path('horarios/', include('horarios.urls', namespace='horarios')),
     path('calendario/', include('calendario.urls', namespace='calendario')),
+    path('aula/', include('aula.urls', namespace='aula')),
 
     # 5. RUTAS DE TU APLICACIÓN "NOTAS"
     #    Esta línea incluye todas las URLs de tu archivo 'notas/urls.py'.

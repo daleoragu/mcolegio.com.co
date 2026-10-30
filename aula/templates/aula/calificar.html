@@ -1,0 +1,105 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="au-tarjeta py-2 d-flex flex-wrap align-items-center gap-2">
+    <div class="flex-grow-1"><strong>{{ t.titulo }}</strong> · <span class="text-muted">{{ n_entregas }} entrega(s)</span></div>
+    {% if anterior %}<a class="btn btn-sm btn-light" href="{% url 'aula:calificar' aula.pk t.pk anterior %}" aria-label="Anterior"><i class="fas fa-chevron-left"></i></a>{% endif %}
+    <div class="text-center px-2"><strong>{{ nombre }}</strong><div class="small text-muted">{{ posicion }} de {{ total }}</div></div>
+    {% if siguiente %}<a class="btn btn-sm btn-light" href="{% url 'aula:calificar' aula.pk t.pk siguiente %}" aria-label="Siguiente"><i class="fas fa-chevron-right"></i></a>{% endif %}
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:tarea' aula.pk t.pk %}">Volver al listado</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="au-tarjeta">
+        {% if e.entregada %}
+            <div class="mb-2">{% if e.tardia %}<span class="au-chip mal">Entregada tarde</span>{% else %}<span class="au-chip ok">Entregada a tiempo</span>{% endif %}
+                <span class="small text-muted ms-1">{{ e.entregada|date:"d M, h:i a" }}</span></div>
+            {% if e.archivo %}
+                {% if '.pdf' in e.nombre_archivo|lower %}
+                    <iframe class="au-visor" src="{% url 'aula:archivo' aula.pk 'entrega' e.pk %}" title="Entrega"></iframe>
+                {% elif '.jpg' in e.nombre_archivo|lower or '.png' in e.nombre_archivo|lower or '.jpeg' in e.nombre_archivo|lower %}
+                    <img src="{% url 'aula:archivo' aula.pk 'entrega' e.pk %}" alt="Entrega" class="img-fluid rounded border">
+                {% endif %}
+                <a class="au-adjunto" href="{% url 'aula:archivo' aula.pk 'entrega' e.pk %}" target="_blank"><i class="far fa-file"></i><span>{{ e.nombre_archivo }} · abrir en otra pestaña</span></a>
+            {% endif %}
+            {% if e.texto %}<div class="border rounded p-3 mt-2" style="white-space:pre-line">{{ e.texto }}</div>{% endif %}
+        {% else %}
+            <div class="text-center text-muted py-5"><i class="far fa-folder-open fa-2x mb-2"></i><br>{{ nombre }} no ha entregado.<br><small>Igual puede calificarlo, por ejemplo si la tarea fue en clase o en el cuaderno.</small></div>
+        {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <form method="post" class="au-tarjeta" id="au-form">
+        {% csrf_token %}
+        <input type="hidden" name="siguiente" id="au-sig" value="">
+        {% if inst %}
+            <h6>{{ inst.nombre }}</h6>
+            {% for cr in criterios %}
+            <div class="mb-3">
+                <div class="fw-semibold mb-1">{{ cr.nombre }}{% if cr.peso != 1 %} <span class="text-muted small">×{{ cr.peso|floatformat:-2 }}</span>{% endif %}</div>
+                {% if inst.tipo == 'lista' %}
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check au-sel" name="c{{ cr.pk }}" id="c{{ cr.pk }}-si" value="si" {% if cr.elegido is True %}checked{% endif %}>
+                        <label class="btn btn-outline-success" for="c{{ cr.pk }}-si">Sí cumple</label>
+                        <input type="radio" class="btn-check au-sel" name="c{{ cr.pk }}" id="c{{ cr.pk }}-no" value="no" {% if cr.elegido is False %}checked{% endif %}>
+                        <label class="btn btn-outline-danger" for="c{{ cr.pk }}-no">No cumple</label>
+                    </div>
+                {% else %}
+                    <div class="d-grid gap-1" style="grid-template-columns: repeat({{ niveles|length }}, 1fr);">
+                    {% for celda in cr.celdas %}
+                        <input type="radio" class="btn-check au-sel" name="c{{ cr.pk }}" id="c{{ cr.pk }}-{{ celda.nivel.pk }}" value="{{ celda.nivel.pk }}" {% if cr.elegido|stringformat:'s' == celda.nivel.pk|stringformat:'s' %}checked{% endif %}>
+                        <label class="btn btn-outline-secondary text-start small p-2 au-n{{ forloop.counter0 }}" for="c{{ cr.pk }}-{{ celda.nivel.pk }}" style="white-space:normal">
+                            <strong class="d-block">{{ celda.nivel.nombre }}</strong>{{ celda.texto }}</label>
+                    {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            <div class="text-center my-2">Nota calculada: <span class="au-nota-grande" id="au-nota">{% if e.nota is not None %}{{ e.nota|floatformat:1 }}{% else %}—{% endif %}</span></div>
+        {% else %}
+            <h6>Nota</h6>
+            <input name="nota" class="form-control form-control-lg text-center fw-bold mb-1" inputmode="decimal" value="{% if e.nota is not None %}{{ e.nota|floatformat:1 }}{% endif %}" placeholder="{{ minima|floatformat:1 }} a {{ maxima|floatformat:1 }}">
+            <div class="form-text mb-2">De {{ minima|floatformat:1 }} a {{ maxima|floatformat:1 }}.</div>
+        {% endif %}
+        <label class="form-label small fw-bold">Comentario para el estudiante</label>
+        <textarea name="comentario" rows="3" class="form-control mb-3">{{ e.comentario }}</textarea>
+        <div class="d-flex flex-wrap gap-2">
+            {% if e.entregada %}<button class="btn btn-outline-secondary" name="accion" value="devolver">Devolver para corregir</button>{% endif %}
+            <button class="btn au-oro flex-grow-1" name="accion" value="calificar">Calificar</button>
+            {% if siguiente %}<button class="btn btn-primary" name="accion" value="calificar" onclick="document.getElementById('au-sig').value='{{ siguiente }}'">Calificar y siguiente <i class="fas fa-chevron-right"></i></button>{% endif %}
+        </div>
+    </form>
+  </div>
+</div>
+</div>
+{% if inst %}
+{{ valores|json_script:"au-valores" }}{{ pesos|json_script:"au-pesos" }}
+<script>
+(function () {
+  var valores = JSON.parse(document.getElementById('au-valores').textContent);
+  var pesos = JSON.parse(document.getElementById('au-pesos').textContent);
+  var lista = '{{ inst.tipo }}' === 'lista';
+  var min = parseFloat('{{ minima }}'), max = parseFloat('{{ maxima }}');
+  function calcular() {
+    var suma = 0, total = 0, ok = 0, todos = true;
+    Object.keys(pesos).forEach(function (id) {
+      var p = parseFloat(pesos[id]); total += p;
+      var marcado = document.querySelector('input[name="c' + id + '"]:checked');
+      if (!marcado) { todos = false; return; }
+      if (lista) { if (marcado.value === 'si') ok += p; }
+      else { suma += parseFloat(valores[marcado.value]) * p; ok += p; }
+    });
+    var nota = null;
+    if (lista) { nota = min + (max - min) * ok / total; }
+    else if (ok > 0) { nota = suma / ok; }
+    document.getElementById('au-nota').textContent = (nota === null || !todos) ? (nota === null ? '—' : nota.toFixed(1) + ' …') : nota.toFixed(1);
+  }
+  document.querySelectorAll('.au-sel').forEach(function (r) { r.addEventListener('change', calcular); });
+})();
+</script>
+{% endif %}
+{% endblock %}

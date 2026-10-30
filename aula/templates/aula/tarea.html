@@ -1,0 +1,85 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="au-tarjeta">
+    <div class="d-flex justify-content-between flex-wrap gap-2">
+        <div>
+            <h5 class="mb-1" style="color:#1f3a68;font-weight:800">{{ t.titulo }}</h5>
+            <div class="small text-muted">{% if t.fecha_limite %}Entrega: {{ t.fecha_limite|date:"l d \d\e F, h:i a" }}{% if t.vencida %} · cerrada{% if t.acepta_tardias %} (recibe tarde){% endif %}{% endif %}{% else %}Sin fecha límite{% endif %}
+                {% if t.periodo %} · {{ t.periodo }}{% endif %}</div>
+        </div>
+        {% if c.es_docente %}<div class="d-flex gap-2 flex-wrap align-items-start">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:tarea_editar' aula.pk t.pk %}"><i class="far fa-pen-to-square me-1"></i>Editar</a>
+            {% if t.instrumento %}<a class="btn btn-sm btn-outline-primary" href="{% url 'aula:grilla' aula.pk t.pk %}"><i class="fas fa-table-cells me-1"></i>Calificar en grilla</a>{% endif %}
+        </div>{% endif %}
+    </div>
+    {% if t.instrucciones %}<div class="mt-3" style="white-space:pre-line">{{ t.instrucciones|urlize }}</div>{% endif %}
+    {% if t.enlace %}<a class="au-adjunto" href="{{ t.enlace }}" target="_blank" rel="noopener"><i class="fas fa-link"></i><span class="text-truncate">{{ t.enlace }}</span></a>{% endif %}
+    {% include 'aula/_adjunto.html' with obj=t tipo='tarea' %}
+</div>
+
+{% if c.es_docente %}
+<div class="au-tarjeta">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <h6 class="mb-0">Entregas: {{ n_entregas }} · Calificadas: {{ n_calificadas }} de {{ filas|length }}</h6>
+        {% if puede_planilla %}
+        <form method="post" action="{% url 'aula:pasar_planilla' aula.pk t.pk %}" onsubmit="return confirm('Las notas calificadas pasan a la planilla en la columna «{{ t.titulo|escapejs }}». ¿Continuar?')">{% csrf_token %}
+            <button class="btn btn-sm au-oro" {% if not n_calificadas %}disabled{% endif %}><i class="fas fa-file-import me-1"></i>Pasar a la planilla</button>
+            {% if t.pasada_planilla %}<span class="small text-success ms-2">Última vez: {{ t.pasada_planilla|date:"d M h:i a" }}</span>{% endif %}
+        </form>
+        {% endif %}
+    </div>
+    {% if puede_planilla and not t.componente %}<div class="alert alert-warning py-2 small">Para pasar las notas a la planilla, <a href="{% url 'aula:tarea_editar' aula.pk t.pk %}">escoja el periodo y el componente</a> de la tarea.</div>{% endif %}
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>#</th><th>Estudiante</th><th>Estado</th><th class="text-center">Nota</th><th></th></tr></thead>
+        <tbody>{% for f in filas %}
+        <tr>
+            <td class="text-muted">{{ forloop.counter }}</td>
+            <td>{{ f.nombre }}</td>
+            <td>{% if f.e.estado == 'calificada' %}<span class="au-chip ok">Calificada</span>{% elif f.e.estado == 'devuelta' %}<span class="au-chip mal">Devuelta</span>{% elif f.e.entregada %}<span class="au-chip pend">Por calificar</span>{% if f.e.tardia %} <span class="au-chip mal">tarde</span>{% endif %}{% else %}<span class="au-chip gris">Sin entregar</span>{% endif %}</td>
+            <td class="text-center fw-bold">{% if f.e.nota is not None %}{{ f.e.nota|floatformat:1 }} <span class="small text-muted fw-normal">{{ f.desempeno }}</span>{% endif %}</td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'aula:calificar' aula.pk t.pk f.clave %}">{% if f.e.nota is not None %}Revisar{% else %}Calificar{% endif %}</a></td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% else %}
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="au-tarjeta">
+        <h6>Mi entrega</h6>
+        {% if e.nota is not None %}
+            <div class="au-nota-grande">{{ e.nota|floatformat:1 }} <span class="fs-6 text-muted">{{ desempeno }}</span></div>
+            {% if detalle %}<ul class="small mt-2">{% for d in detalle %}<li><strong>{{ d.criterio }}:</strong> {{ d.nivel }}{% if d.descriptor %} — {{ d.descriptor }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+        {% endif %}
+        {% if e.comentario %}<div class="alert alert-info py-2"><strong>Comentario del docente:</strong> {{ e.comentario|linebreaksbr }}</div>{% endif %}
+        {% if e.entregada %}<p class="small text-muted">Entregada el {{ e.entregada|date:"d M, h:i a" }}{% if e.tardia %} (después de la fecha){% endif %}.</p>
+            {% if e.archivo %}<a class="au-adjunto" href="{% url 'aula:archivo' aula.pk 'entrega' e.pk %}" target="_blank"><i class="far fa-file-pdf"></i><span>{{ e.nombre_archivo }}</span></a>{% endif %}
+            {% if e.texto %}<div class="border rounded p-2 mt-2 small" style="white-space:pre-line">{{ e.texto }}</div>{% endif %}
+        {% endif %}
+        {% if e.estado != 'calificada' and t.recibe %}
+        <form method="post" action="{% url 'aula:entregar' aula.pk t.pk %}" enctype="multipart/form-data" class="mt-3">
+            {% csrf_token %}
+            {% if e.estado == 'devuelta' %}<div class="alert alert-warning py-2 small">El docente la devolvió para corregir. Vuelva a entregarla.</div>{% endif %}
+            <label class="form-label fw-bold small"><i class="fas fa-camera me-1"></i>Fotos del cuaderno</label>
+            <input type="file" name="fotos" accept="image/*" multiple class="form-control mb-1">
+            <div class="form-text mb-2">Puede tomar varias; se unen en un solo PDF.</div>
+            <label class="form-label fw-bold small">o un archivo</label>
+            <input type="file" name="archivo" class="form-control mb-2">
+            <label class="form-label fw-bold small">o escriba su respuesta</label>
+            <textarea name="texto" rows="3" class="form-control mb-2">{{ e.texto|default:'' }}</textarea>
+            <button class="btn au-oro w-100">{% if e.entregada %}Entregar de nuevo{% else %}Entregar tarea{% endif %}</button>
+        </form>
+        {% elif not e.entregada and not t.recibe %}
+            <div class="alert alert-secondary py-2 small mb-0">La fecha de entrega ya pasó.</div>
+        {% endif %}
+    </div>
+  </div>
+  {% if inst %}
+  <div class="col-lg-6"><div class="au-tarjeta"><h6>Así se califica: {{ inst.nombre }}</h6>{% include 'aula/_rubrica_tabla.html' %}</div></div>
+  {% endif %}
+</div>
+{% endif %}
+</div>
+{% endblock %}

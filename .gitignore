@@ -42,3 +42,6 @@ __pycache__/
 .vscode/
 .idea/
 Thumbs.db
+
+# Copias de seguridad locales de la base (python manage.py respaldo_bd)
+/respaldos/

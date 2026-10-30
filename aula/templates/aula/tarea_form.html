@@ -1,0 +1,73 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<form method="post" enctype="multipart/form-data" class="au-tarjeta" style="max-width:860px">
+    {% csrf_token %}
+    <h6>{% if tarea.pk %}Editar tarea{% else %}Nueva tarea{% endif %}</h6>
+    <div class="row g-3">
+        <div class="col-md-8">
+            <label class="form-label fw-bold small">Título</label>
+            <input name="titulo" class="form-control" maxlength="60" value="{{ tarea.titulo }}" required placeholder="Ej.: Guía 3 – Funciones exponenciales">
+            <div class="form-text">Corto: también es el nombre de la columna en la planilla.</div>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-bold small">Fecha y hora de entrega</label>
+            <input type="datetime-local" name="fecha_limite" class="form-control" value="{{ tarea.fecha_limite|date:'Y-m-d\TH:i' }}">
+            <div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="acepta_tardias" id="au-tard" {% if tarea.acepta_tardias %}checked{% endif %}>
+                <label class="form-check-label small" for="au-tard">Recibir después de la fecha (quedan marcadas)</label></div>
+        </div>
+        <div class="col-12">
+            <label class="form-label fw-bold small">Instrucciones</label>
+            <textarea name="instrucciones" rows="5" class="form-control">{{ tarea.instrucciones }}</textarea>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-bold small">Archivo de la tarea (opcional)</label>
+            <input type="file" name="archivo" class="form-control">
+            {% if tarea.nombre_archivo %}<div class="form-text">Actual: {{ tarea.nombre_archivo }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-bold small">Enlace (opcional)</label>
+            <input type="url" name="enlace" class="form-control" value="{{ tarea.enlace }}">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-bold small">Cómo se califica</label>
+            <select name="instrumento" class="form-select">
+                <option value="">Nota directa (escribo el número)</option>
+                {% for i in instrumentos %}<option value="{{ i.pk }}" {% if tarea.instrumento_id == i.pk %}selected{% endif %}>{{ i.get_tipo_display }}: {{ i.nombre }}</option>{% endfor %}
+            </select>
+            <div class="form-text"><a href="{% url 'aula:instrumentos' %}" target="_blank">Crear o importar una rúbrica o lista de chequeo</a></div>
+        </div>
+        {% if periodos %}
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Periodo</label>
+            <select name="periodo" class="form-select">
+                <option value="">—</option>
+                {% for p in periodos %}<option value="{{ p.pk }}" {% if periodo_sugerido and periodo_sugerido.pk == p.pk %}selected{% endif %}>{{ p }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Va a la planilla en</label>
+            <select name="componente" class="form-select">
+                <option value="">—</option>
+                {% for cod, nom in componentes %}<option value="{{ cod }}" {% if tarea.componente == cod %}selected{% endif %}>{{ nom }}</option>{% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="col-12">
+            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="publicada" id="au-pub" {% if tarea.publicada %}checked{% endif %}>
+                <label class="form-check-label" for="au-pub">Publicada (los estudiantes la ven{% if not aula.es_salon %} y reciben el aviso{% endif %})</label></div>
+        </div>
+    </div>
+    <div class="d-flex gap-2 mt-3">
+        <button class="btn au-oro px-4">Guardar</button>
+        <a class="btn btn-outline-secondary" href="{% if tarea.pk %}{% url 'aula:tarea' aula.pk tarea.pk %}{% else %}{% url 'aula:tareas' aula.pk %}{% endif %}">Cancelar</a>
+    </div>
+</form>
+{% if tarea.pk %}
+<form method="post" action="{% url 'aula:tarea_eliminar' aula.pk tarea.pk %}" onsubmit="return confirm('¿Eliminar la tarea y sus entregas?')">{% csrf_token %}
+    <button class="btn btn-link text-danger btn-sm">Eliminar tarea</button></form>
+{% endif %}
+</div>
+{% endblock %}

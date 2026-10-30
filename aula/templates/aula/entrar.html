@@ -1,0 +1,31 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au mx-auto" style="max-width:520px">
+<div class="au-tarjeta text-center">
+    <div class="au-icono mx-auto mb-2"><i class="fas fa-chalkboard-user"></i></div>
+    <h4 style="color:#1f3a68">{{ aula.titulo }}</h4>
+    <p class="text-muted">{{ aula.subtitulo }}</p>
+    {% if error %}<div class="alert alert-danger py-2">{{ error }}</div>{% endif %}
+    {% if not valido %}
+    <form method="get">
+        <label class="form-label fw-bold">Código de la clase</label>
+        <input name="codigo" class="form-control form-control-lg text-center text-uppercase mb-2" maxlength="8" value="{{ codigo }}" autofocus required>
+        <button class="btn au-oro w-100">Continuar</button>
+    </form>
+    {% else %}
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="codigo" value="{{ codigo }}">
+        <label class="form-label fw-bold">¿Quién es usted?</label>
+        <select name="integrante" class="form-select form-select-lg mb-2" required>
+            <option value="">Escoja su nombre</option>
+            {% for i in integrantes %}<option value="{{ i.pk }}">{{ i.completo }}</option>{% endfor %}
+        </select>
+        <button class="btn au-oro w-100">Entrar al aula</button>
+    </form>
+    {% endif %}
+</div>
+</div>
+{% endblock %}

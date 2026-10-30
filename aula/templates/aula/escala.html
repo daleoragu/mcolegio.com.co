@@ -1,0 +1,26 @@
+{% extends base %}
+{% block page_title %}<h2 class="mb-0">Mi escala de valoración</h2>
+<p class="text-muted mb-0">La que usan sus aulas: el rango de las notas, los niveles que se sugieren en las rúbricas y el desempeño de cada nota.</p>{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au" style="max-width:640px">
+{% if errores %}<div class="alert alert-danger"><ul class="mb-0">{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+<form method="post" class="au-tarjeta">
+    {% csrf_token %}
+    <table class="table table-sm align-middle">
+        <thead class="table-light"><tr><th>Desempeño</th><th style="width:110px">Desde</th><th style="width:110px">Hasta</th></tr></thead>
+        <tbody>{% for n, a, b in filas %}<tr>
+            <td><input name="nombre" class="form-control form-control-sm" value="{{ n }}" placeholder="Ej.: BAJO"></td>
+            <td><input name="min" class="form-control form-control-sm" inputmode="decimal" value="{% if a is not None %}{{ a|floatformat:1 }}{% endif %}"></td>
+            <td><input name="max" class="form-control form-control-sm" inputmode="decimal" value="{% if b is not None %}{{ b|floatformat:1 }}{% endif %}"></td>
+        </tr>{% endfor %}</tbody>
+    </table>
+    <div class="form-text mb-3">De menor a mayor. El primer desempeño es el que se pierde. Sirve cualquier rango: 1 a 5, 1 a 10 o 0 a 100. Deje vacías las filas que no use.</div>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn au-oro px-4">Guardar escala</button>
+        <button class="btn btn-outline-secondary" name="accion" value="nacional" onclick="return confirm('¿Volver a Bajo 1,0–2,9 · Básico 3,0–3,9 · Alto 4,0–4,5 · Superior 4,6–5,0?')">Usar la escala nacional</button>
+    </div>
+</form>
+<p class="small text-muted">Las rúbricas que ya creó conservan sus valores; las nuevas toman los niveles de esta escala.</p>
+</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends base %}
+{% block page_title %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="mb-0"><i class="fas fa-list-check me-2"></i>{{ inst.nombre }}</h4>
+    <div class="d-flex gap-2 d-print-none">
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:instrumentos' %}">Volver</a>
+        <button class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="fas fa-print me-1"></i>Imprimir</button>
+        <form method="post" action="{% url 'aula:instrumento_accion' inst.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" name="accion" value="duplicar">Duplicar</button></form>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au">
+{% if propio %}
+<form method="post" class="au-tarjeta">
+    {% csrf_token %}
+    {% if usado %}<div class="alert alert-info py-2 small">Ya se usó para calificar: puede cambiar textos, valores y pesos, pero no agregar ni quitar filas o columnas (para eso, duplíquelo).</div>{% endif %}
+    <div class="row g-2 mb-3">
+        <div class="col-md-6"><label class="form-label small fw-bold">Nombre</label><input name="nombre" class="form-control" value="{{ inst.nombre }}" maxlength="120"></div>
+        <div class="col-md-6"><label class="form-label small fw-bold">Descripción (opcional)</label><input name="descripcion" class="form-control" value="{{ inst.descripcion }}" maxlength="300"></div>
+    </div>
+    <div class="table-responsive">
+    <table class="table table-bordered align-top" id="au-tabla">
+        <thead class="table-light"><tr>
+            <th style="min-width:200px">Criterio</th><th style="width:80px">Peso</th>
+            {% if inst.tipo == 'rubrica' %}
+            {% for n in niveles %}<th class="au-n{{ forloop.counter0 }} nivel-col" style="min-width:170px">
+                <input name="nivel_nombre" class="form-control form-control-sm fw-bold mb-1" value="{{ n.nombre }}">
+                <div class="input-group input-group-sm"><span class="input-group-text">vale</span><input name="nivel_valor" class="form-control" value="{{ n.valor|floatformat:-2 }}" inputmode="decimal"></div>
+            </th>{% endfor %}
+            {% else %}<th>Se califica</th>{% endif %}
+        </tr></thead>
+        <tbody>
+        {% for cr in criterios %}{% with i=forloop.counter0 %}
+        <tr>
+            <td><textarea name="crit_nombre" class="form-control form-control-sm" rows="2">{{ cr.nombre }}</textarea></td>
+            <td><input name="crit_peso" class="form-control form-control-sm" value="{{ cr.peso|floatformat:-2 }}" inputmode="decimal"></td>
+            {% if inst.tipo == 'rubrica' %}{% for texto in cr.textos %}<td><textarea name="desc_{{ i }}_{{ forloop.counter0 }}" class="form-control form-control-sm" rows="3">{{ texto }}</textarea></td>{% endfor %}
+            {% else %}<td class="text-muted small">Sí cumple / No cumple</td>{% endif %}
+        </tr>{% endwith %}{% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% if not usado %}
+    <div class="d-flex gap-2 flex-wrap mb-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="au-mas-criterio"><i class="fas fa-plus me-1"></i>Criterio</button>
+        {% if inst.tipo == 'rubrica' %}<span class="small text-muted align-self-center">Para cambiar el número de niveles, duplíquelo y edítelo, o impórtelo desde una tabla.</span>{% endif %}
+    </div>
+    {% endif %}
+    <div class="form-text mb-2">{% if inst.tipo == 'rubrica' %}La nota es el promedio de los valores de los niveles marcados, ponderado por el peso de cada criterio.{% else %}La nota sale del porcentaje de criterios cumplidos (ponderado por el peso), llevado a la escala de notas.{% endif %}</div>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="compartido" id="au-comp" {% if inst.compartido %}checked{% endif %}>
+            <label class="form-check-label" for="au-comp">Compartir con los docentes del colegio</label></div>
+        <div class="d-flex gap-2">
+            <button class="btn au-oro px-4">Guardar</button>
+        </div>
+    </div>
+</form>
+<form method="post" action="{% url 'aula:instrumento_accion' inst.pk %}" onsubmit="return confirm('¿Eliminar este instrumento? Las tareas que lo usan quedan con nota directa.')" class="d-print-none">{% csrf_token %}
+    <button class="btn btn-link text-danger btn-sm" name="accion" value="eliminar">Eliminar instrumento</button></form>
+<script>
+(function () {
+  var boton = document.getElementById('au-mas-criterio');
+  if (!boton) return;
+  boton.addEventListener('click', function () {
+    var tbody = document.querySelector('#au-tabla tbody');
+    var i = tbody.rows.length;
+    var niveles = document.querySelectorAll('#au-tabla th.nivel-col').length;
+    var tr = document.createElement('tr');
+    var html = '<td><textarea name="crit_nombre" class="form-control form-control-sm" rows="2"></textarea></td>' +
+               '<td><input name="crit_peso" class="form-control form-control-sm" value="1"></td>';
+    if (niveles) { for (var j = 0; j < niveles; j++) html += '<td><textarea name="desc_' + i + '_' + j + '" class="form-control form-control-sm" rows="3"></textarea></td>'; }
+    else { html += '<td class="text-muted small">Sí cumple / No cumple</td>'; }
+    tr.innerHTML = html;
+    tbody.appendChild(tr);
+    tr.querySelector('textarea').focus();
+  });
+})();
+</script>
+{% else %}
+<div class="au-tarjeta">
+    <p class="text-muted small">Compartido por {{ inst.propietario.get_full_name }}. Para usarlo, haga una copia con «Duplicar».</p>
+    <div class="table-responsive"><table class="table table-bordered small">
+        <thead class="table-light"><tr><th>Criterio</th>{% if inst.tipo == 'rubrica' %}{% for n in niveles %}<th class="au-n{{ forloop.counter0 }}">{{ n.nombre }} ({{ n.valor|floatformat:1 }})</th>{% endfor %}{% endif %}</tr></thead>
+        <tbody>{% for cr in criterios %}<tr><td class="fw-semibold">{{ cr.nombre }}</td>{% if inst.tipo == 'rubrica' %}{% for texto in cr.textos %}<td>{{ texto }}</td>{% endfor %}{% endif %}</tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endif %}
+</div>
+{% endblock %}

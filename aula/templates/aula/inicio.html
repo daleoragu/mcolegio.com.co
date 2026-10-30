@@ -1,0 +1,28 @@
+{% extends base %}
+{% block page_title %}
+<h4 class="mb-0"><i class="fas fa-chalkboard-user me-2"></i>Aula virtual</h4>
+<p class="text-muted small mb-0">{% if rol == 'estudiante' %}Sus clases: muro, clase en vivo, material y tareas.{% else %}Un aula por cada asignatura y curso, con muro, clase en vivo, material, tareas y rúbricas.{% endif %}</p>
+{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au">
+{% if rol != 'estudiante' %}<div class="d-flex justify-content-end mb-2"><a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:instrumentos' %}"><i class="fas fa-list-check me-1"></i>Mis rúbricas y listas de chequeo</a></div>{% endif %}
+<div class="row g-3">
+{% for a in asignaciones %}
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'aula:por_asignacion' a.pk %}" class="au-tarjeta d-flex align-items-center gap-3 text-decoration-none h-100 mb-0">
+        <div class="au-icono"><i class="fas fa-book-open"></i></div>
+        <div class="flex-grow-1">
+            <div class="fw-bold" style="color:#1f3a68">{{ a.materia.nombre }}</div>
+            <div class="small text-muted">{{ a.curso.nombre }}{% if rol != 'docente' %} · {{ a.docente.user.get_full_name }}{% endif %}</div>
+            {% if a.pendientes %}<span class="au-chip pend mt-1">{{ a.pendientes }} tarea(s) pendiente(s)</span>{% endif %}
+            {% if not a.aula_virtual and rol == 'docente' %}<span class="au-chip gris mt-1">Sin abrir</span>{% endif %}
+        </div>
+    </a>
+  </div>
+{% empty %}
+  <div class="col-12"><div class="au-tarjeta text-center text-muted py-4">No tiene asignaturas en este colegio.</div></div>
+{% endfor %}
+</div>
+</div>
+{% endblock %}

@@ -44,12 +44,14 @@ MODULOS = OrderedDict([
                     ('/elecciones2026/',))),
     # Salón Digital es un producto aparte con cuentas propias: aquí solo se
     # muestra u oculta el acceso desde el menú del colegio.
+    ('aula', ('Aula virtual (Premium)', 'Muro, clase en vivo, material, tareas con rúbrica y paso a la planilla.',
+              ('/aula/',))),
     ('salon', ('Salón Digital', 'Acceso a Salón Digital desde el menú de los docentes.', ())),
 ])
 
 TODOS = list(MODULOS)
 
-PREMIUM = ['generador_horarios']
+PREMIUM = ['generador_horarios', 'aula']
 COMPLETO = [m for m in TODOS if m not in PREMIUM]
 
 PLANES = OrderedDict([

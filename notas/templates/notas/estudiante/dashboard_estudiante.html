@@ -136,6 +136,12 @@
             <span class="app-label">Mis certificados</span>
         </a>
         {% endif %}
+        {% if 'aula' in mods %}
+        <a href="{% url 'aula:inicio' %}" class="app-icon">
+            <div class="icon-container bg-est-boletin" style="background:linear-gradient(135deg,#1f3a68,#2b4f8a);"><i class="fas fa-chalkboard-user"></i></div>
+            <span class="app-label">Aula virtual</span>
+        </a>
+        {% endif %}
         {% if 'circulares' in mods %}
         <a href="{% url 'circulares:mis_circulares' %}" class="app-icon">
             <div class="icon-container bg-est-boletin" style="background:#2563eb;"><i class="fas fa-bullhorn"></i></div>
