@@ -26,6 +26,11 @@ def puntos(correcta, ms, segundos):
     return round(PUNTOS_MAX * (1 - fraccion / 2))
 
 
+def _texto(n):
+    """La nota con un decimal para mostrar («3.7», no «3.70» como queda en la base de datos)."""
+    return None if n is None else str(Decimal(n).quantize(UN_DECIMAL, rounding=ROUND_HALF_UP))
+
+
 def nota(aula, aciertos, total):
     minima, maxima = logica.rango(aula)
     if not total:
@@ -159,7 +164,7 @@ def iniciar(cuestionario, persona):
 def estado_intento(intento):
     if intento.terminado or intento.actual >= len(intento.orden):
         return {'fin': True, 'puntos': intento.puntos, 'aciertos': intento.aciertos, 'total': len(intento.orden),
-                'nota': str(intento.nota) if intento.nota is not None else None}
+                'nota': _texto(intento.nota)}
     p = PreguntaQ.objects.prefetch_related('opciones').get(pk=intento.orden[intento.actual])
     transcurrido = (timezone.now() - intento.inicio_pregunta).total_seconds() if intento.inicio_pregunta else 0
     datos = _pregunta_json(p)
@@ -296,7 +301,7 @@ def estado_sesion(sesion, intento=None, docente=False):
         if sesion.estado == 'fin':
             puesto = sum(1 for x in sesion.intentos.all() if x.puntos > intento.puntos) + 1
             datos['mi_puesto'] = puesto
-            datos['mi_nota'] = str(intento.nota) if intento.nota is not None else None
+            datos['mi_nota'] = _texto(intento.nota)
     return datos
 
 

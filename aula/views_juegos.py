@@ -124,7 +124,7 @@ def actividad_resultado(request, pk, aid):
     except Exception:
         return JsonResponse({'ok': False, 'mensaje': 'La actividad mandó un resultado que no se entiende.'}, status=400)
     r = juegos.guardar_resultado_actividad(a, _persona(c), valor)
-    return JsonResponse({'ok': True, 'nota': str(valor), 'mejor': str(r.nota)})
+    return JsonResponse({'ok': True, 'nota': juegos._texto(valor), 'mejor': juegos._texto(r.nota)})
 
 
 @require_POST
