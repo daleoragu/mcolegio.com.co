@@ -32,6 +32,13 @@ class AulaDelColegio(ColegioDePrueba):
         super().tearDownClass()
         shutil.rmtree(MEDIA, ignore_errors=True)
 
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        # El aula es del plan Premium: se activa para el colegio de prueba.
+        cls.a.modulos_activos = list(cls.a.modulos_activos) + ['aula']
+        cls.a.save(update_fields=['modulos_activos'])
+
     def setUp(self):
         self.ana = self.estudiantes[0]
         self.docente_c = self.cliente(self.u_docente)
