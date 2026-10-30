@@ -15,6 +15,7 @@
     <button type="button" class="btn btn-sm btn-outline-secondary" id="act-pantalla"><i class="fas fa-expand me-1"></i>Pantalla completa</button>
 </div>
 {% if a.descripcion %}<p class="text-muted small mb-2">{{ a.descripcion }}</p>{% endif %}
+{% if para_nombres %}<p class="small mb-2"><span class="au-chip pend"><i class="fas fa-user-check"></i> Solo para:</span> {{ para_nombres|join:", " }}</p>{% endif %}
 
 {% if a.archivo %}
 <iframe id="act-marco" class="au-visor" src="{% url 'aula:archivo' aula.pk 'act' a.pk %}" title="{{ a.titulo }}"

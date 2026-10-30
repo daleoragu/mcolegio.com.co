@@ -40,6 +40,12 @@ class Contexto:
         return ''
 
     @property
+    def clave(self):
+        """'e12' o 'i7': cómo se guarda este estudiante en «para» de tareas, material y actividades."""
+        persona = self.estudiante or self.integrante
+        return clave_de(persona) if persona is not None else ''
+
+    @property
     def base(self):
         return 'aula/base_salon.html' if self.aula.es_salon else 'notas/base.html'
 
@@ -100,6 +106,97 @@ def nombre_de(persona):
         return persona.completo
     u = persona.user
     return f'{u.last_name} {u.first_name}'.strip() or u.username
+
+
+def clave_de(persona):
+    return f'i{persona.pk}' if hasattr(persona, 'completo') else f'e{persona.pk}'
+
+
+# ---------------------------------------------------------------------------
+# Para quién: tareas, material y actividades para toda la clase o para algunos
+# ---------------------------------------------------------------------------
+def es_para(obj, clave):
+    """¿Le toca a este estudiante? (vacío = toda la clase; el docente lo ve todo)."""
+    return not obj.para or clave in obj.para
+
+
+def para_c(obj, c):
+    return c.es_docente or es_para(obj, c.clave)
+
+
+def personas_de(obj, aula, todas=None):
+    """Los estudiantes a quienes va dirigido."""
+    todas = estudiantes(aula) if todas is None else todas
+    return [p for p in todas if es_para(obj, clave_de(p))]
+
+
+def opciones_para(aula):
+    """Para el formulario: [{'clave', 'nombre', 'inclusion'}]."""
+    return [{'clave': clave_de(p), 'nombre': nombre_de(p), 'inclusion': bool(getattr(p, 'es_inclusion', False))}
+            for p in estudiantes(aula)]
+
+
+def leer_para(request, aula):
+    """Lee el «¿para quién?» del formulario. Devuelve (lista, error)."""
+    if request.POST.get('para_modo') != 'algunos':
+        return [], ''
+    validas = {clave_de(p) for p in estudiantes(aula)}
+    escogidas = sorted(set(request.POST.getlist('para')) & validas)
+    if not escogidas:
+        return [], 'Escoja al menos un estudiante (o deje «Toda la clase»).'
+    return escogidas, ''
+
+
+def nombres_para(obj, aula):
+    return [nombre_de(p) for p in personas_de(obj, aula)] if obj.para else []
+
+
+# ---------------------------------------------------------------------------
+# Novedades: el globo rojo con lo que el estudiante no ha visto
+# ---------------------------------------------------------------------------
+SECCIONES = ('muro', 'material', 'tareas', 'actividades', 'cuestionarios')
+
+
+def _visto(aula, persona, crear=False):
+    from .models import Visto
+    filtro = filtro_persona(persona)
+    v = Visto.objects.filter(aula=aula, **filtro).first()
+    if v is None and crear:
+        v = Visto.objects.create(aula=aula, **filtro)
+    return v
+
+
+def marcar_visto(aula, persona, seccion):
+    if seccion not in SECCIONES or persona is None:
+        return
+    v = _visto(aula, persona, crear=True)
+    v.secciones[seccion] = timezone.now().isoformat()
+    v.save(update_fields=['secciones'])
+
+
+def novedades(aula, persona, secciones_vistas=None):
+    """{sección: cuántas cosas nuevas hay desde la última vez que la abrió}."""
+    from django.utils.dateparse import parse_datetime
+    if secciones_vistas is None:
+        v = _visto(aula, persona)
+        secciones_vistas = v.secciones if v else {}
+    clave = clave_de(persona)
+
+    def nuevas(qs, campo, seccion, filtrar_para=True):
+        desde = parse_datetime(secciones_vistas.get(seccion) or '')
+        if desde is not None:
+            qs = qs.filter(**{f'{campo}__gt': desde})
+        return sum(1 for o in qs if not filtrar_para or es_para(o, clave))
+
+    publicaciones = aula.publicaciones.filter(tarea__isnull=True)
+    return {
+        'muro': nuevas(publicaciones, 'creada', 'muro', filtrar_para=False),
+        'material': nuevas(aula.materiales.all(), 'creado', 'material'),
+        'tareas': nuevas(aula.tareas.filter(publicada=True), 'creada', 'tareas'),
+        'actividades': nuevas(aula.actividades.filter(publicada=True), 'creada', 'actividades'),
+        'cuestionarios': nuevas(aula.cuestionarios.filter(a_su_ritmo=True, preguntas__isnull=False).distinct(),
+                                'creado', 'cuestionarios', filtrar_para=False),
+    }
 
 
 def filtro_persona(persona):
@@ -443,13 +540,14 @@ def horario_de(aula):
 # ---------------------------------------------------------------------------
 # Avisos
 # ---------------------------------------------------------------------------
-def avisar_estudiantes(aula, mensaje, url):
-    """Notificación (y push al celular) a los estudiantes del curso. En Salón Digital no hay cuentas."""
+def avisar_estudiantes(aula, mensaje, url, para=None):
+    """Notificación (y push al celular) a los estudiantes del curso, o solo a los de «para».
+    En Salón Digital no hay cuentas."""
     if not aula.asignacion_id:
         return 0
     from notas.models import Notificacion
     avisos = [Notificacion(colegio=aula.colegio, destinatario_id=e.user_id, mensaje=mensaje[:255], url=url,
-                           tipo='GENERAL') for e in estudiantes(aula)]
+                           tipo='GENERAL') for e in estudiantes(aula) if not para or clave_de(e) in para]
     Notificacion.objects.bulk_create(avisos)
     return len(avisos)
 

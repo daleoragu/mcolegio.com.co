@@ -9,6 +9,8 @@
             <h5 class="mb-1" style="color:#1f3a68;font-weight:800">{{ t.titulo }}</h5>
             <div class="small text-muted">{% if t.fecha_limite %}Entrega: {{ t.fecha_limite|date:"l d \d\e F, h:i a" }}{% if t.vencida %} · cerrada{% if t.acepta_tardias %} (recibe tarde){% endif %}{% endif %}{% else %}Sin fecha límite{% endif %}
                 {% if t.periodo %} · {{ t.periodo }}{% endif %}</div>
+            {% if para_nombres %}<div class="small mt-1"><span class="au-chip pend"><i class="fas fa-user-check"></i> Solo para:</span> {{ para_nombres|join:", " }}</div>
+            {% elif t.para and not c.es_docente %}<div class="small mt-1"><span class="au-chip pend"><i class="fas fa-user-check"></i> Tarea solo para usted</span></div>{% endif %}
         </div>
         {% if c.es_docente %}<div class="d-flex gap-2 flex-wrap align-items-start">
             <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:tarea_editar' aula.pk t.pk %}"><i class="far fa-pen-to-square me-1"></i>Editar</a>

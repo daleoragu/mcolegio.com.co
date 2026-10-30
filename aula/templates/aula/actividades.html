@@ -12,6 +12,7 @@
             <div class="fw-bold">{{ a.titulo }}</div>
             {% if a.descripcion %}<div class="small text-muted">{{ a.descripcion }}</div>{% endif %}
             <div class="small mt-1">
+                {% if a.para %}<span class="au-chip pend"><i class="fas fa-user-check"></i> {% if c.es_docente %}Solo {{ a.para|length }} estudiante{{ a.para|length|pluralize }}{% else %}Solo para usted{% endif %}</span>{% endif %}
                 {% if a.califica %}<span class="au-chip ok">Da nota</span>{% else %}<span class="au-chip gris">Práctica</span>{% endif %}
                 {% if a.pasada_planilla %}<span class="au-chip ok"><i class="fas fa-check"></i> En la planilla</span>{% endif %}
             </div>
@@ -45,6 +46,7 @@
         <label class="form-label small fw-bold mb-1">o un archivo HTML</label>
         <input type="file" name="archivo" class="form-control mb-1" accept=".html,.htm">
         <div class="form-text mb-2">Juegos hechos con IA, eXeLearning, H5P exportado a HTML… (hasta 10 MB).</div>
+        {% include 'aula/_para.html' with actual=None prefijo='a' %}
         <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" name="califica" id="act-califica">
             <label class="form-check-label" for="act-califica">La actividad envía la nota al aula</label>

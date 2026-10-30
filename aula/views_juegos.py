@@ -59,8 +59,11 @@ def actividades(request, pk):
                       enlace=(request.POST.get('enlace') or '').strip()[:200],
                       califica=request.POST.get('califica') == 'on')
         _leer_periodo_componente(request, a, aula)
+        a.para, error_para = logica.leer_para(request, aula)
         if not a.titulo or not (archivo or a.enlace):
             messages.warning(request, 'Escriba el título y suba el archivo HTML o pegue el enlace.')
+        elif error_para:
+            messages.warning(request, error_para)
         elif archivo and not archivo.name.lower().endswith(('.html', '.htm')):
             messages.error(request, 'La actividad debe ser un archivo .html (para otros archivos use «Material»).')
         elif logica.muy_grande(archivo):
@@ -69,11 +72,12 @@ def actividades(request, pk):
             _guardar_archivo(a, 'archivo', archivo)
             a.save()
             logica.avisar_estudiantes(aula, f'{aula.titulo}: nueva actividad «{a.titulo}»',
-                                      _url(request, 'aula:actividad', aula.pk, a.pk))
+                                      _url(request, 'aula:actividad', aula.pk, a.pk), a.para)
             messages.success(request, 'Actividad publicada.')
             return redirect('aula:actividad', pk=aula.pk, aid=a.pk)
         return redirect('aula:actividades', pk=aula.pk)
-    lista = list(aula.actividades.all() if c.es_docente else aula.actividades.filter(publicada=True))
+    lista = [a for a in (aula.actividades.all() if c.es_docente else aula.actividades.filter(publicada=True))
+             if logica.para_c(a, c)]
     if not c.es_docente:
         mias = {r.actividad_id: r for r in ResultadoActividad.objects.filter(
             actividad__in=lista, **logica.filtro_persona(_persona(c)))}
@@ -82,7 +86,7 @@ def actividades(request, pk):
     else:
         for a in lista:
             a.n_resultados = a.resultados.count()
-    datos = {'actividades': lista}
+    datos = {'actividades': lista, 'opciones_para': logica.opciones_para(aula) if c.es_docente else []}
     datos.update(_datos_planilla(aula))
     return _render(request, c, 'aula/actividades.html', datos, 'actividades')
 
@@ -91,12 +95,12 @@ def actividades(request, pk):
 def actividad(request, pk, aid):
     c = _ctx(request, pk)
     a = get_object_or_404(Actividad, pk=aid, aula=c.aula)
-    if not a.publicada and not c.es_docente:
+    if (not a.publicada and not c.es_docente) or not logica.para_c(a, c):
         raise Http404
-    datos = {'a': a}
+    datos = {'a': a, 'para_nombres': logica.nombres_para(a, c.aula) if c.es_docente else []}
     if c.es_docente:
         resultados = {(r.integrante_id if c.aula.es_salon else r.estudiante_id): r for r in a.resultados.all()}
-        datos['filas'] = [{'nombre': logica.nombre_de(p), 'r': resultados.get(p.id)} for p in logica.estudiantes(c.aula)]
+        datos['filas'] = [{'nombre': logica.nombre_de(p), 'r': resultados.get(p.id)} for p in logica.personas_de(a, c.aula)]
         datos['puede_planilla'] = bool(c.aula.asignacion_id) and a.califica
         datos['componente_nombre'] = dict(logica.componentes_de(c.aula)).get(a.componente, '')
         datos.update(_datos_planilla(c.aula))
@@ -111,6 +115,8 @@ def actividad_resultado(request, pk, aid):
     """La actividad (desde el marco del aula) manda {puntaje, maximo} o {nota}."""
     c = _ctx(request, pk)
     a = get_object_or_404(Actividad, pk=aid, aula=c.aula, califica=True, publicada=True)
+    if not logica.para_c(a, c):
+        raise Http404
     if c.es_docente:
         return JsonResponse({'ok': False, 'mensaje': 'Vista previa del docente: no se guarda.'})
     try:

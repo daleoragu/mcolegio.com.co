@@ -11,7 +11,7 @@
         {% for m in lista %}
         <div class="border-bottom py-2">
             <div class="d-flex justify-content-between align-items-start gap-2">
-                <div><strong>{{ m.titulo }}</strong>{% if m.descripcion %}<div class="small text-muted">{{ m.descripcion }}</div>{% endif %}</div>
+                <div><strong>{{ m.titulo }}</strong>{% if m.para and c.es_docente %} <span class="au-chip pend" title="{{ m.para_nombres|join:', ' }}"><i class="fas fa-user-check"></i> Solo {{ m.para|length }} estudiante{{ m.para|length|pluralize }}</span>{% endif %}{% if m.descripcion %}<div class="small text-muted">{{ m.descripcion }}</div>{% endif %}</div>
                 {% if c.es_docente %}
                 <form method="post" action="{% url 'aula:material_eliminar' aula.pk m.pk %}" onsubmit="return confirm('¿Eliminar este material?')">{% csrf_token %}
                     <button class="btn btn-sm btn-link text-danger" aria-label="Eliminar"><i class="far fa-trash-can"></i></button></form>
@@ -43,6 +43,7 @@
         <input type="file" name="archivo" class="form-control mb-2">
         <label class="form-label small fw-bold mb-1">o un enlace</label>
         <input type="url" name="enlace" class="form-control mb-2" placeholder="YouTube, Drive, una página…">
+        {% include 'aula/_para.html' with actual=None prefijo='m' %}
         <div class="form-text mb-2">Los videos de YouTube se ven dentro del aula. Para videos largos use YouTube (no listado) o Drive.</div>
         <button class="btn au-oro w-100">Agregar</button>
     </form>

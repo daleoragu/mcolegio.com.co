@@ -16,7 +16,7 @@
     <tbody>
     {% for t in tareas %}
     <tr>
-        <td><a href="{% url 'aula:tarea' aula.pk t.pk %}" class="fw-semibold text-decoration-none">{{ t.titulo }}</a>{% if not t.publicada %} <span class="au-chip gris">borrador</span>{% endif %}
+        <td><a href="{% url 'aula:tarea' aula.pk t.pk %}" class="fw-semibold text-decoration-none">{{ t.titulo }}</a>{% if not t.publicada %} <span class="au-chip gris">borrador</span>{% endif %}{% if t.para %} <span class="au-chip pend"><i class="fas fa-user-check"></i> {% if c.es_docente %}Solo {{ t.para|length }} estudiante{{ t.para|length|pluralize }}{% else %}Solo para usted{% endif %}</span>{% endif %}
             {% if t.pasada_planilla %}<div class="small text-success"><i class="fas fa-check"></i> En la planilla</div>{% endif %}</td>
         <td class="small">{% if t.fecha_limite %}{{ t.fecha_limite|date:"d M, h:i a" }}{% if t.vencida %} <span class="au-chip gris">cerrada</span>{% endif %}{% else %}—{% endif %}</td>
         <td class="small">{{ t.instrumento.nombre|default:"Nota directa" }}</td>

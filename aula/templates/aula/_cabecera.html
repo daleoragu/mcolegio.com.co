@@ -14,12 +14,12 @@
     {% if not aula.es_salon %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:inicio' %}"><i class="fas fa-grip me-1"></i>Mis clases</a>{% endif %}
 </div>
 <nav class="au-pestanas">
-    <a href="{% url 'aula:muro' aula.pk %}" class="{% if pestana == 'muro' %}activa{% endif %}"><i class="far fa-comments me-1"></i>Muro</a>
+    <a href="{% url 'aula:muro' aula.pk %}" class="{% if pestana == 'muro' %}activa{% endif %}"><i class="far fa-comments me-1"></i>Muro{% if nuevos and nuevos.muro %}<span class="au-globo">{{ nuevos.muro }}</span>{% endif %}</a>
     <a href="{% url 'aula:clase' aula.pk %}" class="{% if pestana == 'clase' %}activa{% endif %}"><i class="fas fa-video me-1"></i>Clase en vivo</a>
-    <a href="{% url 'aula:material' aula.pk %}" class="{% if pestana == 'material' %}activa{% endif %}"><i class="far fa-folder-open me-1"></i>Material</a>
-    <a href="{% url 'aula:tareas' aula.pk %}" class="{% if pestana == 'tareas' %}activa{% endif %}"><i class="fas fa-clipboard-check me-1"></i>Tareas</a>
-    <a href="{% url 'aula:actividades' aula.pk %}" class="{% if pestana == 'actividades' %}activa{% endif %}"><i class="fas fa-puzzle-piece me-1"></i>Actividades interactivas</a>
-    <a href="{% url 'aula:cuestionarios' aula.pk %}" class="{% if pestana == 'cuestionarios' %}activa{% endif %}"><i class="fas fa-bolt me-1"></i>Cuestionarios</a>
+    <a href="{% url 'aula:material' aula.pk %}" class="{% if pestana == 'material' %}activa{% endif %}"><i class="far fa-folder-open me-1"></i>Material{% if nuevos and nuevos.material %}<span class="au-globo">{{ nuevos.material }}</span>{% endif %}</a>
+    <a href="{% url 'aula:tareas' aula.pk %}" class="{% if pestana == 'tareas' %}activa{% endif %}"><i class="fas fa-clipboard-check me-1"></i>Tareas{% if nuevos and nuevos.tareas %}<span class="au-globo">{{ nuevos.tareas }}</span>{% endif %}</a>
+    <a href="{% url 'aula:actividades' aula.pk %}" class="{% if pestana == 'actividades' %}activa{% endif %}"><i class="fas fa-puzzle-piece me-1"></i>Actividades interactivas{% if nuevos and nuevos.actividades %}<span class="au-globo">{{ nuevos.actividades }}</span>{% endif %}</a>
+    <a href="{% url 'aula:cuestionarios' aula.pk %}" class="{% if pestana == 'cuestionarios' %}activa{% endif %}"><i class="fas fa-bolt me-1"></i>Cuestionarios{% if nuevos and nuevos.cuestionarios %}<span class="au-globo">{{ nuevos.cuestionarios }}</span>{% endif %}</a>
     {% if c.es_docente %}<a href="{% url 'aula:calificaciones' aula.pk %}" class="{% if pestana == 'calificaciones' %}activa{% endif %}"><i class="fas fa-table me-1"></i>Calificaciones</a>{% endif %}
 </nav>
 </div>
