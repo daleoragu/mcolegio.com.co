@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_examenes as vx, views_juegos as vj
+from . import views, views_examenes as vx, views_importar as vi, views_juegos as vj
 
 app_name = 'aula'
 
@@ -45,6 +45,9 @@ urlpatterns = [
     path('<int:pk>/vivo/<int:sid>/', vj.vivo, name='vivo'),
     path('<int:pk>/vivo/<int:sid>/estado/', vj.vivo_estado, name='vivo_estado'),
 
+    path('<int:pk>/importar/', vi.importar_notas, name='importar'),
+    path('<int:pk>/tareas/<int:tid>/rejilla.xlsx', vi.rejilla_plantilla, name='rejilla_plantilla'),
+    path('<int:pk>/tareas/<int:tid>/rejilla/importar/', vi.rejilla_importar, name='rejilla_importar'),
     path('<int:pk>/examenes/', vx.examenes, name='examenes'),
     path('<int:pk>/examenes/<int:eid>/', vx.examen, name='examen'),
 
