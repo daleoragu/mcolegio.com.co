@@ -75,6 +75,22 @@
         Las hojas sueltas son para quien no esté en la lista: salen en blanco para llenar a mano.
     </p>
     <div class="row g-3">
+        {% if es_salon %}
+        <div class="col-md-8">
+            <label class="form-label">Grupos</label>
+            <div style="max-height:200px; overflow-y:auto; border:1px solid #dee2e6;
+                        border-radius:6px; padding:10px;">
+                {% for g in grupos %}
+                    <label class="d-block" style="font-weight:400; padding:3px 0;">
+                        <input type="checkbox" name="grupo_ids" value="{{ g.id }}" {% if g.id == examen.grupo_id %}checked{% endif %}>
+                        {{ g.nombre }}
+                    </label>
+                {% empty %}
+                    <span class="text-muted">Todavía no tiene grupos. Créelos en Mi Salón Virtual.</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
         <div class="col-md-8">
             <label class="form-label">Cursos</label>
             <div style="max-height:200px; overflow-y:auto; border:1px solid #dee2e6;
@@ -89,6 +105,7 @@
                 {% endfor %}
             </div>
         </div>
+        {% endif %}
         <div class="col-md-4">
             <label class="form-label">Hojas sueltas adicionales</label>
             <input type="number" name="sueltas" value="0" min="0" max="50" class="form-control">

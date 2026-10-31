@@ -75,6 +75,7 @@ TEMPLATES = [
                 'notas.context_processors.notificaciones_destacadas',
                 'notas.context_processors.colegio_context',
                 'notas.context_processors.familia_context',
+                'puntoexacto.context_processors.base_puntoexacto',
             ],
         },
     },

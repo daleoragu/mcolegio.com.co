@@ -33,6 +33,12 @@
             <label class="form-label">{{ form.titulo.label }}</label>
             {{ form.titulo }}{{ form.titulo.errors }}
         </div>
+        {% if form.grupo %}
+        <div class="col-md-9">
+            <label class="form-label">Grupo</label>
+            {{ form.grupo }}{{ form.grupo.errors }}
+        </div>
+        {% else %}
         <div class="col-md-6">
             <label class="form-label">{{ form.asignacion.label }}</label>
             {{ form.asignacion }}{{ form.asignacion.errors }}
@@ -41,10 +47,12 @@
             <label class="form-label">Periodo</label>
             {{ form.periodo }}{{ form.periodo.errors }}
         </div>
+        {% endif %}
         <div class="col-md-3">
             <label class="form-label">{{ form.fecha.label }}</label>
             {{ form.fecha }}{{ form.fecha.errors }}
         </div>
+        {% if form.componente %}
         <div class="col-md-6">
             <label class="form-label">{{ form.componente.label }}</label>
             {{ form.componente }}{{ form.componente.errors }}
@@ -53,6 +61,7 @@
                 pregunta por pregunta, y entonces el examen se parte en varias columnas.
             </div>
         </div>
+        {% endif %}
     </div>
 
     <h5 class="mt-4">La hoja</h5>

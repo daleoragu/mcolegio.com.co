@@ -1,0 +1,64 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <a href="{% url 'aula:examenes' aula.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left"></i></a>
+    <h5 class="mb-0 fw-bold flex-grow-1" style="color:var(--au-azul)">{{ ex.titulo }}</h5>
+    <span class="small text-muted">{{ ex.fecha|date:"d M Y" }} · {{ ex.numero_preguntas }} preguntas</span>
+</div>
+{% if c.es_docente %}
+<div class="au-tarjeta d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'puntoexacto:clave' ex.pk %}"><i class="fas fa-key me-1"></i>Clave</a>
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'puntoexacto:hojas' ex.pk %}"><i class="fas fa-print me-1"></i>Hojas para imprimir</a>
+    <a class="btn btn-success btn-sm" href="{% url 'puntoexacto:escanear' ex.pk %}"><i class="fas fa-camera me-1"></i>Calificar con la cámara</a>
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'puntoexacto:resultados' ex.pk %}"><i class="fas fa-chart-column me-1"></i>Resultados y análisis</a>
+    {% if not aula.es_salon %}<a class="btn au-oro btn-sm" href="{% url 'puntoexacto:planilla' ex.pk %}"><i class="fas fa-file-import me-1"></i>Pasar a la planilla</a>{% endif %}
+</div>
+<div class="au-tarjeta p-0">
+  <div class="table-responsive"><table class="table align-middle mb-0">
+    <thead class="table-light"><tr><th>Estudiante</th><th>Estado</th><th class="text-center">Nota</th><th>Desempeño</th></tr></thead>
+    <tbody>
+    {% for h in hojas %}
+    <tr><td>{{ h.nombre }}</td>
+        <td>{% if h.estado == 'calificada' %}<span class="au-chip ok">Calificada</span>{% elif h.estado == 'revisar' %}<span class="au-chip mal">Revisar</span>{% elif h.estado == 'ausente' %}<span class="au-chip gris">No presentó</span>{% else %}<span class="au-chip pend">Sin calificar</span>{% endif %}</td>
+        <td class="text-center fw-bold">{% if h.nota is not None %}{{ h.nota|floatformat:1 }}{% endif %}</td>
+        <td class="small">{{ h.desempeno_aula }}</td></tr>
+    {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Todavía no hay hojas: prepárelas en «Hojas para imprimir».</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% else %}
+  {% if hoja.estado == 'calificada' %}
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="au-tarjeta text-center">
+        <div class="small text-muted">Su nota</div>
+        <div class="au-nota-grande">{{ hoja.nota|floatformat:1 }}</div>
+        <div class="fw-semibold">{{ desempeno }}</div>
+        <div class="small text-muted mt-2">{{ aciertos }} de {{ filas|length }} correctas</div>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="au-tarjeta">
+        <h6>Sus respuestas</h6>
+        <div class="d-flex flex-wrap gap-2">
+        {% for f in filas %}
+          <div class="text-center border rounded px-2 py-1 {% if f.estado == 'bien' %}au-n3{% elif f.estado == 'parcial' %}au-n1{% else %}au-n0{% endif %}" style="min-width:58px" title="{{ f.tema }}">
+            <div class="small text-muted">{{ f.numero }}</div>
+            <div class="fw-bold">{% if f.doble %}doble{% else %}{{ f.marcada|default:"—" }}{% endif %}
+              {% if f.estado == 'bien' %}<i class="fas fa-check text-success"></i>{% elif f.estado == 'parcial' %}<i class="fas fa-adjust text-warning"></i>{% else %}<i class="fas fa-xmark text-danger"></i>{% endif %}</div>
+          </div>
+        {% endfor %}
+        </div>
+        <div class="small text-muted mt-2">Pase el dedo o el mouse por encima de una pregunta para ver qué evalúa. Pregúntele a su docente por las que falló.</div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="au-tarjeta text-center text-muted py-4">Su hoja todavía no está calificada.</div>
+  {% endif %}
+{% endif %}
+</div>
+{% endblock %}

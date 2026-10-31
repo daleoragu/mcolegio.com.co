@@ -1,0 +1,38 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+{% if c.es_docente %}
+<div class="au-tarjeta d-flex flex-wrap align-items-center gap-3">
+    <div class="au-icono" style="background:#198754"><i class="fas fa-camera"></i></div>
+    <div class="flex-grow-1">
+        <div class="fw-bold">Exámenes con PuntoExacto</div>
+        <div class="small text-muted">Imprima las hojas de respuesta, califíquelas con la cámara del celular y las notas aparecen aquí y en {% if aula.es_salon %}la planilla del grupo{% else %}Calificaciones (y con un botón pasan a la planilla oficial){% endif %}.</div>
+    </div>
+    <a class="btn au-oro" href="{{ url_crear }}"><i class="fas fa-plus me-1"></i>Crear examen</a>
+</div>
+{% endif %}
+{% for ex in examenes %}
+<a href="{% url 'aula:examen' aula.pk ex.pk %}" class="au-tarjeta d-flex align-items-center gap-3 text-decoration-none text-reset">
+    <div class="au-icono" style="background:#e8eef9;color:#1f3a68"><i class="far fa-file-lines"></i></div>
+    <div class="flex-grow-1">
+        <div class="fw-bold">{{ ex.titulo }}</div>
+        <div class="small text-muted">{{ ex.fecha|date:"d M Y" }} · {{ ex.numero_preguntas }} preguntas{% if ex.periodo %} · {{ ex.periodo }}{% endif %}</div>
+    </div>
+    {% if c.es_docente %}
+        <div class="text-center small text-muted"><div class="fw-bold fs-5 text-dark">{{ ex.n_calificadas }} / {{ ex.n_hojas }}</div>calificadas</div>
+    {% elif ex.mia.estado == 'calificada' %}
+        <div class="text-center"><div class="au-nota-grande" style="font-size:1.5rem">{{ ex.mia.nota|floatformat:1 }}</div><div class="small text-muted">su nota</div></div>
+    {% else %}
+        <span class="au-chip pend">Sin calificar</span>
+    {% endif %}
+</a>
+{% empty %}
+<div class="au-tarjeta text-center text-muted py-5">
+    <i class="fas fa-camera fa-2x mb-2 d-block"></i>
+    {% if c.es_docente %}Todavía no hay exámenes de esta clase.{% else %}Todavía no tiene exámenes calificados.{% endif %}
+</div>
+{% endfor %}
+</div>
+{% endblock %}

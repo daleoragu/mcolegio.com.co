@@ -9,10 +9,13 @@
     <a href="{% url 'puntoexacto:formas' examen_id=examen.id %}" class="btn btn-outline-secondary">Formas{% if examen.formas.exists %} ({{ examen.formas.count|add:1 }}){% endif %}</a>
     <a href="{% url 'puntoexacto:exportar' examen_id=examen.id %}" class="btn btn-outline-secondary">
         <i class="fas fa-file-excel me-1"></i> Exportar a Excel</a>
-    <a href="{% url 'puntoexacto:bloques' examen_id=examen.id %}" class="btn btn-outline-secondary">Bloques</a>
+    {% if not examen.cuenta_id %}<a href="{% url 'puntoexacto:bloques' examen_id=examen.id %}" class="btn btn-outline-secondary">Bloques</a>{% endif %}
     <a href="{% url 'puntoexacto:escanear' examen_id=examen.id %}" class="btn btn-outline-success">
         <i class="fas fa-camera me-1"></i> Cámara</a>
-    {% if not resumen_bloques %}
+    {% if examen.cuenta_id %}
+    {% if examen.grupo.aula %}<a href="{% url 'aula:calificaciones' examen.grupo.aula.pk %}" class="btn btn-primary crece">
+        Ver en la planilla del grupo</a>{% endif %}
+    {% elif not resumen_bloques %}
     <a href="{% url 'puntoexacto:planilla' examen_id=examen.id %}" class="btn btn-primary crece">
         Pasar a la planilla</a>
     {% endif %}

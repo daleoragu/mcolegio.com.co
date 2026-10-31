@@ -63,6 +63,9 @@ class Examen(models.Model):
     # Reservado para Salón Digital, donde no hay colegio ni docente institucional.
     cuenta = models.ForeignKey('salon_digital.Cuenta', on_delete=models.CASCADE,
                                related_name='examenes_puntoexacto', null=True, blank=True)
+    # En el plan individual el examen es de un grupo (en el colegio, de la asignación y sus cursos).
+    grupo = models.ForeignKey('salon_digital.Grupo', on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='examenes_puntoexacto', verbose_name='Grupo')
 
     titulo = models.CharField(max_length=160, verbose_name='Nombre del examen')
     asignacion = models.ForeignKey(AsignacionDocente, on_delete=models.SET_NULL,
@@ -422,6 +425,8 @@ class Hoja(models.Model):
                                    null=True, blank=True, related_name='hojas_puntoexacto')
     # Cuando el estudiante no está en ninguna lista (Salón Digital, o alguien
     # que llegó al colegio y todavía no se ha matriculado).
+    integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE,
+                                   null=True, blank=True, related_name='hojas_puntoexacto')
     nombre_libre = models.CharField(max_length=160, blank=True)
     documento_libre = models.CharField(max_length=40, blank=True)
 
