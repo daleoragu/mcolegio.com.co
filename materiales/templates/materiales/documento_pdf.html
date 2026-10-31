@@ -73,6 +73,14 @@
     .sep { border-top: 1px dashed #999; margin: {{ separacion }}px 0; }
     .salto { break-after: page; }
     .fin { background: #1f3a68; color: #fff; font-weight: bold; text-align: center; padding: 4px 8px; margin-top: 6px; break-inside: avoid; }
+    .lienzo { position: relative; margin: 2px auto; }
+    .lienzo img { display: block; width: 100%; }
+    .lienzo .zona { position: absolute; border: 2px solid #198754; border-radius: 3px; background: rgba(25,135,84,.12); }
+    .lienzo .campo { position: absolute; border: 1px solid #198754; color: #198754; font-weight: bold; font-size: 9pt; overflow: hidden; line-height: 1.1; }
+    .hoja { column-span: all; break-inside: avoid; text-align: center; }
+    .hoja .lienzo { display: inline-block; text-align: left; }
+    .hoja .lienzo img { width: auto; max-width: 100%; max-height: 232mm; }
+    .nota-archivo { font-style: italic; color: #444; margin-left: 14px; }
     .clave-docente { text-align: center; color: #198754; font-weight: bold; font-size: 9pt; border: 1px solid #198754; padding: 2px; margin-bottom: 4px; }
 </style></head>
 <body>
@@ -126,13 +134,22 @@
         <div class="b recuadro {{ b.estilo }}"><div class="rt">{{ b.titulo }}</div>{{ b.html|safe }}</div>
     {% elif b.tipo == 'lineas' %}
         <div class="b">{% for _ in ''|center:b.n %}<div class="linea"></div>{% endfor %}</div>
+    {% elif b.tipo == 'pregunta' and b.modo == 'hoja' %}
+        <div class="b hoja">
+            {% if b.enunciado %}<div class="enun" style="text-align:left">{{ b.enunciado }}</div>{% endif %}
+            {% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="lienzo"><img src="{{ ruta }}">{% if respuestas %}{% for c in b.campos %}<div class="campo" style="{{ c.css }}">{% if c.tipo == 'marca' %}{% if c.correcta %}X{% endif %}{% else %}{{ c.respuesta }}{% endif %}</div>{% endfor %}{% endif %}</div>{% endif %}{% endwith %}
+        </div>
     {% elif b.tipo == 'pregunta' %}
         <div class="b pregunta">
             <div class="enun"><b>{{ b.numero }}.</b> {% if b.modo == 'completar' %}{% for parte, resp in b.trozos %}{{ parte }}{% if resp is not None %}<span class="hueco">{% if respuestas %}<span class="ok">{{ resp }}</span>{% else %}&nbsp;{% endif %}</span>{% endif %}{% endfor %}{% else %}{{ b.enunciado }}{% endif %}
                 {% if respuestas and b.control %}<span class="control">(pregunta de control)</span>{% endif %}</div>
             {% if b.modo == 'completar' and b.enunciado %}<div style="margin-left:14px;font-style:italic">{{ b.enunciado }}</div>{% endif %}
-            {% if b.imagen %}{% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="img"><img src="{{ ruta }}" style="width:45%"></div>{% endif %}{% endwith %}{% endif %}
-            {% if b.modo == 'unica' or b.modo == 'varias' %}
+            {% if b.modo == 'senalar' %}
+                {% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="lienzo" style="width:{{ b.ancho }}%"><img src="{{ ruta }}">{% if respuestas %}{% for z in b.zonas %}<div class="zona" style="{{ z.css }}"></div>{% endfor %}{% endif %}</div>{% endif %}{% endwith %}
+            {% elif b.imagen %}{% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="img"><img src="{{ ruta }}" style="width:45%"></div>{% endif %}{% endwith %}{% endif %}
+            {% if b.modo == 'archivo' %}
+                <div class="nota-archivo">Respuesta con {% if b.archivo == 'foto' %}una foto{% elif b.archivo == 'audio' %}un audio{% else %}una foto o un audio{% endif %}: se envía en el aula virtual.</div>
+            {% elif b.modo == 'unica' or b.modo == 'varias' %}
                 <div class="ops {{ b.disposicion }}">{% for l, o, bien in b.letras %}<span{% if respuestas and bien %} class="ok"{% endif %}>{% if b.modo == 'varias' %}&#9744; {% endif %}<b>{{ l }}.</b> {{ o }}</span>{% endfor %}</div>
             {% elif b.modo == 'vf' %}
                 <div class="ops fila"><span{% if respuestas and b.valor %} class="ok"{% endif %}>( &nbsp; ) Verdadero</span><span{% if respuestas and not b.valor %} class="ok"{% endif %}>( &nbsp; ) Falso</span></div>

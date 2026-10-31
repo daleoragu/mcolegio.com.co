@@ -149,6 +149,8 @@
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="seccion"><i class="fas fa-bookmark me-1"></i>Sección</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="imagen"><i class="far fa-image me-1"></i>Imagen</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="pregunta"><i class="fas fa-circle-question me-1"></i>Pregunta</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-nuevo="banco"><i class="fas fa-box-archive me-1"></i>Del banco</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-nuevo="hoja"><i class="far fa-file-pdf me-1"></i>Hoja sobre un PDF</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="contexto"><i class="fas fa-book-open me-1"></i>Texto para varias preguntas</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="recuadro"><i class="far fa-square me-1"></i>Recuadro</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="tabla"><i class="fas fa-table me-1"></i>Tabla</button>
@@ -158,6 +160,25 @@
     </div>
 </div>
 <input type="file" id="mm-archivo" accept="image/*" multiple hidden>
+<input type="file" id="mm-archivo-hoja" accept="application/pdf,.pdf,image/*" multiple hidden>
+
+<div class="modal fade" id="mm-banco" tabindex="-1" aria-hidden="true" aria-labelledby="mm-banco-titulo"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header py-2"><h6 class="modal-title" id="mm-banco-titulo"><i class="fas fa-box-archive me-1"></i>Banco de preguntas</h6><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+    <div class="modal-body">
+        <div class="row g-2 mb-2">
+            <div class="col-md-4"><input id="mm-banco-q" class="form-control form-control-sm" placeholder="Buscar: fracciones, célula…" aria-label="Buscar"></div>
+            <div class="col-md-3"><input id="mm-banco-area" class="form-control form-control-sm" placeholder="Área" aria-label="Área"></div>
+            <div class="col-md-2"><input id="mm-banco-grado" class="form-control form-control-sm" placeholder="Grado" aria-label="Grado"></div>
+            <div class="col-md-3"><select id="mm-banco-modo" class="form-select form-select-sm" aria-label="Tipo"><option value="">Todos los tipos</option>{% for k, v in modos_pregunta.items %}{% if k != 'hoja' %}<option value="{{ k }}">{{ v }}</option>{% endif %}{% endfor %}</select></div>
+            {% if not acceso.es_individual %}<div class="col-md-4"><select id="mm-banco-alcance" class="form-select form-select-sm" aria-label="De quién"><option value="">Mías y compartidas del colegio</option><option value="mias">Solo mías</option></select></div>{% endif %}
+        </div>
+        <div id="mm-banco-lista" class="mm-banco-lista"></div>
+    </div>
+    <div class="modal-footer py-2 justify-content-between">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="mm-banco-todas"><i class="fas fa-download me-1"></i>Guardar todas las preguntas de este documento</button>
+        <a class="btn btn-sm btn-link" href="{% url 'materiales:banco_pagina' %}">Organizar el banco</a>
+    </div>
+</div></div></div>
 
 <div class="modal fade" id="mm-previa" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header py-2"><h6 class="modal-title">Vista previa</h6><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
@@ -177,6 +198,9 @@ window.MM = {
     paginas: "{% url 'materiales:paginas' doc.pk %}",
     ayudante: "{% url 'puntoexacto:nube_ayudante' proveedor='PROV' %}",
     titulo: "{{ doc.titulo|escapejs }}",
+    doc: {{ doc.pk }},
+    colegio: {% if acceso.es_individual %}false{% else %}true{% endif %},
+    banco: { buscar: "{% url 'materiales:banco' %}", guardar: "{% url 'materiales:banco_guardar' %}", usar: "{% url 'materiales:banco_usar' %}" },
     csrf: "{{ csrf_token }}"
 };
 </script>

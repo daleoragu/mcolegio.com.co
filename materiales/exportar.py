@@ -56,7 +56,7 @@ def _numerar(bloques):
     """Numera las preguntas y pone a cada contexto su rango: «Responde las preguntas 5 a 7»."""
     n = 0
     for b in bloques:
-        if b['tipo'] == 'pregunta':
+        if b['tipo'] == 'pregunta' and b.get('modo') != 'hoja':     # las hojas sobre un PDF no llevan número
             n += 1
             b['numero'] = n
     for i, b in enumerate(bloques):
@@ -66,7 +66,7 @@ def _numerar(bloques):
         for siguiente in bloques[i + 1:]:
             if siguiente['tipo'] in ('contexto', 'seccion') or (b['cubre'] and len(numeros) >= b['cubre']):
                 break
-            if siguiente['tipo'] == 'pregunta':
+            if siguiente['tipo'] == 'pregunta' and siguiente.get('numero'):
                 numeros.append(siguiente['numero'])
         b['desde'], b['hasta'] = (numeros[0], numeros[-1]) if numeros else (None, None)
     return bloques, n
@@ -101,7 +101,57 @@ def _preparar_pregunta(b, modo):
         elementos = C.elementos_clasificar(b)
         orden = C.mezclar(elementos, b['id'])
         b['banco'] = [elementos[j][0] for j in orden]
+    elif m == 'hoja':
+        b['campos'] = [dict(c, respuesta=C.texto_campo(c), css=posicion(c)) for c in b.get('campos') or []]
+    elif m == 'senalar':
+        b['zonas'] = [dict(z, css=posicion(z)) for z in b.get('zonas') or []]
     return b
+
+
+def posicion(caja):
+    """left/top/width/height en % sin la coma decimal del español (las plantillas localizan los números)."""
+    return ';'.join(f'{k}:{float(caja[c]):.1f}%' for k, c in (('left', 'x'), ('top', 'y'), ('width', 'w'), ('height', 'h')))
+
+
+def anotar(ruta, zonas=(), campos=()):
+    """La imagen con las zonas de «señalar» o las respuestas de la hoja dibujadas encima (para el Word
+    del docente). Devuelve bytes PNG o None."""
+    from PIL import Image, ImageDraw
+    try:
+        im = Image.open(ruta).convert('RGB')
+    except Exception:
+        return None
+    d = ImageDraw.Draw(im)
+    ancho, alto = im.size
+    verde = (25, 135, 84)
+    grosor = max(2, ancho // 300)
+
+    def caja(z):
+        return (z['x'] * ancho / 100, z['y'] * alto / 100, (z['x'] + z['w']) * ancho / 100, (z['y'] + z['h']) * alto / 100)
+    for z in zonas:
+        d.rectangle(caja(z), outline=verde, width=grosor * 2)
+    for c in campos:
+        x0, y0, x1, y1 = caja(c)
+        d.rectangle((x0, y0, x1, y1), outline=verde, width=grosor)
+        texto = c.get('respuesta') or ''
+        if texto:
+            d.text((x0 + 3, y0 + 2), texto.replace('✔', 'X'), fill=verde, font=_fuente(max(12, int((y1 - y0) * 0.6))))
+    salida = io.BytesIO()
+    im.save(salida, 'PNG')
+    return salida.getvalue()
+
+
+def _fuente(tamano):
+    from PIL import ImageFont
+    for nombre in ('DejaVuSans-Bold.ttf', 'Arial.ttf', 'LiberationSans-Bold.ttf'):
+        try:
+            return ImageFont.truetype(nombre, tamano)
+        except Exception:
+            continue
+    try:
+        return ImageFont.load_default(size=tamano)
+    except TypeError:
+        return ImageFont.load_default()
 
 
 def contexto(doc, modo=None, docente='', respuestas=False):
@@ -222,6 +272,32 @@ def _linea_respuesta(w, ctx):
 
 
 def _pregunta_docx(w, b, ctx, rutas, util, Cm, RGBColor):
+    m = b['modo']
+    if m in ('senalar', 'hoja'):
+        if b.get('enunciado') or m == 'senalar':
+            p = w.add_paragraph()
+            if b.get('numero'):
+                p.add_run(f'{b["numero"]}. ').bold = True
+            p.add_run(b['enunciado'] or '')
+        ruta = rutas.get(b.get('imagen'))
+        if ruta:
+            datos = None
+            if ctx['respuestas']:
+                datos = anotar(ruta, zonas=b.get('zonas') or [] if m == 'senalar' else [],
+                               campos=b.get('campos') or [] if m == 'hoja' else [])
+            ancho = int(util * (1 if m == 'hoja' else (b.get('ancho') or 70) / 100))
+            try:
+                from PIL import Image
+                with Image.open(ruta) as im:
+                    proporcion = im.size[1] / max(1, im.size[0])
+                ancho = min(ancho, int(util * 1.25 / max(proporcion, 0.01)))     # que la página quepa en una hoja
+            except Exception:
+                pass
+            try:
+                w.add_paragraph().add_run().add_picture(io.BytesIO(datos) if datos else str(ruta), width=ancho)
+            except Exception:
+                pass
+        return
     p = w.add_paragraph()
     r = p.add_run(f'{b["numero"]}. ')
     r.bold = True
@@ -267,6 +343,9 @@ def _pregunta_docx(w, b, ctx, rutas, util, Cm, RGBColor):
             for j, g in enumerate(grupos):
                 tabla.cell(0, j).text = g['nombre']
                 tabla.cell(1, j).text = '\n\n\n'
+    elif m == 'archivo':
+        w.add_paragraph('(Respuesta con ' + {'foto': 'una foto', 'audio': 'un audio'}.get(b.get('archivo'), 'una foto o un audio')
+                        + ': se envía en el aula virtual)').runs[0].italic = True
     for _ in range(b['lineas'] if m in ('abierta', 'corta') or b['lineas'] else 0):
         _linea_respuesta(w, ctx)
     if m == 'corta' and not b['lineas']:

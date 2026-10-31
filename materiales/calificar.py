@@ -5,6 +5,8 @@ Las respuestas del estudiante se guardan por id de bloque:
   corta: "fotosíntesis" · abierta: "texto…" · emparejar: {"0": 2, "1": 0} (izquierda -> derecha original)
   ordenar: [2, 0, 1] (índices originales en el orden que dejó el estudiante)
   clasificar: {"0": 1, "1": 0} (índice del elemento en la lista plana -> grupo)
+  senalar: [[23.5, 40.1], [70, 12]] (los puntos que marcó, en % de la imagen)
+  archivo: 15 (id del ArchivoFicha que subió) · hoja: {"c1": "Bogotá", "c2": true, "c3": 1}
 """
 import random
 import unicodedata
@@ -46,6 +48,61 @@ def elementos_clasificar(b):
 
 def preguntas(contenido):
     return [b for b in contenido.get('bloques', []) if b.get('tipo') == 'pregunta']
+
+
+def dentro(punto, z):
+    x, y = punto
+    return z['x'] <= x <= z['x'] + z['w'] and z['y'] <= y <= z['y'] + z['h']
+
+
+def puntos_marcados(r, maximo=30):
+    """Los puntos válidos de una respuesta de «señalar»."""
+    salida = []
+    for p in (r or [])[:maximo]:
+        try:
+            x, y = float(p[0]), float(p[1])
+        except (TypeError, ValueError, IndexError, KeyError):
+            continue
+        if 0 <= x <= 100 and 0 <= y <= 100:
+            salida.append((x, y))
+    return salida
+
+
+def calificar_hoja(b, r):
+    """(obtenidos, posibles, revisar, {id_campo: True/False/None}) de una hoja sobre un PDF."""
+    r = r if isinstance(r, dict) else {}
+    obtenidos, posibles, revisar, estado = CERO, CERO, False, {}
+    for c in b.get('campos') or []:
+        pts = Decimal(c.get('puntos') or 0)
+        dado = r.get(c['id'])
+        bien = None
+        if c['tipo'] == 'texto':
+            aceptadas = [x for x in (c.get('correcta') or '').split('|') if x.strip()]
+            if aceptadas:
+                bien = normal(dado) in {normal(a) for a in aceptadas}
+            elif pts and normal(dado):
+                revisar = True
+            posibles += pts
+        elif c['tipo'] == 'marca':
+            marcada = dado is True or dado in ('1', 'on', 'true')
+            if c.get('correcta'):
+                posibles += pts
+                bien = marcada
+            else:
+                bien = not marcada
+                if marcada:
+                    obtenidos -= pts      # marcar una que no va resta
+        else:
+            posibles += pts
+            if c.get('correcta') is not None:
+                try:
+                    bien = dado is not None and dado != '' and int(dado) == c['correcta']
+                except (TypeError, ValueError):
+                    bien = False
+        if bien and (c['tipo'] != 'marca' or c.get('correcta')):
+            obtenidos += pts
+        estado[c['id']] = bien
+    return max(CERO, obtenidos), posibles, revisar, estado
 
 
 def calificar_una(b, r):
@@ -103,6 +160,19 @@ def calificar_una(b, r):
             if elementos:
                 bien = sum(1 for i, (_, g) in enumerate(elementos) if str(dadas.get(str(i), '')) == str(g))
                 frac = Decimal(bien) / Decimal(len(elementos))
+        elif modo == 'senalar':
+            zonas = b.get('zonas') or []
+            marcas = puntos_marcados(r)
+            if zonas:
+                aciertos = sum(1 for z in zonas if any(dentro(p, z) for p in marcas))
+                fuera = sum(1 for p in marcas if not any(dentro(p, z) for z in zonas))
+                frac = max(CERO, Decimal(aciertos - fuera) / Decimal(len(zonas)))
+        elif modo == 'archivo':
+            revisar = r not in (None, '', 0)
+        elif modo == 'hoja':
+            o, p, revisar, _ = calificar_hoja(b, r)
+            puntos = p if p else puntos
+            frac = (o / p) if p else CERO
     except (TypeError, ValueError, AttributeError):
         frac = CERO
     return (puntos * frac).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP), puntos, revisar
@@ -172,6 +242,26 @@ def leer_respuestas(contenido, post):
         elif modo == 'clasificar':
             salida[bid] = {str(i): post.get(f'{clave}-{i}') for i in range(len(elementos_clasificar(b)))
                            if str(post.get(f'{clave}-{i}') or '').isdigit()}
+        elif modo == 'senalar':
+            marcas = []
+            for par in str(post.get(clave) or '').split(';')[:30]:
+                xy = par.split(',')
+                if len(xy) == 2:
+                    marcas.append(list(xy))
+            salida[bid] = [[round(x, 1), round(y, 1)] for x, y in puntos_marcados(marcas)]
+        elif modo == 'archivo':
+            salida[bid] = None          # el archivo lo guarda la vista
+        elif modo == 'hoja':
+            valores = {}
+            for c in b.get('campos') or []:
+                v = post.get(f"{clave}-{c['id']}")
+                if c['tipo'] == 'marca':
+                    valores[c['id']] = v in ('1', 'on')
+                elif c['tipo'] == 'lista':
+                    valores[c['id']] = int(v) if str(v or '').isdigit() else None
+                else:
+                    valores[c['id']] = B.texto_plano(v, 120)
+            salida[bid] = valores
     return salida
 
 
@@ -199,4 +289,20 @@ def respuesta_correcta_texto(b):
         return ' → '.join(b.get('elementos') or [])
     if modo == 'clasificar':
         return ' · '.join(f"{g['nombre']}: {', '.join(g['elementos'])}" for g in b.get('grupos') or [])
+    if modo == 'senalar':
+        n = len(b.get('zonas') or [])
+        return f'{n} lugar{"es" if n != 1 else ""} marcado{"s" if n != 1 else ""} en verde' if n else ''
+    if modo == 'hoja':
+        return ' · '.join(texto_campo(c) for c in b.get('campos') or [] if texto_campo(c))
+    return ''
+
+
+def texto_campo(c):
+    """La respuesta de un campo de la hoja en palabras."""
+    if c['tipo'] == 'texto':
+        return (c.get('correcta') or '').split('|')[0]
+    if c['tipo'] == 'marca':
+        return '✔' if c.get('correcta') else ''
+    if c.get('correcta') is not None and c['correcta'] < len(c.get('opciones') or []):
+        return c['opciones'][c['correcta']]
     return ''

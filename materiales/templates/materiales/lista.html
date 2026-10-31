@@ -11,6 +11,7 @@
     <div class="mm-tarjeta">
       <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
         <h6 class="mb-0 flex-grow-1">Crear</h6>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'materiales:banco_pagina' %}"><i class="fas fa-box-archive me-1"></i>Banco de preguntas</a>
         {% if acceso.es_individual %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:encabezado' %}"><i class="fas fa-heading me-1"></i>Mi encabezado</a>{% endif %}
       </div>
       <div class="mm-tipos">
@@ -18,7 +19,7 @@
         <form method="post" action="{% url 'materiales:nuevo' %}">{% csrf_token %}
           <input type="hidden" name="tipo" value="{{ clave }}">
           <button class="mm-tipo" type="submit">
-            <i class="fas {% if clave == 'guia_momentos' %}fa-stairs{% elif clave == 'escuela_nueva' %}fa-seedling{% elif clave == 'taller' %}fa-pencil{% elif clave == 'evaluacion' %}fa-list-check{% elif clave == 'ficha' %}fa-book-open{% elif clave == 'cuadernillo' %}fa-book{% else %}fa-file{% endif %}"></i>
+            <i class="fas {% if clave == 'guia_momentos' %}fa-stairs{% elif clave == 'escuela_nueva' %}fa-seedling{% elif clave == 'taller' %}fa-pencil{% elif clave == 'evaluacion' %}fa-list-check{% elif clave == 'ficha' %}fa-book-open{% elif clave == 'cuadernillo' %}fa-book{% elif clave == 'ficha_pdf' %}fa-file-pdf{% else %}fa-file{% endif %}"></i>
             <span>{{ nombre }}</span>
           </button>
         </form>

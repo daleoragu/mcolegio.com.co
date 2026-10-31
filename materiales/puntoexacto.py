@@ -17,6 +17,9 @@ def preguntas_para_hoja(contenido):
     for b in contenido.get('bloques', []):
         if b.get('tipo') != 'pregunta':
             continue
+        if b.get('modo') == 'hoja':
+            problemas.append('las hojas sobre un PDF no van en la hoja de burbujas')
+            continue
         n += 1
         modo = b.get('modo')
         if modo == 'vf':

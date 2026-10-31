@@ -31,6 +31,7 @@ class Documento(models.Model):
         ('evaluacion', 'Evaluación'),
         ('ficha', 'Ficha de lectura'),
         ('cuadernillo', 'Cuadernillo tipo Saber'),
+        ('ficha_pdf', 'Ficha sobre un PDF'),
         ('libre', 'Documento en blanco'),
     ]
     propietario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='materiales')
@@ -67,6 +68,29 @@ class Imagen(models.Model):
 
     def __str__(self):
         return f'Imagen {self.pk}'
+
+
+class PreguntaBanco(models.Model):
+    """Una pregunta guardada para volver a usarla. Si el docente la comparte, la ven los demás docentes
+    de su colegio (la comunidad abierta llega después)."""
+    propietario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='banco_preguntas')
+    colegio = models.ForeignKey('notas.Colegio', on_delete=models.CASCADE, null=True, blank=True,
+                                related_name='banco_preguntas')
+    compartida = models.BooleanField(default=False)
+    area = models.CharField(max_length=80, blank=True)
+    grado = models.CharField(max_length=40, blank=True)
+    tema = models.CharField(max_length=120, blank=True)
+    modo = models.CharField(max_length=12, blank=True)
+    bloque = models.JSONField(default=dict)
+    texto = models.TextField(blank=True, help_text='Lo que se busca: enunciado, opciones y tema.')
+    usos = models.PositiveIntegerField(default=0)
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creada']
+
+    def __str__(self):
+        return self.texto[:60] or f'Pregunta {self.pk}'
 
 
 class EncabezadoDocente(models.Model):

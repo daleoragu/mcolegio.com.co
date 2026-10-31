@@ -37,8 +37,18 @@ MODOS_PREGUNTA = {
     'emparejar': 'Unir con línea',
     'ordenar': 'Ordenar',
     'clasificar': 'Clasificar',
+    'senalar': 'Señalar en la imagen',
+    'archivo': 'Respuesta con foto o audio',
+    'hoja': 'Hoja sobre un PDF o una imagen',
 }
-AUTOMATICAS = ('unica', 'varias', 'vf', 'completar', 'numerica', 'emparejar', 'ordenar', 'clasificar')
+AUTOMATICAS = ('unica', 'varias', 'vf', 'completar', 'numerica', 'emparejar', 'ordenar', 'clasificar', 'senalar',
+               'hoja')
+# Lo que el estudiante manda en una respuesta con archivo.
+ARCHIVO_TIPOS = {'foto': 'Foto', 'audio': 'Audio', 'cualquiera': 'Foto o audio'}
+# Campos que se ponen encima de la página en una hoja sobre un PDF.
+CAMPOS_HOJA = {'texto': 'Escribir', 'marca': 'Casilla', 'lista': 'Lista'}
+MAX_ZONAS = 12
+MAX_CAMPOS = 80
 MAX_PARES = 12
 ESTILOS_RECUADRO = {'recuerda': 'Recuerda', 'reto': 'Reto', 'vocabulario': 'Vocabulario', 'nota': 'Nota'}
 MODOS = ('normal', 'compacto', 'maximo')
@@ -175,6 +185,51 @@ def _lista(valores, maximo, largo=300):
     return [texto_plano(v, largo) for v in (valores or [])[:maximo] if texto_plano(v, largo)]
 
 
+def _decimal(v, minimo=0.0, maximo=100.0):
+    """Un porcentaje de la imagen, con un decimal."""
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    if x != x:       # NaN
+        return None
+    return round(max(minimo, min(maximo, x)), 1)
+
+
+def _caja(d):
+    """Un rectángulo sobre la imagen en porcentajes {x, y, w, h}, o None si no sirve."""
+    if not isinstance(d, dict):
+        return None
+    x, y, w, h = (_decimal(d.get(k)) for k in ('x', 'y', 'w', 'h'))
+    if None in (x, y, w, h) or w < 0.5 or h < 0.5:
+        return None
+    return {'x': x, 'y': y, 'w': round(min(w, 100 - x), 1), 'h': round(min(h, 100 - y), 1)}
+
+
+def _limpiar_campo(c, i):
+    caja = _caja(c)
+    tipo = c.get('tipo') if isinstance(c, dict) else None
+    if caja is None or tipo not in CAMPOS_HOJA:
+        return None
+    cid = re.sub(r'[^a-zA-Z0-9_-]', '', str(c.get('id') or ''))[:12] or f'c{i}'
+    n = dict(caja, id=cid, tipo=tipo, puntos=_entero(c.get('puntos'), 1, 0, 20))
+    if tipo == 'texto':
+        # Respuestas que valen, separadas por |. Vacío = la revisa el docente (o no cuenta si vale 0 puntos).
+        n['correcta'] = '|'.join(x.strip() for x in texto_plano(c.get('correcta'), 200).split('|') if x.strip())
+    elif tipo == 'marca':
+        n['correcta'] = bool(c.get('correcta'))
+    else:
+        n['opciones'] = _lista(c.get('opciones'), 8, 60)
+        k = c.get('correcta')
+        n['correcta'] = k if isinstance(k, int) and 0 <= k < len(n['opciones']) else None
+    return n
+
+
+def puntos_hoja(b):
+    """Lo que vale una hoja: los campos para escribir o escoger y las casillas que van marcadas."""
+    return sum(c['puntos'] for c in b.get('campos') or [] if c['tipo'] != 'marca' or c.get('correcta'))
+
+
 def _limpiar_pregunta(b, imagenes_validas):
     opciones_crudas = b.get('opciones') or []
     modo = b.get('modo')
@@ -223,6 +278,25 @@ def _limpiar_pregunta(b, imagenes_validas):
                 grupos.append({'nombre': texto_plano(g.get('nombre'), 60),
                                'elementos': _lista(g.get('elementos'), MAX_PARES, 100)})
         n['grupos'] = grupos
+    elif modo == 'senalar':
+        zonas = [z for z in (_caja(x) for x in (b.get('zonas') or [])[:MAX_ZONAS]) if z]
+        n['zonas'] = zonas
+        n['ancho'] = _entero(b.get('ancho'), 70, 20, 100)
+    elif modo == 'archivo':
+        n['archivo'] = b.get('archivo') if b.get('archivo') in ARCHIVO_TIPOS else 'foto'
+    elif modo == 'hoja':
+        campos, vistos = [], set()
+        for i, c in enumerate((b.get('campos') or [])[:MAX_CAMPOS]):
+            limpio = _limpiar_campo(c, i)
+            if limpio is None:
+                continue
+            if limpio['id'] in vistos:
+                limpio['id'] = f"{limpio['id'][:8]}x{i}"
+            vistos.add(limpio['id'])
+            campos.append(limpio)
+        n['campos'] = campos
+        n['puntos'] = max(1, puntos_hoja(n))
+        n['lineas'] = 0
     return n
 
 

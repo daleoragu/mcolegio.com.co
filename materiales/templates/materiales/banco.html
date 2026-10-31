@@ -1,0 +1,66 @@
+{% extends base %}
+{% block page_title %}
+<h4 class="mb-0"><i class="fas fa-box-archive me-2"></i>Banco de preguntas</h4>
+<p class="text-muted small mb-0">Las preguntas que usted guardó{% if not acceso.es_individual %} y las que compartieron los docentes del colegio{% endif %}. Se insertan desde el editor con el botón <b>Del banco</b>.</p>
+{% endblock %}
+{% block content %}
+{% include 'materiales/_estilos.html' %}
+<div class="mm">
+<div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+  <a href="{% url 'materiales:lista' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Mis materiales</a>
+  <span class="small text-muted ms-auto">{{ mias }} guardada{{ mias|pluralize }} por usted</span>
+</div>
+<form class="mm-tarjeta row g-2 align-items-end" method="get">
+  <div class="col-md-4"><label class="small fw-bold mb-1" for="b-q">Buscar</label><input id="b-q" name="q" value="{{ filtro.q }}" class="form-control form-control-sm" placeholder="fracciones, fotosíntesis…"></div>
+  <div class="col-md-2"><label class="small fw-bold mb-1" for="b-area">Área</label><input id="b-area" name="area" value="{{ filtro.area }}" class="form-control form-control-sm"></div>
+  <div class="col-md-2"><label class="small fw-bold mb-1" for="b-grado">Grado</label><input id="b-grado" name="grado" value="{{ filtro.grado }}" class="form-control form-control-sm"></div>
+  <div class="col-md-2"><label class="small fw-bold mb-1" for="b-modo">Tipo</label>
+    <select id="b-modo" name="modo" class="form-select form-select-sm"><option value="">Todos</option>{% for k, v in modos %}<option value="{{ k }}" {% if filtro.modo == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="col-md-2 d-flex gap-1">
+    {% if not acceso.es_individual %}<select name="alcance" class="form-select form-select-sm" aria-label="De quién"><option value="">Todas</option><option value="mias" {% if filtro.alcance == 'mias' %}selected{% endif %}>Solo mías</option></select>{% endif %}
+    <button class="btn btn-sm mm-oro">Buscar</button>
+  </div>
+</form>
+
+<div class="mm-tarjeta p-0">
+  <div class="table-responsive"><table class="table align-middle mb-0">
+    <thead class="table-light"><tr><th>Pregunta</th><th>Tipo</th><th>Área · grado · tema</th><th></th></tr></thead>
+    <tbody>
+    {% for p in preguntas %}
+    <tr>
+      <td style="max-width:420px">{{ p.resumen }}{% if p.bloque.imagen %} <i class="far fa-image text-muted" title="Con imagen"></i>{% endif %}
+        <div class="small text-muted">{% if p.mia %}Suya{% else %}De {{ p.propietario.get_full_name|default:p.propietario.username }}{% endif %}{% if p.compartida %} · <i class="fas fa-users"></i> compartida{% endif %}{% if p.usos %} · usada {{ p.usos }} ve{{ p.usos|pluralize:"z,ces" }}{% endif %}</div></td>
+      <td class="small">{{ p.modo_nombre }}</td>
+      <td class="small">
+        {% if p.mia %}
+        <form method="post" action="{% url 'materiales:banco_accion' p.pk %}" class="d-flex flex-wrap gap-1">{% csrf_token %}
+          <input type="hidden" name="accion" value="tema"><input type="hidden" name="volver" value="{{ request.get_full_path }}">
+          <input name="area" value="{{ p.area }}" class="form-control form-control-sm" style="width:110px" placeholder="Área" aria-label="Área">
+          <input name="grado" value="{{ p.grado }}" class="form-control form-control-sm" style="width:60px" placeholder="Grado" aria-label="Grado">
+          <input name="tema" value="{{ p.tema }}" class="form-control form-control-sm" style="width:130px" placeholder="Tema" aria-label="Tema">
+          <button class="btn btn-sm btn-outline-secondary" title="Guardar"><i class="fas fa-check"></i></button>
+        </form>
+        {% else %}{{ p.area }}{% if p.grado %} · {{ p.grado }}{% endif %}{% if p.tema %} · {{ p.tema }}{% endif %}{% endif %}
+      </td>
+      <td class="text-end text-nowrap">
+        {% if p.mia %}
+          {% if not acceso.es_individual %}
+          <form method="post" action="{% url 'materiales:banco_accion' p.pk %}" class="d-inline">{% csrf_token %}
+            <input type="hidden" name="accion" value="compartir"><input type="hidden" name="volver" value="{{ request.get_full_path }}">
+            <button class="btn btn-sm {% if p.compartida %}btn-primary{% else %}btn-outline-primary{% endif %}" title="{% if p.compartida %}Dejar de compartir{% else %}Compartir con los docentes del colegio{% endif %}"><i class="fas fa-users"></i></button></form>
+          {% endif %}
+          <form method="post" action="{% url 'materiales:banco_accion' p.pk %}" class="d-inline" onsubmit="return confirm('¿Quitar esta pregunta del banco?')">{% csrf_token %}
+            <input type="hidden" name="accion" value="eliminar"><input type="hidden" name="volver" value="{{ request.get_full_path }}">
+            <button class="btn btn-sm btn-outline-danger" title="Quitar del banco"><i class="far fa-trash-can"></i></button></form>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4" class="text-center text-muted py-4">No hay preguntas{% if filtro.q or filtro.area or filtro.grado or filtro.modo %} con esa búsqueda{% endif %}. En el editor, cada pregunta tiene el botón <b>Guardar en el banco</b>.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% if total > preguntas|length %}<div class="small text-muted">Se muestran {{ preguntas|length }} de {{ total }}. Afine la búsqueda para ver las demás.</div>{% endif %}
+</div>
+{% endblock %}

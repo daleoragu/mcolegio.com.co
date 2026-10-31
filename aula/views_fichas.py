@@ -12,8 +12,10 @@ from materiales import calificar as C
 from materiales import exportar as X
 
 from . import logica
-from .models import Entrega, Tarea
-from .views import _clave, _ctx, _no_es_para, _persona, _render, vista_aula
+from .models import ArchivoFicha, Entrega, Tarea
+from .views import _Prohibido, _clave, _ctx, _no_es_para, _persona, _render, vista_aula
+
+MAX_AUDIO = 10 * 1024 * 1024
 
 
 def _bloques(tarea, semilla):
@@ -38,6 +40,10 @@ def _bloques(tarea, semilla):
             b['huecos'] = [(p, i if i < len(respuestas) else None, '') for i, p in enumerate(partes)]
         if b['modo'] == 'emparejar':
             b['izq_mias'] = [(n, t, '') for n, t in b['izquierda']]
+        elif b['modo'] == 'hoja':
+            for campo in b['campos']:
+                campo['valor'] = None
+                campo['estado'] = None
     return bloques, total
 
 
@@ -61,6 +67,66 @@ def _rellenar(bloques, respuestas, res):
         elif b['modo'] == 'ordenar' and r:
             elementos = b.get('elementos') or []
             b['inicial'] = [(j, elementos[j]) for j in r if 0 <= j < len(elementos)]
+        elif b['modo'] == 'senalar':
+            marcas = C.puntos_marcados(r)
+            b['marcas'] = [f'left:{x:.1f}%;top:{y:.1f}%' for x, y in marcas]
+            b['marcas_valor'] = ';'.join(f'{x:.1f},{y:.1f}' for x, y in marcas)
+        elif b['modo'] == 'hoja':
+            _, _, _, estado = C.calificar_hoja(b, r)
+            r = r if isinstance(r, dict) else {}
+            for campo in b['campos']:
+                campo['valor'] = r.get(campo['id'])
+                campo['estado'] = estado.get(campo['id'])
+
+
+def _adjuntos(bloques, e):
+    """Pone en cada pregunta con archivo la foto o el audio que mandó el estudiante."""
+    if e is None or not e.pk:
+        return
+    ids = {b['mia'] for b in bloques if b['tipo'] == 'pregunta' and b['modo'] == 'archivo' and b.get('mia')}
+    archivos = {a.pk: a for a in ArchivoFicha.objects.filter(entrega=e, pk__in=ids)} if ids else {}
+    for b in bloques:
+        if b['tipo'] == 'pregunta' and b['modo'] == 'archivo':
+            b['adjunto'] = archivos.get(b.get('mia'))
+
+
+def _guardar_archivos(request, t, e, respuestas, anteriores):
+    """Guarda las fotos y los audios del formulario. Si en un intento no manda archivo, queda el anterior."""
+    from materiales.views import preparar_imagen
+    from django.core.files.base import ContentFile
+    for b in C.preguntas(t.ficha):
+        if b.get('modo') != 'archivo':
+            continue
+        bid = b['id']
+        respuestas[bid] = (anteriores or {}).get(bid)
+        f = request.FILES.get(f'r-{bid}')
+        if f is None:
+            continue
+        tipo_mime = (getattr(f, 'content_type', '') or '').lower()
+        permitido = b.get('archivo') or 'foto'
+        es_foto = tipo_mime.startswith('image/')
+        es_audio = tipo_mime.startswith('audio/') or tipo_mime in ('video/webm', 'video/ogg', 'application/ogg')
+        if (es_foto and permitido == 'audio') or (es_audio and permitido == 'foto') or not (es_foto or es_audio):
+            messages.warning(request, f'El archivo de la pregunta {b.get("numero") or ""} no es del tipo que se pidió.')
+            continue
+        try:
+            if es_foto:
+                datos, ext, _, _ = preparar_imagen(f)
+                nombre = f'foto{ext}'
+            else:
+                datos = f.read(MAX_AUDIO + 1)
+                if len(datos) > MAX_AUDIO:
+                    raise ValueError('El audio pasa de 10 MB.')
+                ext = {'audio/mpeg': '.mp3', 'audio/mp4': '.m4a', 'audio/x-m4a': '.m4a', 'audio/ogg': '.ogg',
+                       'audio/wav': '.wav', 'audio/x-wav': '.wav', 'audio/aac': '.aac'}.get(tipo_mime.split(';')[0], '.webm')
+                nombre = f'audio{ext}'
+        except ValueError as error:
+            messages.warning(request, str(error))
+            continue
+        a = ArchivoFicha(entrega=e, bloque=bid[:20], tipo='foto' if es_foto else 'audio', peso=len(datos))
+        a.archivo.save(nombre, ContentFile(datos), save=False)
+        a.save()
+        respuestas[bid] = a.pk
 
 
 def _config(t):
@@ -119,6 +185,10 @@ def ficha(request, pk, tid):
         anterior = C.calificar(t.ficha, e.respuestas, e.manuales) if e.pk and e.respuestas else None
         # Con varios intentos queda el mejor.
         if anterior is None or nueva['obtenidos'] >= anterior['obtenidos']:
+            if e.pk is None:
+                e.save()
+            _guardar_archivos(request, t, e, respuestas, e.respuestas)
+            nueva = C.calificar(t.ficha, respuestas)
             e.respuestas = respuestas
             e.manuales = {}
             _poner_nota(aula, t, e, nueva)
@@ -147,6 +217,7 @@ def ficha(request, pk, tid):
         datos['quedan'] = (config['intentos'] - e.intentos) if config['intentos'] else None
         datos['nota_provisional'] = None
         _rellenar(bloques, e.respuestas, res)
+        _adjuntos(bloques, e)
     elif config['tiempo'] and e is not None and e.iniciada:
         fin = e.iniciada + timedelta(minutes=config['tiempo'])
         datos['segundos'] = max(0, int((fin - timezone.now()).total_seconds()))
@@ -184,6 +255,7 @@ def ficha_revisar(request, pk, tid, clave):
     res = _resultado(t, e)
     bloques, total = _bloques(t, _clave(persona))
     _rellenar(bloques, e.respuestas, res)
+    _adjuntos(bloques, e)
     for b in bloques:
         if b['tipo'] == 'pregunta':
             b['manual'] = e.manuales.get(b['id'], '')
@@ -206,3 +278,16 @@ def ficha_imagen(request, pk, tid, iid):
     from materiales.models import Imagen
     img = get_object_or_404(Imagen, pk=iid)
     return redirect(img.archivo.url)
+
+
+@vista_aula
+def ficha_archivo(request, pk, tid, aid):
+    """La foto o el audio de una respuesta: lo ven el docente y el estudiante que lo mandó."""
+    c = _ctx(request, pk)
+    a = get_object_or_404(ArchivoFicha.objects.select_related('entrega'), pk=aid, entrega__tarea_id=tid,
+                          entrega__tarea__aula=c.aula)
+    e = a.entrega
+    if not c.es_docente and not (e.estudiante_id == getattr(c.estudiante, 'id', -1)
+                                 or e.integrante_id == getattr(c.integrante, 'id', -1)):
+        raise _Prohibido('Ese archivo es de otro estudiante.')
+    return redirect(a.archivo.url)

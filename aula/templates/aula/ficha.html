@@ -20,6 +20,24 @@
   .fi-reloj { position:sticky; top:8px; z-index:10; background:#1f3a68; color:#fff; border-radius:999px; padding:4px 14px; font-weight:800; display:inline-block; }
   .fi-puntos { font-size:.85rem; font-weight:700; }
   .fi-correcta { color:#198754; font-size:.9rem; }
+  .fi-lienzo { position:relative; margin:4px auto; user-select:none; }
+  .fi-lienzo > img { display:block; width:100%; border-radius:4px; }
+  .fi-senalar:not(.listo) { cursor:crosshair; }
+  .fi-zona { position:absolute; border:3px solid #198754; border-radius:4px; background:rgba(25,135,84,.15); pointer-events:none; }
+  .fi-marca { position:absolute; width:22px; height:22px; margin:-11px 0 0 -11px; border-radius:50%; border:3px solid #dc3545;
+              background:rgba(220,53,69,.25); box-shadow:0 0 0 2px #fff; }
+  .fi-campo { position:absolute; display:flex; align-items:stretch; }
+  .fi-campo input[type=text], .fi-campo select { width:100%; height:100%; border:1.5px solid #0d6efd; background:rgba(255,255,255,.9);
+              border-radius:3px; padding:0 3px; font-weight:700; color:#0b3d91; min-height:0; }
+  .fi-campo.marca { align-items:center; justify-content:center; }
+  .fi-campo.marca input { width:min(100%, 26px); height:min(100%, 26px); margin:0; accent-color:#0d6efd; }
+  .fi-campo.ok input, .fi-campo.ok select { border-color:#198754; background:rgba(210,240,220,.92); color:#14532d; }
+  .fi-campo.no input, .fi-campo.no select { border-color:#dc3545; background:rgba(253,230,232,.92); color:#842029; }
+  .fi-campo.ok.marca, .fi-campo.no.marca { outline:2px solid currentColor; border-radius:3px; }
+  .fi-campo.ok.marca { color:#198754; } .fi-campo.no.marca { color:#dc3545; }
+  .fi-adjunto { max-width:100%; max-height:420px; border-radius:6px; border:1px solid #e3e7ef; }
+  .fi-grabando { animation: fi-latido 1s infinite; }
+  @keyframes fi-latido { 50% { opacity:.55; } }
 </style>
 <div class="au">
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
@@ -55,7 +73,7 @@
 {% endif %}
 
 {% if not cerrada or terminada %}
-<form method="post" class="fi-hoja" id="fi-form">{% csrf_token %}
+<form method="post" class="fi-hoja" id="fi-form" enctype="multipart/form-data">{% csrf_token %}
 {% if t.instrucciones %}<div class="mb-2" style="white-space:pre-line">{{ t.instrucciones }}</div>{% endif %}
 {% for b in bloques %}
     {% if b.tipo == 'titulo' %}{% if b.nivel == 1 %}<h4 style="color:#1f3a68">{{ b.texto }}</h4>{% else %}<h5>{{ b.texto }}</h5>{% endif %}
@@ -73,12 +91,49 @@
     {% elif b.tipo == 'pregunta' and not b.control %}
     <div class="fi-preg {% if terminada and mostrar and b.res %}{% if b.res.revisar %}revisar{% elif b.res.obtenidos == b.res.posibles %}bien{% elif b.res.obtenidos > 0 %}parcial{% else %}mal{% endif %}{% endif %}">
         <div class="d-flex gap-2">
-            <span class="fi-num">{{ b.numero }}.</span>
+            {% if b.numero %}<span class="fi-num">{{ b.numero }}.</span>{% endif %}
             <div class="flex-grow-1">
                 {% if b.modo != 'completar' %}<div>{{ b.enunciado }}</div>{% else %}{% if b.enunciado %}<div class="fst-italic small">{{ b.enunciado }}</div>{% endif %}{% endif %}
-                {% if b.imagen %}<div class="fi-img text-center my-1"><img src="{% url 'aula:ficha_imagen' aula.pk t.pk b.imagen %}" alt="Imagen de la pregunta {{ b.numero }}" style="width:45%"></div>{% endif %}
+                {% if b.imagen and b.modo != 'senalar' and b.modo != 'hoja' %}<div class="fi-img text-center my-1"><img src="{% url 'aula:ficha_imagen' aula.pk t.pk b.imagen %}" alt="Imagen de la pregunta {{ b.numero }}" style="width:45%"></div>{% endif %}
 
-                {% if b.modo == 'unica' %}
+                {% if b.modo == 'senalar' %}
+                    {% if not terminada %}<div class="small text-muted mb-1">Toque la imagen donde corresponde. Toque una marca para quitarla.</div>{% endif %}
+{% if b.imagen %}
+                    <div class="fi-lienzo fi-senalar{% if terminada or previa %} listo{% endif %}" style="width:{{ b.ancho }}%" data-campo="r-{{ b.id }}">
+                        <img src="{% url 'aula:ficha_imagen' aula.pk t.pk b.imagen %}" alt="Imagen para señalar de la pregunta {{ b.numero }}" draggable="false">
+                        {% if terminada and mostrar or previa %}{% for z in b.zonas %}<div class="fi-zona" style="{{ z.css }}"></div>{% endfor %}{% endif %}
+                        {% for m in b.marcas %}<span class="fi-marca" style="{{ m }}"></span>{% endfor %}
+                    </div>{% endif %}
+                    <input type="hidden" name="r-{{ b.id }}" value="{{ b.marcas_valor|default:'' }}">
+                {% elif b.modo == 'hoja' and b.imagen %}
+                    <div class="fi-lienzo fi-pagina">
+                        <img src="{% url 'aula:ficha_imagen' aula.pk t.pk b.imagen %}" alt="Página de la ficha" draggable="false">
+                        {% for c in b.campos %}
+                        <div class="fi-campo {{ c.tipo }}{% if terminada and mostrar %}{% if c.estado == True %} ok{% elif c.estado == False %} no{% endif %}{% endif %}" style="{{ c.css }}"{% if terminada and mostrar and c.estado == False and c.respuesta %} title="Respuesta: {{ c.respuesta }}"{% endif %}>
+                            {% if c.tipo == 'texto' %}<input type="text" name="r-{{ b.id }}-{{ c.id }}" value="{{ c.valor|default:'' }}" aria-label="Espacio {{ forloop.counter }}" autocomplete="off" {% if terminada %}disabled{% endif %}>
+                            {% elif c.tipo == 'marca' %}<input type="checkbox" name="r-{{ b.id }}-{{ c.id }}" value="1" aria-label="Casilla {{ forloop.counter }}" {% if c.valor %}checked{% endif %} {% if terminada %}disabled{% endif %}>
+                            {% else %}<select name="r-{{ b.id }}-{{ c.id }}" aria-label="Lista {{ forloop.counter }}" {% if terminada %}disabled{% endif %}><option value=""></option>{% for o in c.opciones %}<option value="{{ forloop.counter0 }}" {% if c.valor == forloop.counter0 %}selected{% endif %}>{{ o }}</option>{% endfor %}</select>{% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% elif b.modo == 'archivo' %}
+                    {% if terminada %}
+                        {% if b.adjunto %}
+                            {% if b.adjunto.tipo == 'foto' %}<a href="{% url 'aula:ficha_archivo' aula.pk t.pk b.adjunto.pk %}" target="_blank" rel="noopener"><img class="fi-adjunto" src="{% url 'aula:ficha_archivo' aula.pk t.pk b.adjunto.pk %}" alt="Foto que mandó el estudiante"></a>
+                            {% else %}<audio controls preload="none" src="{% url 'aula:ficha_archivo' aula.pk t.pk b.adjunto.pk %}"></audio>{% endif %}
+                        {% else %}<div class="small text-muted">No mandó archivo.</div>{% endif %}
+                    {% else %}
+                        <div class="fi-archivo" data-tipo="{{ b.archivo }}">
+                            <div class="small text-muted mb-1">{% if b.archivo == 'foto' %}Tome una foto de su trabajo o escójala de la galería.{% elif b.archivo == 'audio' %}Grabe su respuesta o suba un audio.{% else %}Mande una foto o grabe un audio.{% endif %}</div>
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <input type="file" class="form-control form-control-sm" style="max-width:340px" name="r-{{ b.id }}" aria-label="Archivo de la respuesta"
+                                       accept="{% if b.archivo == 'foto' %}image/*{% elif b.archivo == 'audio' %}audio/*{% else %}image/*,audio/*{% endif %}" {% if previa %}disabled{% endif %}>
+                                {% if b.archivo != 'foto' and not previa %}<button type="button" class="btn btn-sm btn-outline-danger fi-grabar"><i class="fas fa-microphone me-1"></i><span>Grabar audio</span></button>{% endif %}
+                            </div>
+                            <div class="fi-previa mt-1"></div>
+                        </div>
+                    {% endif %}
+                {% elif b.modo == 'unica' %}
                     {% for l, o, bien in b.letras %}<label class="fi-op"><input type="radio" class="form-check-input mt-1" name="r-{{ b.id }}" value="{{ forloop.counter0 }}" {% if terminada %}disabled{% endif %} {% if b.mia == forloop.counter0 %}checked{% endif %}><span><b>{{ l }}.</b> {{ o }}</span></label>{% endfor %}
                 {% elif b.modo == 'varias' %}
                     <div class="small text-muted">Marque todas las correctas.</div>
@@ -158,6 +213,78 @@
       if (b.classList.contains('fi-sube') && li.previousElementSibling) ol.insertBefore(li, li.previousElementSibling);
       if (b.classList.contains('fi-baja') && li.nextElementSibling) ol.insertBefore(li.nextElementSibling, li);
       guardarOrden(ol);
+    });
+  });
+  // Señalar en la imagen: cada toque pone una marca; tocar una marca la quita.
+  document.querySelectorAll('.fi-senalar:not(.listo)').forEach(function (lienzo) {
+    var campo = document.querySelector('input[name="' + lienzo.getAttribute('data-campo') + '"]');
+    function guardar() {
+      campo.value = Array.prototype.map.call(lienzo.querySelectorAll('.fi-marca'), function (m) {
+        return parseFloat(m.style.left).toFixed(1) + ',' + parseFloat(m.style.top).toFixed(1);
+      }).join(';');
+    }
+    lienzo.addEventListener('click', function (e) {
+      if (e.target.classList.contains('fi-marca')) { e.target.remove(); guardar(); return; }
+      if (lienzo.querySelectorAll('.fi-marca').length >= 20) return;
+      var r = lienzo.getBoundingClientRect();
+      var m = document.createElement('span');
+      m.className = 'fi-marca';
+      m.style.left = ((e.clientX - r.left) * 100 / r.width).toFixed(1) + '%';
+      m.style.top = ((e.clientY - r.top) * 100 / r.height).toFixed(1) + '%';
+      lienzo.appendChild(m);
+      guardar();
+    });
+  });
+  // Hoja sobre un PDF: la letra de cada espacio se ajusta al tamaño del recuadro.
+  function ajustarLetra() {
+    document.querySelectorAll('.fi-pagina .fi-campo input[type=text], .fi-pagina .fi-campo select').forEach(function (x) {
+      x.style.fontSize = Math.max(10, Math.min(22, x.parentNode.getBoundingClientRect().height * 0.62)) + 'px';
+    });
+  }
+  window.addEventListener('resize', ajustarLetra);
+  document.querySelectorAll('.fi-pagina img').forEach(function (img) { if (img.complete) ajustarLetra(); else img.addEventListener('load', ajustarLetra); });
+  // Respuesta con foto o audio: vista previa y grabación desde el navegador.
+  document.querySelectorAll('.fi-archivo').forEach(function (caja) {
+    var entrada = caja.querySelector('input[type=file]');
+    var previa = caja.querySelector('.fi-previa');
+    function mostrar(f) {
+      previa.innerHTML = '';
+      if (!f) return;
+      var url = URL.createObjectURL(f);
+      var nodo = document.createElement(f.type.indexOf('image/') === 0 ? 'img' : 'audio');
+      if (nodo.tagName === 'IMG') { nodo.className = 'fi-adjunto'; nodo.alt = 'Vista previa'; nodo.style.maxHeight = '240px'; }
+      else nodo.controls = true;
+      nodo.src = url;
+      previa.appendChild(nodo);
+    }
+    if (entrada) entrada.addEventListener('change', function () { mostrar(entrada.files[0]); });
+    var boton = caja.querySelector('.fi-grabar');
+    if (!boton) return;
+    if (!(navigator.mediaDevices && window.MediaRecorder && window.DataTransfer)) { boton.remove(); return; }
+    var grabadora = null, partes = [], limite = null;
+    boton.addEventListener('click', function () {
+      if (grabadora && grabadora.state === 'recording') { grabadora.stop(); return; }
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (flujo) {
+        partes = [];
+        grabadora = new MediaRecorder(flujo);
+        grabadora.ondataavailable = function (ev) { if (ev.data.size) partes.push(ev.data); };
+        grabadora.onstop = function () {
+          clearTimeout(limite);
+          flujo.getTracks().forEach(function (p) { p.stop(); });
+          boton.classList.remove('fi-grabando');
+          boton.querySelector('span').textContent = 'Grabar otra vez';
+          var tipo = (grabadora.mimeType || 'audio/webm').split(';')[0];
+          var archivo = new File([new Blob(partes, { type: tipo })], 'audio.' + (tipo.indexOf('mp4') >= 0 ? 'm4a' : tipo.indexOf('ogg') >= 0 ? 'ogg' : 'webm'), { type: tipo });
+          var dt = new DataTransfer();
+          dt.items.add(archivo);
+          entrada.files = dt.files;
+          mostrar(archivo);
+        };
+        grabadora.start();
+        boton.classList.add('fi-grabando');
+        boton.querySelector('span').textContent = 'Detener (máximo 3 minutos)';
+        limite = setTimeout(function () { if (grabadora.state === 'recording') grabadora.stop(); }, 180000);
+      }).catch(function () { alert('No se pudo usar el micrófono. Revise el permiso del navegador o suba un audio.'); });
     });
   });
   var reloj = document.getElementById('fi-reloj');

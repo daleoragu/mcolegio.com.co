@@ -49,6 +49,7 @@ urlpatterns = [
     path('<int:pk>/tareas/<int:tid>/ficha/', vf.ficha, name='ficha'),
     path('<int:pk>/tareas/<int:tid>/ficha/<str:clave>/revisar/', vf.ficha_revisar, name='ficha_revisar'),
     path('<int:pk>/tareas/<int:tid>/ficha/imagen/<int:iid>/', vf.ficha_imagen, name='ficha_imagen'),
+    path('<int:pk>/tareas/<int:tid>/ficha/archivo/<int:aid>/', vf.ficha_archivo, name='ficha_archivo'),
     path('<int:pk>/tareas/<int:tid>/rejilla.xlsx', vi.rejilla_plantilla, name='rejilla_plantilla'),
     path('<int:pk>/tareas/<int:tid>/rejilla/importar/', vi.rejilla_importar, name='rejilla_importar'),
     path('<int:pk>/examenes/', vx.examenes, name='examenes'),

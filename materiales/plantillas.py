@@ -99,6 +99,12 @@ PLANTILLAS = {
         _seccion('Matemáticas', ''),
         _pregunta(), _pregunta(),
     ],
+    # Estilo Liveworksheets: el docente sube el PDF y pone encima los campos para responder.
+    'ficha_pdf': lambda: [
+        _recuadro('nota', 'Cómo se arma', '<p>Use el botón <b>Hoja sobre un PDF</b> para subir el PDF o las fotos de la '
+                  'guía. Después, encima de cada página, dibuje los espacios para escribir, las casillas y las listas, '
+                  'con su respuesta. Este recuadro se puede borrar.</p>'),
+    ],
     'libre': lambda: [_texto()],
 }
 
@@ -121,5 +127,8 @@ def contenido_inicial(tipo, base=None):
     fabrica = PLANTILLAS.get(tipo) or PLANTILLAS['libre']
     if tipo == 'cuadernillo':
         return {'bloques': fabrica(), 'opciones': dict(OPCIONES_CUADERNILLO)}
+    if tipo == 'ficha_pdf':
+        return {'bloques': fabrica(), 'opciones': {'columnas': 1, 'letra': 11, 'modo': 'compacto',
+                                                    'nombre_estudiante': True, 'datos': False}}
     return {'bloques': fabrica(), 'opciones': {'columnas': 1, 'letra': 11, 'modo': 'normal',
                                                 'nombre_estudiante': True, 'datos': True}}

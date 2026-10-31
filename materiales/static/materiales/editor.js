@@ -28,7 +28,56 @@
         if (modo === 'ordenar' && !b.elementos) b.elementos = ['', '', ''];
         if (modo === 'clasificar' && !b.grupos) b.grupos = [{ nombre: '', elementos: [] }, { nombre: '', elementos: [] }];
         if (modo === 'abierta' && !b.lineas) b.lineas = 3;
+        if (modo === 'senalar') { b.zonas = b.zonas || []; b.ancho = b.ancho || 70; }
+        if (modo === 'archivo' && !b.archivo) b.archivo = 'foto';
     }
+
+    // Dibujar rectángulos encima de una imagen (zonas de «señalar» y campos de la hoja). Todo en %.
+    function lienzoCajas(urlImagen, ancho, alDibujar) {
+        var lienzo = el('div', { class: 'mm-lienzo', style: 'width:' + (ancho || 100) + '%' });
+        var img = el('img', { src: urlImagen, alt: 'Imagen', draggable: 'false' });
+        lienzo.appendChild(img);
+        var inicio = null, temporal = null;
+        function pct(ev) {
+            var r = lienzo.getBoundingClientRect();
+            return { x: Math.max(0, Math.min(100, (ev.clientX - r.left) * 100 / r.width)),
+                     y: Math.max(0, Math.min(100, (ev.clientY - r.top) * 100 / r.height)) };
+        }
+        lienzo.addEventListener('pointerdown', function (ev) {
+            if (ev.target !== img && ev.target !== lienzo) return;
+            ev.preventDefault();
+            inicio = pct(ev);
+            temporal = el('div', { class: 'mm-caja temporal' });
+            lienzo.appendChild(temporal);
+            lienzo.setPointerCapture(ev.pointerId);
+        });
+        lienzo.addEventListener('pointermove', function (ev) {
+            if (!inicio) return;
+            var p = pct(ev);
+            var c = { x: Math.min(inicio.x, p.x), y: Math.min(inicio.y, p.y), w: Math.abs(p.x - inicio.x), h: Math.abs(p.y - inicio.y) };
+            posicionar(temporal, c);
+        });
+        lienzo.addEventListener('pointerup', function (ev) {
+            if (!inicio) return;
+            var p = pct(ev);
+            var c = { x: Math.min(inicio.x, p.x), y: Math.min(inicio.y, p.y), w: Math.abs(p.x - inicio.x), h: Math.abs(p.y - inicio.y) };
+            inicio = null;
+            if (temporal) temporal.remove();
+            temporal = null;
+            if (c.w >= 1 && c.h >= 0.8) {
+                ['x', 'y', 'w', 'h'].forEach(function (k) { c[k] = Math.round(c[k] * 10) / 10; });
+                alDibujar(c);
+            }
+        });
+        return lienzo;
+    }
+    function posicionar(nodo, c) {
+        nodo.style.left = c.x + '%'; nodo.style.top = c.y + '%'; nodo.style.width = c.w + '%'; nodo.style.height = c.h + '%';
+        return nodo;
+    }
+    var TIPOS_CAMPO = { texto: 'Escribir', marca: 'Casilla', lista: 'Lista' };
+    var campoNuevo = 'texto';     // qué se dibuja en la hoja
+    var campoMarcado = {};        // por hoja: el campo que se está editando
 
     function listaTexto(valores, ayuda, alCambiar, filas) {
         var t = el('textarea', { class: 'form-control form-control-sm', rows: String(filas || 4), placeholder: ayuda });
@@ -109,8 +158,137 @@
             if (b.grupos.length < 6) caja3.appendChild(el('button', { type: 'button', class: 'btn btn-sm btn-link', text: '+ grupo',
                 onclick: function () { b.grupos.push({ nombre: '', elementos: [] }); cambio(); pintar(); } }));
             return caja3;
-        }
+        },
+        senalar: function (b) {
+            b.zonas = b.zonas || [];
+            if (!b.imagen || !IMAGENES[b.imagen]) {
+                return el('div', { class: 'small text-muted' }, [el('span', { text: 'Suba o pegue la imagen (un mapa, un dibujo, una gráfica) y después encierre los lugares correctos. ' }),
+                    el('button', { type: 'button', class: 'btn btn-sm btn-outline-primary', text: 'Subir la imagen',
+                        onclick: function () { activo = b.id; destinoImagen = b; $('#mm-archivo').click(); } })]);
+            }
+            var lienzo = lienzoCajas(IMAGENES[b.imagen], b.ancho || 70, function (c) {
+                if (b.zonas.length >= 12) { estado('Máximo 12 lugares por imagen', true); return; }
+                b.zonas.push(c); cambio(); pintar();
+            });
+            b.zonas.forEach(function (z, i) {
+                var caja = posicionar(el('div', { class: 'mm-caja zona' }), z);
+                caja.appendChild(el('button', { type: 'button', class: 'mm-quitar', title: 'Quitar', html: '&times;',
+                    onclick: function (ev) { ev.stopPropagation(); b.zonas.splice(i, 1); cambio(); pintar(); } }));
+                lienzo.appendChild(caja);
+            });
+            var rango = el('input', { type: 'range', min: '20', max: '100', step: '5', class: 'form-range', style: 'max-width:180px' });
+            rango.value = b.ancho || 70;
+            rango.addEventListener('input', function () { b.ancho = +rango.value; lienzo.style.width = b.ancho + '%'; cambio(); });
+            return el('div', { class: 'small' }, [
+                el('div', { class: 'text-muted mb-1', text: 'Arrastre sobre la imagen para encerrar cada lugar correcto (' + b.zonas.length + ' de 12). El estudiante toca la imagen; cada lugar acertado suma y cada toque por fuera resta.' }),
+                lienzo,
+                el('div', { class: 'd-flex gap-2 align-items-center justify-content-center mt-1 text-muted' }, [el('span', { text: 'Tamaño' }), rango,
+                    el('button', { type: 'button', class: 'btn btn-sm btn-link py-0', text: 'Cambiar imagen',
+                        onclick: function () { activo = b.id; destinoImagen = b; $('#mm-archivo').click(); } })])]);
+        },
+        archivo: function (b) {
+            var s2 = el('select', { class: 'form-select form-select-sm', style: 'width:auto' }, [
+                el('option', { value: 'foto', text: 'Una foto (del cuaderno, una maqueta, un dibujo)' }),
+                el('option', { value: 'audio', text: 'Un audio (lectura en voz alta, pronunciación)' }),
+                el('option', { value: 'cualquiera', text: 'Foto o audio' })]);
+            s2.value = b.archivo || 'foto';
+            s2.addEventListener('change', function () { b.archivo = s2.value; cambio(); });
+            return el('div', { class: 'd-flex flex-wrap gap-2 align-items-center small' }, [el('span', { class: 'text-muted', text: 'El estudiante manda' }), s2,
+                el('span', { class: 'text-muted', text: '· en el aula; usted la califica' })]);
+        },
+        hoja: function (b) { return hojaUI(b); }
     };
+
+    function hojaUI(b) {
+        b.campos = b.campos || [];
+        if (!b.imagen || !IMAGENES[b.imagen]) return el('div', { class: 'small text-danger', text: 'Esta hoja perdió su imagen. Bórrela y súbala otra vez.' });
+        var marcado = campoMarcado[b.id];
+        var barra = el('div', { class: 'd-flex flex-wrap gap-1 align-items-center small mb-1' }, [el('span', { class: 'text-muted', text: 'Dibujar:' })]);
+        Object.keys(TIPOS_CAMPO).forEach(function (k) {
+            barra.appendChild(el('button', { type: 'button', class: 'btn btn-sm ' + (campoNuevo === k ? 'btn-primary' : 'btn-outline-primary'),
+                html: { texto: '<i class="fas fa-i-cursor me-1"></i>', marca: '<i class="far fa-square-check me-1"></i>', lista: '<i class="fas fa-list me-1"></i>' }[k] + TIPOS_CAMPO[k],
+                onclick: function () { campoNuevo = k; pintar(); } }));
+        });
+        var total = b.campos.reduce(function (t, c) { return t + (c.tipo !== 'marca' || c.correcta ? (+c.puntos || 0) : 0); }, 0);
+        barra.appendChild(el('span', { class: 'ms-auto text-muted', text: b.campos.length + ' campo(s) · ' + total + ' punto(s)' }));
+        var lienzo = lienzoCajas(IMAGENES[b.imagen], 100, function (c) {
+            if (b.campos.length >= 80) { estado('Máximo 80 campos por página', true); return; }
+            c.id = id().slice(0, 6); c.tipo = campoNuevo; c.puntos = 1;
+            if (c.tipo === 'texto') c.correcta = '';
+            if (c.tipo === 'marca') c.correcta = true;
+            if (c.tipo === 'lista') { c.opciones = []; c.correcta = null; }
+            b.campos.push(c); campoMarcado[b.id] = c.id; cambio(); pintar();
+            var p = caja.querySelector('[data-id="' + b.id + '"] .mm-prop input');
+            if (p) p.focus();
+        });
+        lienzo.classList.add('hoja');
+        b.campos.forEach(function (c, i) {
+            var nodo = posicionar(el('div', { class: 'mm-caja campo ' + c.tipo + (marcado === c.id ? ' marcado' : ''), title: TIPOS_CAMPO[c.tipo] }), c);
+            nodo.appendChild(el('span', { class: 'mm-etq', text: c.tipo === 'marca' ? (c.correcta ? '✔' : '✗') : (c.tipo === 'lista' ? '▾ ' : '') + (c.tipo === 'texto' ? (c.correcta || '¿?') : (c.opciones && c.correcta != null ? c.opciones[c.correcta] : '¿?')) }));
+            nodo.addEventListener('pointerdown', function (ev) {
+                ev.stopPropagation(); campoMarcado[b.id] = c.id; activo = b.id; pintar();
+                var f = caja.querySelector('[data-id="' + b.id + '"] .mm-prop'); if (f) f.focus({ preventScroll: true });
+            });
+            lienzo.appendChild(nodo);
+        });
+        var hijos = [barra, lienzo];
+        var c = b.campos.filter(function (x) { return x.id === marcado; })[0];
+        if (c) hijos.push(propiedadesCampo(b, c));
+        else hijos.push(el('div', { class: 'small text-muted mt-1', text: 'Arrastre sobre la página para poner un campo; toque un campo para escribir su respuesta.' }));
+        return el('div', {}, hijos);
+    }
+
+    function propiedadesCampo(b, c) {
+        var fila = el('div', { class: 'mm-prop d-flex flex-wrap gap-2 align-items-center small mt-1' }, [el('b', { text: TIPOS_CAMPO[c.tipo] + ':' })]);
+        if (c.tipo === 'texto') {
+            fila.appendChild(campo(c.correcta, 'Respuesta (varias formas: forma 1|forma 2)', function (v) { c.correcta = v; }, 'form-control form-control-sm w-auto flex-grow-1'));
+        } else if (c.tipo === 'marca') {
+            var s2 = el('select', { class: 'form-select form-select-sm w-auto' }, [el('option', { value: '1', text: 'Va marcada' }), el('option', { value: '0', text: 'No va marcada (si la marca, resta)' })]);
+            s2.value = c.correcta ? '1' : '0';
+            s2.addEventListener('change', function () { c.correcta = s2.value === '1'; cambio(); pintar(); });
+            fila.appendChild(s2);
+        } else {
+            var ops = campo((c.opciones || []).join(' | '), 'Opciones separadas por | (ej.: is | are | am)', function (v) {
+                c.opciones = v.split('|').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 8);
+                if (c.correcta != null && c.correcta >= c.opciones.length) c.correcta = null;
+            }, 'form-control form-control-sm w-auto flex-grow-1');
+            ops.addEventListener('change', function () { pintar(); });
+            fila.appendChild(ops);
+            var corr = el('select', { class: 'form-select form-select-sm w-auto', title: 'La correcta' }, [el('option', { value: '', text: 'Correcta…' })]);
+            (c.opciones || []).forEach(function (o, k) { corr.appendChild(el('option', { value: String(k), text: o })); });
+            corr.value = c.correcta == null ? '' : String(c.correcta);
+            corr.addEventListener('change', function () { c.correcta = corr.value === '' ? null : +corr.value; cambio(); pintar(); });
+            fila.appendChild(corr);
+        }
+        var pts = el('input', { type: 'number', min: '0', max: '20', class: 'form-control form-control-sm', style: 'width:64px', title: 'Puntos' });
+        pts.value = c.puntos == null ? 1 : c.puntos;
+        pts.addEventListener('input', function () { c.puntos = Math.max(0, Math.min(20, +pts.value || 0)); cambio(); });
+        fila.appendChild(el('span', { class: 'text-muted', text: 'Puntos' }));
+        fila.appendChild(pts);
+        fila.appendChild(el('button', { type: 'button', class: 'btn btn-sm btn-outline-secondary', title: 'Copiar al lado', html: '<i class="far fa-copy"></i>',
+            onclick: function () {
+                var n = JSON.parse(JSON.stringify(c)); n.id = id().slice(0, 6);
+                n.y = Math.min(100 - n.h, n.y + n.h + 0.5);
+                b.campos.push(n); campoMarcado[b.id] = n.id; cambio(); pintar();
+            } }));
+        fila.appendChild(el('button', { type: 'button', class: 'btn btn-sm btn-outline-danger', title: 'Quitar campo', html: '<i class="far fa-trash-can"></i>',
+            onclick: function () { b.campos = b.campos.filter(function (x) { return x !== c; }); campoMarcado[b.id] = null; cambio(); pintar(); } }));
+        // Mover y ajustar con las flechas (Shift = cambiar tamaño)
+        fila.appendChild(el('span', { class: 'text-muted', text: 'Flechas: mover · Shift+flechas: tamaño' }));
+        fila.addEventListener('keydown', function (ev) {
+            var d = { ArrowLeft: [-0.3, 0], ArrowRight: [0.3, 0], ArrowUp: [0, -0.3], ArrowDown: [0, 0.3] }[ev.key];
+            if (!d || (ev.target.tagName === 'INPUT' && ev.target.type === 'text' && !ev.altKey)) return;
+            ev.preventDefault();
+            if (ev.shiftKey) { c.w = Math.max(1, Math.min(100 - c.x, c.w + d[0])); c.h = Math.max(0.8, Math.min(100 - c.y, c.h + d[1])); }
+            else { c.x = Math.max(0, Math.min(100 - c.w, c.x + d[0])); c.y = Math.max(0, Math.min(100 - c.h, c.y + d[1])); }
+            ['x', 'y', 'w', 'h'].forEach(function (k) { c[k] = Math.round(c[k] * 10) / 10; });
+            var nodo = caja.querySelector('[data-id="' + b.id + '"] .mm-caja.marcado');
+            if (nodo) posicionar(nodo, c);
+            cambio();
+        });
+        fila.setAttribute('tabindex', '0');
+        return fila;
+    }
 
     function opcionesUI(b, varias) {
         var caja3 = el('div');
@@ -304,8 +482,13 @@
             if (!b.modo) b.modo = (b.opciones && b.opciones.some(function (o) { return o; })) ? 'unica' : 'abierta';
             var caja2 = el('div');
             var sel = el('select', { class: 'form-select form-select-sm', style: 'width:auto', 'aria-label': 'Tipo de pregunta' });
-            Object.keys(MODOS).forEach(function (k) { sel.appendChild(el('option', { value: k, text: MODOS[k] })); });
+            Object.keys(MODOS).forEach(function (k) { if (k !== 'hoja') sel.appendChild(el('option', { value: k, text: MODOS[k] })); });
             sel.value = b.modo;
+            if (b.modo === 'hoja') {
+                caja2.appendChild(editable(b.enunciado, 'Indicación (opcional): Completa la ficha', function (v) { b.enunciado = v; }, true));
+                caja2.appendChild(hojaUI(b));
+                return caja2;
+            }
             sel.addEventListener('change', function () { cambiarModo(b, sel.value); cambio(); pintar(); });
             var pts = el('input', { type: 'number', min: '1', max: '100', class: 'form-control form-control-sm', style: 'width:70px', title: 'Puntos' });
             pts.value = b.puntos || 1;
@@ -317,14 +500,16 @@
                 el('span', { class: 'text-muted', text: 'Puntos' }), pts,
                 el('span', { class: 'form-check ms-1' }, [ctl, el('label', { class: 'form-check-label text-muted', for: 'ctl-' + b.id, text: 'De control (no cuenta)' })])]));
             caja2.appendChild(editable(b.enunciado, b.modo === 'completar' ? 'Indicación (opcional): Completa con la palabra correcta' : 'Escriba la pregunta…', function (v) { b.enunciado = v; }, true));
-            if (b.imagen && IMAGENES[b.imagen]) {
+            if (b.imagen && IMAGENES[b.imagen] && b.modo !== 'senalar') {
                 caja2.appendChild(el('div', { class: 'mm-img text-center' }, [el('img', { src: IMAGENES[b.imagen], alt: 'Imagen de la pregunta', style: 'width:45%' }),
                     el('button', { type: 'button', class: 'btn btn-sm btn-link text-danger', text: 'Quitar imagen', onclick: function () { b.imagen = null; cambio(); pintar(); } })]));
             }
             caja2.appendChild((CUERPO[b.modo] || CUERPO.abierta)(b));
             caja2.appendChild(el('div', { class: 'd-flex flex-wrap gap-2 align-items-center small mt-1' }, [
-                el('button', { type: 'button', class: 'btn btn-sm btn-link py-0', text: 'Imagen para la pregunta',
-                    onclick: function () { activo = b.id; destinoImagen = b; $('#mm-archivo').click(); } })]));
+                b.modo === 'senalar' ? null : el('button', { type: 'button', class: 'btn btn-sm btn-link py-0', text: 'Imagen para la pregunta',
+                    onclick: function () { activo = b.id; destinoImagen = b; $('#mm-archivo').click(); } }),
+                el('button', { type: 'button', class: 'btn btn-sm btn-link py-0 ms-auto', html: '<i class="fas fa-box-archive me-1"></i>Guardar en el banco',
+                    onclick: function () { guardarEnBanco(b); } })]));
             return caja2;
         },
         contexto: function (b) {
@@ -369,7 +554,8 @@
         datos.bloques.forEach(function (b, i) {
             if (!DIBUJAR[b.tipo]) return;
             var nodo = el('div', { class: 'mm-bloque' + (activo === b.id ? ' activo' : ''), 'data-id': b.id });
-            if (b.tipo === 'pregunta') { n++; nodo.appendChild(el('div', { class: 'small fw-bold text-primary', text: 'Pregunta ' + n })); }
+            if (b.tipo === 'pregunta' && b.modo === 'hoja') nodo.appendChild(el('div', { class: 'small fw-bold text-primary', text: 'Hoja sobre el PDF' }));
+            else if (b.tipo === 'pregunta') { n++; nodo.appendChild(el('div', { class: 'small fw-bold text-primary', text: 'Pregunta ' + n })); }
             nodo.appendChild(herramientas(b, i));
             nodo.appendChild(DIBUJAR[b.tipo](b));
             nodo.addEventListener('focusin', function () { marcar(b.id); });
@@ -387,6 +573,8 @@
         b.addEventListener('click', function () {
             var tipo = b.getAttribute('data-nuevo');
             if (tipo === 'imagen') { destinoImagen = null; $('#mm-archivo').click(); return; }
+            if (tipo === 'hoja') { $('#mm-archivo-hoja').click(); return; }
+            if (tipo === 'banco') { abrirBanco(); return; }
             insertar(nuevo(tipo));
         });
     });
@@ -399,7 +587,7 @@
     // Imágenes: pegar, arrastrar o subir
     // -------------------------------------------------------------------
     var destinoImagen = null;     // una pregunta, si la imagen es para ella
-    function subirImagen(archivo) {
+    function subirImagen(archivo, alListo) {
         estado('Subiendo imagen…');
         var f = new FormData();
         f.append('imagen', archivo, archivo.name || 'pegada.png');
@@ -411,6 +599,7 @@
                 if (j.nube) {
                     $('#mm-nube-texto') && ($('#mm-nube-texto').textContent = j.nube.usado_mb + ' MB de ' + j.nube.cuota_mb + ' MB');
                 }
+                if (alListo) { alListo(j); return; }
                 if (destinoImagen) { destinoImagen.imagen = j.id; destinoImagen = null; pintar(); cambio(); }
                 else { var b = nuevo('imagen'); b.imagen = j.id; b.ancho = 60; b.pie = ''; insertar(b); }
             }).catch(function () { estado('No se pudo subir la imagen', true); });
@@ -599,6 +788,134 @@
     }
     $$('[data-nube]').forEach(function (b) {
         b.addEventListener('click', function () { guardarEnNube(b.getAttribute('data-nube'), b.getAttribute('data-formato')); });
+    });
+
+    // -------------------------------------------------------------------
+    // Hoja sobre un PDF (estilo Liveworksheets): cada página se vuelve una imagen con campos encima
+    // -------------------------------------------------------------------
+    var PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+    function cargarPdfJs() {
+        if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+        return new Promise(function (ok, mal) {
+            var s = document.createElement('script');
+            s.src = PDFJS + 'pdf.min.js';
+            s.onload = function () { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; ok(window.pdfjsLib); };
+            s.onerror = function () { mal(new Error('No se pudo abrir el lector de PDF. Revise la conexión.')); };
+            document.head.appendChild(s);
+        });
+    }
+    function paginasDelPdf(archivo) {
+        return cargarPdfJs().then(function (lib) { return archivo.arrayBuffer().then(function (buf) { return lib.getDocument({ data: buf }).promise; }); })
+            .then(function (pdf) {
+                var total = Math.min(pdf.numPages, 30), blobs = [];
+                if (pdf.numPages > 30) estado('El PDF tiene ' + pdf.numPages + ' páginas: se toman las primeras 30.', true);
+                var cadena = Promise.resolve();
+                for (var k = 1; k <= total; k++) (function (k) {
+                    cadena = cadena.then(function () { return pdf.getPage(k); }).then(function (pagina) {
+                        estado('Preparando la página ' + k + ' de ' + total + '…');
+                        var base = pagina.getViewport({ scale: 1 });
+                        var vista = pagina.getViewport({ scale: Math.min(3, 1500 / base.width) });
+                        var lienzo = document.createElement('canvas');
+                        lienzo.width = Math.round(vista.width); lienzo.height = Math.round(vista.height);
+                        var ctx = lienzo.getContext('2d');
+                        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, lienzo.width, lienzo.height);
+                        return pagina.render({ canvasContext: ctx, viewport: vista }).promise.then(function () {
+                            return new Promise(function (ok) { lienzo.toBlob(function (b) { blobs.push(new File([b], 'pagina-' + k + '.jpg', { type: 'image/jpeg' })); ok(); }, 'image/jpeg', 0.88); });
+                        });
+                    });
+                })(k);
+                return cadena.then(function () { return blobs; });
+            });
+    }
+    function nuevaHoja(imagenId) {
+        return { id: id(), tipo: 'pregunta', modo: 'hoja', enunciado: '', imagen: imagenId, campos: [], puntos: 1, lineas: 0 };
+    }
+    $('#mm-archivo-hoja').addEventListener('change', function () {
+        var archivos = Array.prototype.slice.call(this.files || []);
+        this.value = '';
+        if (!archivos.length) return;
+        var listas = archivos.reduce(function (p, f) {
+            return p.then(function (acum) {
+                if (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) return paginasDelPdf(f).then(function (ps) { return acum.concat(ps); });
+                if (f.type.indexOf('image/') === 0) return acum.concat([f]);
+                return acum;
+            });
+        }, Promise.resolve([]));
+        listas.then(function (paginas) {
+            var hechas = 0;
+            return paginas.reduce(function (p, f) {
+                return p.then(function () {
+                    return subirImagen(f, function (j) {
+                        hechas++;
+                        estado('Página ' + hechas + ' de ' + paginas.length + ' lista');
+                        var b = nuevaHoja(j.id);
+                        var i = activo ? indice(activo) : -1;
+                        datos.bloques.splice(i < 0 ? datos.bloques.length : i + 1, 0, b);
+                        activo = b.id;
+                    });
+                });
+            }, Promise.resolve()).then(function () { pintar(); cambio(); });
+        }).catch(function (e) { estado(e.message || 'No se pudo leer el archivo', true); });
+    });
+
+    // -------------------------------------------------------------------
+    // Banco de preguntas
+    // -------------------------------------------------------------------
+    function postJSON(url, cuerpo) {
+        return fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CFG.csrf },
+            body: JSON.stringify(cuerpo) }).then(function (r) { return r.json(); });
+    }
+    function guardarEnBanco(b) {
+        var tema = window.prompt('Tema de la pregunta (para encontrarla después):', '');
+        if (tema === null) return;
+        var compartir = CFG.colegio && window.confirm('¿Compartirla con los docentes del colegio?');
+        postJSON(CFG.banco.guardar, { bloque: b, area: $('#mm-area').value, grado: $('#mm-grado').value, tema: tema, compartida: !!compartir })
+            .then(function (j) { estado(j.ok ? j.mensaje : (j.error || 'No se pudo guardar'), !j.ok); })
+            .catch(function () { estado('No se pudo guardar en el banco', true); });
+    }
+    function abrirBanco() {
+        var modal = $('#mm-banco');
+        $('#mm-banco-area').value = $('#mm-banco-area').value || $('#mm-area').value;
+        buscarBanco();
+        if (window.bootstrap) new bootstrap.Modal(modal).show();
+    }
+    var esperaBanco = null;
+    function buscarBanco() {
+        var lista = $('#mm-banco-lista');
+        var q = new URLSearchParams({ q: $('#mm-banco-q').value, area: $('#mm-banco-area').value, grado: $('#mm-banco-grado').value,
+            modo: $('#mm-banco-modo').value, alcance: $('#mm-banco-alcance') ? $('#mm-banco-alcance').value : '' });
+        lista.innerHTML = '<div class="text-muted small p-2">Buscando…</div>';
+        fetch(CFG.banco.buscar + '?' + q.toString(), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+            lista.innerHTML = '';
+            if (!j.preguntas.length) { lista.appendChild(el('div', { class: 'text-muted small p-2', text: 'No hay preguntas con esa búsqueda. Guarde preguntas con el botón «Guardar en el banco» de cada pregunta.' })); return; }
+            j.preguntas.forEach(function (p) {
+                lista.appendChild(el('div', { class: 'mm-banco-item d-flex gap-2 align-items-start' }, [
+                    el('div', { class: 'flex-grow-1' }, [el('div', { text: p.resumen }),
+                        el('div', { class: 'small text-muted', text: [p.modo, p.area, p.grado && 'Grado ' + p.grado, p.tema, p.mia ? '' : 'de ' + p.autor, p.imagen ? 'con imagen' : ''].filter(Boolean).join(' · ') })]),
+                    el('button', { type: 'button', class: 'btn btn-sm mm-oro', text: 'Insertar', onclick: function (ev) {
+                        var boton = ev.currentTarget; boton.disabled = true;
+                        postJSON(CFG.banco.usar, { id: p.id }).then(function (r) {
+                            boton.disabled = false;
+                            if (!r.ok) { estado(r.error || 'No se pudo insertar', true); return; }
+                            Object.keys(r.imagenes || {}).forEach(function (k) { IMAGENES[k] = r.imagenes[k]; });
+                            insertar(r.bloque);
+                            boton.textContent = 'Insertada ✔';
+                        });
+                    } })]));
+            });
+        }).catch(function () { lista.innerHTML = '<div class="text-danger small p-2">No se pudo buscar.</div>'; });
+    }
+    ['#mm-banco-q', '#mm-banco-area', '#mm-banco-grado'].forEach(function (s) {
+        var x = $(s); if (x) x.addEventListener('input', function () { clearTimeout(esperaBanco); esperaBanco = setTimeout(buscarBanco, 400); });
+    });
+    ['#mm-banco-modo', '#mm-banco-alcance'].forEach(function (s) { var x = $(s); if (x) x.addEventListener('change', buscarBanco); });
+    var todas = $('#mm-banco-todas');
+    if (todas) todas.addEventListener('click', function () {
+        var tema = window.prompt('Tema para todas las preguntas de este documento (opcional):', '');
+        if (tema === null) return;
+        var compartir = CFG.colegio && window.confirm('¿Compartirlas con los docentes del colegio?');
+        guardar().then(function () { return postJSON(CFG.banco.guardar, { documento: CFG.doc, tema: tema, compartida: !!compartir }); })
+            .then(function (j) { estado(j.ok ? j.mensaje : (j.error || 'No se pudo guardar'), !j.ok); buscarBanco(); });
     });
 
     pintarOpciones();

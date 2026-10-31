@@ -530,3 +530,20 @@ class NotaManual(models.Model):
     integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE, null=True, blank=True,
                                    related_name='+')
     nota = models.DecimalField(max_digits=5, decimal_places=2)
+
+
+class ArchivoFicha(models.Model):
+    """La foto o el audio con que el estudiante responde una pregunta de una ficha."""
+    TIPOS = [('foto', 'Foto'), ('audio', 'Audio')]
+    entrega = models.ForeignKey(Entrega, on_delete=models.CASCADE, related_name='archivos_ficha')
+    bloque = models.CharField(max_length=20)
+    tipo = models.CharField(max_length=5, choices=TIPOS, default='foto')
+    archivo = models.FileField(upload_to=almacen.ruta_ficha, storage=almacen.privado)
+    peso = models.PositiveIntegerField(default=0)
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado']
+
+    def __str__(self):
+        return f'{self.get_tipo_display()} de la entrega {self.entrega_id}'
