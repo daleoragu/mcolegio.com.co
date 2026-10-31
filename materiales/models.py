@@ -30,6 +30,7 @@ class Documento(models.Model):
         ('taller', 'Taller'),
         ('evaluacion', 'Evaluación'),
         ('ficha', 'Ficha de lectura'),
+        ('cuadernillo', 'Cuadernillo tipo Saber'),
         ('libre', 'Documento en blanco'),
     ]
     propietario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='materiales')
@@ -43,6 +44,9 @@ class Documento(models.Model):
     contenido = models.JSONField(default=dict, blank=True)
     # Plantilla del colegio: el rector o coordinador la marca y los docentes la usan como modelo.
     plantilla_colegio = models.BooleanField(default=False)
+    # El examen de PuntoExacto que se creó con este cuadernillo (su clave sale de aquí).
+    examen = models.ForeignKey('puntoexacto.Examen', on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='materiales')
     creado = models.DateTimeField(auto_now_add=True)
     actualizado = models.DateTimeField(auto_now=True)
 

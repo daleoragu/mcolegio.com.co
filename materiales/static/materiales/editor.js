@@ -16,6 +16,133 @@
     var caja = $('#mm-bloques');
     var activo = null;            // id del bloque marcado: lo nuevo se agrega debajo
     var ESTILOS = { recuerda: 'Recuerda', reto: 'Reto', vocabulario: 'Vocabulario', nota: 'Nota' };
+    var MODOS = JSON.parse(document.getElementById('mm-modos').textContent || '{}');
+
+    function cambiarModo(b, modo) {
+        b.modo = modo;
+        if ((modo === 'unica' || modo === 'varias') && !(b.opciones && b.opciones.length)) b.opciones = ['', '', '', ''];
+        if (modo === 'varias' && !b.correctas) b.correctas = [];
+        if (modo === 'completar' && !b.texto) b.texto = '';
+        if (modo === 'corta' && !b.aceptadas) b.aceptadas = [];
+        if (modo === 'emparejar' && !b.pares) b.pares = [['', ''], ['', ''], ['', '']];
+        if (modo === 'ordenar' && !b.elementos) b.elementos = ['', '', ''];
+        if (modo === 'clasificar' && !b.grupos) b.grupos = [{ nombre: '', elementos: [] }, { nombre: '', elementos: [] }];
+        if (modo === 'abierta' && !b.lineas) b.lineas = 3;
+    }
+
+    function listaTexto(valores, ayuda, alCambiar, filas) {
+        var t = el('textarea', { class: 'form-control form-control-sm', rows: String(filas || 4), placeholder: ayuda });
+        t.value = (valores || []).join('\n');
+        t.addEventListener('input', function () { alCambiar(t.value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean)); cambio(); });
+        return t;
+    }
+
+    // Lo que va debajo del enunciado según el tipo de pregunta
+    var CUERPO = {
+        unica: function (b) { return opcionesUI(b, false); },
+        varias: function (b) { return opcionesUI(b, true); },
+        vf: function (b) {
+            var s2 = el('select', { class: 'form-select form-select-sm', style: 'width:auto' }, [
+                el('option', { value: 'v', text: 'Es verdadera' }), el('option', { value: 'f', text: 'Es falsa' })]);
+            s2.value = b.valor ? 'v' : 'f';
+            s2.addEventListener('change', function () { b.valor = s2.value === 'v'; cambio(); });
+            return el('div', { class: 'd-flex gap-2 align-items-center small' }, [el('span', { text: 'La afirmación' }), s2]);
+        },
+        completar: function (b) {
+            var t = el('textarea', { class: 'form-control form-control-sm', rows: '3',
+                placeholder: 'La capital de Colombia es [[Bogotá]] y el río más largo es el [[Magdalena|río Magdalena]].' });
+            t.value = b.texto || '';
+            t.addEventListener('input', function () { b.texto = t.value; cambio(); });
+            var m = el('input', { type: 'checkbox', class: 'form-check-input', id: 'may-' + b.id });
+            m.checked = !!b.mayusculas;
+            m.addEventListener('change', function () { b.mayusculas = m.checked; cambio(); });
+            return el('div', {}, [t, el('div', { class: 'small text-muted mt-1' }, [
+                el('span', { html: 'Ponga cada espacio entre dobles corchetes: <b>[[respuesta]]</b>. Si vale de varias formas: <b>[[forma 1|forma 2]]</b>. ' }),
+                el('span', { class: 'form-check d-inline-block ms-1' }, [m, el('label', { class: 'form-check-label', for: 'may-' + b.id, text: 'Exigir tildes y mayúsculas' })])])]);
+        },
+        numerica: function (b) {
+            return el('div', { class: 'd-flex flex-wrap gap-2 align-items-center small' }, [
+                el('span', { text: 'Respuesta' }), campo(b.respuesta, '3,5', function (v) { b.respuesta = v; }, 'form-control form-control-sm w-auto'),
+                el('span', { text: 'Margen ±' }), campo(b.tolerancia, '0', function (v) { b.tolerancia = v; }, 'form-control form-control-sm w-auto'),
+                el('span', { text: 'Unidad' }), campo(b.unidad, 'cm', function (v) { b.unidad = v; }, 'form-control form-control-sm w-auto')]);
+        },
+        corta: function (b) {
+            return el('div', { class: 'small' }, [el('div', { class: 'text-muted', text: 'Respuestas que se aceptan (una por línea). Si el estudiante escribe otra cosa, usted la revisa.' }),
+                listaTexto(b.aceptadas, 'fotosíntesis', function (v) { b.aceptadas = v; }, 2)]);
+        },
+        abierta: function (b) {
+            var n = el('input', { type: 'number', min: '1', max: '20', class: 'form-control form-control-sm', style: 'width:70px' });
+            n.value = b.lineas || 3;
+            n.addEventListener('input', function () { b.lineas = Math.max(1, Math.min(20, +n.value || 3)); cambio(); });
+            return el('div', { class: 'd-flex gap-2 align-items-center small text-muted' }, [el('span', { text: 'Líneas para responder' }), n,
+                el('span', { text: '· la califica usted' })]);
+        },
+        emparejar: function (b) {
+            var caja3 = el('div', { class: 'small' }, [el('div', { class: 'text-muted', text: 'Escriba cada pareja; al estudiante le salen en desorden.' })]);
+            b.pares.forEach(function (par, i) {
+                caja3.appendChild(el('div', { class: 'd-flex gap-1 my-1' }, [
+                    campo(par[0], 'Concepto', function (v) { b.pares[i][0] = v; }),
+                    el('span', { class: 'align-self-center', text: '↔' }),
+                    campo(par[1], 'Su pareja', function (v) { b.pares[i][1] = v; }),
+                    el('button', { type: 'button', class: 'btn btn-sm btn-link text-danger', html: '&times;', title: 'Quitar',
+                        onclick: function () { b.pares.splice(i, 1); cambio(); pintar(); } })]));
+            });
+            if (b.pares.length < 12) caja3.appendChild(el('button', { type: 'button', class: 'btn btn-sm btn-link', text: '+ pareja',
+                onclick: function () { b.pares.push(['', '']); cambio(); pintar(); } }));
+            return caja3;
+        },
+        ordenar: function (b) {
+            return el('div', { class: 'small' }, [el('div', { class: 'text-muted', text: 'Escriba los pasos en el orden correcto, uno por línea; al estudiante le salen en desorden.' }),
+                listaTexto(b.elementos, 'Lava los mangos\nCorta la pulpa\nLicúa', function (v) { b.elementos = v; }, 4)]);
+        },
+        clasificar: function (b) {
+            var caja3 = el('div', { class: 'small' }, [el('div', { class: 'text-muted', text: 'Cada grupo con sus elementos separados por comas.' })]);
+            b.grupos.forEach(function (g, i) {
+                var elems = el('input', { type: 'text', class: 'form-control form-control-sm', placeholder: 'perro, gato, vaca' });
+                elems.value = (g.elementos || []).join(', ');
+                elems.addEventListener('input', function () { g.elementos = elems.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean); cambio(); });
+                caja3.appendChild(el('div', { class: 'd-flex gap-1 my-1' }, [
+                    campo(g.nombre, 'Grupo', function (v) { g.nombre = v; }, 'form-control form-control-sm w-25'), elems,
+                    el('button', { type: 'button', class: 'btn btn-sm btn-link text-danger', html: '&times;', title: 'Quitar grupo',
+                        onclick: function () { b.grupos.splice(i, 1); cambio(); pintar(); } })]));
+            });
+            if (b.grupos.length < 6) caja3.appendChild(el('button', { type: 'button', class: 'btn btn-sm btn-link', text: '+ grupo',
+                onclick: function () { b.grupos.push({ nombre: '', elementos: [] }); cambio(); pintar(); } }));
+            return caja3;
+        }
+    };
+
+    function opcionesUI(b, varias) {
+        var caja3 = el('div');
+        var letras = 'ABCDEF';
+        b.opciones = b.opciones || [];
+        if (varias) b.correctas = b.correctas || [];
+        b.opciones.forEach(function (op, i) {
+            var marca = el('input', { type: varias ? 'checkbox' : 'radio', name: 'c-' + b.id, title: 'Respuesta correcta', class: 'form-check-input mt-0' });
+            marca.checked = varias ? b.correctas.indexOf(i) >= 0 : b.correcta === i;
+            marca.addEventListener('change', function () {
+                if (varias) {
+                    b.correctas = b.correctas.filter(function (x) { return x !== i; });
+                    if (marca.checked) b.correctas.push(i);
+                } else b.correcta = i;
+                cambio();
+            });
+            caja3.appendChild(el('div', { class: 'mm-op' }, [marca, el('b', { text: letras[i] + '.' }),
+                campo(op, 'Opción ' + letras[i], function (v) { b.opciones[i] = v; }, ''),
+                el('button', { type: 'button', class: 'btn btn-sm btn-link text-danger py-0', title: 'Quitar opción', html: '&times;',
+                    onclick: function () {
+                        b.opciones.splice(i, 1);
+                        if (varias) b.correctas = b.correctas.filter(function (x) { return x !== i; }).map(function (x) { return x > i ? x - 1 : x; });
+                        else if (b.correcta === i) b.correcta = null; else if (b.correcta > i) b.correcta--;
+                        cambio(); pintar();
+                    } })]));
+        });
+        caja3.appendChild(el('div', { class: 'd-flex gap-2 small' }, [
+            b.opciones.length < 6 ? el('button', { type: 'button', class: 'btn btn-sm btn-link py-0', text: '+ opción',
+                onclick: function () { b.opciones.push(''); cambio(); pintar(); } }) : null,
+            el('span', { class: 'text-muted align-self-center', text: varias ? 'marque todas las correctas' : 'marque la correcta' })]));
+        return caja3;
+    }
 
     function id() { return Math.random().toString(36).slice(2, 10); }
     function el(tag, attrs, hijos) {
@@ -75,7 +202,8 @@
         if (tipo === 'recuadro') { b.estilo = 'recuerda'; b.titulo = 'Recuerda'; b.html = ''; }
         if (tipo === 'tabla') { b.filas = [['', '', ''], ['', '', '']]; b.encabezado = true; }
         if (tipo === 'lineas') b.n = 4;
-        if (tipo === 'pregunta') { b.enunciado = ''; b.opciones = ['', '', '', '']; b.correcta = null; b.lineas = 0; b.imagen = null; }
+        if (tipo === 'pregunta') { b.modo = 'unica'; b.puntos = 1; b.enunciado = ''; b.opciones = ['', '', '', '']; b.correcta = null; b.lineas = 0; b.imagen = null; }
+        if (tipo === 'contexto') { b.titulo = ''; b.html = ''; b.imagen = null; b.ancho = 70; b.cubre = 0; }
         return b;
     }
     function indice(bid) { for (var i = 0; i < datos.bloques.length; i++) if (datos.bloques[i].id === bid) return i; return -1; }
@@ -173,33 +301,52 @@
             return el('div', {}, [el('div', { class: 'd-flex gap-2 align-items-center small text-muted mb-1' }, [el('span', { text: 'Líneas para responder' }), n]), lineas]);
         },
         pregunta: function (b) {
+            if (!b.modo) b.modo = (b.opciones && b.opciones.some(function (o) { return o; })) ? 'unica' : 'abierta';
             var caja2 = el('div');
-            caja2.appendChild(editable(b.enunciado, 'Escriba la pregunta…', function (v) { b.enunciado = v; }, true));
+            var sel = el('select', { class: 'form-select form-select-sm', style: 'width:auto', 'aria-label': 'Tipo de pregunta' });
+            Object.keys(MODOS).forEach(function (k) { sel.appendChild(el('option', { value: k, text: MODOS[k] })); });
+            sel.value = b.modo;
+            sel.addEventListener('change', function () { cambiarModo(b, sel.value); cambio(); pintar(); });
+            var pts = el('input', { type: 'number', min: '1', max: '100', class: 'form-control form-control-sm', style: 'width:70px', title: 'Puntos' });
+            pts.value = b.puntos || 1;
+            pts.addEventListener('input', function () { b.puntos = Math.max(1, Math.min(100, +pts.value || 1)); cambio(); });
+            var ctl = el('input', { type: 'checkbox', class: 'form-check-input', id: 'ctl-' + b.id });
+            ctl.checked = !!b.control;
+            ctl.addEventListener('change', function () { b.control = ctl.checked; cambio(); });
+            caja2.appendChild(el('div', { class: 'd-flex flex-wrap gap-2 align-items-center mb-1 small' }, [sel,
+                el('span', { class: 'text-muted', text: 'Puntos' }), pts,
+                el('span', { class: 'form-check ms-1' }, [ctl, el('label', { class: 'form-check-label text-muted', for: 'ctl-' + b.id, text: 'De control (no cuenta)' })])]));
+            caja2.appendChild(editable(b.enunciado, b.modo === 'completar' ? 'Indicación (opcional): Completa con la palabra correcta' : 'Escriba la pregunta…', function (v) { b.enunciado = v; }, true));
             if (b.imagen && IMAGENES[b.imagen]) {
                 caja2.appendChild(el('div', { class: 'mm-img text-center' }, [el('img', { src: IMAGENES[b.imagen], alt: 'Imagen de la pregunta', style: 'width:45%' }),
                     el('button', { type: 'button', class: 'btn btn-sm btn-link text-danger', text: 'Quitar imagen', onclick: function () { b.imagen = null; cambio(); pintar(); } })]));
             }
-            var letras = 'ABCDEF';
-            b.opciones.forEach(function (op, i) {
-                var radio = el('input', { type: 'radio', name: 'c-' + b.id, title: 'Respuesta correcta', class: 'form-check-input mt-0' });
-                radio.checked = b.correcta === i;
-                radio.addEventListener('change', function () { b.correcta = i; cambio(); });
-                caja2.appendChild(el('div', { class: 'mm-op' }, [radio, el('b', { text: letras[i] + '.' }),
-                    campo(op, 'Opción ' + letras[i], function (v) { b.opciones[i] = v; }, ''),
-                    el('button', { type: 'button', class: 'btn btn-sm btn-link text-danger py-0', title: 'Quitar opción', html: '&times;',
-                        onclick: function () { b.opciones.splice(i, 1); if (b.correcta === i) b.correcta = null; else if (b.correcta > i) b.correcta--; cambio(); pintar(); } })]));
-            });
-            var lin = el('input', { type: 'number', min: '0', max: '20', class: 'form-control form-control-sm', style: 'width:70px' });
-            lin.value = b.lineas || 0;
-            lin.addEventListener('input', function () { b.lineas = Math.max(0, Math.min(20, +lin.value || 0)); cambio(); });
+            caja2.appendChild((CUERPO[b.modo] || CUERPO.abierta)(b));
             caja2.appendChild(el('div', { class: 'd-flex flex-wrap gap-2 align-items-center small mt-1' }, [
-                b.opciones.length < 6 ? el('button', { type: 'button', class: 'btn btn-sm btn-link py-0', text: '+ opción',
-                    onclick: function () { b.opciones.push(''); cambio(); pintar(); } }) : null,
                 el('button', { type: 'button', class: 'btn btn-sm btn-link py-0', text: 'Imagen para la pregunta',
-                    onclick: function () { activo = b.id; destinoImagen = b; $('#mm-archivo').click(); } }),
-                el('span', { class: 'text-muted ms-auto', text: 'Líneas para responder' }), lin,
-                el('span', { class: 'text-muted', text: b.opciones.length ? '· marque la correcta' : '· pregunta abierta' })]));
+                    onclick: function () { activo = b.id; destinoImagen = b; $('#mm-archivo').click(); } })]));
             return caja2;
+        },
+        contexto: function (b) {
+            var cubre = el('input', { type: 'number', min: '0', max: '30', class: 'form-control form-control-sm', style: 'width:70px' });
+            cubre.value = b.cubre || 0;
+            cubre.addEventListener('input', function () { b.cubre = Math.max(0, Math.min(30, +cubre.value || 0)); cambio(); });
+            var hijos = [el('div', { class: 'small fw-bold text-primary', text: 'Texto o imagen que comparten varias preguntas' }),
+                campo(b.titulo, 'Título (opcional)', function (v) { b.titulo = v; }, 'form-control form-control-sm fw-bold text-center border-0')];
+            if (b.imagen && IMAGENES[b.imagen]) {
+                var img = el('img', { src: IMAGENES[b.imagen], alt: 'Imagen del texto', style: 'width:' + (b.ancho || 70) + '%' });
+                var rango = el('input', { type: 'range', min: '10', max: '100', step: '5', class: 'form-range', style: 'max-width:200px' });
+                rango.value = b.ancho || 70;
+                rango.addEventListener('input', function () { b.ancho = +rango.value; img.style.width = b.ancho + '%'; cambio(); });
+                hijos.push(el('div', { class: 'mm-img text-center' }, [img, el('div', {}, [rango]),
+                    el('button', { type: 'button', class: 'btn btn-sm btn-link text-danger', text: 'Quitar imagen', onclick: function () { b.imagen = null; cambio(); pintar(); } })]));
+            }
+            hijos.push(editable(b.html, 'El texto, la receta, la biografía o la explicación de la gráfica…', function (v) { b.html = v; }));
+            hijos.push(el('div', { class: 'd-flex flex-wrap gap-2 align-items-center small text-muted mt-1' }, [
+                el('button', { type: 'button', class: 'btn btn-sm btn-link py-0', text: b.imagen ? 'Cambiar imagen' : 'Agregar imagen',
+                    onclick: function () { activo = b.id; destinoImagen = b; $('#mm-archivo').click(); } }),
+                el('span', { class: 'ms-auto', text: 'Preguntas que cubre (0 = hasta el siguiente texto o sección)' }), cubre]));
+            return el('div', { class: 'border-start border-4 border-primary ps-2' }, hijos);
         },
         separador: function () { return el('div', { class: 'text-center text-muted small', html: '— separador —' }); },
         salto: function () { return el('div', { class: 'text-center text-muted small', html: '<i class="fas fa-scissors"></i> Aquí empieza una página nueva' }); }
@@ -284,7 +431,7 @@
         if (archivos.length) {
             e.preventDefault();
             var b = activo && datos.bloques[indice(activo)];
-            destinoImagen = b && b.tipo === 'pregunta' && !b.imagen ? b : null;
+            destinoImagen = b && (b.tipo === 'pregunta' || b.tipo === 'contexto') && !b.imagen ? b : null;
             archivos.reduce(function (p, f) { return p.then(function () { return subirImagen(f); }); }, Promise.resolve());
             return;
         }
@@ -321,6 +468,19 @@
     $$('#mm-columnas [data-col]').forEach(function (b) { b.addEventListener('click', function () { datos.opciones.columnas = +b.getAttribute('data-col'); pintarOpciones(); cambio(); }); });
     $('#mm-letra').addEventListener('input', function () { datos.opciones.letra = +this.value; pintarOpciones(); cambio(); });
     $('#mm-datos').addEventListener('change', function () { datos.opciones.datos = this.checked; cambio(); });
+    // Cuadernillo: portada y datos de la sesión
+    var CAMPOS_CUAD = ['sesion', 'duracion', 'horario', 'aviso', 'fin'];
+    CAMPOS_CUAD.forEach(function (k) {
+        var c = $('#mm-c-' + k);
+        if (!c) return;
+        c.value = datos.opciones[k] || '';
+        c.addEventListener('input', function () { datos.opciones[k] = c.value; cambio(); });
+    });
+    var portada = $('#mm-c-portada');
+    if (portada) {
+        portada.checked = !!datos.opciones.portada;
+        portada.addEventListener('change', function () { datos.opciones.portada = portada.checked; cambio(); });
+    }
     $('#mm-nombre').addEventListener('change', function () { datos.opciones.nombre_estudiante = this.checked; cambio(); });
 
     $('#mm-contar').addEventListener('click', function () {
@@ -360,6 +520,12 @@
             var url = this.href;
             guardar().then(function () { location.href = url; });
         });
+    });
+    $$('.mm-guardar-antes').forEach(function (a) {
+        a.addEventListener('click', function (e) { e.preventDefault(); var url = a.href; guardar().then(function () { location.href = url; }); });
+    });
+    $$('.mm-form-guardar').forEach(function (f) {
+        f.addEventListener('submit', function (e) { e.preventDefault(); guardar().then(function () { f.submit(); }); });
     });
     var formPub = $('#mm-publicar');
     if (formPub) formPub.addEventListener('submit', function (e) {

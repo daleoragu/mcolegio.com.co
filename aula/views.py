@@ -144,7 +144,8 @@ def inicio(request):
         clave = logica.clave_de(est)
         vistos = {v.aula_id: v.secciones for v in Visto.objects.filter(aula__in=aulas.values(), estudiante=est)}
         for a in aulas.values():
-            hechas = set(Entrega.objects.filter(tarea__aula=a, estudiante=est).values_list('tarea_id', flat=True))
+            hechas = set(Entrega.objects.filter(tarea__aula=a, estudiante=est, entregada__isnull=False)
+                         .values_list('tarea_id', flat=True))
             pendientes[a.asignacion_id] = sum(1 for t in a.tareas.filter(publicada=True)
                                               if t.id not in hechas and logica.es_para(t, clave))
             nuevos[a.asignacion_id] = sum(logica.novedades(a, est, vistos.get(a.id, {})).values())
@@ -431,6 +432,7 @@ def tarea_form(request, pk, tid=None):
     componentes = logica.componentes_de(aula)
     if request.method == 'POST':
         nuevo = tarea.pk is None
+        ya_publicada = bool(tarea.pk) and Tarea.objects.filter(pk=tarea.pk, publicada=True).exists()
         tarea.titulo = (request.POST.get('titulo') or '').strip()[:60]
         tarea.instrucciones = (request.POST.get('instrucciones') or '').strip()
         tarea.enlace = (request.POST.get('enlace') or '').strip()[:200]
@@ -456,7 +458,7 @@ def tarea_form(request, pk, tid=None):
         else:
             _guardar_archivo(tarea, 'archivo', archivo)
             tarea.save()
-            if nuevo and tarea.publicada:
+            if tarea.publicada and not ya_publicada:
                 limite = f' · entrega: {timezone.localtime(tarea.fecha_limite):%d/%m %I:%M %p}' if tarea.fecha_limite else ''
                 Publicacion.objects.create(aula=aula, autor=request.user, tarea=tarea,
                                            texto=f'Nueva tarea: {tarea.titulo}{limite}')

@@ -2,26 +2,38 @@
 <html lang="es"><head><meta charset="utf-8">
 <title>{{ doc.titulo }}</title>
 <style>
-    @page { size: letter; margin: {{ margen }}mm {{ margen }}mm {{ margen|add:2 }}mm;
+    @page { size: letter; margin: {% if cuadernillo %}{{ margen|add:6 }}{% else %}{{ margen }}{% endif %}mm {{ margen }}mm {{ margen|add:4 }}mm;
+            {% if cuadernillo %}@top-left { content: "{{ css_izquierda|safe }}"; font-size: 7.5pt; font-weight: bold; color: #1f3a68; border-bottom: 1px solid #1f3a68; vertical-align: bottom; padding-bottom: 2mm; }
+            @top-right { content: "{{ css_derecha|safe }}"; font-size: 7.5pt; font-style: italic; color: #333; border-bottom: 1px solid #1f3a68; vertical-align: bottom; padding-bottom: 2mm; }
+            @bottom-left { content: "Material de uso institucional · No escribas en este cuadernillo"; font-size: 7pt; font-style: italic; color: #555; }{% endif %}
             @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 7.5pt; color: #777; } }
+    {% if cuadernillo and opciones.portada %}@page portada { @top-left { content: none; border: 0; } @top-right { content: none; border: 0; } @bottom-left { content: none; } }
+    .portada { page: portada; break-after: page; text-align: center; border: 3px double #1f3a68; padding: 10mm 8mm; min-height: 215mm; }{% endif %}
     body { font-family: Arial, Helvetica, sans-serif; font-size: {{ letra }}pt; color: #111; line-height: {{ interlineado }}; margin: 0; }
     .enc-docente { width: 100%; border-collapse: collapse; border-bottom: 2px solid #1f3a68; margin-bottom: 6px; }
     .enc-docente td { vertical-align: middle; padding-bottom: 4px; }
     .enc-docente .l1 { font-weight: bold; font-size: 12pt; }
     .enc-docente .l { font-size: 9pt; }
+    .portada h1 { font-size: 30pt; margin: 16mm 0 4mm; line-height: 1.05; }
+    .portada .grado { font-size: 24pt; font-weight: bold; margin: 2mm 0; }
+    .portada .sesion { font-size: 15pt; font-weight: bold; }
+    .portada .areas { font-size: 15pt; font-weight: bold; color: #1f3a68; margin: 3mm 0; }
+    .portada .info { font-size: 12pt; }
+    .portada .horario { display: inline-block; background: #1f3a68; color: #fff; font-weight: bold; padding: 2mm 6mm; border-radius: 6mm; margin-top: 3mm; }
+    .portada .aviso { margin: 14mm auto 0; width: 80%; border: 1px solid #999; border-left: 5px solid #c0392b; border-radius: 3mm; padding: 3mm; font-size: 9.5pt; }
     h1.titulo { text-align: center; font-size: {{ letra|add:4 }}pt; margin: 4px 0 2px; }
     .datos { text-align: center; font-size: 9pt; color: #333; margin-bottom: 4px; }
     .nombre { font-size: 9.5pt; margin: 4px 0 {{ separacion }}px; }
     .nombre .l { display: inline-block; border-bottom: 1px solid #111; min-width: 260px; }
     .nombre .c { display: inline-block; border-bottom: 1px solid #111; min-width: 60px; }
-    .cuerpo.dos { column-count: 2; column-gap: 8mm; column-rule: 0.5px solid #bbb; }
+    .cuerpo.dos { column-count: 2; column-gap: 8mm; column-rule: 0.5px solid #bbb; column-fill: balance; }
     .b { margin: 0 0 {{ separacion }}px; }
     h2.t1 { font-size: {{ letra|add:3 }}pt; margin: {{ separacion }}px 0 3px; color: #1f3a68; break-after: avoid; }
     h3.t2 { font-size: {{ letra|add:1 }}pt; margin: {{ separacion }}px 0 2px; break-after: avoid; }
     .seccion { background: #1f3a68; color: #fff; font-weight: bold; padding: 3px 8px; margin: {{ separacion }}px 0 3px;
                border-left: 5px solid #c0392b; break-after: avoid; break-inside: avoid; }
     .seccion-ind { font-style: italic; color: #333; margin: 0 0 4px; break-after: avoid; }
-    .texto p { margin: 0 0 3px; }
+    .texto p, .contexto p { margin: 0 0 3px; }
     .texto ul, .texto ol, .recuadro ul, .recuadro ol { margin: 2px 0 3px 18px; padding: 0; }
     .img { text-align: center; break-inside: avoid; }
     .img img { max-width: 100%; max-height: {{ alto_imagen }}mm; }
@@ -35,19 +47,48 @@
     .recuadro.reto { border-color: #c0392b; background: #fdf0f1; }
     .recuadro.vocabulario { border-color: #2e7d32; background: #eef7ef; }
     .recuadro.nota { border-color: #1f3a68; background: #f1f4fa; }
+    .rango { background: #e9eef7; border-left: 4px solid #1f3a68; color: #1f3a68; font-weight: bold; padding: 2px 6px; font-size: 0.92em; break-after: avoid; }
+    .ctx-titulo { text-align: center; font-weight: bold; margin: 3px 0; break-after: avoid; }
     .linea { border-bottom: 0.7px solid #555; height: {{ letra|add:9 }}pt; }
     .pregunta { break-inside: avoid; }
     .enun b { color: #1f3a68; }
     .ops { margin: 2px 0 0 14px; }
     .ops.fila span { display: inline-block; margin-right: 18px; }
-    .ops.dos { display: table; width: 96%; }
     .ops.dos span { display: inline-block; width: 48%; vertical-align: top; }
     .ops.lista span { display: block; }
     .ops b { color: #1f3a68; }
+    .ok { color: #198754; font-weight: bold; }
+    .hueco { display: inline-block; border-bottom: 0.8px solid #111; min-width: 22mm; text-align: center; }
+    .emp { width: 100%; border-collapse: collapse; margin-left: 8px; }
+    .emp td { padding: 1px 4px; vertical-align: top; width: 50%; }
+    .emp .p { color: #1f3a68; font-weight: bold; }
+    .orden span { display: block; margin-left: 14px; }
+    .caja { display: inline-block; width: 7mm; border: 0.7px solid #333; text-align: center; margin-right: 4px; }
+    .banco { border: 0.7px dashed #777; padding: 2px 6px; margin: 2px 0 3px 14px; }
+    table.clas { border-collapse: collapse; width: 96%; margin-left: 14px; }
+    table.clas th { background: #e8eef9; border: 0.6px solid #555; font-size: 0.92em; }
+    table.clas td { border: 0.6px solid #555; height: 16mm; }
+    .resp { color: #198754; font-style: italic; font-size: 0.92em; margin-left: 14px; }
+    .control { font-size: 0.85em; color: #8a6d00; }
     .sep { border-top: 1px dashed #999; margin: {{ separacion }}px 0; }
     .salto { break-after: page; }
+    .fin { background: #1f3a68; color: #fff; font-weight: bold; text-align: center; padding: 4px 8px; margin-top: 6px; break-inside: avoid; }
+    .clave-docente { text-align: center; color: #198754; font-weight: bold; font-size: 9pt; border: 1px solid #198754; padding: 2px; margin-bottom: 4px; }
 </style></head>
 <body>
+{% if cuadernillo and opciones.portada %}
+<div class="portada">
+    {% if colegio %}{% include 'notas/fragmentos/encabezado_pdf.html' %}{% elif encabezado %}{% for l in encabezado.lineas %}<div style="font-weight:{% if forloop.first %}bold{% else %}normal{% endif %}">{{ l }}</div>{% endfor %}{% endif %}
+    <h1>{{ doc.titulo }}</h1>
+    {% if doc.grado %}<div class="grado">Grado {{ doc.grado }}</div>{% endif %}
+    {% if opciones.sesion %}<div class="sesion">Cuadernillo de la {{ opciones.sesion }}</div>{% endif %}
+    {% if areas %}<div class="areas">{{ areas|join:" y " }}</div>{% elif doc.area %}<div class="areas">{{ doc.area }}</div>{% endif %}
+    <div class="info">{{ total_preguntas }} pregunta{{ total_preguntas|pluralize }}{% if opciones.duracion %} · {{ opciones.duracion }}{% endif %}</div>
+    {% if opciones.horario %}<div class="horario">{{ opciones.horario }}</div>{% endif %}
+    {% if opciones.aviso %}<div class="aviso">{{ opciones.aviso }}</div>{% endif %}
+</div>
+{% endif %}
+{% if not cuadernillo or not opciones.portada %}
 {% if colegio %}
     {% include 'notas/fragmentos/encabezado_pdf.html' %}
 {% elif encabezado and encabezado.lineas or encabezado.logo %}
@@ -58,7 +99,9 @@
 {% endif %}
 <h1 class="titulo">{{ doc.titulo }}</h1>
 {% if opciones.datos %}<div class="datos">{% if doc.area %}{{ doc.area }}{% endif %}{% if doc.grado %} · Grado {{ doc.grado }}{% endif %}{% if doc.periodo %} · {{ doc.periodo }}{% endif %}{% if docente %} · Docente: {{ docente }}{% endif %}</div>{% endif %}
-{% if opciones.nombre_estudiante %}<div class="nombre"><b>Nombre:</b> <span class="l">&nbsp;</span> &nbsp; <b>Curso:</b> <span class="c">&nbsp;</span> &nbsp; <b>Fecha:</b> <span class="c">&nbsp;</span></div>{% endif %}
+{% endif %}
+{% if respuestas %}<div class="clave-docente">VERSIÓN DEL DOCENTE · CON LAS RESPUESTAS</div>{% endif %}
+{% if opciones.nombre_estudiante and not cuadernillo %}<div class="nombre"><b>Nombre:</b> <span class="l">&nbsp;</span> &nbsp; <b>Curso:</b> <span class="c">&nbsp;</span> &nbsp; <b>Fecha:</b> <span class="c">&nbsp;</span></div>{% endif %}
 
 <div class="cuerpo{% if columnas == 2 %} dos{% endif %}">
 {% for b in bloques %}
@@ -68,6 +111,13 @@
         <div class="seccion">{{ b.titulo }}</div>{% if b.indicacion %}<div class="seccion-ind">{{ b.indicacion }}</div>{% endif %}
     {% elif b.tipo == 'texto' %}
         <div class="b texto">{{ b.html|safe }}</div>
+    {% elif b.tipo == 'contexto' %}
+        <div class="b contexto">
+            {% if b.desde %}<div class="rango">Responde {% if b.hasta != b.desde %}las preguntas {{ b.desde }} a {{ b.hasta }}{% else %}la pregunta {{ b.desde }}{% endif %} de acuerdo con la siguiente información.</div>{% endif %}
+            {% if b.titulo %}<div class="ctx-titulo">{{ b.titulo }}</div>{% endif %}
+            {% if b.imagen %}{% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="img"><img src="{{ ruta }}" style="width:{{ b.ancho }}%"></div>{% endif %}{% endwith %}{% endif %}
+            {{ b.html|safe }}
+        </div>
     {% elif b.tipo == 'imagen' %}
         {% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="b img"><img src="{{ ruta }}" style="width:{{ b.ancho }}%">{% if b.pie %}<div class="pie">{{ b.pie }}</div>{% endif %}</div>{% endif %}{% endwith %}
     {% elif b.tipo == 'tabla' %}
@@ -78,10 +128,29 @@
         <div class="b">{% for _ in ''|center:b.n %}<div class="linea"></div>{% endfor %}</div>
     {% elif b.tipo == 'pregunta' %}
         <div class="b pregunta">
-            <div class="enun"><b>{{ b.numero }}.</b> {{ b.enunciado }}</div>
+            <div class="enun"><b>{{ b.numero }}.</b> {% if b.modo == 'completar' %}{% for parte, resp in b.trozos %}{{ parte }}{% if resp is not None %}<span class="hueco">{% if respuestas %}<span class="ok">{{ resp }}</span>{% else %}&nbsp;{% endif %}</span>{% endif %}{% endfor %}{% else %}{{ b.enunciado }}{% endif %}
+                {% if respuestas and b.control %}<span class="control">(pregunta de control)</span>{% endif %}</div>
+            {% if b.modo == 'completar' and b.enunciado %}<div style="margin-left:14px;font-style:italic">{{ b.enunciado }}</div>{% endif %}
             {% if b.imagen %}{% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="img"><img src="{{ ruta }}" style="width:45%"></div>{% endif %}{% endwith %}{% endif %}
-            {% if b.letras %}<div class="ops {{ b.disposicion }}">{% for l, o in b.letras %}<span><b>{{ l }}.</b> {{ o }}</span>{% endfor %}</div>{% endif %}
+            {% if b.modo == 'unica' or b.modo == 'varias' %}
+                <div class="ops {{ b.disposicion }}">{% for l, o, bien in b.letras %}<span{% if respuestas and bien %} class="ok"{% endif %}>{% if b.modo == 'varias' %}&#9744; {% endif %}<b>{{ l }}.</b> {{ o }}</span>{% endfor %}</div>
+            {% elif b.modo == 'vf' %}
+                <div class="ops fila"><span{% if respuestas and b.valor %} class="ok"{% endif %}>( &nbsp; ) Verdadero</span><span{% if respuestas and not b.valor %} class="ok"{% endif %}>( &nbsp; ) Falso</span></div>
+            {% elif b.modo == 'numerica' %}
+                <div class="ops">Respuesta: <span class="hueco">{% if respuestas %}<span class="ok">{{ b.respuesta }}</span>{% else %}&nbsp;{% endif %}</span> {{ b.unidad }}</div>
+            {% elif b.modo == 'emparejar' %}
+                <table class="emp"><tr><td>{% for n, t in b.izquierda %}<div><span class="p">{{ n }}.</span> {{ t }} &nbsp;•</div>{% endfor %}</td>
+                    <td>{% for letra, t, n in b.derecha %}<div>• &nbsp;<span class="p">{{ letra }})</span> {{ t }}{% if respuestas %} <span class="ok">→ {{ n }}</span>{% endif %}</div>{% endfor %}</td></tr></table>
+            {% elif b.modo == 'ordenar' %}
+                <div class="orden">{% for t, n in b.desordenados %}<span><span class="caja">{% if respuestas %}<span class="ok">{{ n }}</span>{% else %}&nbsp;{% endif %}</span>{{ t }}</span>{% endfor %}</div>
+            {% elif b.modo == 'clasificar' %}
+                <div class="banco">{{ b.banco|join:" · " }}</div>
+                <table class="clas"><tr>{% for g in b.grupos %}<th>{{ g.nombre }}</th>{% endfor %}</tr>
+                    <tr>{% for g in b.grupos %}<td>{% if respuestas %}<span class="ok">{{ g.elementos|join:", " }}</span>{% endif %}</td>{% endfor %}</tr></table>
+            {% endif %}
+            {% if b.modo == 'corta' and not b.lineas %}<div class="linea"></div>{% endif %}
             {% for _ in ''|center:b.lineas %}<div class="linea"></div>{% endfor %}
+            {% if respuestas and b.correcta_texto and b.modo != 'unica' and b.modo != 'vf' and b.modo != 'completar' %}<div class="resp">Respuesta: {{ b.correcta_texto }}</div>{% endif %}
         </div>
     {% elif b.tipo == 'separador' %}
         <div class="sep"></div>
@@ -89,5 +158,6 @@
         <div class="salto"></div>
     {% endif %}
 {% endfor %}
+{% if cuadernillo %}<div class="fin">{{ opciones.fin|default:"FIN. Revisa que hayas marcado todas las respuestas en la hoja de respuestas." }}</div>{% endif %}
 </div>
 </body></html>

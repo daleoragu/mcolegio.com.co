@@ -53,25 +53,70 @@ def imagenes_en_disco(doc, encabezado=None):
 
 
 def _numerar(bloques):
+    """Numera las preguntas y pone a cada contexto su rango: «Responde las preguntas 5 a 7»."""
     n = 0
     for b in bloques:
         if b['tipo'] == 'pregunta':
             n += 1
             b['numero'] = n
-    return bloques
+    for i, b in enumerate(bloques):
+        if b['tipo'] != 'contexto':
+            continue
+        numeros = []
+        for siguiente in bloques[i + 1:]:
+            if siguiente['tipo'] in ('contexto', 'seccion') or (b['cubre'] and len(numeros) >= b['cubre']):
+                break
+            if siguiente['tipo'] == 'pregunta':
+                numeros.append(siguiente['numero'])
+        b['desde'], b['hasta'] = (numeros[0], numeros[-1]) if numeros else (None, None)
+    return bloques, n
 
 
-def contexto(doc, modo=None, docente=''):
+def _css(texto):
+    """Texto seguro para ir dentro de un content: "..." de CSS."""
+    return re.sub(r'["\\<>\n\r{}]', '', str(texto or ''))
+
+
+def _preparar_pregunta(b, modo):
+    """Lo que necesita la plantilla para imprimir cada tipo de pregunta."""
+    from . import calificar as C
+    m = b['modo']
+    b['correcta_texto'] = C.respuesta_correcta_texto(b)
+    if m in ('unica', 'varias'):
+        b['disposicion'] = B.disposicion_opciones(b['opciones'], modo)
+        correctas = {b.get('correcta')} if m == 'unica' else set(b.get('correctas') or [])
+        b['letras'] = [(l, o, i in correctas) for i, (l, o) in enumerate(zip('ABCDEF', b['opciones']))]
+    elif m == 'completar':
+        partes, respuestas = B.huecos(b.get('texto'))
+        b['trozos'] = [(p, respuestas[i][0] if i < len(respuestas) and respuestas[i] else None)
+                       for i, p in enumerate(partes)]
+    elif m == 'emparejar':
+        derecha = C.mezclar(b['pares'], b['id'])
+        b['izquierda'] = [(i + 1, p[0]) for i, p in enumerate(b['pares'])]
+        b['derecha'] = [('abcdefghijkl'[k], b['pares'][j][1], j + 1) for k, j in enumerate(derecha)]
+    elif m == 'ordenar':
+        orden = C.mezclar(b['elementos'], b['id'])
+        b['desordenados'] = [(b['elementos'][j], j + 1) for j in orden]
+    elif m == 'clasificar':
+        elementos = C.elementos_clasificar(b)
+        orden = C.mezclar(elementos, b['id'])
+        b['banco'] = [elementos[j][0] for j in orden]
+    return b
+
+
+def contexto(doc, modo=None, docente='', respuestas=False):
     contenido = B.limpiar(doc.contenido, B.imagenes_usadas(doc.contenido))
     opciones = contenido['opciones']
     modo = modo if modo in MODOS else opciones['modo']
     m = MODOS[modo]
-    bloques = _numerar([dict(b) for b in contenido['bloques']])
+    bloques, total = _numerar([dict(b) for b in contenido['bloques']])
     for b in bloques:
         if b['tipo'] == 'pregunta':
-            b['disposicion'] = B.disposicion_opciones(b['opciones'], modo)
-            b['letras'] = list(zip('ABCDEF', b['opciones']))
-    return {
+            _preparar_pregunta(b, modo)
+    areas = [b['titulo'] for b in bloques if b['tipo'] == 'seccion' and b['titulo']]
+    derecha = ' · '.join(x for x in (doc.grado and f'Grado {doc.grado}', opciones.get('sesion')) if x)
+    return {'css_izquierda': _css(doc.titulo)[:70], 'css_derecha': _css(derecha)[:70],'respuestas': respuestas, 'total_preguntas': total, 'areas': areas,
+            'cuadernillo': doc.tipo == 'cuadernillo',
         'doc': doc, 'bloques': bloques, 'opciones': opciones, 'modo': modo,
         'letra': max(8.5, opciones['letra'] + m['dif']), 'margen': m['margen'], 'interlineado': m['linea'],
         'columnas': m['columnas'] or opciones['columnas'], 'alto_imagen': m['img'], 'separacion': m['sep'],
@@ -79,17 +124,17 @@ def contexto(doc, modo=None, docente=''):
     }
 
 
-def _html(request, doc, modo, docente, colegio, encabezado, rutas):
-    ctx = contexto(doc, modo, docente)
+def _html(request, doc, modo, docente, colegio, encabezado, rutas, respuestas=False):
+    ctx = contexto(doc, modo, docente, respuestas)
     ctx.update({'colegio': colegio, 'encabezado': encabezado,
                 'rutas': {k: v.as_uri() for k, v in rutas.items()}})
     return render_to_string('materiales/documento_pdf.html', ctx, request=request)
 
 
-def pdf(request, doc, colegio=None, encabezado=None, docente='', modo=None):
+def pdf(request, doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=False):
     from weasyprint import HTML
     with imagenes_en_disco(doc, encabezado) as rutas:
-        html = _html(request, doc, modo, docente, colegio, encabezado, rutas)
+        html = _html(request, doc, modo, docente, colegio, encabezado, rutas, respuestas)
         return HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
 
 
@@ -172,7 +217,68 @@ def _sombrear(celda, color):
     tc.append(shd)
 
 
-def docx(doc, colegio=None, encabezado=None, docente='', modo=None):
+def _linea_respuesta(w, ctx):
+    w.add_paragraph('_' * (45 if ctx['columnas'] == 2 else 90))
+
+
+def _pregunta_docx(w, b, ctx, rutas, util, Cm, RGBColor):
+    p = w.add_paragraph()
+    r = p.add_run(f'{b["numero"]}. ')
+    r.bold = True
+    p.add_run(b['enunciado'])
+    if b.get('imagen') in rutas:
+        try:
+            w.add_paragraph().add_run().add_picture(str(rutas[b['imagen']]), width=int(util * 0.4))
+        except Exception:
+            pass
+    m = b['modo']
+    marca = '○' if m == 'unica' else '□'
+    if m in ('unica', 'varias'):
+        textos = [f'{marca} {l}. {o}' for l, o, _ in b['letras']]
+        if b['disposicion'] == 'fila':
+            w.add_paragraph('     '.join(textos))
+        elif b['disposicion'] == 'dos':
+            for k in range(0, len(textos), 2):
+                w.add_paragraph('\t'.join(textos[k:k + 2]))
+        else:
+            for x in textos:
+                w.add_paragraph(x).paragraph_format.left_indent = Cm(0.6)
+    elif m == 'vf':
+        w.add_paragraph('(   ) Verdadero     (   ) Falso')
+    elif m == 'completar':
+        w.add_paragraph(''.join(parte + ('__________' if resp is not None else '') for parte, resp in b['trozos']))
+    elif m == 'numerica':
+        w.add_paragraph('Respuesta: ______________ ' + (b.get('unidad') or ''))
+    elif m == 'emparejar':
+        tabla = w.add_table(rows=max(len(b['izquierda']), len(b['derecha'])), cols=2)
+        for i, (n, texto) in enumerate(b['izquierda']):
+            tabla.cell(i, 0).text = f'{n}. {texto}   •'
+        for i, (letra, texto, _) in enumerate(b['derecha']):
+            tabla.cell(i, 1).text = f'•   {letra}) {texto}'
+    elif m == 'ordenar':
+        for texto, _ in b['desordenados']:
+            w.add_paragraph(f'[   ] {texto}')
+    elif m == 'clasificar':
+        w.add_paragraph('Palabras: ' + ' · '.join(b['banco']))
+        grupos = b.get('grupos') or []
+        if grupos:
+            tabla = w.add_table(rows=2, cols=len(grupos))
+            tabla.style = 'Table Grid'
+            for j, g in enumerate(grupos):
+                tabla.cell(0, j).text = g['nombre']
+                tabla.cell(1, j).text = '\n\n\n'
+    for _ in range(b['lineas'] if m in ('abierta', 'corta') or b['lineas'] else 0):
+        _linea_respuesta(w, ctx)
+    if m == 'corta' and not b['lineas']:
+        _linea_respuesta(w, ctx)
+    if ctx['respuestas'] and b.get('correcta_texto'):
+        q = w.add_paragraph()
+        rr = q.add_run('Respuesta: ' + b['correcta_texto'])
+        rr.italic = True
+        rr.font.color.rgb = RGBColor(0x19, 0x87, 0x54)
+
+
+def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=False):
     from docx import Document
     from docx.enum.section import WD_SECTION
     from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
@@ -180,7 +286,7 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None):
     from docx.oxml.ns import qn
     from docx.shared import Cm, Pt, RGBColor
 
-    ctx = contexto(doc, modo, docente)
+    ctx = contexto(doc, modo, docente, respuestas)
     letra = ctx['letra']
     w = Document()
     estilo = w.styles['Normal']
@@ -212,6 +318,27 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None):
             r.bold = i == 0
             r.font.size = Pt(11 if i == 0 else 9)
 
+    o = ctx['opciones']
+    if ctx['cuadernillo'] and o['portada']:
+        for texto, tam, negrilla in ((doc.titulo, 28, True), (doc.grado and f'Grado {doc.grado}', 22, True),
+                                     (o['sesion'] and f'Cuadernillo de la {o["sesion"]}', 16, True),
+                                     (' y '.join(ctx['areas']) if ctx['areas'] else doc.area, 15, True),
+                                     (' · '.join(x for x in (f'{ctx["total_preguntas"]} preguntas', o['duracion']) if x), 13, False),
+                                     (o['horario'], 13, True)):
+            if texto:
+                p = w.add_paragraph()
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                r = p.add_run(texto)
+                r.bold = negrilla
+                r.font.size = Pt(tam)
+        if o['aviso']:
+            tabla = w.add_table(rows=1, cols=1)
+            tabla.style = 'Table Grid'
+            tabla.cell(0, 0).text = o['aviso']
+        w.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+    if ctx['cuadernillo']:
+        pie = sec.footer.paragraphs[0]
+        pie.text = 'Material de uso institucional · No escribas en este cuadernillo'
     titulo = w.add_paragraph()
     titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r = titulo.add_run(doc.titulo)
@@ -291,32 +418,42 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None):
             elif t == 'lineas':
                 for _ in range(b['n']):
                     w.add_paragraph('_' * (45 if ctx['columnas'] == 2 else 90))
-            elif t == 'pregunta':
-                p = w.add_paragraph()
-                r = p.add_run(f'{b["numero"]}. ')
-                r.bold = True
-                p.add_run(b['enunciado'])
+            elif t == 'contexto':
+                if b.get('desde'):
+                    rango = (f'Responde las preguntas {b["desde"]} a {b["hasta"]}' if b['hasta'] != b['desde']
+                             else f'Responde la pregunta {b["desde"]}')
+                    p = w.add_paragraph()
+                    r = p.add_run(rango + ' de acuerdo con la siguiente información.')
+                    r.bold = True
+                    r.font.color.rgb = RGBColor(0x1F, 0x3A, 0x68)
+                if b['titulo']:
+                    p = w.add_paragraph()
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p.add_run(b['titulo']).bold = True
                 if b.get('imagen') in rutas:
+                    p = w.add_paragraph()
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     try:
-                        w.add_paragraph().add_run().add_picture(str(rutas[b['imagen']]), width=int(util * 0.4))
+                        ancho = util * b['ancho'] / 100 / (2 if ctx['columnas'] == 2 else 1)
+                        p.add_run().add_picture(str(rutas[b['imagen']]), width=int(ancho))
                     except Exception:
                         pass
-                if b['disposicion'] == 'fila':
-                    w.add_paragraph('     '.join(f'{l}. {o}' for l, o in b['letras']))
-                elif b['disposicion'] == 'dos':
-                    pares = b['letras']
-                    for k in range(0, len(pares), 2):
-                        w.add_paragraph('\t'.join(f'{l}. {o}' for l, o in pares[k:k + 2]))
-                else:
-                    for l, o in b['letras']:
-                        q = w.add_paragraph(f'{l}. {o}')
-                        q.paragraph_format.left_indent = Cm(0.6)
-                for _ in range(b['lineas']):
-                    w.add_paragraph('_' * (45 if ctx['columnas'] == 2 else 90))
+                for trozos in _parrafos(b['html']):
+                    _escribir(w.add_paragraph(), trozos)
+            elif t == 'pregunta':
+                _pregunta_docx(w, b, ctx, rutas, util, Cm, RGBColor)
             elif t == 'separador':
                 w.add_paragraph('—' * 30).alignment = WD_ALIGN_PARAGRAPH.CENTER
             elif t == 'salto':
                 w.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+        if ctx['cuadernillo']:
+            tabla = w.add_table(rows=1, cols=1)
+            tabla.style = 'Table Grid'
+            celda = tabla.cell(0, 0)
+            _sombrear(celda, '1F3A68')
+            r = celda.paragraphs[0].add_run(o['fin'] or 'FIN. Revisa que hayas marcado todas las respuestas en la hoja de respuestas.')
+            r.bold = True
+            r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
     salida = io.BytesIO()
     w.save(salida)
     return salida.getvalue()

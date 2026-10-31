@@ -18,7 +18,7 @@
         <form method="post" action="{% url 'materiales:nuevo' %}">{% csrf_token %}
           <input type="hidden" name="tipo" value="{{ clave }}">
           <button class="mm-tipo" type="submit">
-            <i class="fas {% if clave == 'guia_momentos' %}fa-stairs{% elif clave == 'escuela_nueva' %}fa-seedling{% elif clave == 'taller' %}fa-pencil{% elif clave == 'evaluacion' %}fa-list-check{% elif clave == 'ficha' %}fa-book-open{% else %}fa-file{% endif %}"></i>
+            <i class="fas {% if clave == 'guia_momentos' %}fa-stairs{% elif clave == 'escuela_nueva' %}fa-seedling{% elif clave == 'taller' %}fa-pencil{% elif clave == 'evaluacion' %}fa-list-check{% elif clave == 'ficha' %}fa-book-open{% elif clave == 'cuadernillo' %}fa-book{% else %}fa-file{% endif %}"></i>
             <span>{{ nombre }}</span>
           </button>
         </form>

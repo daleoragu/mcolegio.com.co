@@ -169,7 +169,75 @@ def accion(request, a, pk):
         return redirect('materiales:lista')
     if que == 'publicar':
         return _publicar(request, a, doc)
+    if que == 'puntoexacto':
+        return _puntoexacto(request, a, doc)
+    if que == 'ficha':
+        return _asignar_ficha(request, a, doc)
     return redirect('materiales:editor', pk=pk)
+
+
+def _asignar_ficha(request, a, doc):
+    """Copia el documento como una tarea del aula que el estudiante resuelve en línea."""
+    from aula.models import Tarea
+    from . import calificar as C
+    aulas = {str(x.pk): x for x in a.aulas()}
+    aula = aulas.get(request.POST.get('aula') or '')
+    if aula is None:
+        messages.error(request, 'Escoja una de sus aulas.')
+        return redirect('materiales:editor', pk=doc.pk)
+    contenido = B.limpiar(doc.contenido, B.imagenes_usadas(doc.contenido))
+    if not C.preguntas(contenido):
+        messages.error(request, 'El documento no tiene preguntas para resolver.')
+        return redirect('materiales:editor', pk=doc.pk)
+
+    def entero(nombre, defecto, minimo, maximo):
+        try:
+            return max(minimo, min(maximo, int(request.POST.get(nombre) or defecto)))
+        except ValueError:
+            return defecto
+    config = {'modo': 'formativa' if request.POST.get('modo') == 'formativa' else 'puntos',
+              'intentos': entero('intentos', 1, 0, 10), 'tiempo': entero('tiempo', 0, 0, 300),
+              'mostrar': 'nunca' if request.POST.get('mostrar') == 'nunca' else 'al_terminar',
+              'documento': doc.pk}
+    t = Tarea.objects.create(aula=aula, titulo=doc.titulo[:60], instrucciones=B.texto_plano(request.POST.get('instrucciones'), 2000),
+                             ficha=contenido, ficha_config=config, publicada=False)
+    messages.success(request, 'Ficha copiada al aula como tarea. Revise la fecha, el periodo, para quién es '
+                              'y márquela como publicada.')
+    return redirect('aula:tarea_editar', pk=aula.pk, tid=t.pk)
+
+
+def _destinos_examen(a):
+    """Asignaturas (colegio) o grupos (plan individual) donde se puede aplicar el examen."""
+    if a.colegio is not None:
+        from notas.models import AsignacionDocente, PeriodoAcademico
+        asignaciones = AsignacionDocente.objects.filter(colegio=a.colegio).select_related('materia', 'curso')
+        if not a.admin:
+            asignaciones = asignaciones.filter(docente__user=a.request.user)
+        periodos = list(PeriodoAcademico.objects.filter(colegio=a.colegio).order_by('-ano_lectivo', 'orden')[:8])
+        return {'asignaciones': list(asignaciones.order_by('curso__nombre', 'materia__nombre')), 'periodos': periodos,
+                'periodo_activo': next((p for p in periodos if p.esta_activo), None)}
+    if a.cuenta is not None:
+        return {'grupos': list(a.cuenta.grupos.filter(activo=True).order_by('nombre'))}
+    return {}
+
+
+def _puntoexacto(request, a, doc):
+    from . import puntoexacto as pe
+    destinos = _destinos_examen(a)
+    asignacion = grupo = periodo = None
+    if doc.examen_id is None:
+        if a.colegio is not None:
+            asignacion = next((x for x in destinos['asignaciones'] if str(x.pk) == request.POST.get('asignacion')), None)
+            periodo = next((x for x in destinos['periodos'] if str(x.pk) == request.POST.get('periodo')), None)
+        else:
+            grupo = next((x for x in destinos.get('grupos', []) if str(x.pk) == request.POST.get('grupo')), None)
+    examen, error = pe.sincronizar(doc, request, asignacion=asignacion, grupo=grupo, periodo=periodo)
+    if error:
+        messages.error(request, error)
+    else:
+        messages.success(request, f'Examen de PuntoExacto listo con {examen.numero_preguntas} preguntas y su clave. '
+                                  'Ahora prepare e imprima las hojas de respuesta.')
+    return redirect('materiales:editor', pk=doc.pk)
 
 
 def _publicar(request, a, doc):
@@ -204,7 +272,9 @@ def editor(request, a, pk):
                 for i in Imagen.objects.filter(propietario=request.user, pk__in=B.imagenes_usadas(doc.contenido))}
     return render(request, 'materiales/editor.html', {
         'base': a.base, 'acceso': a, 'doc': doc, 'contenido': doc.contenido, 'imagenes': imagenes,
-        'aulas': a.aulas(), 'nube': _nube(a), 'tipos': Documento.TIPOS, 'nube_docente': _nube_docente(request)})
+        'aulas': a.aulas(), 'nube': _nube(a), 'tipos': Documento.TIPOS, 'nube_docente': _nube_docente(request),
+        'destinos': _destinos_examen(a), 'modos_pregunta': B.MODOS_PREGUNTA,
+        'examen': doc.examen if doc.examen_id else None})
 
 
 @require_POST
@@ -289,8 +359,9 @@ def imagen_ver(request, a, pk):
 @vista
 def pdf(request, a, pk):
     doc = _doc(a, pk)
+    respuestas = request.GET.get('respuestas') == '1'
     datos = exportar.pdf(request, doc, colegio=a.colegio, encabezado=a.encabezado(), docente=a.docente(),
-                         modo=request.GET.get('modo'))
+                         modo=request.GET.get('modo'), respuestas=respuestas)
     r = HttpResponse(datos, content_type='application/pdf')
     disp = 'attachment' if request.GET.get('descargar') else 'inline'
     r['Content-Disposition'] = f'{disp}; filename="{exportar.nombre_archivo(doc, "pdf")}"'
@@ -301,7 +372,7 @@ def pdf(request, a, pk):
 def word(request, a, pk):
     doc = _doc(a, pk)
     datos = exportar.docx(doc, colegio=a.colegio, encabezado=a.encabezado(), docente=a.docente(),
-                          modo=request.GET.get('modo'))
+                          modo=request.GET.get('modo'), respuestas=request.GET.get('respuestas') == '1')
     r = HttpResponse(datos, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     r['Content-Disposition'] = f'attachment; filename="{exportar.nombre_archivo(doc, "docx")}"'
     return r

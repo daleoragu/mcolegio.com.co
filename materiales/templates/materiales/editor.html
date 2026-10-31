@@ -45,6 +45,15 @@
         <input type="range" class="form-range" min="9" max="14" step="1" id="mm-letra">
         <div class="form-check small"><input class="form-check-input" type="checkbox" id="mm-datos"><label class="form-check-label" for="mm-datos">Área, grado, periodo y docente</label></div>
         <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" id="mm-nombre"><label class="form-check-label" for="mm-nombre">Renglón para el nombre del estudiante</label></div>
+        {% if doc.tipo == 'cuadernillo' %}
+        <hr class="my-2"><div class="small fw-bold mb-1">Cuadernillo</div>
+        <div class="form-check small"><input class="form-check-input" type="checkbox" id="mm-c-portada"><label class="form-check-label" for="mm-c-portada">Portada</label></div>
+        <input class="form-control form-control-sm mb-1" id="mm-c-sesion" placeholder="Sesión (ej.: sesión 1)" maxlength="60">
+        <input class="form-control form-control-sm mb-1" id="mm-c-duracion" placeholder="Duración (ej.: 2 horas y 15 minutos)" maxlength="60">
+        <input class="form-control form-control-sm mb-1" id="mm-c-horario" placeholder="Horario (ej.: 6:30 a. m. a 8:45 a. m.)" maxlength="80">
+        <textarea class="form-control form-control-sm mb-1" id="mm-c-aviso" rows="2" placeholder="Aviso de la portada" maxlength="300"></textarea>
+        <input class="form-control form-control-sm mb-2" id="mm-c-fin" placeholder="Mensaje del final" maxlength="200">
+        {% endif %}
         <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="mm-contar"><i class="fas fa-calculator me-1"></i>¿Cuántas páginas sale?</button>
         <div class="small mt-2" id="mm-paginas"></div>
       </div>
@@ -52,6 +61,13 @@
     <button type="button" class="btn btn-sm btn-outline-secondary" id="mm-ver"><i class="far fa-eye me-1"></i>Vista previa</button>
     <a class="btn btn-sm btn-outline-danger" id="mm-pdf" href="{% url 'materiales:pdf' doc.pk %}?descargar=1"><i class="far fa-file-pdf me-1"></i>PDF</a>
     <a class="btn btn-sm btn-outline-primary" id="mm-word" href="{% url 'materiales:word' doc.pk %}"><i class="far fa-file-word me-1"></i>Word</a>
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" type="button" title="Versión del docente con las respuestas"><i class="fas fa-key me-1"></i>Con respuestas</button>
+      <div class="dropdown-menu">
+        <a class="dropdown-item mm-guardar-antes" href="{% url 'materiales:pdf' doc.pk %}?descargar=1&respuestas=1">PDF del docente</a>
+        <a class="dropdown-item mm-guardar-antes" href="{% url 'materiales:word' doc.pk %}?respuestas=1">Word del docente</a>
+      </div>
+    </div>
     <div class="dropdown">
       <button class="btn btn-sm btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" type="button"><i class="fab fa-google-drive me-1"></i>Guardar en mi nube</button>
       <div class="dropdown-menu p-2" style="min-width:240px">
@@ -63,7 +79,53 @@
         <div class="small text-muted px-2 pt-1">Se guarda una copia en la carpeta «mcolegio-materiales». El original sigue aquí.</div>
       </div>
     </div>
+    {% if destinos.asignaciones or destinos.grupos or examen %}
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown" type="button"><i class="fas fa-camera me-1"></i>PuntoExacto</button>
+      <form method="post" action="{% url 'materiales:accion' doc.pk %}" class="dropdown-menu p-3 mm-form-guardar" style="min-width:300px">{% csrf_token %}
+        <input type="hidden" name="accion" value="puntoexacto">
+        {% if examen %}
+          <div class="small mb-2">Examen <b>{{ examen.titulo }}</b> con {{ examen.numero_preguntas }} preguntas.</div>
+          <div class="d-grid gap-1 mb-2">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'puntoexacto:hojas' examen.pk %}">Hojas de respuesta</a>
+            <a class="btn btn-sm btn-success" href="{% url 'puntoexacto:escanear' examen.pk %}">Calificar con la cámara</a>
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'puntoexacto:resultados' examen.pk %}">Resultados</a>
+          </div>
+          <button class="btn btn-sm mm-oro w-100">Actualizar la clave con este cuadernillo</button>
+        {% else %}
+          <div class="small text-muted mb-2">Crea el examen con la clave de este documento. Solo van preguntas de selección con una respuesta (y verdadero o falso).</div>
+          {% if destinos.asignaciones %}
+            <label class="small fw-bold mb-1">Asignatura y curso</label>
+            <select name="asignacion" class="form-select form-select-sm mb-2">{% for x in destinos.asignaciones %}<option value="{{ x.pk }}">{{ x.materia.nombre }} · {{ x.curso.nombre }}</option>{% endfor %}</select>
+            <label class="small fw-bold mb-1">Periodo</label>
+            <select name="periodo" class="form-select form-select-sm mb-2"><option value="">—</option>{% for p in destinos.periodos %}<option value="{{ p.pk }}" {% if p == destinos.periodo_activo %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
+          {% elif destinos.grupos %}
+            <label class="small fw-bold mb-1">Grupo</label>
+            <select name="grupo" class="form-select form-select-sm mb-2">{% for g in destinos.grupos %}<option value="{{ g.pk }}">{{ g.nombre }}</option>{% endfor %}</select>
+          {% endif %}
+          <button class="btn btn-sm mm-oro w-100">Crear el examen</button>
+        {% endif %}
+      </form>
+    </div>
+    {% endif %}
     {% if aulas %}
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" type="button"><i class="fas fa-file-pen me-1"></i>Asignar para resolver</button>
+      <form method="post" action="{% url 'materiales:accion' doc.pk %}" class="dropdown-menu p-3 mm-form-guardar" style="min-width:300px">{% csrf_token %}
+        <input type="hidden" name="accion" value="ficha">
+        <label class="small fw-bold mb-1">Aula</label>
+        <select name="aula" class="form-select form-select-sm mb-2">{% for x in aulas %}<option value="{{ x.pk }}">{{ x.titulo }} · {{ x.subtitulo }}</option>{% endfor %}</select>
+        <label class="small fw-bold mb-1">Calificación</label>
+        <select name="modo" class="form-select form-select-sm mb-2"><option value="puntos">Con nota (se califica sola)</option><option value="formativa">Práctica, sin nota</option></select>
+        <div class="row g-2 mb-2">
+          <div class="col-6"><label class="small fw-bold mb-1">Intentos</label><select name="intentos" class="form-select form-select-sm"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="0">Sin límite</option></select></div>
+          <div class="col-6"><label class="small fw-bold mb-1">Minutos</label><input name="tiempo" type="number" min="0" max="300" value="0" class="form-control form-control-sm" title="0 = sin tiempo"></div>
+        </div>
+        <select name="mostrar" class="form-select form-select-sm mb-2"><option value="al_terminar">Mostrar las respuestas al terminar</option><option value="nunca">No mostrar las respuestas</option></select>
+        <button class="btn btn-sm mm-oro w-100">Asignar como tarea</button>
+        <div class="small text-muted mt-1">Lo cerrado se califica solo; lo abierto lo revisa usted. La nota pasa a la planilla como cualquier tarea.</div>
+      </form>
+    </div>
     <div class="dropdown">
       <button class="btn btn-sm mm-oro dropdown-toggle" data-bs-toggle="dropdown" type="button"><i class="fas fa-share me-1"></i>Publicar en un aula</button>
       <form method="post" action="{% url 'materiales:accion' doc.pk %}" class="dropdown-menu p-3" style="min-width:280px" id="mm-publicar">{% csrf_token %}
@@ -87,6 +149,7 @@
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="seccion"><i class="fas fa-bookmark me-1"></i>Sección</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="imagen"><i class="far fa-image me-1"></i>Imagen</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="pregunta"><i class="fas fa-circle-question me-1"></i>Pregunta</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="contexto"><i class="fas fa-book-open me-1"></i>Texto para varias preguntas</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="recuadro"><i class="far fa-square me-1"></i>Recuadro</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="tabla"><i class="fas fa-table me-1"></i>Tabla</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="lineas"><i class="fas fa-grip-lines me-1"></i>Líneas</button>
@@ -104,6 +167,7 @@
 {{ contenido|json_script:"mm-contenido" }}
 {{ imagenes|json_script:"mm-imagenes" }}
 {{ nube_docente|json_script:"mm-nube-config" }}
+{{ modos_pregunta|json_script:"mm-modos" }}
 <script>
 window.MM = {
     guardar: "{% url 'materiales:guardar' doc.pk %}",

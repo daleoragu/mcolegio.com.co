@@ -19,8 +19,9 @@ def _lineas(n=4):
 
 
 def _pregunta(enunciado='', opciones=None):
-    return {'id': _id(), 'tipo': 'pregunta', 'enunciado': enunciado,
-            'opciones': opciones if opciones is not None else ['', '', '', ''], 'correcta': None, 'lineas': 0}
+    opciones = opciones if opciones is not None else ['', '', '', '']
+    return {'id': _id(), 'tipo': 'pregunta', 'modo': 'unica' if opciones else 'abierta', 'enunciado': enunciado,
+            'opciones': opciones, 'correcta': None, 'lineas': 0 if opciones else 3, 'puntos': 1}
 
 
 def _recuadro(estilo, titulo, html=''):
@@ -86,8 +87,26 @@ PLANTILLAS = {
         _pregunta(enunciado='Nivel inferencial: '),
         _pregunta(enunciado='Nivel crítico: ', opciones=[]),
     ],
+    'cuadernillo': lambda: [
+        _recuadro('nota', 'Instrucciones', '<ol><li>Este cuadernillo tiene preguntas con cuatro opciones de respuesta '
+                  '(A, B, C y D) y solo una es correcta.</li><li>Lee el texto o mira el dibujo antes de responder.</li>'
+                  '<li>No escribas en el cuadernillo: marca tus respuestas solo en la hoja de respuestas.</li>'
+                  '<li>Si necesitas hacer cálculos, usa la hoja de operaciones.</li></ol>'),
+        _seccion('Lenguaje', ''),
+        {'id': _id(), 'tipo': 'contexto', 'titulo': 'Título del texto', 'html': '<p>Pegue aquí el texto, la '
+         'imagen o la gráfica que comparten las preguntas siguientes.</p>', 'imagen': None, 'ancho': 70, 'cubre': 0},
+        _pregunta(), _pregunta(),
+        _seccion('Matemáticas', ''),
+        _pregunta(), _pregunta(),
+    ],
     'libre': lambda: [_texto()],
 }
+
+OPCIONES_CUADERNILLO = {'columnas': 2, 'letra': 10, 'modo': 'compacto', 'nombre_estudiante': False, 'datos': False,
+                        'portada': True, 'sesion': 'sesión 1', 'duracion': '2 horas',
+                        'horario': '', 'aviso': 'MATERIAL DE USO INSTITUCIONAL · NO ESCRIBAS EN ESTE CUADERNILLO. '
+                        'Marca tus respuestas solo en la hoja de respuestas y devuélvelo completo al terminar.',
+                        'fin': 'FIN DE LA SESIÓN. Revisa que hayas marcado todas las respuestas en la hoja de respuestas.'}
 
 
 def contenido_inicial(tipo, base=None):
@@ -100,5 +119,7 @@ def contenido_inicial(tipo, base=None):
             bloques.append(b)
         return {'bloques': bloques, 'opciones': dict(base.contenido.get('opciones') or {})}
     fabrica = PLANTILLAS.get(tipo) or PLANTILLAS['libre']
+    if tipo == 'cuadernillo':
+        return {'bloques': fabrica(), 'opciones': dict(OPCIONES_CUADERNILLO)}
     return {'bloques': fabrica(), 'opciones': {'columnas': 1, 'letra': 11, 'modo': 'normal',
                                                 'nombre_estudiante': True, 'datos': True}}

@@ -32,6 +32,14 @@
     {% if t.instrucciones %}<div class="mt-3" style="white-space:pre-line">{{ t.instrucciones|urlize }}</div>{% endif %}
     {% if t.enlace %}<a class="au-adjunto" href="{{ t.enlace }}" target="_blank" rel="noopener"><i class="fas fa-link"></i><span class="text-truncate">{{ t.enlace }}</span></a>{% endif %}
     {% include 'aula/_adjunto.html' with obj=t tipo='tarea' %}
+    {% if t.ficha %}
+    <div class="au-adjunto mt-3" style="background:#fff8e4">
+        <i class="fas fa-file-pen"></i>
+        <span class="flex-grow-1"><strong>Ficha para resolver en línea</strong><br>
+            <small class="text-muted">{% if t.ficha_config.modo == 'formativa' %}Práctica, sin nota{% else %}Se califica sola{% endif %}{% if t.ficha_config.tiempo %} · {{ t.ficha_config.tiempo }} minutos{% endif %} · {% if t.ficha_config.intentos %}{{ t.ficha_config.intentos }} intento{{ t.ficha_config.intentos|pluralize }}{% else %}intentos sin límite{% endif %}</small></span>
+        <a class="btn btn-sm au-oro" href="{% url 'aula:ficha' aula.pk t.pk %}">{% if c.es_docente %}Ver la ficha{% elif e.intentos %}Ver mi resultado{% else %}Resolver la ficha{% endif %}</a>
+    </div>
+    {% endif %}
 </div>
 
 {% if c.es_docente %}
@@ -54,7 +62,7 @@
             <td>{{ f.nombre }}</td>
             <td>{% if f.e.estado == 'calificada' %}<span class="au-chip ok">Calificada</span>{% elif f.e.estado == 'devuelta' %}<span class="au-chip mal">Devuelta</span>{% elif f.e.entregada %}<span class="au-chip pend">Por calificar</span>{% if f.e.tardia %} <span class="au-chip mal">tarde</span>{% endif %}{% else %}<span class="au-chip gris">Sin entregar</span>{% endif %}</td>
             <td class="text-center fw-bold">{% if f.e.nota is not None %}{{ f.e.nota|floatformat:1 }} <span class="small text-muted fw-normal">{{ f.desempeno }}</span>{% endif %}</td>
-            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'aula:calificar' aula.pk t.pk f.clave %}">{% if f.e.nota is not None %}Revisar{% else %}Calificar{% endif %}</a></td>
+            <td class="text-end">{% if t.ficha %}{% if f.e.intentos %}<a class="btn btn-sm btn-outline-primary" href="{% url 'aula:ficha_revisar' aula.pk t.pk f.clave %}">Revisar ficha</a>{% endif %}{% else %}<a class="btn btn-sm btn-outline-primary" href="{% url 'aula:calificar' aula.pk t.pk f.clave %}">{% if f.e.nota is not None %}Revisar{% else %}Calificar{% endif %}</a>{% endif %}</td>
         </tr>{% endfor %}</tbody>
     </table></div>
 </div>
@@ -72,7 +80,7 @@
             {% if e.archivo %}<a class="au-adjunto" href="{% url 'aula:archivo' aula.pk 'entrega' e.pk %}" target="_blank"><i class="far fa-file-pdf"></i><span>{{ e.nombre_archivo }}</span></a>{% endif %}
             {% if e.texto %}<div class="border rounded p-2 mt-2 small" style="white-space:pre-line">{{ e.texto }}</div>{% endif %}
         {% endif %}
-        {% if e.estado != 'calificada' and t.recibe %}
+        {% if e.estado != 'calificada' and t.recibe and not t.ficha %}
         <form method="post" action="{% url 'aula:entregar' aula.pk t.pk %}" enctype="multipart/form-data" class="mt-3">
             {% csrf_token %}
             {% if e.estado == 'devuelta' %}<div class="alert alert-warning py-2 small">El docente la devolvió para corregir. Vuelva a entregarla.</div>{% endif %}

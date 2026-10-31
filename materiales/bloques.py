@@ -22,7 +22,24 @@ import html
 import re
 from html.parser import HTMLParser
 
-TIPOS = ('titulo', 'seccion', 'texto', 'imagen', 'tabla', 'recuadro', 'lineas', 'pregunta', 'separador', 'salto')
+TIPOS = ('titulo', 'seccion', 'texto', 'imagen', 'tabla', 'recuadro', 'lineas', 'pregunta', 'contexto', 'separador',
+         'salto')
+# Tipos de pregunta. Los de AUTOMATICAS se califican solos; 'corta' se califica sola si coincide con una de
+# las respuestas aceptadas; 'abierta' la califica el docente.
+MODOS_PREGUNTA = {
+    'unica': 'Selección múltiple (una respuesta)',
+    'varias': 'Selección múltiple (varias respuestas)',
+    'vf': 'Verdadero o falso',
+    'completar': 'Completar',
+    'numerica': 'Respuesta numérica',
+    'corta': 'Respuesta corta',
+    'abierta': 'Respuesta abierta',
+    'emparejar': 'Unir con línea',
+    'ordenar': 'Ordenar',
+    'clasificar': 'Clasificar',
+}
+AUTOMATICAS = ('unica', 'varias', 'vf', 'completar', 'numerica', 'emparejar', 'ordenar', 'clasificar')
+MAX_PARES = 12
 ESTILOS_RECUADRO = {'recuerda': 'Recuerda', 'reto': 'Reto', 'vocabulario': 'Vocabulario', 'nota': 'Nota'}
 MODOS = ('normal', 'compacto', 'maximo')
 MAX_BLOQUES = 300
@@ -129,14 +146,12 @@ def limpiar(contenido, imagenes_validas):
         elif tipo == 'lineas':
             n.update(n=_entero(b.get('n'), 3, 1, 30))
         elif tipo == 'pregunta':
-            opciones = [texto_plano(o, 400) for o in (b.get('opciones') or [])[:MAX_OPCIONES]]
-            opciones = [o for o in opciones if o]
-            correcta = b.get('correcta')
-            correcta = correcta if isinstance(correcta, int) and 0 <= correcta < len(opciones) else None
+            n.update(_limpiar_pregunta(b, imagenes_validas))
+        elif tipo == 'contexto':
             img = _entero(b.get('imagen'), 0, 0, 2 ** 62)
-            n.update(enunciado=texto_plano(b.get('enunciado'), 2000), opciones=opciones, correcta=correcta,
-                     imagen=img if img in imagenes_validas else None,
-                     lineas=_entero(b.get('lineas'), 0 if opciones else 3, 0, 20))
+            n.update(titulo=texto_plano(b.get('titulo'), 150), html=limpiar_html(b.get('html')),
+                     imagen=img if img in imagenes_validas else None, ancho=_entero(b.get('ancho'), 70, 10, 100),
+                     cubre=_entero(b.get('cubre'), 0, 0, 30))
         bloques.append(n)
     o = contenido.get('opciones') if isinstance(contenido.get('opciones'), dict) else {}
     opciones = {
@@ -145,8 +160,84 @@ def limpiar(contenido, imagenes_validas):
         'modo': o.get('modo') if o.get('modo') in MODOS else 'normal',
         'nombre_estudiante': o.get('nombre_estudiante', True) is not False,
         'datos': o.get('datos', True) is not False,
+        # Cuadernillo: portada y datos de la sesión
+        'portada': bool(o.get('portada')),
+        'sesion': texto_plano(o.get('sesion'), 60),
+        'duracion': texto_plano(o.get('duracion'), 60),
+        'horario': texto_plano(o.get('horario'), 80),
+        'aviso': texto_plano(o.get('aviso'), 300),
+        'fin': texto_plano(o.get('fin'), 200),
     }
     return {'bloques': bloques, 'opciones': opciones}
+
+
+def _lista(valores, maximo, largo=300):
+    return [texto_plano(v, largo) for v in (valores or [])[:maximo] if texto_plano(v, largo)]
+
+
+def _limpiar_pregunta(b, imagenes_validas):
+    opciones_crudas = b.get('opciones') or []
+    modo = b.get('modo')
+    if modo not in MODOS_PREGUNTA:            # documentos de la fase 1
+        modo = 'unica' if any(texto_plano(o) for o in opciones_crudas) else 'abierta'
+    img = _entero(b.get('imagen'), 0, 0, 2 ** 62)
+    n = {'modo': modo, 'enunciado': texto_plano(b.get('enunciado'), 2000),
+         'imagen': img if img in imagenes_validas else None,
+         'puntos': _entero(b.get('puntos'), 1, 1, 100), 'control': bool(b.get('control')),
+         'lineas': _entero(b.get('lineas'), 3 if modo in ('abierta',) else 0, 0, 20)}
+    if modo in ('unica', 'varias'):
+        opciones = [texto_plano(o, 400) for o in opciones_crudas[:MAX_OPCIONES]]
+        # Se quitan las vacías corrigiendo el índice de las correctas.
+        indices = [i for i, o in enumerate(opciones) if o]
+        nuevo = {viejo: k for k, viejo in enumerate(indices)}
+        n['opciones'] = [opciones[i] for i in indices]
+        if modo == 'unica':
+            c = b.get('correcta')
+            n['correcta'] = nuevo.get(c) if isinstance(c, int) else None
+        else:
+            n['correctas'] = sorted({nuevo[c] for c in (b.get('correctas') or []) if isinstance(c, int) and c in nuevo})
+    elif modo == 'vf':
+        n['valor'] = bool(b.get('valor'))
+    elif modo == 'completar':
+        # El texto lleva los huecos así: «La capital es [[Bogotá|Bogota]].»
+        n['texto'] = texto_plano(b.get('texto'), 3000)
+        n['mayusculas'] = bool(b.get('mayusculas'))
+    elif modo == 'numerica':
+        n['respuesta'] = texto_plano(b.get('respuesta'), 30)
+        n['tolerancia'] = texto_plano(b.get('tolerancia'), 20)
+        n['unidad'] = texto_plano(b.get('unidad'), 20)
+    elif modo == 'corta':
+        n['aceptadas'] = _lista(b.get('aceptadas'), 10, 120)
+    elif modo == 'emparejar':
+        pares = []
+        for p in (b.get('pares') or [])[:MAX_PARES]:
+            if isinstance(p, (list, tuple)) and len(p) == 2 and texto_plano(p[0]) and texto_plano(p[1]):
+                pares.append([texto_plano(p[0], 200), texto_plano(p[1], 200)])
+        n['pares'] = pares
+    elif modo == 'ordenar':
+        n['elementos'] = _lista(b.get('elementos'), MAX_PARES, 200)
+    elif modo == 'clasificar':
+        grupos = []
+        for g in (b.get('grupos') or [])[:6]:
+            if isinstance(g, dict) and texto_plano(g.get('nombre')):
+                grupos.append({'nombre': texto_plano(g.get('nombre'), 60),
+                               'elementos': _lista(g.get('elementos'), MAX_PARES, 100)})
+        n['grupos'] = grupos
+    return n
+
+
+HUECO = re.compile(r'\[\[([^\]]{1,200})\]\]')
+
+
+def huecos(texto):
+    """[[Bogotá|Bogota]] -> partes del texto y, por cada hueco, sus respuestas aceptadas."""
+    partes, respuestas, ultimo = [], [], 0
+    for m in HUECO.finditer(texto or ''):
+        partes.append(texto[ultimo:m.start()])
+        respuestas.append([x.strip() for x in m.group(1).split('|') if x.strip()])
+        ultimo = m.end()
+    partes.append((texto or '')[ultimo:])
+    return partes, respuestas
 
 
 def imagenes_usadas(contenido):
