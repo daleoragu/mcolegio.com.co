@@ -45,8 +45,9 @@ class Bloques(SimpleTestCase):
         self.assertEqual(limpio['bloques'][1]['ancho'], 100)
         self.assertEqual(limpio['bloques'][2]['opciones'], ['3', '4', '5'])
         self.assertEqual(limpio['bloques'][3]['n'], 30)
-        self.assertEqual(limpio['opciones'], {'columnas': 2, 'letra': 14, 'modo': 'normal',
-                                              'nombre_estudiante': True, 'datos': True})
+        self.assertEqual({k: limpio['opciones'][k] for k in ('columnas', 'letra', 'modo', 'nombre_estudiante', 'datos')},
+                         {'columnas': 2, 'letra': 14, 'modo': 'normal', 'nombre_estudiante': True, 'datos': True})
+        self.assertFalse(limpio['opciones']['portada'])
 
     def test_opciones_cortas_en_una_linea(self):
         self.assertEqual(B.disposicion_opciones(['3', '2', '4', '1'], 'normal'), 'fila')
