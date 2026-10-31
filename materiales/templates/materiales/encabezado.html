@@ -1,0 +1,22 @@
+{% extends base %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-heading me-2"></i>Mi encabezado</h4>{% endblock %}
+{% block content %}
+{% include 'materiales/_estilos.html' %}
+<div class="mm">
+<form method="post" enctype="multipart/form-data" class="mm-tarjeta" style="max-width:640px">
+    {% csrf_token %}
+    <p class="small text-muted">Sale arriba de cada guía, taller y evaluación que descargue en PDF o Word.</p>
+    <label class="form-label small fw-bold">Logo (opcional)</label>
+    {% if enc.logo %}<div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="quitar_logo" id="ql"><label class="form-check-label small" for="ql">Quitar el logo actual</label></div>{% endif %}
+    <input type="file" name="logo" accept="image/*" class="form-control mb-3">
+    <label class="form-label small fw-bold">Línea 1 (en negrilla)</label>
+    <input name="linea1" value="{{ enc.linea1 }}" maxlength="120" class="form-control mb-2" placeholder="Ej.: Prof. Ana Gómez · Matemáticas">
+    <label class="form-label small fw-bold">Línea 2</label>
+    <input name="linea2" value="{{ enc.linea2 }}" maxlength="120" class="form-control mb-2" placeholder="Ej.: Instituto … · Mariquita, Tolima">
+    <label class="form-label small fw-bold">Línea 3</label>
+    <input name="linea3" value="{{ enc.linea3 }}" maxlength="120" class="form-control mb-3" placeholder="Ej.: Correo o WhatsApp de contacto">
+    <button class="btn mm-oro px-4">Guardar</button>
+    <a href="{% url 'materiales:lista' %}" class="btn btn-link">Volver</a>
+</form>
+</div>
+{% endblock %}

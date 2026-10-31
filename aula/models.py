@@ -247,6 +247,10 @@ class Tarea(models.Model):
     componente = models.CharField(max_length=6, blank=True)
     publicada = models.BooleanField(default=True)
     para = models.JSONField(default=list, blank=True, help_text='Vacío: toda la clase. Si no, solo los estudiantes escogidos.')
+    # Ficha de Mis materiales que se resuelve en línea: copia de sus bloques y cómo se califica
+    # ({'modo': 'puntos'|'formativa', 'intentos': 1, 'tiempo': 0, 'mostrar': 'al_terminar'|'nunca'}).
+    ficha = models.JSONField(default=dict, blank=True)
+    ficha_config = models.JSONField(default=dict, blank=True)
     creada = models.DateTimeField(auto_now_add=True)
     pasada_planilla = models.DateTimeField(null=True, blank=True)
 
@@ -284,6 +288,11 @@ class Entrega(models.Model):
                                validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))])
     comentario = models.TextField(blank=True, verbose_name='Comentario para el estudiante')
     calificada = models.DateTimeField(null=True, blank=True)
+    # Ficha resuelta en línea: {id_bloque: respuesta}, los puntos que puso el docente a mano y el resumen.
+    respuestas = models.JSONField(default=dict, blank=True)
+    manuales = models.JSONField(default=dict, blank=True)
+    intentos = models.PositiveSmallIntegerField(default=0)
+    iniciada = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [
@@ -521,3 +530,20 @@ class NotaManual(models.Model):
     integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE, null=True, blank=True,
                                    related_name='+')
     nota = models.DecimalField(max_digits=5, decimal_places=2)
+
+
+class ArchivoFicha(models.Model):
+    """La foto o el audio con que el estudiante responde una pregunta de una ficha."""
+    TIPOS = [('foto', 'Foto'), ('audio', 'Audio')]
+    entrega = models.ForeignKey(Entrega, on_delete=models.CASCADE, related_name='archivos_ficha')
+    bloque = models.CharField(max_length=20)
+    tipo = models.CharField(max_length=5, choices=TIPOS, default='foto')
+    archivo = models.FileField(upload_to=almacen.ruta_ficha, storage=almacen.privado)
+    peso = models.PositiveIntegerField(default=0)
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado']
+
+    def __str__(self):
+        return f'{self.get_tipo_display()} de la entrega {self.entrega_id}'

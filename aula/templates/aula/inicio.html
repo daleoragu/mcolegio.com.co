@@ -7,6 +7,7 @@
 {% include 'aula/_estilos.html' %}
 <div class="au">
 {% if rol != 'estudiante' %}<div class="d-flex justify-content-end flex-wrap gap-2 mb-2">
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:lista' %}"><i class="fas fa-book-open-reader me-1"></i>Mis materiales</a>
     <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:instrumentos' %}"><i class="fas fa-list-check me-1"></i>Mis rúbricas y listas de chequeo</a>
     {% if rol == 'docente' %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:panel' %}"><i class="fas fa-code me-1"></i>Mis actividades HTML y pruebas</a>{% endif %}
 </div>{% endif %}
