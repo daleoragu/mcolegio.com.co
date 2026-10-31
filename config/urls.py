@@ -45,6 +45,7 @@ urlpatterns = [
     path('horarios/', include('horarios.urls', namespace='horarios')),
     path('calendario/', include('calendario.urls', namespace='calendario')),
     path('aula/', include('aula.urls', namespace='aula')),
+    path('materiales/', include('materiales.urls', namespace='materiales')),
 
     # 5. RUTAS DE TU APLICACIÓN "NOTAS"
     #    Esta línea incluye todas las URLs de tu archivo 'notas/urls.py'.

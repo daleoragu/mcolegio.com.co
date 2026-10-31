@@ -45,7 +45,8 @@ MODULOS = OrderedDict([
     # Salón Digital es un producto aparte con cuentas propias: aquí solo se
     # muestra u oculta el acceso desde el menú del colegio.
     ('salon', ('Mi Salón Virtual (Premium)', 'Aula virtual de cada asignatura (muro, clase en vivo, material, tareas con '
-                                   'rúbrica y paso a la planilla) y el salón personal del docente.', ('/aula/',))),
+                                   'rúbrica y paso a la planilla), Mis materiales y el salón personal del docente.',
+                                   ('/aula/', '/materiales/'))),
 ])
 
 TODOS = list(MODULOS)

@@ -1,0 +1,120 @@
+{% extends base %}
+{% load static %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'materiales/_estilos.html' %}
+<div class="mm">
+<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <a href="{% url 'materiales:lista' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Mis materiales</a>
+    <span class="badge text-bg-light">{{ doc.get_tipo_display }}</span>
+    <span class="mm-estado ms-auto" id="mm-estado">Todo guardado</span>
+</div>
+
+<div class="mm-tarjeta py-2" style="position:sticky;top:0;z-index:20">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-5"><input id="mm-titulo" class="form-control fw-bold" maxlength="150" value="{{ doc.titulo }}" placeholder="Título"></div>
+    <div class="col-md-3"><input id="mm-area" class="form-control form-control-sm" maxlength="80" value="{{ doc.area }}" placeholder="Área o asignatura"></div>
+    <div class="col-md-2"><input id="mm-grado" class="form-control form-control-sm" maxlength="40" value="{{ doc.grado }}" placeholder="Grado"></div>
+    <div class="col-md-2"><input id="mm-periodo" class="form-control form-control-sm" maxlength="40" value="{{ doc.periodo }}" placeholder="Periodo"></div>
+  </div>
+  <div class="d-flex flex-wrap gap-1 mt-2 align-items-center">
+    <div class="btn-group btn-group-sm" role="group" aria-label="Formato del texto">
+      <button type="button" class="btn btn-outline-secondary" data-cmd="bold" title="Negrilla"><i class="fas fa-bold"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="italic" title="Cursiva"><i class="fas fa-italic"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="underline" title="Subrayado"><i class="fas fa-underline"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="insertUnorderedList" title="Viñetas"><i class="fas fa-list-ul"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="insertOrderedList" title="Numeración"><i class="fas fa-list-ol"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="superscript" title="Exponente"><i class="fas fa-superscript"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="subscript" title="Subíndice"><i class="fas fa-subscript"></i></button>
+    </div>
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" type="button"><i class="fas fa-compress me-1"></i>Acomodar</button>
+      <div class="dropdown-menu p-3" style="min-width:290px">
+        <div class="small fw-bold mb-1">Espacio</div>
+        <div class="btn-group btn-group-sm w-100 mb-2" id="mm-modo">
+          <button type="button" class="btn btn-outline-primary" data-modo="normal">Normal</button>
+          <button type="button" class="btn btn-outline-primary" data-modo="compacto">Compacto</button>
+          <button type="button" class="btn btn-outline-primary" data-modo="maximo">Máximo ahorro</button>
+        </div>
+        <div class="small fw-bold mb-1">Columnas</div>
+        <div class="btn-group btn-group-sm w-100 mb-2" id="mm-columnas">
+          <button type="button" class="btn btn-outline-primary" data-col="1">Una</button>
+          <button type="button" class="btn btn-outline-primary" data-col="2">Dos</button>
+        </div>
+        <label class="small fw-bold mb-1">Tamaño de letra: <span id="mm-letra-v"></span> pt</label>
+        <input type="range" class="form-range" min="9" max="14" step="1" id="mm-letra">
+        <div class="form-check small"><input class="form-check-input" type="checkbox" id="mm-datos"><label class="form-check-label" for="mm-datos">Área, grado, periodo y docente</label></div>
+        <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" id="mm-nombre"><label class="form-check-label" for="mm-nombre">Renglón para el nombre del estudiante</label></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="mm-contar"><i class="fas fa-calculator me-1"></i>¿Cuántas páginas sale?</button>
+        <div class="small mt-2" id="mm-paginas"></div>
+      </div>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="mm-ver"><i class="far fa-eye me-1"></i>Vista previa</button>
+    <a class="btn btn-sm btn-outline-danger" id="mm-pdf" href="{% url 'materiales:pdf' doc.pk %}?descargar=1"><i class="far fa-file-pdf me-1"></i>PDF</a>
+    <a class="btn btn-sm btn-outline-primary" id="mm-word" href="{% url 'materiales:word' doc.pk %}"><i class="far fa-file-word me-1"></i>Word</a>
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" type="button"><i class="fab fa-google-drive me-1"></i>Guardar en mi nube</button>
+      <div class="dropdown-menu p-2" style="min-width:240px">
+        {% if nube_docente.google %}<button type="button" class="dropdown-item" data-nube="google" data-formato="pdf">Google Drive · PDF</button>
+        <button type="button" class="dropdown-item" data-nube="google" data-formato="word">Google Drive · Word</button>{% endif %}
+        {% if nube_docente.onedrive %}<button type="button" class="dropdown-item" data-nube="onedrive" data-formato="pdf">OneDrive · PDF</button>
+        <button type="button" class="dropdown-item" data-nube="onedrive" data-formato="word">OneDrive · Word</button>{% endif %}
+        {% if not nube_docente.google and not nube_docente.onedrive %}<div class="small text-muted px-2">La conexión con Drive todavía no está configurada en la plataforma.</div>{% endif %}
+        <div class="small text-muted px-2 pt-1">Se guarda una copia en la carpeta «mcolegio-materiales». El original sigue aquí.</div>
+      </div>
+    </div>
+    {% if aulas %}
+    <div class="dropdown">
+      <button class="btn btn-sm mm-oro dropdown-toggle" data-bs-toggle="dropdown" type="button"><i class="fas fa-share me-1"></i>Publicar en un aula</button>
+      <form method="post" action="{% url 'materiales:accion' doc.pk %}" class="dropdown-menu p-3" style="min-width:280px" id="mm-publicar">{% csrf_token %}
+        <input type="hidden" name="accion" value="publicar"><input type="hidden" name="modo" value="">
+        <label class="small fw-bold mb-1">Aula</label>
+        <select name="aula" class="form-select form-select-sm mb-2">{% for x in aulas %}<option value="{{ x.pk }}">{{ x.titulo }} · {{ x.subtitulo }}</option>{% endfor %}</select>
+        <button class="btn btn-sm mm-oro w-100">Publicar en Material</button>
+        <div class="small text-muted mt-1">Se publica el PDF; si lo cambia después, publíquelo otra vez.</div>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="mm-hoja" id="mm-hoja">
+    <div id="mm-bloques"></div>
+    <div class="mm-agregar" id="mm-agregar">
+        <span class="small text-muted w-100 text-center">Agregar debajo del bloque marcado · pegue imágenes con Ctrl+V o arrástrelas aquí</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="texto"><i class="fas fa-paragraph me-1"></i>Texto</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="titulo"><i class="fas fa-heading me-1"></i>Título</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="seccion"><i class="fas fa-bookmark me-1"></i>Sección</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="imagen"><i class="far fa-image me-1"></i>Imagen</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="pregunta"><i class="fas fa-circle-question me-1"></i>Pregunta</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="recuadro"><i class="far fa-square me-1"></i>Recuadro</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="tabla"><i class="fas fa-table me-1"></i>Tabla</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="lineas"><i class="fas fa-grip-lines me-1"></i>Líneas</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="separador"><i class="fas fa-minus me-1"></i>Separador</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="salto"><i class="fas fa-file-circle-plus me-1"></i>Nueva página</button>
+    </div>
+</div>
+<input type="file" id="mm-archivo" accept="image/*" multiple hidden>
+
+<div class="modal fade" id="mm-previa" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header py-2"><h6 class="modal-title">Vista previa</h6><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+    <div class="modal-body p-0"><iframe id="mm-previa-marco" title="Vista previa" style="width:100%;height:78vh;border:0"></iframe></div>
+</div></div></div>
+</div>
+{{ contenido|json_script:"mm-contenido" }}
+{{ imagenes|json_script:"mm-imagenes" }}
+{{ nube_docente|json_script:"mm-nube-config" }}
+<script>
+window.MM = {
+    guardar: "{% url 'materiales:guardar' doc.pk %}",
+    imagen: "{% url 'materiales:imagen_subir' %}",
+    pdf: "{% url 'materiales:pdf' doc.pk %}",
+    word: "{% url 'materiales:word' doc.pk %}",
+    paginas: "{% url 'materiales:paginas' doc.pk %}",
+    ayudante: "{% url 'puntoexacto:nube_ayudante' proveedor='PROV' %}",
+    titulo: "{{ doc.titulo|escapejs }}",
+    csrf: "{{ csrf_token }}"
+};
+</script>
+<script src="{% static 'materiales/editor.js' %}"></script>
+{% endblock %}

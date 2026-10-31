@@ -1,0 +1,6 @@
+<div class="mm-tarjeta" id="mm-nube">
+    <div class="d-flex justify-content-between small fw-semibold mb-1"><span><i class="fas fa-cloud me-1"></i>Mi nube</span>
+        <span id="mm-nube-texto">{{ nube.usado_mb }} MB de {{ nube.cuota_mb }} MB</span></div>
+    <div class="mm-barra {% if nube.porcentaje >= 90 %}lleno{% endif %}"><div id="mm-nube-barra" style="width:{{ nube.porcentaje }}%"></div></div>
+    <div class="small text-muted mt-1">Las imágenes se guardan comprimidas en la plataforma.</div>
+</div>

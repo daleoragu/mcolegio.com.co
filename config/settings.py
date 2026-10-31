@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'simat',           # <--- Exportar / importar SIMAT
     'horarios',        # <--- Horarios de clase (generador: plan Premium)
     'calendario',      # <--- Calendario escolar
+    'materiales',      # <--- Mis materiales: guías, talleres y cuadernillos del docente
     'aula',            # <--- Aula virtual (mcolegio por asignación y Salón Digital por grupo)
 ]
 

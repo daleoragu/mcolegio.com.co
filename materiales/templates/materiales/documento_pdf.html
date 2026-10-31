@@ -1,0 +1,93 @@
+{% load nota_filters %}<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<title>{{ doc.titulo }}</title>
+<style>
+    @page { size: letter; margin: {{ margen }}mm {{ margen }}mm {{ margen|add:2 }}mm;
+            @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 7.5pt; color: #777; } }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: {{ letra }}pt; color: #111; line-height: {{ interlineado }}; margin: 0; }
+    .enc-docente { width: 100%; border-collapse: collapse; border-bottom: 2px solid #1f3a68; margin-bottom: 6px; }
+    .enc-docente td { vertical-align: middle; padding-bottom: 4px; }
+    .enc-docente .l1 { font-weight: bold; font-size: 12pt; }
+    .enc-docente .l { font-size: 9pt; }
+    h1.titulo { text-align: center; font-size: {{ letra|add:4 }}pt; margin: 4px 0 2px; }
+    .datos { text-align: center; font-size: 9pt; color: #333; margin-bottom: 4px; }
+    .nombre { font-size: 9.5pt; margin: 4px 0 {{ separacion }}px; }
+    .nombre .l { display: inline-block; border-bottom: 1px solid #111; min-width: 260px; }
+    .nombre .c { display: inline-block; border-bottom: 1px solid #111; min-width: 60px; }
+    .cuerpo.dos { column-count: 2; column-gap: 8mm; column-rule: 0.5px solid #bbb; }
+    .b { margin: 0 0 {{ separacion }}px; }
+    h2.t1 { font-size: {{ letra|add:3 }}pt; margin: {{ separacion }}px 0 3px; color: #1f3a68; break-after: avoid; }
+    h3.t2 { font-size: {{ letra|add:1 }}pt; margin: {{ separacion }}px 0 2px; break-after: avoid; }
+    .seccion { background: #1f3a68; color: #fff; font-weight: bold; padding: 3px 8px; margin: {{ separacion }}px 0 3px;
+               border-left: 5px solid #c0392b; break-after: avoid; break-inside: avoid; }
+    .seccion-ind { font-style: italic; color: #333; margin: 0 0 4px; break-after: avoid; }
+    .texto p { margin: 0 0 3px; }
+    .texto ul, .texto ol, .recuadro ul, .recuadro ol { margin: 2px 0 3px 18px; padding: 0; }
+    .img { text-align: center; break-inside: avoid; }
+    .img img { max-width: 100%; max-height: {{ alto_imagen }}mm; }
+    .img .pie { font-size: 8pt; font-style: italic; color: #444; }
+    table.tabla { border-collapse: collapse; width: 100%; break-inside: avoid; }
+    table.tabla td, table.tabla th { border: 0.6px solid #555; padding: 2px 5px; font-size: 0.95em; vertical-align: top; }
+    table.tabla th { background: #e8eef9; }
+    .recuadro { border: 1px solid #999; border-left-width: 5px; border-radius: 4px; padding: 4px 8px; break-inside: avoid; }
+    .recuadro .rt { font-weight: bold; margin-bottom: 2px; }
+    .recuadro.recuerda { border-color: #c9a227; background: #fff8e4; }
+    .recuadro.reto { border-color: #c0392b; background: #fdf0f1; }
+    .recuadro.vocabulario { border-color: #2e7d32; background: #eef7ef; }
+    .recuadro.nota { border-color: #1f3a68; background: #f1f4fa; }
+    .linea { border-bottom: 0.7px solid #555; height: {{ letra|add:9 }}pt; }
+    .pregunta { break-inside: avoid; }
+    .enun b { color: #1f3a68; }
+    .ops { margin: 2px 0 0 14px; }
+    .ops.fila span { display: inline-block; margin-right: 18px; }
+    .ops.dos { display: table; width: 96%; }
+    .ops.dos span { display: inline-block; width: 48%; vertical-align: top; }
+    .ops.lista span { display: block; }
+    .ops b { color: #1f3a68; }
+    .sep { border-top: 1px dashed #999; margin: {{ separacion }}px 0; }
+    .salto { break-after: page; }
+</style></head>
+<body>
+{% if colegio %}
+    {% include 'notas/fragmentos/encabezado_pdf.html' %}
+{% elif encabezado and encabezado.lineas or encabezado.logo %}
+    <table class="enc-docente"><tr>
+        {% if rutas.logo %}<td style="width:22mm"><img src="{{ rutas.logo }}" style="max-height:20mm;max-width:22mm"></td>{% endif %}
+        <td style="text-align:center">{% for l in encabezado.lineas %}<div class="{% if forloop.first %}l1{% else %}l{% endif %}">{{ l }}</div>{% endfor %}</td>
+    </tr></table>
+{% endif %}
+<h1 class="titulo">{{ doc.titulo }}</h1>
+{% if opciones.datos %}<div class="datos">{% if doc.area %}{{ doc.area }}{% endif %}{% if doc.grado %} · Grado {{ doc.grado }}{% endif %}{% if doc.periodo %} · {{ doc.periodo }}{% endif %}{% if docente %} · Docente: {{ docente }}{% endif %}</div>{% endif %}
+{% if opciones.nombre_estudiante %}<div class="nombre"><b>Nombre:</b> <span class="l">&nbsp;</span> &nbsp; <b>Curso:</b> <span class="c">&nbsp;</span> &nbsp; <b>Fecha:</b> <span class="c">&nbsp;</span></div>{% endif %}
+
+<div class="cuerpo{% if columnas == 2 %} dos{% endif %}">
+{% for b in bloques %}
+    {% if b.tipo == 'titulo' %}
+        {% if b.nivel == 1 %}<h2 class="t1">{{ b.texto }}</h2>{% else %}<h3 class="t2">{{ b.texto }}</h3>{% endif %}
+    {% elif b.tipo == 'seccion' %}
+        <div class="seccion">{{ b.titulo }}</div>{% if b.indicacion %}<div class="seccion-ind">{{ b.indicacion }}</div>{% endif %}
+    {% elif b.tipo == 'texto' %}
+        <div class="b texto">{{ b.html|safe }}</div>
+    {% elif b.tipo == 'imagen' %}
+        {% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="b img"><img src="{{ ruta }}" style="width:{{ b.ancho }}%">{% if b.pie %}<div class="pie">{{ b.pie }}</div>{% endif %}</div>{% endif %}{% endwith %}
+    {% elif b.tipo == 'tabla' %}
+        <table class="b tabla">{% for fila in b.filas %}<tr>{% for c in fila %}{% if forloop.parentloop.first and b.encabezado %}<th>{{ c }}</th>{% else %}<td>{{ c }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</table>
+    {% elif b.tipo == 'recuadro' %}
+        <div class="b recuadro {{ b.estilo }}"><div class="rt">{{ b.titulo }}</div>{{ b.html|safe }}</div>
+    {% elif b.tipo == 'lineas' %}
+        <div class="b">{% for _ in ''|center:b.n %}<div class="linea"></div>{% endfor %}</div>
+    {% elif b.tipo == 'pregunta' %}
+        <div class="b pregunta">
+            <div class="enun"><b>{{ b.numero }}.</b> {{ b.enunciado }}</div>
+            {% if b.imagen %}{% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="img"><img src="{{ ruta }}" style="width:45%"></div>{% endif %}{% endwith %}{% endif %}
+            {% if b.letras %}<div class="ops {{ b.disposicion }}">{% for l, o in b.letras %}<span><b>{{ l }}.</b> {{ o }}</span>{% endfor %}</div>{% endif %}
+            {% for _ in ''|center:b.lineas %}<div class="linea"></div>{% endfor %}
+        </div>
+    {% elif b.tipo == 'separador' %}
+        <div class="sep"></div>
+    {% elif b.tipo == 'salto' %}
+        <div class="salto"></div>
+    {% endif %}
+{% endfor %}
+</div>
+</body></html>
