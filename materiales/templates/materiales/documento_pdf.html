@@ -80,6 +80,17 @@
     .hoja { column-span: all; break-inside: avoid; text-align: center; }
     .hoja .lienzo { display: inline-block; text-align: left; }
     .hoja .lienzo img { width: auto; max-width: 100%; max-height: 232mm; }
+    table.sopa { border-collapse: collapse; margin: 3px auto; }
+    table.sopa td { width: 5.2mm; height: 5.2mm; text-align: center; font-weight: bold; font-family: 'DejaVu Sans Mono', monospace; font-size: 9pt; border: 0.4px solid #bbb; padding: 0; }
+    table.sopa td.en { background: #cdefd9; }
+    .palabras-sopa { text-align: center; font-size: 0.9em; margin: 2px 0; }
+    table.cruci { border-collapse: collapse; margin: 3px auto; }
+    table.cruci td { width: 6mm; height: 6mm; border: 0.6px solid #333; position: relative; padding: 0; vertical-align: top; }
+    table.cruci td.negra { background: transparent; border: none; }
+    table.cruci .n { position: absolute; left: 0.5mm; top: 0; font-size: 5pt; }
+    table.cruci .l { display: block; text-align: center; font-weight: bold; color: #198754; padding-top: 1mm; font-size: 8.5pt; }
+    .pistas { font-size: 0.92em; }
+    .pistas b { color: #1f3a68; }
     .nota-archivo { font-style: italic; color: #444; margin-left: 14px; }
     .clave-docente { text-align: center; color: #198754; font-weight: bold; font-size: 9pt; border: 1px solid #198754; padding: 2px; margin-bottom: 4px; }
 </style></head>
@@ -147,7 +158,14 @@
             {% if b.modo == 'senalar' %}
                 {% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="lienzo" style="width:{{ b.ancho }}%"><img src="{{ ruta }}">{% if respuestas %}{% for z in b.zonas %}<div class="zona" style="{{ z.css }}"></div>{% endfor %}{% endif %}</div>{% endif %}{% endwith %}
             {% elif b.imagen %}{% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="img"><img src="{{ ruta }}" style="width:45%"></div>{% endif %}{% endwith %}{% endif %}
-            {% if b.modo == 'archivo' %}
+            {% if b.modo == 'sopa' %}
+                <table class="sopa">{% for fila in b.cuadricula %}<tr>{% for letra, en in fila %}<td{% if respuestas and en %} class="en"{% endif %}>{{ letra }}</td>{% endfor %}</tr>{% endfor %}</table>
+                <div class="palabras-sopa">{{ b.lista_palabras|join:" · " }}</div>
+            {% elif b.modo == 'crucigrama' %}
+                <table class="cruci">{% for fila in b.tablero_lleno %}<tr>{% for x in fila %}{% if x %}<td>{% if x.n %}<span class="n">{{ x.n }}</span>{% endif %}{% if respuestas %}<span class="l">{{ x.letra }}</span>{% endif %}</td>{% else %}<td class="negra"></td>{% endif %}{% endfor %}</tr>{% endfor %}</table>
+                <div class="pistas">{% if b.horizontales %}<div><b>Horizontales</b></div>{% for p in b.horizontales %}<div>{{ p.numero }}. {{ p.pista }}</div>{% endfor %}{% endif %}
+                    {% if b.verticales %}<div><b>Verticales</b></div>{% for p in b.verticales %}<div>{{ p.numero }}. {{ p.pista }}</div>{% endfor %}{% endif %}</div>
+            {% elif b.modo == 'archivo' %}
                 <div class="nota-archivo">Respuesta con {% if b.archivo == 'foto' %}una foto{% elif b.archivo == 'audio' %}un audio{% else %}una foto o un audio{% endif %}: se envía en el aula virtual.</div>
             {% elif b.modo == 'unica' or b.modo == 'varias' %}
                 <div class="ops {{ b.disposicion }}">{% for l, o, bien in b.letras %}<span{% if respuestas and bien %} class="ok"{% endif %}>{% if b.modo == 'varias' %}&#9744; {% endif %}<b>{{ l }}.</b> {{ o }}</span>{% endfor %}</div>
@@ -167,7 +185,7 @@
             {% endif %}
             {% if b.modo == 'corta' and not b.lineas %}<div class="linea"></div>{% endif %}
             {% for _ in ''|center:b.lineas %}<div class="linea"></div>{% endfor %}
-            {% if respuestas and b.correcta_texto and b.modo != 'unica' and b.modo != 'vf' and b.modo != 'completar' %}<div class="resp">Respuesta: {{ b.correcta_texto }}</div>{% endif %}
+            {% if respuestas and b.correcta_texto %}{% if b.solucion or b.modo != 'unica' and b.modo != 'vf' and b.modo != 'completar' and b.modo != 'sopa' and b.modo != 'crucigrama' %}<div class="resp">Respuesta: {{ b.correcta_texto }}</div>{% endif %}{% endif %}
         </div>
     {% elif b.tipo == 'separador' %}
         <div class="sep"></div>

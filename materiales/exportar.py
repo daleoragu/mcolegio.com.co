@@ -105,6 +105,18 @@ def _preparar_pregunta(b, modo):
         b['campos'] = [dict(c, respuesta=C.texto_campo(c), css=posicion(c)) for c in b.get('campos') or []]
     elif m == 'senalar':
         b['zonas'] = [dict(z, css=posicion(z)) for z in b.get('zonas') or []]
+    elif m == 'sopa':
+        from . import juegos
+        marcadas = {cel for u in b.get('ubicaciones') or [] for cel in juegos.celdas_de(u)}
+        b['cuadricula'] = [[(letra, (f, c) in marcadas) for c, letra in enumerate(fila)]
+                           for f, fila in enumerate(b.get('filas') or [])]
+        b['lista_palabras'] = [u['palabra'] for u in b.get('ubicaciones') or []]
+    elif m == 'crucigrama':
+        from . import juegos
+        b['tablero'] = juegos.tablero_crucigrama(b)
+        b['tablero_lleno'] = juegos.tablero_crucigrama(b, mostrar=True)
+        b['horizontales'] = [p for p in b.get('palabras') or [] if p['dir'] == 'h']
+        b['verticales'] = [p for p in b.get('palabras') or [] if p['dir'] == 'v']
     return b
 
 
@@ -343,6 +355,35 @@ def _pregunta_docx(w, b, ctx, rutas, util, Cm, RGBColor):
             for j, g in enumerate(grupos):
                 tabla.cell(0, j).text = g['nombre']
                 tabla.cell(1, j).text = '\n\n\n'
+    elif m == 'sopa':
+        filas = b.get('cuadricula') or []
+        if filas:
+            tabla = w.add_table(rows=len(filas), cols=len(filas[0]))
+            tabla.style = 'Table Grid'
+            for f, fila in enumerate(filas):
+                for c, (letra, en) in enumerate(fila):
+                    celda = tabla.cell(f, c)
+                    celda.text = letra
+                    if ctx['respuestas'] and en:
+                        _sombrear(celda, 'CDEFD9')
+            w.add_paragraph('Palabras: ' + ' · '.join(b['lista_palabras']))
+    elif m == 'crucigrama':
+        tablero = b['tablero_lleno'] if ctx['respuestas'] else b['tablero']
+        if tablero:
+            tabla = w.add_table(rows=len(tablero), cols=len(tablero[0]))
+            tabla.style = 'Table Grid'
+            for f, fila in enumerate(tablero):
+                for c, celda_d in enumerate(fila):
+                    celda = tabla.cell(f, c)
+                    if celda_d is None:
+                        _sombrear(celda, '333333')
+                    else:
+                        celda.text = f"{celda_d['n']} {celda_d['letra']}".strip() if ctx['respuestas'] else str(celda_d['n'])
+            for titulo, lista in (('Horizontales', b['horizontales']), ('Verticales', b['verticales'])):
+                if lista:
+                    w.add_paragraph().add_run(titulo).bold = True
+                    for p in lista:
+                        w.add_paragraph(f"{p['numero']}. {p['pista']}")
     elif m == 'archivo':
         w.add_paragraph('(Respuesta con ' + {'foto': 'una foto', 'audio': 'un audio'}.get(b.get('archivo'), 'una foto o un audio')
                         + ': se envía en el aula virtual)').runs[0].italic = True

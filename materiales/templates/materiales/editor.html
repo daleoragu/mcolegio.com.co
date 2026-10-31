@@ -9,6 +9,7 @@
     <span class="badge text-bg-light">{{ doc.get_tipo_display }}</span>
     <span class="mm-estado ms-auto" id="mm-estado">Todo guardado</span>
 </div>
+<div class="mb-2">{% include 'materiales/_medidor.html' with med=med %}</div>
 
 <div class="mm-tarjeta py-2" style="position:sticky;top:0;z-index:20">
   <div class="row g-2 align-items-end">
@@ -78,6 +79,27 @@
         {% if not nube_docente.google and not nube_docente.onedrive %}<div class="small text-muted px-2">La conexión con Drive todavía no está configurada en la plataforma.</div>{% endif %}
         <div class="small text-muted px-2 pt-1">Se guarda una copia en la carpeta «mcolegio-materiales». El original sigue aquí.</div>
       </div>
+    </div>
+    <button type="button" class="btn btn-sm btn-primary" id="mm-ia-abrir"><i class="fas fa-wand-magic-sparkles me-1"></i>Asistente IA</button>
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" type="button"><i class="fas fa-share-nodes me-1"></i>Compartir</button>
+      <form method="post" action="{% url 'materiales:compartir' doc.pk %}" class="dropdown-menu p-3 mm-form-guardar" style="min-width:320px">{% csrf_token %}
+        {% for m in compartidos %}<div class="small mb-1"><a href="{% url 'materiales:material' m.pk %}">{{ m.get_alcance_display }}</a> · {{ m.get_estado_display|lower }}{% if m.usos %} · {{ m.usos }} uso{{ m.usos|pluralize }}{% endif %}</div>{% endfor %}
+        {% if compartidos %}<div class="small text-muted mb-2">Compartir otra vez actualiza la copia publicada.</div>{% endif %}
+        <label class="small fw-bold mb-1">Con quién</label>
+        <select name="alcance" class="form-select form-select-sm mb-2">
+          {% if not acceso.es_individual %}<option value="colegio">Docentes de mi colegio</option>{% endif %}
+          <option value="comunidad">Comunidad mcolegio (todos los docentes)</option>
+          {% if user.is_superuser %}<option value="libre">Banco libre de mcolegio</option>{% endif %}
+        </select>
+        <input name="tema" maxlength="120" class="form-control form-control-sm mb-1" placeholder="Tema">
+        <input name="dba" maxlength="200" class="form-control form-control-sm mb-1" placeholder="DBA o competencia (opcional)">
+        <textarea name="descripcion" maxlength="300" rows="2" class="form-control form-control-sm mb-2" placeholder="Para qué sirve, en una o dos frases"></textarea>
+        <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="acepto" id="mm-acepto">
+          <label class="form-check-label" for="mm-acepto">El material es mío, las imágenes son propias o de uso libre y acepto compartirlo con licencia Creative Commons BY-NC.</label></div>
+        <button class="btn btn-sm mm-oro w-100">Compartir</button>
+        <div class="small text-muted mt-1">En la comunidad, sus primeros materiales se revisan antes de publicarse; cada uno aprobado le da 20 créditos de IA.</div>
+      </form>
     </div>
     {% if destinos.asignaciones or destinos.grupos or examen %}
     <div class="dropdown">
@@ -162,6 +184,65 @@
 <input type="file" id="mm-archivo" accept="image/*" multiple hidden>
 <input type="file" id="mm-archivo-hoja" accept="application/pdf,.pdf,image/*" multiple hidden>
 
+<div class="modal fade" id="mm-ia" tabindex="-1" aria-hidden="true" aria-labelledby="mm-ia-titulo"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header py-2"><h6 class="modal-title" id="mm-ia-titulo"><i class="fas fa-wand-magic-sparkles me-1"></i>Asistente con IA</h6><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+    <div class="modal-body">
+      {% if not ia_lista %}<div class="alert alert-warning small">El asistente todavía no está activo en la plataforma.</div>{% endif %}
+      <div class="d-flex flex-wrap gap-1 mb-3" id="mm-ia-acciones" role="tablist">
+        <button type="button" class="btn btn-sm btn-primary" data-ia="guia">Borrador de guía</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-ia="actividad">Actividad del banco</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-ia="cuadernillo">Cuadernillo tipo Saber</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-ia="piar">Adaptar para PIAR</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-ia="rubrica">Crear rúbrica</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-ia="revisar">Revisar el texto</button>
+      </div>
+      <div class="mm-ia-form" data-form="guia">
+        <div class="row g-2">
+          <div class="col-md-8"><label class="small fw-bold">Tema</label><input class="form-control form-control-sm" data-c="tema" maxlength="150" placeholder="Fracciones equivalentes"></div>
+          <div class="col-md-4"><label class="small fw-bold">Plantilla</label><select class="form-select form-select-sm" data-c="plantilla"><option value="guia_momentos">Guía por momentos</option><option value="escuela_nueva">Escuela Nueva</option><option value="taller">Taller</option><option value="evaluacion">Evaluación</option></select></div>
+          <div class="col-md-8"><label class="small fw-bold">DBA o competencia</label><input class="form-control form-control-sm" data-c="dba" maxlength="300" placeholder="Opcional"></div>
+          <div class="col-md-4"><label class="small fw-bold">Duración</label><input class="form-control form-control-sm" data-c="duracion" maxlength="60" placeholder="2 clases"></div>
+        </div>
+      </div>
+      <div class="mm-ia-form d-none" data-form="actividad">
+        <div class="row g-2">
+          <div class="col-md-5"><label class="small fw-bold">Tipo</label><select class="form-select form-select-sm" data-c="tipo">{% for k, v in banco_ia %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+          <div class="col-md-7"><label class="small fw-bold">Tema</label><input class="form-control form-control-sm" data-c="tema" maxlength="150" placeholder="Los estados del agua"></div>
+          <div class="col-6 col-md-3"><label class="small fw-bold">Cuántas</label><input type="number" min="1" max="20" value="10" class="form-control form-control-sm" data-c="cantidad"></div>
+          <div class="col-6 col-md-3"><label class="small fw-bold">Nivel</label><select class="form-select form-select-sm" data-c="nivel"><option value="basico">Básico</option><option value="medio" selected>Medio</option><option value="alto">Alto</option></select></div>
+        </div>
+      </div>
+      <div class="mm-ia-form d-none" data-form="cuadernillo">
+        <div class="row g-2">
+          <div class="col-md-6"><label class="small fw-bold">Áreas</label><input class="form-control form-control-sm" data-c="areas" maxlength="120" value="Lenguaje y Matemáticas"></div>
+          <div class="col-md-2"><label class="small fw-bold">Preguntas</label><input type="number" min="5" max="40" value="20" class="form-control form-control-sm" data-c="cantidad"></div>
+          <div class="col-md-4"><label class="small fw-bold">Temas o énfasis</label><input class="form-control form-control-sm" data-c="tema" maxlength="200" placeholder="Opcional"></div>
+        </div>
+      </div>
+      <div class="mm-ia-form d-none" data-form="piar">
+        <div class="small text-muted mb-1">Se crea una copia adaptada de este documento; la original no cambia. No escriba el nombre ni el diagnóstico del estudiante.</div>
+        {% for k, v in ajustes_piar.items %}<div class="form-check small"><input class="form-check-input" type="checkbox" data-ajuste="{{ k }}" id="aj-{{ k }}" {% if forloop.first %}checked{% endif %}><label class="form-check-label" for="aj-{{ k }}">{{ v|capfirst }}</label></div>{% endfor %}
+      </div>
+      <div class="mm-ia-form d-none" data-form="rubrica">
+        <label class="small fw-bold">La tarea que se califica</label>
+        <textarea class="form-control form-control-sm mb-2" rows="2" data-c="tarea" maxlength="600" placeholder="Exposición sobre los ecosistemas de Colombia"></textarea>
+        <label class="small fw-bold">Criterios que quiere (opcional)</label>
+        <input class="form-control form-control-sm" data-c="criterios" maxlength="300" placeholder="Dominio del tema, uso de apoyos, trabajo en equipo">
+        <div class="small text-muted mt-1">Los niveles son los de su escala de valoración. La rúbrica queda en sus instrumentos de evaluación.</div>
+      </div>
+      <div class="mm-ia-form d-none" data-form="revisar">
+        <div class="small text-muted">Revisa la ortografía y la redacción de todo el documento. Usted acepta cada corrección.</div>
+      </div>
+      <label class="small fw-bold mt-2" for="mm-ia-extra">Indicaciones adicionales (opcional)</label>
+      <input class="form-control form-control-sm" id="mm-ia-extra" maxlength="300" placeholder="Con ejemplos del Tolima, para un curso que va lento…">
+      <div id="mm-ia-resultado" class="mt-3"></div>
+    </div>
+    <div class="modal-footer py-2 justify-content-between">
+      <span class="small" id="mm-ia-costo"></span>
+      <button type="button" class="btn btn-sm btn-primary" id="mm-ia-generar" {% if not ia_lista %}disabled{% endif %}><i class="fas fa-wand-magic-sparkles me-1"></i>Generar</button>
+    </div>
+</div></div></div>
+
 <div class="modal fade" id="mm-banco" tabindex="-1" aria-hidden="true" aria-labelledby="mm-banco-titulo"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header py-2"><h6 class="modal-title" id="mm-banco-titulo"><i class="fas fa-box-archive me-1"></i>Banco de preguntas</h6><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
     <div class="modal-body">
@@ -189,6 +270,8 @@
 {{ imagenes|json_script:"mm-imagenes" }}
 {{ nube_docente|json_script:"mm-nube-config" }}
 {{ modos_pregunta|json_script:"mm-modos" }}
+{{ med|json_script:"mm-medidor-datos" }}
+{{ ia_costos|json_script:"mm-ia-costos" }}
 <script>
 window.MM = {
     guardar: "{% url 'materiales:guardar' doc.pk %}",
@@ -200,6 +283,8 @@ window.MM = {
     titulo: "{{ doc.titulo|escapejs }}",
     doc: {{ doc.pk }},
     colegio: {% if acceso.es_individual %}false{% else %}true{% endif %},
+    ia: "{% url 'materiales:ia' accion='ACCION' %}",
+    pesosCredito: {{ pesos_credito }},
     banco: { buscar: "{% url 'materiales:banco' %}", guardar: "{% url 'materiales:banco_guardar' %}", usar: "{% url 'materiales:banco_usar' %}" },
     csrf: "{{ csrf_token }}"
 };

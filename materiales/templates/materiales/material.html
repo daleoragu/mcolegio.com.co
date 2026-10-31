@@ -1,0 +1,46 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'materiales/_estilos.html' %}
+<div class="mm">
+<div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+  <a href="{% url 'materiales:biblioteca' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Biblioteca</a>
+  <span class="mm-sello {{ m.alcance }}">{{ m.get_alcance_display }}</span>
+  {% if m.estado != 'publicado' %}<span class="mm-sello {{ m.estado }}">{{ m.get_estado_display }}</span>{% endif %}
+</div>
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="mm-tarjeta">
+      <h5 class="fw-bold" style="color:#1f3a68">{{ m.titulo }}</h5>
+      <div class="small text-muted mb-2">{{ m.get_tipo_display }}{% if m.area %} · {{ m.area }}{% endif %}{% if m.grado %} · Grado {{ m.grado }}{% endif %}{% if m.preguntas %} · {{ m.preguntas }} pregunta{{ m.preguntas|pluralize }}{% endif %}</div>
+      {% if m.tema %}<div class="small"><b>Tema:</b> {{ m.tema }}</div>{% endif %}
+      {% if m.dba %}<div class="small"><b>DBA o competencia:</b> {{ m.dba }}</div>{% endif %}
+      {% if m.descripcion %}<p class="small mt-2 mb-2">{{ m.descripcion }}</p>{% endif %}
+      <div class="small mb-2">{% if m.alcance == 'libre' %}Hecho por <b>mcolegio</b>{% else %}Compartido por <a href="{% url 'materiales:autor' m.autor_id %}">{{ autor_nombre }}</a>{% endif %} · {{ m.usos }} uso{{ m.usos|pluralize }}{% if m.estrellas %} · <span class="mm-estrellas">★</span> {{ m.estrellas }} ({{ m.estrellas_n }}){% endif %}</div>
+      {% if m.alcance != 'colegio' %}<div class="small text-muted mb-2">Licencia Creative Commons BY-NC: se puede usar y adaptar en clase, citando al autor y sin fines comerciales.</div>{% endif %}
+      {% if m.estado == 'rechazado' and es_autor %}<div class="alert alert-warning small py-2">No se publicó: {{ m.motivo }}</div>{% endif %}
+      {% if m.estado == 'publicado' or es_autor %}
+      <form method="post" action="{% url 'materiales:usar' m.pk %}">{% csrf_token %}<button class="btn mm-oro w-100"><i class="far fa-copy me-1"></i>Usar una copia</button></form>
+      {% endif %}
+      {% if es_autor %}
+      <form method="post" action="{% url 'materiales:retirar' m.pk %}" class="mt-2" onsubmit="return confirm('¿Retirar este material de la biblioteca? Su documento no cambia.')">{% csrf_token %}<button class="btn btn-sm btn-outline-danger w-100">Retirar de la biblioteca</button></form>
+      {% if m.documento_id %}<a class="btn btn-sm btn-link w-100" href="{% url 'materiales:editor' m.documento_id %}">Abrir mi documento</a>{% endif %}
+      {% else %}
+      <form method="post" action="{% url 'materiales:valorar' m.pk %}" class="mt-3">{% csrf_token %}
+        <div class="small fw-bold mb-1">¿Le sirvió?</div>
+        <div class="d-flex gap-1">{% for n in "12345" %}<button name="estrellas" value="{{ n }}" class="btn btn-sm {% if mia and n|add:0 <= mia %}btn-warning{% else %}btn-outline-warning{% endif %}" title="{{ n }} estrella{{ n|pluralize }}">★</button>{% endfor %}</div>
+      </form>
+      {% if not reportado %}
+      <details class="mt-3 small"><summary class="text-muted">Reportar un problema</summary>
+        <form method="post" action="{% url 'materiales:reportar' m.pk %}" class="mt-1">{% csrf_token %}
+          <textarea name="motivo" rows="2" maxlength="300" class="form-control form-control-sm mb-1" placeholder="Errores, imágenes con derechos de autor, contenido que no va…" required></textarea>
+          <button class="btn btn-sm btn-outline-danger">Reportar</button></form>
+      </details>
+      {% else %}<div class="small text-muted mt-3">Usted ya reportó este material.</div>{% endif %}
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-lg-8"><div class="mm-tarjeta p-0 overflow-hidden"><iframe src="{% url 'materiales:material_pdf' m.pk %}" title="Vista previa del material" style="width:100%;height:80vh;border:0"></iframe></div></div>
+</div>
+</div>
+{% endblock %}

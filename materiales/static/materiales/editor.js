@@ -30,6 +30,8 @@
         if (modo === 'abierta' && !b.lineas) b.lineas = 3;
         if (modo === 'senalar') { b.zonas = b.zonas || []; b.ancho = b.ancho || 70; }
         if (modo === 'archivo' && !b.archivo) b.archivo = 'foto';
+        if (modo === 'sopa' && !b.palabras) b.palabras = [];
+        if (modo === 'crucigrama' && !b.pares) b.pares = [];
     }
 
     // Dibujar rectángulos encima de una imagen (zonas de «señalar» y campos de la hoja). Todo en %.
@@ -196,7 +198,21 @@
             return el('div', { class: 'd-flex flex-wrap gap-2 align-items-center small' }, [el('span', { class: 'text-muted', text: 'El estudiante manda' }), s2,
                 el('span', { class: 'text-muted', text: '· en el aula; usted la califica' })]);
         },
-        hoja: function (b) { return hojaUI(b); }
+        hoja: function (b) { return hojaUI(b); },
+        sopa: function (b) {
+            var dif = el('input', { type: 'checkbox', class: 'form-check-input', id: 'dif-' + b.id });
+            dif.checked = !!b.dificil;
+            dif.addEventListener('change', function () { b.dificil = dif.checked; cambio(); });
+            return el('div', { class: 'small' }, [el('div', { class: 'text-muted', text: 'Una palabra por línea (de 2 a 15 letras, máximo 15 palabras). La cuadrícula la arma la plataforma; véala en la vista previa.' }),
+                listaTexto(b.palabras, 'FRACCION\nNUMERADOR\nDENOMINADOR', function (v) { b.palabras = v; }, 5),
+                el('span', { class: 'form-check d-inline-block mt-1' }, [dif, el('label', { class: 'form-check-label', for: 'dif-' + b.id, text: 'Nivel alto: palabras también al revés' })])]);
+        },
+        crucigrama: function (b) {
+            return el('div', { class: 'small' }, [el('div', { class: 'text-muted', text: 'Una palabra por línea con su pista: «palabra: pista». La plataforma cruza las palabras; las que no crucen se avisan arriba al guardar.' }),
+                listaTexto((b.pares || []).map(function (x) { return x[0] + ': ' + x[1]; }), 'rio: Corriente de agua\nmontaña: Gran elevación del terreno', function (v) {
+                    b.pares = v.map(function (linea) { var k = linea.indexOf(':'); return k < 0 ? [linea.trim(), ''] : [linea.slice(0, k).trim(), linea.slice(k + 1).trim()]; });
+                }, 6)]);
+        }
     };
 
     function hojaUI(b) {
@@ -357,7 +373,7 @@
             method: 'POST', credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CFG.csrf }, body: JSON.stringify(cuerpo)
         }).then(function (r) { return r.json(); }).then(function (j) {
-            estado(j.ok ? 'Todo guardado' : (j.error || 'No se pudo guardar'), !j.ok);
+            estado(j.ok ? (j.aviso ? 'Todo guardado · ' + j.aviso : 'Todo guardado') : (j.error || 'No se pudo guardar'), !j.ok || !!j.aviso);
         }).catch(function () { estado('Sin conexión: se guardará al volver', true); pendiente = true; })
             .then(function () {
                 guardando = false;
@@ -366,7 +382,7 @@
     }
     ['#mm-titulo', '#mm-area', '#mm-grado', '#mm-periodo'].forEach(function (s) { $(s).addEventListener('input', cambio); });
     window.addEventListener('beforeunload', function (e) {
-        if ($('#mm-estado').textContent !== 'Todo guardado') { e.preventDefault(); e.returnValue = ''; }
+        if ($('#mm-estado').textContent.indexOf('Todo guardado') !== 0) { e.preventDefault(); e.returnValue = ''; }
     });
 
     // -------------------------------------------------------------------
@@ -505,6 +521,13 @@
                     el('button', { type: 'button', class: 'btn btn-sm btn-link text-danger', text: 'Quitar imagen', onclick: function () { b.imagen = null; cambio(); pintar(); } })]));
             }
             caja2.appendChild((CUERPO[b.modo] || CUERPO.abierta)(b));
+            if (b.modo !== 'hoja') {
+                var sol = el('textarea', { class: 'form-control form-control-sm mt-1 mm-solucion', rows: '1', maxlength: '2000',
+                    placeholder: b.modo === 'abierta' ? 'Respuesta modelo (sale en la versión del docente y al terminar, si muestra las respuestas)' : 'Explicación de la respuesta (opcional, solo docente y al terminar)' });
+                sol.value = b.solucion || '';
+                sol.addEventListener('input', function () { b.solucion = sol.value; cambio(); });
+                caja2.appendChild(sol);
+            }
             caja2.appendChild(el('div', { class: 'd-flex flex-wrap gap-2 align-items-center small mt-1' }, [
                 b.modo === 'senalar' ? null : el('button', { type: 'button', class: 'btn btn-sm btn-link py-0', text: 'Imagen para la pregunta',
                     onclick: function () { activo = b.id; destinoImagen = b; $('#mm-archivo').click(); } }),
@@ -917,6 +940,114 @@
         guardar().then(function () { return postJSON(CFG.banco.guardar, { documento: CFG.doc, tema: tema, compartida: !!compartir }); })
             .then(function (j) { estado(j.ok ? j.mensaje : (j.error || 'No se pudo guardar'), !j.ok); buscarBanco(); });
     });
+
+    // -------------------------------------------------------------------
+    // Asistente con IA: acciones fijas con su costo en créditos
+    // -------------------------------------------------------------------
+    var MED = JSON.parse((document.getElementById('mm-medidor-datos') || {}).textContent || '{}');
+    var COSTOS = JSON.parse((document.getElementById('mm-ia-costos') || {}).textContent || '{}');
+    var iaAccion = 'guia';
+    function costoIA() {
+        if (iaAccion === 'actividad') {
+            var tipo = $('[data-form="actividad"] [data-c="tipo"]').value;
+            if (tipo === 'sopa' || tipo === 'crucigrama') return 2;
+            return (+$('[data-form="actividad"] [data-c="cantidad"]').value || 10) <= 10 ? 5 : 8;
+        }
+        return COSTOS[iaAccion] || 1;
+    }
+    function disponibles() { return (MED.dia || 0) + (MED.mes || 0) + (MED.extra || 0); }
+    function pintarMedidor(m) {
+        if (m) MED = m;
+        $$('#mm-medidor [data-m]').forEach(function (x) { x.textContent = MED[x.getAttribute('data-m')]; });
+        var extra = $('#mm-medidor [data-m="extra"]');
+        if (extra) extra.parentNode.classList.toggle('d-none', !MED.extra);
+        var c = costoIA(), quedan = disponibles();
+        var t = 'Usa ' + c + ' crédito' + (c === 1 ? '' : 's') + ' · ';
+        if (MED.dia >= c || MED.mes >= c || MED.extra >= c) t += 'le quedan ' + (quedan - c);
+        else t += 'no le alcanzan los créditos; con su saldo vale $' + (c * CFG.pesosCredito).toLocaleString('es-CO') + ' (saldo $' + (MED.saldo || 0).toLocaleString('es-CO') + ')';
+        var out = $('#mm-ia-costo'); if (out) out.textContent = t;
+    }
+    function elegirIA(accion) {
+        iaAccion = accion;
+        $$('#mm-ia-acciones [data-ia]').forEach(function (b) {
+            var si = b.getAttribute('data-ia') === accion;
+            b.classList.toggle('btn-primary', si); b.classList.toggle('btn-outline-primary', !si);
+        });
+        $$('.mm-ia-form').forEach(function (f) { f.classList.toggle('d-none', f.getAttribute('data-form') !== accion); });
+        $('#mm-ia-resultado').innerHTML = '';
+        pintarMedidor();
+    }
+    $$('#mm-ia-acciones [data-ia]').forEach(function (b) { b.addEventListener('click', function () { elegirIA(b.getAttribute('data-ia')); }); });
+    $$('.mm-ia-form [data-c]').forEach(function (x) { x.addEventListener('input', function () { pintarMedidor(); }); x.addEventListener('change', function () { pintarMedidor(); }); });
+    var abrirIA = $('#mm-ia-abrir');
+    if (abrirIA) abrirIA.addEventListener('click', function () {
+        var tema = $('[data-form="guia"] [data-c="tema"]');
+        if (tema && !tema.value) tema.value = $('#mm-titulo').value;
+        pintarMedidor();
+        if (window.bootstrap) new bootstrap.Modal($('#mm-ia')).show();
+    });
+    function datosIA() {
+        var d = { grado: $('#mm-grado').value, area: $('#mm-area').value, documento: CFG.doc, indicaciones: $('#mm-ia-extra').value };
+        $$('[data-form="' + iaAccion + '"] [data-c]').forEach(function (x) { d[x.getAttribute('data-c')] = x.value; });
+        if (iaAccion === 'piar') d.ajustes = $$('[data-form="piar"] [data-ajuste]').filter(function (x) { return x.checked; }).map(function (x) { return x.getAttribute('data-ajuste'); });
+        return d;
+    }
+    function insertarVarios(lista) {
+        var i = activo ? indice(activo) : -1;
+        var pos = i < 0 ? datos.bloques.length : i + 1;
+        lista.forEach(function (b, k) { datos.bloques.splice(pos + k, 0, b); });
+        if (lista.length) activo = lista[lista.length - 1].id;
+        pintar(); cambio();
+    }
+    function mostrarCambios(cambios) {
+        var caja = $('#mm-ia-resultado');
+        caja.innerHTML = '';
+        if (!cambios.length) { caja.appendChild(el('div', { class: 'alert alert-success small', text: 'No encontró nada que corregir.' })); return; }
+        function aplicar(c) {
+            var b = datos.bloques[indice(c.id)];
+            if (!b) return;
+            if (c.campo.indexOf('opciones.') === 0) b.opciones[+c.campo.split('.')[1]] = c.corregido;
+            else b[c.campo] = c.corregido;
+        }
+        caja.appendChild(el('div', { class: 'd-flex justify-content-between align-items-center mb-2' }, [
+            el('b', { class: 'small', text: cambios.length + ' corrección(es) sugerida(s)' }),
+            el('button', { type: 'button', class: 'btn btn-sm btn-success', text: 'Aceptar todas', onclick: function () {
+                cambios.forEach(aplicar); pintar(); cambio(); caja.innerHTML = '<div class="alert alert-success small">Correcciones aplicadas.</div>'; } })]));
+        cambios.forEach(function (c) {
+            var fila = el('div', { class: 'mm-cambio small' }, [
+                el('div', {}, [el('del', { text: c.original.replace(/<[^>]+>/g, ' ') })]),
+                el('div', {}, [el('ins', { text: c.corregido.replace(/<[^>]+>/g, ' ') })]),
+                c.motivo ? el('div', { class: 'text-muted', text: c.motivo }) : null]);
+            fila.appendChild(el('button', { type: 'button', class: 'btn btn-sm btn-outline-success mt-1', text: 'Aceptar', onclick: function () {
+                aplicar(c); pintar(); cambio(); fila.remove(); } }));
+            caja.appendChild(fila);
+        });
+    }
+    function generarIA(usarSaldo) {
+        var boton = $('#mm-ia-generar'), caja = $('#mm-ia-resultado');
+        var cuerpo = datosIA(); cuerpo.usar_saldo = !!usarSaldo;
+        boton.disabled = true;
+        caja.innerHTML = '<div class="small text-muted"><span class="spinner-border spinner-border-sm me-1"></span>La IA está trabajando… puede tardar hasta un minuto.</div>';
+        guardar().then(function () { return postJSON(CFG.ia.replace('ACCION', iaAccion), cuerpo); }).then(function (j) {
+            boton.disabled = false;
+            if (j.medidor) pintarMedidor(j.medidor);
+            if (!j.ok) {
+                caja.innerHTML = '';
+                if (j.sin_creditos && j.puede_saldo && window.confirm(j.error + '\n\n¿Usar su saldo?')) { generarIA(true); return; }
+                caja.appendChild(el('div', { class: 'alert alert-warning small' }, [el('span', { text: j.error || 'No se pudo.' }), j.sin_creditos ? el('a', { href: '/materiales/creditos/', class: 'ms-1', text: 'Mis créditos' }) : null]));
+                return;
+            }
+            if (j.redirect) { estado(j.mensaje || 'Listo'); location.href = j.redirect; return; }
+            if (j.cambios) { mostrarCambios(j.cambios); return; }
+            if (j.bloques) {
+                insertarVarios(j.bloques);
+                caja.innerHTML = '<div class="alert alert-success small">Listo: ' + j.bloques.length + ' bloque(s) agregados al documento. Revíselos antes de usarlos.</div>';
+                setTimeout(function () { var m = window.bootstrap && bootstrap.Modal.getInstance($('#mm-ia')); if (m) m.hide(); }, 1200);
+            }
+        }).catch(function () { boton.disabled = false; caja.innerHTML = '<div class="alert alert-danger small">No hubo respuesta. Revise la conexión.</div>'; });
+    }
+    var botonIA = $('#mm-ia-generar');
+    if (botonIA) botonIA.addEventListener('click', function () { generarIA(false); });
 
     pintarOpciones();
     pintar();

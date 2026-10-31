@@ -1,0 +1,43 @@
+{% extends base %}
+{% block page_title %}
+<h4 class="mb-0"><i class="fas fa-book-bookmark me-2"></i>Biblioteca</h4>
+<p class="text-muted small mb-0">Materiales listos para usar: el banco libre de mcolegio, lo que comparten los docentes de la comunidad{% if not acceso.es_individual %} y lo de su colegio{% endif %}. Con «Usar una copia» queda en sus documentos, con su encabezado.</p>
+{% endblock %}
+{% block content %}
+{% include 'materiales/_estilos.html' %}
+<div class="mm">
+<div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+  <a href="{% url 'materiales:lista' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Mis materiales</a>
+  <div class="btn-group btn-group-sm" role="group" aria-label="Qué ver">
+    <a class="btn {% if pestana == 'todo' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?ver=todo">Todo</a>
+    <a class="btn {% if pestana == 'libre' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?ver=libre">Banco libre</a>
+    <a class="btn {% if pestana == 'comunidad' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?ver=comunidad">Comunidad</a>
+    {% if not acceso.es_individual %}<a class="btn {% if pestana == 'colegio' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?ver=colegio">Mi colegio</a>{% endif %}
+    <a class="btn {% if pestana == 'mios' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?ver=mios">Lo que compartí</a>
+  </div>
+  {% if user.is_superuser %}<a href="{% url 'materiales:revision' %}" class="btn btn-sm btn-outline-dark ms-auto">Revisión{% if en_revision %} <span class="badge text-bg-danger">{{ en_revision }}</span>{% endif %}</a>{% endif %}
+</div>
+<form class="mm-tarjeta row g-2 align-items-end" method="get"><input type="hidden" name="ver" value="{{ pestana }}">
+  <div class="col-md-4"><label class="small fw-bold mb-1" for="bb-q">Buscar</label><input id="bb-q" name="q" value="{{ filtro.q }}" class="form-control form-control-sm" placeholder="fracciones, leyendas, DBA 3…"></div>
+  <div class="col-md-2"><label class="small fw-bold mb-1" for="bb-area">Área</label><input id="bb-area" name="area" value="{{ filtro.area }}" class="form-control form-control-sm"></div>
+  <div class="col-md-2"><label class="small fw-bold mb-1" for="bb-grado">Grado</label><input id="bb-grado" name="grado" value="{{ filtro.grado }}" class="form-control form-control-sm"></div>
+  <div class="col-md-2"><label class="small fw-bold mb-1" for="bb-tipo">Tipo</label><select id="bb-tipo" name="tipo" class="form-select form-select-sm"><option value="">Todos</option>{% for k, v in tipos %}{% if k != 'institucional' %}<option value="{{ k }}" {% if filtro.tipo == k %}selected{% endif %}>{{ v }}</option>{% endif %}{% endfor %}</select></div>
+  <div class="col-md-2 d-flex gap-1"><select name="orden" class="form-select form-select-sm" aria-label="Orden"><option value="">Recientes</option><option value="usados" {% if filtro.orden == 'usados' %}selected{% endif %}>Más usados</option><option value="estrellas" {% if filtro.orden == 'estrellas' %}selected{% endif %}>Mejor valorados</option></select><button class="btn btn-sm mm-oro">Buscar</button></div>
+</form>
+<div class="row g-2">
+{% for m in materiales %}
+  <div class="col-md-6 col-xl-4"><a class="text-decoration-none text-reset" href="{% url 'materiales:material' m.pk %}"><div class="mm-ficha-bib">
+    <div class="d-flex gap-1 mb-1"><span class="mm-sello {{ m.alcance }}">{{ m.get_alcance_display }}</span>{% if m.estado != 'publicado' %}<span class="mm-sello {{ m.estado }}">{{ m.get_estado_display }}</span>{% endif %}</div>
+    <div class="t">{{ m.titulo }}</div>
+    <div class="small text-muted">{{ m.get_tipo_display }}{% if m.area %} · {{ m.area }}{% endif %}{% if m.grado %} · Grado {{ m.grado }}{% endif %}{% if m.preguntas %} · {{ m.preguntas }} pregunta{{ m.preguntas|pluralize }}{% endif %}</div>
+    {% if m.descripcion %}<div class="small mt-1">{{ m.descripcion|truncatechars:120 }}</div>{% endif %}
+    <div class="small text-muted mt-auto pt-2 d-flex justify-content-between"><span>{% if m.alcance == 'libre' %}mcolegio{% else %}{{ m.autor.get_full_name|default:m.autor.username }}{% endif %}</span>
+      <span>{% if m.estrellas %}<span class="mm-estrellas">★</span> {{ m.estrellas }} · {% endif %}{{ m.usos }} uso{{ m.usos|pluralize }}</span></div>
+  </div></a></div>
+{% empty %}
+  <div class="col-12"><div class="mm-tarjeta text-center text-muted">No hay materiales {% if pestana == 'mios' %}compartidos por usted todavía. Abra un documento y use «Compartir».{% else %}con esa búsqueda.{% endif %}</div></div>
+{% endfor %}
+</div>
+{% if total > materiales|length %}<div class="small text-muted mt-2">Se muestran {{ materiales|length }} de {{ total }}. Afine la búsqueda para ver los demás.</div>{% endif %}
+</div>
+{% endblock %}

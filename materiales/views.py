@@ -41,7 +41,8 @@ class Acceso:
         else:
             self.admin = False
             self.cuenta = getattr(user, 'cuenta_salon', None)
-            self.ok = self.cuenta is not None
+            # El dueño de la plataforma entra para armar el banco libre de mcolegio.
+            self.ok = self.cuenta is not None or user.is_superuser
 
     @property
     def base(self):
@@ -61,9 +62,14 @@ class Acceso:
         return self.documentos().filter(plantilla_colegio=True)
 
     def cuota(self):
+        from .creditos import nube_extra_bytes, plan_de
         if self.cuenta is not None and getattr(self.cuenta, 'plan', '') == 'prueba':
-            return 200 * MB
-        return 2048 * MB
+            base = 200 * MB
+        elif self.colegio is None and plan_de(self.request.user, None) == 'individual_ia':
+            base = 5 * 1024 * MB
+        else:
+            base = 2048 * MB
+        return base + nube_extra_bytes(self.request.user)
 
     def usado(self):
         return Imagen.objects.filter(propietario=self.request.user).aggregate(t=Sum('peso'))['t'] or 0
@@ -122,7 +128,8 @@ def _nube(a):
 def lista(request, a):
     return render(request, 'materiales/lista.html', {
         'base': a.base, 'acceso': a, 'documentos': a.documentos(), 'nube': _nube(a),
-        'formatos': a.plantillas_formato().select_related('propietario'), 'tipos': Documento.TIPOS})
+        'formatos': a.plantillas_formato().select_related('propietario'), 'tipos': Documento.TIPOS,
+        **_contexto_ia(request, a)})
 
 
 @require_POST
@@ -274,7 +281,19 @@ def editor(request, a, pk):
         'base': a.base, 'acceso': a, 'doc': doc, 'contenido': doc.contenido, 'imagenes': imagenes,
         'aulas': a.aulas(), 'nube': _nube(a), 'tipos': Documento.TIPOS, 'nube_docente': _nube_docente(request),
         'destinos': _destinos_examen(a), 'modos_pregunta': B.MODOS_PREGUNTA,
-        'examen': doc.examen if doc.examen_id else None})
+        'examen': doc.examen if doc.examen_id else None, **_contexto_ia(request, a, doc)})
+
+
+def _contexto_ia(request, a, doc=None):
+    from . import creditos, ia
+    from .models import MaterialCompartido
+    datos = {'med': creditos.estado(request.user, a.colegio), 'ia_lista': ia.disponible(),
+             'ia_costos': {k: v['creditos'] for k, v in ia.ACCIONES.items()},
+             'banco_ia': [(k, v[0]) for k, v in ia.BANCO.items()], 'ajustes_piar': ia.AJUSTES_PIAR,
+             'pesos_credito': creditos.PESOS_POR_CREDITO}
+    if doc is not None:
+        datos['compartidos'] = list(MaterialCompartido.objects.filter(documento=doc))
+    return datos
 
 
 @require_POST
@@ -292,7 +311,9 @@ def guardar(request, a, pk):
     doc.grado = B.texto_plano(datos.get('grado'), 40)
     doc.periodo = B.texto_plano(datos.get('periodo'), 40)
     doc.save()
-    return JsonResponse({'ok': True, 'guardado': doc.actualizado.isoformat()})
+    fuera = [p for b in doc.contenido['bloques'] if b.get('modo') in ('sopa', 'crucigrama') for p in b.get('fuera') or []]
+    aviso = f'No cupieron en la cuadrícula: {", ".join(fuera[:8])}' if fuera else ''
+    return JsonResponse({'ok': True, 'guardado': doc.actualizado.isoformat(), 'aviso': aviso})
 
 
 # ---------------------------------------------------------------------------

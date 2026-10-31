@@ -1,0 +1,23 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Revisión de la biblioteca</h4>
+<p class="text-muted small mb-0">Los primeros materiales de cada docente en la comunidad y los que tienen reportes. Al aprobar uno nuevo, el autor recibe 20 créditos de IA.</p>{% endblock %}
+{% block content %}
+{% include 'materiales/_estilos.html' %}
+<div class="mm">
+<a href="{% url 'materiales:consumo_plataforma' %}" class="btn btn-sm btn-outline-secondary mb-2">Panel de IA y saldo</a>
+{% for m in pendientes %}
+<div class="mm-tarjeta">
+  <div class="d-flex flex-wrap gap-2 align-items-center"><span class="mm-sello {{ m.estado }}">{{ m.get_estado_display }}</span>
+    <a class="fw-bold" href="{% url 'materiales:material' m.pk %}" target="_blank" rel="noopener">{{ m.titulo }}</a>
+    <span class="small text-muted">{{ m.get_tipo_display }} · {{ m.autor.get_full_name|default:m.autor.username }}{% if m.colegio %} · {{ m.colegio.nombre }}{% endif %} · {{ m.creado|date:"d M" }}</span></div>
+  {% for r in m.reportes.all %}<div class="small text-danger mt-1"><i class="fas fa-flag me-1"></i>{{ r.motivo }}</div>{% endfor %}
+  <form method="post" class="d-flex flex-wrap gap-2 mt-2">{% csrf_token %}<input type="hidden" name="material" value="{{ m.pk }}">
+    <button name="accion" value="aprobar" class="btn btn-sm btn-success">Aprobar y publicar</button>
+    <input name="motivo" maxlength="300" class="form-control form-control-sm" style="max-width:320px" placeholder="Motivo si se rechaza">
+    <button name="accion" value="rechazar" class="btn btn-sm btn-outline-danger">Rechazar</button>
+    <button name="accion" value="libre" class="btn btn-sm btn-outline-warning">Pasar al banco libre</button>
+  </form>
+</div>
+{% empty %}<div class="mm-tarjeta text-muted text-center">No hay nada pendiente.</div>{% endfor %}
+</div>
+{% endblock %}

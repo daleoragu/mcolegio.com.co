@@ -44,6 +44,8 @@ def _bloques(tarea, semilla):
             for campo in b['campos']:
                 campo['valor'] = None
                 campo['estado'] = None
+        elif b['modo'] == 'sopa':
+            b['celdas'] = [[(letra, False, False) for letra, _ in fila] for fila in b['cuadricula']]
     return bloques, total
 
 
@@ -71,6 +73,22 @@ def _rellenar(bloques, respuestas, res):
             marcas = C.puntos_marcados(r)
             b['marcas'] = [f'left:{x:.1f}%;top:{y:.1f}%' for x, y in marcas]
             b['marcas_valor'] = ';'.join(f'{x:.1f},{y:.1f}' for x, y in marcas)
+        elif b['modo'] == 'sopa':
+            from materiales import juegos
+            trazos = [t for t in (r or []) if isinstance(t, list) and len(t) == 4]
+            mias = set()
+            for t in trazos:
+                f1, c1, f2, c2 = t
+                df, dc = (f2 > f1) - (f2 < f1), (c2 > c1) - (c2 < c1)
+                largo = max(abs(f2 - f1), abs(c2 - c1))
+                if f1 == f2 or c1 == c2 or abs(f2 - f1) == abs(c2 - c1):
+                    mias |= {(f1 + df * k, c1 + dc * k) for k in range(largo + 1)}
+            b['celdas'] = [[(letra, en, (f, c) in mias) for c, (letra, en) in enumerate(fila)]
+                           for f, fila in enumerate(b['cuadricula'])]
+            b['trazos_valor'] = ';'.join(','.join(str(x) for x in t) for t in trazos)
+        elif b['modo'] == 'crucigrama':
+            from materiales import juegos
+            b['tablero'] = juegos.tablero_crucigrama(b, respuestas=r)
         elif b['modo'] == 'hoja':
             _, _, _, estado = C.calificar_hoja(b, r)
             r = r if isinstance(r, dict) else {}

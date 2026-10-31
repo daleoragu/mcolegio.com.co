@@ -1,0 +1,106 @@
+{% extends base %}
+{% load humanize %}
+{% block page_title %}
+<h4 class="mb-0"><i class="fas fa-wand-magic-sparkles me-2"></i>Mis créditos de IA</h4>
+<p class="text-muted small mb-0">Cada acción del asistente dice cuántos créditos usa antes de hacerla. Si la IA falla, los créditos se devuelven solos.</p>
+{% endblock %}
+{% block content %}
+{% include 'materiales/_estilos.html' %}
+<div class="mm">
+<div class="d-flex flex-wrap gap-2 mb-2">
+  <a href="{% url 'materiales:lista' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Mis materiales</a>
+  {% if acceso.admin %}<a href="{% url 'materiales:consumo_colegio' %}" class="btn btn-sm btn-outline-primary">Consumo del colegio</a>{% endif %}
+  {% if user.is_superuser %}<a href="{% url 'materiales:consumo_plataforma' %}" class="btn btn-sm btn-outline-dark">Panel de la plataforma</a>{% endif %}
+</div>
+{% if not ia_lista %}<div class="alert alert-warning small">El asistente con IA todavía no está activo en la plataforma. Los créditos y el saldo ya se pueden ver y recargar.</div>{% endif %}
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="mm-tarjeta">
+      <h6>Lo que tiene hoy</h6>
+      <div class="row g-2 text-center">
+        {% if est.dia_total %}<div class="col"><div class="mm-cifra">{{ est.dia }}<small> de {{ est.dia_total }}</small></div><div class="small text-muted">Recarga diaria · vuelve el {{ est.renueva_dia|date:"d M" }}</div></div>{% endif %}
+        {% if est.mes_total %}<div class="col"><div class="mm-cifra">{{ est.mes }}<small> de {{ est.mes_total }}</small></div><div class="small text-muted">Bolsa del mes · vuelve el {{ est.renueva_mes|date:"d M" }}</div></div>{% endif %}
+        <div class="col"><div class="mm-cifra">{{ est.extra }}</div><div class="small text-muted">Paquetes y regalos · hasta fin de mes</div></div>
+        <div class="col"><div class="mm-cifra">${{ est.saldo|intcomma }}</div><div class="small text-muted">Saldo (no vence) · {{ est.saldo_creditos }} créditos</div></div>
+      </div>
+      <div class="small text-muted mt-2">Se gasta primero la recarga diaria, después la bolsa del mes, después los paquetes y al final el saldo, solo si usted acepta.</div>
+    </div>
+
+    <div class="mm-tarjeta">
+      <h6>Lo que cuesta cada acción</h6>
+      <table class="table table-sm mb-0"><tbody>
+        {% for nombre, c in acciones %}<tr><td>{{ nombre }}</td><td class="text-end">{{ c }} crédito{{ c|pluralize }}</td></tr>{% endfor %}
+        <tr><td>Sopa de letras o crucigrama</td><td class="text-end">2 créditos</td></tr>
+      </tbody></table>
+      <div class="small text-muted mt-1">Con saldo, cada crédito vale ${{ pesos_credito }}. Una actividad de más de 10 ítems usa 8 créditos.</div>
+    </div>
+
+    <div class="mm-tarjeta p-0">
+      <div class="p-3 pb-0"><h6>Historial</h6></div>
+      <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>Fecha</th><th>Movimiento</th><th class="text-end">Créditos</th><th class="text-end">Saldo</th></tr></thead>
+        <tbody>
+        {% for m in movimientos %}
+        <tr{% if m.devuelto %} class="text-muted"{% endif %}>
+          <td class="small text-nowrap">{{ m.creado|date:"d M, h:i a" }}</td>
+          <td class="small">{{ m.detalle|default:m.get_tipo_display }}{% if m.devuelto %} <span class="badge text-bg-light">devuelto</span>{% endif %}</td>
+          <td class="text-end small">{% if m.tipo == 'uso' %}−{{ m.creditos }} <span class="text-muted">({{ m.get_bolsa_display|lower }})</span>{% elif m.creditos %}+{{ m.creditos }}{% endif %}</td>
+          <td class="text-end small">{% if m.pesos %}{% if m.pesos > 0 %}+{% endif %}${{ m.pesos|intcomma }}{% endif %}</td>
+        </tr>
+        {% empty %}<tr><td colspan="4" class="text-center text-muted small py-3">Todavía no ha usado la IA.</td></tr>{% endfor %}
+        </tbody></table></div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="mm-tarjeta">
+      <h6>Recargar saldo</h6>
+      <form method="post" action="{% url 'materiales:recargar' %}" class="d-grid gap-2">{% csrf_token %}
+        {% for monto, bono in recargas_opciones %}
+        <button class="btn btn-outline-primary text-start" name="monto" value="{{ monto }}">
+          <b>${{ monto|intcomma }}</b>{% if bono %} <span class="badge text-bg-success">+${{ bono|intcomma }} de regalo</span>{% endif %}
+        </button>
+        {% endfor %}
+      </form>
+      <div class="small text-muted mt-2">{% if wompi %}Pago seguro con Wompi (Bancolombia): tarjeta, PSE o Nequi. El saldo aparece apenas se aprueba.{% else %}El pago en línea todavía no está activo; por ahora se recarga por transferencia con la línea de mcolegio.{% endif %}</div>
+      {% for r in recargas %}<div class="small d-flex justify-content-between border-top mt-2 pt-1"><span>${{ r.monto|intcomma }} · {{ r.creada|date:"d M" }}</span><span>{{ r.get_estado_display }}</span></div>{% endfor %}
+    </div>
+
+    <div class="mm-tarjeta">
+      <h6>Pagar con el saldo</h6>
+      <form method="post" action="{% url 'materiales:creditos_accion' %}" class="mb-2">{% csrf_token %}
+        <input type="hidden" name="accion" value="paquete">
+        <button class="btn btn-sm mm-oro w-100" {% if est.saldo < paquete.pesos %}disabled{% endif %}>{{ paquete.creditos }} créditos hasta fin de mes · ${{ paquete.pesos|intcomma }}</button>
+      </form>
+      {% if acceso.es_individual %}
+      <form method="post" action="{% url 'materiales:creditos_accion' %}" class="mb-2">{% csrf_token %}
+        <input type="hidden" name="accion" value="plan_ia">
+        <button class="btn btn-sm btn-outline-primary w-100" {% if est.saldo < plan_ia.pesos %}disabled{% endif %}>Plan con IA por {{ plan_ia.dias }} días · ${{ plan_ia.pesos|intcomma }}</button>
+        <div class="small text-muted">200 créditos al mes, 8 diarios y 5 GB de nube.{% if est.ia_hasta %} Activo hasta el {{ est.ia_hasta|date:"d M Y" }}.{% endif %}</div>
+      </form>
+      {% endif %}
+      {% for gb, pesos in nube %}
+      <form method="post" action="{% url 'materiales:creditos_accion' %}" class="mb-1">{% csrf_token %}
+        <input type="hidden" name="accion" value="nube"><input type="hidden" name="gb" value="{{ gb }}">
+        <button class="btn btn-sm btn-outline-secondary w-100" {% if est.saldo < pesos %}disabled{% endif %}>Nube +{{ gb }} GB por 30 días · ${{ pesos|intcomma }}</button>
+      </form>
+      {% endfor %}
+      {% if est.nube_extra_gb %}<div class="small text-muted">Nube ampliada en {{ est.nube_extra_gb }} GB hasta el {{ est.nube_extra_hasta|date:"d M Y" }}.</div>{% endif %}
+    </div>
+
+    <div class="mm-tarjeta">
+      <h6>Cuando se acaben los créditos</h6>
+      <form method="post" action="{% url 'materiales:creditos_accion' %}">{% csrf_token %}
+        <input type="hidden" name="accion" value="ajustes">
+        <div class="form-check small mb-1"><input class="form-check-input" type="checkbox" name="sin_preguntar" id="cr-sin" {% if est.sin_preguntar %}checked{% endif %}>
+          <label class="form-check-label" for="cr-sin">Usar mi saldo sin preguntarme cada vez</label></div>
+        <label class="small" for="cr-tope">Hasta este tope al mes</label>
+        <div class="input-group input-group-sm mb-2" style="max-width:220px"><span class="input-group-text">$</span><input id="cr-tope" type="number" min="0" max="200000" step="500" name="tope_mes" value="{{ est.tope_mes }}" class="form-control"></div>
+        <div class="small text-muted mb-2">Este mes van ${{ est.gastado_saldo_mes|intcomma }} usados del saldo.</div>
+        <button class="btn btn-sm btn-outline-secondary">Guardar</button>
+      </form>
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}

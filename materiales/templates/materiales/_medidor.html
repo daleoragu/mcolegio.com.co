@@ -1,0 +1,9 @@
+{# Medidor de créditos de IA: med = creditos.estado(...) #}
+<div class="mm-medidor d-flex flex-wrap align-items-center gap-2 small" id="mm-medidor">
+  <span class="fw-bold" style="color:#1f3a68"><i class="fas fa-wand-magic-sparkles me-1"></i>IA</span>
+  {% if med.dia_total %}<span class="mm-bolsa" title="Se renueva cada día a medianoche; lo que no use se pierde">Hoy <b data-m="dia">{{ med.dia }}</b> de {{ med.dia_total }}</span>{% endif %}
+  {% if med.mes_total %}<span class="mm-bolsa" title="Se renueva el día 1 de cada mes">Mes <b data-m="mes">{{ med.mes }}</b> de {{ med.mes_total }}</span>{% endif %}
+  <span class="mm-bolsa{% if not med.extra %} d-none{% endif %}" title="Paquetes y regalos: duran hasta fin de mes">Extra <b data-m="extra">{{ med.extra }}</b></span>
+  <span class="mm-bolsa" title="Saldo prepago: no vence; cada crédito vale ${{ pesos_credito|default:20 }}">Saldo $<b data-m="saldo">{{ med.saldo }}</b></span>
+  <a href="{% url 'materiales:creditos' %}" class="ms-1">Mis créditos</a>
+</div>

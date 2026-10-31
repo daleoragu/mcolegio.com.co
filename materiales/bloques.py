@@ -40,9 +40,11 @@ MODOS_PREGUNTA = {
     'senalar': 'Señalar en la imagen',
     'archivo': 'Respuesta con foto o audio',
     'hoja': 'Hoja sobre un PDF o una imagen',
+    'sopa': 'Sopa de letras',
+    'crucigrama': 'Crucigrama',
 }
 AUTOMATICAS = ('unica', 'varias', 'vf', 'completar', 'numerica', 'emparejar', 'ordenar', 'clasificar', 'senalar',
-               'hoja')
+               'hoja', 'sopa', 'crucigrama')
 # Lo que el estudiante manda en una respuesta con archivo.
 ARCHIVO_TIPOS = {'foto': 'Foto', 'audio': 'Audio', 'cualquiera': 'Foto o audio'}
 # Campos que se ponen encima de la página en una hoja sobre un PDF.
@@ -239,7 +241,8 @@ def _limpiar_pregunta(b, imagenes_validas):
     n = {'modo': modo, 'enunciado': texto_plano(b.get('enunciado'), 2000),
          'imagen': img if img in imagenes_validas else None,
          'puntos': _entero(b.get('puntos'), 1, 1, 100), 'control': bool(b.get('control')),
-         'lineas': _entero(b.get('lineas'), 3 if modo in ('abierta',) else 0, 0, 20)}
+         'lineas': _entero(b.get('lineas'), 3 if modo in ('abierta',) else 0, 0, 20),
+         'solucion': texto_plano(b.get('solucion'), 2000)}
     if modo in ('unica', 'varias'):
         opciones = [texto_plano(o, 400) for o in opciones_crudas[:MAX_OPCIONES]]
         # Se quitan las vacías corrigiendo el índice de las correctas.
@@ -297,6 +300,20 @@ def _limpiar_pregunta(b, imagenes_validas):
         n['campos'] = campos
         n['puntos'] = max(1, puntos_hoja(n))
         n['lineas'] = 0
+    elif modo == 'sopa':
+        from . import juegos
+        n['palabras'] = [p for p in (juegos.palabra_limpia(x) for x in (b.get('palabras') or [])[:juegos.MAX_PALABRAS])
+                         if len(p) >= juegos.MIN_LARGO]
+        n['dificil'] = bool(b.get('dificil'))
+        n.update(juegos.generar_sopa(n['palabras'], b.get('id') or 'x', n['dificil']))
+    elif modo == 'crucigrama':
+        from . import juegos
+        pares = []
+        for x in (b.get('pares') or [])[:juegos.MAX_PALABRAS]:
+            if isinstance(x, (list, tuple)) and len(x) == 2:
+                pares.append((texto_plano(x[0], 40), texto_plano(x[1], 200)))
+        n['pares'] = [list(x) for x in pares if juegos.palabra_limpia(x[0])]
+        n.update(juegos.generar_crucigrama(pares, b.get('id') or 'x'))
     return n
 
 

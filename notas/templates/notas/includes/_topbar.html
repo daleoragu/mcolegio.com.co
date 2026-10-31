@@ -75,6 +75,7 @@
                     <li><h6 class="dropdown-header">Paneles</h6></li>
                     <li><a class="dropdown-item" href="{% url 'notas:admin_dashboard' %}"><i class="fas fa-user-shield fa-fw me-2 text-muted"></i>Panel de Administración</a></li>
                     {% if user.is_superuser %}<li><a class="dropdown-item {% if request.resolver_match.url_name == 'modulos_colegios' %}active{% endif %}" href="{% url 'notas:modulos_colegios' %}"><i class="fas fa-toggle-on fa-fw me-2 text-muted"></i>Módulos de los colegios</a></li>{% endif %}
+                    {% if user.is_superuser %}<li><a class="dropdown-item" href="/materiales/creditos/plataforma/"><i class="fas fa-wand-magic-sparkles fa-fw me-2 text-muted"></i>IA, saldo y biblioteca</a></li>{% endif %}
                     <li><a class="dropdown-item" href="{% url 'notas:admin_dashboard' %}#docente"><i class="fas fa-chalkboard-teacher fa-fw me-2 text-muted"></i>Panel Docente</a></li>
                     <li><a class="dropdown-item" href="{% url 'notas:admin_dashboard' %}#estudiante"><i class="fas fa-user-graduate fa-fw me-2 text-muted"></i>Panel Estudiante</a></li>
                     <li><hr class="dropdown-divider"></li>

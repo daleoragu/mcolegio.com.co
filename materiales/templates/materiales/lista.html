@@ -6,12 +6,15 @@
 {% block content %}
 {% include 'materiales/_estilos.html' %}
 <div class="mm">
+<div class="mb-2">{% include 'materiales/_medidor.html' %}</div>
 <div class="row g-3">
   <div class="col-lg-8">
     <div class="mm-tarjeta">
       <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
         <h6 class="mb-0 flex-grow-1">Crear</h6>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'materiales:biblioteca' %}"><i class="fas fa-book-bookmark me-1"></i>Biblioteca</a>
         <a class="btn btn-sm btn-outline-primary" href="{% url 'materiales:banco_pagina' %}"><i class="fas fa-box-archive me-1"></i>Banco de preguntas</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:ayuda' %}"><i class="far fa-circle-question me-1"></i>Guías de uso</a>
         {% if acceso.es_individual %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:encabezado' %}"><i class="fas fa-heading me-1"></i>Mi encabezado</a>{% endif %}
       </div>
       <div class="mm-tipos">
