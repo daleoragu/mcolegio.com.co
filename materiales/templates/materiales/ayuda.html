@@ -1,0 +1,67 @@
+{% extends base %}
+{% block page_title %}
+<h4 class="mb-0"><i class="fas fa-circle-question me-2"></i>Guías de uso de Mis materiales</h4>
+<p class="text-muted small mb-0">Pasos cortos para cada cosa que se puede hacer. Los videos están en el canal de YouTube de mcolegio.</p>
+{% endblock %}
+{% block content %}
+{% include 'materiales/_estilos.html' %}
+<div class="mm">
+<a href="{% url 'materiales:lista' %}" class="btn btn-sm btn-outline-secondary mb-2"><i class="fas fa-arrow-left me-1"></i>Mis materiales</a>
+<div class="accordion" id="guias">
+  <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#g1">1. Crear la primera guía</button></h2>
+    <div id="g1" class="accordion-collapse collapse show" data-bs-parent="#guias"><div class="accordion-body small"><ol>
+      <li>En Mis materiales escoja el tipo: guía por momentos, Escuela Nueva, taller, evaluación, cuadernillo o documento en blanco.</li>
+      <li>Escriba el título, el área, el grado y el periodo arriba. Se guarda solo mientras escribe.</li>
+      <li>Toque un bloque para marcarlo; lo nuevo se agrega debajo con los botones de abajo (texto, título, sección, imagen, pregunta…).</li>
+      <li>Use las flechas de cada bloque para subirlo o bajarlo, y la papelera para quitarlo.</li>
+      <li>Toque <b>Vista previa</b> para ver cómo sale impreso con su encabezado.</li></ol></div></div></div>
+  <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g2">2. Pegar imágenes</button></h2>
+    <div id="g2" class="accordion-collapse collapse" data-bs-parent="#guias"><div class="accordion-body small"><ol>
+      <li>Copie la imagen (de internet, de un PDF o una captura de pantalla) y en el editor oprima <b>Ctrl+V</b>.</li>
+      <li>También puede arrastrarla desde el escritorio o usar el botón <b>Imagen</b>.</li>
+      <li>Si tiene marcada una pregunta sin imagen, la imagen va a esa pregunta.</li>
+      <li>Las imágenes se guardan comprimidas en su nube. Use solo imágenes propias o de uso libre.</li></ol></div></div></div>
+  <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g3">3. El encabezado</button></h2>
+    <div id="g3" class="accordion-collapse collapse" data-bs-parent="#guias"><div class="accordion-body small">
+      {% if acceso.es_individual %}En <b>Mi encabezado</b> suba su logo y escriba hasta tres líneas (nombre, institución, área). Sale en el PDF y en el Word.{% else %}Cada documento sale con el encabezado oficial del colegio, el mismo de los boletines. Lo cambia el administrador en la configuración del colegio.{% endif %}
+      Con la casilla «Área, grado, periodo y docente» del botón <b>Acomodar</b> decide si van debajo del título.</div></div></div>
+  <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g4">4. Armar un cuadernillo tipo Saber</button></h2>
+    <div id="g4" class="accordion-collapse collapse" data-bs-parent="#guias"><div class="accordion-body small"><ol>
+      <li>Cree un <b>Cuadernillo tipo Saber</b>. Trae portada, instrucciones y dos secciones de ejemplo.</li>
+      <li>Use <b>Texto para varias preguntas</b> para el texto o la gráfica que comparten varias preguntas: el rango «Responde las preguntas 5 a 7» se pone solo.</li>
+      <li>Marque la respuesta correcta de cada pregunta. Marque «De control» las preguntas que no cuentan.</li>
+      <li>En <b>Acomodar</b> escriba la sesión, la duración y el horario de la portada.</li>
+      <li>Con <b>PuntoExacto</b> cree el examen con la clave y luego imprima las hojas de respuesta.</li></ol></div></div></div>
+  <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g5">5. Ahorrar papel con «Acomodar»</button></h2>
+    <div id="g5" class="accordion-collapse collapse" data-bs-parent="#guias"><div class="accordion-body small">
+      Escoja <b>Normal</b>, <b>Compacto</b> o <b>Máximo ahorro</b>, una o dos columnas y el tamaño de letra. El botón <b>¿Cuántas páginas sale?</b> cuenta las páginas de cada modo y cuántas hojas se ahorran para el número de copias que escriba.</div></div></div>
+  <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g6">6. Asignar una ficha para resolver en el aula</button></h2>
+    <div id="g6" class="accordion-collapse collapse" data-bs-parent="#guias"><div class="accordion-body small"><ol>
+      <li>En el editor toque <b>Asignar para resolver</b>, escoja el aula, si da nota, los intentos, los minutos y si se muestran las respuestas.</li>
+      <li>Se abre la tarea: ponga la fecha, el periodo, el componente y para quién es (toda la clase o algunos, por ejemplo con PIAR). Márquela como publicada.</li>
+      <li>Lo cerrado se califica solo. Las preguntas abiertas, las fotos y los audios los revisa usted con <b>Revisar ficha</b>; ahí también puede pedir una retroalimentación sugerida a la IA.</li>
+      <li>Pase la nota a la planilla con el botón de siempre.</li></ol></div></div></div>
+  <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g7">7. Ficha sobre un PDF que ya tiene</button></h2>
+    <div id="g7" class="accordion-collapse collapse" data-bs-parent="#guias"><div class="accordion-body small"><ol>
+      <li>Toque <b>Hoja sobre un PDF</b> y escoja el PDF o las fotos de la guía. Cada página queda como una hoja.</li>
+      <li>Escoja <b>Escribir</b>, <b>Casilla</b> o <b>Lista</b> y arrastre sobre la página donde va la respuesta.</li>
+      <li>Toque cada campo para escribir su respuesta y sus puntos. Con las flechas del teclado lo mueve; con Shift y las flechas cambia el tamaño.</li></ol></div></div></div>
+  <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g8">8. Banco de preguntas</button></h2>
+    <div id="g8" class="accordion-collapse collapse" data-bs-parent="#guias"><div class="accordion-body small">
+      Cada pregunta tiene <b>Guardar en el banco</b>. Para reutilizarla toque <b>Del banco</b> en el editor, busque por palabra, área, grado o tipo e insértela.{% if not acceso.es_individual %} Puede compartir sus preguntas con los docentes del colegio.{% endif %}</div></div></div>
+  <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g9">9. El asistente con IA y sus créditos</button></h2>
+    <div id="g9" class="accordion-collapse collapse" data-bs-parent="#guias"><div class="accordion-body small"><ol>
+      <li>En el editor toque <b>Asistente IA</b> y escoja una acción: borrador de guía, actividad del banco (incluye sopa de letras y crucigrama), cuadernillo, adaptar para PIAR, crear rúbrica o revisar el texto.</li>
+      <li>Cada acción dice cuántos créditos usa y cuántos le quedan. Arriba ve el medidor: lo de hoy, lo del mes y su saldo.</li>
+      <li>Lo que hace la IA es un borrador: revíselo antes de usarlo. Si la IA falla, los créditos se devuelven.</li>
+      <li>Nunca escriba nombres ni diagnósticos de estudiantes; para adaptar un PIAR basta con escoger el tipo de ajuste.</li>
+      <li>Cuando se acaben, espere la recarga de mañana, compre un paquete o use su saldo en <b>Mis créditos</b>.</li></ol></div></div></div>
+  <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g10">10. Compartir en la comunidad</button></h2>
+    <div id="g10" class="accordion-collapse collapse" data-bs-parent="#guias"><div class="accordion-body small"><ol>
+      <li>En el editor toque <b>Compartir</b>, escoja {% if not acceso.es_individual %}«Mi colegio» o {% endif %}«Comunidad mcolegio» y escriba el tema y el DBA.</li>
+      <li>Sus primeros materiales los revisa el equipo de mcolegio; cada uno aprobado le da 20 créditos de IA.</li>
+      <li>Comparta solo material propio y sin imágenes con derechos de autor. Sale con su nombre y licencia Creative Commons BY-NC.</li>
+      <li>En la <b>Biblioteca</b> encuentra lo de otros docentes: «Usar una copia» lo deja en sus documentos con su encabezado.</li></ol></div></div></div>
+</div>
+</div>
+{% endblock %}

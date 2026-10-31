@@ -1,0 +1,47 @@
+{% extends 'notas/base.html' %}
+{% load humanize %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-wand-magic-sparkles me-2"></i>IA y saldo de la plataforma</h4>
+<p class="text-muted small mb-0">Usos y costo del mes en curso. Modelo: {{ modelo }} · IA {% if ia_lista %}activa{% else %}sin configurar (falta ANTHROPIC_API_KEY){% endif %} · Wompi {% if wompi %}activo{% else %}sin configurar{% endif %}.</p>{% endblock %}
+{% block content %}
+{% include 'materiales/_estilos.html' %}
+<div class="mm">
+<div class="row g-3 mb-1">
+  <div class="col-md-3"><div class="mm-tarjeta text-center"><div class="mm-cifra">{{ totales.usos|default:0 }}</div><div class="small text-muted">usos</div></div></div>
+  <div class="col-md-3"><div class="mm-tarjeta text-center"><div class="mm-cifra">{{ totales.creditos|default:0 }}</div><div class="small text-muted">créditos</div></div></div>
+  <div class="col-md-3"><div class="mm-tarjeta text-center"><div class="mm-cifra">US${{ totales.costo|default:0|floatformat:2 }}</div><div class="small text-muted">costo de la IA</div></div></div>
+  <div class="col-md-3"><div class="mm-tarjeta text-center"><div class="mm-cifra">${{ recargas.pesos|default:0|intcomma }}</div><div class="small text-muted">{{ recargas.n }} recarga{{ recargas.n|pluralize }} aprobada{{ recargas.n|pluralize }}</div></div></div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="mm-tarjeta p-0"><div class="p-3 pb-0"><h6>Por colegio</h6></div><div class="table-responsive"><table class="table table-sm mb-0">
+      <thead class="table-light"><tr><th>Colegio</th><th class="text-end">Usos</th><th class="text-end">Créditos</th><th class="text-end">US$</th></tr></thead>
+      <tbody>{% for f in por_colegio %}<tr><td>{{ f.colegio__nombre|default:"Plan individual" }}</td><td class="text-end">{{ f.usos }}</td><td class="text-end">{{ f.creditos }}</td><td class="text-end">{{ f.costo|floatformat:3 }}</td></tr>{% empty %}<tr><td colspan="4" class="text-muted text-center small">Sin usos este mes.</td></tr>{% endfor %}</tbody></table></div></div>
+    <div class="mm-tarjeta p-0"><div class="p-3 pb-0"><h6>Docentes que más usan</h6></div><div class="table-responsive"><table class="table table-sm mb-0">
+      <thead class="table-light"><tr><th>Docente</th><th>Colegio</th><th class="text-end">Usos</th><th class="text-end">Créditos</th><th class="text-end">US$</th></tr></thead>
+      <tbody>{% for f in por_docente %}<tr><td>{{ f.usuario__first_name }} {{ f.usuario__last_name }} <span class="text-muted small">{{ f.usuario__username }}</span></td><td class="small">{{ f.colegio__nombre|default:"Individual" }}</td><td class="text-end">{{ f.usos }}</td><td class="text-end">{{ f.creditos }}</td><td class="text-end">{{ f.costo|floatformat:3 }}</td></tr>{% empty %}<tr><td colspan="5" class="text-muted text-center small">Sin usos este mes.</td></tr>{% endfor %}</tbody></table></div></div>
+  </div>
+  <div class="col-lg-5">
+    <div class="mm-tarjeta">
+      <h6>Ajustar saldo a mano</h6>
+      <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="saldo">
+        <input name="usuario" class="form-control form-control-sm mb-1" placeholder="Usuario o correo" required>
+        <input name="pesos" type="number" class="form-control form-control-sm mb-1" placeholder="Pesos (negativo para descontar)" required>
+        <input name="detalle" class="form-control form-control-sm mb-2" maxlength="200" placeholder="Detalle (ej.: recarga por Nequi)">
+        <button class="btn btn-sm mm-oro w-100">Ajustar saldo</button></form>
+      <div class="small text-muted mt-1">Para recargas que llegaron por transferencia o Nequi.</div>
+    </div>
+    <div class="mm-tarjeta">
+      <h6>Activar el plan con IA</h6>
+      <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="plan_ia">
+        <input name="usuario" class="form-control form-control-sm mb-1" placeholder="Usuario o correo" required>
+        <input name="dias" type="number" min="1" max="400" value="30" class="form-control form-control-sm mb-2">
+        <button class="btn btn-sm btn-outline-primary w-100">Activar o alargar</button></form>
+    </div>
+    <div class="mm-tarjeta p-0"><div class="p-3 pb-0"><h6>Últimas recargas</h6></div><table class="table table-sm mb-0"><tbody>
+      {% for r in ultimas %}<tr><td class="small">{{ r.creada|date:"d M" }} · {{ r.usuario.username }}</td><td class="small text-end">${{ r.monto|intcomma }}</td><td class="small">{{ r.get_estado_display }}</td></tr>{% empty %}<tr><td class="text-muted small text-center">Sin recargas.</td></tr>{% endfor %}
+    </tbody></table></div>
+    <a class="btn btn-sm btn-outline-secondary mt-2" href="{% url 'materiales:revision' %}">Revisar materiales de la comunidad</a>
+  </div>
+</div>
+</div>
+{% endblock %}

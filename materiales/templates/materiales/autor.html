@@ -1,0 +1,15 @@
+{% extends base %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-user-pen me-2"></i>{{ autor.get_full_name|default:autor.username }}</h4>
+<p class="text-muted small mb-0">{{ materiales|length }} material{{ materiales|length|pluralize:"es" }} compartido{{ materiales|length|pluralize }} · usado{{ usos|pluralize }} {{ usos }} ve{{ usos|pluralize:"z,ces" }}</p>{% endblock %}
+{% block content %}
+{% include 'materiales/_estilos.html' %}
+<div class="mm">
+<a href="{% url 'materiales:biblioteca' %}" class="btn btn-sm btn-outline-secondary mb-2"><i class="fas fa-arrow-left me-1"></i>Biblioteca</a>
+{% if insignias %}<div class="mb-2">{% for i in insignias %}<span class="badge text-bg-warning me-1"><i class="fas fa-award me-1"></i>{{ i }}</span>{% endfor %}</div>{% endif %}
+<div class="row g-2">{% for m in materiales %}
+  <div class="col-md-6 col-xl-4"><a class="text-decoration-none text-reset" href="{% url 'materiales:material' m.pk %}"><div class="mm-ficha-bib">
+    <div class="t">{{ m.titulo }}</div><div class="small text-muted">{{ m.get_tipo_display }}{% if m.area %} · {{ m.area }}{% endif %}{% if m.grado %} · Grado {{ m.grado }}{% endif %}</div>
+    <div class="small text-muted mt-auto pt-2">{{ m.usos }} uso{{ m.usos|pluralize }}{% if m.estrellas %} · <span class="mm-estrellas">★</span> {{ m.estrellas }}{% endif %}</div></div></a></div>
+{% empty %}<div class="col-12 text-muted">Todavía no ha compartido materiales.</div>{% endfor %}</div>
+</div>
+{% endblock %}

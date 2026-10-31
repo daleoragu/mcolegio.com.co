@@ -169,6 +169,10 @@ def calificar_una(b, r):
                 frac = max(CERO, Decimal(aciertos - fuera) / Decimal(len(zonas)))
         elif modo == 'archivo':
             revisar = r not in (None, '', 0)
+        elif modo in ('sopa', 'crucigrama'):
+            from . import juegos
+            bien, total = (juegos.calificar_sopa if modo == 'sopa' else juegos.calificar_crucigrama)(b, r)
+            frac = Decimal(bien) / Decimal(total) if total else CERO
         elif modo == 'hoja':
             o, p, revisar, _ = calificar_hoja(b, r)
             puntos = p if p else puntos
@@ -251,6 +255,18 @@ def leer_respuestas(contenido, post):
             salida[bid] = [[round(x, 1), round(y, 1)] for x, y in puntos_marcados(marcas)]
         elif modo == 'archivo':
             salida[bid] = None          # el archivo lo guarda la vista
+        elif modo == 'sopa':
+            # Trazos «fila,columna,fila,columna» separados por punto y coma
+            trazos = []
+            for t in str(post.get(clave) or '').split(';')[:40]:
+                partes = t.split(',')
+                if len(partes) == 4 and all(x.strip().isdigit() for x in partes):
+                    trazos.append([int(x) for x in partes])
+            salida[bid] = trazos
+        elif modo == 'crucigrama':
+            from . import juegos
+            salida[bid] = {f'{f}-{c}': juegos.palabra_limpia(post.get(f'{clave}-{f}-{c}'))[:1]
+                           for (f, c) in juegos.celdas_crucigrama(b) if post.get(f'{clave}-{f}-{c}')}
         elif modo == 'hoja':
             valores = {}
             for c in b.get('campos') or []:
@@ -267,6 +283,13 @@ def leer_respuestas(contenido, post):
 
 def respuesta_correcta_texto(b):
     """La respuesta correcta en palabras, para la versión del docente y para mostrar al terminar."""
+    base = _respuesta_correcta(b)
+    if b.get('solucion'):
+        return f"{base} — {b['solucion']}" if base else b['solucion']
+    return base
+
+
+def _respuesta_correcta(b):
     modo = b.get('modo')
     if modo == 'unica' and b.get('correcta') is not None and b['correcta'] < len(b.get('opciones') or []):
         return f"{'ABCDEF'[b['correcta']]}. {b['opciones'][b['correcta']]}"
@@ -294,6 +317,10 @@ def respuesta_correcta_texto(b):
         return f'{n} lugar{"es" if n != 1 else ""} marcado{"s" if n != 1 else ""} en verde' if n else ''
     if modo == 'hoja':
         return ' · '.join(texto_campo(c) for c in b.get('campos') or [] if texto_campo(c))
+    if modo == 'sopa':
+        return ', '.join(u['palabra'] for u in b.get('ubicaciones') or [])
+    if modo == 'crucigrama':
+        return ' · '.join(f"{p['numero']}{'H' if p['dir'] == 'h' else 'V'}. {p['palabra']}" for p in b.get('palabras') or [])
     return ''
 
 

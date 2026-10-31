@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_banco
+from . import views, views_banco, views_biblioteca as vb, views_ia as vi
 
 app_name = 'materiales'
 
@@ -15,6 +15,27 @@ urlpatterns = [
     path('banco/guardar/', views_banco.banco_guardar, name='banco_guardar'),
     path('banco/usar/', views_banco.banco_usar, name='banco_usar'),
     path('banco/<int:pk>/', views_banco.banco_accion, name='banco_accion'),
+    path('biblioteca/', vb.biblioteca, name='biblioteca'),
+    path('biblioteca/revision/', vb.revision, name='revision'),
+    path('biblioteca/<int:pk>/', vb.material, name='material'),
+    path('biblioteca/<int:pk>/pdf/', vb.material_pdf, name='material_pdf'),
+    path('biblioteca/<int:pk>/usar/', vb.usar, name='usar'),
+    path('biblioteca/<int:pk>/valorar/', vb.valorar, name='valorar'),
+    path('biblioteca/<int:pk>/reportar/', vb.reportar, name='reportar'),
+    path('biblioteca/<int:pk>/retirar/', vb.retirar, name='retirar'),
+    path('biblioteca/autor/<int:uid>/', vb.autor, name='autor'),
+    path('ayuda/', vb.ayuda, name='ayuda'),
+    path('ia/retro/', vi.retro, name='ia_retro'),
+    path('ia/<str:accion>/', vi.accion, name='ia'),
+    path('creditos/', vi.mis_creditos, name='creditos'),
+    path('creditos/estado/', vi.medidor, name='medidor'),
+    path('creditos/accion/', vi.creditos_accion, name='creditos_accion'),
+    path('creditos/recargar/', vi.recargar, name='recargar'),
+    path('creditos/recarga/<str:referencia>/', vi.recarga_vuelta, name='recarga_vuelta'),
+    path('creditos/colegio/', vi.consumo_colegio, name='consumo_colegio'),
+    path('creditos/plataforma/', vi.consumo_plataforma, name='consumo_plataforma'),
+    path('pagos/wompi/eventos/', vi.wompi_eventos, name='wompi_eventos'),
+    path('<int:pk>/compartir/', vb.compartir, name='compartir'),
     path('<int:pk>/', views.editor, name='editor'),
     path('<int:pk>/guardar/', views.guardar, name='guardar'),
     path('<int:pk>/accion/', views.accion, name='accion'),

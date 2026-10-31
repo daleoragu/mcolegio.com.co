@@ -35,6 +35,17 @@
   .fi-campo.no input, .fi-campo.no select { border-color:#dc3545; background:rgba(253,230,232,.92); color:#842029; }
   .fi-campo.ok.marca, .fi-campo.no.marca { outline:2px solid currentColor; border-radius:3px; }
   .fi-campo.ok.marca { color:#198754; } .fi-campo.no.marca { color:#dc3545; }
+  .fi-sopa { border-collapse:collapse; margin:4px auto; user-select:none; touch-action:manipulation; }
+  .fi-sopa td { width:30px; height:30px; text-align:center; font-weight:800; font-family:monospace; font-size:1.05rem; border:1px solid #dfe4ee; cursor:pointer; }
+  .fi-sopa td.mia { background:#cfe2ff; color:#0b3d91; } .fi-sopa td.en { box-shadow: inset 0 0 0 2px #198754; }
+  .fi-sopa td.inicio { background:#f2b632; }
+  @media (max-width:576px) { .fi-sopa td { width:22px; height:22px; font-size:.85rem; } }
+  .fi-cruci { border-collapse:collapse; margin:4px auto; }
+  .fi-cruci td { width:32px; height:32px; padding:0; position:relative; border:1px solid #333; }
+  .fi-cruci td.negra { border:none; }
+  .fi-cruci td input { width:100%; height:100%; border:0; text-align:center; font-weight:800; text-transform:uppercase; padding:6px 0 0; background:transparent; }
+  .fi-cruci td .n { position:absolute; left:2px; top:0; font-size:.6rem; color:#555; pointer-events:none; }
+  .fi-cruci td .ok { position:absolute; inset:auto 0 0 auto; font-size:.55rem; color:#198754; padding:0 2px; }
   .fi-adjunto { max-width:100%; max-height:420px; border-radius:6px; border:1px solid #e3e7ef; }
   .fi-grabando { animation: fi-latido 1s infinite; }
   @keyframes fi-latido { 50% { opacity:.55; } }
@@ -116,6 +127,17 @@
                         </div>
                         {% endfor %}
                     </div>
+                {% elif b.modo == 'sopa' %}
+                    {% if not terminada %}<div class="small text-muted mb-1">Toque la primera y la última letra de cada palabra. <button type="button" class="btn btn-sm btn-link p-0 fi-sopa-deshacer">Borrar la última</button></div>{% endif %}
+                    <div class="table-responsive"><table class="fi-sopa{% if terminada or previa %} listo{% endif %}" data-campo="r-{{ b.id }}">{% for fila in b.celdas %}<tr>{% for letra, en, mia in fila %}<td data-f="{{ forloop.parentloop.counter0 }}" data-c="{{ forloop.counter0 }}" class="{% if mia %}mia{% endif %}{% if terminada and mostrar and en %} en{% endif %}">{{ letra }}</td>{% endfor %}</tr>{% endfor %}</table></div>
+                    <div class="small text-center">Palabras: {{ b.lista_palabras|join:" · " }}</div>
+                    <input type="hidden" name="r-{{ b.id }}" value="{{ b.trazos_valor|default:'' }}">
+                {% elif b.modo == 'crucigrama' %}
+                    <div class="table-responsive"><table class="fi-cruci">{% for fila in b.tablero %}<tr>{% for x in fila %}{% if x %}<td>{% if x.n %}<span class="n">{{ x.n }}</span>{% endif %}<input maxlength="1" name="r-{{ b.id }}-{{ x.f }}-{{ x.c }}" value="{{ x.letra }}" aria-label="Fila {{ x.f|add:1 }}, columna {{ x.c|add:1 }}" autocomplete="off" {% if terminada %}disabled{% endif %}></td>{% else %}<td class="negra"></td>{% endif %}{% endfor %}</tr>{% endfor %}</table></div>
+                    <div class="row small mt-1">
+                        {% if b.horizontales %}<div class="col-sm-6"><b>Horizontales</b>{% for p in b.horizontales %}<div>{{ p.numero }}. {{ p.pista }}</div>{% endfor %}</div>{% endif %}
+                        {% if b.verticales %}<div class="col-sm-6"><b>Verticales</b>{% for p in b.verticales %}<div>{{ p.numero }}. {{ p.pista }}</div>{% endfor %}</div>{% endif %}
+                    </div>
                 {% elif b.modo == 'archivo' %}
                     {% if terminada %}
                         {% if b.adjunto %}
@@ -177,6 +199,7 @@
                     <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
                         <span class="fi-puntos">{% if b.res.revisar %}Por revisar{% else %}{{ b.res.obtenidos|floatformat:"-2" }} de {{ b.res.posibles|floatformat:"-2" }} punto{{ b.res.posibles|pluralize }}{% endif %}</span>
                         {% if b.correcta_texto and b.res.obtenidos != b.res.posibles %}<span class="fi-correcta">Respuesta: {{ b.correcta_texto }}</span>{% endif %}
+                        {% if revisar and b.res.revisar or revisar and b.modo == 'abierta' and b.mia %}{% if b.modo == 'abierta' or b.modo == 'corta' %}<button type="button" class="btn btn-sm btn-outline-primary fi-ia-retro" data-bloque="{{ b.id }}" data-numero="{{ b.numero }}" title="Usa 1 crédito de IA"><i class="fas fa-wand-magic-sparkles me-1"></i>Sugerir con IA</button>{% endif %}{% endif %}
                         {% if revisar %}<label class="ms-auto small d-flex align-items-center gap-1">Puntos a mano
                             <input class="form-control form-control-sm" style="width:80px" name="p-{{ b.id }}" value="{{ b.manual }}" placeholder="{{ b.res.obtenidos|floatformat:'-2' }}" inputmode="decimal" form="fi-revision"> / {{ b.res.posibles|floatformat:"-2" }}</label>{% endif %}
                     </div>
@@ -235,6 +258,45 @@
       guardar();
     });
   });
+  // Sopa de letras: primera letra, última letra; el trazo queda marcado.
+  document.querySelectorAll('.fi-sopa:not(.listo)').forEach(function (tabla) {
+    var campo = document.querySelector('input[name="' + tabla.getAttribute('data-campo') + '"]');
+    var trazos = campo.value ? campo.value.split(';').map(function (t) { return t.split(',').map(Number); }) : [];
+    var inicio = null;
+    function celda(f, c) { return tabla.querySelector('td[data-f="' + f + '"][data-c="' + c + '"]'); }
+    function pintar() {
+      tabla.querySelectorAll('td').forEach(function (td) { td.classList.remove('mia', 'inicio'); });
+      trazos.forEach(function (t) {
+        var df = Math.sign(t[2] - t[0]), dc = Math.sign(t[3] - t[1]), n = Math.max(Math.abs(t[2] - t[0]), Math.abs(t[3] - t[1]));
+        for (var k = 0; k <= n; k++) { var td = celda(t[0] + df * k, t[1] + dc * k); if (td) td.classList.add('mia'); }
+      });
+      if (inicio) celda(inicio[0], inicio[1]).classList.add('inicio');
+      campo.value = trazos.map(function (t) { return t.join(','); }).join(';');
+    }
+    tabla.addEventListener('click', function (e) {
+      var td = e.target.closest('td'); if (!td) return;
+      var p = [+td.getAttribute('data-f'), +td.getAttribute('data-c')];
+      if (!inicio) { inicio = p; pintar(); return; }
+      var df = p[0] - inicio[0], dc = p[1] - inicio[1];
+      if ((df || dc) && (df === 0 || dc === 0 || Math.abs(df) === Math.abs(dc)) && trazos.length < 40) trazos.push([inicio[0], inicio[1], p[0], p[1]]);
+      inicio = null; pintar();
+    });
+    var deshacer = tabla.closest('.flex-grow-1').querySelector('.fi-sopa-deshacer');
+    if (deshacer) deshacer.addEventListener('click', function () { trazos.pop(); inicio = null; pintar(); });
+    pintar();
+  });
+  // Crucigrama: al escribir una letra pasa a la siguiente casilla.
+  document.querySelectorAll('.fi-cruci input').forEach(function (x) {
+    x.addEventListener('input', function () {
+      x.value = x.value.toUpperCase().slice(-1);
+      if (!x.value) return;
+      var td = x.closest('td'), sig = td.nextElementSibling;
+      var entrada = sig && sig.querySelector('input');
+      if (!entrada) { var fila = td.parentNode.nextElementSibling; var col = Array.prototype.indexOf.call(td.parentNode.children, td);
+        entrada = fila && fila.children[col] && fila.children[col].querySelector('input'); }
+      if (entrada) entrada.focus();
+    });
+  });
   // Hoja sobre un PDF: la letra de cada espacio se ajusta al tamaño del recuadro.
   function ajustarLetra() {
     document.querySelectorAll('.fi-pagina .fi-campo input[type=text], .fi-pagina .fi-campo select').forEach(function (x) {
@@ -285,6 +347,24 @@
         boton.querySelector('span').textContent = 'Detener (máximo 3 minutos)';
         limite = setTimeout(function () { if (grabadora.state === 'recording') grabadora.stop(); }, 180000);
       }).catch(function () { alert('No se pudo usar el micrófono. Revise el permiso del navegador o suba un audio.'); });
+    });
+  });
+  // Retroalimentación sugerida por la IA (solo el docente; no se manda el nombre del estudiante).
+  document.querySelectorAll('.fi-ia-retro').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var token = document.querySelector('#fi-revision [name=csrfmiddlewaretoken]').value;
+      b.disabled = true; var antes = b.innerHTML; b.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Pensando…';
+      fetch('/materiales/ia/retro/', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token },
+        body: JSON.stringify({ tarea: {{ t.pk }}, clave: '{{ clave|default:""|escapejs }}', bloque: b.getAttribute('data-bloque') }) })
+        .then(function (r) { return r.json(); }).then(function (j) {
+          b.disabled = false; b.innerHTML = antes;
+          if (!j.ok) { alert(j.error || 'No se pudo.'); return; }
+          var p = document.querySelector('input[name="p-' + b.getAttribute('data-bloque') + '"]');
+          if (p) p.value = String(j.puntos).replace('.', ',');
+          var com = document.querySelector('#fi-revision textarea[name=comentario]');
+          if (com) com.value = (com.value ? com.value + '\n' : '') + 'Pregunta ' + b.getAttribute('data-numero') + ': ' + j.comentario;
+          b.innerHTML = '<i class="fas fa-check me-1"></i>Sugerido: revise y guarde';
+        }).catch(function () { b.disabled = false; b.innerHTML = antes; alert('No hubo respuesta.'); });
     });
   });
   var reloj = document.getElementById('fi-reloj');
