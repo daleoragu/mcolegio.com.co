@@ -80,7 +80,7 @@ def enlace(request, user):
 def _mandar(asunto, texto, correo, html, colegio=None):
     from .mensajeria import enviar_correo, explicar_error, log
     try:
-        enviar_correo(colegio, asunto, texto, [correo], html=html)
+        enviar_correo(colegio, asunto, texto, [correo], html=html, copia=False)   # el enlace es solo para el usuario
         log.info('Correo de recuperación enviado (colegio %s).', getattr(colegio, 'pk', None))
     except Exception as e:
         # Sin el correo del destinatario en el registro: solo el motivo.

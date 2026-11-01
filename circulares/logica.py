@@ -66,8 +66,8 @@ def publicar(circular, url_ver):
                 cuerpo = (f'{circular.cuerpo}\n\n—\nCircular N.º {circular.numero} de {circular.colegio.nombre}.\n'
                           f'Véala{" y confirme que la leyó" if circular.pide_confirmacion else ""} en: {url_ver}')
                 mensajes.append(mensajeria.mensaje(circular.colegio, f'Circular N.º {circular.numero}: {circular.titulo}',
-                                                   cuerpo, [destino]))
-        correos = mensajeria.enviar_varios(mensajes)
+                                                   cuerpo, [destino], copia=False))
+        correos = mensajeria.enviar_varios(mensajes, copia_de=circular.colegio)
     return len(lista), correos
 
 

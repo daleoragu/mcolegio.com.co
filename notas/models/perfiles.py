@@ -152,6 +152,11 @@ class Colegio(models.Model):
     # --- Datos de Contacto ---
     telefono = models.CharField(max_length=50, blank=True, verbose_name="Teléfono Principal")
     email_contacto = models.EmailField(max_length=255, blank=True, verbose_name="Email de Contacto")
+    correo_copias = models.EmailField(
+        max_length=255, blank=True, verbose_name="Correo que recibe copia de los avisos",
+        help_text="Le llega una copia oculta de cada correo que la plataforma manda a nombre del colegio "
+                  "(observador, inasistencias, reportes, prematrícula) y una sola copia de cada circular. "
+                  "Los enlaces para recuperar la contraseña no se copian.")
     whatsapp_numero = models.CharField(max_length=20, blank=True, verbose_name="Número de WhatsApp", help_text="Incluir código de país, ej: 573001234567")
     
     # --- Redes Sociales ---
