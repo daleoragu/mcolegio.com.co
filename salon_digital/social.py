@@ -21,7 +21,8 @@ from unidecode import unidecode
 
 TIEMPO = 10
 CLAVE_SESION = 'salon_oauth'
-VERSION_FACEBOOK = 'v19.0'
+# Meta retira cada versión a los ~2 años; se puede cambiar sin tocar el código con FACEBOOK_API_VERSION.
+VERSION_FACEBOOK = os.getenv('FACEBOOK_API_VERSION', 'v23.0')
 
 PROVEEDORES = {
     'google': {
@@ -39,7 +40,7 @@ PROVEEDORES = {
         'secreto': 'FACEBOOK_APP_SECRET',
         'autorizar': f'https://www.facebook.com/{VERSION_FACEBOOK}/dialog/oauth',
         'token': f'https://graph.facebook.com/{VERSION_FACEBOOK}/oauth/access_token',
-        'perfil': 'https://graph.facebook.com/me',
+        'perfil': f'https://graph.facebook.com/{VERSION_FACEBOOK}/me',
         'alcance': 'email,public_profile',
     },
 }
