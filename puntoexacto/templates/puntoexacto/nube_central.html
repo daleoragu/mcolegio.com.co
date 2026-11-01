@@ -49,7 +49,7 @@
     function devolver(viaje, datos) {
         sessionStorage.removeItem('nube-central');
         datos.state = viaje.estado;
-        location.replace(viaje.origen + '/puntoexacto/nube/' + PROVEEDOR + '/#' + new URLSearchParams(datos).toString());
+        location.replace(viaje.origen + '/nube/' + PROVEEDOR + '/#' + new URLSearchParams(datos).toString());
     }
     if (!CLIENTE) { fallo('Esta nube todavía no está configurada en la plataforma.'); return; }
 

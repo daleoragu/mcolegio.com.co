@@ -2140,11 +2140,11 @@ def cuadernillo_generar(request, examen_id):
 
 
 @login_required
-@personal_requerido
 def nube_ayudante(request, proveedor):
     """Ventanita que conecta la nube del docente (Google Drive u OneDrive) y le pasa el permiso
     a la pestaña del editor por un canal del navegador (BroadcastChannel), en el mismo
-    subdominio del colegio. El permiso nunca pasa por el servidor.
+    subdominio del colegio. El permiso nunca pasa por el servidor. Lo usa cualquier persona con
+    sesión (la copia de seguridad también), en /nube/<proveedor>/ y en /puntoexacto/nube/<proveedor>/.
 
     Con NUBE_URL, el ida y vuelta con Google o Microsoft se hace por la página central
     (nube_central), que es la única dirección registrada allá: así un colegio nuevo no

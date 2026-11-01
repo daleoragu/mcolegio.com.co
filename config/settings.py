@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'calendario',      # <--- Calendario escolar
     'materiales',      # <--- Mis materiales: guías, talleres y cuadernillos del docente
     'chat',            # <--- Chat interno de cada colegio (uno a uno y grupos)
+    'copias',          # <--- Copia de seguridad de cada persona en su Drive u OneDrive
     'aula',            # <--- Aula virtual (mcolegio por asignación y Salón Digital por grupo)
 ]
 
