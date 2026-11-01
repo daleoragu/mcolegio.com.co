@@ -89,3 +89,6 @@ class PoliticaDeDatos(ColegioDePrueba):
             self.assertContains(r, 'Política de tratamiento de datos personales')
             self.assertContains(r, 'mcolegiomc@gmail.com')
             self.assertContains(r, 'Ley 1581 de 2012')
+            r = self.client.get('/condiciones/', HTTP_HOST=host)
+            self.assertContains(r, 'Condiciones del servicio')
+            self.assertContains(r, 'Creative Commons BY-NC')
