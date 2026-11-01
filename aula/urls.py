@@ -1,5 +1,7 @@
 from django.urls import path
 
+from chat import views_salon as chs
+
 from . import views, views_examenes as vx, views_fichas as vf, views_importar as vi, views_juegos as vj
 
 app_name = 'aula'
@@ -12,6 +14,16 @@ urlpatterns = [
     path('<int:pk>/', views.muro, name='muro'),
     path('<int:pk>/entrar/', views.entrar, name='entrar'),
     path('<int:pk>/salir/', views.salir, name='salir'),
+    # Chat de Mi Salón Virtual (los colegios usan el chat del colegio en /chat/)
+    path('<int:pk>/chat/', chs.inicio, name='chat'),
+    path('<int:pk>/chat/pin/', chs.pin, name='chat_pin'),
+    path('<int:pk>/chat/pines/', chs.pines, name='chat_pines'),
+    path('<int:pk>/chat/con/<int:iid>/', chs.con, name='chat_con'),
+    path('<int:pk>/chat/c/<int:cid>/', chs.conversacion, name='chat_conversacion'),
+    path('<int:pk>/chat/c/<int:cid>/nuevos/', chs.nuevos, name='chat_nuevos'),
+    path('<int:pk>/chat/c/<int:cid>/enviar/', chs.enviar, name='chat_enviar'),
+    path('<int:pk>/chat/c/<int:cid>/accion/', chs.accion, name='chat_accion'),
+    path('<int:pk>/chat/m/<int:mid>/archivo/', chs.archivo, name='chat_archivo'),
     path('<int:pk>/publicacion/<int:pub_id>/comentar/', views.comentar, name='comentar'),
     path('<int:pk>/publicacion/<int:pub_id>/moderar/', views.moderar, name='moderar'),
     path('<int:pk>/clase/', views.clase, name='clase'),

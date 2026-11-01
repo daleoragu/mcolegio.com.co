@@ -193,6 +193,11 @@ class Cuenta(models.Model):
 # 2. Grupos (opcionales)
 # ---------------------------------------------------------------------------
 
+def pin_chat():
+    """4 cifras para que el estudiante escriba en el chat del grupo (y nadie escriba con su nombre)."""
+    return f'{secrets.randbelow(10000):04d}'
+
+
 def codigo_grupo():
     """Seis letras fáciles de dictar en voz alta: sin I, O, 0, 1."""
     alfabeto = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -238,6 +243,8 @@ class Integrante(models.Model):
     apellidos = models.CharField(max_length=120)
     nombres = models.CharField(max_length=120)
     completo = models.CharField(max_length=240, blank=True, editable=False)
+    pin_chat = models.CharField(max_length=4, default=pin_chat, verbose_name='PIN del chat',
+                                help_text='Lo necesita el estudiante para escribir en el chat y ver sus mensajes.')
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
 

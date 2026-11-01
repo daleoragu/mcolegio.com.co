@@ -204,7 +204,8 @@ class EstudianteNoEntra(CuadernilloDelExamen):
         self.assertEqual(est.get(f'/puntoexacto/{self.ex.id}/clave/').status_code, 404)
         self.assertEqual(est.get('/puntoexacto/').status_code, 403)
         self.assertEqual(est.post('/puntoexacto/nuevo/', {'titulo': 'X'}).status_code, 403)
-        self.assertEqual(est.get('/puntoexacto/nube/google/').status_code, 403)
+        # Conectar su propia nube sí puede (lo usa la copia de seguridad): no da acceso a nada del colegio.
+        self.assertEqual(est.get('/nube/google/').status_code, 200)
 
 
 class NubeCentral(CuadernilloDelExamen):

@@ -1,9 +1,11 @@
 """Chat del colegio: quién habla con quién, grupos que se arman solos, silencio, borrar y reportar."""
 import datetime
+import io
 import json
 from unittest import mock
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 
 from notas.models import Curso, Docente, Notificacion
@@ -157,3 +159,140 @@ class Chat(ColegioDePrueba):
         self.a.modulos_activos = [m for m in self.a.modulos_activos if m != 'chat']
         self.a.save(update_fields=['modulos_activos'])
         self.assertEqual(self.cliente(self.u_docente).get('/chat/').status_code, 403)
+
+
+class FotosYVoz(Chat):
+
+    def _foto(self):
+        from PIL import Image
+        b = io.BytesIO()
+        Image.new('RGB', (40, 30), 'red').save(b, 'PNG')
+        return SimpleUploadedFile('foto.png', b.getvalue(), content_type='image/png')
+
+    def _conv(self):
+        est = self.cliente(self.ana.user)
+        est.post('/chat/nueva/', {'usuario': self.u_docente.pk})
+        return est, Conversacion.objects.get()
+
+    def test_foto_y_nota_de_voz(self):
+        est, conv = self._conv()
+        r = est.post(f'/chat/c/{conv.pk}/enviar/', {'archivo': self._foto(), 'texto': 'Mi tarea'})
+        j = r.json()
+        self.assertTrue(j['ok'], j)
+        self.assertEqual(j['mensaje']['tipo'], 'foto')
+        self.assertEqual(j['mensaje']['texto'], 'Mi tarea')
+        foto = Mensaje.objects.get(tipo='foto')
+        self.assertTrue(foto.archivo.name.startswith(f'chat/{conv.pk}/'))
+        audio = SimpleUploadedFile('voz.webm', b'\x1aE\xdf\xa3' + b'0' * 500, content_type='audio/webm;codecs=opus')
+        j = est.post(f'/chat/c/{conv.pk}/enviar/', {'archivo': audio, 'duracion': '7'}).json()
+        self.assertTrue(j['ok'], j)
+        voz = Mensaje.objects.get(tipo='voz')
+        self.assertEqual(voz.duracion, 7)
+        self.assertTrue(voz.archivo.name.endswith('.webm'))
+        # El aviso dice qué llegó
+        self.assertTrue(Notificacion.objects.filter(destinatario=self.u_docente, mensaje__contains='📷').exists())
+        # Lo ven los de la conversación; nadie más
+        profe = self.cliente(self.u_docente)
+        self.assertEqual(profe.get(f'/chat/m/{voz.pk}/archivo/').status_code, 302)
+        self.assertContains(profe.get(f'/chat/c/{conv.pk}/'), f'/chat/m/{foto.pk}/archivo/')
+        self.assertEqual(self.cliente(self.beto.user).get(f'/chat/m/{foto.pk}/archivo/').status_code, 404)
+        # Un archivo que no es foto ni audio no entra
+        pdf = SimpleUploadedFile('a.pdf', b'%PDF-1.4', content_type='application/pdf')
+        self.assertEqual(est.post(f'/chat/c/{conv.pk}/enviar/', {'archivo': pdf}).status_code, 400)
+        # Borrado: ya no se puede abrir
+        est.post(f'/chat/c/{conv.pk}/accion/', {'accion': 'borrar', 'mensaje': foto.pk})
+        self.assertEqual(profe.get(f'/chat/m/{foto.pk}/archivo/').status_code, 404)
+
+    def test_el_colegio_apaga_fotos_y_voz(self):
+        rectora = self.cliente(self.rectora)
+        rectora.post('/chat/administrar/', {'accion': 'silencio', 'desde': '18:00', 'hasta': '06:00'})
+        aj = AjustesChat.objects.get(colegio=self.a)
+        self.assertFalse(aj.permitir_fotos)
+        self.assertFalse(aj.permitir_voz)
+        est, conv = self._conv()
+        r = est.post(f'/chat/c/{conv.pk}/enviar/', {'archivo': self._foto()})
+        self.assertEqual(r.status_code, 400)
+        self.assertNotContains(est.get(f'/chat/c/{conv.pk}/'), 'id="ch-mic"')
+
+    def test_pantalla_completa(self):
+        r = self.cliente(self.ana.user).get('/chat/')
+        self.assertContains(r, 'class="ch-volver"')
+        self.assertNotContains(r, 'class="content-area"')          # sin la barra ni el menú de la plataforma
+
+
+class ChatMiSalon(ColegioDePrueba):
+    """El docente del plan individual con su grupo: canal de todo el grupo y un chat privado por estudiante."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        from django.test import Client
+        from aula.tests.test_planilla_examenes import salon
+        cache.clear()
+        self.cuenta, self.grupo, self.luis, self.sara, self.profe, self.aula = salon()
+        self.base = f'/aula/{self.aula.pk}/chat/'
+
+        def estudiante(i):
+            cl = Client(HTTP_HOST='localhost')
+            cl.post(f'/aula/{self.aula.pk}/entrar/', {'codigo': self.grupo.codigo, 'integrante': i.pk})
+            return cl
+        self.est_luis, self.est_sara = estudiante(self.luis), estudiante(self.sara)
+
+    def _enviar(self, cl, cid, texto):
+        return cl.post(f'{self.base}c/{cid}/enviar/', json.dumps({'texto': texto}), content_type='application/json')
+
+    def test_pin_y_chat_privado(self):
+        from .models import ConversacionSalon, MensajeSalon
+        self.luis.refresh_from_db()
+        self.assertRegex(self.luis.pin_chat, r'^\d{4}$')
+        r = self.profe.get(self.base)
+        self.assertContains(r, 'Todo el grupo')
+        self.assertContains(r, 'Pérez Luis')
+        grupo_conv = ConversacionSalon.objects.get(grupo=self.grupo, integrante__isnull=True)
+        # El docente escribe a todos
+        self.assertTrue(self._enviar(self.profe, grupo_conv.pk, 'Mañana hay quiz').json()['ok'])
+        # Sin PIN el estudiante lee el grupo, pero no escribe
+        self.assertContains(self.est_luis.get(f'{self.base}c/{grupo_conv.pk}/'), 'Mañana hay quiz')
+        self.assertEqual(self._enviar(self.est_luis, grupo_conv.pk, 'Hola').status_code, 403)
+        self.assertContains(self.est_luis.get(self.base), 'Escriba su PIN')
+        # PIN equivocado y luego el correcto
+        self.est_luis.post(f'{self.base}pin/', {'pin': 'xxxx'})
+        self.est_luis.post(f'{self.base}pin/', {'pin': self.luis.pin_chat})
+        self.assertTrue(self._enviar(self.est_luis, grupo_conv.pk, 'Profe, ¿qué temas?').json()['ok'])
+        # Chat privado con el docente
+        self.profe.get(f'{self.base}con/{self.luis.pk}/')
+        privado = ConversacionSalon.objects.get(grupo=self.grupo, integrante=self.luis)
+        self.assertTrue(self._enviar(self.est_luis, privado.pk, 'No entendí la tarea').json()['ok'])
+        self.assertContains(self.profe.get(self.base), 'ch-badge')
+        self.assertContains(self.profe.get(f'{self.base}c/{privado.pk}/'), 'No entendí la tarea')
+        # Sara no ve el chat privado de Luis, ni aun con su PIN
+        self.est_sara.post(f'{self.base}pin/', {'pin': self.sara.pin_chat})
+        self.assertEqual(self.est_sara.get(f'{self.base}c/{privado.pk}/').status_code, 404)
+        # Fotos en el grupo
+        from PIL import Image
+        b = io.BytesIO()
+        Image.new('RGB', (20, 20), 'blue').save(b, 'PNG')
+        j = self.profe.post(f'{self.base}c/{grupo_conv.pk}/enviar/',
+                            {'archivo': SimpleUploadedFile('f.png', b.getvalue(), content_type='image/png')}).json()
+        self.assertTrue(j['ok'], j)
+        foto = MensajeSalon.objects.get(tipo='foto')
+        self.assertEqual(self.est_sara.get(f'{self.base}m/{foto.pk}/archivo/').status_code, 302)
+        # Solo lectura: Luis ya no escribe en el grupo
+        self.profe.post(f'{self.base}c/{grupo_conv.pk}/accion/', {'accion': 'solo_lectura'})
+        self.assertEqual(self._enviar(self.est_luis, grupo_conv.pk, 'Otro').status_code, 403)
+        self.assertTrue(self._enviar(self.est_luis, privado.pk, 'Gracias').json()['ok'])
+
+    def test_bloqueo_y_pines(self):
+        for _ in range(5):
+            self.est_luis.post(f'{self.base}pin/', {'pin': '0000' if self.luis.pin_chat != '0000' else '1111'})
+        self.est_luis.post(f'{self.base}pin/', {'pin': self.luis.pin_chat})
+        self.assertContains(self.est_luis.get(self.base), 'Demasiados intentos')
+        r = self.profe.get(f'{self.base}pines/')
+        self.assertContains(r, self.luis.pin_chat)
+        self.assertEqual(self.est_luis.get(f'{self.base}pines/').status_code, 403)
+        r = self.profe.post(f'{self.base}pines/', {'integrante': self.luis.pk}, follow=True)
+        self.luis.refresh_from_db()
+        self.assertContains(r, f'Nuevo PIN para Pérez Luis: {self.luis.pin_chat}')
+        self.assertContains(self.profe.get(f'/aula/{self.aula.pk}/'), f'/aula/{self.aula.pk}/chat/')
+        # Un visitante sin código va a la entrada
+        from django.test import Client
+        self.assertEqual(Client(HTTP_HOST='localhost').get(self.base).status_code, 302)

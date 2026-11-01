@@ -1,0 +1,20 @@
+{# Aviso discreto cuando le toca la copia de seguridad (solo a quien activó el recordatorio). Una vez por sesión. #}
+<script>
+(function () {
+  try { if (sessionStorage.getItem('cp-visto')) return; } catch (e) {}
+  if (location.pathname.indexOf('/copias/') === 0) return;
+  fetch('/copias/pendiente/', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+    if (!j || !j.pendiente) return;
+    var d = document.createElement('div');
+    d.setAttribute('role', 'status');
+    d.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:1050;background:#fff;border-radius:14px;box-shadow:0 6px 22px rgba(0,0,0,.18);padding:12px 14px;max-width:320px;font-size:.9rem';
+    d.innerHTML = '<div style="font-weight:700;margin-bottom:4px"><i class="fas fa-shield-halved me-1"></i>Su copia de seguridad está pendiente</div>' +
+      '<div style="color:#6b7280;margin-bottom:8px">Guarde sus chats, circulares y notas en su nube.</div>' +
+      '<a class="btn btn-sm btn-primary" href="/copias/?ahora=1&volver=' + encodeURIComponent(location.pathname) + '">Hacerla ahora</a> ' +
+      '<button type="button" class="btn btn-sm btn-link text-muted">Más tarde</button>';
+    d.querySelector('button').onclick = function () { d.remove(); };
+    document.body.appendChild(d);
+    try { sessionStorage.setItem('cp-visto', '1'); } catch (e) {}
+  }).catch(function () {});
+})();
+</script>

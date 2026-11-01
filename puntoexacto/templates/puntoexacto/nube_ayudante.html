@@ -38,7 +38,7 @@
     }
     function listo(token, segundos) {
         avisar({ tipo: 'token', proveedor: PROVEEDOR, token: token, expira: Date.now() + (segundos - 60) * 1000 });
-        msg.textContent = '¡Listo! Ya puede volver al examen.';
+        msg.textContent = '¡Listo! Ya puede volver a la plataforma.';
         document.getElementById('cerrar').hidden = false;
         setTimeout(function () { window.close(); }, 600);
     }

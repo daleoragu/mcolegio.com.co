@@ -15,6 +15,7 @@
 </div>
 <nav class="au-pestanas">
     <a href="{% url 'aula:muro' aula.pk %}" class="{% if pestana == 'muro' %}activa{% endif %}"><i class="far fa-comments me-1"></i>Muro{% if nuevos and nuevos.muro %}<span class="au-globo">{{ nuevos.muro }}</span>{% endif %}</a>
+    {% if aula.es_salon %}<a href="{% url 'aula:chat' aula.pk %}"><i class="fas fa-comment-dots me-1"></i>Chat</a>{% endif %}
     <a href="{% url 'aula:clase' aula.pk %}" class="{% if pestana == 'clase' %}activa{% endif %}"><i class="fas fa-video me-1"></i>Clase en vivo</a>
     <a href="{% url 'aula:material' aula.pk %}" class="{% if pestana == 'material' %}activa{% endif %}"><i class="far fa-folder-open me-1"></i>Material{% if nuevos and nuevos.material %}<span class="au-globo">{{ nuevos.material }}</span>{% endif %}</a>
     <a href="{% url 'aula:tareas' aula.pk %}" class="{% if pestana == 'tareas' %}activa{% endif %}"><i class="fas fa-clipboard-check me-1"></i>Tareas{% if nuevos and nuevos.tareas %}<span class="au-globo">{{ nuevos.tareas }}</span>{% endif %}</a>

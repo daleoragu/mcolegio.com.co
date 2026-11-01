@@ -2,6 +2,7 @@
 # Este es el archivo de URLs principal de tu proyecto.
 
 from django.contrib import admin
+from puntoexacto import views as puntoexacto_views
 from django.urls import path, include
 from django.views.generic.base import RedirectView, TemplateView # <-- 1. IMPORTACIÓN AÑADIDA
 
@@ -40,6 +41,9 @@ urlpatterns = [
     path('certificados/', include('certificados.urls', namespace='certificados')),
     path('circulares/', include('circulares.urls', namespace='circulares')),
     path('chat/', include('chat.urls', namespace='chat')),
+    path('copias/', include('copias.urls', namespace='copias')),
+    # Conectar Google Drive u OneDrive (para cualquier persona y sin depender de un módulo).
+    path('nube/<str:proveedor>/', puntoexacto_views.nube_ayudante, name='nube_ayudante'),
     path('cartera/', include('cartera.urls', namespace='cartera')),
     path('piar/', include('piar.urls', namespace='piar')),
     path('simat/', include('simat.urls', namespace='simat')),

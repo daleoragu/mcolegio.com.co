@@ -1,0 +1,14 @@
+<div class="ch-previa d-none" id="ch-previa"><img id="ch-previa-img" alt="Foto que va a enviar"><span class="small text-muted flex-grow-1">Escriba un texto si quiere y toque enviar.</span>
+  <button type="button" class="btn btn-sm btn-light" id="ch-quitar-foto" aria-label="Quitar la foto"><i class="fas fa-times"></i></button></div>
+<form id="ch-form" class="ch-composer{% if not puede_escribir %} d-none{% endif %}" autocomplete="off">
+  <div class="ch-caja" id="ch-caja">
+    <textarea id="ch-texto" rows="1" maxlength="2000" placeholder="Mensaje" aria-label="Mensaje"></textarea>
+    {% if permitir_fotos %}<label class="ch-clip mb-0 d-flex align-items-center justify-content-center" title="Enviar una foto" aria-label="Enviar una foto"><i class="fas fa-camera"></i>
+      <input type="file" id="ch-foto" accept="image/*" class="d-none"></label>{% endif %}
+  </div>
+  <div class="ch-grabando d-none" id="ch-grabando"><span class="punto"></span><span id="ch-reloj">0:00</span><span class="small text-muted fw-normal flex-grow-1">Grabando…</span>
+    <button type="button" class="btn btn-sm btn-link text-danger p-0" id="ch-cancelar" aria-label="Cancelar la nota de voz"><i class="fas fa-trash"></i></button></div>
+  <button type="submit" class="ch-redondo primario" id="ch-enviar" aria-label="Enviar"><i class="fas fa-paper-plane"></i></button>
+  {% if permitir_voz %}<button type="button" class="ch-redondo primario" id="ch-mic" aria-label="Grabar nota de voz" title="Grabar nota de voz"><i class="fas fa-microphone"></i></button>{% endif %}
+</form>
+<div id="ch-cerrado" class="ch-nota py-2{% if puede_escribir %} d-none{% endif %}">{{ mensaje_cerrado|default:"En este grupo solo escriben los docentes." }}</div>

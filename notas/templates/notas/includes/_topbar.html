@@ -176,6 +176,7 @@
                      <li><a class="dropdown-item" href="{% url 'notas:editar_docente' user.docente.id %}"><i class="fas fa-id-card fa-fw me-2 text-muted"></i>Mi Ficha</a></li>
                 {% endif %}
                 <li><a class="dropdown-item" href="{% url 'notas:cambiar_password' %}"><i class="fas fa-key fa-fw me-2 text-muted"></i>Cambiar Contraseña</a></li>
+                <li><a class="dropdown-item" href="/copias/?volver={{ request.path|urlencode }}"><i class="fas fa-shield-halved fa-fw me-2 text-muted"></i>Copia de seguridad</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li class="mc-menu-instalar"><a class="dropdown-item" href="#" onclick="if (window.mcInstalarApp) { window.mcInstalarApp(); } return false;"><i class="fas fa-mobile-screen-button fa-fw me-2 text-muted"></i>Instalar la app en el celular</a></li>
                 <script>if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) document.querySelectorAll('.mc-menu-instalar').forEach(function (e) { e.remove(); });</script>
@@ -184,3 +185,4 @@
         </div>
     </div>
 </header>
+{% if user.is_authenticated %}{% include 'copias/_recordatorio.html' %}{% endif %}
