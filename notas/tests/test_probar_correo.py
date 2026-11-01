@@ -30,7 +30,14 @@ class ProbarCorreo(ColegioDePrueba):
         self.assertContains(r, 'Correo entregado al servidor')
         self.assertNotContains(r, 'abcd efgh')                       # la contraseña nunca se muestra
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn('Colegio A', mail.outbox[0].from_email)
+        self.assertEqual(mail.outbox[0].from_email, 'Colegio A <mcolegiomc@gmail.com>')
+        # El nombre del colegio con tildes y el remitente con nombre no dañan la dirección
+        self.a.nombre = 'INSTITUCIÓN EDUCATIVA TÉCNICA GENERAL'
+        with override_settings(**CORREO):
+            m = mensajeria.mensaje(self.a, 'x', 'y', ['x@y.co'])
+            m.message()
+            self.assertTrue(m.from_email.endswith('<mcolegiomc@gmail.com>'))
+            self.assertEqual(mensajeria.remitente(None), 'mcolegio <mcolegiomc@gmail.com>')
 
     def test_error_explicado(self):
         e = smtplib.SMTPAuthenticationError(535, b'Username and Password not accepted')

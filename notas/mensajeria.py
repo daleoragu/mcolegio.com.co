@@ -49,14 +49,17 @@ def correo_configurado():
 
 
 def _correo_plataforma():
-    return settings.DEFAULT_FROM_EMAIL
+    """Solo la dirección, aunque DEFAULT_FROM_EMAIL venga como «mcolegio <correo@gmail.com>»."""
+    from email.utils import parseaddr
+    valor = settings.DEFAULT_FROM_EMAIL or ''
+    return parseaddr(valor)[1] or valor
 
 
 def remitente(colegio=None):
     """«Nombre del colegio <correo>» para el From."""
     correo = _correo_plataforma()
     if colegio is None:
-        return correo
+        return settings.DEFAULT_FROM_EMAIL or correo
     propio = (getattr(colegio, 'email_contacto', '') or '').strip()
     if propio and getattr(colegio, 'correo_remitente_verificado', False):
         correo = propio
