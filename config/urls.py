@@ -63,6 +63,7 @@ urlpatterns = [
     path('app/push/probar/', app_views.push_probar, name='app_push_probar'),
     # Política de tratamiento de datos (pública, en cualquier dirección: la piden la ley, Google y Facebook)
     path('privacidad/', TemplateView.as_view(template_name='privacidad.html'), name='privacidad'),
+    path('condiciones/', TemplateView.as_view(template_name='condiciones.html'), name='condiciones'),
     path('', include('notas.urls', namespace='notas')),
 ]
 
