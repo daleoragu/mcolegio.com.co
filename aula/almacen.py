@@ -24,6 +24,9 @@ def privado():
             default_acl='private',
             querystring_auth=True,
             querystring_expire=6 * 3600,
+            # Sin esto hereda AWS_S3_CUSTOM_DOMAIN de settings (el de las imágenes públicas del portal) y con
+            # dominio propio django-storages NO firma el enlace: Spaces responde «AccessDenied».
+            custom_domain=None,
             file_overwrite=False,
         )
     return default_storage
