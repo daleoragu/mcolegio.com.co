@@ -78,11 +78,14 @@ def enlace(request, user):
 
 
 def _mandar(asunto, texto, correo, html, colegio=None):
+    from .mensajeria import enviar_correo, explicar_error, log
     try:
-        from .mensajeria import enviar_correo
         enviar_correo(colegio, asunto, texto, [correo], html=html)
-    except Exception:
-        pass
+        log.info('Correo de recuperación enviado (colegio %s).', getattr(colegio, 'pk', None))
+    except Exception as e:
+        # Sin el correo del destinatario en el registro: solo el motivo.
+        log.error('No salió el correo de recuperación (colegio %s): %s', getattr(colegio, 'pk', None),
+                  explicar_error(e))
 
 
 def enviar_enlace(request, colegio, user):

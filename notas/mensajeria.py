@@ -27,6 +27,7 @@ variables: {{1}} = nombre del colegio y {{2}} = el aviso. Sin estas variables no
 envía nada y los avisos siguen saliendo con el botón de «WhatsApp» (enlace wa.me).
 """
 import json
+import logging
 import os
 import re
 import urllib.error
@@ -37,6 +38,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 
 API_WHATSAPP = 'https://graph.facebook.com/{version}/{phone_id}/messages'
+log = logging.getLogger('mcolegio.correo')
 
 
 # ----------------------------------------------------------------------------- correo
@@ -89,10 +91,40 @@ def enviar_varios(mensajes):
     """Manda varios correos por una sola conexión. Devuelve cuántos salieron."""
     if not mensajes:
         return 0
+    conexion = get_connection(fail_silently=False)
     try:
-        return get_connection(fail_silently=True).send_messages(list(mensajes)) or 0
-    except Exception:
+        conexion.open()              # aquí fallan la conexión y la contraseña: queda en el registro
+    except Exception as e:
+        log.error('No se pudieron enviar %s correos: %s', len(mensajes), explicar_error(e))
         return 0
+    conexion.fail_silently = True    # si falla uno, siguen los demás
+    try:
+        return conexion.send_messages(list(mensajes)) or 0
+    finally:
+        try:
+            conexion.close()
+        except Exception:
+            pass
+
+
+def explicar_error(e):
+    """El error del servidor de correo en palabras, para los registros y para «Probar correo»."""
+    import smtplib
+    import socket
+    nombre = type(e).__name__
+    if isinstance(e, smtplib.SMTPAuthenticationError):
+        return (f'{nombre}: el servidor no aceptó el usuario o la contraseña. Con Gmail use una contraseña de '
+                'aplicación de 16 letras, sin espacios, y revise que la verificación en dos pasos esté activa.')
+    if isinstance(e, smtplib.SMTPSenderRefused):
+        return f'{nombre}: el servidor no aceptó el remitente ({e.sender}). Revise DEFAULT_FROM_EMAIL.'
+    if isinstance(e, smtplib.SMTPRecipientsRefused):
+        return f'{nombre}: el servidor rechazó el destinatario.'
+    if isinstance(e, (socket.timeout, TimeoutError)):
+        return (f'{nombre}: se agotó el tiempo al conectar con el servidor de correo. Es probable que el '
+                'servidor de la plataforma no pueda salir por ese puerto.')
+    if isinstance(e, (ConnectionRefusedError, socket.gaierror, OSError)) and not isinstance(e, smtplib.SMTPException):
+        return f'{nombre}: no se pudo conectar con el servidor de correo ({e}).'
+    return f'{nombre}: {e}'
 
 
 # ----------------------------------------------------------------------------- WhatsApp

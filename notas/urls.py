@@ -64,6 +64,7 @@ urlpatterns = [
     # --- Rutas de Paneles de Usuario ---
     path('dashboard/', dashboard_views.dashboard_vista, name='dashboard'),
     path('plataforma/modulos/', plataforma_views.modulos_colegios, name='modulos_colegios'),
+    path('plataforma/probar-correo/', plataforma_views.probar_correo, name='probar_correo'),
     path('panel-administrador/', dashboard_views.admin_dashboard_vista, name='admin_dashboard'),
     path('panel-docente/', dashboard_views.docente_dashboard_vista, name='panel_docente'),
     path('panel-estudiante/', dashboard_views.estudiante_dashboard_vista, name='panel_estudiante'),
