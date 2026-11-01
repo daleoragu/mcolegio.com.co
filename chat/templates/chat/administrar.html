@@ -1,6 +1,6 @@
 {% extends 'notas/base.html' %}
 {% block page_title %}<div><h4 class="mb-0"><i class="fas fa-shield-halved me-2"></i>Administrar el chat</h4>
-<p class="text-muted small mb-0">Horario de silencio y mensajes reportados.</p></div>{% endblock %}
+<p class="text-muted small mb-0">Horario de silencio, fotos y notas de voz, y mensajes reportados.</p></div>{% endblock %}
 {% block content %}
 {% include 'chat/_estilos.html' %}
 <a href="{% url 'chat:inicio' %}" class="btn btn-sm btn-outline-secondary mb-2"><i class="fas fa-arrow-left me-1"></i>Chats</a>
@@ -12,6 +12,10 @@
       <div class="d-flex gap-2 mb-2"><label class="small">Desde<input type="time" name="desde" value="{{ aj.silencio_desde|time:'H:i' }}" class="form-control form-control-sm"></label>
         <label class="small">Hasta<input type="time" name="hasta" value="{{ aj.silencio_hasta|time:'H:i' }}" class="form-control form-control-sm"></label></div>
       <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="fin_de_semana" id="ad-fds" {% if aj.silencio_fin_de_semana %}checked{% endif %}><label class="form-check-label" for="ad-fds">Silencio todo el sábado y el domingo</label></div>
+      <h6 class="fw-bold mt-3">Fotos y notas de voz</h6>
+      <div class="form-check small"><input class="form-check-input" type="checkbox" name="fotos" id="ad-fotos" {% if aj.permitir_fotos %}checked{% endif %}><label class="form-check-label" for="ad-fotos">Se pueden enviar fotos</label></div>
+      <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="voz" id="ad-voz" {% if aj.permitir_voz %}checked{% endif %}><label class="form-check-label" for="ad-voz">Se pueden enviar notas de voz</label></div>
+      <div class="small text-muted mb-2">Las fotos y los audios son privados: solo los ven quienes están en la conversación y, si hay un reporte, los directivos.</div>
       <button class="btn btn-sm btn-primary">Guardar</button>
     </form>
   </div>
@@ -21,7 +25,7 @@
       {% for r in reportes %}
       <div class="border-top py-2{% if r.resuelto %} text-muted{% endif %}">
         <div class="small"><b>{{ r.mensaje.autor.get_full_name|default:r.mensaje.autor.username }}</b> en <a href="{% url 'chat:conversacion' r.mensaje.conversacion_id %}">{{ r.mensaje.conversacion.nombre|default:"una conversación uno a uno" }}</a> · {{ r.mensaje.creado|date:"d M, h:i a" }}</div>
-        <div class="my-1 p-2 rounded" style="background:#fdf0f1">«{{ r.mensaje.texto }}»{% if r.mensaje.eliminado %} <span class="badge text-bg-secondary">eliminado</span>{% endif %}</div>
+        <div class="my-1 p-2 rounded" style="background:#fdf0f1">{% if r.mensaje.archivo %}<a href="{% url 'chat:archivo' r.mensaje.pk %}" target="_blank" rel="noopener">{% if r.mensaje.tipo == 'foto' %}📷 Ver la foto{% else %}🎤 Oír la nota de voz{% endif %}</a> {% endif %}{% if r.mensaje.texto %}«{{ r.mensaje.texto }}»{% endif %}{% if r.mensaje.eliminado %} <span class="badge text-bg-secondary">eliminado</span>{% endif %}</div>
         <div class="small">Reportó: {{ r.usuario.get_full_name|default:r.usuario.username }} · {{ r.motivo }}</div>
         {% if r.resuelto %}<div class="small">Cerrado por {{ r.resuelto_por.get_full_name|default:r.resuelto_por.username }}{% if r.nota %}: {{ r.nota }}{% endif %}</div>
         {% else %}

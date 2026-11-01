@@ -18,6 +18,11 @@ from .models import Conversacion, Mensaje, Participante, Reporte
 
 MAX_TEXTO = 2000
 POR_PAGINA = 60
+MAX_VOZ = 5 * 1024 * 1024          # 5 MB: unos 5 minutos de nota de voz
+MAX_SEGUNDOS_VOZ = 300
+EXT_AUDIO = {'audio/mpeg': '.mp3', 'audio/mp4': '.m4a', 'audio/x-m4a': '.m4a', 'audio/aac': '.aac',
+             'audio/ogg': '.ogg', 'application/ogg': '.ogg', 'audio/webm': '.webm', 'video/webm': '.webm',
+             'audio/wav': '.wav', 'audio/x-wav': '.wav'}
 
 
 class Ctx:
@@ -82,10 +87,41 @@ def _conversacion(c, pk, auditar=False):
 
 
 def _mensaje_json(m, user, moderador):
-    return {'id': m.pk, 'autor': R.nombre_de(m.autor), 'mio': m.autor_id == user.pk,
+    con_archivo = m.tipo in ('foto', 'voz') and bool(m.archivo) and not m.eliminado
+    return {'id': m.pk, 'autor': R.nombre_de(m.autor), 'mio': m.autor_id == user.pk, 'tipo': m.tipo,
             'texto': '' if m.eliminado else m.texto, 'eliminado': m.eliminado,
+            'archivo': f'/chat/m/{m.pk}/archivo/' if con_archivo else '', 'duracion': m.duracion,
             'hora': timezone.localtime(m.creado).strftime('%d/%m %I:%M %p').lower(),
             'puede_borrar': not m.eliminado and (m.autor_id == user.pk or moderador)}
+
+
+def _adjunto(request, conv):
+    """(tipo, bytes, nombre, segundos) del archivo que llegó, o ValueError con el motivo."""
+    f = request.FILES.get('archivo')
+    if f is None:
+        return None
+    aj = R.ajustes(conv.colegio)
+    mime = (getattr(f, 'content_type', '') or '').lower().split(';')[0]
+    if mime.startswith('image/'):
+        if not aj.permitir_fotos:
+            raise ValueError('El colegio no tiene activado el envío de fotos por el chat.')
+        from materiales.views import preparar_imagen
+        datos, ext, _, _ = preparar_imagen(f)
+        return 'foto', datos, f'foto{ext}', 0
+    if mime in EXT_AUDIO or mime.startswith('audio/'):
+        if not aj.permitir_voz:
+            raise ValueError('El colegio no tiene activadas las notas de voz.')
+        datos = f.read(MAX_VOZ + 1)
+        if len(datos) > MAX_VOZ:
+            raise ValueError('La nota de voz es muy larga (máximo 5 minutos).')
+        if not datos:
+            raise ValueError('La nota de voz llegó vacía.')
+        try:
+            segundos = max(0, min(MAX_SEGUNDOS_VOZ, int(float(request.POST.get('duracion') or 0))))
+        except ValueError:
+            segundos = 0
+        return 'voz', datos, f'voz{EXT_AUDIO.get(mime, ".webm")}', segundos
+    raise ValueError('Solo se pueden enviar fotos y notas de voz.')
 
 
 # ---------------------------------------------------------------------------
@@ -199,12 +235,13 @@ def conversacion(request, c, pk):
     return render(request, 'chat/conversacion.html', {
         'conv': conv, 'p': p, 'titulo': _titulo(conv, c.user), 'auditoria': auditoria, 'moderador': moderador,
         'puede_escribir': R.puede_escribir(conv, p) and not auditoria, 'participantes': participantes,
-        'mensajes': [dict(_mensaje_json(m, c.user, moderador), texto_auditoria=m.texto if auditoria else '')
+        'mensajes': [dict(_mensaje_json(m, c.user, moderador), texto_auditoria=m.texto if auditoria else '',
+                          archivo_auditoria=f'/chat/m/{m.pk}/archivo/' if auditoria and m.archivo else '')
                      for m in ultimos],
         'hay_mas': mensajes_qs.count() > POR_PAGINA, 'rol': c.rol,
         'reportados': set(Reporte.objects.filter(mensaje__conversacion=conv).values_list('mensaje_id', flat=True))
         if auditoria else set(),
-        'silencio': R.en_silencio(c.colegio)})
+        'silencio': R.en_silencio(c.colegio), 'aj': R.ajustes(c.colegio)})
 
 
 @vista
@@ -233,10 +270,25 @@ def enviar(request, c, pk):
     conv, p = _conversacion(c, pk)
     if not R.puede_escribir(conv, p):
         return JsonResponse({'ok': False, 'error': 'En este grupo solo escriben los docentes.'}, status=403)
-    texto = (_json(request).get('texto') or '').strip()[:MAX_TEXTO]
-    if not texto:
+    if request.content_type and request.content_type.startswith('multipart/'):
+        texto = (request.POST.get('texto') or '').strip()[:MAX_TEXTO]
+        try:
+            adjunto = _adjunto(request, conv)
+        except ValueError as error:
+            return JsonResponse({'ok': False, 'error': str(error)}, status=400)
+    else:
+        texto, adjunto = (_json(request).get('texto') or '').strip()[:MAX_TEXTO], None
+    if not texto and adjunto is None:
         return JsonResponse({'ok': False, 'error': 'Escriba un mensaje.'}, status=400)
-    m = Mensaje.objects.create(conversacion=conv, autor=c.user, texto=texto)
+    if adjunto is None:
+        m = Mensaje.objects.create(conversacion=conv, autor=c.user, texto=texto)
+    else:
+        from django.core.files.base import ContentFile
+        tipo, datos, nombre, segundos = adjunto
+        m = Mensaje(conversacion=conv, autor=c.user, texto=texto if tipo == 'foto' else '', tipo=tipo,
+                    peso=len(datos), duracion=segundos)
+        m.archivo.save(nombre, ContentFile(datos), save=False)
+        m.save()
     Conversacion.objects.filter(pk=conv.pk).update(ultimo_mensaje=m.creado)
     p.ultimo_leido = m.creado
     p.save(update_fields=['ultimo_leido'])
@@ -299,6 +351,17 @@ def reportar(request, c, mid):
     return redirect('chat:conversacion', pk=m.conversacion_id)
 
 
+@vista
+def archivo(request, c, mid):
+    """La foto o la nota de voz de un mensaje: solo para quienes están en la conversación (o un directivo
+    que revisa una conversación con reportes). El enlace firmado vence a las pocas horas."""
+    m = get_object_or_404(Mensaje.objects.select_related('conversacion'), pk=mid, conversacion__colegio=c.colegio)
+    _, p = _conversacion(c, m.conversacion_id, auditar=True)
+    if not m.archivo or (m.eliminado and p is not None):
+        raise Http404
+    return redirect(m.archivo.url)
+
+
 # ---------------------------------------------------------------------------
 # Administración: reportes y horario de silencio
 # ---------------------------------------------------------------------------
@@ -317,8 +380,10 @@ def administrar(request, c):
                 messages.error(request, 'Revise las horas.')
                 return redirect('chat:administrar')
             aj.silencio_fin_de_semana = request.POST.get('fin_de_semana') == 'on'
+            aj.permitir_fotos = request.POST.get('fotos') == 'on'
+            aj.permitir_voz = request.POST.get('voz') == 'on'
             aj.save()
-            messages.success(request, 'Horario de silencio guardado.')
+            messages.success(request, 'Ajustes del chat guardados.')
         elif request.POST.get('accion') == 'resolver':
             r = get_object_or_404(Reporte, pk=request.POST.get('reporte') or 0, mensaje__conversacion__colegio=c.colegio)
             r.resuelto, r.resuelto_por = True, c.user

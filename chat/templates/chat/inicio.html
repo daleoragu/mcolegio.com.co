@@ -1,54 +1,64 @@
-{% extends 'notas/base.html' %}
-{% block page_title %}<div><h4 class="mb-0"><i class="fas fa-comments me-2"></i>Chat del colegio</h4>
-<p class="text-muted small mb-0">Conversaciones con las personas del colegio. Los mensajes quedan guardados en la plataforma.</p></div>{% endblock %}
+{% extends 'chat/_app.html' %}
+{% block title %}Chat · {{ colegio.nombre|default:"mcolegio" }}{% endblock %}
+{% block volver %}{% url 'notas:dashboard' %}{% endblock %}
+{% block barra %}
+<div class="ch-titulo"><b>Chat del colegio</b><small>{{ colegio.nombre }}</small></div>
+{% if rol == 'admin' %}<a class="ch-icono position-relative" href="{% url 'chat:administrar' %}" title="Administrar el chat" aria-label="Administrar el chat"><i class="fas fa-shield-halved"></i>{% if reportes_abiertos %}<span class="position-absolute top-0 end-0 badge rounded-pill text-bg-danger" style="font-size:.6rem">{{ reportes_abiertos }}</span>{% endif %}</a>{% endif %}
+{% endblock %}
 {% block content %}
-{% include 'chat/_estilos.html' %}
-<div class="row g-3">
-  <div class="col-lg-7">
-    <div class="ch-tarjeta p-2">
-      <div class="ch-lista">
-      {% for f in filas %}
-        <a href="{% url 'chat:conversacion' f.c.pk %}">
-          <span class="ch-avatar{% if f.c.tipo != 'directa' %} grupo{% endif %}">{% if f.c.tipo == 'directa' %}{{ f.titulo|slice:":1"|upper }}{% else %}<i class="fas fa-users"></i>{% endif %}</span>
-          <span class="flex-grow-1"><span class="fw-semibold">{{ f.titulo }}</span>
-            <span class="d-block small text-muted">{{ f.c.get_tipo_display }}{% if f.c.solo_lectura %} · solo docentes escriben{% endif %}{% if f.c.ultimo_mensaje %} · {{ f.c.ultimo_mensaje|date:"d M, h:i a" }}{% endif %}</span></span>
-          {% if f.sin_leer %}<span class="ch-badge">{{ f.sin_leer }}</span>{% endif %}
-        </a>
-      {% empty %}
-        <div class="text-center text-muted py-4">Todavía no tiene conversaciones. Busque a alguien a la derecha para empezar.</div>
-      {% endfor %}
-      </div>
-    </div>
+<div class="ch-cuerpo">
+  <div class="p-2">
+    <form method="get" class="ch-buscar">
+      <i class="fas fa-search"></i>
+      <input name="q" value="{{ q }}" placeholder="Buscar persona para escribirle" aria-label="Buscar persona" autocomplete="off">
+      {% if q %}<a href="{% url 'chat:inicio' %}" aria-label="Limpiar" class="text-muted px-1"><i class="fas fa-times"></i></a>{% endif %}
+    </form>
+    {% if rol == 'estudiante' and not filas and not q %}<div class="small text-muted px-2">Puede escribir a sus docentes, a su director de grupo y a los directivos.</div>{% endif %}
   </div>
-  <div class="col-lg-5">
-    <div class="ch-tarjeta">
-      <h6 class="fw-bold">Nueva conversación</h6>
-      <form method="get" class="d-flex gap-1 mb-2"><input name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Nombre de la persona" aria-label="Buscar persona"><button class="btn btn-sm btn-primary">Buscar</button></form>
-      {% if rol == 'estudiante' %}<div class="small text-muted mb-1">Puede escribir a sus docentes, a su director de grupo y a los directivos.</div>{% endif %}
-      {% for u, et in encontrados %}
-        <form method="post" action="{% url 'chat:nueva' %}" class="d-flex align-items-center gap-2 border-top py-1">{% csrf_token %}
-          <input type="hidden" name="usuario" value="{{ u.pk }}">
-          <span class="flex-grow-1 small"><b>{{ u.get_full_name|default:u.username }}</b><span class="d-block text-muted">{{ et }}</span></span>
-          <button class="btn btn-sm btn-outline-primary">Escribir</button>
-        </form>
-      {% empty %}{% if q %}<div class="small text-muted">No hay nadie con ese nombre entre sus contactos.</div>{% endif %}{% endfor %}
-    </div>
-    {% if grupos %}
-    <div class="ch-tarjeta">
-      <h6 class="fw-bold">Grupos</h6>
-      <div class="small text-muted mb-2">Se arman solos con los estudiantes del curso y se mantienen al día.</div>
-      <form method="post" action="{% url 'chat:abrir_grupo' %}" class="d-flex gap-1 mb-2">{% csrf_token %}
-        <select name="sel" class="form-select form-select-sm" aria-label="Grupo" onchange="var o=this.selectedOptions[0];this.form.tipo.value=o.dataset.tipo;this.form.id.value=o.dataset.id;">
-          <option value="" data-tipo="" data-id="">Escoja un grupo…</option>
-          {% for tipo, obj, nombre in grupos %}<option data-tipo="{{ tipo }}" data-id="{{ obj.pk|default:'' }}">{{ nombre }}</option>{% endfor %}
-        </select>
-        <input type="hidden" name="tipo"><input type="hidden" name="id">
-        <button class="btn btn-sm btn-primary">Abrir</button>
-      </form>
-      <a class="btn btn-sm btn-outline-secondary w-100" href="{% url 'chat:grupo_nuevo' %}"><i class="fas fa-user-plus me-1"></i>Crear un grupo con las personas que escoja</a>
-    </div>
-    {% endif %}
-    {% if rol == 'admin' %}<a class="btn btn-sm btn-outline-dark w-100" href="{% url 'chat:administrar' %}">Administrar el chat{% if reportes_abiertos %} <span class="badge text-bg-danger">{{ reportes_abiertos }}</span>{% endif %}</a>{% endif %}
+
+  {% if q %}
+  <div class="ch-seccion">Contactos</div>
+  <div class="ch-lista">
+  {% for u, et in encontrados %}
+    <form method="post" action="{% url 'chat:nueva' %}">{% csrf_token %}<input type="hidden" name="usuario" value="{{ u.pk }}">
+      <button class="ch-fila"><span class="ch-avatar">{{ u.get_full_name|default:u.username|slice:":1"|upper }}</span>
+        <span class="flex-grow-1 text-start"><span class="fw-semibold d-block">{{ u.get_full_name|default:u.username }}</span><span class="small text-muted">{{ et }}</span></span>
+        <i class="fas fa-comment-dots text-primary"></i></button>
+    </form>
+  {% empty %}<div class="small text-muted px-3 py-2">No hay nadie con ese nombre entre sus contactos.</div>{% endfor %}
   </div>
+  {% endif %}
+
+  {% if grupos and not q %}
+  <details class="ch-grupos mx-2 mb-2">
+    <summary><i class="fas fa-users me-2"></i>Abrir o crear un grupo</summary>
+    <div class="small text-muted my-2">Los grupos del curso y de la asignatura se arman solos con los estudiantes y se mantienen al día.</div>
+    <form method="post" action="{% url 'chat:abrir_grupo' %}" class="d-flex gap-1 mb-2">{% csrf_token %}
+      <select name="sel" class="form-select form-select-sm" aria-label="Grupo" onchange="var o=this.selectedOptions[0];this.form.tipo.value=o.dataset.tipo;this.form.id.value=o.dataset.id;">
+        <option value="" data-tipo="" data-id="">Escoja un grupo…</option>
+        {% for tipo, obj, nombre in grupos %}<option data-tipo="{{ tipo }}" data-id="{{ obj.pk|default:'' }}">{{ nombre }}</option>{% endfor %}
+      </select>
+      <input type="hidden" name="tipo"><input type="hidden" name="id">
+      <button class="btn btn-sm btn-primary">Abrir</button>
+    </form>
+    <a class="btn btn-sm btn-outline-secondary w-100" href="{% url 'chat:grupo_nuevo' %}"><i class="fas fa-user-plus me-1"></i>Crear un grupo con las personas que escoja</a>
+  </details>
+  {% endif %}
+
+  {% if not q %}
+  <div class="ch-lista">
+  {% for f in filas %}
+    <a class="ch-fila" href="{% url 'chat:conversacion' f.c.pk %}">
+      <span class="ch-avatar{% if f.c.tipo != 'directa' %} grupo{% endif %}">{% if f.c.tipo == 'directa' %}{{ f.titulo|slice:":1"|upper }}{% else %}<i class="fas fa-users"></i>{% endif %}</span>
+      <span class="flex-grow-1" style="min-width:0"><span class="d-flex"><span class="fw-semibold flex-grow-1 text-truncate">{{ f.titulo }}</span>
+        {% if f.c.ultimo_mensaje %}<span class="small {% if f.sin_leer %}text-success fw-bold{% else %}text-muted{% endif %} ms-2">{{ f.c.ultimo_mensaje|date:"d M" }}</span>{% endif %}</span>
+        <span class="d-flex"><span class="small text-muted flex-grow-1 text-truncate">{{ f.c.get_tipo_display }}{% if f.c.solo_lectura %} · solo docentes escriben{% endif %}</span>
+        {% if f.sin_leer %}<span class="ch-badge ms-2">{{ f.sin_leer }}</span>{% endif %}</span></span>
+    </a>
+  {% empty %}
+    <div class="text-center text-muted py-5 px-3"><i class="fas fa-comments fa-2x mb-2 d-block opacity-50"></i>Todavía no tiene conversaciones.<br>Busque a alguien arriba para empezar.</div>
+  {% endfor %}
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

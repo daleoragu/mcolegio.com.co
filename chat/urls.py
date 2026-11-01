@@ -16,4 +16,5 @@ urlpatterns = [
     path('c/<int:pk>/enviar/', views.enviar, name='enviar'),
     path('c/<int:pk>/accion/', views.accion, name='accion'),
     path('m/<int:mid>/reportar/', views.reportar, name='reportar'),
+    path('m/<int:mid>/archivo/', views.archivo, name='archivo'),
 ]

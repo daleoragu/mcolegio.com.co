@@ -223,7 +223,11 @@ def avisar(mensaje):
     ya = set(Notificacion.objects.filter(destinatario_id__in=destinos, url=url, leido=False)
              .values_list('destinatario_id', flat=True))
     autor = nombre_de(mensaje.autor)
-    texto = f'{autor}: {mensaje.texto}' if conv.tipo == 'directa' else f'{conv.nombre} · {autor}: {mensaje.texto}'
+    icono = {'foto': '📷', 'voz': '🎤'}.get(mensaje.tipo)
+    contenido = mensaje.texto or {'foto': 'Foto', 'voz': 'Nota de voz'}.get(mensaje.tipo, '')
+    if icono:
+        contenido = f'{icono} {contenido}'
+    texto = f'{autor}: {contenido}' if conv.tipo == 'directa' else f'{conv.nombre} · {autor}: {contenido}'
     nuevas = [Notificacion(colegio=conv.colegio, destinatario_id=uid, tipo='MENSAJE', url=url, mensaje=texto[:255])
               for uid in destinos if uid not in ya]
     Notificacion.objects.bulk_create(nuevas)

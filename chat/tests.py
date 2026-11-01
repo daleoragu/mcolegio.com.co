@@ -1,9 +1,11 @@
 """Chat del colegio: quién habla con quién, grupos que se arman solos, silencio, borrar y reportar."""
 import datetime
+import io
 import json
 from unittest import mock
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 
 from notas.models import Curso, Docente, Notificacion
@@ -157,3 +159,62 @@ class Chat(ColegioDePrueba):
         self.a.modulos_activos = [m for m in self.a.modulos_activos if m != 'chat']
         self.a.save(update_fields=['modulos_activos'])
         self.assertEqual(self.cliente(self.u_docente).get('/chat/').status_code, 403)
+
+
+class FotosYVoz(Chat):
+
+    def _foto(self):
+        from PIL import Image
+        b = io.BytesIO()
+        Image.new('RGB', (40, 30), 'red').save(b, 'PNG')
+        return SimpleUploadedFile('foto.png', b.getvalue(), content_type='image/png')
+
+    def _conv(self):
+        est = self.cliente(self.ana.user)
+        est.post('/chat/nueva/', {'usuario': self.u_docente.pk})
+        return est, Conversacion.objects.get()
+
+    def test_foto_y_nota_de_voz(self):
+        est, conv = self._conv()
+        r = est.post(f'/chat/c/{conv.pk}/enviar/', {'archivo': self._foto(), 'texto': 'Mi tarea'})
+        j = r.json()
+        self.assertTrue(j['ok'], j)
+        self.assertEqual(j['mensaje']['tipo'], 'foto')
+        self.assertEqual(j['mensaje']['texto'], 'Mi tarea')
+        foto = Mensaje.objects.get(tipo='foto')
+        self.assertTrue(foto.archivo.name.startswith(f'chat/{conv.pk}/'))
+        audio = SimpleUploadedFile('voz.webm', b'\x1aE\xdf\xa3' + b'0' * 500, content_type='audio/webm;codecs=opus')
+        j = est.post(f'/chat/c/{conv.pk}/enviar/', {'archivo': audio, 'duracion': '7'}).json()
+        self.assertTrue(j['ok'], j)
+        voz = Mensaje.objects.get(tipo='voz')
+        self.assertEqual(voz.duracion, 7)
+        self.assertTrue(voz.archivo.name.endswith('.webm'))
+        # El aviso dice qué llegó
+        self.assertTrue(Notificacion.objects.filter(destinatario=self.u_docente, mensaje__contains='📷').exists())
+        # Lo ven los de la conversación; nadie más
+        profe = self.cliente(self.u_docente)
+        self.assertEqual(profe.get(f'/chat/m/{voz.pk}/archivo/').status_code, 302)
+        self.assertContains(profe.get(f'/chat/c/{conv.pk}/'), f'/chat/m/{foto.pk}/archivo/')
+        self.assertEqual(self.cliente(self.beto.user).get(f'/chat/m/{foto.pk}/archivo/').status_code, 404)
+        # Un archivo que no es foto ni audio no entra
+        pdf = SimpleUploadedFile('a.pdf', b'%PDF-1.4', content_type='application/pdf')
+        self.assertEqual(est.post(f'/chat/c/{conv.pk}/enviar/', {'archivo': pdf}).status_code, 400)
+        # Borrado: ya no se puede abrir
+        est.post(f'/chat/c/{conv.pk}/accion/', {'accion': 'borrar', 'mensaje': foto.pk})
+        self.assertEqual(profe.get(f'/chat/m/{foto.pk}/archivo/').status_code, 404)
+
+    def test_el_colegio_apaga_fotos_y_voz(self):
+        rectora = self.cliente(self.rectora)
+        rectora.post('/chat/administrar/', {'accion': 'silencio', 'desde': '18:00', 'hasta': '06:00'})
+        aj = AjustesChat.objects.get(colegio=self.a)
+        self.assertFalse(aj.permitir_fotos)
+        self.assertFalse(aj.permitir_voz)
+        est, conv = self._conv()
+        r = est.post(f'/chat/c/{conv.pk}/enviar/', {'archivo': self._foto()})
+        self.assertEqual(r.status_code, 400)
+        self.assertNotContains(est.get(f'/chat/c/{conv.pk}/'), 'id="ch-mic"')
+
+    def test_pantalla_completa(self):
+        r = self.cliente(self.ana.user).get('/chat/')
+        self.assertContains(r, 'class="ch-volver"')
+        self.assertNotContains(r, 'class="content-area"')          # sin la barra ni el menú de la plataforma

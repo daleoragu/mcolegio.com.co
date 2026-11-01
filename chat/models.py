@@ -7,12 +7,18 @@ Reglas (ver reglas.py):
     acudiente: con ella se escribe a los docentes del curso, al director de grupo y a los directivos.
   · Los mensajes no se borran: quien borra uno lo deja como «mensaje eliminado» y el texto queda guardado
     por si hay un reporte.
-  · Solo texto.
+  · Texto, fotos y notas de voz (el colegio puede apagar las fotos o la voz). Los archivos son privados.
 """
 import datetime
 
 from django.contrib.auth.models import User
 from django.db import models
+
+from aula import almacen
+
+
+def ruta_chat(instancia, nombre):
+    return almacen._ruta(f'chat/{instancia.conversacion_id}', nombre)
 
 
 class AjustesChat(models.Model):
@@ -21,6 +27,8 @@ class AjustesChat(models.Model):
     silencio_desde = models.TimeField(default=datetime.time(18, 0), verbose_name='Silencio desde')
     silencio_hasta = models.TimeField(default=datetime.time(6, 0), verbose_name='Silencio hasta')
     silencio_fin_de_semana = models.BooleanField(default=True, verbose_name='Silencio sábados y domingos')
+    permitir_fotos = models.BooleanField(default=True, verbose_name='Se pueden enviar fotos')
+    permitir_voz = models.BooleanField(default=True, verbose_name='Se pueden enviar notas de voz')
 
     def __str__(self):
         return f'Chat de {self.colegio}'
@@ -66,7 +74,12 @@ class Participante(models.Model):
 class Mensaje(models.Model):
     conversacion = models.ForeignKey(Conversacion, on_delete=models.CASCADE, related_name='mensajes')
     autor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mensajes_chat')
-    texto = models.TextField(max_length=2000)
+    TIPOS = [('texto', 'Texto'), ('foto', 'Foto'), ('voz', 'Nota de voz')]
+    tipo = models.CharField(max_length=5, choices=TIPOS, default='texto')
+    texto = models.TextField(max_length=2000, blank=True)
+    archivo = models.FileField(upload_to=ruta_chat, storage=almacen.privado, blank=True)
+    peso = models.PositiveIntegerField(default=0)
+    duracion = models.PositiveSmallIntegerField(default=0, help_text='Segundos de la nota de voz.')
     creado = models.DateTimeField(auto_now_add=True)
     eliminado = models.BooleanField(default=False)
     eliminado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
@@ -75,7 +88,7 @@ class Mensaje(models.Model):
         ordering = ['creado', 'id']
 
     def __str__(self):
-        return self.texto[:40]
+        return self.texto[:40] or self.get_tipo_display()
 
 
 class Reporte(models.Model):
