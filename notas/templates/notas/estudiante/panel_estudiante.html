@@ -104,6 +104,7 @@
         {% if 'calendario' in mods %}<a href="{% url 'calendario:inicio' %}" class="app-icon"><div class="icon-container" style="background:linear-gradient(135deg,#0e7490,#155e75);"><i class="fas fa-calendar-days"></i></div><span class="app-label">Calendario</span></a>{% endif %}
         <a href="{% url 'notas:mi_boletin' %}" class="app-icon"><div class="icon-container bg-est-boletin"><i class="fas fa-file-pdf"></i></div><span class="app-label">Mis Boletines</span></a>
         {% if 'reporte_parcial' in mods %}{% if estudiante or user.estudiante %}<a href="{% url 'notas:acta_reporte_parcial_estudiante' estudiante.id|default:user.estudiante.id %}" class="app-icon"><div class="icon-container" style="background: linear-gradient(135deg, #a0522d, #8b4513);"><i class="fas fa-file-alt"></i></div><span class="app-label">Mi informe parcial</span></a>{% endif %}{% endif %}
+        {% if 'chat' in mods %}<a href="{% url 'chat:inicio' %}" class="app-icon"><div class="icon-container" style="background:linear-gradient(135deg,#198754,#0f5132);"><i class="fas fa-comments"></i></div><span class="app-label">Chat</span></a>{% endif %}
         {% if 'correo' in mods %}<a href="{% url 'notas:bandeja_entrada' %}" class="app-icon"><div class="icon-container" style="background: linear-gradient(135deg, #dc3545, #b02130);"><i class="fas fa-envelope"></i></div><span class="app-label">{{ colegio.nombre_correo|default:"Correo interno" }}</span></a>{% endif %}
     </div>
 </div>

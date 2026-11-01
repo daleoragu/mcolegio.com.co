@@ -29,6 +29,8 @@ MODULOS = OrderedDict([
     ('reporte_parcial', ('Reporte parcial con avisos', 'Reporte parcial, aviso a la familia e informe en PDF.',
                          ('/docente/reporte-parcial/', '/reporte-parcial/', '/familia/informe-parcial/'))),
     ('correo', ('Correo interno', 'Mensajería entre docentes, estudiantes y administración.', ('/mensajeria/',))),
+    ('chat', ('Chat del colegio', 'Chat uno a uno y por grupos (curso, asignatura, sala de profesores) con horario de silencio '
+                       'y reportes. Los estudiantes no se escriben entre ellos en privado.', ('/chat/',))),
     ('piar', ('PIAR (inclusión)', 'Plan Individual de Ajustes Razonables (Decreto 1421) con acta de acuerdo.',
               ('/piar/',))),
     ('simat', ('SIMAT', 'Datos SIMAT de los estudiantes, archivo de cargue e importación del reporte de matrícula.',

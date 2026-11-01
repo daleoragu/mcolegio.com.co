@@ -1,0 +1,333 @@
+"""Chat interno del colegio."""
+import json
+from functools import wraps
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from django.db.models import Count, F, Max, Q
+from django.http import Http404, HttpResponseForbidden, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+
+from notas.models import AsignacionDocente, Curso, Notificacion
+
+from . import reglas as R
+from .models import Conversacion, Mensaje, Participante, Reporte
+
+MAX_TEXTO = 2000
+POR_PAGINA = 60
+
+
+class Ctx:
+    def __init__(self, request):
+        self.request = request
+        self.colegio = getattr(request, 'colegio', None)
+        self.user = request.user
+        self.rol = R.rol(request.user, self.colegio)
+
+    @property
+    def adulto(self):
+        return self.rol in ('admin', 'docente')
+
+
+def vista(fn):
+    @login_required
+    @wraps(fn)
+    def envoltura(request, *args, **kwargs):
+        c = Ctx(request)
+        if c.colegio is None or c.rol is None:
+            return HttpResponseForbidden('El chat es para las personas del colegio.')
+        return fn(request, c, *args, **kwargs)
+    return envoltura
+
+
+def _json(request):
+    try:
+        d = json.loads(request.body or '{}')
+    except ValueError:
+        return {}
+    return d if isinstance(d, dict) else {}
+
+
+def _no_leidos(user, colegio):
+    """{conversacion_id: mensajes sin leer} de esta persona."""
+    filas = (Mensaje.objects.filter(Q(conversacion__colegio=colegio) & Q(conversacion__participantes__usuario=user)
+                                    & Q(conversacion__participantes__activo=True)
+                                    & (Q(conversacion__participantes__ultimo_leido__isnull=True)
+                                       | Q(creado__gt=F('conversacion__participantes__ultimo_leido'))))
+             .exclude(autor=user).exclude(eliminado=True)
+             .values('conversacion').annotate(n=Count('id')))
+    return {f['conversacion']: f['n'] for f in filas}
+
+
+def _titulo(conv, user):
+    if conv.tipo != 'directa':
+        return conv.nombre
+    otro = next((p.usuario for p in conv.participantes.all() if p.usuario_id != user.pk), None)
+    return R.nombre_de(otro) if otro else 'Conversación'
+
+
+def _conversacion(c, pk, auditar=False):
+    """(conversación, participante). Un directivo puede abrir para revisar una conversación con reportes."""
+    conv = get_object_or_404(Conversacion.objects.select_related('curso', 'asignacion'), pk=pk, colegio=c.colegio)
+    R.sincronizar(conv)
+    p = R.participante(conv, c.user)
+    if p is None:
+        if auditar and c.rol == 'admin' and Reporte.objects.filter(mensaje__conversacion=conv).exists():
+            return conv, None
+        raise Http404
+    return conv, p
+
+
+def _mensaje_json(m, user, moderador):
+    return {'id': m.pk, 'autor': R.nombre_de(m.autor), 'mio': m.autor_id == user.pk,
+            'texto': '' if m.eliminado else m.texto, 'eliminado': m.eliminado,
+            'hora': timezone.localtime(m.creado).strftime('%d/%m %I:%M %p').lower(),
+            'puede_borrar': not m.eliminado and (m.autor_id == user.pk or moderador)}
+
+
+# ---------------------------------------------------------------------------
+# Lista de conversaciones
+# ---------------------------------------------------------------------------
+@vista
+def inicio(request, c):
+    pendientes = _no_leidos(c.user, c.colegio)
+    convs = list(Conversacion.objects.filter(colegio=c.colegio, participantes__usuario=c.user,
+                                             participantes__activo=True)
+                 .prefetch_related('participantes__usuario').distinct()[:150])
+    filas = [{'c': x, 'titulo': _titulo(x, c.user), 'sin_leer': pendientes.get(x.pk, 0)} for x in convs]
+    q = (request.GET.get('q') or '').strip()[:60]
+    encontrados = []
+    if q:
+        qs = R.contactos(c.user, c.colegio)
+        for palabra in q.split()[:3]:
+            qs = qs.filter(Q(first_name__icontains=palabra) | Q(last_name__icontains=palabra)
+                           | Q(username__icontains=palabra))
+        encontrados = [(u, R.etiqueta(u, c.colegio)) for u in qs.order_by('last_name', 'first_name')[:30]]
+    return render(request, 'chat/inicio.html', {
+        'filas': filas, 'q': q, 'encontrados': encontrados, 'rol': c.rol,
+        'grupos': R.grupos_disponibles(c.user, c.colegio) if c.adulto else [],
+        'reportes_abiertos': Reporte.objects.filter(mensaje__conversacion__colegio=c.colegio, resuelto=False).count()
+        if c.rol == 'admin' else 0})
+
+
+@vista
+def no_leidos(request, c):
+    return JsonResponse({'n': sum(_no_leidos(c.user, c.colegio).values())})
+
+
+@require_POST
+@vista
+def nueva(request, c):
+    otro = get_object_or_404(User, pk=request.POST.get('usuario') or 0)
+    if not R.puede_hablar(c.user, otro, c.colegio):
+        messages.error(request, 'Con esa persona no se puede abrir un chat.')
+        return redirect('chat:inicio')
+    conv = R.directa(c.colegio, c.user, otro)
+    return redirect('chat:conversacion', pk=conv.pk)
+
+
+@require_POST
+@vista
+def abrir_grupo(request, c):
+    if not c.adulto:
+        raise Http404
+    tipo = request.POST.get('tipo')
+    disponibles = R.grupos_disponibles(c.user, c.colegio)
+    if tipo == 'profesores':
+        conv = R.sala_profesores(c.colegio, c.user)
+    elif tipo == 'curso':
+        curso = get_object_or_404(Curso, pk=request.POST.get('id') or 0, colegio=c.colegio)
+        if not any(t == 'curso' and o.pk == curso.pk for t, o, _ in disponibles):
+            raise Http404
+        conv = R.grupo_curso(c.colegio, curso, c.user)
+    elif tipo == 'asignatura':
+        a = get_object_or_404(AsignacionDocente, pk=request.POST.get('id') or 0, colegio=c.colegio)
+        if not any(t == 'asignatura' and o.pk == a.pk for t, o, _ in disponibles):
+            raise Http404
+        conv = R.grupo_asignatura(c.colegio, a, c.user)
+    else:
+        raise Http404
+    return redirect('chat:conversacion', pk=conv.pk)
+
+
+@vista
+def grupo_nuevo(request, c):
+    """Un grupo que arma el docente o el directivo con las personas que escoja (de sus contactos)."""
+    if not c.adulto:
+        raise Http404
+    contactos = R.contactos(c.user, c.colegio)
+    if request.method == 'POST':
+        nombre = ' '.join((request.POST.get('nombre') or '').split())[:80]
+        ids = {int(x) for x in request.POST.getlist('miembros') if str(x).isdigit()}
+        elegidos = list(contactos.filter(pk__in=ids))
+        if not nombre or not elegidos:
+            messages.error(request, 'Escriba el nombre del grupo y escoja al menos una persona.')
+        else:
+            conv = Conversacion.objects.create(colegio=c.colegio, tipo='grupo', nombre=nombre, creada_por=c.user,
+                                               solo_lectura=request.POST.get('solo_lectura') == 'on')
+            Participante.objects.bulk_create([Participante(conversacion=conv, usuario=c.user, moderador=True)] +
+                                             [Participante(conversacion=conv, usuario=u) for u in elegidos])
+            return redirect('chat:conversacion', pk=conv.pk)
+    q = (request.GET.get('q') or '').strip()[:60]
+    lista = contactos
+    for palabra in q.split()[:3]:
+        lista = lista.filter(Q(first_name__icontains=palabra) | Q(last_name__icontains=palabra))
+    personas = [(u, R.etiqueta(u, c.colegio)) for u in lista.order_by('last_name', 'first_name')[:200]]
+    return render(request, 'chat/grupo_nuevo.html', {'personas': personas, 'q': q})
+
+
+# ---------------------------------------------------------------------------
+# Una conversación
+# ---------------------------------------------------------------------------
+@vista
+def conversacion(request, c, pk):
+    conv, p = _conversacion(c, pk, auditar=True)
+    auditoria = p is None
+    mensajes_qs = conv.mensajes.select_related('autor')
+    ultimos = list(mensajes_qs.order_by('-creado', '-id')[:POR_PAGINA])[::-1]
+    if p is not None:
+        p.ultimo_leido = timezone.now()
+        p.save(update_fields=['ultimo_leido'])
+        Notificacion.objects.filter(destinatario=c.user, url=f'/chat/c/{conv.pk}/', leido=False).update(leido=True)
+    moderador = bool(p and p.moderador)
+    participantes = [(x.usuario, R.etiqueta(x.usuario, c.colegio), x.moderador)
+                     for x in conv.participantes.filter(activo=True).select_related('usuario')
+                     .order_by('-moderador', 'usuario__last_name', 'usuario__first_name')]
+    return render(request, 'chat/conversacion.html', {
+        'conv': conv, 'p': p, 'titulo': _titulo(conv, c.user), 'auditoria': auditoria, 'moderador': moderador,
+        'puede_escribir': R.puede_escribir(conv, p) and not auditoria, 'participantes': participantes,
+        'mensajes': [dict(_mensaje_json(m, c.user, moderador), texto_auditoria=m.texto if auditoria else '')
+                     for m in ultimos],
+        'hay_mas': mensajes_qs.count() > POR_PAGINA, 'rol': c.rol,
+        'reportados': set(Reporte.objects.filter(mensaje__conversacion=conv).values_list('mensaje_id', flat=True))
+        if auditoria else set(),
+        'silencio': R.en_silencio(c.colegio)})
+
+
+@vista
+def nuevos(request, c, pk):
+    """Los mensajes después de ?despues=<id> (la página pregunta cada pocos segundos)."""
+    conv, p = _conversacion(c, pk)
+    try:
+        despues = int(request.GET.get('despues') or 0)
+    except ValueError:
+        despues = 0
+    lista = list(conv.mensajes.select_related('autor').filter(id__gt=despues)[:100])
+    # Los borrados que ya estaban en pantalla
+    borrados = list(conv.mensajes.filter(id__lte=despues, eliminado=True).values_list('id', flat=True)[:200])
+    if lista:
+        p.ultimo_leido = timezone.now()
+        p.save(update_fields=['ultimo_leido'])
+        Notificacion.objects.filter(destinatario=c.user, url=f'/chat/c/{conv.pk}/', leido=False).update(leido=True)
+    conv.refresh_from_db(fields=['solo_lectura'])
+    return JsonResponse({'mensajes': [_mensaje_json(m, c.user, p.moderador) for m in lista], 'borrados': borrados,
+                         'puede_escribir': R.puede_escribir(conv, p)})
+
+
+@require_POST
+@vista
+def enviar(request, c, pk):
+    conv, p = _conversacion(c, pk)
+    if not R.puede_escribir(conv, p):
+        return JsonResponse({'ok': False, 'error': 'En este grupo solo escriben los docentes.'}, status=403)
+    texto = (_json(request).get('texto') or '').strip()[:MAX_TEXTO]
+    if not texto:
+        return JsonResponse({'ok': False, 'error': 'Escriba un mensaje.'}, status=400)
+    m = Mensaje.objects.create(conversacion=conv, autor=c.user, texto=texto)
+    Conversacion.objects.filter(pk=conv.pk).update(ultimo_mensaje=m.creado)
+    p.ultimo_leido = m.creado
+    p.save(update_fields=['ultimo_leido'])
+    R.avisar(m)
+    return JsonResponse({'ok': True, 'mensaje': _mensaje_json(m, c.user, p.moderador)})
+
+
+@require_POST
+@vista
+def accion(request, c, pk):
+    conv, p = _conversacion(c, pk)
+    que = request.POST.get('accion')
+    if que == 'silenciar':
+        p.silenciada = not p.silenciada
+        p.save(update_fields=['silenciada'])
+        messages.info(request, 'No le llegarán avisos de este chat.' if p.silenciada else 'Volverá a recibir avisos de este chat.')
+    elif que == 'solo_lectura' and p.moderador and conv.tipo != 'directa':
+        conv.solo_lectura = not conv.solo_lectura
+        conv.save(update_fields=['solo_lectura'])
+        messages.success(request, 'Ahora solo escriben los moderadores.' if conv.solo_lectura else 'Todos pueden escribir.')
+    elif que == 'borrar':
+        m = get_object_or_404(Mensaje, pk=request.POST.get('mensaje') or 0, conversacion=conv)
+        if m.autor_id == c.user.pk or p.moderador:
+            m.eliminado, m.eliminado_por = True, c.user
+            m.save(update_fields=['eliminado', 'eliminado_por'])
+        if request.headers.get('x-requested-with') == 'fetch':
+            return JsonResponse({'ok': True})
+    elif que == 'salir' and conv.tipo == 'grupo':
+        p.activo = False
+        p.save(update_fields=['activo'])
+        messages.info(request, f'Salió de «{conv.nombre}».')
+        return redirect('chat:inicio')
+    elif que == 'agregar' and conv.tipo == 'grupo' and p.moderador:
+        ids = {int(x) for x in request.POST.getlist('miembros') if str(x).isdigit()}
+        for u in R.contactos(c.user, c.colegio).filter(pk__in=ids):
+            Participante.objects.update_or_create(conversacion=conv, usuario=u, defaults={'activo': True})
+        messages.success(request, 'Personas agregadas al grupo.')
+    elif que == 'quitar' and conv.tipo == 'grupo' and p.moderador:
+        Participante.objects.filter(conversacion=conv, usuario_id=request.POST.get('usuario') or 0, moderador=False) \
+            .update(activo=False)
+    return redirect('chat:conversacion', pk=conv.pk)
+
+
+@require_POST
+@vista
+def reportar(request, c, mid):
+    m = get_object_or_404(Mensaje.objects.select_related('conversacion'), pk=mid, conversacion__colegio=c.colegio)
+    p = R.participante(m.conversacion, c.user)
+    if p is None or m.autor_id == c.user.pk:
+        raise Http404
+    motivo = ' '.join((request.POST.get('motivo') or '').split())[:300] or 'Sin motivo'
+    _, nuevo = Reporte.objects.get_or_create(mensaje=m, usuario=c.user, defaults={'motivo': motivo})
+    if nuevo:
+        from notas.models import AdministradorColegio
+        Notificacion.objects.bulk_create([
+            Notificacion(colegio=c.colegio, destinatario_id=uid, tipo='GENERAL', url='/chat/administrar/',
+                         mensaje=f'Reportaron un mensaje del chat: {motivo}'[:255])
+            for uid in AdministradorColegio.objects.filter(colegio=c.colegio, activo=True).values_list('user_id', flat=True)])
+    messages.info(request, 'Gracias. Los directivos del colegio van a revisar el mensaje.')
+    return redirect('chat:conversacion', pk=m.conversacion_id)
+
+
+# ---------------------------------------------------------------------------
+# Administración: reportes y horario de silencio
+# ---------------------------------------------------------------------------
+@vista
+def administrar(request, c):
+    if c.rol != 'admin':
+        return HttpResponseForbidden('Solo los directivos del colegio.')
+    aj = R.ajustes(c.colegio)
+    if request.method == 'POST':
+        if request.POST.get('accion') == 'silencio':
+            from datetime import time
+            try:
+                aj.silencio_desde = time.fromisoformat(request.POST.get('desde') or '18:00')
+                aj.silencio_hasta = time.fromisoformat(request.POST.get('hasta') or '06:00')
+            except ValueError:
+                messages.error(request, 'Revise las horas.')
+                return redirect('chat:administrar')
+            aj.silencio_fin_de_semana = request.POST.get('fin_de_semana') == 'on'
+            aj.save()
+            messages.success(request, 'Horario de silencio guardado.')
+        elif request.POST.get('accion') == 'resolver':
+            r = get_object_or_404(Reporte, pk=request.POST.get('reporte') or 0, mensaje__conversacion__colegio=c.colegio)
+            r.resuelto, r.resuelto_por = True, c.user
+            r.nota = ' '.join((request.POST.get('nota') or '').split())[:300]
+            r.save(update_fields=['resuelto', 'resuelto_por', 'nota'])
+            if request.POST.get('borrar') == 'on':
+                Mensaje.objects.filter(pk=r.mensaje_id).update(eliminado=True, eliminado_por=c.user)
+            messages.success(request, 'Reporte cerrado.')
+        return redirect('chat:administrar')
+    reportes = Reporte.objects.filter(mensaje__conversacion__colegio=c.colegio) \
+        .select_related('mensaje__autor', 'mensaje__conversacion', 'usuario', 'resuelto_por')[:100]
+    return render(request, 'chat/administrar.html', {'aj': aj, 'reportes': reportes, 'silencio': R.en_silencio(c.colegio)})

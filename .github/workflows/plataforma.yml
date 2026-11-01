@@ -36,7 +36,7 @@ jobs:
       - name: Pruebas
         run: |
           set -o pipefail
-          python manage.py test --noinput notas certificados actas horarios calendario circulares cartera \
+          python manage.py test --noinput notas certificados actas horarios calendario circulares chat cartera \
             elecciones piar prematricula salon_digital simat puntoexacto aula materiales 2>&1 | tee salida_pruebas.txt \
             || { python .github/scripts/anotar_pruebas.py salida_pruebas.txt; exit 1; }
           python .github/scripts/anotar_pruebas.py salida_pruebas.txt

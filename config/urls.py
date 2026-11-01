@@ -39,6 +39,7 @@ urlpatterns = [
     path('actas/', include('actas.urls', namespace='actas')),
     path('certificados/', include('certificados.urls', namespace='certificados')),
     path('circulares/', include('circulares.urls', namespace='circulares')),
+    path('chat/', include('chat.urls', namespace='chat')),
     path('cartera/', include('cartera.urls', namespace='cartera')),
     path('piar/', include('piar.urls', namespace='piar')),
     path('simat/', include('simat.urls', namespace='simat')),
