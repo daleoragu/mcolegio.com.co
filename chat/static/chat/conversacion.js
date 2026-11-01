@@ -12,10 +12,13 @@
   function abajo() { muro.scrollTop = muro.scrollHeight; }
   function cuerpoDe(m) {
     var c = document.createElement('div'); c.className = 'b';
-    if (m.eliminado) { c.textContent = 'Mensaje eliminado'; return c; }
+    if (CFG.autores && !m.mio) { var au = document.createElement('b'); au.className = 'ch-autor'; au.textContent = m.autor; c.appendChild(au); }
+    var hora = document.createElement('span'); hora.className = 'ch-hora'; hora.textContent = m.hora;
+    if (m.eliminado) { c.appendChild(document.createTextNode('Mensaje eliminado')); c.appendChild(hora); return c; }
     if (m.tipo === 'foto' && m.archivo) { var i = document.createElement('img'); i.src = m.archivo; i.alt = 'Foto'; i.loading = 'lazy'; i.onload = function () { if (cercaDelFinal(200)) abajo(); }; c.appendChild(i); }
-    if (m.tipo === 'voz' && m.archivo) { var a = document.createElement('audio'); a.controls = true; a.preload = 'none'; a.src = m.archivo; c.appendChild(a); }
+    if (m.tipo === 'voz' && m.archivo) { var a = document.createElement('audio'); a.controls = true; a.preload = 'metadata'; a.src = m.archivo; c.appendChild(a); }
     if (m.texto) { var s = document.createElement('span'); s.className = 'ch-pie'; s.textContent = m.texto; c.appendChild(s); }
+    c.appendChild(hora);
     return c;
   }
   function dibujar(m) {
@@ -23,19 +26,23 @@
     var d = document.createElement('div');
     d.className = 'ch-msg' + (m.mio ? ' mio' : '') + (m.eliminado ? ' borrado' : '');
     d.setAttribute('data-id', m.id);
-    var meta = document.createElement('div'); meta.className = 'm';
-    if (!m.mio) { var b = document.createElement('b'); b.textContent = m.autor; meta.appendChild(b); }
-    var h = document.createElement('span'); h.textContent = m.hora; meta.appendChild(h);
+    var dias = muro.querySelectorAll('.ch-dia');
+    var ultimoDia = dias.length ? dias[dias.length - 1].getAttribute('data-dia') : '';
+    if (m.dia && m.dia !== ultimoDia) {
+      var sep = document.createElement('div'); sep.className = 'ch-dia'; sep.setAttribute('data-dia', m.dia);
+      var sp = document.createElement('span'); sp.textContent = m.dia; sep.appendChild(sp); muro.appendChild(sep);
+    }
     var acc = document.createElement('div'); acc.className = 'm';
     if (m.puede_borrar) { var x = document.createElement('button'); x.type = 'button'; x.className = 'ch-borrar'; x.setAttribute('data-id', m.id); x.textContent = 'Borrar'; acc.appendChild(x); }
     if (CFG.reportar && !m.mio && !m.eliminado) { var r = document.createElement('button'); r.type = 'button'; r.className = 'ch-reportar'; r.setAttribute('data-id', m.id); r.textContent = 'Reportar'; acc.appendChild(r); }
-    d.appendChild(meta); d.appendChild(cuerpoDe(m)); d.appendChild(acc);
+    d.appendChild(cuerpoDe(m)); d.appendChild(acc);
     muro.appendChild(d);
   }
   function borradoEnPantalla(id) {
     var d = muro.querySelector('.ch-msg[data-id="' + id + '"]');
     if (!d || d.classList.contains('borrado')) return;
-    d.classList.add('borrado'); var b = d.querySelector('.b'); b.innerHTML = ''; b.textContent = 'Mensaje eliminado';
+    d.classList.add('borrado'); var b = d.querySelector('.b'); var h = b.querySelector('.ch-hora'); var au = b.querySelector('.ch-autor');
+    b.innerHTML = ''; if (au) b.appendChild(au); b.appendChild(document.createTextNode('Mensaje eliminado')); if (h) b.appendChild(h);
     d.querySelectorAll('button').forEach(function (x) { x.remove(); });
   }
   function cercaDelFinal(px) { return muro.scrollHeight - muro.scrollTop - muro.clientHeight < (px || 80); }
@@ -44,7 +51,7 @@
       var cerca = cercaDelFinal();
       (j.mensajes || []).forEach(dibujar);
       (j.borrados || []).forEach(borradoEnPantalla);
-      if (form && 'puede_escribir' in j) { form.classList.toggle('d-none', !j.puede_escribir); var ce = document.getElementById('ch-cerrado'); if (ce) ce.classList.toggle('d-none', !!j.puede_escribir); }
+      if (form && 'puede_escribir' in j) { form.classList.toggle('d-none', !j.puede_escribir); if (rapidas) rapidas.classList.toggle('d-none', !j.puede_escribir); var ce = document.getElementById('ch-cerrado'); if (ce) ce.classList.toggle('d-none', !!j.puede_escribir); }
       if ((j.mensajes || []).length && cerca) abajo();
     }).catch(function () {});
   }
@@ -60,7 +67,13 @@
   }
 
   // Botón de enviar o micrófono, como en WhatsApp: con texto o foto se envía; vacío, se graba.
+  var rapidas = document.getElementById('ch-rapidas');
+  if (rapidas) rapidas.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    mandar({ texto: b.textContent.trim() }, function () {});
+  });
   function alternar() {
+    if (rapidas && form && !form.classList.contains('d-none')) rapidas.classList.toggle('d-none', !!(caja.value.trim() || fotoElegida));
     if (!mic) return;
     var hayAlgo = caja.value.trim() || fotoElegida;
     botonEnviar.classList.toggle('d-none', !hayAlgo);
@@ -109,6 +122,7 @@
   function mmss(s) { return Math.floor(s / 60) + ':' + ('0' + Math.floor(s % 60)).slice(-2); }
   function modoGrabando(si) {
     grabando.classList.toggle('d-none', !si); cajaTexto.classList.toggle('d-none', si);
+    var clip = document.querySelector('.ch-clip'); if (clip) clip.style.setProperty('display', si ? 'none' : '', 'important');
     mic.innerHTML = si ? '<i class="fas fa-paper-plane"></i>' : '<i class="fas fa-microphone"></i>';
     mic.setAttribute('aria-label', si ? 'Enviar la nota de voz' : 'Grabar nota de voz');
   }
@@ -150,6 +164,9 @@
   // Ver la foto en grande, borrar y reportar
   var visor = document.getElementById('ch-visor');
   visor.addEventListener('click', function () { visor.classList.add('d-none'); });
+  document.querySelectorAll('.ch-ver-foto').forEach(function (a) {
+    a.addEventListener('click', function (e) { e.preventDefault(); visor.querySelector('img').src = a.getAttribute('data-src'); visor.classList.remove('d-none'); });
+  });
   muro.addEventListener('click', function (e) {
     var img = e.target.closest('.b img');
     if (img) { visor.querySelector('img').src = img.src; visor.classList.remove('d-none'); return; }

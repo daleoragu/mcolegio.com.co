@@ -1,35 +1,7 @@
 {% extends 'chat/_app.html' %}
-{% block title %}Chat · {{ aula.titulo }}{% endblock %}
-{% block volver %}{% url 'aula:muro' aula.pk %}{% endblock %}
-{% block barra %}
-<div class="ch-titulo"><b>Chat · {{ aula.grupo.nombre }}</b><small>{% if c.docente %}Mi Salón Virtual{% else %}{{ c.integrante.completo }}{% endif %}</small></div>
-{% if c.docente %}<a class="ch-icono" href="{% url 'aula:chat_pines' aula.pk %}" title="PIN de los estudiantes" aria-label="PIN de los estudiantes"><i class="fas fa-key"></i></a>{% endif %}
-{% endblock %}
+{% block title %}Mensajes · {{ aula.titulo }}{% endblock %}
+{% block pagina %}pagina-inicio{% endblock %}
+{% block barra_completa %}{% endblock %}
 {% block content %}
-<div class="ch-cuerpo">
-  {% if c.integrante and not c.con_pin %}
-  <div class="ch-grupos m-2">
-    <div class="fw-semibold mb-1"><i class="fas fa-key me-1"></i>Escriba su PIN para usar el chat</div>
-    <div class="small text-muted mb-2">Con el PIN puede escribir y ver su chat privado con el docente. Su docente se lo entrega; así nadie puede escribir con su nombre.</div>
-    {% if bloqueado %}<div class="small text-danger">Demasiados intentos. Espere 15 minutos o pídale el PIN a su docente.</div>
-    {% else %}
-    <form method="post" action="{% url 'aula:chat_pin' aula.pk %}" class="d-flex gap-2">{% csrf_token %}
-      <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" class="form-control" style="max-width:120px;letter-spacing:.3em;font-weight:700" placeholder="0000" aria-label="PIN de 4 cifras" autocomplete="off" required>
-      <button class="btn btn-primary">Entrar</button>
-    </form>{% endif %}
-  </div>
-  {% endif %}
-  <div class="ch-lista">
-  {% for f in filas %}
-    {% if forloop.counter == 2 and c.docente %}<div class="ch-seccion">Chats privados con cada estudiante</div>{% endif %}
-    <a class="ch-fila" href="{{ f.url }}">
-      <span class="ch-avatar{% if f.grupo %} grupo{% endif %}">{% if f.grupo %}<i class="fas fa-users"></i>{% else %}{{ f.titulo|slice:":1"|upper }}{% endif %}</span>
-      <span class="flex-grow-1" style="min-width:0"><span class="d-flex"><span class="fw-semibold flex-grow-1 text-truncate">{{ f.titulo }}</span>
-        {% if f.cuando %}<span class="small {% if f.sin_leer %}text-success fw-bold{% else %}text-muted{% endif %} ms-2">{{ f.cuando|date:"d M" }}</span>{% endif %}</span>
-        <span class="d-flex"><span class="small text-muted flex-grow-1 text-truncate">{{ f.detalle }}</span>{% if f.sin_leer %}<span class="ch-badge ms-2">{{ f.sin_leer }}</span>{% endif %}</span></span>
-    </a>
-  {% endfor %}
-  </div>
-  {% if c.docente %}<div class="small text-muted p-3"><i class="fas fa-lock me-1"></i>Cada estudiante necesita su PIN para escribir. Imprima la lista con el botón <i class="fas fa-key"></i> de arriba.</div>{% endif %}
-</div>
+<div class="ch-vacio"><i class="fas fa-comments"></i><div class="fw-semibold" style="color:var(--mc-azul)">Escoja una conversación</div><div class="small">{% if c.docente %}El grupo completo o el chat privado con un estudiante.{% else %}Los mensajes de su clase.{% endif %}</div></div>
 {% endblock %}

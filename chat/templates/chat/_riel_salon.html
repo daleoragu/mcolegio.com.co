@@ -1,0 +1,8 @@
+<nav class="ch-riel" aria-label="Menú">
+  <a class="ch-logo" href="{% url 'aula:muro' aula.pk %}">mcolegio</a>
+  <a class="ch-ir" href="{% url 'aula:muro' aula.pk %}"><i class="fas fa-house"></i>Mi clase</a>
+  <a class="ch-ir activo" href="{% url 'aula:chat' aula.pk %}"><i class="fas fa-envelope"></i>Mensajes</a>
+  <a class="ch-ir" href="{% url 'aula:tareas' aula.pk %}"><i class="fas fa-clipboard-check"></i>Tareas</a>
+  {% if c.docente %}<a class="ch-ir" href="{% url 'aula:chat_pines' aula.pk %}"><i class="fas fa-key"></i>PIN</a>
+  <a class="ch-ir" href="/copias/?volver={{ request.path|urlencode }}"><i class="fas fa-shield-halved"></i>Copia</a>{% endif %}
+</nav>

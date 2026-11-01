@@ -1,0 +1,35 @@
+<div class="ch-cabeza">
+  <div class="ch-marca">
+    <a class="ch-volver-lista" href="{% url 'aula:muro' aula.pk %}" aria-label="Regresar"><i class="fas fa-arrow-left"></i></a>
+    <b>Mensajes · {{ aula.grupo.nombre }}</b>
+    {% if c.docente %}<a class="ch-mini" href="{% url 'aula:chat_pines' aula.pk %}" title="PIN de los estudiantes" aria-label="PIN de los estudiantes"><i class="fas fa-key"></i></a>{% endif %}
+  </div>
+  {% if c.docente %}<div class="ch-filtros" role="group" aria-label="Filtrar"><button type="button" class="activo" data-filtro="todos">Todos</button><button type="button" data-filtro="persona">Estudiantes</button><button type="button" data-filtro="grupo">Grupo</button></div>{% endif %}
+</div>
+<div class="ch-cuerpo">
+  {% if c.integrante and not c.con_pin %}
+  <div class="ch-grupos">
+    <div class="fw-semibold mb-1" style="color:var(--mc-azul)"><i class="fas fa-key me-1"></i>Escriba su PIN para usar el chat</div>
+    <div class="small text-muted mb-2">Con el PIN puede escribir y ver su chat privado con el docente. Su docente se lo entrega; así nadie puede escribir con su nombre.</div>
+    {% if bloqueado %}<div class="small text-danger">Demasiados intentos. Espere 15 minutos o pídale el PIN a su docente.</div>
+    {% else %}
+    <form method="post" action="{% url 'aula:chat_pin' aula.pk %}" class="d-flex gap-2">{% csrf_token %}
+      <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" class="form-control" style="max-width:120px;letter-spacing:.3em;font-weight:700" placeholder="0000" aria-label="PIN de 4 cifras" autocomplete="off" required>
+      <button class="btn btn-primary">Entrar</button>
+    </form>{% endif %}
+  </div>
+  {% endif %}
+  <div class="ch-lista">
+  {% for f in filas %}
+    {% if forloop.counter == 2 and c.docente %}<div class="ch-seccion">Chats privados con cada estudiante</div>{% endif %}
+    <a class="ch-fila{% if f.id and f.id == activa %} activa{% endif %}" href="{{ f.url }}" data-tipo="{% if f.grupo %}grupo{% else %}persona{% endif %}">
+      <span class="ch-avatar{% if f.grupo %} grupo{% endif %}">{% if f.grupo %}<i class="fas fa-users"></i>{% else %}{{ f.titulo|slice:":1"|upper }}{% endif %}</span>
+      <span class="flex-grow-1" style="min-width:0">
+        <span class="d-flex align-items-baseline"><span class="ch-nombre flex-grow-1 text-truncate">{{ f.titulo }}</span><span class="small ms-2" style="color:{% if f.sin_leer %}var(--mc-oro-2){% else %}#98a2b3{% endif %}">{{ f.cuando }}</span></span>
+        <span class="d-flex align-items-center"><span class="ch-previa-txt flex-grow-1 text-truncate">{{ f.previa }}</span>{% if f.sin_leer %}<span class="ch-badge ms-2">{{ f.sin_leer }}</span>{% endif %}</span>
+      </span>
+    </a>
+  {% endfor %}
+  </div>
+  {% if c.docente %}<div class="small text-muted p-2"><i class="fas fa-lock me-1"></i>Cada estudiante necesita su PIN para escribir. Imprima la lista con el botón <i class="fas fa-key"></i>.</div>{% endif %}
+</div>

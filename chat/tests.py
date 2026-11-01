@@ -216,7 +216,7 @@ class FotosYVoz(Chat):
 
     def test_pantalla_completa(self):
         r = self.cliente(self.ana.user).get('/chat/')
-        self.assertContains(r, 'class="ch-volver"')
+        self.assertContains(r, 'ch-volver-lista')
         self.assertNotContains(r, 'class="content-area"')          # sin la barra ni el menú de la plataforma
 
 

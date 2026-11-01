@@ -2,43 +2,83 @@
 <html lang="es">
 <head>
 {% include "notas/includes/_head.html" %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* El chat ocupa toda la pantalla, como una app: solo la barra de arriba con la flecha de regresar. */
+  /* Chat de mcolegio: pantalla completa como una app. En el celular, una columna (lista o conversación) con la
+     flecha de regresar; en el computador, menú + lista de chats + conversación. */
+  :root { --mc-azul:#1f3a68; --mc-azul-2:#172c50; --mc-oro:#f2b33d; --mc-oro-2:#e3a226; --mc-fondo:#eef1f6;
+          --mc-linea:#e3e7ef; --mc-gris:#667085; --mc-suave:#e4e9f2; }
   html, body { height:100%; }
-  body.ch-app { margin:0; padding:0 !important; overflow:hidden; background:#eef1f5; }
-  .ch-pantalla { position:fixed; inset:0; display:flex; flex-direction:column; max-width:880px; margin:0 auto; background:#f6f8fb;
-                 height:100dvh; box-shadow:0 0 0 1px #e3e7ef; }
-  .ch-barra { flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:8px 10px; padding-top:calc(8px + env(safe-area-inset-top));
-              background:var(--topbar-bg, #1f3a68); color:var(--topbar-text, #fff); min-height:56px; }
+  body.ch-app { margin:0; padding:0 !important; overflow:hidden; background:var(--mc-fondo); font-size:15px; }
+  .ch-app .mc-instalar { display:none !important; }
+  .ch-marco { display:flex; height:100dvh; }
+  .ch-riel, .ch-col-lista { display:none; }
+  .ch-pantalla { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; background:var(--mc-fondo); height:100dvh; }
+  body:not(.con-lista) .ch-pantalla { max-width:880px; margin:0 auto; box-shadow:0 0 0 1px var(--mc-linea); }
+  body.pagina-inicio .ch-col-lista { display:flex; flex:1 1 auto; }
+  body.pagina-inicio .ch-pantalla { display:none; }
+
+  /* Barra de arriba */
+  .ch-barra { flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:10px 12px; padding-top:calc(10px + env(safe-area-inset-top));
+              background:var(--mc-azul); color:#fff; min-height:64px; }
   .ch-barra a, .ch-barra button { color:inherit; }
-  .ch-volver { border:0; background:none; font-size:1.25rem; width:40px; height:40px; border-radius:50%; display:flex; align-items:center;
+  .ch-volver { border:0; background:none; font-size:1.3rem; width:40px; height:40px; border-radius:50%; display:flex; align-items:center;
                justify-content:center; text-decoration:none; flex:0 0 40px; }
-  .ch-volver:hover, .ch-barra .ch-icono:hover { background:rgba(255,255,255,.15); }
-  .ch-barra .ch-titulo { flex:1 1 auto; min-width:0; line-height:1.15; }
-  .ch-barra .ch-titulo b { display:block; font-size:1.02rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .ch-barra .ch-titulo small { opacity:.8; font-size:.76rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
+  .ch-volver:hover, .ch-barra .ch-icono:hover { background:rgba(255,255,255,.14); }
+  .ch-barra .ch-titulo { flex:1 1 auto; min-width:0; line-height:1.2; }
+  .ch-barra .ch-titulo b { display:block; font-family:Poppins,system-ui,sans-serif; font-weight:600; font-size:1.08rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ch-barra .ch-titulo small { color:var(--mc-oro); font-size:.8rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
   .ch-barra .ch-icono { border:0; background:none; width:40px; height:40px; border-radius:50%; font-size:1.05rem; flex:0 0 40px;
                         display:flex; align-items:center; justify-content:center; text-decoration:none; }
   .ch-cuerpo { flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; }
-  .ch-app .mc-instalar { display:none !important; }
-  .ch-avisos { position:fixed; top:64px; left:50%; transform:translateX(-50%); z-index:1080; width:min(92vw,420px); }
+  .ch-avisos { position:fixed; top:72px; left:50%; transform:translateX(-50%); z-index:1080; width:min(92vw,420px); }
+
+  @media (min-width: 992px) {
+    .con-lista .ch-riel { display:flex; flex:0 0 92px; flex-direction:column; align-items:center; gap:6px; background:var(--mc-azul);
+                          padding:18px 8px; color:#cfd8ea; }
+    .con-lista .ch-col-lista { display:flex; flex:0 0 340px; width:340px; }
+    body.pagina-inicio .ch-col-lista { flex:0 0 340px; }
+    body.pagina-inicio .ch-pantalla { display:flex; }
+    .con-lista .ch-pantalla .ch-volver { display:none; }
+    .con-lista .ch-pantalla .ch-barra { background:#fff; color:var(--mc-azul); border-bottom:1px solid var(--mc-linea); }
+    .con-lista .ch-pantalla .ch-barra .ch-titulo small { color:var(--mc-gris); }
+    .con-lista .ch-pantalla .ch-barra .ch-icono:hover { background:var(--mc-fondo); }
+  }
 </style>
 {% include 'chat/_estilos.html' %}
 {% block extra_css %}{% endblock %}
 </head>
-<body class="ch-app">
-<div class="ch-pantalla">
-  <header class="ch-barra">
-    <a class="ch-volver" href="{% block volver %}/{% endblock %}" aria-label="Regresar" title="Regresar"><i class="fas fa-arrow-left"></i></a>
-    {% block barra %}{% endblock %}
-  </header>
-  {% if messages %}<div class="ch-avisos">{% for message in messages %}
-    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm py-2" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button></div>
-  {% endfor %}</div>{% endif %}
-  {% block content %}{% endblock %}
+<body class="ch-app{% if lista_tpl %} con-lista{% endif %} {% block pagina %}pagina-conv{% endblock %}">
+<div class="ch-marco">
+  {% if riel_tpl %}{% include riel_tpl %}{% endif %}
+  {% if lista_tpl %}<aside class="ch-col-lista">{% include lista_tpl %}</aside>{% endif %}
+  <main class="ch-pantalla">
+    {% block barra_completa %}
+    <header class="ch-barra">
+      <a class="ch-volver" href="{% block volver %}/{% endblock %}" aria-label="Regresar" title="Regresar"><i class="fas fa-arrow-left"></i></a>
+      {% block barra %}{% endblock %}
+    </header>
+    {% endblock %}
+    {% if messages %}<div class="ch-avisos">{% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm py-2" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button></div>
+    {% endfor %}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-<script>setTimeout(function () { document.querySelectorAll('.ch-avisos .alert').forEach(function (a) { a.remove(); }); }, 5000);</script>
+<script>
+setTimeout(function () { document.querySelectorAll('.ch-avisos .alert').forEach(function (a) { a.remove(); }); }, 5000);
+// Filtros de la lista (Todos · Personas · Grupos)
+document.querySelectorAll('.ch-filtros button').forEach(function (b) {
+  b.addEventListener('click', function () {
+    document.querySelectorAll('.ch-filtros button').forEach(function (x) { x.classList.toggle('activo', x === b); });
+    var f = b.getAttribute('data-filtro');
+    document.querySelectorAll('.ch-lista .ch-fila[data-tipo]').forEach(function (fila) {
+      fila.classList.toggle('d-none', f !== 'todos' && fila.getAttribute('data-tipo') !== f);
+    });
+  });
+});
+</script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>
