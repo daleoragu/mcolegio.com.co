@@ -1,0 +1,23 @@
+{% extends 'chat/_app.html' %}
+{% block title %}PIN del chat · {{ aula.grupo.nombre }}{% endblock %}
+{% block volver %}{% url 'aula:chat' aula.pk %}{% endblock %}
+{% block barra %}
+<div class="ch-titulo"><b>PIN del chat</b><small>{{ aula.grupo.nombre }}</small></div>
+<button type="button" class="ch-icono" onclick="window.print()" title="Imprimir" aria-label="Imprimir"><i class="fas fa-print"></i></button>
+{% endblock %}
+{% block extra_css %}<style>@media print { .ch-barra, .no-imprimir { display:none !important; } .ch-pantalla { position:static; height:auto; box-shadow:none; } body.ch-app { overflow:visible; background:#fff; } .ch-cuerpo { overflow:visible; } }</style>{% endblock %}
+{% block content %}
+<div class="ch-cuerpo p-3 bg-white">
+  <h5 class="fw-bold">{{ aula.titulo }} · {{ aula.grupo.nombre }}</h5>
+  <p class="small text-muted">Entregue a cada estudiante su PIN (recórtelo). Lo escribe una vez en el chat del aula para poder escribir y ver su chat privado con usted. Si alguien conoce el PIN de otro, cámbielo.</p>
+  <table class="table table-sm align-middle">
+    <thead><tr><th>Estudiante</th><th>PIN</th><th class="no-imprimir"></th></tr></thead>
+    <tbody>
+    {% for i in integrantes %}
+      <tr><td>{{ i.completo }}</td><td class="fw-bold" style="letter-spacing:.25em;font-size:1.1rem">{{ i.pin_chat }}</td>
+        <td class="no-imprimir text-end"><form method="post" class="m-0" onsubmit="return confirm('¿Darle un PIN nuevo a {{ i.completo|escapejs }}? El anterior deja de servir.')">{% csrf_token %}<input type="hidden" name="integrante" value="{{ i.pk }}"><button class="btn btn-sm btn-outline-secondary">Cambiar</button></form></td></tr>
+    {% empty %}<tr><td colspan="3" class="text-muted">El grupo no tiene estudiantes todavía.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+<div class="ch-muro" id="ch-muro" aria-live="polite">
+  {% if hay_mas %}<div class="text-center small text-muted mb-2">Se muestran los últimos mensajes.</div>{% endif %}
+  {% for m in mensajes %}
+  <div class="ch-msg{% if m.mio %} mio{% endif %}{% if m.eliminado %} borrado{% endif %}{% if m.id in reportados %} reportado{% endif %}" data-id="{{ m.id }}">
+    <div class="m">{% if not m.mio %}<b>{{ m.autor }}</b>{% endif %}<span>{{ m.hora }}</span></div>
+    <div class="b">{% if m.eliminado %}Mensaje eliminado{% if auditoria %}: «{{ m.texto_auditoria }}»{% if m.archivo_auditoria %} <a href="{{ m.archivo_auditoria }}" target="_blank" rel="noopener">ver {{ m.tipo }}</a>{% endif %}{% endif %}{% else %}{% if m.tipo == 'foto' and m.archivo %}<img src="{{ m.archivo }}" alt="Foto" loading="lazy">{% elif m.tipo == 'voz' and m.archivo %}<audio controls preload="none" src="{{ m.archivo }}"></audio>{% endif %}{% if m.texto %}<span class="ch-pie">{{ m.texto }}</span>{% endif %}{% endif %}</div>
+    {% if not auditoria %}<div class="m">{% if m.puede_borrar %}<button type="button" class="ch-borrar" data-id="{{ m.id }}">Borrar</button>{% endif %}{% if reportable and not m.mio and not m.eliminado %}<button type="button" class="ch-reportar" data-id="{{ m.id }}">Reportar</button>{% endif %}</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>

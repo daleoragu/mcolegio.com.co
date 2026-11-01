@@ -95,21 +95,23 @@ def _mensaje_json(m, user, moderador):
             'puede_borrar': not m.eliminado and (m.autor_id == user.pk or moderador)}
 
 
-def _adjunto(request, conv):
+def _adjunto(request, conv=None, fotos=True, voz=True):
     """(tipo, bytes, nombre, segundos) del archivo que llegó, o ValueError con el motivo."""
     f = request.FILES.get('archivo')
     if f is None:
         return None
-    aj = R.ajustes(conv.colegio)
+    if conv is not None:
+        aj = R.ajustes(conv.colegio)
+        fotos, voz = aj.permitir_fotos, aj.permitir_voz
     mime = (getattr(f, 'content_type', '') or '').lower().split(';')[0]
     if mime.startswith('image/'):
-        if not aj.permitir_fotos:
+        if not fotos:
             raise ValueError('El colegio no tiene activado el envío de fotos por el chat.')
         from materiales.views import preparar_imagen
         datos, ext, _, _ = preparar_imagen(f)
         return 'foto', datos, f'foto{ext}', 0
     if mime in EXT_AUDIO or mime.startswith('audio/'):
-        if not aj.permitir_voz:
+        if not voz:
             raise ValueError('El colegio no tiene activadas las notas de voz.')
         datos = f.read(MAX_VOZ + 1)
         if len(datos) > MAX_VOZ:
@@ -241,7 +243,9 @@ def conversacion(request, c, pk):
         'hay_mas': mensajes_qs.count() > POR_PAGINA, 'rol': c.rol,
         'reportados': set(Reporte.objects.filter(mensaje__conversacion=conv).values_list('mensaje_id', flat=True))
         if auditoria else set(),
-        'silencio': R.en_silencio(c.colegio), 'aj': R.ajustes(c.colegio)})
+        'silencio': R.en_silencio(c.colegio), 'aj': R.ajustes(c.colegio),
+        'cfg': {'nuevos': f'/chat/c/{conv.pk}/nuevos/', 'enviar': f'/chat/c/{conv.pk}/enviar/',
+                'accion': f'/chat/c/{conv.pk}/accion/', 'reportar': '/chat/m/ID/reportar/'}})
 
 
 @vista
