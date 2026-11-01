@@ -27,7 +27,7 @@ class CopiaDeSeguridad(ColegioDePrueba):
         r = cliente.get(f'/copias/archivo.zip?medios={medios}')
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r['Content-Type'], 'application/zip')
-        return zipfile.ZipFile(io.BytesIO(r.content))
+        return zipfile.ZipFile(io.BytesIO(b''.join(r.streaming_content)))
 
     def test_estudiante_chat_circulares_y_notas(self):
         from chat.models import AjustesChat, Conversacion
@@ -81,7 +81,7 @@ class CopiaDeSeguridad(ColegioDePrueba):
         conv = ConversacionSalon.objects.get(grupo=grupo, integrante__isnull=True)
         profe.post(f'/aula/{aula.pk}/chat/c/{conv.pk}/enviar/', json.dumps({'texto': 'Bienvenidos'}), content_type='application/json')
         r = profe.get('/copias/archivo.zip')
-        z = zipfile.ZipFile(io.BytesIO(r.content))
+        z = zipfile.ZipFile(io.BytesIO(b''.join(r.streaming_content)))
         self.assertIn('chat-salon/index.html', z.namelist())
         self.assertContains(profe.get('/copias/'), 'Hacer copia ahora')
 
