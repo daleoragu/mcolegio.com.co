@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'horarios',        # <--- Horarios de clase (generador: plan Premium)
     'calendario',      # <--- Calendario escolar
     'materiales',      # <--- Mis materiales: guías, talleres y cuadernillos del docente
+    'chat',            # <--- Chat interno de cada colegio (uno a uno y grupos)
     'aula',            # <--- Aula virtual (mcolegio por asignación y Salón Digital por grupo)
 ]
 

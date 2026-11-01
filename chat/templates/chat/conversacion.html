@@ -1,0 +1,128 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'chat/_estilos.html' %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+  <a href="{% url 'chat:inicio' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Chats</a>
+  <h5 class="mb-0 fw-bold flex-grow-1">{{ titulo }} <span class="small text-muted fw-normal">{{ conv.get_tipo_display }}</span></h5>
+  {% if p %}
+  <form method="post" action="{% url 'chat:accion' conv.pk %}" class="d-inline">{% csrf_token %}<input type="hidden" name="accion" value="silenciar">
+    <button class="btn btn-sm btn-outline-secondary" title="Avisos de este chat"><i class="fas {% if p.silenciada %}fa-bell-slash{% else %}fa-bell{% endif %}"></i></button></form>
+  {% endif %}
+</div>
+{% if auditoria %}<div class="alert alert-warning small">Está revisando esta conversación porque tiene mensajes reportados. Los marcados en rojo son los reportados; se ve también el texto de los mensajes borrados.</div>{% endif %}
+<div class="row g-3">
+  <div class="{% if conv.tipo != 'directa' %}col-lg-8{% else %}col-12{% endif %}">
+    <div class="ch-muro" id="ch-muro" aria-live="polite">
+      {% if hay_mas %}<div class="text-center small text-muted mb-2">Se muestran los últimos mensajes.</div>{% endif %}
+      {% for m in mensajes %}
+      <div class="ch-msg{% if m.mio %} mio{% endif %}{% if m.eliminado %} borrado{% endif %}{% if m.id in reportados %} reportado{% endif %}" data-id="{{ m.id }}">
+        <div class="m">{% if not m.mio %}<b>{{ m.autor }}</b>{% endif %}<span>{{ m.hora }}</span></div>
+        <div class="b">{% if m.eliminado %}Mensaje eliminado{% if auditoria %}: «{{ m.texto_auditoria }}»{% endif %}{% else %}{{ m.texto }}{% endif %}</div>
+        {% if not auditoria %}<div class="m">{% if m.puede_borrar %}<button type="button" class="ch-borrar" data-id="{{ m.id }}">Borrar</button>{% endif %}{% if not m.mio and not m.eliminado %}<button type="button" class="ch-reportar" data-id="{{ m.id }}">Reportar</button>{% endif %}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if not auditoria %}
+    <form id="ch-form" class="d-flex gap-2 mt-2{% if not puede_escribir %} d-none{% endif %}">
+      <textarea id="ch-texto" class="form-control" rows="2" maxlength="2000" placeholder="Escriba un mensaje… (Enter envía, Shift+Enter cambia de línea)" aria-label="Mensaje"></textarea>
+      <button class="btn btn-primary px-4" id="ch-enviar"><i class="fas fa-paper-plane"></i></button>
+    </form>
+    <div id="ch-cerrado" class="small text-muted mt-2{% if puede_escribir %} d-none{% endif %}">En este grupo solo escriben los docentes.</div>
+    {% if silencio %}<div class="small text-muted mt-1"><i class="fas fa-moon me-1"></i>Horario de silencio del colegio: los mensajes llegan, pero sin avisar al celular.</div>{% endif %}
+    {% endif %}
+  </div>
+  {% if conv.tipo != 'directa' %}
+  <div class="col-lg-4">
+    <div class="ch-tarjeta">
+      <h6 class="fw-bold">{{ participantes|length }} participante{{ participantes|length|pluralize }}</h6>
+      {% if moderador %}
+      <form method="post" action="{% url 'chat:accion' conv.pk %}" class="mb-2">{% csrf_token %}<input type="hidden" name="accion" value="solo_lectura">
+        <button class="btn btn-sm {% if conv.solo_lectura %}btn-warning{% else %}btn-outline-secondary{% endif %} w-100">{% if conv.solo_lectura %}Solo docentes escriben · abrir a todos{% else %}Dejar que solo escriban los docentes{% endif %}</button></form>
+      {% endif %}
+      <div style="max-height:46vh;overflow-y:auto">
+      {% for u, et, mod in participantes %}
+        <div class="d-flex align-items-center gap-2 small border-top py-1">
+          <span class="flex-grow-1"><b>{{ u.get_full_name|default:u.username }}</b>{% if mod %} <span class="badge text-bg-light">moderador</span>{% endif %}<span class="d-block text-muted">{{ et }}</span></span>
+          {% if moderador and conv.tipo == 'grupo' and not mod %}<form method="post" action="{% url 'chat:accion' conv.pk %}">{% csrf_token %}<input type="hidden" name="accion" value="quitar"><input type="hidden" name="usuario" value="{{ u.pk }}"><button class="btn btn-sm btn-link text-danger p-0" title="Quitar del grupo">&times;</button></form>{% endif %}
+        </div>
+      {% endfor %}
+      </div>
+      {% if conv.tipo == 'grupo' and p and not p.moderador %}
+      <form method="post" action="{% url 'chat:accion' conv.pk %}" class="mt-2" onsubmit="return confirm('¿Salir de este grupo?')">{% csrf_token %}<input type="hidden" name="accion" value="salir"><button class="btn btn-sm btn-outline-danger w-100">Salir del grupo</button></form>
+      {% endif %}
+      {% if conv.tipo != 'grupo' %}<div class="small text-muted mt-2">Este grupo se mantiene solo: entran los estudiantes nuevos del curso y salen los que se retiran.</div>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% if not auditoria %}
+<form id="ch-reporte" method="post" class="d-none">{% csrf_token %}<input type="hidden" name="motivo"></form>
+<script>
+(function () {
+  var muro = document.getElementById('ch-muro'), form = document.getElementById('ch-form'), caja = document.getElementById('ch-texto');
+  var token = document.querySelector('#ch-reporte [name=csrfmiddlewaretoken]').value;
+  var URL_NUEVOS = "{% url 'chat:nuevos' conv.pk %}", URL_ENVIAR = "{% url 'chat:enviar' conv.pk %}", URL_ACCION = "{% url 'chat:accion' conv.pk %}";
+  function ultimo() { var x = muro.querySelectorAll('.ch-msg[data-id]'); return x.length ? +x[x.length - 1].getAttribute('data-id') : 0; }
+  function abajo() { muro.scrollTop = muro.scrollHeight; }
+  function dibujar(m) {
+    if (muro.querySelector('.ch-msg[data-id="' + m.id + '"]')) return;
+    var d = document.createElement('div');
+    d.className = 'ch-msg' + (m.mio ? ' mio' : '') + (m.eliminado ? ' borrado' : '');
+    d.setAttribute('data-id', m.id);
+    var meta = document.createElement('div'); meta.className = 'm';
+    if (!m.mio) { var b = document.createElement('b'); b.textContent = m.autor; meta.appendChild(b); }
+    var h = document.createElement('span'); h.textContent = m.hora; meta.appendChild(h);
+    var cuerpo = document.createElement('div'); cuerpo.className = 'b'; cuerpo.textContent = m.eliminado ? 'Mensaje eliminado' : m.texto;
+    var acc = document.createElement('div'); acc.className = 'm';
+    if (m.puede_borrar) { var x = document.createElement('button'); x.type = 'button'; x.className = 'ch-borrar'; x.setAttribute('data-id', m.id); x.textContent = 'Borrar'; acc.appendChild(x); }
+    if (!m.mio && !m.eliminado) { var r = document.createElement('button'); r.type = 'button'; r.className = 'ch-reportar'; r.setAttribute('data-id', m.id); r.textContent = 'Reportar'; acc.appendChild(r); }
+    d.appendChild(meta); d.appendChild(cuerpo); d.appendChild(acc);
+    muro.appendChild(d);
+  }
+  function borradoEnPantalla(id) {
+    var d = muro.querySelector('.ch-msg[data-id="' + id + '"]');
+    if (!d || d.classList.contains('borrado')) return;
+    d.classList.add('borrado'); d.querySelector('.b').textContent = 'Mensaje eliminado';
+    d.querySelectorAll('button').forEach(function (b) { b.remove(); });
+  }
+  function traer() {
+    fetch(URL_NUEVOS + '?despues=' + ultimo(), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+      var cerca = muro.scrollHeight - muro.scrollTop - muro.clientHeight < 80;
+      (j.mensajes || []).forEach(dibujar);
+      (j.borrados || []).forEach(borradoEnPantalla);
+      if (form) { form.classList.toggle('d-none', !j.puede_escribir); document.getElementById('ch-cerrado').classList.toggle('d-none', !!j.puede_escribir); }
+      if ((j.mensajes || []).length && cerca) abajo();
+    }).catch(function () {});
+  }
+  if (form) form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var texto = caja.value.trim(); if (!texto) return;
+    caja.value = '';
+    fetch(URL_ENVIAR, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token },
+      body: JSON.stringify({ texto: texto }) }).then(function (r) { return r.json(); }).then(function (j) {
+        if (j.ok) { dibujar(j.mensaje); abajo(); } else { caja.value = texto; alert(j.error || 'No se envió.'); }
+      }).catch(function () { caja.value = texto; alert('Sin conexión: no se envió.'); });
+  });
+  if (caja) caja.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
+  muro.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    var id = b.getAttribute('data-id');
+    if (b.classList.contains('ch-borrar')) {
+      if (!confirm('¿Borrar este mensaje? Quedará como «mensaje eliminado».')) return;
+      var f = new FormData(); f.append('accion', 'borrar'); f.append('mensaje', id);
+      fetch(URL_ACCION, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': token, 'X-Requested-With': 'fetch' }, body: f })
+        .then(function () { borradoEnPantalla(id); });
+    } else if (b.classList.contains('ch-reportar')) {
+      var motivo = prompt('¿Qué tiene de malo este mensaje? Lo revisan los directivos del colegio.');
+      if (!motivo) return;
+      var rf = document.getElementById('ch-reporte');
+      rf.action = '/chat/m/' + id + '/reportar/'; rf.motivo.value = motivo; rf.submit();
+    }
+  });
+  abajo();
+  setInterval(function () { if (!document.hidden) traer(); }, 5000);
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -16,7 +16,8 @@
                 <li><a class="dropdown-item {% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'panel_docente' or request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}" href="{% url 'notas:dashboard' %}"><i class="fas fa-home fa-fw me-2 text-muted"></i>Inicio</a></li>
                 
                 {# --- 1. COMUNICACIONES --- #}
-                {% if 'correo' in mods %}<li><h6 class="dropdown-header">Comunicaciones</h6></li>{% endif %}
+                {% if 'correo' in mods or 'chat' in mods %}<li><h6 class="dropdown-header">Comunicaciones</h6></li>{% endif %}
+                {% if 'chat' in mods %}<li><a class="dropdown-item {% if '/chat/' in request.path %}active{% endif %}" href="{% url 'chat:inicio' %}"><i class="fas fa-comments fa-fw me-2 text-muted"></i>Chat del colegio</a></li>{% endif %}
                 {% if 'correo' in mods %}<li><a class="dropdown-item {% if 'mensajes' in request.path %}active{% endif %}" href="{% url 'notas:bandeja_entrada' %}"><i class="fas fa-envelope fa-fw me-2 text-muted"></i>{{ colegio.nombre_correo|default:"Correo interno" }}</a></li>{% endif %}
                 
                 {# --- 2. PANEL DEL ESTUDIANTE --- #}
@@ -127,6 +128,24 @@
     </div>
 
     <div class="topbar-section right">
+            {% if 'chat' in mods and user.is_authenticated %}
+            <div class="notification-bell ms-3">
+                <a href="{% url 'chat:inicio' %}" class="topbar-icon-link position-relative" title="Chat del colegio" aria-label="Chat del colegio">
+                    <i class="fas fa-comments fa-lg"></i>
+                    <span class="badge rounded-pill notification-badge-abs d-none" id="chat-sin-leer"></span>
+                </a>
+            </div>
+            <script>
+            (function () {
+              var b = document.getElementById('chat-sin-leer');
+              function contar() {
+                fetch("{% url 'chat:no_leidos' %}", { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : { n: 0 }; })
+                  .then(function (j) { b.textContent = j.n > 99 ? '99+' : j.n; b.classList.toggle('d-none', !j.n); }).catch(function () {});
+              }
+              contar(); setInterval(function () { if (!document.hidden) contar(); }, 60000);
+            })();
+            </script>
+            {% endif %}
             <div class="notification-bell ms-3">
             <a href="#" class="topbar-icon-link" id="notification-icon-link" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-bell fa-lg"></i>

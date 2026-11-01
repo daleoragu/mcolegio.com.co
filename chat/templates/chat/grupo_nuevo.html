@@ -1,0 +1,20 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<div><h4 class="mb-0"><i class="fas fa-user-plus me-2"></i>Crear un grupo</h4>
+<p class="text-muted small mb-0">Escoja a las personas: solo aparecen las que usted puede contactar. Usted queda como moderador.</p></div>{% endblock %}
+{% block content %}
+{% include 'chat/_estilos.html' %}
+<a href="{% url 'chat:inicio' %}" class="btn btn-sm btn-outline-secondary mb-2"><i class="fas fa-arrow-left me-1"></i>Chats</a>
+<form method="get" class="d-flex gap-1 mb-2" style="max-width:420px"><input name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Filtrar por nombre" aria-label="Filtrar"><button class="btn btn-sm btn-outline-primary">Filtrar</button></form>
+<form method="post" class="ch-tarjeta">{% csrf_token %}
+  <label class="fw-bold small mb-1" for="gn-nombre">Nombre del grupo</label>
+  <input id="gn-nombre" name="nombre" maxlength="80" class="form-control mb-2" placeholder="Ej.: Comité de convivencia, Proyecto ambiental 9.°" required>
+  <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="solo_lectura" id="gn-solo"><label class="form-check-label" for="gn-solo">Solo yo escribo (grupo de avisos)</label></div>
+  <div style="max-height:50vh;overflow-y:auto" class="border rounded p-2 mb-2">
+  {% for u, et in personas %}
+    <label class="d-flex align-items-center gap-2 small py-1 border-bottom"><input type="checkbox" class="form-check-input" name="miembros" value="{{ u.pk }}">
+      <span><b>{{ u.get_full_name|default:u.username }}</b> <span class="text-muted">{{ et }}</span></span></label>
+  {% empty %}<div class="small text-muted">No hay personas con ese filtro.</div>{% endfor %}
+  </div>
+  <button class="btn btn-primary">Crear el grupo</button>
+</form>
+{% endblock %}
