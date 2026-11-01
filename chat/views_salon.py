@@ -20,7 +20,8 @@ from aula import logica
 from aula.models import Aula
 
 from .models import ConversacionSalon, LecturaSalon, MensajeSalon
-from .views import MAX_TEXTO, POR_PAGINA, _adjunto, _json
+from .views import (MAX_TEXTO, POR_PAGINA, RESPUESTAS_ADULTO, RESPUESTAS_ESTUDIANTE, _adjunto, _json, dia_de,
+                    fecha_corta, hora_de, vista_previa)
 
 CLAVE_PIN = 'chat_salon_pin'
 MAX_INTENTOS = 5
@@ -118,37 +119,53 @@ def _json_mensaje(c, m):
     return {'id': m.pk, 'autor': autor, 'mio': mio, 'tipo': m.tipo, 'texto': '' if m.eliminado else m.texto,
             'eliminado': m.eliminado, 'duracion': m.duracion,
             'archivo': f'/aula/{c.aula.pk}/chat/m/{m.pk}/archivo/' if con_archivo else '',
-            'hora': timezone.localtime(m.creado).strftime('%d/%m %I:%M %p').lower(),
+            'hora': hora_de(m.creado), 'dia': dia_de(m.creado),
             'puede_borrar': not m.eliminado and (c.docente or mio)}
 
 
 # ---------------------------------------------------------------------------
-@vista
-def inicio(request, c):
+def _previa(conv):
+    m = conv.mensajes.order_by('-creado', '-id').first()
+    return vista_previa(m.texto, m.tipo, m.eliminado) if m else ''
+
+
+def _lista(c):
     grupo_conv = del_grupo(c.grupo)
+    base = f'/aula/{c.aula.pk}/chat/'
     if c.docente:
         pendientes = no_leidos_docente(c.grupo)
         privados = {x.integrante_id: x for x in ConversacionSalon.objects.filter(grupo=c.grupo, integrante__isnull=False)}
-        filas = [{'url': f'/aula/{c.aula.pk}/chat/c/{grupo_conv.pk}/', 'titulo': 'Todo el grupo', 'grupo': True,
-                  'detalle': 'Solo usted escribe' if grupo_conv.solo_lectura else 'Escriben usted y los estudiantes con PIN',
-                  'sin_leer': pendientes.get(grupo_conv.pk, 0), 'cuando': grupo_conv.ultimo_mensaje}]
+        filas = [{'url': f'{base}c/{grupo_conv.pk}/', 'titulo': 'Todo el grupo', 'grupo': True, 'id': grupo_conv.pk,
+                  'previa': _previa(grupo_conv) or ('Solo usted escribe' if grupo_conv.solo_lectura
+                                                     else 'Escriben usted y los estudiantes con PIN'),
+                  'sin_leer': pendientes.get(grupo_conv.pk, 0), 'dt': grupo_conv.ultimo_mensaje}]
         estudiantes = []
         for i in c.grupo.integrantes.filter(activo=True):
             conv = privados.get(i.pk)
-            estudiantes.append({'url': f'/aula/{c.aula.pk}/chat/con/{i.pk}/', 'titulo': i.completo, 'grupo': False,
-                                'detalle': 'Chat privado', 'sin_leer': pendientes.get(conv.pk, 0) if conv else 0,
-                                'cuando': conv.ultimo_mensaje if conv else None})
-        estudiantes.sort(key=lambda f: (-f['sin_leer'], -(f['cuando'].timestamp() if f['cuando'] else 0)))
+            estudiantes.append({'url': f'{base}con/{i.pk}/', 'titulo': i.completo, 'grupo': False,
+                                'id': conv.pk if conv else None,
+                                'previa': (_previa(conv) if conv else '') or 'Chat privado',
+                                'sin_leer': pendientes.get(conv.pk, 0) if conv else 0,
+                                'dt': conv.ultimo_mensaje if conv else None})
+        estudiantes.sort(key=lambda f: (-f['sin_leer'], -(f['dt'].timestamp() if f['dt'] else 0)))
         filas += estudiantes
     else:
         convs = [grupo_conv] + ([privado(c.grupo, c.integrante)] if c.con_pin else [])
         pend = _no_leidos_estudiante(c, convs)
-        filas = [{'url': f'/aula/{c.aula.pk}/chat/c/{x.pk}/', 'grupo': x.integrante_id is None,
+        filas = [{'url': f'{base}c/{x.pk}/', 'grupo': x.integrante_id is None, 'id': x.pk,
                   'titulo': 'Todo el grupo' if x.integrante_id is None else f'{c.nombre_docente} (docente)',
-                  'detalle': 'Mensajes para toda la clase' if x.integrante_id is None else 'Su chat privado con el docente',
-                  'sin_leer': pend.get(x.pk, 0), 'cuando': x.ultimo_mensaje} for x in convs]
-    return render(request, 'chat/salon_inicio.html', {
-        'c': c, 'aula': c.aula, 'filas': filas, 'bloqueado': _bloqueado(c.integrante) if c.integrante else False})
+                  'previa': _previa(x) or ('Mensajes para toda la clase' if x.integrante_id is None
+                                           else 'Su chat privado con el docente'),
+                  'sin_leer': pend.get(x.pk, 0), 'dt': x.ultimo_mensaje} for x in convs]
+    for f in filas:
+        f['cuando'] = fecha_corta(f['dt'])
+    return {'c': c, 'aula': c.aula, 'filas': filas, 'lista_tpl': 'chat/salon_lista.html', 'riel_tpl': 'chat/_riel_salon.html',
+            'bloqueado': _bloqueado(c.integrante) if c.integrante else False}
+
+
+@vista
+def inicio(request, c):
+    return render(request, 'chat/salon_inicio.html', _lista(c))
 
 
 def _llave_intentos(integrante):
@@ -208,10 +225,14 @@ def conversacion(request, c, cid):
     else:
         cerrado = 'En este chat solo escribe el docente.'
     return render(request, 'chat/salon_conversacion.html', {
-        'c': c, 'aula': c.aula, 'conv': conv, 'titulo': titulo, 'sub': sub,
+        **_lista(c), 'conv': conv, 'titulo': titulo, 'sub': sub, 'activa': conv.pk,
+        'compartidos': [_json_mensaje(c, m) for m in conv.mensajes.filter(tipo__in=('foto', 'voz'), eliminado=False)
+                        .exclude(archivo='').select_related('integrante').order_by('-creado', '-id')[:12]],
+        'respuestas': RESPUESTAS_ADULTO if c.docente else RESPUESTAS_ESTUDIANTE,
         'mensajes': [_json_mensaje(c, m) for m in ultimos], 'hay_mas': qs.count() > POR_PAGINA,
         'puede_escribir': _puede_escribir(c, conv), 'mensaje_cerrado': cerrado,
-        'cfg': {'nuevos': base + 'nuevos/', 'enviar': base + 'enviar/', 'accion': base + 'accion/', 'reportar': ''}})
+        'cfg': {'nuevos': base + 'nuevos/', 'enviar': base + 'enviar/', 'accion': base + 'accion/', 'reportar': '',
+                'autores': conv.integrante_id is None}})
 
 
 @vista

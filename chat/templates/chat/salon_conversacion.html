@@ -11,8 +11,10 @@
 {% endif %}
 {% endblock %}
 {% block content %}
-{% include 'chat/_muro.html' with reportable=False auditoria=False reportados=None %}
+<div class="ch-conv"><div class="ch-conv-centro">
+{% if conv.integrante_id %}{% include 'chat/_muro.html' with reportable=False auditoria=False reportados=None con_autores=False %}{% else %}{% include 'chat/_muro.html' with reportable=False auditoria=False reportados=None con_autores=True %}{% endif %}
 {% include 'chat/_composer.html' with permitir_fotos=True permitir_voz=True %}
+</div>{% include 'chat/_lateral.html' %}</div>
 {% endblock %}
 {% block extra_js %}
 <div class="ch-visor d-none" id="ch-visor"><button type="button" aria-label="Cerrar la foto"><i class="fas fa-arrow-left"></i></button><img alt="Foto"></div>

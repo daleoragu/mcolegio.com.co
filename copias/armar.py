@@ -9,6 +9,8 @@ import io
 import json
 import logging
 import os
+import shutil
+import tempfile
 import zipfile
 from html import escape
 
@@ -55,7 +57,8 @@ class Copia:
     def __init__(self, usuario, medios=True):
         self.usuario = usuario
         self.medios = medios
-        self.buffer = io.BytesIO()
+        # En el disco temporal y no en la memoria: una copia con muchas fotos no debe llenar la RAM del servidor.
+        self.buffer = tempfile.SpooledTemporaryFile(max_size=4 * 1024 * 1024)
         self.zip = zipfile.ZipFile(self.buffer, 'w', zipfile.ZIP_DEFLATED)
         self.peso_medios = 0
         self.medios_omitidos = 0
@@ -76,16 +79,16 @@ class Copia:
         if self.peso_medios + tam > MAX_MEDIOS:
             self.medios_omitidos += 1
             return ''
+        ext = os.path.splitext(campo.name)[1].lower()[:8]
+        ruta = ruta + ext
+        info = zipfile.ZipInfo(ruta, date_time=timezone.localtime().timetuple()[:6])   # sin comprimir: ya lo están
         try:
-            with campo.open('rb') as f:
-                datos = f.read()
+            with campo.open('rb') as origen, self.zip.open(info, 'w') as destino:
+                shutil.copyfileobj(origen, destino, 1024 * 1024)
         except Exception:
             log.warning('Copia: no se pudo leer %s', getattr(campo, 'name', ''))
             return ''
-        ext = os.path.splitext(campo.name)[1].lower()[:8]
-        ruta = ruta + ext
-        self.zip.writestr(zipfile.ZipInfo(ruta, date_time=timezone.localtime().timetuple()[:6]), datos)
-        self.peso_medios += len(datos)
+        self.peso_medios += tam or self.zip.getinfo(ruta).file_size
         return ruta
 
     def parte(self, nombre, funcion, *args):
@@ -115,7 +118,9 @@ class Copia:
                   '<p class="muted">Guarde este archivo en un lugar seguro: tiene información personal.</p>')
         self.texto('index.html', _pagina('Copia de seguridad · mcolegio', cuerpo, volver=''))
         self.zip.close()
-        return self.buffer.getvalue()
+        tam = self.buffer.tell()
+        self.buffer.seek(0)
+        return self.buffer, tam
 
 
 # ---------------------------------------------------------------------------
@@ -317,7 +322,7 @@ PARTES = [('Mis datos', datos), ('Chat del colegio', chat_colegio), ('Chat de Mi
 
 
 def armar(usuario, medios=True):
-    """bytes del .zip con todo lo de esta persona."""
+    """(archivo temporal abierto en el inicio, tamaño) del .zip con todo lo de esta persona."""
     copia = Copia(usuario, medios=medios)
     for nombre, funcion in PARTES:
         copia.parte(nombre, funcion)

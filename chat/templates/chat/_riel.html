@@ -1,0 +1,8 @@
+<nav class="ch-riel" aria-label="Menú">
+  <a class="ch-logo" href="{% url 'notas:dashboard' %}">mcolegio</a>
+  <a class="ch-ir" href="{% url 'notas:dashboard' %}"><i class="fas fa-house"></i>Inicio</a>
+  <a class="ch-ir activo" href="{% url 'chat:inicio' %}"><i class="fas fa-envelope"></i>Mensajes</a>
+  {% if 'calendario' in mods %}<a class="ch-ir" href="/calendario/"><i class="far fa-calendar"></i>Calendario</a>{% endif %}
+  {% if 'circulares' in mods %}<a class="ch-ir" href="/circulares/"><i class="far fa-file-lines"></i>Circulares</a>{% endif %}
+  <a class="ch-ir" href="/copias/?volver={{ request.path|urlencode }}"><i class="fas fa-shield-halved"></i>Copia</a>
+</nav>

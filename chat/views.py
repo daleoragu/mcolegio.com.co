@@ -5,7 +5,7 @@ from functools import wraps
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import Count, F, Max, Q
+from django.db.models import Count, F, Max, OuterRef, Q, Subquery
 from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -20,6 +20,8 @@ MAX_TEXTO = 2000
 POR_PAGINA = 60
 MAX_VOZ = 5 * 1024 * 1024          # 5 MB: unos 5 minutos de nota de voz
 MAX_SEGUNDOS_VOZ = 300
+RESPUESTAS_ESTUDIANTE = ['¡Gracias profe!', 'Tengo una duda', 'Ya lo envié']
+RESPUESTAS_ADULTO = ['Recibido ✅', 'Gracias', 'Lo reviso y le cuento']
 EXT_AUDIO = {'audio/mpeg': '.mp3', 'audio/mp4': '.m4a', 'audio/x-m4a': '.m4a', 'audio/aac': '.aac',
              'audio/ogg': '.ogg', 'application/ogg': '.ogg', 'audio/webm': '.webm', 'video/webm': '.webm',
              'audio/wav': '.wav', 'audio/x-wav': '.wav'}
@@ -86,13 +88,77 @@ def _conversacion(c, pk, auditar=False):
     return conv, p
 
 
+MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',
+         'noviembre', 'diciembre']
+
+
+def dia_de(dt):
+    """«Hoy», «Ayer» o «3 de noviembre», para los separadores del chat."""
+    d = timezone.localtime(dt).date()
+    hoy = timezone.localdate()
+    if d == hoy:
+        return 'Hoy'
+    if (hoy - d).days == 1:
+        return 'Ayer'
+    return f'{d.day} de {MESES[d.month - 1]}' + ('' if d.year == hoy.year else f' de {d.year}')
+
+
+def hora_de(dt):
+    return timezone.localtime(dt).strftime('%I:%M %p').lstrip('0').replace('AM', 'a. m.').replace('PM', 'p. m.')
+
+
+def fecha_corta(dt):
+    """Para la lista de chats: la hora si es de hoy; si no, «Ayer» o el día."""
+    if dt is None:
+        return ''
+    d = dia_de(dt)
+    return hora_de(dt) if d == 'Hoy' else (d if d == 'Ayer' else timezone.localtime(dt).strftime('%d/%m/%y'))
+
+
 def _mensaje_json(m, user, moderador):
     con_archivo = m.tipo in ('foto', 'voz') and bool(m.archivo) and not m.eliminado
     return {'id': m.pk, 'autor': R.nombre_de(m.autor), 'mio': m.autor_id == user.pk, 'tipo': m.tipo,
             'texto': '' if m.eliminado else m.texto, 'eliminado': m.eliminado,
             'archivo': f'/chat/m/{m.pk}/archivo/' if con_archivo else '', 'duracion': m.duracion,
-            'hora': timezone.localtime(m.creado).strftime('%d/%m %I:%M %p').lower(),
+            'hora': hora_de(m.creado), 'dia': dia_de(m.creado),
             'puede_borrar': not m.eliminado and (m.autor_id == user.pk or moderador)}
+
+
+def vista_previa(texto, tipo, eliminado=False):
+    if eliminado:
+        return 'Mensaje eliminado'
+    if tipo == 'foto':
+        return '📷 ' + (texto or 'Foto')
+    if tipo == 'voz':
+        return '🎤 Nota de voz'
+    return texto or ''
+
+
+def _lista(c, request):
+    """Lo que necesita la columna de chats (en el celular es la página de inicio; en el computador va al lado)."""
+    pendientes = _no_leidos(c.user, c.colegio)
+    ultimo = Mensaje.objects.filter(conversacion=OuterRef('pk')).order_by('-creado', '-id')
+    convs = list(Conversacion.objects.filter(colegio=c.colegio, participantes__usuario=c.user,
+                                             participantes__activo=True)
+                 .annotate(u_texto=Subquery(ultimo.values('texto')[:1]), u_tipo=Subquery(ultimo.values('tipo')[:1]),
+                           u_borrado=Subquery(ultimo.values('eliminado')[:1]))
+                 .prefetch_related('participantes__usuario').distinct()[:150])
+    filas = [{'c': x, 'titulo': _titulo(x, c.user), 'sin_leer': pendientes.get(x.pk, 0),
+              'url': f'/chat/c/{x.pk}/', 'grupo': x.tipo != 'directa', 'cuando': fecha_corta(x.ultimo_mensaje),
+              'previa': vista_previa(x.u_texto, x.u_tipo, x.u_borrado) if x.u_tipo else x.get_tipo_display()}
+             for x in convs]
+    q = (request.GET.get('q') or '').strip()[:60]
+    encontrados = []
+    if q:
+        qs = R.contactos(c.user, c.colegio)
+        for palabra in q.split()[:3]:
+            qs = qs.filter(Q(first_name__icontains=palabra) | Q(last_name__icontains=palabra)
+                           | Q(username__icontains=palabra))
+        encontrados = [(u, R.etiqueta(u, c.colegio)) for u in qs.order_by('last_name', 'first_name')[:30]]
+    return {'filas': filas, 'q': q, 'encontrados': encontrados, 'rol': c.rol, 'lista_tpl': 'chat/_lista.html', 'riel_tpl': 'chat/_riel.html',
+            'grupos': R.grupos_disponibles(c.user, c.colegio) if c.adulto else [],
+            'reportes_abiertos': Reporte.objects.filter(mensaje__conversacion__colegio=c.colegio, resuelto=False).count()
+            if c.rol == 'admin' else 0}
 
 
 def _adjunto(request, conv=None, fotos=True, voz=True):
@@ -131,24 +197,7 @@ def _adjunto(request, conv=None, fotos=True, voz=True):
 # ---------------------------------------------------------------------------
 @vista
 def inicio(request, c):
-    pendientes = _no_leidos(c.user, c.colegio)
-    convs = list(Conversacion.objects.filter(colegio=c.colegio, participantes__usuario=c.user,
-                                             participantes__activo=True)
-                 .prefetch_related('participantes__usuario').distinct()[:150])
-    filas = [{'c': x, 'titulo': _titulo(x, c.user), 'sin_leer': pendientes.get(x.pk, 0)} for x in convs]
-    q = (request.GET.get('q') or '').strip()[:60]
-    encontrados = []
-    if q:
-        qs = R.contactos(c.user, c.colegio)
-        for palabra in q.split()[:3]:
-            qs = qs.filter(Q(first_name__icontains=palabra) | Q(last_name__icontains=palabra)
-                           | Q(username__icontains=palabra))
-        encontrados = [(u, R.etiqueta(u, c.colegio)) for u in qs.order_by('last_name', 'first_name')[:30]]
-    return render(request, 'chat/inicio.html', {
-        'filas': filas, 'q': q, 'encontrados': encontrados, 'rol': c.rol,
-        'grupos': R.grupos_disponibles(c.user, c.colegio) if c.adulto else [],
-        'reportes_abiertos': Reporte.objects.filter(mensaje__conversacion__colegio=c.colegio, resuelto=False).count()
-        if c.rol == 'admin' else 0})
+    return render(request, 'chat/inicio.html', _lista(c, request))
 
 
 @vista
@@ -243,9 +292,15 @@ def conversacion(request, c, pk):
         'hay_mas': mensajes_qs.count() > POR_PAGINA, 'rol': c.rol,
         'reportados': set(Reporte.objects.filter(mensaje__conversacion=conv).values_list('mensaje_id', flat=True))
         if auditoria else set(),
-        'silencio': R.en_silencio(c.colegio), 'aj': R.ajustes(c.colegio),
+        'silencio': R.en_silencio(c.colegio), 'aj': R.ajustes(c.colegio), 'activa': conv.pk,
+        'compartidos': [_mensaje_json(m, c.user, moderador) for m in
+                        conv.mensajes.filter(tipo__in=('foto', 'voz'), eliminado=False).exclude(archivo='')
+                        .select_related('autor').order_by('-creado', '-id')[:12]] if not auditoria else [],
+        'respuestas': RESPUESTAS_ESTUDIANTE if c.rol == 'estudiante' else RESPUESTAS_ADULTO,
+        **_lista(c, request),
         'cfg': {'nuevos': f'/chat/c/{conv.pk}/nuevos/', 'enviar': f'/chat/c/{conv.pk}/enviar/',
-                'accion': f'/chat/c/{conv.pk}/accion/', 'reportar': '/chat/m/ID/reportar/'}})
+                'accion': f'/chat/c/{conv.pk}/accion/', 'reportar': '/chat/m/ID/reportar/',
+                'autores': conv.tipo != 'directa'}})
 
 
 @vista

@@ -1,0 +1,11 @@
+{% if compartidos %}
+<aside class="ch-lateral" aria-label="Archivos compartidos">
+  <div class="ch-panel">
+    <h6>Archivos compartidos</h6>
+    {% for a in compartidos %}
+      {% if a.tipo == 'foto' %}<a class="ch-arch ch-ver-foto" href="{{ a.archivo }}" data-src="{{ a.archivo }}"><img src="{{ a.archivo }}" alt="" loading="lazy"><span><b class="d-block">Foto</b><span class="text-muted small">{{ a.autor }} · {{ a.dia }}</span></span></a>
+      {% else %}<a class="ch-arch" href="{{ a.archivo }}" target="_blank" rel="noopener"><span class="ico"><i class="fas fa-microphone"></i></span><span><b class="d-block">Nota de voz{% if a.duracion %} · {{ a.duracion }} s{% endif %}</b><span class="text-muted small">{{ a.autor }} · {{ a.dia }}</span></span></a>{% endif %}
+    {% endfor %}
+  </div>
+</aside>
+{% endif %}

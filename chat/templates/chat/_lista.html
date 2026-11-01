@@ -1,0 +1,56 @@
+<div class="ch-cabeza">
+  <div class="ch-marca">
+    <a class="ch-volver-lista" href="{% url 'notas:dashboard' %}" aria-label="Regresar"><i class="fas fa-arrow-left"></i></a>
+    <b>Mensajes</b>
+    {% if rol == 'admin' %}<a class="ch-mini" href="{% url 'chat:administrar' %}" title="Administrar el chat" aria-label="Administrar el chat"><i class="fas fa-shield-halved"></i>{% if reportes_abiertos %}<span class="position-absolute top-0 end-0 badge rounded-pill text-bg-danger" style="font-size:.6rem">{{ reportes_abiertos }}</span>{% endif %}</a>{% endif %}
+    {% if grupos %}<a class="ch-mini" href="{% url 'chat:grupo_nuevo' %}" title="Crear un grupo" aria-label="Crear un grupo"><i class="fas fa-user-plus"></i></a>{% endif %}
+  </div>
+  <form method="get" action="{% url 'chat:inicio' %}" class="ch-buscar">
+    <input name="q" value="{{ q }}" placeholder="Buscar persona para escribirle…" aria-label="Buscar persona" autocomplete="off">
+    {% if q %}<a href="{% url 'chat:inicio' %}" aria-label="Limpiar" class="text-muted"><i class="fas fa-times"></i></a>{% else %}<i class="fas fa-search"></i>{% endif %}
+  </form>
+  {% if not q %}<div class="ch-filtros" role="group" aria-label="Filtrar"><button type="button" class="activo" data-filtro="todos">Todos</button><button type="button" data-filtro="persona">Personas</button><button type="button" data-filtro="grupo">Grupos</button></div>{% endif %}
+</div>
+<div class="ch-cuerpo">
+  {% if q %}
+  <div class="ch-seccion">Contactos</div>
+  <div class="ch-lista">
+  {% for u, et in encontrados %}
+    <form method="post" action="{% url 'chat:nueva' %}">{% csrf_token %}<input type="hidden" name="usuario" value="{{ u.pk }}">
+      <button class="ch-fila"><span class="ch-avatar">{{ u.get_full_name|default:u.username|slice:":1"|upper }}</span>
+        <span class="flex-grow-1" style="min-width:0"><span class="ch-nombre d-block text-truncate">{{ u.get_full_name|default:u.username }}</span><span class="ch-previa-txt">{{ et }}</span></span>
+        <i class="fas fa-comment-dots" style="color:var(--mc-oro-2)"></i></button>
+    </form>
+  {% empty %}<div class="small text-muted px-3 py-2">No hay nadie con ese nombre entre sus contactos.</div>{% endfor %}
+  </div>
+  {% else %}
+  {% if rol == 'estudiante' and not filas %}<div class="small text-muted px-2 py-2">Puede escribir a sus docentes, a su director de grupo y a los directivos. Búsquelos arriba.</div>{% endif %}
+  {% if grupos %}
+  <details class="ch-grupos">
+    <summary><i class="fas fa-users me-2"></i>Abrir un grupo del curso</summary>
+    <div class="small text-muted my-2">Se arman solos con los estudiantes y se mantienen al día.</div>
+    <form method="post" action="{% url 'chat:abrir_grupo' %}" class="d-flex gap-1 mb-1">{% csrf_token %}
+      <select name="sel" class="form-select form-select-sm" aria-label="Grupo" onchange="var o=this.selectedOptions[0];this.form.tipo.value=o.dataset.tipo;this.form.id.value=o.dataset.id;">
+        <option value="" data-tipo="" data-id="">Escoja un grupo…</option>
+        {% for tipo, obj, nombre in grupos %}<option data-tipo="{{ tipo }}" data-id="{{ obj.pk|default:'' }}">{{ nombre }}</option>{% endfor %}
+      </select>
+      <input type="hidden" name="tipo"><input type="hidden" name="id">
+      <button class="btn btn-sm btn-primary">Abrir</button>
+    </form>
+  </details>
+  {% endif %}
+  <div class="ch-lista">
+  {% for f in filas %}
+    <a class="ch-fila{% if f.c.pk == activa %} activa{% endif %}" href="{{ f.url }}" data-tipo="{% if f.grupo %}grupo{% else %}persona{% endif %}">
+      <span class="ch-avatar{% if f.grupo %} grupo{% endif %}">{% if f.grupo %}<i class="fas fa-users"></i>{% else %}{{ f.titulo|slice:":1"|upper }}{% endif %}</span>
+      <span class="flex-grow-1" style="min-width:0">
+        <span class="d-flex align-items-baseline"><span class="ch-nombre flex-grow-1 text-truncate">{{ f.titulo }}</span><span class="small ms-2 {% if f.sin_leer %}fw-bold{% endif %}" style="color:{% if f.sin_leer %}var(--mc-oro-2){% else %}#98a2b3{% endif %}">{{ f.cuando }}</span></span>
+        <span class="d-flex align-items-center"><span class="ch-previa-txt flex-grow-1 text-truncate">{{ f.previa }}</span>{% if f.sin_leer %}<span class="ch-badge ms-2">{{ f.sin_leer }}</span>{% endif %}</span>
+      </span>
+    </a>
+  {% empty %}
+    <div class="text-center text-muted py-5 px-3"><i class="fas fa-comments fa-2x mb-2 d-block opacity-50"></i>Todavía no tiene conversaciones.<br>Busque a alguien arriba para empezar.</div>
+  {% endfor %}
+  </div>
+  {% endif %}
+</div>

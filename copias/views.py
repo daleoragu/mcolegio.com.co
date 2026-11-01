@@ -4,7 +4,7 @@ import json
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, JsonResponse
+from django.http import FileResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -77,10 +77,10 @@ def ajustes(request):
 @login_required
 def archivo(request):
     medios = request.GET.get('medios', '1') == '1'
-    datos = armar(request.user, medios=medios)
-    r = HttpResponse(datos, content_type='application/zip')
-    r['Content-Disposition'] = f'attachment; filename="mcolegio-copia-{timezone.localdate():%Y-%m-%d}.zip"'
-    r['Content-Length'] = str(len(datos))
+    archivo_zip, tam = armar(request.user, medios=medios)
+    r = FileResponse(archivo_zip, content_type='application/zip', as_attachment=True,
+                     filename=f'mcolegio-copia-{timezone.localdate():%Y-%m-%d}.zip')
+    r['Content-Length'] = str(tam)
     r['Cache-Control'] = 'no-store'
     return r
 
