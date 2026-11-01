@@ -79,3 +79,13 @@ class CopiaParaElColegio(ColegioDePrueba):
     def test_se_configura_en_la_personalizacion(self):
         from notas.forms.portal_forms import ColegioPersonalizacionForm
         self.assertIn('correo_copias', ColegioPersonalizacionForm().fields)
+
+
+class PoliticaDeDatos(ColegioDePrueba):
+
+    def test_publica_en_el_colegio_y_en_la_plataforma(self):
+        for host in ('a.localhost', 'localhost'):
+            r = self.client.get('/privacidad/', HTTP_HOST=host)
+            self.assertContains(r, 'Política de tratamiento de datos personales')
+            self.assertContains(r, 'mcolegiomc@gmail.com')
+            self.assertContains(r, 'Ley 1581 de 2012')
