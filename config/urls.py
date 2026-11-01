@@ -3,7 +3,7 @@
 
 from django.contrib import admin
 from django.urls import path, include
-from django.views.generic.base import RedirectView # <-- 1. IMPORTACIÓN AÑADIDA
+from django.views.generic.base import RedirectView, TemplateView # <-- 1. IMPORTACIÓN AÑADIDA
 
 # --- Para servir archivos en modo de desarrollo (opcional) ---
 from django.conf import settings
@@ -61,6 +61,8 @@ urlpatterns = [
     path('app/push/suscribir/', app_views.push_suscribir, name='app_push_suscribir'),
     path('app/push/quitar/', app_views.push_quitar, name='app_push_quitar'),
     path('app/push/probar/', app_views.push_probar, name='app_push_probar'),
+    # Política de tratamiento de datos (pública, en cualquier dirección: la piden la ley, Google y Facebook)
+    path('privacidad/', TemplateView.as_view(template_name='privacidad.html'), name='privacidad'),
     path('', include('notas.urls', namespace='notas')),
 ]
 
