@@ -72,9 +72,19 @@ def responder_a(colegio=None):
     return [propio] if propio else None
 
 
-def mensaje(colegio, asunto, texto, destinatarios, html=None, adjuntos=()):
-    """Un EmailMultiAlternatives listo para mandar (o para juntar con otros en una conexión)."""
+def correo_copias(colegio):
+    """El correo del colegio que guarda copia de todo lo que se manda a su nombre ('' si no hay)."""
+    return ((getattr(colegio, 'correo_copias', '') or '').strip() if colegio is not None else '')
+
+
+def mensaje(colegio, asunto, texto, destinatarios, html=None, adjuntos=(), copia=True):
+    """Un EmailMultiAlternatives listo para mandar (o para juntar con otros en una conexión).
+
+    copia=True: si el colegio tiene «correo que recibe copia», va en copia oculta (CCO)."""
     m = EmailMultiAlternatives(asunto, texto, remitente(colegio), list(destinatarios), reply_to=responder_a(colegio))
+    archivo = correo_copias(colegio) if copia else ''
+    if archivo and archivo.lower() not in {d.lower() for d in destinatarios}:
+        m.bcc = [archivo]
     if html:
         m.attach_alternative(html, 'text/html')
     for nombre, contenido, tipo in adjuntos:
@@ -82,18 +92,36 @@ def mensaje(colegio, asunto, texto, destinatarios, html=None, adjuntos=()):
     return m
 
 
-def enviar_correo(colegio, asunto, texto, destinatarios, html=None, fail_silently=False):
+def enviar_correo(colegio, asunto, texto, destinatarios, html=None, fail_silently=False, copia=True):
     """Manda un correo en nombre del colegio. Devuelve cuántos se enviaron (0 o 1)."""
     destinatarios = [d for d in (destinatarios or []) if d]
     if not destinatarios:
         return 0
-    return mensaje(colegio, asunto, texto, destinatarios, html).send(fail_silently=fail_silently)
+    return mensaje(colegio, asunto, texto, destinatarios, html, copia=copia).send(fail_silently=fail_silently)
 
 
-def enviar_varios(mensajes):
-    """Manda varios correos por una sola conexión. Devuelve cuántos salieron."""
+def _copia_del_envio(colegio, mensajes):
+    """Una sola copia de un envío masivo (una circular a todas las familias) para el archivo del colegio."""
+    primero = mensajes[0]
+    n = sum(len(m.to) for m in mensajes)
+    nota = f'Copia para el archivo del colegio. Este correo se envió a {n} destinatario{"s" if n != 1 else ""}.\n\n'
+    copia = EmailMultiAlternatives(f'[Copia · {n} destinatario{"s" if n != 1 else ""}] {primero.subject}',
+                                   nota + primero.body, primero.from_email, [correo_copias(colegio)])
+    for contenido, tipo in getattr(primero, 'alternatives', []) or []:
+        copia.attach_alternative(contenido, tipo)
+    return copia
+
+
+def enviar_varios(mensajes, copia_de=None):
+    """Manda varios correos por una sola conexión. Devuelve cuántos salieron.
+
+    copia_de: el colegio; si tiene «correo que recibe copia», le llega UNA copia del envío (no una por familia,
+    para no gastar el cupo diario del correo)."""
     if not mensajes:
         return 0
+    mensajes = list(mensajes)
+    if copia_de is not None and correo_copias(copia_de):
+        mensajes.append(_copia_del_envio(copia_de, mensajes))
     conexion = get_connection(fail_silently=False)
     try:
         conexion.open()              # aquí fallan la conexión y la contraseña: queda en el registro
@@ -102,7 +130,8 @@ def enviar_varios(mensajes):
         return 0
     conexion.fail_silently = True    # si falla uno, siguen los demás
     try:
-        return conexion.send_messages(list(mensajes)) or 0
+        enviados = conexion.send_messages(mensajes) or 0
+        return enviados - (1 if copia_de is not None and correo_copias(copia_de) and enviados else 0)
     finally:
         try:
             conexion.close()

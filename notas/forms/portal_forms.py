@@ -198,7 +198,7 @@ class ColegioPersonalizacionForm(forms.ModelForm):
             'escudo', 'favicon',
             'color_primario', 'color_texto_primario', 'color_secundario', 'color_fondo', 
             'color_topbar', 'color_topbar_texto', 'color_footer', 'color_footer_texto',
-            'telefono', 'email_contacto', 'whatsapp_numero', 'whatsapp_automatico',
+            'telefono', 'email_contacto', 'correo_copias', 'whatsapp_numero', 'whatsapp_automatico',
             'url_facebook', 'url_instagram', 'url_tiktok', 'url_youtube',
             'layout_portal', 
             'portal_publico_activo'
@@ -233,6 +233,7 @@ class ColegioPersonalizacionForm(forms.ModelForm):
             # --- Contacto y Redes Sociales ---
             'telefono': forms.TextInput(attrs={'class': 'form-control'}),
             'email_contacto': forms.EmailInput(attrs={'class': 'form-control'}),
+            'correo_copias': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Ej: rectoria@sucolegio.edu.co'}),
             'whatsapp_numero': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 573001234567'}),
             'whatsapp_automatico': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'url_facebook': forms.URLInput(attrs={'class': 'form-control'}),

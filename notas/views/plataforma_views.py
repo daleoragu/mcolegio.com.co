@@ -72,7 +72,7 @@ def probar_correo(request):
                 pasos.append('Usuario y contraseña: aceptados.')
                 m = mensajeria.mensaje(colegio, 'Prueba de correo de mcolegio',
                                        'Este es un correo de prueba de la plataforma mcolegio. Si le llegó, '
-                                       'el envío de correos está funcionando.', [destino])
+                                       'el envío de correos está funcionando.', [destino], copia=False)
                 conexion.send_messages([m])
                 conexion.close()
                 pasos.append(f'Correo entregado al servidor, de «{m.from_email}» para {destino}. Si no aparece en '
