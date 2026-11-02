@@ -223,8 +223,9 @@ def avisar(mensaje):
     ya = set(Notificacion.objects.filter(destinatario_id__in=destinos, url=url, leido=False)
              .values_list('destinatario_id', flat=True))
     autor = nombre_de(mensaje.autor)
-    icono = {'foto': '📷', 'voz': '🎤'}.get(mensaje.tipo)
-    contenido = mensaje.texto or {'foto': 'Foto', 'voz': 'Nota de voz'}.get(mensaje.tipo, '')
+    icono = {'foto': '📷', 'voz': '🎤', 'doc': '📄'}.get(mensaje.tipo)
+    contenido = (mensaje.nombre_archivo if mensaje.tipo == 'doc' else mensaje.texto) or \
+        {'foto': 'Foto', 'voz': 'Nota de voz', 'doc': 'Documento'}.get(mensaje.tipo, '')
     if icono:
         contenido = f'{icono} {contenido}'
     texto = f'{autor}: {contenido}' if conv.tipo == 'directa' else f'{conv.nombre} · {autor}: {contenido}'

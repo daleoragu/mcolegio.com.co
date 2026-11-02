@@ -18,7 +18,7 @@
 <div class="ch-conv"><div class="ch-conv-centro">
 {% if conv.tipo == 'directa' %}{% include 'chat/_muro.html' with reportable=True con_autores=False %}{% else %}{% include 'chat/_muro.html' with reportable=True con_autores=True %}{% endif %}
 {% if not auditoria %}
-{% include 'chat/_composer.html' with permitir_fotos=aj.permitir_fotos permitir_voz=aj.permitir_voz %}
+{% include 'chat/_composer.html' with permitir_fotos=aj.permitir_fotos permitir_voz=aj.permitir_voz permitir_documentos=aj.permitir_documentos %}
 {% if silencio %}<div class="ch-nota pb-1"><i class="fas fa-moon me-1"></i>Horario de silencio del colegio: los mensajes llegan, pero sin avisar al celular.</div>{% endif %}
 {% endif %}
 </div>{% include 'chat/_lateral.html' %}</div>

@@ -65,6 +65,15 @@
   .ch-msg .b img { display:block; max-width:min(280px, 62vw); max-height:320px; border-radius:12px; cursor:zoom-in; margin:2px -6px 4px; }
   .ch-msg .b audio { width:min(260px, 62vw); height:40px; display:block; }
   .ch-msg .b .ch-pie { display:block; }
+  .ch-docu { display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--mc-linea); border-radius:14px; padding:10px 14px 10px 10px;
+             text-decoration:none; color:#1d2433; min-width:220px; max-width:320px; margin:2px -4px 4px; }
+  .ch-docu:hover { border-color:#c5cfe0; }
+  .ch-docu .ico { flex:0 0 42px; height:50px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:.72rem; background:#2b579a; }
+  .ch-docu .ico.pdf { background:#e5483d; } .ch-docu .ico.xls { background:#1d7a45; } .ch-docu .ico.ppt { background:#d0592c; }
+  .ch-docu .txt { min-width:0; display:flex; flex-direction:column; line-height:1.25; }
+  .ch-docu .txt b { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ch-docu .txt small { color:var(--mc-gris); }
+  .ch-previa .ch-docu { margin:0; }
   .ch-rapidas { display:flex; gap:8px; padding:6px 12px 2px; overflow-x:auto; background:var(--mc-fondo); }
   .ch-rapidas button { flex:0 0 auto; border:0; background:var(--mc-suave); color:var(--mc-azul); border-radius:999px; padding:8px 16px; font-weight:500; }
   .ch-rapidas button:hover { background:#d6deec; }

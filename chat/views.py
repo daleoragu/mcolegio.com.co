@@ -19,6 +19,9 @@ from .models import Conversacion, Mensaje, Participante, Reporte
 MAX_TEXTO = 2000
 POR_PAGINA = 60
 MAX_VOZ = 5 * 1024 * 1024          # 5 MB: unos 5 minutos de nota de voz
+MAX_DOC = 15 * 1024 * 1024
+# Documentos que se pueden adjuntar (lo que usa un colegio): PDF, Word, Excel, PowerPoint y OpenDocument.
+EXT_DOC = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.odt', '.ods', '.odp', '.txt'}
 MAX_SEGUNDOS_VOZ = 300
 RESPUESTAS_ESTUDIANTE = ['¡Gracias profe!', 'Tengo una duda', 'Ya lo envié']
 RESPUESTAS_ADULTO = ['Recibido ✅', 'Gracias', 'Lo reviso y le cuento']
@@ -116,8 +119,9 @@ def fecha_corta(dt):
 
 
 def _mensaje_json(m, user, moderador):
-    con_archivo = m.tipo in ('foto', 'voz') and bool(m.archivo) and not m.eliminado
+    con_archivo = m.tipo in ('foto', 'voz', 'doc') and bool(m.archivo) and not m.eliminado
     return {'id': m.pk, 'autor': R.nombre_de(m.autor), 'mio': m.autor_id == user.pk, 'tipo': m.tipo,
+            'nombre': m.nombre_archivo, 'peso_txt': peso_txt(m.peso) if m.tipo == 'doc' else '',
             'texto': '' if m.eliminado else m.texto, 'eliminado': m.eliminado,
             'archivo': f'/chat/m/{m.pk}/archivo/' if con_archivo else '', 'duracion': m.duracion,
             'hora': hora_de(m.creado), 'dia': dia_de(m.creado),
@@ -131,6 +135,8 @@ def vista_previa(texto, tipo, eliminado=False):
         return '📷 ' + (texto or 'Foto')
     if tipo == 'voz':
         return '🎤 Nota de voz'
+    if tipo == 'doc':
+        return '📄 ' + (texto or 'Documento')
     return texto or ''
 
 
@@ -141,11 +147,13 @@ def _lista(c, request):
     convs = list(Conversacion.objects.filter(colegio=c.colegio, participantes__usuario=c.user,
                                              participantes__activo=True)
                  .annotate(u_texto=Subquery(ultimo.values('texto')[:1]), u_tipo=Subquery(ultimo.values('tipo')[:1]),
-                           u_borrado=Subquery(ultimo.values('eliminado')[:1]))
+                           u_borrado=Subquery(ultimo.values('eliminado')[:1]),
+                           u_nombre=Subquery(ultimo.values('nombre_archivo')[:1]))
                  .prefetch_related('participantes__usuario').distinct()[:150])
     filas = [{'c': x, 'titulo': _titulo(x, c.user), 'sin_leer': pendientes.get(x.pk, 0),
               'url': f'/chat/c/{x.pk}/', 'grupo': x.tipo != 'directa', 'cuando': fecha_corta(x.ultimo_mensaje),
-              'previa': vista_previa(x.u_texto, x.u_tipo, x.u_borrado) if x.u_tipo else x.get_tipo_display()}
+              'previa': vista_previa(x.u_nombre if x.u_tipo == 'doc' else x.u_texto, x.u_tipo, x.u_borrado)
+              if x.u_tipo else x.get_tipo_display()}
              for x in convs]
     q = (request.GET.get('q') or '').strip()[:60]
     encontrados = []
@@ -161,21 +169,61 @@ def _lista(c, request):
             if c.rol == 'admin' else 0}
 
 
-def _adjunto(request, conv=None, fotos=True, voz=True):
-    """(tipo, bytes, nombre, segundos) del archivo que llegó, o ValueError con el motivo."""
+def url_archivo(m):
+    """Enlace al archivo; los documentos se descargan con su nombre original."""
+    if m.tipo == 'doc' and m.nombre_archivo:
+        from urllib.parse import quote
+        disposicion = f"attachment; filename*=UTF-8''{quote(m.nombre_archivo)}"
+        try:
+            return m.archivo.storage.url(m.archivo.name, parameters={'ResponseContentDisposition': disposicion})
+        except TypeError:                     # almacenamiento local (sin parámetros)
+            pass
+    return m.archivo.url
+
+
+def peso_txt(n):
+    if n >= 1024 * 1024:
+        return f'{n / 1024 / 1024:.1f} MB'.replace('.', ',')
+    return f'{max(1, round(n / 1024))} KB'
+
+
+def nombre_limpio(nombre):
+    """El nombre original del documento, sin rutas ni caracteres raros (máximo 150)."""
+    import os
+    nombre = os.path.basename((nombre or '').replace('\\', '/'))
+    nombre = ''.join(ch for ch in nombre if ch.isprintable() and ch not in '"<>|:*?')
+    return nombre.strip()[-150:] or 'documento'
+
+
+def _adjunto(request, conv=None, fotos=True, voz=True, documentos=True):
+    """(tipo, bytes, nombre para guardar, segundos, nombre original) del archivo que llegó, o ValueError."""
+    import os
     f = request.FILES.get('archivo')
     if f is None:
         return None
     if conv is not None:
         aj = R.ajustes(conv.colegio)
-        fotos, voz = aj.permitir_fotos, aj.permitir_voz
+        fotos, voz, documentos = aj.permitir_fotos, aj.permitir_voz, aj.permitir_documentos
     mime = (getattr(f, 'content_type', '') or '').lower().split(';')[0]
+    ext = os.path.splitext(f.name or '')[1].lower()
+    if ext in EXT_DOC or request.POST.get('tipo') == 'doc':
+        if not documentos:
+            raise ValueError('El colegio no tiene activado el envío de documentos por el chat.')
+        if ext not in EXT_DOC:
+            raise ValueError('Ese tipo de archivo no se puede enviar. Sirven PDF, Word, Excel, PowerPoint y texto.')
+        datos = f.read(MAX_DOC + 1)
+        if len(datos) > MAX_DOC:
+            raise ValueError('El documento pasa de 15 MB.')
+        if not datos:
+            raise ValueError('El documento llegó vacío.')
+        original = nombre_limpio(f.name)
+        return 'doc', datos, f'documento{ext}', 0, original
     if mime.startswith('image/'):
         if not fotos:
             raise ValueError('El colegio no tiene activado el envío de fotos por el chat.')
         from materiales.views import preparar_imagen
         datos, ext, _, _ = preparar_imagen(f)
-        return 'foto', datos, f'foto{ext}', 0
+        return 'foto', datos, f'foto{ext}', 0, ''
     if mime in EXT_AUDIO or mime.startswith('audio/'):
         if not voz:
             raise ValueError('El colegio no tiene activadas las notas de voz.')
@@ -188,8 +236,8 @@ def _adjunto(request, conv=None, fotos=True, voz=True):
             segundos = max(0, min(MAX_SEGUNDOS_VOZ, int(float(request.POST.get('duracion') or 0))))
         except ValueError:
             segundos = 0
-        return 'voz', datos, f'voz{EXT_AUDIO.get(mime, ".webm")}', segundos
-    raise ValueError('Solo se pueden enviar fotos y notas de voz.')
+        return 'voz', datos, f'voz{EXT_AUDIO.get(mime, ".webm")}', segundos, ''
+    raise ValueError('Solo se pueden enviar fotos, notas de voz y documentos (PDF, Word, Excel, PowerPoint).')
 
 
 # ---------------------------------------------------------------------------
@@ -294,7 +342,7 @@ def conversacion(request, c, pk):
         if auditoria else set(),
         'silencio': R.en_silencio(c.colegio), 'aj': R.ajustes(c.colegio), 'activa': conv.pk,
         'compartidos': [_mensaje_json(m, c.user, moderador) for m in
-                        conv.mensajes.filter(tipo__in=('foto', 'voz'), eliminado=False).exclude(archivo='')
+                        conv.mensajes.filter(tipo__in=('foto', 'voz', 'doc'), eliminado=False).exclude(archivo='')
                         .select_related('autor').order_by('-creado', '-id')[:12]] if not auditoria else [],
         'respuestas': RESPUESTAS_ESTUDIANTE if c.rol == 'estudiante' else RESPUESTAS_ADULTO,
         **_lista(c, request),
@@ -343,9 +391,9 @@ def enviar(request, c, pk):
         m = Mensaje.objects.create(conversacion=conv, autor=c.user, texto=texto)
     else:
         from django.core.files.base import ContentFile
-        tipo, datos, nombre, segundos = adjunto
-        m = Mensaje(conversacion=conv, autor=c.user, texto=texto if tipo == 'foto' else '', tipo=tipo,
-                    peso=len(datos), duracion=segundos)
+        tipo, datos, nombre, segundos, original = adjunto
+        m = Mensaje(conversacion=conv, autor=c.user, texto=texto if tipo in ('foto', 'doc') else '', tipo=tipo,
+                    peso=len(datos), duracion=segundos, nombre_archivo=original)
         m.archivo.save(nombre, ContentFile(datos), save=False)
         m.save()
     Conversacion.objects.filter(pk=conv.pk).update(ultimo_mensaje=m.creado)
@@ -418,7 +466,7 @@ def archivo(request, c, mid):
     _, p = _conversacion(c, m.conversacion_id, auditar=True)
     if not m.archivo or (m.eliminado and p is not None):
         raise Http404
-    return redirect(m.archivo.url)
+    return redirect(url_archivo(m))
 
 
 # ---------------------------------------------------------------------------
@@ -441,6 +489,7 @@ def administrar(request, c):
             aj.silencio_fin_de_semana = request.POST.get('fin_de_semana') == 'on'
             aj.permitir_fotos = request.POST.get('fotos') == 'on'
             aj.permitir_voz = request.POST.get('voz') == 'on'
+            aj.permitir_documentos = request.POST.get('documentos') == 'on'
             aj.save()
             messages.success(request, 'Ajustes del chat guardados.')
         elif request.POST.get('accion') == 'resolver':

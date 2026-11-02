@@ -296,3 +296,31 @@ class ChatMiSalon(ColegioDePrueba):
         # Un visitante sin código va a la entrada
         from django.test import Client
         self.assertEqual(Client(HTTP_HOST='localhost').get(self.base).status_code, 302)
+
+
+class Documentos(Chat):
+
+    def test_pdf_con_su_nombre(self):
+        est = self.cliente(self.ana.user)
+        est.post('/chat/nueva/', {'usuario': self.u_docente.pk})
+        conv = Conversacion.objects.get()
+        pdf = SimpleUploadedFile('Guía 3 de Cálculo.pdf', b'%PDF-1.4 prueba', content_type='application/pdf')
+        j = est.post(f'/chat/c/{conv.pk}/enviar/', {'archivo': pdf, 'texto': 'Mi avance'}).json()
+        self.assertTrue(j['ok'], j)
+        self.assertEqual((j['mensaje']['tipo'], j['mensaje']['nombre']), ('doc', 'Guía 3 de Cálculo.pdf'))
+        m = Mensaje.objects.get(tipo='doc')
+        self.assertTrue(m.archivo.name.endswith('.pdf'))
+        profe = self.cliente(self.u_docente)
+        r = profe.get(f'/chat/c/{conv.pk}/')
+        self.assertContains(r, 'Guía 3 de Cálculo.pdf')
+        self.assertContains(r, 'class="ico pdf"')
+        self.assertEqual(profe.get(f'/chat/m/{m.pk}/archivo/').status_code, 302)
+        self.assertContains(profe.get('/chat/'), '📄 Guía 3 de Cálculo.pdf')        # vista previa en la lista
+        # Un ejecutable disfrazado no entra
+        exe = SimpleUploadedFile('virus.exe', b'MZ', content_type='application/octet-stream')
+        self.assertEqual(est.post(f'/chat/c/{conv.pk}/enviar/', {'archivo': exe, 'tipo': 'doc'}).status_code, 400)
+        # El colegio los puede apagar
+        AjustesChat.objects.filter(colegio=self.a).update(permitir_documentos=False)
+        pdf2 = SimpleUploadedFile('b.pdf', b'%PDF', content_type='application/pdf')
+        self.assertEqual(est.post(f'/chat/c/{conv.pk}/enviar/', {'archivo': pdf2}).status_code, 400)
+        self.assertNotContains(est.get(f'/chat/c/{conv.pk}/'), 'id="ch-doc"')

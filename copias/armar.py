@@ -137,6 +137,10 @@ def _burbujas(copia, mensajes, carpeta_medios, es_mio, autor_de):
             ruta = copia.medio(f'{carpeta_medios}/{m.pk}-voz', m.archivo)
             cuerpo += (f'<audio controls src="../{escape(ruta)}"></audio>' if ruta
                        else f'<i>[Nota de voz · {m.duracion} s]</i><br>')
+        elif m.tipo == 'doc' and m.archivo:
+            nombre = m.nombre_archivo or 'Documento'
+            ruta = copia.medio(f'{carpeta_medios}/{m.pk}-{_archivo_seguro(os.path.splitext(nombre)[0], 40)}', m.archivo)
+            cuerpo += (f'📄 <a href="../{escape(ruta)}">{escape(nombre)}</a><br>' if ruta else f'<i>[Documento: {escape(nombre)}]</i><br>')
         cuerpo += escape(m.texto or '')
         clase = 'msg mio' if es_mio(m) else 'msg'
         html.append(f'<div class="{clase}"><div class="m"><b>{escape(autor_de(m))}</b> · {_hora(m.creado)}</div>'

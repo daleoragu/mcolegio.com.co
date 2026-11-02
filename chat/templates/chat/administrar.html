@@ -1,6 +1,6 @@
 {% extends 'notas/base.html' %}
 {% block page_title %}<div><h4 class="mb-0"><i class="fas fa-shield-halved me-2"></i>Administrar el chat</h4>
-<p class="text-muted small mb-0">Horario de silencio, fotos y notas de voz, y mensajes reportados.</p></div>{% endblock %}
+<p class="text-muted small mb-0">Horario de silencio, fotos, notas de voz, documentos y mensajes reportados.</p></div>{% endblock %}
 {% block content %}
 {% include 'chat/_estilos.html' %}
 <a href="{% url 'chat:inicio' %}" class="btn btn-sm btn-outline-secondary mb-2"><i class="fas fa-arrow-left me-1"></i>Chats</a>
@@ -15,6 +15,7 @@
       <h6 class="fw-bold mt-3">Fotos y notas de voz</h6>
       <div class="form-check small"><input class="form-check-input" type="checkbox" name="fotos" id="ad-fotos" {% if aj.permitir_fotos %}checked{% endif %}><label class="form-check-label" for="ad-fotos">Se pueden enviar fotos</label></div>
       <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="voz" id="ad-voz" {% if aj.permitir_voz %}checked{% endif %}><label class="form-check-label" for="ad-voz">Se pueden enviar notas de voz</label></div>
+      <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="documentos" id="ad-docs" {% if aj.permitir_documentos %}checked{% endif %}><label class="form-check-label" for="ad-docs">Se pueden enviar documentos (PDF, Word, Excel, PowerPoint)</label></div>
       <div class="small text-muted mb-2">Las fotos y los audios son privados: solo los ven quienes están en la conversación y, si hay un reporte, los directivos.</div>
       <button class="btn btn-sm btn-primary">Guardar</button>
     </form>
@@ -25,7 +26,7 @@
       {% for r in reportes %}
       <div class="border-top py-2{% if r.resuelto %} text-muted{% endif %}">
         <div class="small"><b>{{ r.mensaje.autor.get_full_name|default:r.mensaje.autor.username }}</b> en <a href="{% url 'chat:conversacion' r.mensaje.conversacion_id %}">{{ r.mensaje.conversacion.nombre|default:"una conversación uno a uno" }}</a> · {{ r.mensaje.creado|date:"d M, h:i a" }}</div>
-        <div class="my-1 p-2 rounded" style="background:#fdf0f1">{% if r.mensaje.archivo %}<a href="{% url 'chat:archivo' r.mensaje.pk %}" target="_blank" rel="noopener">{% if r.mensaje.tipo == 'foto' %}📷 Ver la foto{% else %}🎤 Oír la nota de voz{% endif %}</a> {% endif %}{% if r.mensaje.texto %}«{{ r.mensaje.texto }}»{% endif %}{% if r.mensaje.eliminado %} <span class="badge text-bg-secondary">eliminado</span>{% endif %}</div>
+        <div class="my-1 p-2 rounded" style="background:#fdf0f1">{% if r.mensaje.archivo %}<a href="{% url 'chat:archivo' r.mensaje.pk %}" target="_blank" rel="noopener">{% if r.mensaje.tipo == 'foto' %}📷 Ver la foto{% elif r.mensaje.tipo == 'doc' %}📄 {{ r.mensaje.nombre_archivo|default:'Ver el documento' }}{% else %}🎤 Oír la nota de voz{% endif %}</a> {% endif %}{% if r.mensaje.texto %}«{{ r.mensaje.texto }}»{% endif %}{% if r.mensaje.eliminado %} <span class="badge text-bg-secondary">eliminado</span>{% endif %}</div>
         <div class="small">Reportó: {{ r.usuario.get_full_name|default:r.usuario.username }} · {{ r.motivo }}</div>
         {% if r.resuelto %}<div class="small">Cerrado por {{ r.resuelto_por.get_full_name|default:r.resuelto_por.username }}{% if r.nota %}: {{ r.nota }}{% endif %}</div>
         {% else %}
