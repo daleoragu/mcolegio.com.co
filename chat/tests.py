@@ -196,9 +196,9 @@ class FotosYVoz(Chat):
         self.assertEqual(profe.get(f'/chat/m/{voz.pk}/archivo/').status_code, 302)
         self.assertContains(profe.get(f'/chat/c/{conv.pk}/'), f'/chat/m/{foto.pk}/archivo/')
         self.assertEqual(self.cliente(self.beto.user).get(f'/chat/m/{foto.pk}/archivo/').status_code, 404)
-        # Un archivo que no es foto ni audio no entra
-        pdf = SimpleUploadedFile('a.pdf', b'%PDF-1.4', content_type='application/pdf')
-        self.assertEqual(est.post(f'/chat/c/{conv.pk}/enviar/', {'archivo': pdf}).status_code, 400)
+        # Un archivo que no es foto, audio ni documento no entra
+        zipf = SimpleUploadedFile('a.zip', b'PK', content_type='application/zip')
+        self.assertEqual(est.post(f'/chat/c/{conv.pk}/enviar/', {'archivo': zipf}).status_code, 400)
         # Borrado: ya no se puede abrir
         est.post(f'/chat/c/{conv.pk}/accion/', {'accion': 'borrar', 'mensaje': foto.pk})
         self.assertEqual(profe.get(f'/chat/m/{foto.pk}/archivo/').status_code, 404)
