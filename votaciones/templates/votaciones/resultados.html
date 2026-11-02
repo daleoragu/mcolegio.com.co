@@ -1,0 +1,36 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<div class="d-flex flex-wrap align-items-center gap-2"><div class="flex-grow-1"><h4 class="mb-0"><i class="fas fa-chart-column me-2"></i>Resultados · {{ e.nombre }}</h4>
+<p class="text-muted small mb-0">{{ e.get_estado_display }} · votaron {{ votaron }} de {{ habilitados }}{% if por_mesa %} ({{ por_mesa }} en mesa){% endif %}</p></div>
+<a class="btn btn-sm btn-outline-secondary" href="{% url 'votaciones:eleccion' e.pk %}">Volver</a>
+{% if e.estado == 'cerrada' %}<a class="btn btn-sm btn-primary" href="{% url 'votaciones:acta' e.pk %}">Acta de escrutinio</a>{% endif %}</div>{% endblock %}
+{% block content %}
+{% if e.estado == 'abierta' %}<div class="alert alert-info small">La votación sigue abierta: estos resultados cambian. Esta página se actualiza sola cada 30 segundos.</div><script>setTimeout(function(){location.reload()},30000)</script>{% endif %}
+<div class="row g-3">
+  <div class="col-lg-8">
+  {% for r in resultados %}
+    <div class="card mb-3"><div class="card-body">
+      <h5 class="fw-bold">{{ r.cargo.nombre }}</h5>
+      {% for p in r.partes %}
+        {% if p.titulo %}<div class="fw-semibold mt-2">{{ p.titulo }}{% if p.empate %} <span class="badge text-bg-warning">empate</span>{% endif %}</div>{% elif p.empate %}<span class="badge text-bg-warning">Empate en el primer lugar</span>{% endif %}
+        {% for f in p.filas %}
+        <div class="d-flex align-items-center gap-2 my-1">
+          <span class="small" style="width:40%">{{ f.c.numero }}. {{ f.c.nombre }}{% if f.ganador and e.estado == 'cerrada' and not p.empate %} 🏆{% endif %}</span>
+          <div class="flex-grow-1 bg-light rounded" style="height:18px"><div class="rounded" style="height:18px;width:{{ f.pct }}%;background:{% if f.ganador %}#f2b33d{% else %}#9fb0cf{% endif %}"></div></div>
+          <span class="small fw-bold" style="width:90px;text-align:right">{{ f.votos }} · {{ f.pct }}%</span>
+        </div>
+        {% endfor %}
+      {% endfor %}
+      {% if r.cargo.voto_blanco %}<div class="small text-muted mt-1">Voto en blanco: {{ r.blanco }} ({{ r.pct_blanco }}%) · Total de votos: {{ r.total }}</div>{% endif %}
+    </div></div>
+  {% endfor %}
+  </div>
+  <div class="col-lg-4">
+    <div class="card"><div class="card-body">
+      <h6 class="fw-bold">Participación por curso</h6>
+      {% for f in por_curso %}
+      <div class="d-flex justify-content-between small border-top py-1"><span>{{ f.curso.nombre }}</span><span><b>{{ f.votaron }}</b> / {{ f.habilitados }} · {{ f.pct }}%</span></div>
+      {% empty %}<div class="small text-muted">Sin datos.</div>{% endfor %}
+    </div></div>
+  </div>
+</div>
+{% endblock %}

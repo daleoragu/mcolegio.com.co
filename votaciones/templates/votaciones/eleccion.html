@@ -1,0 +1,69 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<div class="d-flex flex-wrap align-items-center gap-2"><div class="flex-grow-1"><h4 class="mb-0"><i class="fas fa-check-to-slot me-2"></i>{{ e.nombre }}</h4>
+<p class="text-muted small mb-0">{{ e.get_estado_display }}{% if e.estado != 'preparacion' %} · votaron {{ votaron }} de {{ habilitados }}{% endif %}</p></div>
+<a class="btn btn-sm btn-outline-secondary" href="{% url 'votaciones:inicio' %}">Elecciones</a></div>{% endblock %}
+{% block content %}
+<div class="card mb-3"><div class="card-body d-flex flex-wrap gap-2 align-items-center">
+  {% if e.estado == 'preparacion' %}
+    <span class="small text-muted flex-grow-1">Agregue los cargos y sus candidatos. Cuando todo esté listo, abra la votación: se avisa a los estudiantes y a los docentes que votan.</span>
+    <form method="post" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="abrir"><button class="btn btn-success fw-bold"><i class="fas fa-lock-open me-1"></i>Abrir la votación</button></form>
+  {% elif e.estado == 'abierta' %}
+    <span class="small flex-grow-1"><b>Votación abierta</b> desde {{ e.abierta_en|date:"d M h:i a" }}. Votaron {{ votaron }} de {{ habilitados }}.</span>
+    <a class="btn btn-outline-primary" href="{% url 'votaciones:mesa' e.pk %}"><i class="fas fa-person-booth me-1"></i>Mesa de votación</a>
+    <a class="btn btn-outline-primary" href="{% url 'votaciones:resultados' e.pk %}">Resultados en vivo</a>
+    <form method="post" class="m-0" onsubmit="return confirm('¿Cerrar la votación? Nadie más podrá votar.')">{% csrf_token %}<input type="hidden" name="accion" value="cerrar"><button class="btn btn-danger"><i class="fas fa-lock me-1"></i>Cerrar la votación</button></form>
+  {% else %}
+    <span class="small flex-grow-1">Votación cerrada el {{ e.cerrada_en|date:"d M Y h:i a" }}.</span>
+    <a class="btn btn-primary" href="{% url 'votaciones:resultados' e.pk %}">Resultados</a>
+    <a class="btn btn-outline-primary" href="{% url 'votaciones:acta' e.pk %}"><i class="fas fa-file-signature me-1"></i>Acta de escrutinio</a>
+  {% endif %}
+</div></div>
+
+{% for cargo in cargos %}
+<div class="card mb-3"><div class="card-body">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <h5 class="fw-bold mb-0 flex-grow-1">{{ cargo.nombre }}</h5>
+    <span class="badge text-bg-light">{{ cargo.get_votan_display }}{% if cargo.votan == 'grados' %} · {{ cargo.grado_desde|default:"" }}° a {{ cargo.grado_hasta|default:"" }}°{% endif %}</span>
+    {% if cargo.voto_blanco %}<span class="badge text-bg-light">con voto en blanco</span>{% endif %}
+    {% if e.estado == 'preparacion' %}<form method="post" class="m-0" onsubmit="return confirm('¿Quitar este cargo y sus candidatos?')">{% csrf_token %}<input type="hidden" name="accion" value="quitar_cargo"><input type="hidden" name="cargo" value="{{ cargo.pk }}"><button class="btn btn-sm btn-link text-danger">Quitar</button></form>{% endif %}
+  </div>
+  <div class="row g-2">
+    {% for c in cargo.candidatos.all %}
+    <div class="col-sm-6 col-lg-4"><div class="border rounded-3 p-2 d-flex gap-2 align-items-center h-100">
+      {% if c.foto %}<img src="{% url 'votaciones:foto' c.pk %}" alt="" style="width:52px;height:52px;border-radius:50%;object-fit:cover">{% else %}<span class="rounded-circle bg-light d-flex align-items-center justify-content-center fw-bold" style="width:52px;height:52px">{{ c.numero }}</span>{% endif %}
+      <div class="flex-grow-1 small"><b>{{ c.numero }}. {{ c.nombre }}</b>{% if c.curso %}<span class="text-muted d-block">{{ c.curso.nombre }}</span>{% endif %}{% if c.propuesta %}<span class="text-muted d-block">{{ c.propuesta|truncatechars:80 }}</span>{% endif %}</div>
+      {% if e.estado == 'preparacion' %}<form method="post" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="quitar_candidato"><input type="hidden" name="candidato" value="{{ c.pk }}"><button class="btn btn-sm btn-link text-danger p-0" title="Quitar">&times;</button></form>{% endif %}
+    </div></div>
+    {% empty %}<div class="small text-muted">Sin candidatos todavía.</div>{% endfor %}
+  </div>
+  {% if e.estado == 'preparacion' %}
+  <form method="post" enctype="multipart/form-data" class="row g-2 mt-2 align-items-end">{% csrf_token %}<input type="hidden" name="accion" value="candidato"><input type="hidden" name="cargo" value="{{ cargo.pk }}">
+    <div class="col-md-4"><label class="small fw-semibold">Estudiante</label>
+      <select name="estudiante" class="form-select form-select-sm"><option value="">— Escoja —</option>
+        {% for est in estudiantes %}{% ifchanged est.curso_id %}{% if not forloop.first %}</optgroup>{% endif %}<optgroup label="{{ est.curso.nombre }}">{% endifchanged %}<option value="{{ est.pk }}">{{ est.user.get_full_name|default:est.user.username }}</option>{% if forloop.last %}</optgroup>{% endif %}{% endfor %}
+      </select></div>
+    {% if cargo.votan == 'docentes' %}<div class="col-md-3"><label class="small fw-semibold">o nombre (docente)</label><input name="nombre" class="form-control form-control-sm" maxlength="150"></div>{% endif %}
+    <div class="col-md-3"><label class="small fw-semibold">Foto (opcional)</label><input type="file" name="foto" accept="image/*" class="form-control form-control-sm"></div>
+    <div class="col-md-{% if cargo.votan == 'docentes' %}2{% else %}5{% endif %}"><label class="small fw-semibold">Propuesta (opcional)</label><input name="propuesta" class="form-control form-control-sm" maxlength="1500"></div>
+    <div class="col-12"><button class="btn btn-sm btn-primary"><i class="fas fa-user-plus me-1"></i>Agregar candidato</button>
+      {% if cargo.votan == 'curso' %}<span class="small text-muted ms-2">Cada curso vota solo por los candidatos de su curso; el número se da por curso.</span>{% endif %}</div>
+  </form>
+  {% endif %}
+</div></div>
+{% endfor %}
+
+{% if e.estado == 'preparacion' %}
+<form method="post" class="card mb-3"><div class="card-body">{% csrf_token %}<input type="hidden" name="accion" value="cargo">
+  <h6 class="fw-bold">Agregar un cargo</h6>
+  <div class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="small fw-semibold">Cargo</label><input name="nombre" class="form-control form-control-sm" placeholder="Ej.: Representante de los docentes" maxlength="80" required></div>
+    <div class="col-md-3"><label class="small fw-semibold">Quiénes votan</label><select name="votan" class="form-select form-select-sm" onchange="this.form.querySelectorAll('.vt-grados').forEach(function(x){x.classList.toggle('d-none', this.value!=='grados')}, this)">{% for v, t in votan %}<option value="{{ v }}">{{ t }}</option>{% endfor %}</select></div>
+    <div class="col-md-1 vt-grados d-none"><label class="small fw-semibold">Desde</label><select name="desde" class="form-select form-select-sm">{% for g, t in grados %}<option value="{{ g }}">{{ t }}</option>{% endfor %}</select></div>
+    <div class="col-md-1 vt-grados d-none"><label class="small fw-semibold">Hasta</label><select name="hasta" class="form-select form-select-sm">{% for g, t in grados %}<option value="{{ g }}" {% if g == 11 %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="col-md-2"><div class="form-check small"><input class="form-check-input" type="checkbox" name="blanco" id="vt-bl" checked><label class="form-check-label" for="vt-bl">Voto en blanco</label></div></div>
+    <div class="col-md-1"><button class="btn btn-sm btn-primary w-100">Agregar</button></div>
+  </div>
+</div></form>
+<form method="post" class="text-end" onsubmit="return confirm('¿Eliminar esta elección?')">{% csrf_token %}<input type="hidden" name="accion" value="eliminar"><button class="btn btn-sm btn-link text-danger">Eliminar la elección</button></form>
+{% endif %}
+{% endblock %}

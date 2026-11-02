@@ -1,0 +1,63 @@
+{% extends 'votaciones/_pantalla.html' %}
+{% block barra %}{% if not mesa %}<a href="{% url 'votaciones:inicio' %}" class="btn btn-sm btn-outline-light">Salir</a>{% endif %}{% endblock %}
+{% block content %}
+<div class="mb-3">
+  <div class="fw-bold fs-5">{% if mesa %}Vota: {{ quien }}{% else %}Hola, {{ quien }}{% endif %}{% if curso %} <span class="text-muted fw-normal">· {{ curso.nombre }}</span>{% endif %}</div>
+  <div class="text-muted">Toque una opción en cada cargo. Su voto es secreto: nadie puede ver por quién votó.</div>
+</div>
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<form method="post" id="vt-form">{% csrf_token %}
+  <div id="vt-paso1">
+  {% for cargo, candidatos in cargos %}
+  <section class="vt-cargo" data-cargo="{{ cargo.nombre }}">
+    <h2>{{ cargo.nombre }}</h2>
+    <div class="vt-opciones">
+      {% for c in candidatos %}
+      <label class="vt-op"><input type="radio" name="cargo-{{ cargo.pk }}" value="{{ c.pk }}" data-texto="{{ c.numero }}. {{ c.nombre }}" required>
+        {% if c.foto %}<img class="vt-foto" src="{% url 'votaciones:foto' c.pk %}" alt="">{% else %}<span class="vt-foto">{{ c.nombre|slice:":1"|upper }}</span>{% endif %}
+        <span class="vt-num">{{ c.numero }}</span><span class="vt-nombre">{{ c.nombre }}</span>
+        {% if c.propuesta %}<span class="vt-prop">{{ c.propuesta|truncatechars:110 }}</span>{% endif %}
+      </label>
+      {% endfor %}
+      {% if cargo.voto_blanco %}
+      <label class="vt-op vt-blanco"><input type="radio" name="cargo-{{ cargo.pk }}" value="blanco" data-texto="Voto en blanco" required>
+        <span class="vt-foto">EN BLANCO</span><span class="vt-nombre">Voto en blanco</span></label>
+      {% endif %}
+    </div>
+  </section>
+  {% endfor %}
+  <button type="button" class="vt-boton" id="vt-revisar">Revisar mi voto</button>
+  </div>
+  <div id="vt-paso2" class="d-none">
+    <div class="vt-resumen mb-3">
+      <div class="fw-bold fs-5 mb-2">¿Este es su voto?</div>
+      <ul id="vt-lista" class="mb-0 fs-5"></ul>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="vt-boton" style="background:#fff;color:#1f3a68;border:2px solid #1f3a68" id="vt-cambiar">Cambiar</button>
+      <button class="vt-boton oro">Confirmar y votar</button>
+    </div>
+  </div>
+</form>
+{% if mesa %}<form method="post" class="mt-4 text-center">{% csrf_token %}<input type="hidden" name="accion" value="cancelar"><button class="btn btn-link text-muted">Cancelar (no votar ahora)</button></form>{% endif %}
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+  var paso1 = document.getElementById('vt-paso1'), paso2 = document.getElementById('vt-paso2');
+  document.getElementById('vt-revisar').addEventListener('click', function () {
+    var lista = document.getElementById('vt-lista'); lista.innerHTML = '';
+    var falta = null;
+    document.querySelectorAll('.vt-cargo').forEach(function (s) {
+      var el = s.querySelector('input:checked');
+      if (!el) { falta = falta || s; return; }
+      var li = document.createElement('li'); var b = document.createElement('b'); b.textContent = s.getAttribute('data-cargo') + ': ';
+      li.appendChild(b); li.appendChild(document.createTextNode(el.getAttribute('data-texto'))); lista.appendChild(li);
+    });
+    if (falta) { falta.scrollIntoView({ behavior: 'smooth', block: 'center' }); falta.style.outline = '3px solid #dc3545'; setTimeout(function () { falta.style.outline = ''; }, 1600); return; }
+    paso1.classList.add('d-none'); paso2.classList.remove('d-none'); window.scrollTo(0, 0);
+  });
+  document.getElementById('vt-cambiar').addEventListener('click', function () { paso2.classList.add('d-none'); paso1.classList.remove('d-none'); });
+})();
+</script>
+{% endblock %}

@@ -42,8 +42,9 @@ MODULOS = OrderedDict([
                             ())),
     ('cartera', ('Cartera y pensiones', 'Cobros, pagos con recibo, morosos, estado de cuenta y paz y salvo.',
                  ('/cartera/',))),
-    ('elecciones', ('Elecciones escolares', 'Votaciones de personero, contralor y consejo estudiantil.',
-                    ('/elecciones2026/',))),
+    # El módulo es /votaciones/ (gobierno escolar). /elecciones2026/ es otra app, aparte de los colegios.
+    ('elecciones', ('Elecciones escolares', 'Personero, contralor, voceros de curso y otros cargos: tarjetón con fotos, '
+                    'mesa de votación, voto secreto, resultados y acta de escrutinio.', ('/votaciones/',))),
     # Salón Digital es un producto aparte con cuentas propias: aquí solo se
     # muestra u oculta el acceso desde el menú del colegio.
     ('salon', ('Mi Salón Virtual (Premium)', 'Aula virtual de cada asignatura (muro, clase en vivo, material, tareas con '
