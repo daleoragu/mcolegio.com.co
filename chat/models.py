@@ -7,7 +7,7 @@ Reglas (ver reglas.py):
     acudiente: con ella se escribe a los docentes del curso, al director de grupo y a los directivos.
   · Los mensajes no se borran: quien borra uno lo deja como «mensaje eliminado» y el texto queda guardado
     por si hay un reporte.
-  · Texto, fotos y notas de voz (el colegio puede apagar las fotos o la voz). Los archivos son privados.
+  · Texto, fotos, notas de voz y documentos (el colegio puede apagar cada uno). Los archivos son privados.
 """
 import datetime
 
@@ -29,6 +29,7 @@ class AjustesChat(models.Model):
     silencio_fin_de_semana = models.BooleanField(default=True, verbose_name='Silencio sábados y domingos')
     permitir_fotos = models.BooleanField(default=True, verbose_name='Se pueden enviar fotos')
     permitir_voz = models.BooleanField(default=True, verbose_name='Se pueden enviar notas de voz')
+    permitir_documentos = models.BooleanField(default=True, verbose_name='Se pueden enviar documentos (PDF, Word…)')
 
     def __str__(self):
         return f'Chat de {self.colegio}'
@@ -74,12 +75,13 @@ class Participante(models.Model):
 class Mensaje(models.Model):
     conversacion = models.ForeignKey(Conversacion, on_delete=models.CASCADE, related_name='mensajes')
     autor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mensajes_chat')
-    TIPOS = [('texto', 'Texto'), ('foto', 'Foto'), ('voz', 'Nota de voz')]
+    TIPOS = [('texto', 'Texto'), ('foto', 'Foto'), ('voz', 'Nota de voz'), ('doc', 'Documento')]
     tipo = models.CharField(max_length=5, choices=TIPOS, default='texto')
     texto = models.TextField(max_length=2000, blank=True)
     archivo = models.FileField(upload_to=ruta_chat, storage=almacen.privado, blank=True)
     peso = models.PositiveIntegerField(default=0)
     duracion = models.PositiveSmallIntegerField(default=0, help_text='Segundos de la nota de voz.')
+    nombre_archivo = models.CharField(max_length=150, blank=True, help_text='Nombre original del documento.')
     creado = models.DateTimeField(auto_now_add=True)
     eliminado = models.BooleanField(default=False)
     eliminado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
@@ -147,6 +149,7 @@ class MensajeSalon(models.Model):
     archivo = models.FileField(upload_to=ruta_salon, storage=almacen.privado, blank=True)
     peso = models.PositiveIntegerField(default=0)
     duracion = models.PositiveSmallIntegerField(default=0)
+    nombre_archivo = models.CharField(max_length=150, blank=True)
     creado = models.DateTimeField(auto_now_add=True)
     eliminado = models.BooleanField(default=False)
 

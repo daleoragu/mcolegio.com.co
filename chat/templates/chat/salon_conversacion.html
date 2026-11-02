@@ -13,7 +13,7 @@
 {% block content %}
 <div class="ch-conv"><div class="ch-conv-centro">
 {% if conv.integrante_id %}{% include 'chat/_muro.html' with reportable=False auditoria=False reportados=None con_autores=False %}{% else %}{% include 'chat/_muro.html' with reportable=False auditoria=False reportados=None con_autores=True %}{% endif %}
-{% include 'chat/_composer.html' with permitir_fotos=True permitir_voz=True %}
+{% include 'chat/_composer.html' with permitir_fotos=True permitir_voz=True permitir_documentos=True %}
 </div>{% include 'chat/_lateral.html' %}</div>
 {% endblock %}
 {% block extra_js %}

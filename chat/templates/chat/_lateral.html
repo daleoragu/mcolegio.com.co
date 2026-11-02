@@ -4,6 +4,7 @@
     <h6>Archivos compartidos</h6>
     {% for a in compartidos %}
       {% if a.tipo == 'foto' %}<a class="ch-arch ch-ver-foto" href="{{ a.archivo }}" data-src="{{ a.archivo }}"><img src="{{ a.archivo }}" alt="" loading="lazy"><span><b class="d-block">Foto</b><span class="text-muted small">{{ a.autor }} · {{ a.dia }}</span></span></a>
+      {% elif a.tipo == 'doc' %}<a class="ch-arch" href="{{ a.archivo }}" target="_blank" rel="noopener"><span class="ico" style="background:#fde8e7;color:#d92d20"><i class="fas fa-file-lines"></i></span><span style="min-width:0"><b class="d-block text-truncate">{{ a.nombre|default:"Documento" }}</b><span class="text-muted small">{{ a.peso_txt }} · {{ a.dia }}</span></span></a>
       {% else %}<a class="ch-arch" href="{{ a.archivo }}" target="_blank" rel="noopener"><span class="ico"><i class="fas fa-microphone"></i></span><span><b class="d-block">Nota de voz{% if a.duracion %} · {{ a.duracion }} s{% endif %}</b><span class="text-muted small">{{ a.autor }} · {{ a.dia }}</span></span></a>{% endif %}
     {% endfor %}
   </div>

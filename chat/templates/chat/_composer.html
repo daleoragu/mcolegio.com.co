@@ -1,7 +1,9 @@
 {% if respuestas %}<div class="ch-rapidas{% if not puede_escribir %} d-none{% endif %}" id="ch-rapidas">{% for r in respuestas %}<button type="button">{{ r }}</button>{% endfor %}</div>{% endif %}
-<div class="ch-previa d-none" id="ch-previa"><img id="ch-previa-img" alt="Foto que va a enviar"><span class="small text-muted flex-grow-1">Escriba un texto si quiere y toque enviar.</span>
+<div class="ch-previa d-none" id="ch-previa"><img id="ch-previa-img" alt="Foto que va a enviar"><span class="ch-docu d-none" id="ch-previa-doc"><span class="ico"><i class="fas fa-file"></i></span><span class="txt"><b></b><small></small></span></span><span class="small text-muted flex-grow-1">Escriba un texto si quiere y toque enviar.</span>
   <button type="button" class="btn btn-sm btn-light" id="ch-quitar-foto" aria-label="Quitar la foto"><i class="fas fa-times"></i></button></div>
 <form id="ch-form" class="ch-composer{% if not puede_escribir %} d-none{% endif %}" autocomplete="off">
+  {% if permitir_documentos %}<label class="ch-clip mb-0 d-flex align-items-center justify-content-center" title="Adjuntar un documento (PDF, Word, Excel…)" aria-label="Adjuntar un documento"><i class="fas fa-paperclip"></i>
+    <input type="file" id="ch-doc" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.txt" class="d-none"></label>{% endif %}
   {% if permitir_fotos %}<label class="ch-clip mb-0 d-flex align-items-center justify-content-center" title="Enviar una foto" aria-label="Enviar una foto"><i class="fas fa-camera"></i>
     <input type="file" id="ch-foto" accept="image/*" class="d-none"></label>{% endif %}
   <div class="ch-caja" id="ch-caja">

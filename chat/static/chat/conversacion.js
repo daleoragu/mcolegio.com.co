@@ -17,10 +17,28 @@
     if (m.eliminado) { c.appendChild(document.createTextNode('Mensaje eliminado')); c.appendChild(hora); return c; }
     if (m.tipo === 'foto' && m.archivo) { var i = document.createElement('img'); i.src = m.archivo; i.alt = 'Foto'; i.loading = 'lazy'; i.onload = function () { if (cercaDelFinal(200)) abajo(); }; c.appendChild(i); }
     if (m.tipo === 'voz' && m.archivo) { var a = document.createElement('audio'); a.controls = true; a.preload = 'metadata'; a.src = m.archivo; c.appendChild(a); }
+    if (m.tipo === 'doc' && m.archivo) c.appendChild(tarjetaDoc(m.nombre || 'Documento', (m.peso_txt || '') + ' · Descargar', m.archivo));
     if (m.texto) { var s = document.createElement('span'); s.className = 'ch-pie'; s.textContent = m.texto; c.appendChild(s); }
     c.appendChild(hora);
     return c;
   }
+  function claseDoc(nombre) {
+    var n = (nombre || '').toLowerCase();
+    if (/\.pdf$/.test(n)) return ['pdf', 'PDF'];
+    if (/\.(xls|xlsx|ods)$/.test(n)) return ['xls', 'XLS'];
+    if (/\.(ppt|pptx|odp)$/.test(n)) return ['ppt', 'PPT'];
+    return ['doc', 'DOC'];
+  }
+  function tarjetaDoc(nombre, detalle, url) {
+    var t = document.createElement(url ? 'a' : 'span'); t.className = 'ch-docu';
+    if (url) { t.href = url; t.target = '_blank'; t.rel = 'noopener'; t.title = 'Descargar'; }
+    var k = claseDoc(nombre), ico = document.createElement('span'); ico.className = 'ico ' + k[0]; ico.textContent = k[1];
+    var txt = document.createElement('span'); txt.className = 'txt';
+    var b = document.createElement('b'); b.textContent = nombre; var sm = document.createElement('small'); sm.textContent = detalle;
+    txt.appendChild(b); txt.appendChild(sm); t.appendChild(ico); t.appendChild(txt);
+    return t;
+  }
+  function pesoTxt(n) { return n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
   function dibujar(m) {
     if (muro.querySelector('.ch-msg[data-id="' + m.id + '"]')) return;
     var d = document.createElement('div');
@@ -91,8 +109,9 @@
     var texto = caja.value.trim();
     if (fotoElegida) {
       var f = new FormData(); f.append('archivo', fotoElegida); f.append('texto', texto);
-      var guardada = fotoElegida; quitarFoto(); caja.value = ''; crecer(); alternar();
-      mandar(f, function () { elegirFoto(guardada); caja.value = texto; alternar(); });
+      if (esDocumento) f.append('tipo', 'doc');
+      var guardada = fotoElegida, eraDoc = esDocumento; quitarFoto(); caja.value = ''; crecer(); alternar();
+      mandar(f, function () { elegirFoto(guardada, eraDoc); caja.value = texto; alternar(); });
       return;
     }
     if (!texto) return;
@@ -102,12 +121,22 @@
 
   // Fotos
   var previa = document.getElementById('ch-previa');
-  function elegirFoto(archivo) {
-    fotoElegida = archivo;
-    document.getElementById('ch-previa-img').src = URL.createObjectURL(archivo);
+  var esDocumento = false, entradaDoc = document.getElementById('ch-doc');
+  function elegirFoto(archivo, doc) {
+    fotoElegida = archivo; esDocumento = !!doc;
+    var img = document.getElementById('ch-previa-img'), pd = document.getElementById('ch-previa-doc');
+    img.classList.toggle('d-none', esDocumento); pd.classList.toggle('d-none', !esDocumento);
+    if (esDocumento) { pd.replaceWith(tarjetaDoc(archivo.name, pesoTxt(archivo.size))); document.querySelector('#ch-previa .ch-docu').id = 'ch-previa-doc'; }
+    else img.src = URL.createObjectURL(archivo);
     previa.classList.remove('d-none'); alternar(); caja.focus();
   }
-  function quitarFoto() { fotoElegida = null; if (entradaFoto) entradaFoto.value = ''; previa.classList.add('d-none'); alternar(); }
+  function quitarFoto() { fotoElegida = null; esDocumento = false; if (entradaFoto) entradaFoto.value = ''; if (entradaDoc) entradaDoc.value = ''; previa.classList.add('d-none'); alternar(); }
+  if (entradaDoc) entradaDoc.addEventListener('change', function () {
+    var a = entradaDoc.files[0]; if (!a) return;
+    if (!/\.(pdf|docx?|xlsx?|pptx?|odt|ods|odp|txt)$/i.test(a.name)) { alert('Ese tipo de archivo no se puede enviar. Sirven PDF, Word, Excel, PowerPoint y texto.'); entradaDoc.value = ''; return; }
+    if (a.size > 15 * 1024 * 1024) { alert('El documento pasa de 15 MB.'); entradaDoc.value = ''; return; }
+    elegirFoto(a, true);
+  });
   if (entradaFoto) entradaFoto.addEventListener('change', function () {
     var a = entradaFoto.files[0]; if (!a) return;
     if (!/^image\//.test(a.type)) { alert('Escoja una imagen.'); return; }
@@ -122,7 +151,7 @@
   function mmss(s) { return Math.floor(s / 60) + ':' + ('0' + Math.floor(s % 60)).slice(-2); }
   function modoGrabando(si) {
     grabando.classList.toggle('d-none', !si); cajaTexto.classList.toggle('d-none', si);
-    var clip = document.querySelector('.ch-clip'); if (clip) clip.style.setProperty('display', si ? 'none' : '', 'important');
+    document.querySelectorAll('.ch-clip').forEach(function (clip) { clip.style.setProperty('display', si ? 'none' : '', 'important'); });
     mic.innerHTML = si ? '<i class="fas fa-paper-plane"></i>' : '<i class="fas fa-microphone"></i>';
     mic.setAttribute('aria-label', si ? 'Enviar la nota de voz' : 'Grabar nota de voz');
   }

@@ -21,7 +21,7 @@ from aula.models import Aula
 
 from .models import ConversacionSalon, LecturaSalon, MensajeSalon
 from .views import (MAX_TEXTO, POR_PAGINA, RESPUESTAS_ADULTO, RESPUESTAS_ESTUDIANTE, _adjunto, _json, dia_de,
-                    fecha_corta, hora_de, vista_previa)
+                    fecha_corta, hora_de, peso_txt, url_archivo, vista_previa)
 
 CLAVE_PIN = 'chat_salon_pin'
 MAX_INTENTOS = 5
@@ -115,8 +115,9 @@ def _json_mensaje(c, m):
         autor, mio = c.nombre_docente + ' (docente)', c.docente
     else:
         autor, mio = m.integrante.completo, bool(c.integrante and m.integrante_id == c.integrante.pk)
-    con_archivo = m.tipo in ('foto', 'voz') and bool(m.archivo) and not m.eliminado
+    con_archivo = m.tipo in ('foto', 'voz', 'doc') and bool(m.archivo) and not m.eliminado
     return {'id': m.pk, 'autor': autor, 'mio': mio, 'tipo': m.tipo, 'texto': '' if m.eliminado else m.texto,
+            'nombre': m.nombre_archivo, 'peso_txt': peso_txt(m.peso) if m.tipo == 'doc' else '',
             'eliminado': m.eliminado, 'duracion': m.duracion,
             'archivo': f'/aula/{c.aula.pk}/chat/m/{m.pk}/archivo/' if con_archivo else '',
             'hora': hora_de(m.creado), 'dia': dia_de(m.creado),
@@ -126,7 +127,7 @@ def _json_mensaje(c, m):
 # ---------------------------------------------------------------------------
 def _previa(conv):
     m = conv.mensajes.order_by('-creado', '-id').first()
-    return vista_previa(m.texto, m.tipo, m.eliminado) if m else ''
+    return vista_previa(m.nombre_archivo if m.tipo == 'doc' else m.texto, m.tipo, m.eliminado) if m else ''
 
 
 def _lista(c):
@@ -226,7 +227,7 @@ def conversacion(request, c, cid):
         cerrado = 'En este chat solo escribe el docente.'
     return render(request, 'chat/salon_conversacion.html', {
         **_lista(c), 'conv': conv, 'titulo': titulo, 'sub': sub, 'activa': conv.pk,
-        'compartidos': [_json_mensaje(c, m) for m in conv.mensajes.filter(tipo__in=('foto', 'voz'), eliminado=False)
+        'compartidos': [_json_mensaje(c, m) for m in conv.mensajes.filter(tipo__in=('foto', 'voz', 'doc'), eliminado=False)
                         .exclude(archivo='').select_related('integrante').order_by('-creado', '-id')[:12]],
         'respuestas': RESPUESTAS_ADULTO if c.docente else RESPUESTAS_ESTUDIANTE,
         'mensajes': [_json_mensaje(c, m) for m in ultimos], 'hay_mas': qs.count() > POR_PAGINA,
@@ -272,9 +273,9 @@ def enviar(request, c, cid):
     if adjunto is None:
         m = MensajeSalon.objects.create(conversacion=conv, integrante=autor, texto=texto)
     else:
-        tipo, datos, nombre, segundos = adjunto
-        m = MensajeSalon(conversacion=conv, integrante=autor, tipo=tipo, texto=texto if tipo == 'foto' else '',
-                         peso=len(datos), duracion=segundos)
+        tipo, datos, nombre, segundos, original = adjunto
+        m = MensajeSalon(conversacion=conv, integrante=autor, tipo=tipo, texto=texto if tipo in ('foto', 'doc') else '',
+                         peso=len(datos), duracion=segundos, nombre_archivo=original)
         m.archivo.save(nombre, ContentFile(datos), save=False)
         m.save()
     ConversacionSalon.objects.filter(pk=conv.pk).update(ultimo_mensaje=m.creado)
@@ -305,7 +306,7 @@ def archivo(request, c, mid):
     _conversacion(c, m.conversacion_id)
     if not m.archivo or m.eliminado:
         raise Http404
-    return redirect(m.archivo.url)
+    return redirect(url_archivo(m))
 
 
 @vista
