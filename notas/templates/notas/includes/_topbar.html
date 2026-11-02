@@ -33,6 +33,7 @@
                     {% if 'salon' in mods %}<li><a class="dropdown-item {% if request.resolver_match.app_name == 'aula' %}active{% endif %}" href="{% url 'aula:inicio' %}"><i class="fas fa-chalkboard-user fa-fw me-2 text-muted"></i>Mi Salón Virtual</a></li>{% endif %}
                     {% if 'horarios' in mods %}<li><a class="dropdown-item {% if request.resolver_match.url_name == 'mi_horario' %}active{% endif %}" href="{% url 'horarios:mi_horario' %}"><i class="fas fa-calendar-week fa-fw me-2 text-muted"></i>Horario de clases</a></li>{% endif %}
                     {% if 'calendario' in mods %}<li><a class="dropdown-item {% if request.resolver_match.app_name == 'calendario' %}active{% endif %}" href="{% url 'calendario:inicio' %}"><i class="fas fa-calendar-days fa-fw me-2 text-muted"></i>Calendario escolar</a></li>{% endif %}
+                    {% if 'elecciones' in mods %}<li><a class="dropdown-item {% if request.resolver_match.app_name == 'votaciones' %}active{% endif %}" href="{% url 'votaciones:inicio' %}"><i class="fas fa-check-to-slot fa-fw me-2 text-muted"></i>Elecciones escolares</a></li>{% endif %}
                     {% if 'piar' in mods and user.estudiante.es_inclusion %}<li><a class="dropdown-item {% if request.resolver_match.url_name == 'mi_piar' %}active{% endif %}" href="{% url 'piar:mi_piar' %}"><i class="fas fa-universal-access fa-fw me-2 text-muted"></i>Mi PIAR</a></li>{% endif %}
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'mi_boletin' %}active{% endif %}" href="{% url 'notas:mi_boletin' %}"><i class="fas fa-file-pdf fa-fw me-2 text-muted"></i>Mi Boletín</a></li>
                     {% if user.estudiante %}
@@ -112,6 +113,7 @@
                     {% if 'certificados' in mods %}<li><a class="dropdown-item {% if 'certificado' in request.path %}active{% endif %}" href="{% url 'certificados:panel' %}"><i class="fas fa-award fa-fw me-2 text-muted"></i>Certificados</a></li>{% endif %}
                     {% if 'certificados' in mods %}<li><a class="dropdown-item {% if request.resolver_match.url_name == 'libro' %}active{% endif %}" href="{% url 'certificados:libro' %}"><i class="fas fa-book fa-fw me-2 text-muted"></i>Libro final de calificaciones</a></li>{% endif %}
                     {% if 'circulares' in mods %}<li><a class="dropdown-item {% if 'circulares/gestion' in request.path %}active{% endif %}" href="{% url 'circulares:lista' %}"><i class="fas fa-bullhorn fa-fw me-2 text-muted"></i>Circulares (enviar)</a></li>{% endif %}
+                    {% if 'elecciones' in mods %}<li><a class="dropdown-item {% if request.resolver_match.app_name == 'votaciones' %}active{% endif %}" href="{% url 'votaciones:inicio' %}"><i class="fas fa-check-to-slot fa-fw me-2 text-muted"></i>Elecciones escolares</a></li>{% endif %}
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'personalizacion_portal' %}active{% endif %}" href="{% url 'notas:personalizacion_portal' %}"><i class="fas fa-palette fa-fw me-2 text-muted"></i>Personalizar Portal</a></li>
                 {% endif %}
             </ul>

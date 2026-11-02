@@ -42,6 +42,7 @@ urlpatterns = [
     path('circulares/', include('circulares.urls', namespace='circulares')),
     path('chat/', include('chat.urls', namespace='chat')),
     path('copias/', include('copias.urls', namespace='copias')),
+    path('votaciones/', include('votaciones.urls', namespace='votaciones')),
     # Conectar Google Drive u OneDrive (para cualquier persona y sin depender de un módulo).
     path('nube/<str:proveedor>/', puntoexacto_views.nube_ayudante, name='nube_ayudante'),
     path('cartera/', include('cartera.urls', namespace='cartera')),

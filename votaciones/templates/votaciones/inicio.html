@@ -1,0 +1,43 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<div><h4 class="mb-0"><i class="fas fa-check-to-slot me-2"></i>Elecciones escolares</h4>
+<p class="text-muted small mb-0">Gobierno escolar: personero, contralor, voceros y los cargos que el colegio defina.</p></div>{% endblock %}
+{% block content %}
+{% for a in abiertas %}
+<div class="card border-warning mb-3"><div class="card-body d-flex flex-wrap align-items-center gap-3">
+  <div style="font-size:2.2rem">🗳️</div>
+  <div class="flex-grow-1"><div class="fw-bold">{{ a.e.nombre }}</div><div class="small text-muted">{{ a.cargos }} cargo{{ a.cargos|pluralize }} para usted</div></div>
+  {% if a.ya %}<span class="badge text-bg-success fs-6">Ya votó ✓</span>{% else %}<a class="btn btn-warning btn-lg fw-bold" href="{% url 'votaciones:votar' a.e.pk %}">Votar ahora</a>{% endif %}
+</div></div>
+{% endfor %}
+{% if not abiertas and not admin %}<div class="text-muted">No hay votaciones abiertas para usted en este momento.</div>{% endif %}
+
+{% if jurado and not admin %}
+  {% for e in elecciones %}{% if e.estado == 'abierta' %}<a class="btn btn-outline-primary me-2 mb-2" href="{% url 'votaciones:mesa' e.pk %}"><i class="fas fa-person-booth me-1"></i>Abrir mesa de votación · {{ e.nombre }}</a>{% endif %}{% endfor %}
+{% endif %}
+
+{% if admin %}
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card"><div class="card-body">
+      <h6 class="fw-bold">Elecciones del colegio</h6>
+      {% for e in elecciones %}
+      <div class="d-flex flex-wrap align-items-center gap-2 border-top py-2">
+        <a class="fw-semibold flex-grow-1" href="{% url 'votaciones:eleccion' e.pk %}">{{ e.nombre }}</a>
+        <span class="badge {% if e.estado == 'abierta' %}text-bg-success{% elif e.estado == 'cerrada' %}text-bg-secondary{% else %}text-bg-light{% endif %}">{{ e.get_estado_display }}</span>
+        {% if e.estado != 'preparacion' %}<a class="btn btn-sm btn-outline-primary" href="{% url 'votaciones:resultados' e.pk %}">Resultados</a>{% endif %}
+        {% if e.estado == 'abierta' %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'votaciones:mesa' e.pk %}">Mesa</a>{% endif %}
+      </div>
+      {% empty %}<div class="small text-muted">Todavía no ha creado ninguna elección.</div>{% endfor %}
+    </div></div>
+  </div>
+  <div class="col-lg-4">
+    <form method="post" class="card"><div class="card-body">{% csrf_token %}
+      <h6 class="fw-bold">Nueva elección</h6>
+      <input name="nombre" class="form-control mb-2" placeholder="Elección del gobierno escolar {% now 'Y' %}" maxlength="120">
+      <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="plantilla" id="vt-pl" checked><label class="form-check-label" for="vt-pl">Empezar con personero, contralor y vocero de cada curso</label></div>
+      <button class="btn btn-primary w-100">Crear</button>
+    </div></form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

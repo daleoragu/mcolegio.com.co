@@ -1,0 +1,26 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Acta de escrutinio · {{ e.nombre }}</title>
+<style>
+  body { font-family: Arial, sans-serif; color:#1d2433; max-width:800px; margin:20px auto; padding:0 16px; font-size:13px; }
+  h1 { font-size:18px; text-align:center; margin:4px 0; } h2 { font-size:14px; margin:18px 0 6px; border-bottom:1px solid #999; }
+  .cab { text-align:center; } .cab img { height:70px; }
+  table { width:100%; border-collapse:collapse; } td, th { border:1px solid #999; padding:4px 6px; } th { background:#eee; text-align:left; }
+  .firmas { display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:60px; } .firmas div { border-top:1px solid #333; padding-top:4px; text-align:center; }
+  .no-imprimir { margin:10px 0; } @media print { .no-imprimir { display:none; } }
+</style></head><body>
+<div class="no-imprimir"><button onclick="window.print()">Imprimir o guardar en PDF</button> <a href="{% url 'votaciones:resultados' e.pk %}">Volver</a></div>
+<div class="cab">{% if colegio.escudo %}<img src="{{ colegio.escudo.url }}" alt="">{% endif %}<div><b>{{ colegio.nombre|upper }}</b></div>
+<h1>ACTA DE ESCRUTINIO</h1><div>{{ e.nombre }}</div></div>
+<p>El {{ hoy|date:"j \d\e F \d\e Y" }} se realizó el escrutinio de la elección «{{ e.nombre }}», abierta el {{ e.abierta_en|date:"j/m/Y h:i a" }} y cerrada el {{ e.cerrada_en|date:"j/m/Y h:i a" }}, en cumplimiento del artículo 94 de la Ley 115 de 1994 y del Decreto 1860 de 1994. Votaron <b>{{ votaron }}</b> de <b>{{ habilitados }}</b> personas habilitadas (<b>{{ pct }}%</b>). La votación se hizo por medio de la plataforma mcolegio, con voto secreto.</p>
+{% for r in resultados %}
+<h2>{{ r.cargo.nombre }}</h2>
+{% for p in r.partes %}
+  {% if p.titulo %}<div style="margin-top:6px"><b>{{ p.titulo }}</b></div>{% endif %}
+  <table><tr><th style="width:8%">N.°</th><th>Candidato</th><th style="width:15%">Votos</th><th style="width:12%">%</th></tr>
+  {% for f in p.filas %}<tr><td>{{ f.c.numero }}</td><td>{{ f.c.nombre }}{% if f.ganador and not p.empate %} — <b>ELEGIDO(A)</b>{% endif %}</td><td>{{ f.votos }}</td><td>{{ f.pct }}%</td></tr>{% endfor %}
+  </table>
+  {% if p.empate %}<p><b>Empate en el primer lugar:</b> se resuelve según lo que disponga el manual de convivencia.</p>{% endif %}
+{% endfor %}
+{% if r.cargo.voto_blanco %}<p>Votos en blanco: {{ r.blanco }} ({{ r.pct_blanco }}%). Total de votos para el cargo: {{ r.total }}.</p>{% endif %}
+{% endfor %}
+<div class="firmas"><div>Rector(a)</div><div>Jurado de votación</div><div>Personero(a) saliente o delegado(a)</div><div>Testigo</div></div>
+</body></html>
