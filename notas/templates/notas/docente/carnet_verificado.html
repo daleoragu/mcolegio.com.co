@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Carné estudiantil</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; background: #eef1f6; margin: 0; padding: 24px 16px; color: #1f2937; }
+  .caja { max-width: 420px; margin: 0 auto; background: #fff; border-radius: 14px; padding: 22px; box-shadow: 0 4px 18px rgba(0,0,0,.08); text-align: center; }
+  .ok { color: #146c43; font-size: 1.1rem; font-weight: 700; }
+  .no { color: #b02a37; font-size: 1.1rem; font-weight: 700; }
+  .nombre { font-size: 1.3rem; font-weight: 800; margin: 10px 0 2px; }
+  .sub { color: #6b7280; }
+  .nota { font-size: .85rem; color: #6b7280; margin-top: 16px; }
+</style></head>
+<body><div class="caja">
+{% if estudiante %}
+  <div class="ok">✔ Carné estudiantil válido</div>
+  <div class="nombre">{{ estudiante.user.get_full_name|default:estudiante.user.username }}</div>
+  <div class="sub">{% if estudiante.curso %}Curso {{ estudiante.curso.nombre }} · {% endif %}{{ estudiante.colegio.nombre }}</div>
+  {% if not estudiante.is_active %}<p class="no">Este estudiante ya no está activo en el colegio.</p>{% endif %}
+  <p class="nota">Para registrar asistencia, el docente abre el «Kiosko de asistencia» y pasa el carné por la cámara.</p>
+{% else %}
+  <div class="no">✖ Este carné no es válido</div>
+  <p class="nota">No corresponde a un estudiante de este colegio, o el carné fue reemplazado por uno nuevo.</p>
+{% endif %}
+</div></body></html>
