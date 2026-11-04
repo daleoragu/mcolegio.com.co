@@ -218,6 +218,10 @@ def generar_libro(colegio, periodo, asignaciones):
             libro.active = i
             break
 
+    # Que Excel recalcule todo al abrir (el archivo no trae resultados guardados).
+    from openpyxl.workbook.properties import CalcProperties
+    libro.calculation = CalcProperties(fullCalcOnLoad=True)
+
     salida = io.BytesIO()
     libro.save(salida)
     return salida.getvalue()
@@ -325,7 +329,10 @@ def _dibujar_hoja(ws, colegio, periodo, asignacion, config, escala, fin_escala,
             rango = f'{L(ini)}{f}:{L(fin)}{f}'
             # Solo cuentan las notas dentro de la escala, como en la plataforma: una
             # pegada fuera de rango (la validación no frena lo pegado) no cambia la definitiva.
-            validas = f'{rango},">={MINIMA}",{rango},"<={MAXIMA}"'
+            # El límite va como número unido al texto (">="&1.0) y no dentro de las
+            # comillas (">=1.0"): Excel lee el texto con el idioma del equipo y, con
+            # coma decimal (español), «1.0» no es un número y la definitiva salía vacía.
+            validas = f'{rango},">="&{MINIMA},{rango},"<="&{MAXIMA}'
             dfx = ws.cell(f, cdef, f'=IF(COUNTIFS({validas})=0,"",'
                                    f'ROUND(AVERAGEIFS({rango},{validas}),2))')
             dfx.number_format, dfx.fill = '0.00', relleno_def

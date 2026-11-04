@@ -79,8 +79,15 @@ class SabanaReporteParcial(ColegioDePrueba):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r['Content-Type'], 'application/pdf')
 
-    def test_docente_que_no_es_director_no_entra(self):
-        self.assertEqual(self.cliente(self.docente2.user).get(self.url()).status_code, 403)
+    def test_docente_del_curso_que_no_es_director_si_entra(self):
+        r = self.cliente(self.docente2.user).get(self.url())
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.context['cursos'], [self.curso])
+
+    def test_docente_sin_asignaciones_no_entra(self):
+        u = User.objects.create_user('profe3', password=CLAVE)
+        Docente.objects.create(colegio=self.a, user=u)
+        self.assertEqual(self.cliente(u).get(self.url()).status_code, 403)
 
     def test_solo_cursos_del_colegio(self):
         r = self.cliente(self.rectora).get(self.url(curso=self.otro_curso.id))

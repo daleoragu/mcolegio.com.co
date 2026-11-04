@@ -383,15 +383,18 @@ def informe_parcial_publico(request, token):
 
 
 # ---------------------------------------------------------------------------
-# Sábana del reporte parcial (director de grupo y administración)
+# Sábana del reporte parcial (administración, directores de grupo y docentes)
 # ---------------------------------------------------------------------------
 def _cursos_sabana(request):
+    """La administración ve todos los cursos; el docente, los que dirige y
+    aquellos en los que dicta alguna asignatura."""
     if es_admin(request):
         return Curso.objects.filter(colegio=request.colegio)
     docente = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
     if docente is None:
         return Curso.objects.none()
-    return Curso.objects.filter(colegio=request.colegio, director_grado=docente)
+    dicta = AsignacionDocente.objects.filter(docente=docente, colegio=request.colegio).values('curso_id')
+    return Curso.objects.filter(Q(director_grado=docente) | Q(id__in=dicta), colegio=request.colegio).distinct()
 
 
 def _periodo_por_defecto(colegio, periodos):
@@ -416,7 +419,7 @@ def sabana_reporte_parcial(request):
         if es_admin(request):
             messages.info(request, "Todavía no hay cursos creados.")
             return redirect('notas:dashboard')
-        return HttpResponseForbidden('La sábana del reporte parcial la ven el director de grupo y la administración.')
+        return HttpResponseForbidden('La sábana del reporte parcial la ven los docentes del curso, el director de grupo y la administración.')
 
     anos = sorted(set(PeriodoAcademico.objects.filter(colegio=request.colegio)
                       .values_list('ano_lectivo', flat=True)), reverse=True)
