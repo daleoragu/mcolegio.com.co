@@ -1,0 +1,39 @@
+{% extends 'votaciones/_pantalla.html' %}
+{% block barra %}{% if c.numero %}<span class="badge text-bg-light fs-6">Cabina {{ c.numero }}</span>{% endif %}{% endblock %}
+{% block content %}
+<div class="vt-cargo text-center" style="max-width:560px;margin:30px auto">
+  {% if estado == 'sin_vincular' %}
+    <div style="font-size:3rem">🗳️</div>
+    <h1 class="h4 fw-bold">Cabina de votación</h1>
+    <p class="text-muted">Jurado: en su celular abra <b>Elecciones › Cabinas (jurado)</b> y escanee este código para vincular esta cabina.</p>
+    <img src="data:image/png;base64,{{ qr }}" alt="QR para vincular la cabina" style="width:240px;max-width:80%;image-rendering:pixelated">
+    <p class="mt-2 mb-0">Si no puede escanearlo, escriba estas cifras:</p>
+    <div style="font-size:2.4rem;font-weight:900;letter-spacing:.2em;font-variant-numeric:tabular-nums">{{ codigo }}</div>
+  {% elif estado == 'cerrada' %}
+    <div style="font-size:3rem">🔒</div>
+    <h1 class="h4 fw-bold">La votación está {{ e.get_estado_display|lower }}</h1>
+    <p class="text-muted">Esta cabina ya no recibe votantes.</p>
+  {% else %}
+    <div style="font-size:4rem">🗳️</div>
+    <h1 class="h3 fw-bold">Cabina {{ c.numero }}</h1>
+    <p class="fs-5 mb-1">Esperando al siguiente votante…</p>
+    <p class="text-muted">El jurado escanea su carné y aquí aparece su tarjetón.</p>
+    <p class="small text-muted mb-0">Jurado: {{ c.jurado.get_full_name|default:c.jurado.username }}</p>
+  {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+  var actual = "{{ estado }}";
+  function revisar() {
+    fetch("{% url 'votaciones:cabina_estado' %}", {credentials: 'same-origin', cache: 'no-store'})
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (j.estado !== actual) location.reload(); })
+      .catch(function () {})
+      .finally(function () { setTimeout(revisar, 2000); });
+  }
+  setTimeout(revisar, 2000);
+})();
+</script>
+{% endblock %}

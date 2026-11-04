@@ -267,6 +267,13 @@ def mesa(request, pk):
         est = Estudiante.objects.filter(colegio=request.colegio, is_active=True, user__username__iexact=q) \
             .select_related('user', 'curso').first()
         if est is None:
+            # También sirve el QR del carné (con un lector USB queda escrito aquí).
+            from notas.views.carnet_views import codigo_leido
+            codigo = codigo_leido(q)
+            if codigo:
+                est = Estudiante.objects.filter(colegio=request.colegio, is_active=True, codigo_carnet=codigo) \
+                    .select_related('user', 'curso').first()
+        if est is None:
             error = 'No hay un estudiante activo con ese usuario en el colegio.'
         elif VotoEmitido.objects.filter(eleccion=e, usuario=est.user).exists():
             error = f'{est.user.get_full_name() or est.user.username} ({est.curso.nombre if est.curso_id else "sin curso"}) ya votó.'

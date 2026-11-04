@@ -10,6 +10,7 @@
   {% elif e.estado == 'abierta' %}
     <span class="small flex-grow-1"><b>Votación abierta</b> desde {{ e.abierta_en|date:"d M h:i a" }}. Votaron {{ votaron }} de {{ habilitados }}.</span>
     <a class="btn btn-outline-primary" href="{% url 'votaciones:mesa' e.pk %}"><i class="fas fa-person-booth me-1"></i>Mesa de votación</a>
+    <a class="btn btn-outline-primary" href="{% url 'votaciones:jurado' e.pk %}"><i class="fas fa-mobile-screen me-1"></i>Cabinas (jurado)</a>
     <a class="btn btn-outline-primary" href="{% url 'votaciones:resultados' e.pk %}">Resultados en vivo</a>
     <form method="post" class="m-0" onsubmit="return confirm('¿Cerrar la votación? Nadie más podrá votar.')">{% csrf_token %}<input type="hidden" name="accion" value="cerrar"><button class="btn btn-danger"><i class="fas fa-lock me-1"></i>Cerrar la votación</button></form>
   {% else %}

@@ -5,11 +5,11 @@
   <div style="font-size:3rem">🗳️</div>
   <h1 class="h4 fw-bold">Mesa de votación</h1>
   {% if e.estado != 'abierta' %}<div class="alert alert-warning">La votación está {{ e.get_estado_display|lower }}.</div>{% endif %}
-  <p class="text-muted">El jurado verifica la identidad del estudiante y escribe su usuario de la plataforma. Después el estudiante vota solo, sin que nadie mire la pantalla.</p>
+  <p class="text-muted">El jurado verifica la identidad del estudiante y escribe su usuario de la plataforma (o pasa su carné por un lector de QR). Después el estudiante vota solo, sin que nadie mire la pantalla.</p>
   {% if messages %}{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}{% endif %}
   {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
   <form method="post" class="d-flex gap-2" autocomplete="off">{% csrf_token %}<input type="hidden" name="accion" value="buscar">
-    <input name="usuario" class="form-control form-control-lg" placeholder="Usuario del estudiante" aria-label="Usuario del estudiante" autofocus required>
+    <input name="usuario" class="form-control form-control-lg" placeholder="Usuario o carné del estudiante" aria-label="Usuario o carné del estudiante" autofocus required>
     <button class="btn btn-lg btn-primary">Habilitar</button>
   </form>
   <div class="small text-muted mt-3">Han votado {{ votaron }} en total · {{ en_mesa }} en esta mesa.</div>

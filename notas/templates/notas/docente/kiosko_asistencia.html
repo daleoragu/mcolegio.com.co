@@ -115,6 +115,7 @@
 {% block extra_js %}
 {% if asignacion_activa %}
 <script src="{% static 'notas/vendor/jsQR.js' %}"></script>
+<script src="{% static 'notas/js/lector_qr.js' %}"></script>
 <script>
 (function () {
     const URL_REGISTRAR = "{% url 'notas:kiosko_registrar' %}";
@@ -123,22 +124,12 @@
     const entrada = document.getElementById('kq-codigo');
     const lista = document.getElementById('kq-lista');
     const iconos = {ok: 'fa-circle-check', success: 'fa-circle-check', info: 'fa-circle-info', warning: 'fa-triangle-exclamation', error: 'fa-circle-xmark'};
-    let ultimo = '', ultimoEn = 0, ocupado = false;
+    let ocupado = false;
 
     function escapar(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
-    function pitar(bien) {
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const o = ctx.createOscillator(); const g = ctx.createGain();
-            o.frequency.value = bien ? 880 : 220; g.gain.value = 0.15;
-            o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + (bien ? 0.12 : 0.35));
-        } catch (e) { /* sin sonido */ }
-    }
-
     function mostrar(nivel, texto) {
-        const clase = nivel === 'success' ? 'ok' : nivel;
-        aviso.className = 'kq-aviso ' + clase;
+        aviso.className = 'kq-aviso ' + (nivel === 'success' ? 'ok' : nivel);
         aviso.innerHTML = `<i class="fas ${iconos[nivel] || 'fa-qrcode'}"></i><span>${escapar(texto)}</span>`;
     }
 
@@ -155,20 +146,18 @@
     async function enviar(texto) {
         texto = (texto || '').trim();
         if (!texto || ocupado) return;
-        const ahora = Date.now();
-        if (texto === ultimo && ahora - ultimoEn < 4000) return;   // el mismo carné frente a la cámara
-        ultimo = texto; ultimoEn = ahora; ocupado = true;
+        ocupado = true;
         try {
             const datos = new FormData(); datos.append('codigo', texto);
             const r = await fetch(URL_REGISTRAR, {method: 'POST', body: datos, headers: {'X-CSRFToken': CSRF}, credentials: 'same-origin'});
             const j = await r.json();
             mostrar(j.nivel, j.mensaje);
-            pitar(j.ok && !j.repetido);
+            LectorQR.pitar(j.ok && !j.repetido);
             pintarDia(j.dia, j.nombre);
         } catch (e) {
             mostrar('error', 'No se pudo registrar. Revise la conexión a internet.');
-            pitar(false);
-            ultimo = '';
+            LectorQR.pitar(false);
+            lector.olvidar();
         } finally {
             ocupado = false;
         }
@@ -182,82 +171,10 @@
         entrada.focus();
     });
 
-    // Cámara: BarcodeDetector donde exista (Chrome, Android); si no, jsQR.
-    const caja = document.getElementById('kq-video');
-    const video = document.getElementById('kq-camara');
-    const boton = document.getElementById('kq-btn-camara');
-    const selector = document.getElementById('kq-camaras');
-    const lienzo = document.createElement('canvas');
-    const ctx2d = lienzo.getContext('2d', {willReadFrequently: true});
-    let flujo = null, detector = null, leyendo = false;
-
-    async function leerCuadro() {
-        if (!leyendo) return;
-        if (video.readyState >= 2) {
-            try {
-                let texto = null;
-                if (detector) {
-                    const codigos = await detector.detect(video);
-                    if (codigos.length) texto = codigos[0].rawValue;
-                } else if (window.jsQR) {
-                    const ancho = 480, alto = Math.round(480 * video.videoHeight / video.videoWidth) || 360;
-                    lienzo.width = ancho; lienzo.height = alto;
-                    ctx2d.drawImage(video, 0, 0, ancho, alto);
-                    const img = ctx2d.getImageData(0, 0, ancho, alto);
-                    const qr = jsQR(img.data, ancho, alto, {inversionAttempts: 'dontInvert'});
-                    if (qr) texto = qr.data;
-                }
-                if (texto) enviar(texto);
-            } catch (e) { /* siga intentando */ }
-        }
-        setTimeout(() => requestAnimationFrame(leerCuadro), 120);
-    }
-
-    async function encender(idCamara) {
-        apagar();
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            mostrar('error', 'Este navegador no deja usar la cámara (abra la plataforma con https).');
-            return;
-        }
-        try {
-            flujo = await navigator.mediaDevices.getUserMedia({
-                video: idCamara ? {deviceId: {exact: idCamara}} : {facingMode: {ideal: 'environment'}}, audio: false});
-        } catch (e) {
-            mostrar('error', 'No se pudo abrir la cámara. Dé permiso a la cámara en el navegador.');
-            return;
-        }
-        video.srcObject = flujo;
-        await video.play();
-        caja.style.display = 'block';
-        boton.innerHTML = '<i class="fas fa-video-slash me-1"></i>Apagar la cámara';
-        if ('BarcodeDetector' in window) {
-            try { detector = new BarcodeDetector({formats: ['qr_code']}); } catch (e) { detector = null; }
-        }
-        leyendo = true;
-        leerCuadro();
-        mostrar('info', 'Acerque el QR del carné a la cámara.');
-        try {
-            const camaras = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
-            if (camaras.length > 1) {
-                const actual = flujo.getVideoTracks()[0].getSettings().deviceId;
-                selector.innerHTML = camaras.map((c, i) =>
-                    `<option value="${c.deviceId}" ${c.deviceId === actual ? 'selected' : ''}>${escapar(c.label || 'Cámara ' + (i + 1))}</option>`).join('');
-                selector.classList.remove('d-none');
-            }
-        } catch (e) { /* sin lista de cámaras */ }
-    }
-
-    function apagar() {
-        leyendo = false;
-        if (flujo) flujo.getTracks().forEach(t => t.stop());
-        flujo = null;
-        caja.style.display = 'none';
-        boton.innerHTML = '<i class="fas fa-camera me-1"></i>Leer con la cámara';
-    }
-
-    boton.addEventListener('click', () => flujo ? apagar() : encender());
-    selector.addEventListener('change', () => encender(selector.value));
-    window.addEventListener('pagehide', apagar);
+    const lector = LectorQR({
+        video: document.getElementById('kq-camara'), caja: document.getElementById('kq-video'),
+        boton: document.getElementById('kq-btn-camara'), selector: document.getElementById('kq-camaras'),
+        alLeer: enviar, alAvisar: mostrar, textoListo: 'Acerque el QR del carné a la cámara.'});
 })();
 </script>
 {% endif %}

@@ -1,0 +1,14 @@
+{% extends 'notas/base.html' %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-person-booth me-2"></i>Vincular cabina</h4>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:520px"><div class="card-body">
+  <p>Va a manejar esta cabina desde su celular: cuando escanee el carné de un estudiante, la cabina abrirá su tarjetón.</p>
+  <form method="post">{% csrf_token %}
+    <label class="form-label fw-semibold" for="vc-eleccion">Elección</label>
+    <select name="eleccion" id="vc-eleccion" class="form-select mb-3">
+      {% for e in abiertas %}<option value="{{ e.pk }}">{{ e.nombre }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-primary w-100"><i class="fas fa-link me-1"></i>Vincular esta cabina</button>
+  </form>
+</div></div>
+{% endblock %}
