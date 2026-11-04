@@ -50,6 +50,19 @@ class ExcelIdaYVuelta(ColegioDePrueba):
         salida.seek(0)
         return leer_libro(salida, self.a, usuario or self.u_docente)
 
+    def test_formulas_sirven_con_coma_decimal(self):
+        # En un Excel en español, ">=1.0" entre comillas no es un número y la
+        # definitiva salía vacía; el límite tiene que ir fuera de las comillas.
+        libro = self.bajar()
+        ws = libro[libro.sheetnames[1]]
+        formulas = [c.value for fila in ws.iter_rows() for c in fila
+                    if isinstance(c.value, str) and 'COUNTIFS' in c.value]
+        self.assertTrue(formulas)
+        for f in formulas:
+            self.assertNotRegex(f, r'"[<>]=\d')
+            self.assertIn('">="&', f)
+        self.assertTrue(libro.calculation.fullCalcOnLoad)
+
     def test_lo_que_se_sube_es_lo_que_queda(self):
         import json
         libro = self.bajar()

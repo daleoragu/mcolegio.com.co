@@ -1,0 +1,18 @@
+ARCHIVOS CAMBIADOS (cada uno va en la misma ruta dentro del proyecto; reemplace el que tiene)
+
+CAMBIADO  notas/planillas/excel.py
+CAMBIADO  notas/reporte_sabana.py
+CAMBIADO  notas/static/notas/js/ingresar_notas.js
+CAMBIADO  notas/templates/notas/docente/_panel_docente_content.html
+CAMBIADO  notas/templates/notas/docente/dashboard_docente.html
+CAMBIADO  notas/templates/notas/docente/lista_estudiantes_reporte.html
+CAMBIADO  notas/templates/notas/includes/_topbar.html
+CAMBIADO  notas/templates/notas/partials/_tabla_notas.html
+CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial.html
+CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial_pdf.html
+CAMBIADO  notas/tests/test_planillas.py
+CAMBIADO  notas/tests/test_sabana_reporte_parcial.py
+CAMBIADO  notas/views/reporte_parcial_views.py
+
+Después de copiarlos, al desplegar corra collectstatic (build.sh ya lo hace).
+No hay migraciones nuevas.

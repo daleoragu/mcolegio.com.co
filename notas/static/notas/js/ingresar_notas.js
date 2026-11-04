@@ -412,6 +412,65 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // Pegar desde Excel: un bloque de varias filas y/o columnas copiado de una
+    // hoja de cálculo se reparte desde la casilla donde se pega (hacia la
+    // derecha dentro del mismo componente y hacia abajo por los estudiantes).
+    // Si el bloque es más ancho que las columnas que hay, se añaden solas.
+    tablaCalificaciones.addEventListener('paste', e => {
+        const destino = e.target.closest('.input-nota');
+        if (!destino) return;
+        const texto = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+        const limpio = texto.replace(/\r\n?/g, '\n').replace(/\n+$/, '');
+        if (!/[\t\n]/.test(limpio)) return;   // un solo valor: pegado normal
+        e.preventDefault();
+
+        const matriz = limpio.split('\n').map(f => f.split('\t').map(v => v.trim()));
+        const tipo = destino.dataset.tipo;
+        const filaDestino = destino.closest('tr');
+        const estIni = filaDestino.dataset.estudianteId;
+        const colIni = Array.from(filaDestino.querySelectorAll(`.input-nota[data-tipo="${tipo}"]`)).indexOf(destino);
+        const ancho = Math.max(...matriz.map(f => f.length));
+        const actuales = tablaCalificaciones.querySelectorAll(`thead .th-nota[data-tipo="${tipo}"]`).length;
+        const necesarias = colIni + ancho;
+
+        if (necesarias > actuales && tablaCalificaciones.dataset.hayIndicadores === 'true') {
+            sincronizarDatosDesdeDOM();
+            for (let i = actuales; i < necesarias; i++) {
+                if (!descripcionesColumnas[tipo][i]) descripcionesColumnas[tipo][i] = `Nota ${i + 1}`;
+            }
+            estudiantesData.forEach(est => {
+                if (!est.notas[tipo]) est.notas[tipo] = [];
+                while (est.notas[tipo].length < necesarias) est.notas[tipo].push({ valor: '', descripcion: '' });
+            });
+            renderizarTabla();
+        }
+
+        const filas = Array.from(tablaCalificaciones.querySelectorAll('tbody tr[data-estudiante-id]'));
+        const filaIni = filas.findIndex(f => f.dataset.estudianteId === estIni);
+        let puestas = 0, filasSobrantes = 0, columnasSobrantes = false, ultimo = null;
+        matriz.forEach((valores, i) => {
+            const fila = filas[filaIni + i];
+            if (!fila) { filasSobrantes++; return; }
+            const inputs = fila.querySelectorAll(`.input-nota[data-tipo="${tipo}"]`);
+            valores.forEach((valor, j) => {
+                const input = inputs[colIni + j];
+                if (!input) { columnasSobrantes = true; return; }
+                input.value = valor;
+                ultimo = input;
+                puestas++;
+            });
+            actualizarTodosLosPromedios(fila);
+        });
+        if (!puestas) return;
+        window.actualizarStatus('pending');
+        ultimo?.focus();
+
+        let mensaje = `Se pegaron ${puestas} nota${puestas === 1 ? '' : 's'}. Revise y guarde.`;
+        if (filasSobrantes) mensaje += ` ${filasSobrantes} fila${filasSobrantes === 1 ? '' : 's'} de más no se ${filasSobrantes === 1 ? 'pegó' : 'pegaron'} (no hay más estudiantes).`;
+        if (columnasSobrantes) mensaje += ' Algunas columnas no cupieron.';
+        mostrarNotificacion(mensaje, false);
+    });
+
     const panelPonderacion = document.getElementById('panel-ponderacion');
     if (panelPonderacion) {
         panelPonderacion.addEventListener('input', () => {
