@@ -64,6 +64,7 @@
             <div class="tab-pane fade show active" id="ficha" role="tabpanel">
                 <div class="d-flex justify-content-end mb-3 gap-2">
                     <a href="{% url 'notas:editar_ficha' estudiante.id %}" class="btn btn-outline-primary btn-sm"><i class="fas fa-edit me-2"></i>Editar Ficha</a>
+                    <a href="{% url 'notas:historial_ficha' estudiante.id %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-clock-rotate-left me-2"></i>Historial</a>
                     <a href="{% url 'notas:generar_observador_pdf' estudiante.id %}" target="_blank" class="btn btn-outline-danger btn-sm"><i class="fas fa-file-pdf me-2"></i>Descargar PDF</a>
                 </div>
                 <div class="ficha-container">            

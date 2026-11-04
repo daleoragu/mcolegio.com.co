@@ -175,7 +175,7 @@
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                 <li><h6 class="dropdown-header">{{ user.get_full_name|default:user.username }}</h6></li>
                 {% if user|has_group:"Estudiantes" and user.estudiante %}
-                    <li><a class="dropdown-item" href="{% url 'notas:editar_estudiante' user.estudiante.id %}"><i class="fas fa-camera fa-fw me-2 text-muted"></i>Mi Ficha / Foto</a></li>
+                    <li><a class="dropdown-item" href="{% url 'notas:mi_ficha' %}"><i class="fas fa-camera fa-fw me-2 text-muted"></i>Mi Ficha / Foto</a></li>
                 {% elif user.docente %}
                      <li><a class="dropdown-item" href="{% url 'notas:editar_docente' user.docente.id %}"><i class="fas fa-id-card fa-fw me-2 text-muted"></i>Mi Ficha</a></li>
                 {% endif %}

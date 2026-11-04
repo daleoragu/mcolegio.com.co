@@ -15,13 +15,14 @@ from .academicos import (
 )
 from .comunicaciones import Mensaje, RegistroObservador, Notificacion, FaltaCatalogo, TIPOS_FALTA, SuscripcionPush, ClavePush
 from .excusas import Excusa
+from .fichas import CambioFicha, SolicitudFicha
 from .portal_models import DocumentoPublico, FotoGaleria, Noticia, ImagenCarrusel, RecursoEducativo, VideoPortal
 
 # La variable __all__ es una buena práctica que define qué nombres
 # se exportan cuando se hace 'from .models import *'.
 # Se ha corregido una coma faltante.
 __all__ = [
-    'Excusa',
+    'Excusa', 'CambioFicha', 'SolicitudFicha',
     'Colegio', 'Curso', 'Docente', 'Estudiante', 'FichaEstudiante', 'FichaDocente',
     'HistorialMatricula', 'AdministradorColegio', 'Sede', 'Familia',
     'AreaConocimiento', 'Materia', 'PeriodoAcademico', 'AsignacionDocente', 'EscalaValoracion', 

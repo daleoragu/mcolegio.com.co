@@ -251,9 +251,14 @@ def editar_ficha_vista(request, estudiante_id):
     ficha, created = FichaEstudiante.objects.get_or_create(estudiante=estudiante)
 
     if request.method == 'POST':
+        from .. import fichas as F
+        antes = F.foto_ficha(ficha)
         form = FichaEstudianteForm(request.POST, request.FILES, instance=ficha)
         if form.is_valid():
             form.save()
+            ficha.refresh_from_db()
+            F.registrar(request.colegio, estudiante, antes, F.foto_ficha(ficha), request.user,
+                        'ADMIN' if es_admin_usuario(request.user) else 'DOCENTE', autorizado_por=request.user)
             messages.success(request, f"Ficha de {estudiante.user.get_full_name()} actualizada correctamente.")
             return redirect('notas:vista_detalle_observador', estudiante_id=estudiante.id)
         else:

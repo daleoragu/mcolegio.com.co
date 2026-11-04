@@ -1,0 +1,56 @@
+{% extends 'notas/base.html' %}
+{% block title %}Cambio de ficha · {{ s.estudiante }}{% endblock %}
+{% block page_title %}<h1>Cambio de ficha</h1>{% endblock %}
+{% block content %}
+<style>
+  .mf-caja { background:#fff; border:1px solid #e3e7ef; border-radius:14px; padding:16px 18px; margin-bottom:14px; }
+  .mf-chip { display:inline-block; border-radius:999px; padding:2px 10px; font-size:.78rem; font-weight:700; }
+  .mf-PENDIENTE { background:#fff3cd; color:#664d03; } .mf-APROBADA, .mf-PARCIAL { background:#d1e7dd; color:#0f5132; }
+  .mf-RECHAZADA { background:#f8d7da; color:#842029; }
+  .mf-antes { color:#6b7280; text-decoration:line-through; } .mf-despues { color:#0f5132; font-weight:700; }
+</style>
+<div class="d-flex flex-wrap gap-2 mb-2">
+  <a href="{% url 'notas:solicitudes_ficha' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Solicitudes</a>
+  <a href="{% url 'notas:historial_ficha' s.estudiante.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-clock-rotate-left me-1"></i>Historial de la ficha</a>
+</div>
+<div class="mf-caja">
+  <div class="d-flex align-items-start gap-2">
+    <div class="flex-grow-1">
+      <h5 class="fw-bold mb-0">{{ s.estudiante.user.get_full_name }}</h5>
+      <div class="text-muted small">Curso {{ s.estudiante.curso.nombre|default:"—" }} · enviada {{ s.creada|date:"d/m/Y h:i a" }}{% if s.enviada_por %} por {{ s.enviada_por.get_full_name|default:s.enviada_por.username }}{% endif %}</div>
+    </div>
+    <span class="mf-chip mf-{{ s.estado }}">{{ s.get_estado_display }}</span>
+  </div>
+  {% if s.revisada_por %}<div class="small mt-2">Revisó: {{ s.revisada_por.get_full_name|default:s.revisada_por.username }} · {{ s.revisada_en|date:"d/m/Y h:i a" }}{% if s.respuesta %} · «{{ s.respuesta }}»{% endif %}</div>{% endif %}
+</div>
+
+<form method="post" class="mf-caja">{% csrf_token %}
+  <table class="table table-sm align-middle mb-3">
+    <thead><tr>{% if s.estado == 'PENDIENTE' %}<th style="width:40px"><input type="checkbox" class="form-check-input" id="mf-todos" checked aria-label="Marcar todos"></th>{% endif %}<th>Dato</th><th>Ahora</th><th>Pide</th></tr></thead>
+    <tbody>
+    {% for campo, c in s.cambios.items %}
+      <tr>
+        {% if s.estado == 'PENDIENTE' %}<td><input type="checkbox" class="form-check-input mf-campo" name="campos" value="{{ campo }}" checked aria-label="Autorizar {{ c.etiqueta }}"></td>{% endif %}
+        <td class="fw-semibold">{{ c.etiqueta }}{% if s.estado != 'PENDIENTE' and campo in s.aprobados %} <span class="mf-chip mf-APROBADA">autorizado</span>{% endif %}</td>
+        <td class="mf-antes">{{ c.antes|default:"(vacío)" }}</td>
+        <td class="mf-despues">{% if campo == 'foto' and s.foto_nueva %}<img src="{{ s.foto_nueva.url }}" alt="Foto nueva" style="max-height:120px;border-radius:8px">{% else %}{{ c.despues_txt|default:"(vacío)" }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if s.estado == 'PENDIENTE' %}
+  <input name="respuesta" class="form-control mb-2" maxlength="500" placeholder="Mensaje para el estudiante (obligatorio si no autoriza)" aria-label="Mensaje para el estudiante">
+  <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-success" name="accion" value="aprobar"><i class="fas fa-check me-1"></i>Autorizar los marcados</button>
+    <button class="btn btn-outline-danger" name="accion" value="rechazar"><i class="fas fa-xmark me-1"></i>No autorizar nada</button>
+  </div>
+  <div class="form-text">Desmarque los datos que no deban cambiar. Lo que autorice queda en el historial con su nombre.</div>
+  {% endif %}
+</form>
+<script>
+(function () {
+  var t = document.getElementById('mf-todos');
+  if (t) t.addEventListener('change', function () { document.querySelectorAll('.mf-campo').forEach(function (c) { c.checked = t.checked; }); });
+})();
+</script>
+{% endblock %}
