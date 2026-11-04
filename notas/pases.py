@@ -125,12 +125,13 @@ def marcar_regreso(permiso, usuario):
         permiso.save(update_fields=['regreso', 'regreso_marcado_por'])
 
 
-def verificar(request, estudiante):
-    """Lo que ve quien escanea el carné. Deja el registro. Devuelve (verificación, permiso, clase actual)."""
+def verificar(request, estudiante, medio='CARNE'):
+    """Lo que ve quien escanea el carné (o lo busca por nombre). Deja el registro.
+    Devuelve (verificación, permiso, clase actual)."""
     p = abierto_de(estudiante)
     resultado = 'SIN_PERMISO' if p is None else ('VENCIDO' if p.vencido else 'CON_PERMISO')
     v = VerificacionPermiso.objects.create(colegio=request.colegio, estudiante=estudiante, permiso=p,
-                                           verificado_por=request.user, resultado=resultado)
+                                           verificado_por=request.user, resultado=resultado, medio=medio)
     return v, p, clase_actual_del_curso(request.colegio, estudiante.curso)
 
 

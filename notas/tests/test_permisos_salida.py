@@ -128,3 +128,17 @@ class PermisosSalida(ColegioDePrueba):
         self.a.save(update_fields=['modulos_activos'])
         r = self.profe.get('/permisos/')
         self.assertNotEqual(r.status_code, 200)
+
+    def test_no_traia_el_carne(self):
+        otro = self.cliente(self.otro_profe)
+        j = otro.post('/permisos/verificar/', {'estudiante': self.beto.id}).json()
+        self.assertEqual(j['medio'], 'NOMBRE')
+        r = otro.post(f'/permisos/verificacion/{j["verificacion"]}/sin-carne/').json()
+        self.assertIn('no traía el carné', r['mensaje'])
+        v = VerificacionPermiso.objects.get()
+        self.assertTrue(v.sin_carne)
+        self.assertContains(self.cliente(self.rectora).get('/permisos/historial/'), 'Sin carné (últimos 30 días)')
+        self.assertContains(self.cliente(self.rectora).get('/permisos/historial/'), 'Prueba Beto')
+        # Con el carné escaneado, el medio es CARNE
+        j = otro.post('/permisos/verificar/', {'texto': self.beto.asegurar_codigo_carnet()}).json()
+        self.assertEqual(j['medio'], 'CARNE')

@@ -74,7 +74,7 @@
       <div class="d-flex gap-2 mb-2">
         <button type="button" class="btn btn-outline-primary flex-grow-1" id="pm-btn-camara"><i class="fas fa-camera me-1"></i>Escanear el carné</button>
       </div>
-      <input type="search" id="pm-q" class="form-control mb-1" placeholder="…o busque por nombre o documento" autocomplete="off" aria-label="Buscar estudiante">
+      <input type="search" id="pm-q" class="form-control mb-1" placeholder="¿No trae el carné? Búsquelo por nombre o documento" autocomplete="off" aria-label="Buscar estudiante">
       <div class="list-group pm-lista-busqueda mb-2" id="pm-lista"></div>
       <div class="pm-resultado" id="pm-resultado" role="status" aria-live="polite"></div>
     </div>
@@ -117,6 +117,7 @@
   const CSRF = "{{ csrf_token }}";
   const URL_VERIFICAR = "{% url 'notas:permiso_verificar' %}", URL_BUSCAR = "{% url 'notas:permiso_buscar' %}";
   const URL_REPORTAR = "{% url 'notas:permiso_reportar' 0 %}".replace('/0/', '/{id}/');
+  const URL_SIN_CARNE = "{% url 'notas:permiso_sin_carne' 0 %}".replace('/0/', '/{id}/');
   const caja = document.getElementById('pm-resultado');
   function esc(t) { const d = document.createElement('div'); d.textContent = t == null ? '' : t; return d.innerHTML; }
 
@@ -146,6 +147,9 @@
       html += `<div class="fw-bold mt-1">❌ No tiene permiso</div>
                <div class="small">Posible evasión de clase.${r.clase ? ` Ahora debería estar en ${esc(r.clase)}.` : ''}</div>`;
     }
+    if (r.medio === 'NOMBRE') {
+      html += `<div><button type="button" class="btn btn-sm btn-outline-dark mt-2" data-sin-carne="${r.verificacion}"><i class="fas fa-id-card"></i> No traía el carné</button></div>`;
+    }
     if (r.resultado !== 'CON_PERMISO') {
       html += `<button type="button" class="btn btn-sm btn-danger mt-2" data-reportar="${r.verificacion}">Avisar al director de grupo y a coordinación</button>`;
       const plantilla = document.getElementById('pm-dar-rapido');
@@ -169,6 +173,13 @@
   }
 
   caja.addEventListener('click', async ev => {
+    const sc = ev.target.closest('[data-sin-carne]');
+    if (sc) {
+      sc.disabled = true;
+      const r = await (await fetch(URL_SIN_CARNE.replace('{id}', sc.dataset.sinCarne), {method: 'POST', headers: {'X-CSRFToken': CSRF}, credentials: 'same-origin'})).json();
+      sc.outerHTML = `<div class="small fw-bold mt-2">${esc(r.mensaje)}</div>`;
+      return;
+    }
     const b = ev.target.closest('[data-reportar]');
     if (!b) return;
     b.disabled = true;

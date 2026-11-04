@@ -37,6 +37,12 @@
       {% empty %}<p class="small text-muted mb-0">Nadie.</p>{% endfor %}
     </div>
     <div class="pm-caja">
+      <h6 class="fw-bold">Sin carné (últimos 30 días)</h6>
+      {% for m in sin_carne %}
+      <div class="small d-flex py-1 border-bottom"><span class="flex-grow-1">{{ m.estudiante__user__last_name }} {{ m.estudiante__user__first_name }} · {{ m.estudiante__curso__nombre }}</span><b>{{ m.n }}</b></div>
+      {% empty %}<p class="small text-muted mb-0">Nadie anotado sin carné.</p>{% endfor %}
+    </div>
+    <div class="pm-caja">
       <h6 class="fw-bold">Los que más salen (últimos 30 días)</h6>
       {% for m in mas %}
       <div class="small d-flex py-1 border-bottom"><span class="flex-grow-1">{{ m.estudiante__user__last_name }} {{ m.estudiante__user__first_name }} · {{ m.estudiante__curso__nombre }}</span><b>{{ m.n }}</b></div>

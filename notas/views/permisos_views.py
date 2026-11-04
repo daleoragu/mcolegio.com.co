@@ -54,9 +54,10 @@ def _datos_permiso(p):
             'nota': p.nota}
 
 
-def _resultado(request, est):
-    v, p, clase = pases.verificar(request, est)
+def _resultado(request, est, medio='CARNE'):
+    v, p, clase = pases.verificar(request, est, medio)
     return {
+        'medio': medio,
         'verificacion': v.pk, 'resultado': v.resultado, 'nombre': est.user.get_full_name() or est.user.username,
         'curso': est.curso.nombre if est.curso_id else '', 'estudiante': est.pk,
         'permiso': _datos_permiso(p) if p else None,
@@ -148,7 +149,7 @@ def verificar(request):
             est = Estudiante.objects.filter(codigo_carnet=codigo, colegio=request.colegio).select_related('user', 'curso').first()
     if est is None:
         return JsonResponse({'resultado': 'NO_ENCONTRADO', 'mensaje': 'Ese QR no es de un carné de estudiante del colegio.'})
-    return JsonResponse(_resultado(request, est))
+    return JsonResponse(_resultado(request, est, 'NOMBRE' if request.POST.get('estudiante') else 'CARNE'))
 
 
 @_solo_personal
@@ -183,6 +184,18 @@ def reportar(request, pk):
 
 
 @_solo_personal
+@require_POST
+def sin_carne(request, pk):
+    """Anota que el estudiante no traía el carné (se verificó buscándolo por nombre)."""
+    v = get_object_or_404(VerificacionPermiso, pk=pk, colegio=request.colegio, verificado_por=request.user)
+    v.sin_carne = True
+    v.save(update_fields=['sin_carne'])
+    veces = VerificacionPermiso.objects.filter(estudiante=v.estudiante, sin_carne=True,
+                                               momento__date__gte=timezone.localdate() - timedelta(days=30)).count()
+    return JsonResponse({'ok': True, 'mensaje': f'Anotado: no traía el carné ({veces} vez/veces en los últimos 30 días).'})
+
+
+@_solo_personal
 def historial(request):
     """Permisos del día (o de una fecha) y quiénes salen más. Para directivos y directores de grupo."""
     admin = es_admin(request)
@@ -206,9 +219,15 @@ def historial(request):
     mas = (qs.filter(inicio__date__gte=desde, anulado=False).values('estudiante', 'estudiante__user__first_name',
                                                                    'estudiante__user__last_name', 'estudiante__curso__nombre')
            .annotate(n=Count('id')).order_by('-n')[:10])
+    sin_carne_qs = VerificacionPermiso.objects.filter(colegio=request.colegio, sin_carne=True,
+                                                      momento__date__gte=desde)
+    if cursos is not None:
+        sin_carne_qs = sin_carne_qs.filter(estudiante__curso_id__in=cursos)
+    sin_carne = (sin_carne_qs.values('estudiante__user__first_name', 'estudiante__user__last_name', 'estudiante__curso__nombre')
+                 .annotate(n=Count('id')).order_by('-n')[:15])
     return render(request, 'notas/permisos/historial.html', {
         'dia': dia, 'permisos': qs.filter(inicio__date=dia), 'sin_permiso': vs.filter(momento__date=dia),
-        'mas': [m for m in mas if m['n'] >= 2]})
+        'mas': [m for m in mas if m['n'] >= 2], 'sin_carne': list(sin_carne)})
 
 
 def verificacion_desde_carne(request, estudiante):

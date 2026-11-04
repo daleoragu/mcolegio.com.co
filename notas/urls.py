@@ -254,6 +254,7 @@ urlpatterns = [
     path('permisos/buscar/', permisos_views.buscar, name='permiso_buscar'),
     path('permisos/verificacion/<int:pk>/reportar/', permisos_views.reportar, name='permiso_reportar'),
     path('permisos/historial/', permisos_views.historial, name='permisos_historial'),
+    path('permisos/verificacion/<int:pk>/sin-carne/', permisos_views.sin_carne, name='permiso_sin_carne'),
     path('c/<str:codigo>/', carnet_views.carnet_qr, name='carnet_qr'),
     path('estudiante/mis-excusas/', excusas_views.mis_excusas, name='mis_excusas'),
     path('excusas/', excusas_views.bandeja, name='excusas'),

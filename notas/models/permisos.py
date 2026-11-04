@@ -74,6 +74,9 @@ class VerificacionPermiso(models.Model):
     verificado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
     resultado = models.CharField(max_length=12, choices=RESULTADOS)
     reportado = models.BooleanField(default=False, help_text='Se avisó al director de grupo y a coordinación.')
+    MEDIOS = [('CARNE', 'Escaneando el carné'), ('NOMBRE', 'Buscando por nombre')]
+    medio = models.CharField(max_length=6, choices=MEDIOS, default='CARNE')
+    sin_carne = models.BooleanField(default=False, help_text='Ese día el estudiante no traía el carné.')
     momento = models.DateTimeField(auto_now_add=True)
 
     class Meta:
