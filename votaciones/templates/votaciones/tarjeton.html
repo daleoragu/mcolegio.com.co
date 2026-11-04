@@ -1,5 +1,5 @@
 {% extends 'votaciones/_pantalla.html' %}
-{% block barra %}{% if not mesa %}<a href="{% url 'votaciones:inicio' %}" class="btn btn-sm btn-outline-light">Salir</a>{% endif %}{% endblock %}
+{% block barra %}{% if cabina %}<span class="badge text-bg-light fs-6">Cabina {{ cabina.numero }}</span>{% elif not mesa %}<a href="{% url 'votaciones:inicio' %}" class="btn btn-sm btn-outline-light">Salir</a>{% endif %}{% endblock %}
 {% block content %}
 <div class="mb-3">
   <div class="fw-bold fs-5">{% if mesa %}Vota: {{ quien }}{% else %}Hola, {{ quien }}{% endif %}{% if curso %} <span class="text-muted fw-normal">· {{ curso.nombre }}</span>{% endif %}</div>
@@ -39,7 +39,7 @@
     </div>
   </div>
 </form>
-{% if mesa %}<form method="post" class="mt-4 text-center">{% csrf_token %}<input type="hidden" name="accion" value="cancelar"><button class="btn btn-link text-muted">Cancelar (no votar ahora)</button></form>{% endif %}
+{% if mesa and not cabina %}<form method="post" class="mt-4 text-center">{% csrf_token %}<input type="hidden" name="accion" value="cancelar"><button class="btn btn-link text-muted">Cancelar (no votar ahora)</button></form>{% endif %}
 {% endblock %}
 {% block extra_js %}
 <script>

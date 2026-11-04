@@ -88,9 +88,10 @@ def get_unread_notification_count(user):
     if not user.is_authenticated:
         return 0
     try:
+        from notas.models.comunicaciones import Notificacion
         # Cuenta las notificaciones para el usuario que no han sido leídas
         return Notificacion.objects.filter(destinatario=user, leido=False).count()
-    except:
+    except Exception:
         # Si hay algún error, simplemente retorna 0 para no romper la página.
         return 0
 

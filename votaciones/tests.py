@@ -130,3 +130,166 @@ class Elecciones(ColegioDePrueba):
         self.a.modulos_activos = [m for m in self.a.modulos_activos if m != 'elecciones']
         self.a.save(update_fields=['modulos_activos'])
         self.assertEqual(self.cliente(self.ana.user).get('/votaciones/').status_code, 403)
+
+
+class BorrarElecciones(ColegioDePrueba):
+    """Una elección creada por error se puede borrar, aunque ya tenga votos."""
+    _preparar = Elecciones._preparar
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.a.modulos_activos = list(cls.a.modulos_activos or []) + ['elecciones']
+        cls.a.save(update_fields=['modulos_activos'])
+        cls.ana, cls.beto, cls.caro = cls.estudiantes
+        cls.otro_curso = Curso.objects.create(colegio=cls.a, nombre='1101', grado=11, subgrupo='1')
+        cls.dora = cls.crear_estudiante('dora', curso=cls.otro_curso)
+
+    def test_borrar_en_preparacion(self):
+        rectora, e, *_ = self._preparar()
+        rectora.post(f'/votaciones/{e.pk}/', {'accion': 'eliminar'})
+        self.assertFalse(Eleccion.objects.exists())
+        self.assertFalse(Cargo.objects.exists())
+
+    def test_abierta_con_votos_pide_escribir_eliminar(self):
+        rectora, e, personero, contralor, vocero = self._preparar()
+        rectora.post(f'/votaciones/{e.pk}/', {'accion': 'abrir'})
+        e.refresh_from_db()
+        self.assertEqual(e.estado, 'abierta')
+        ana = self.cliente(self.ana.user)
+        ana.post(f'/votaciones/{e.pk}/votar/', {f'cargo-{personero.pk}': personero.candidatos.first().pk,
+                                                f'cargo-{contralor.pk}': contralor.candidatos.first().pk,
+                                                f'cargo-{vocero.pk}': vocero.candidatos.filter(curso=self.curso).first().pk})
+        self.assertEqual(VotoEmitido.objects.count(), 1)
+        rectora.post(f'/votaciones/{e.pk}/', {'accion': 'eliminar'})
+        self.assertTrue(Eleccion.objects.exists())
+        rectora.post(f'/votaciones/{e.pk}/', {'accion': 'eliminar', 'confirmacion': 'eliminar'})
+        self.assertFalse(Eleccion.objects.exists())
+        self.assertFalse(VotoEmitido.objects.exists())
+        self.assertFalse(Papeleta.objects.exists())
+
+    def test_superusuario_puede_borrar(self):
+        _, e, *_ = self._preparar()
+        self.cliente(self.super).post(f'/votaciones/{e.pk}/', {'accion': 'eliminar'})
+        self.assertFalse(Eleccion.objects.exists())
+
+    def test_docente_o_estudiante_no_borran(self):
+        _, e, *_ = self._preparar()
+        self.cliente(self.u_docente).post(f'/votaciones/{e.pk}/', {'accion': 'eliminar'})
+        self.cliente(self.ana.user).post(f'/votaciones/{e.pk}/', {'accion': 'eliminar'})
+        self.assertTrue(Eleccion.objects.exists())
+
+
+class Cabinas(ColegioDePrueba):
+    """La cabina se vincula al celular del jurado y abre el tarjetón del carné que él escanea."""
+    _preparar = Elecciones._preparar
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.a.modulos_activos = list(cls.a.modulos_activos or []) + ['elecciones']
+        cls.a.save(update_fields=['modulos_activos'])
+        cls.ana, cls.beto, cls.caro = cls.estudiantes
+        cls.otro_curso = Curso.objects.create(colegio=cls.a, nombre='1101', grado=11, subgrupo='1')
+        cls.dora = cls.crear_estudiante('dora', curso=cls.otro_curso)
+
+    def setUp(self):
+        rectora, self.e, self.personero, self.contralor, self.vocero = self._preparar()
+        rectora.post(f'/votaciones/{self.e.pk}/', {'accion': 'abrir'})
+        self.e.refresh_from_db()
+        self.jurado = self.cliente(self.u_docente)
+        self.equipo = self.cliente()                 # la tableta de la cabina, sin iniciar sesión
+
+    def accion(self, **datos):
+        return self.jurado.post(f'/votaciones/{self.e.pk}/jurado/accion/', datos).json()
+
+    def carne(self, est):
+        return f'https://a.mcolegio.com.co/c/{est.asegurar_codigo_carnet()}/'
+
+    def vincular(self):
+        from .models import Cabina
+        r = self.equipo.get('/votaciones/cabina/')
+        self.assertContains(r, 'Cabina de votación')
+        cabina = Cabina.objects.latest('creada')
+        j = self.accion(texto=f'https://a.mcolegio.com.co/votaciones/cabina/v/{cabina.vinculo}/')
+        self.assertTrue(j['ok'], j)
+        return cabina
+
+    def test_vincular_escanear_carne_y_votar(self):
+        self.vincular()
+        r = self.equipo.get('/votaciones/cabina/')
+        self.assertContains(r, 'Esperando al siguiente votante')
+        self.assertEqual(self.equipo.get('/votaciones/cabina/estado/').json()['estado'], 'libre')
+        j = self.accion(texto=self.carne(self.ana))
+        self.assertTrue(j['ok'], j)
+        self.assertIn('cabina 1', j['mensaje'])
+        r = self.equipo.get('/votaciones/cabina/')
+        self.assertContains(r, 'Vota: Ana Prueba')
+        votos = {f'cargo-{self.personero.pk}': self.personero.candidatos.first().pk,
+                 f'cargo-{self.contralor.pk}': 'blanco',
+                 f'cargo-{self.vocero.pk}': self.vocero.candidatos.get(curso=self.curso).pk}
+        r = self.equipo.post('/votaciones/cabina/', votos)
+        self.assertContains(r, 'Voto registrado')
+        v = VotoEmitido.objects.get(usuario=self.ana.user)
+        self.assertEqual((v.medio, v.jurado), ('cabina', self.u_docente))
+        self.assertEqual(Papeleta.objects.count(), 3)
+        # Vuelve a quedar libre y no deja votar de nuevo
+        self.assertEqual(self.equipo.get('/votaciones/cabina/estado/').json()['estado'], 'libre')
+        j = self.accion(texto=self.carne(self.ana))
+        self.assertFalse(j['ok'])
+        self.assertIn('ya votó', j['mensaje'])
+
+    def test_vincular_con_las_seis_cifras(self):
+        from .models import Cabina
+        self.equipo.get('/votaciones/cabina/')
+        cabina = Cabina.objects.latest('creada')
+        j = self.accion(texto=cabina.codigo)
+        self.assertTrue(j['ok'], j)
+        cabina.refresh_from_db()
+        self.assertEqual(cabina.jurado, self.u_docente)
+
+    def test_sin_cabina_libre(self):
+        self.vincular()
+        self.assertTrue(self.accion(texto=self.carne(self.ana))['ok'])
+        j = self.accion(texto=self.carne(self.beto))
+        self.assertFalse(j['ok'])
+        self.assertIn('No hay cabinas libres', j['mensaje'])
+
+    def test_liberar_no_guarda_voto(self):
+        cabina = self.vincular()
+        self.accion(texto=self.carne(self.ana))
+        self.accion(accion='liberar', cabina=cabina.pk)
+        self.assertContains(self.equipo.get('/votaciones/cabina/'), 'Esperando al siguiente votante')
+        self.assertFalse(VotoEmitido.objects.exists())
+
+    def test_la_cabina_sin_votante_no_vota(self):
+        self.vincular()
+        r = self.equipo.post('/votaciones/cabina/', {f'cargo-{self.personero.pk}': 'blanco'})
+        self.assertFalse(VotoEmitido.objects.exists())
+        self.assertEqual(r.status_code, 200)
+
+    def test_estudiante_no_es_jurado(self):
+        r = self.cliente(self.ana.user).post(f'/votaciones/{self.e.pk}/jurado/accion/', {'texto': self.carne(self.beto)})
+        self.assertEqual(r.status_code, 403)
+
+    def test_enlace_pide_confirmar(self):
+        from .models import Cabina
+        self.equipo.get('/votaciones/cabina/')
+        cabina = Cabina.objects.latest('creada')
+        r = self.jurado.get(f'/votaciones/cabina/v/{cabina.vinculo}/')
+        self.assertContains(r, 'Vincular esta cabina')
+        cabina.refresh_from_db()
+        self.assertIsNone(cabina.jurado)
+        self.jurado.post(f'/votaciones/cabina/v/{cabina.vinculo}/', {'eleccion': self.e.pk})
+        cabina.refresh_from_db()
+        self.assertEqual(cabina.jurado, self.u_docente)
+
+    def test_pagina_del_jurado(self):
+        r = self.jurado.get(f'/votaciones/{self.e.pk}/jurado/')
+        self.assertContains(r, 'Mis cabinas')
+        self.assertContains(r, 'lector_qr.js')
+
+    def test_mesa_acepta_el_carne(self):
+        r = self.jurado.post(f'/votaciones/{self.e.pk}/mesa/', {'accion': 'buscar', 'usuario': self.carne(self.beto)})
+        self.assertRedirects(r, f'/votaciones/{self.e.pk}/mesa/', fetch_redirect_response=False)
+        self.assertContains(self.jurado.get(f'/votaciones/{self.e.pk}/mesa/'), 'Vota: Beto Prueba')

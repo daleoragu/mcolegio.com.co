@@ -12,7 +12,7 @@
 {% if not abiertas and not admin %}<div class="text-muted">No hay votaciones abiertas para usted en este momento.</div>{% endif %}
 
 {% if jurado and not admin %}
-  {% for e in elecciones %}{% if e.estado == 'abierta' %}<a class="btn btn-outline-primary me-2 mb-2" href="{% url 'votaciones:mesa' e.pk %}"><i class="fas fa-person-booth me-1"></i>Abrir mesa de votación · {{ e.nombre }}</a>{% endif %}{% endfor %}
+  {% for e in elecciones %}{% if e.estado == 'abierta' %}<a class="btn btn-outline-primary me-2 mb-2" href="{% url 'votaciones:mesa' e.pk %}"><i class="fas fa-person-booth me-1"></i>Abrir mesa de votación · {{ e.nombre }}</a><a class="btn btn-outline-primary me-2 mb-2" href="{% url 'votaciones:jurado' e.pk %}"><i class="fas fa-mobile-screen me-1"></i>Cabinas (jurado) · {{ e.nombre }}</a>{% endif %}{% endfor %}
 {% endif %}
 
 {% if admin %}
@@ -25,7 +25,7 @@
         <a class="fw-semibold flex-grow-1" href="{% url 'votaciones:eleccion' e.pk %}">{{ e.nombre }}</a>
         <span class="badge {% if e.estado == 'abierta' %}text-bg-success{% elif e.estado == 'cerrada' %}text-bg-secondary{% else %}text-bg-light{% endif %}">{{ e.get_estado_display }}</span>
         {% if e.estado != 'preparacion' %}<a class="btn btn-sm btn-outline-primary" href="{% url 'votaciones:resultados' e.pk %}">Resultados</a>{% endif %}
-        {% if e.estado == 'abierta' %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'votaciones:mesa' e.pk %}">Mesa</a>{% endif %}
+        {% if e.estado == 'abierta' %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'votaciones:mesa' e.pk %}">Mesa</a> <a class="btn btn-sm btn-outline-secondary" href="{% url 'votaciones:jurado' e.pk %}">Cabinas</a>{% endif %}
       </div>
       {% empty %}<div class="small text-muted">Todavía no ha creado ninguna elección.</div>{% endfor %}
     </div></div>

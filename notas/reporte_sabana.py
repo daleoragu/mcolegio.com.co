@@ -109,20 +109,6 @@ def excel(curso, periodo, datos, colegio):
         celda.alignment = vertical if 3 < c < ultima else centro
     ws.row_dimensions[fila].height = 120
 
-    # Debajo de cada asignatura, el docente (o docentes) que la dicta.
-    fila += 1
-    ws.cell(row=fila, column=2, value='Docente').font = Font(bold=True, italic=True)
-    for c in range(1, ultima + 1):
-        celda = ws.cell(row=fila, column=c)
-        celda.fill = cabeza
-        celda.border = borde
-        celda.alignment = centro
-    for i, m in enumerate(materias):
-        celda = ws.cell(row=fila, column=4 + i, value=', '.join(m['docentes']))
-        celda.font = Font(italic=True, size=9)
-        celda.alignment = vertical
-    ws.row_dimensions[fila].height = 110
-
     for f in datos['filas']:
         fila += 1
         valores = [f['n'], f['nombre'], 'Sí' if f['inclusion'] else ''] + \
@@ -154,6 +140,20 @@ def excel(curso, periodo, datos, colegio):
         ws.cell(row=fila, column=c).border = borde
         ws.cell(row=fila, column=c).fill = gris
 
+    # Abajo, quién dicta cada asignatura.
+    fila += 2
+    ws.cell(row=fila, column=2, value='Asignatura').font = Font(bold=True)
+    ws.cell(row=fila, column=3, value='Docente').font = Font(bold=True)
+    ws.merge_cells(start_row=fila, start_column=3, end_row=fila, end_column=ultima)
+    for c in (2, 3):
+        ws.cell(row=fila, column=c).fill = cabeza
+        ws.cell(row=fila, column=c).border = borde
+    for m in materias:
+        fila += 1
+        ws.cell(row=fila, column=2, value=m['nombre']).border = borde
+        ws.cell(row=fila, column=3, value=', '.join(m['docentes'])).border = borde
+        ws.merge_cells(start_row=fila, start_column=3, end_row=fila, end_column=ultima)
+
     if datos['pendientes']:
         fila += 2
         ws.cell(row=fila, column=1, value='Asignaturas sin reporte guardado: ' + ', '.join(
@@ -165,7 +165,7 @@ def excel(curso, periodo, datos, colegio):
     for c in range(4, ultima):
         ws.column_dimensions[get_column_letter(c)].width = 5
     ws.column_dimensions[get_column_letter(ultima)].width = 8
-    ws.freeze_panes = 'D7'
+    ws.freeze_panes = 'D6'
     ws.page_setup.orientation = 'landscape'
     ws.page_setup.fitToWidth = 1
     ws.sheet_properties.pageSetUpPr.fitToPage = True

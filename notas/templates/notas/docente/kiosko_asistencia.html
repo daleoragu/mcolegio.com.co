@@ -3,115 +3,179 @@
 
 {% block title %}Kiosko de Asistencia QR{% endblock %}
 
+{% block page_title %}
+    <h1>Kiosko de asistencia por QR</h1>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
+<style>
+    .kq-lector { border:1px solid #e3e6ec; border-radius:12px; background:#fff; padding:14px; }
+    .kq-video { position:relative; background:#111; border-radius:10px; overflow:hidden; aspect-ratio:4/3; max-height:340px; margin:0 auto; display:none; }
+    .kq-video video { width:100%; height:100%; object-fit:cover; }
+    .kq-video .marco { position:absolute; inset:18%; border:3px solid rgba(255,255,255,.85); border-radius:14px; box-shadow:0 0 0 999px rgba(0,0,0,.25); }
+    .kq-aviso { border-radius:10px; padding:12px 14px; font-size:1.15rem; font-weight:700; min-height:56px; display:flex; align-items:center; gap:10px; background:#f3f6fb; color:#4b5563; }
+    .kq-aviso.ok { background:#d1e7dd; color:#0f5132; }
+    .kq-aviso.info { background:#cff4fc; color:#055160; }
+    .kq-aviso.warning { background:#fff3cd; color:#664d03; }
+    .kq-aviso.error { background:#f8d7da; color:#842029; }
+    .kq-cifras { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
+    .kq-cifras div { border:1px solid #e3e6ec; border-radius:10px; padding:6px 10px; background:#fff; text-align:center; }
+    .kq-cifras b { display:block; font-size:1.5rem; font-variant-numeric:tabular-nums; }
+    .kq-lista { max-height:460px; overflow:auto; }
+    .kq-lista .estado-P { color:#146c43; font-weight:700; }
+    .kq-lista .estado-T { color:#8a6100; font-weight:700; }
+    .kq-lista .estado-A { color:#b02a37; font-weight:700; }
+    .kq-lista .estado- { color:#6c757d; }
+    .kq-lista li.recien { background:#d1e7dd; transition:background 1.5s; }
+</style>
 
-    <!-- Cabecera -->
-    <div class="card text-center mb-4">
-        <div class="card-header">
-            <h1 class="h3">Kiosko de Asistencia por QR</h1>
-        </div>
-        <div class="card-body">
-            <p class="lead">
-                Active una clase para empezar a registrar la asistencia de los estudiantes escaneando su carnet.
-            </p>
-        </div>
-    </div>
+<div class="container-fluid">
 
-    <!-- Mensajes de Alerta -->
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
-
-    <!-- Contenido Principal -->
-    <div class="row">
-        <!-- Columna de Control (Izquierda) -->
-        <div class="col-md-4">
+    {% if not asignacion_activa %}
+    <div class="row justify-content-center">
+        <div class="col-md-6">
             <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Panel de Control</h5>
-                </div>
+                <div class="card-header bg-primary text-white"><h5 class="mb-0">Escoja la clase</h5></div>
                 <div class="card-body">
-                    {% if asignacion_activa %}
-                        <!-- MODO ACTIVO -->
-                        <h6 class="card-title">Modo de Asistencia Activo</h6>
-                        <div class="alert alert-success">
-                            <p class="mb-1"><strong>Clase:</strong> {{ asignacion_activa.materia.nombre }}</p>
-                            <p class="mb-0"><strong>Curso:</strong> {{ asignacion_activa.curso.nombre }}</p>
-                        </div>
-                        <p class="text-muted small">El sistema está listo para recibir escaneos de QR para esta clase.</p>
-                        <form method="post" action="{% url 'notas:vista_kiosko_asistencia' %}">
-                            {% csrf_token %}
-                            <button type="submit" name="finalizar" value="1" class="btn btn-danger w-100">
-                                <i class="fas fa-stop-circle"></i> Finalizar Modo Kiosko
-                            </button>
-                        </form>
-                    {% else %}
-                        <!-- MODO INACTIVO -->
-                        <h6 class="card-title">Seleccionar Clase</h6>
-                        <p class="text-muted small">Elija la clase para la cual desea registrar la asistencia.</p>
-                        <form method="post" action="{% url 'notas:vista_kiosko_asistencia' %}">
-                            {% csrf_token %}
-                            <div class="mb-3">
-                                <label for="asignacion_id" class="form-label">Clase y Curso:</label>
-                                <select name="asignacion_id" id="asignacion_id" class="form-select" required>
-                                    <option value="">-- Seleccione una opción --</option>
-                                    {% for asignacion in asignaciones %}
-                                        <option value="{{ asignacion.id }}">
-                                            {{ asignacion.materia.nombre }} - {{ asignacion.curso.nombre }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <button type="submit" class="btn btn-success w-100">
-                                <i class="fas fa-play-circle"></i> Iniciar Modo Kiosko
-                            </button>
-                        </form>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Columna de Registros (Derecha) -->
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-clipboard-check"></i> Registros Recientes (Hoy)</h5>
-                </div>
-                <div class="card-body">
-                    {% if asignacion_activa %}
-                        {% if asistencias_recientes %}
-                            <ul class="list-group">
-                                {% for asistencia in asistencias_recientes %}
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <i class="fas fa-user-check text-success me-2"></i>
-                                        <strong>{{ asistencia.estudiante.user.get_full_name }}</strong>
-                                    </div>
-                                    <span class="badge bg-secondary rounded-pill">{{ asistencia.fecha|date:"h:i A" }}</span>
-                                </li>
+                    <p class="text-muted small">Los estudiantes pasan su carné por la cámara de este equipo (o por un lector de QR conectado) y quedan presentes en esta clase.</p>
+                    <form method="post" action="{% url 'notas:vista_kiosko_asistencia' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="asignacion_id" class="form-label">Clase y curso</label>
+                            <select name="asignacion_id" id="asignacion_id" class="form-select" required>
+                                <option value="">— Seleccione —</option>
+                                {% for asignacion in asignaciones %}
+                                    <option value="{{ asignacion.id }}">{{ asignacion.materia.nombre }} — {{ asignacion.curso.nombre }}</option>
                                 {% endfor %}
-                            </ul>
-                        {% else %}
-                            <div class="text-center text-muted p-4">
-                                <i class="fas fa-qrcode fa-3x mb-2"></i>
-                                <p>Aún no hay registros. Escanee el primer carnet para comenzar.</p>
-                            </div>
-                        {% endif %}
-                    {% else %}
-                        <div class="text-center text-muted p-4">
-                            <i class="fas fa-power-off fa-3x mb-2"></i>
-                            <p>Seleccione una clase en el Panel de Control para activar el registro.</p>
+                            </select>
                         </div>
-                    {% endif %}
+                        <button type="submit" class="btn btn-success w-100"><i class="fas fa-play-circle me-1"></i>Iniciar el kiosko</button>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
+    {% else %}
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="kq-lector">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                    <div>
+                        <div class="fw-bold fs-5">{{ asignacion_activa.materia.nombre }} — {{ asignacion_activa.curso.nombre }}</div>
+                        <div class="text-muted small">{{ hoy|date:"l j \d\e F \d\e Y" }}</div>
+                    </div>
+                    <form method="post" action="{% url 'notas:vista_kiosko_asistencia' %}">
+                        {% csrf_token %}
+                        <button type="submit" name="finalizar" value="1" class="btn btn-outline-danger btn-sm"><i class="fas fa-stop-circle me-1"></i>Terminar</button>
+                    </form>
+                </div>
+
+                <div class="kq-video mb-2" id="kq-video"><video id="kq-camara" playsinline muted></video><div class="marco"></div></div>
+                <div class="d-flex gap-2 mb-2 flex-wrap">
+                    <button type="button" class="btn btn-primary" id="kq-btn-camara"><i class="fas fa-camera me-1"></i>Leer con la cámara</button>
+                    <select class="form-select w-auto d-none" id="kq-camaras" aria-label="Cámara"></select>
+                </div>
+
+                <form id="kq-form" autocomplete="off" class="mb-2">
+                    <label for="kq-codigo" class="form-label small text-muted mb-1">Con un lector de QR (USB), deje el cursor aquí y pase el carné:</label>
+                    <input type="text" id="kq-codigo" class="form-control" placeholder="Pase el carné…" autofocus>
+                </form>
+
+                <div class="kq-aviso" id="kq-aviso" role="status" aria-live="polite"><i class="fas fa-qrcode"></i><span>Listo para leer carnés.</span></div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="kq-cifras">
+                <div><b id="kq-presentes">{{ dia.presentes }}</b><span class="small">presentes</span></div>
+                <div><b id="kq-pendientes">{{ dia.pendientes }}</b><span class="small">sin pasar</span></div>
+                <div><b id="kq-ausentes">{{ dia.ausentes }}</b><span class="small">ausentes</span></div>
+            </div>
+            <ul class="list-group kq-lista mb-2" id="kq-lista">
+                {% for f in dia.filas %}
+                <li class="list-group-item d-flex justify-content-between py-1" data-id="{{ f.id }}">
+                    <span>{{ f.nombre }}</span><span class="estado-{{ f.estado }}">{{ f.estado_txt }}</span>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted">Este curso no tiene estudiantes activos.</li>
+                {% endfor %}
+            </ul>
+            <form method="post" action="{% url 'notas:kiosko_marcar_ausentes' %}"
+                  onsubmit="return confirm('¿Marcar ausentes a los ' + document.getElementById('kq-pendientes').textContent + ' que no han pasado el carné?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger w-100"><i class="fas fa-user-xmark me-1"></i>Marcar ausentes a los que no pasaron</button>
+            </form>
+            <p class="small text-muted mt-2 mb-0">Si alguien marcado ausente llega después y pasa el carné, queda «tarde».</p>
+        </div>
+    </div>
+    {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if asignacion_activa %}
+<script src="{% static 'notas/vendor/jsQR.js' %}"></script>
+<script src="{% static 'notas/js/lector_qr.js' %}"></script>
+<script>
+(function () {
+    const URL_REGISTRAR = "{% url 'notas:kiosko_registrar' %}";
+    const CSRF = "{{ csrf_token }}";
+    const aviso = document.getElementById('kq-aviso');
+    const entrada = document.getElementById('kq-codigo');
+    const lista = document.getElementById('kq-lista');
+    const iconos = {ok: 'fa-circle-check', success: 'fa-circle-check', info: 'fa-circle-info', warning: 'fa-triangle-exclamation', error: 'fa-circle-xmark'};
+    let ocupado = false;
+
+    function escapar(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+    function mostrar(nivel, texto) {
+        aviso.className = 'kq-aviso ' + (nivel === 'success' ? 'ok' : nivel);
+        aviso.innerHTML = `<i class="fas ${iconos[nivel] || 'fa-qrcode'}"></i><span>${escapar(texto)}</span>`;
+    }
+
+    function pintarDia(dia, recien) {
+        if (!dia) return;
+        document.getElementById('kq-presentes').textContent = dia.presentes;
+        document.getElementById('kq-pendientes').textContent = dia.pendientes;
+        document.getElementById('kq-ausentes').textContent = dia.ausentes;
+        lista.innerHTML = dia.filas.map(f =>
+            `<li class="list-group-item d-flex justify-content-between py-1${f.nombre === recien ? ' recien' : ''}" data-id="${f.id}">` +
+            `<span>${escapar(f.nombre)}</span><span class="estado-${f.estado}">${escapar(f.estado_txt)}</span></li>`).join('');
+    }
+
+    async function enviar(texto) {
+        texto = (texto || '').trim();
+        if (!texto || ocupado) return;
+        ocupado = true;
+        try {
+            const datos = new FormData(); datos.append('codigo', texto);
+            const r = await fetch(URL_REGISTRAR, {method: 'POST', body: datos, headers: {'X-CSRFToken': CSRF}, credentials: 'same-origin'});
+            const j = await r.json();
+            mostrar(j.nivel, j.mensaje);
+            LectorQR.pitar(j.ok && !j.repetido);
+            pintarDia(j.dia, j.nombre);
+        } catch (e) {
+            mostrar('error', 'No se pudo registrar. Revise la conexión a internet.');
+            LectorQR.pitar(false);
+            lector.olvidar();
+        } finally {
+            ocupado = false;
+        }
+    }
+
+    // Lector USB: escribe el texto del QR y un Enter.
+    document.getElementById('kq-form').addEventListener('submit', ev => {
+        ev.preventDefault();
+        enviar(entrada.value);
+        entrada.value = '';
+        entrada.focus();
+    });
+
+    const lector = LectorQR({
+        video: document.getElementById('kq-camara'), caja: document.getElementById('kq-video'),
+        boton: document.getElementById('kq-btn-camara'), selector: document.getElementById('kq-camaras'),
+        alLeer: enviar, alAvisar: mostrar, textoListo: 'Acerque el QR del carné a la cámara.'});
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -70,7 +70,7 @@ class Candidato(models.Model):
 
 class VotoEmitido(models.Model):
     """Quién ya votó en la elección (no por quién)."""
-    MEDIOS = [('cuenta', 'Con su cuenta'), ('mesa', 'En la mesa de votación')]
+    MEDIOS = [('cuenta', 'Con su cuenta'), ('mesa', 'En la mesa de votación'), ('cabina', 'En una cabina')]
     eleccion = models.ForeignKey(Eleccion, on_delete=models.CASCADE, related_name='votantes')
     usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='+')
     curso = models.ForeignKey('notas.Curso', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
@@ -89,3 +89,46 @@ class Papeleta(models.Model):
     candidato = models.ForeignKey(Candidato, on_delete=models.CASCADE, null=True, blank=True, related_name='papeletas',
                                   help_text='Vacío: voto en blanco.')
     curso = models.ForeignKey('notas.Curso', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+
+
+def _token_cabina():
+    import secrets
+    return secrets.token_urlsafe(32)
+
+
+def _vinculo_cabina():
+    import secrets
+    return secrets.token_urlsafe(9)
+
+
+def _codigo_cabina():
+    import secrets
+    return f'{secrets.randbelow(1000000):06d}'
+
+
+class Cabina(models.Model):
+    """Un equipo del colegio (tableta o computador) donde vota un estudiante a la vez.
+
+    El equipo no inicia sesión: guarda su «token» en la sesión del navegador. El
+    jurado lo vincula desde su celular escaneando el QR que muestra la cabina, y
+    luego, cada vez que escanea un carné, la cabina abre el tarjetón de ese
+    estudiante. Al votar, la cabina vuelve a quedar libre.
+    """
+    colegio = models.ForeignKey('notas.Colegio', on_delete=models.CASCADE, related_name='+')
+    eleccion = models.ForeignKey(Eleccion, on_delete=models.CASCADE, null=True, blank=True, related_name='cabinas')
+    token = models.CharField(max_length=64, unique=True, default=_token_cabina, editable=False)
+    vinculo = models.CharField(max_length=16, unique=True, default=_vinculo_cabina, editable=False)
+    codigo = models.CharField(max_length=6, default=_codigo_cabina, editable=False,
+                              help_text='Para vincularla escribiendo las cifras, si no se puede escanear.')
+    numero = models.PositiveSmallIntegerField(default=0)
+    jurado = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    votante = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    asignada_en = models.DateTimeField(null=True, blank=True)
+    creada = models.DateTimeField(auto_now_add=True)
+    visto_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['numero', 'id']
+
+    def __str__(self):
+        return f'Cabina {self.numero}' if self.numero else 'Cabina sin vincular'

@@ -1,18 +1,58 @@
-ARCHIVOS CAMBIADOS (cada uno va en la misma ruta dentro del proyecto; reemplace el que tiene)
+ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
+NUEVO     notas/migrations/0055_estudiante_codigo_carnet.py
+NUEVO     notas/migrations/0056_estudiante_pin_carnet.py
+CAMBIADO  notas/models/perfiles.py
 CAMBIADO  notas/planillas/excel.py
 CAMBIADO  notas/reporte_sabana.py
 CAMBIADO  notas/static/notas/js/ingresar_notas.js
+NUEVO     notas/static/notas/js/lector_qr.js
+NUEVO     notas/static/notas/vendor/jsQR.js
+CAMBIADO  notas/templates/notas/admin_tools/admin_dashboard.html
+CAMBIADO  notas/templates/notas/admin_tools/impresion_masiva_carnets.html
+NUEVO     notas/templates/notas/admin_tools/pines_carnet.html
 CAMBIADO  notas/templates/notas/docente/_panel_docente_content.html
+CAMBIADO  notas/templates/notas/docente/carnet_estudiante.html
+NUEVO     notas/templates/notas/docente/carnet_menu.html
+NUEVO     notas/templates/notas/docente/carnet_verificado.html
 CAMBIADO  notas/templates/notas/docente/dashboard_docente.html
+CAMBIADO  notas/templates/notas/docente/kiosko_asistencia.html
 CAMBIADO  notas/templates/notas/docente/lista_estudiantes_reporte.html
 CAMBIADO  notas/templates/notas/includes/_topbar.html
 CAMBIADO  notas/templates/notas/partials/_tabla_notas.html
 CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial.html
 CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial_pdf.html
+CAMBIADO  notas/templatetags/nota_filters.py
+NUEVO     notas/tests/test_kiosko_carnet.py
+NUEVO     notas/tests/test_meses_asistencia.py
 CAMBIADO  notas/tests/test_planillas.py
 CAMBIADO  notas/tests/test_sabana_reporte_parcial.py
+CAMBIADO  notas/urls.py
+CAMBIADO  notas/views/carnet_views.py
+CAMBIADO  notas/views/consulta_views.py
 CAMBIADO  notas/views/reporte_parcial_views.py
+NUEVO     votaciones/cabinas.py
+NUEVO     votaciones/migrations/0002_cabinas.py
+CAMBIADO  votaciones/models.py
+NUEVO     votaciones/templates/votaciones/cabina.html
+NUEVO     votaciones/templates/votaciones/cabina_vincular.html
+CAMBIADO  votaciones/templates/votaciones/eleccion.html
+CAMBIADO  votaciones/templates/votaciones/inicio.html
+NUEVO     votaciones/templates/votaciones/jurado.html
+CAMBIADO  votaciones/templates/votaciones/listo.html
+CAMBIADO  votaciones/templates/votaciones/mesa.html
+CAMBIADO  votaciones/templates/votaciones/tarjeton.html
+CAMBIADO  votaciones/tests.py
+CAMBIADO  votaciones/urls.py
+CAMBIADO  votaciones/views.py
 
-Después de copiarlos, al desplegar corra collectstatic (build.sh ya lo hace).
-No hay migraciones nuevas.
+HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
+  notas/migrations/0055_estudiante_codigo_carnet.py  (código al azar del QR de cada carné)
+  notas/migrations/0056_estudiante_pin_carnet.py     (PIN de 4 cifras de cada carné)
+  votaciones/migrations/0002_cabinas.py              (cabinas de votación)
+
+Después de desplegar:
+  * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.
+  * Imprima y entregue los PIN (PIN del carné), por curso.
+  * Los docentes deben volver a descargar el Excel de sus planillas (fórmula corregida).
+  * collectstatic: build.sh ya lo hace (hay JavaScript nuevo).

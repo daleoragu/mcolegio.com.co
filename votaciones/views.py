@@ -152,9 +152,21 @@ def eleccion(request, pk):
             if nombre:
                 e.nombre = nombre
                 e.save(update_fields=['nombre'])
-        elif que == 'eliminar' and e.estado == 'preparacion':
+        elif que == 'eliminar':
+            # En preparación basta con confirmar. Abierta o cerrada ya tiene votos:
+            # solo se borra si fue un error y escribiendo ELIMINAR, porque se pierden
+            # los votos, los resultados y el acta.
+            if e.estado != 'preparacion' and (request.POST.get('confirmacion') or '').strip().upper() != 'ELIMINAR':
+                messages.error(request, 'Para eliminar una elección que ya tiene votos, escriba ELIMINAR en la casilla.')
+                return redirect('votaciones:eleccion', pk=e.pk)
+            nombre, votos = e.nombre, e.votantes.count()
+            for c in Candidato.objects.filter(cargo__eleccion=e).exclude(foto=''):
+                try:
+                    c.foto.delete(save=False)
+                except Exception:
+                    pass
             e.delete()
-            messages.info(request, 'Elección eliminada.')
+            messages.info(request, f'Elección «{nombre}» eliminada' + (f' con sus {votos} votos.' if votos else '.'))
             return redirect('votaciones:inicio')
         return redirect('votaciones:eleccion', pk=e.pk)
     estudiantes = Estudiante.objects.filter(colegio=request.colegio, is_active=True, curso__isnull=False) \
@@ -254,6 +266,13 @@ def mesa(request, pk):
         q = (request.POST.get('usuario') or '').strip()
         est = Estudiante.objects.filter(colegio=request.colegio, is_active=True, user__username__iexact=q) \
             .select_related('user', 'curso').first()
+        if est is None:
+            # También sirve el QR del carné (con un lector USB queda escrito aquí).
+            from notas.views.carnet_views import codigo_leido
+            codigo = codigo_leido(q)
+            if codigo:
+                est = Estudiante.objects.filter(colegio=request.colegio, is_active=True, codigo_carnet=codigo) \
+                    .select_related('user', 'curso').first()
         if est is None:
             error = 'No hay un estudiante activo con ese usuario en el colegio.'
         elif VotoEmitido.objects.filter(eleccion=e, usuario=est.user).exists():

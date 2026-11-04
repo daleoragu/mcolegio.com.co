@@ -10,6 +10,7 @@
   {% elif e.estado == 'abierta' %}
     <span class="small flex-grow-1"><b>Votación abierta</b> desde {{ e.abierta_en|date:"d M h:i a" }}. Votaron {{ votaron }} de {{ habilitados }}.</span>
     <a class="btn btn-outline-primary" href="{% url 'votaciones:mesa' e.pk %}"><i class="fas fa-person-booth me-1"></i>Mesa de votación</a>
+    <a class="btn btn-outline-primary" href="{% url 'votaciones:jurado' e.pk %}"><i class="fas fa-mobile-screen me-1"></i>Cabinas (jurado)</a>
     <a class="btn btn-outline-primary" href="{% url 'votaciones:resultados' e.pk %}">Resultados en vivo</a>
     <form method="post" class="m-0" onsubmit="return confirm('¿Cerrar la votación? Nadie más podrá votar.')">{% csrf_token %}<input type="hidden" name="accion" value="cerrar"><button class="btn btn-danger"><i class="fas fa-lock me-1"></i>Cerrar la votación</button></form>
   {% else %}
@@ -64,6 +65,19 @@
     <div class="col-md-1"><button class="btn btn-sm btn-primary w-100">Agregar</button></div>
   </div>
 </div></form>
-<form method="post" class="text-end" onsubmit="return confirm('¿Eliminar esta elección?')">{% csrf_token %}<input type="hidden" name="accion" value="eliminar"><button class="btn btn-sm btn-link text-danger">Eliminar la elección</button></form>
 {% endif %}
+
+<div class="card border-danger-subtle mt-4"><div class="card-body">
+  <h6 class="fw-bold text-danger mb-1"><i class="fas fa-trash-can me-1"></i>Eliminar la elección</h6>
+  {% if e.estado == 'preparacion' %}
+  <p class="small text-muted mb-2">Borra la elección con sus cargos y candidatos.</p>
+  <form method="post" class="m-0" onsubmit="return confirm('¿Eliminar «{{ e.nombre|escapejs }}»?')">{% csrf_token %}<input type="hidden" name="accion" value="eliminar"><button class="btn btn-sm btn-outline-danger">Eliminar la elección</button></form>
+  {% else %}
+  <p class="small text-muted mb-2">Úselo solo si la elección se creó por error: se borran también los <b>{{ votaron }} votos</b>, los resultados y el acta, y no se pueden recuperar.</p>
+  <form method="post" class="d-flex flex-wrap gap-2 align-items-center m-0" onsubmit="return confirm('Se borrarán la elección y sus {{ votaron }} votos. ¿Seguro?')">{% csrf_token %}<input type="hidden" name="accion" value="eliminar">
+    <input type="text" name="confirmacion" class="form-control form-control-sm" style="max-width:220px" placeholder="Escriba ELIMINAR" autocomplete="off" required aria-label="Escriba ELIMINAR para confirmar">
+    <button class="btn btn-sm btn-danger">Eliminar con sus votos</button>
+  </form>
+  {% endif %}
+</div></div>
 {% endblock %}

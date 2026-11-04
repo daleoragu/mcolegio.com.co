@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Carné estudiantil</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; background: #eef1f6; margin: 0; padding: 24px 16px; color: #1f2937; }
+  .caja { max-width: 420px; margin: 0 auto; background: #fff; border-radius: 14px; padding: 22px; box-shadow: 0 4px 18px rgba(0,0,0,.08); text-align: center; }
+  .ok { color: #146c43; font-size: 1.05rem; font-weight: 700; }
+  .no { color: #b02a37; font-size: 1.05rem; font-weight: 700; }
+  .nombre { font-size: 1.3rem; font-weight: 800; margin: 10px 0 2px; }
+  .sub { color: #6b7280; }
+  .nota { font-size: .85rem; color: #6b7280; margin-top: 16px; }
+  form { margin-top: 18px; }
+  label { display: block; font-weight: 700; margin-bottom: 6px; }
+  input[type=password] { font-size: 2rem; letter-spacing: .5em; text-align: center; width: 9ch; padding: 6px 8px 6px calc(8px + .5em);
+                         border: 2px solid #cbd2dc; border-radius: 10px; }
+  input[type=password]:focus { outline: none; border-color: #2563eb; }
+  button { display: block; width: 100%; margin-top: 14px; padding: 12px; font-size: 1.05rem; font-weight: 700; border: 0;
+           border-radius: 10px; background: #2563eb; color: #fff; cursor: pointer; }
+  .error { background: #f8d7da; color: #842029; border-radius: 8px; padding: 8px 10px; margin-top: 12px; font-weight: 600; }
+  .aviso { background: #fff3cd; color: #664d03; border-radius: 8px; padding: 8px 10px; margin-top: 12px; font-size: .9rem; }
+</style></head>
+<body><div class="caja">
+{% if estudiante %}
+  <div class="ok">✔ Carné estudiantil válido</div>
+  <div class="nombre">{{ estudiante.user.get_full_name|default:estudiante.user.username }}</div>
+  <div class="sub">{% if estudiante.curso %}Curso {{ estudiante.curso.nombre }} · {% endif %}{{ estudiante.colegio.nombre }}</div>
+  {% if not estudiante.is_active %}<p class="no">Este estudiante ya no está activo en el colegio.</p>{% endif %}
+  {% if pedir_pin %}
+  <form method="post" autocomplete="off">{% csrf_token %}
+    <label for="pin">¿Eres tú? Escribe tu PIN</label>
+    <input type="password" name="pin" id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" required autofocus>
+    {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+    {% if otra_sesion %}<div class="aviso">En este equipo está abierta la sesión de <b>{{ otra_sesion.get_full_name|default:otra_sesion.username }}</b>. Al entrar se cerrará.</div>{% endif %}
+    <button type="submit">Entrar</button>
+  </form>
+  <p class="nota">El PIN te lo entrega tu director de grupo. Para registrar asistencia, el docente usa el «Kiosko de asistencia».</p>
+  {% endif %}
+{% else %}
+  <div class="no">✖ Este carné no es válido</div>
+  <p class="nota">No corresponde a un estudiante de este colegio, o el carné fue reemplazado por uno nuevo.</p>
+{% endif %}
+</div></body></html>

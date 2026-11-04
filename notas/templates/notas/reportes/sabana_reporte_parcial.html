@@ -23,8 +23,9 @@
     .srp-tabla thead th { background:#f3f6fb; position:sticky; top:0; }
     .srp-tabla th.mat { writing-mode:vertical-rl; transform:rotate(180deg); white-space:nowrap; height:150px; font-weight:600; vertical-align:bottom; }
     .srp-tabla th.mat.pend { color:#9aa3b2; font-style:italic; }
-    .srp-tabla thead tr + tr th { top:150px; }
-    .srp-tabla th.doc { writing-mode:vertical-rl; transform:rotate(180deg); white-space:nowrap; height:120px; font-weight:400; font-style:italic; font-size:.75rem; color:#4b5563; vertical-align:bottom; }
+    .srp-docentes { border-collapse:collapse; font-size:.85rem; margin-top:16px; background:#fff; }
+    .srp-docentes th, .srp-docentes td { border:1px solid #dfe3ea; padding:4px 10px; text-align:left; }
+    .srp-docentes thead th { background:#f3f6fb; }
     .srp-tabla td.nom { text-align:left; white-space:nowrap; position:sticky; left:0; background:#fff; }
     .srp-tabla td.x { background:#f8d7da; color:#b42318; font-weight:800; }
     .srp-tabla td.tot { font-weight:800; font-variant-numeric:tabular-nums; }
@@ -88,11 +89,6 @@
             <th>N.º</th><th style="text-align:left">Estudiante</th>
             {% for m in materias %}<th class="mat {% if not m.reportada %}pend{% endif %}" title="{{ m.nombre }} — {{ m.docentes|join:', ' }}{% if not m.reportada %} (sin reporte){% endif %}">{{ m.nombre }}</th>{% endfor %}
             <th>Total</th>
-        </tr>
-        <tr>
-            <th></th><th style="text-align:left;font-weight:400;font-style:italic">Docente</th>
-            {% for m in materias %}<th class="doc">{{ m.docentes|join:", " }}</th>{% endfor %}
-            <th></th>
         </tr></thead>
         <tbody>
         {% for f in filas %}
@@ -111,6 +107,12 @@
         </tr></tfoot>
     </table>
     </div>
+    <table class="srp-docentes">
+        <thead><tr><th>Asignatura</th><th>Docente</th></tr></thead>
+        <tbody>
+        {% for m in materias %}<tr><td>{{ m.nombre }}</td><td>{{ m.docentes|join:", " }}</td></tr>{% endfor %}
+        </tbody>
+    </table>
     <p class="small text-muted mt-2">X = el docente lo reporta con dificultades. En amarillo, los estudiantes con {{ limite_alerta }} o más asignaturas. Toque el nombre para ver su acta; pase el cursor sobre una X para ver qué le falta.</p>
     {% else %}
     <div class="alert alert-info">Este curso no tiene estudiantes activos o asignaturas asignadas.</div>

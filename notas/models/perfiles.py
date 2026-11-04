@@ -525,6 +525,18 @@ class Familia(models.Model):
         return ', '.join(str(e) for e in self.miembros.all()) or f'Familia {self.pk}'
 
 
+def nuevo_codigo_carnet():
+    """Código al azar del QR del carné: no se deduce del número del estudiante."""
+    import secrets
+    return secrets.token_urlsafe(9)      # 12 letras y números
+
+
+def nuevo_pin_carnet():
+    """PIN de 4 cifras para entrar con el carné."""
+    import secrets
+    return f'{secrets.randbelow(10000):04d}'
+
+
 class Estudiante(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="estudiantes")
     familia = models.ForeignKey(Familia, on_delete=models.SET_NULL, null=True, blank=True, related_name='miembros',
@@ -535,9 +547,39 @@ class Estudiante(models.Model):
     
     # NUEVO CAMPO AÑADIDO PARA INCLUSIÓN
     es_inclusion = models.BooleanField(default=False, verbose_name="Estudiante de Inclusión", help_text="Marcar si el estudiante pertenece al programa de inclusión. Cómo entra al puesto y al promedio del curso se define en la configuración de calificaciones.")
-    
+
+    # Lo que lleva el QR del carné. Al azar para que no se pueda adivinar el de
+    # otro estudiante; si se pierde el carné, se cambia y el viejo deja de servir.
+    codigo_carnet = models.CharField(max_length=16, unique=True, null=True, blank=True, editable=False,
+                                     verbose_name="Código del carné")
+    # Con el QR del carné y este PIN el estudiante entra a su menú (votar, boletín,
+    # horario…). Se guarda tal cual porque el director de grupo lo imprime y lo entrega.
+    pin_carnet = models.CharField(max_length=6, blank=True, default='', verbose_name="PIN del carné")
+    pin_fallidos = models.PositiveSmallIntegerField(default=0, editable=False)
+    pin_bloqueado_hasta = models.DateTimeField(null=True, blank=True, editable=False)
+
     def __str__(self): 
         return self.user.get_full_name() or self.user.username
+
+    def asegurar_codigo_carnet(self, nuevo=False):
+        """Devuelve el código del carné; lo crea si no tiene (o si se pide uno nuevo)."""
+        if nuevo or not self.codigo_carnet:
+            codigo = nuevo_codigo_carnet()
+            while Estudiante.objects.filter(codigo_carnet=codigo).exists():
+                codigo = nuevo_codigo_carnet()
+            self.codigo_carnet = codigo
+            if self.pk:
+                Estudiante.objects.filter(pk=self.pk).update(codigo_carnet=codigo)
+        return self.codigo_carnet
+
+    def asegurar_pin_carnet(self, nuevo=False):
+        if nuevo or not self.pin_carnet:
+            self.pin_carnet = nuevo_pin_carnet()
+            self.pin_fallidos, self.pin_bloqueado_hasta = 0, None
+            if self.pk:
+                Estudiante.objects.filter(pk=self.pk).update(
+                    pin_carnet=self.pin_carnet, pin_fallidos=0, pin_bloqueado_hasta=None)
+        return self.pin_carnet
         
     class Meta:
         unique_together = ('user', 'colegio')

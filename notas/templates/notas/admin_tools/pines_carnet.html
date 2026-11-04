@@ -1,0 +1,55 @@
+{% extends 'notas/base.html' %}
+
+{% block title %}PIN del carné · {{ curso.nombre }}{% endblock %}
+
+{% block page_title %}<h1>PIN del carné</h1>{% endblock %}
+
+{% block content %}
+<style>
+    .pc-tabla { border-collapse: collapse; width: 100%; max-width: 760px; background: #fff; }
+    .pc-tabla th, .pc-tabla td { border: 1px solid #dfe3ea; padding: 6px 10px; }
+    .pc-tabla thead th { background: #f3f6fb; }
+    .pc-pin { font-family: ui-monospace, Consolas, monospace; font-size: 1.15rem; font-weight: 800; letter-spacing: .15em; text-align: center; }
+    .pc-recorte td { border-style: dashed; }
+    @media print {
+        .no-imprimir, .navbar, nav, header, .sidebar, .btn { display: none !important; }
+        .pc-tabla { max-width: none; }
+    }
+</style>
+
+<div class="no-imprimir">
+    <p class="text-muted">Con el QR del carné y este PIN, cada estudiante entra a su menú: votar, boletín, horario, tareas y certificados. Imprima la lista, recórtela y entréguele a cada uno su PIN. Si a alguien se le olvida o se lo vieron, cámbielo aquí.</p>
+    <form method="get" class="d-flex flex-wrap gap-2 align-items-end mb-3">
+        <div>
+            <label class="form-label small mb-1" for="pc-curso">Curso</label>
+            <select name="curso" id="pc-curso" class="form-select" onchange="this.form.submit()">
+                {% for c in cursos %}<option value="{{ c.id }}" {% if c.id == curso.id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
+            </select>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="window.print()"><i class="fas fa-print me-1"></i>Imprimir</button>
+    </form>
+</div>
+
+<h5 class="fw-bold">{{ colegio.nombre }} · Curso {{ curso.nombre }}</h5>
+<table class="pc-tabla pc-recorte">
+    <thead><tr><th>N.º</th><th>Estudiante</th><th>PIN del carné</th><th class="no-imprimir"></th></tr></thead>
+    <tbody>
+    {% for e in estudiantes %}
+    <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ e.user.last_name }} {{ e.user.first_name }}</td>
+        <td class="pc-pin">{{ e.pin_carnet }}</td>
+        <td class="no-imprimir text-center">
+            <form method="post" class="m-0" onsubmit="return confirm('¿Darle un PIN nuevo a {{ e|escapejs }}? El anterior deja de servir.');">{% csrf_token %}
+                <input type="hidden" name="estudiante" value="{{ e.id }}">
+                <button class="btn btn-sm btn-link">Cambiar</button>
+            </form>
+        </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4" class="text-muted">Este curso no tiene estudiantes activos.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+<p class="small text-muted mt-2">Escanee el QR del carné con la cámara del celular, escriba el PIN y listo.</p>
+{% endblock %}

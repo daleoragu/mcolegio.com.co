@@ -1,0 +1,21 @@
+ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
+
+CAMBIADO  notas/planillas/excel.py
+CAMBIADO  notas/reporte_sabana.py
+CAMBIADO  notas/static/notas/js/ingresar_notas.js
+CAMBIADO  notas/templates/notas/docente/_panel_docente_content.html
+CAMBIADO  notas/templates/notas/docente/dashboard_docente.html
+CAMBIADO  notas/templates/notas/docente/lista_estudiantes_reporte.html
+CAMBIADO  notas/templates/notas/includes/_topbar.html
+CAMBIADO  notas/templates/notas/partials/_tabla_notas.html
+CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial.html
+CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial_pdf.html
+CAMBIADO  notas/templatetags/nota_filters.py
+NUEVO     notas/tests/test_meses_asistencia.py
+CAMBIADO  notas/tests/test_planillas.py
+CAMBIADO  notas/tests/test_sabana_reporte_parcial.py
+CAMBIADO  notas/views/consulta_views.py
+CAMBIADO  notas/views/reporte_parcial_views.py
+
+No hay migraciones nuevas. Al desplegar corra collectstatic (build.sh ya lo hace).
+Los docentes deben volver a descargar el Excel de sus planillas para tener la fórmula corregida.
