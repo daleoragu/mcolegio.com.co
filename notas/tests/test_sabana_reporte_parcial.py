@@ -84,6 +84,11 @@ class SabanaReporteParcial(ColegioDePrueba):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.context['cursos'], [self.curso])
 
+    def test_el_panel_del_docente_trae_la_sabana(self):
+        r = self.cliente(self.docente2.user).get('/dashboard/', follow=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, '/reporte-parcial/sabana/')
+
     def test_docente_sin_asignaciones_no_entra(self):
         u = User.objects.create_user('profe3', password=CLAVE)
         Docente.objects.create(colegio=self.a, user=u)
@@ -94,3 +99,4 @@ class SabanaReporteParcial(ColegioDePrueba):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.context['curso'], self.curso)
         self.assertNotIn(self.otro_curso, r.context['cursos'])
+

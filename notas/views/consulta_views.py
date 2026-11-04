@@ -9,8 +9,9 @@ from collections import defaultdict
 from datetime import datetime
 # Se añade HttpResponseNotFound para manejar el caso de un colegio no identificado
 from django.http import HttpResponseNotFound, JsonResponse
-from calendar import month_name
-import locale
+# Nombres fijos: no dependen de que el servidor tenga instalado el idioma español.
+MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
+         'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
 from ..models import Docente, AsignacionDocente, Estudiante, Asistencia, PeriodoAcademico, Curso
 from ..permisos import es_admin, es_admin_usuario
@@ -110,19 +111,12 @@ def consulta_asistencia_vista(request):
 # INICIO DE LA CORRECCIÓN
 # Se añade la función que faltaba para la llamada AJAX.
 # ==================================================================
+@login_required
 def ajax_obtener_meses_vista(request):
     """
     Vista AJAX que devuelve los meses de un periodo académico en formato JSON.
     """
     periodo_id = request.GET.get('periodo_id')
-    
-    # Configura el idioma a español para los nombres de los meses
-    try:
-        # Para sistemas basados en Unix (Linux, macOS)
-        locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
-    except locale.Error:
-        # Alternativa para sistemas Windows
-        locale.setlocale(locale.LC_TIME, 'Spanish_Spain.1252')
 
     if not periodo_id:
         return JsonResponse({'error': 'No se proporcionó ID de periodo'}, status=400)
@@ -136,7 +130,7 @@ def ajax_obtener_meses_vista(request):
         # Itera desde la fecha de inicio hasta la fecha de fin del periodo
         while fecha_actual <= periodo.fecha_fin:
             # Crea una tupla (numero_mes, nombre_mes)
-            mes_tupla = (fecha_actual.month, month_name[fecha_actual.month].capitalize())
+            mes_tupla = (fecha_actual.month, MESES[fecha_actual.month])
             
             # Añade el mes a la lista solo si no ha sido añadido antes
             if mes_tupla not in meses:
