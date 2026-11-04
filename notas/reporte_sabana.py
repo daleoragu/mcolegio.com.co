@@ -109,6 +109,20 @@ def excel(curso, periodo, datos, colegio):
         celda.alignment = vertical if 3 < c < ultima else centro
     ws.row_dimensions[fila].height = 120
 
+    # Debajo de cada asignatura, el docente (o docentes) que la dicta.
+    fila += 1
+    ws.cell(row=fila, column=2, value='Docente').font = Font(bold=True, italic=True)
+    for c in range(1, ultima + 1):
+        celda = ws.cell(row=fila, column=c)
+        celda.fill = cabeza
+        celda.border = borde
+        celda.alignment = centro
+    for i, m in enumerate(materias):
+        celda = ws.cell(row=fila, column=4 + i, value=', '.join(m['docentes']))
+        celda.font = Font(italic=True, size=9)
+        celda.alignment = vertical
+    ws.row_dimensions[fila].height = 110
+
     for f in datos['filas']:
         fila += 1
         valores = [f['n'], f['nombre'], 'Sí' if f['inclusion'] else ''] + \
@@ -151,7 +165,7 @@ def excel(curso, periodo, datos, colegio):
     for c in range(4, ultima):
         ws.column_dimensions[get_column_letter(c)].width = 5
     ws.column_dimensions[get_column_letter(ultima)].width = 8
-    ws.freeze_panes = 'D6'
+    ws.freeze_panes = 'D7'
     ws.page_setup.orientation = 'landscape'
     ws.page_setup.fitToWidth = 1
     ws.sheet_properties.pageSetUpPr.fitToPage = True

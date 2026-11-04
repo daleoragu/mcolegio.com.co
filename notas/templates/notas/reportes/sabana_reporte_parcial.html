@@ -23,6 +23,8 @@
     .srp-tabla thead th { background:#f3f6fb; position:sticky; top:0; }
     .srp-tabla th.mat { writing-mode:vertical-rl; transform:rotate(180deg); white-space:nowrap; height:150px; font-weight:600; vertical-align:bottom; }
     .srp-tabla th.mat.pend { color:#9aa3b2; font-style:italic; }
+    .srp-tabla thead tr + tr th { top:150px; }
+    .srp-tabla th.doc { writing-mode:vertical-rl; transform:rotate(180deg); white-space:nowrap; height:120px; font-weight:400; font-style:italic; font-size:.75rem; color:#4b5563; vertical-align:bottom; }
     .srp-tabla td.nom { text-align:left; white-space:nowrap; position:sticky; left:0; background:#fff; }
     .srp-tabla td.x { background:#f8d7da; color:#b42318; font-weight:800; }
     .srp-tabla td.tot { font-weight:800; font-variant-numeric:tabular-nums; }
@@ -86,6 +88,11 @@
             <th>N.º</th><th style="text-align:left">Estudiante</th>
             {% for m in materias %}<th class="mat {% if not m.reportada %}pend{% endif %}" title="{{ m.nombre }} — {{ m.docentes|join:', ' }}{% if not m.reportada %} (sin reporte){% endif %}">{{ m.nombre }}</th>{% endfor %}
             <th>Total</th>
+        </tr>
+        <tr>
+            <th></th><th style="text-align:left;font-weight:400;font-style:italic">Docente</th>
+            {% for m in materias %}<th class="doc">{{ m.docentes|join:", " }}</th>{% endfor %}
+            <th></th>
         </tr></thead>
         <tbody>
         {% for f in filas %}
