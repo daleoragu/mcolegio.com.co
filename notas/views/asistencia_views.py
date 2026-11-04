@@ -55,6 +55,7 @@ def asistencia_vista(request):
 
     estudiantes_del_curso, asistencias_map, mostrar_lista = [], {}, False
     excusados = {}
+    fuera = []
     asignacion_id = request.GET.get('asignacion_id')
     fecha_str = request.GET.get('fecha', timezone.localdate().strftime('%Y-%m-%d'))
     
@@ -90,6 +91,11 @@ def asistencia_vista(request):
             
             asistencias_hoy = Asistencia.objects.filter(asignacion=asignacion_actual, fecha=fecha_obj, colegio=request.colegio)
             asistencias_map = {a.estudiante_id: a.estado for a in asistencias_hoy}
+            # Quiénes están fuera del salón con permiso (módulo Permisos).
+            from ..modulos import esta_activo
+            if esta_activo(request.colegio, 'permisos') and fecha_obj == timezone.localdate():
+                from .. import pases
+                fuera = pases.fuera_del_curso(asignacion_actual.curso)
             # Días con excusa aprobada: se muestran bloqueados.
             excusados = {a.estudiante_id: a.excusa.get_motivo_display()
                          for a in asistencias_hoy.filter(excusa__isnull=False).select_related('excusa')}
@@ -102,6 +108,7 @@ def asistencia_vista(request):
         'estudiantes': estudiantes_del_curso,
         'asistencias_map': asistencias_map,
         'excusados': excusados,
+        'fuera': fuera,
         'asignacion_seleccionada_id': asignacion_id,
         'fecha_seleccionada': fecha_str,
         'mostrar_lista': mostrar_lista,

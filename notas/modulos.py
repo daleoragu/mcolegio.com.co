@@ -28,6 +28,8 @@ MODULOS = OrderedDict([
                       ('/estadisticas/', '/alertas-tempranas/', '/ajax/datos-graficos/'))),
     ('reporte_parcial', ('Reporte parcial con avisos', 'Reporte parcial, aviso a la familia e informe en PDF.',
                          ('/docente/reporte-parcial/', '/reporte-parcial/', '/familia/informe-parcial/'))),
+    ('permisos', ('Permisos de salida', 'Pase de salida del salón con el carné: el docente lo da, cualquiera lo verifica '
+                  'escaneando el carné y se ve quién está fuera de clase.', ('/permisos/',))),
     ('correo', ('Correo interno', 'Mensajería entre docentes, estudiantes y administración.', ('/mensajeria/',))),
     ('chat', ('Chat del colegio', 'Chat uno a uno y por grupos (curso, asignatura, sala de profesores) con horario de silencio '
                        'y reportes. Los estudiantes no se escriben entre ellos en privado.', ('/chat/',))),

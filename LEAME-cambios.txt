@@ -23,11 +23,16 @@ NUEVO     notas/migrations/0056_estudiante_pin_carnet.py
 NUEVO     notas/migrations/0057_docente_codigo_carnet.py
 NUEVO     notas/migrations/0058_excusas.py
 NUEVO     notas/migrations/0059_solicitudes_ficha.py
+NUEVO     notas/migrations/0060_permisos_salida.py
+NUEVO     notas/migrations/0061_permisos_sin_carne.py
 CAMBIADO  notas/models/__init__.py
 CAMBIADO  notas/models/academicos.py
 NUEVO     notas/models/excusas.py
 NUEVO     notas/models/fichas.py
 CAMBIADO  notas/models/perfiles.py
+NUEVO     notas/models/permisos.py
+CAMBIADO  notas/modulos.py
+NUEVO     notas/pases.py
 CAMBIADO  notas/planillas/asistencia.py
 CAMBIADO  notas/planillas/excel.py
 CAMBIADO  notas/reporte_sabana.py
@@ -62,12 +67,18 @@ NUEVO     notas/templates/notas/fichas/solicitudes.html
 CAMBIADO  notas/templates/notas/includes/_topbar.html
 CAMBIADO  notas/templates/notas/observador/detalle_observador.html
 CAMBIADO  notas/templates/notas/partials/_tabla_notas.html
+NUEVO     notas/templates/notas/permisos/_aviso_estudiante.html
+NUEVO     notas/templates/notas/permisos/historial.html
+NUEVO     notas/templates/notas/permisos/inicio.html
+NUEVO     notas/templates/notas/permisos/verificacion.html
 CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial.html
 CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial_pdf.html
 CAMBIADO  notas/templatetags/nota_filters.py
+NUEVO     notas/templatetags/pases_tags.py
 NUEVO     notas/tests/test_excusas.py
 NUEVO     notas/tests/test_kiosko_carnet.py
 NUEVO     notas/tests/test_meses_asistencia.py
+NUEVO     notas/tests/test_permisos_salida.py
 CAMBIADO  notas/tests/test_planillas.py
 CAMBIADO  notas/tests/test_sabana_reporte_parcial.py
 NUEVO     notas/tests/test_solicitudes_ficha.py
@@ -79,6 +90,7 @@ NUEVO     notas/views/excusas_views.py
 NUEVO     notas/views/fichas_views.py
 CAMBIADO  notas/views/gestion_estudiantes_views.py
 CAMBIADO  notas/views/observador_views.py
+NUEVO     notas/views/permisos_views.py
 CAMBIADO  notas/views/reporte_parcial_views.py
 CAMBIADO  piar/logica.py
 NUEVO     votaciones/cabinas.py
@@ -105,6 +117,8 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   notas/migrations/0058_excusas.py                   (excusas de las fallas)
   aula/migrations/0009_invertida_pausas.py           (avance del video en el aula invertida)
   notas/migrations/0059_solicitudes_ficha.py         (solicitudes y registro de cambios de la ficha)
+  notas/migrations/0060_permisos_salida.py           (módulo Permisos)
+  notas/migrations/0061_permisos_sin_carne.py        (anotar que no traía el carné)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

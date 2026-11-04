@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Permiso · {{ r.nombre }}</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; margin: 0; padding: 20px 16px; color: #1f2937;
+         background: {% if r.resultado == 'CON_PERMISO' %}#d1e7dd{% elif r.resultado == 'VENCIDO' %}#fff3cd{% else %}#f8d7da{% endif %}; min-height: 100vh; box-sizing: border-box; }
+  .caja { max-width: 440px; margin: 0 auto; background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 6px 24px rgba(0,0,0,.1); text-align: center; }
+  .icono { font-size: 3.2rem; line-height: 1; }
+  .estado { font-size: 1.35rem; font-weight: 800; margin: 8px 0 2px; }
+  .CON_PERMISO .estado { color: #0f5132; } .VENCIDO .estado { color: #8a6100; } .SIN_PERMISO .estado { color: #b02a37; }
+  .nombre { font-size: 1.15rem; font-weight: 700; margin-top: 12px; }
+  .sub { color: #6b7280; }
+  .det { background: #f6f7f9; border-radius: 10px; padding: 10px 12px; margin-top: 12px; text-align: left; font-size: .95rem; }
+  .det b { display: inline-block; min-width: 92px; }
+  button, a.boton { display: block; width: 100%; margin-top: 14px; padding: 12px; font-size: 1rem; font-weight: 700; border: 0; border-radius: 12px; cursor: pointer; text-decoration: none; box-sizing: border-box; }
+  .rojo { background: #b02a37; color: #fff; } .gris { background: #eef1f5; color: #1f2937; }
+  .foto { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; margin-top: 10px; }
+</style></head>
+<body class="{{ r.resultado }}">
+<div class="caja {{ r.resultado }}">
+  <div class="icono">{% if r.resultado == 'CON_PERMISO' %}✅{% elif r.resultado == 'VENCIDO' %}⚠️{% else %}❌{% endif %}</div>
+  <div class="estado">{% if r.resultado == 'CON_PERMISO' %}Tiene permiso{% elif r.resultado == 'VENCIDO' %}Permiso vencido{% else %}No tiene permiso{% endif %}</div>
+  {% if r.foto %}<img class="foto" src="{{ r.foto }}" alt="">{% endif %}
+  <div class="nombre">{{ r.nombre }}</div>
+  <div class="sub">{{ r.curso }}</div>
+  {% if r.permiso %}
+  <div class="det">
+    <div><b>Para:</b> {{ r.permiso.destino }}</div>
+    <div><b>Lo dio:</b> {{ r.permiso.otorgado_por }}</div>
+    <div><b>Salió:</b> {{ r.permiso.inicio }}</div>
+    {% if r.permiso.vence %}<div><b>{% if r.resultado == 'VENCIDO' %}Debía volver:{% else %}Hasta:{% endif %}</b> {{ r.permiso.vence }}{% if r.resultado == 'VENCIDO' %} (hace {{ r.permiso.vencido_hace }} min){% else %} (quedan {{ r.permiso.restantes }} min){% endif %}</div>{% endif %}
+    {% if r.permiso.nota %}<div><b>Nota:</b> {{ r.permiso.nota }}</div>{% endif %}
+  </div>
+  {% else %}
+  <div class="det">Posible evasión de clase.{% if r.clase %} Ahora debería estar en <b style="min-width:0">{{ r.clase }}</b>.{% endif %}</div>
+  {% endif %}
+  {% if r.resultado != 'CON_PERMISO' %}
+  <button type="button" class="rojo" id="reportar">Avisar al director de grupo y a coordinación</button>
+  <div id="reportado" class="sub" style="margin-top:10px"></div>
+  {% endif %}
+  <a class="boton gris" href="{% url 'notas:permisos' %}">Ir a Permisos</a>
+</div>
+{% if r.resultado != 'CON_PERMISO' %}
+<script>
+document.getElementById('reportar').addEventListener('click', function () {
+  var b = this; b.disabled = true;
+  fetch("{% url 'notas:permiso_reportar' r.verificacion %}", {method: 'POST', credentials: 'same-origin', headers: {'X-CSRFToken': '{{ csrf_token }}'}})
+    .then(function (x) { return x.json(); })
+    .then(function (j) { b.remove(); document.getElementById('reportado').textContent = j.mensaje; })
+    .catch(function () { b.disabled = false; });
+});
+</script>
+{% endif %}
+</body></html>

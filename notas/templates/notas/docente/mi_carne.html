@@ -29,6 +29,7 @@
   @media print { body { background: #fff; } .ayuda, .botones { display: none; } .carne { box-shadow: none; border: 1px solid #999; } }
 </style></head>
 <body>
+  <div style="width:100%;max-width:360px">{% include 'notas/permisos/_aviso_estudiante.html' %}</div>
   <main class="carne" aria-label="Carné de {{ nombre }}">
     <div class="cab">
       {% if colegio.escudo %}<img src="{{ colegio.escudo.url }}" alt="">{% endif %}

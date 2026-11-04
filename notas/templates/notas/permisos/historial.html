@@ -1,0 +1,53 @@
+{% extends 'notas/base.html' %}
+{% block title %}Historial de permisos{% endblock %}
+{% block page_title %}<h1>Historial de permisos</h1>{% endblock %}
+{% block content %}
+<style>.pm-caja { background:#fff; border:1px solid #e3e7ef; border-radius:14px; padding:14px 16px; margin-bottom:14px; }</style>
+<div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+  <a href="{% url 'notas:permisos' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Permisos</a>
+  <form method="get" class="d-flex gap-2 align-items-end">
+    <div><label class="form-label small fw-bold mb-1" for="ph-fecha">Día</label><input type="date" name="fecha" id="ph-fecha" class="form-control form-control-sm" value="{{ dia|date:'Y-m-d' }}" onchange="this.form.submit()"></div>
+  </form>
+</div>
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="pm-caja">
+      <h6 class="fw-bold">Permisos del {{ dia|date:"l d/m/Y" }} ({{ permisos|length }})</h6>
+      <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Estudiante</th><th>Para</th><th>Salió</th><th>Volvió</th><th>Lo dio</th></tr></thead>
+        <tbody>
+        {% for p in permisos %}
+        <tr class="{% if p.vencido %}table-danger{% endif %}">
+          <td>{{ p.estudiante.user.last_name }} {{ p.estudiante.user.first_name }} <span class="text-muted small">· {{ p.estudiante.curso.nombre }}</span></td>
+          <td>{{ p.get_destino_display }}{% if p.nota %} <span class="text-muted small">· {{ p.nota }}</span>{% endif %}{% if p.anulado %} <span class="badge text-bg-secondary">anulado</span>{% endif %}</td>
+          <td class="text-nowrap">{{ p.inicio|time:"h:i a" }}</td>
+          <td class="text-nowrap">{% if p.regreso %}{{ p.regreso|time:"h:i a" }} <span class="text-muted small">({{ p.minutos_fuera }} min)</span>{% elif p.vencido %}<b class="text-danger">No ha vuelto</b>{% elif not p.anulado %}Fuera{% endif %}</td>
+          <td class="small">{{ p.otorgado_por.get_full_name|default:p.otorgado_por.username }}</td>
+        </tr>
+        {% empty %}<tr><td colspan="5" class="text-muted">No hubo permisos ese día.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="pm-caja">
+      <h6 class="fw-bold text-danger">Encontrados fuera sin permiso o vencido</h6>
+      {% for v in sin_permiso %}
+      <div class="small py-1 border-bottom"><b>{{ v.estudiante }}</b> · {{ v.estudiante.curso.nombre }}<br>{{ v.get_resultado_display }} · {{ v.momento|time:"h:i a" }} · lo vio {{ v.verificado_por.get_full_name|default:v.verificado_por.username }}{% if v.reportado %} · <span class="text-danger">reportado</span>{% endif %}</div>
+      {% empty %}<p class="small text-muted mb-0">Nadie.</p>{% endfor %}
+    </div>
+    <div class="pm-caja">
+      <h6 class="fw-bold">Sin carné (últimos 30 días)</h6>
+      {% for m in sin_carne %}
+      <div class="small d-flex py-1 border-bottom"><span class="flex-grow-1">{{ m.estudiante__user__last_name }} {{ m.estudiante__user__first_name }} · {{ m.estudiante__curso__nombre }}</span><b>{{ m.n }}</b></div>
+      {% empty %}<p class="small text-muted mb-0">Nadie anotado sin carné.</p>{% endfor %}
+    </div>
+    <div class="pm-caja">
+      <h6 class="fw-bold">Los que más salen (últimos 30 días)</h6>
+      {% for m in mas %}
+      <div class="small d-flex py-1 border-bottom"><span class="flex-grow-1">{{ m.estudiante__user__last_name }} {{ m.estudiante__user__first_name }} · {{ m.estudiante__curso__nombre }}</span><b>{{ m.n }}</b></div>
+      {% empty %}<p class="small text-muted mb-0">Nadie con más de un permiso.</p>{% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
