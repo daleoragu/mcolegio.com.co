@@ -66,7 +66,14 @@
 
     {% if mostrar_lista %}
         <div class="table-responsive">
-            <table class="tabla-asistencia">
+            {% if fuera %}
+        <div class="alert alert-warning d-flex flex-wrap gap-2 align-items-center">
+            <i class="fas fa-door-open"></i><b>Fuera del salón con permiso:</b>
+            {% for p in fuera %}<span class="badge {% if p.vencido %}text-bg-danger{% else %}text-bg-light border{% endif %}">{{ p.estudiante.user.last_name }} {{ p.estudiante.user.first_name }} · {{ p.get_destino_display }} desde {{ p.inicio|time:"h:i a" }}{% if p.vencido %} · venció{% endif %}</span>{% endfor %}
+            <a href="{% url 'notas:permisos' %}" class="ms-auto small">Ver permisos</a>
+        </div>
+        {% endif %}
+        <table class="tabla-asistencia">
                 <thead>
                     <tr>
                         <th>Estudiante</th>

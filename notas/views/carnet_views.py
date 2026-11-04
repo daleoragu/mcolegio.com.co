@@ -210,6 +210,12 @@ def carnet_qr(request, codigo):
         return redirect('notas:vista_kiosko_asistencia')
     if request.user.is_authenticated and request.user.id == estudiante.user_id:
         return redirect('notas:carnet_menu', codigo=codigo)
+    if request.user.is_authenticated and request.user.id != estudiante.user_id:
+        from ..modulos import esta_activo
+        from .. import pases
+        if esta_activo(request.colegio, 'permisos') and pases.es_personal(request):
+            from .permisos_views import verificacion_desde_carne
+            return verificacion_desde_carne(request, estudiante)
 
     error = ''
     ahora = timezone.now()

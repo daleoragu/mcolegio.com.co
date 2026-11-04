@@ -1,0 +1,9 @@
+{% load pases_tags %}{% permiso_abierto as pase %}
+{% if pase %}
+<div role="status" style="border-radius:14px;padding:12px 16px;margin:0 0 14px;font-weight:700;display:flex;gap:10px;align-items:center;
+     {% if pase.vencido %}background:#f8d7da;color:#842029{% else %}background:#d1e7dd;color:#0f5132{% endif %}">
+  <span style="font-size:1.6rem">🚪</span>
+  <span>{% if pase.vencido %}Tu permiso para {{ pase.get_destino_display|lower }} ya venció: regresa a clase.{% else %}Tienes permiso para salir: {{ pase.get_destino_display }}{% if pase.destino != 'SALIDA' %} hasta las {{ pase.vence|time:"h:i a" }}{% endif %}.{% endif %}
+    <span style="display:block;font-weight:400;font-size:.85rem">Lo dio {{ pase.otorgado_por.get_full_name|default:pase.otorgado_por.username }} a las {{ pase.inicio|time:"h:i a" }}. Si un docente te pregunta, muestra tu carné.</span></span>
+</div>
+{% endif %}
