@@ -35,7 +35,8 @@ def colegio_context(request):
     from .modulos import activos
     # «mods»: los módulos activos del colegio, para mostrar u ocultar menús
     # ({% if 'circulares' in mods %}). Ver notas/modulos.py.
-    return {'colegio': colegio, 'mods': activos(colegio)}
+    from .colores import iconos_topbar
+    return {'colegio': colegio, 'mods': activos(colegio), 'color_iconos_topbar': iconos_topbar(colegio)}
 
 
 def familia_context(request):

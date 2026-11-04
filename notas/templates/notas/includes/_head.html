@@ -28,6 +28,8 @@ Esta versión hereda los colores del portal y hace que la barra superior sea fij
         --color-secundario: {{ colegio.color_secundario|default:'#6C757D' }};
         --topbar-bg: {{ colegio.color_topbar|default:'#343A40' }};
         --topbar-text: {{ colegio.color_topbar_texto|default:'#FFFFFF' }};
+        /* Campana, mensajes y chat: color contrario a la barra (o el que escogió el colegio). */
+        --topbar-iconos: {{ color_iconos_topbar|default:'#FFD43B' }};
         --color-fondo: #f8f9fa;
         --color-superficie: #ffffff;
         --color-texto: #343a40;
@@ -89,24 +91,29 @@ Esta versión hereda los colores del portal y hace que la barra superior sea fij
         color: var(--topbar-text);
     }
     .topbar-icon-link {
-        color: var(--topbar-text);
+        color: var(--topbar-iconos);
         font-size: 1.25rem;
-        opacity: 0.8;
-        transition: opacity 0.2s;
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 40px; height: 40px; border-radius: 50%;
+        transition: background-color .2s, transform .2s;
     }
-    .topbar-icon-link:hover {
-        opacity: 1;
+    .topbar-icon-link:hover, .topbar-icon-link:focus-visible {
+        color: var(--topbar-iconos);
+        background-color: color-mix(in srgb, var(--topbar-iconos) 18%, transparent);
     }
+    .topbar-icon-link:focus-visible { outline: 2px solid var(--topbar-iconos); outline-offset: 2px; }
     .notification-bell { position: relative; }
     .notification-badge-abs {
         position: absolute;
-        top: -5px;
-        right: -8px;
+        top: 0;
+        right: -2px;
         font-size: 0.6em;
         line-height: 1;
         padding: .25em .4em;
-        background-color: var(--color-secundario);
-        color: var(--color-texto);
+        /* Rojo con número blanco: se lee sobre cualquier barra. */
+        background-color: #DC3545;
+        color: #FFFFFF;
+        font-weight: 700;
         border: 2px solid var(--topbar-bg);
     }
     .user-photo {
