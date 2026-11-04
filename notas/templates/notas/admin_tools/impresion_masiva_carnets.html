@@ -112,6 +112,7 @@
                 <button type="button" onclick="imprimirTodos()" class="btn btn-success"><i class="fas fa-print"></i> Imprimir Todos los de la Lista</button>
             </div>
         </form>
+        <p class="small mt-2"><a href="{% url 'notas:pines_carnet' %}{% if curso_seleccionado_id %}?curso={{ curso_seleccionado_id }}{% endif %}"><i class="fas fa-key me-1"></i>Lista de PIN del carné para entregar</a> · El QR de cada carné sirve para la asistencia y, con el PIN, para que el estudiante entre a su menú.</p>
     </div>
 
     <!-- Lista de Estudiantes -->

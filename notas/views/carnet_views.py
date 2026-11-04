@@ -8,6 +8,7 @@ en la clase activa; al terminar, un botón marca ausentes a los que no pasaron.
 """
 import base64
 import re
+from datetime import timedelta
 from io import BytesIO
 
 import qrcode
@@ -106,22 +107,140 @@ def impresion_masiva_carnets(request):
 # LO QUE ABRE EL QR
 # ==============================================================================
 
+MAX_INTENTOS_PIN = 5
+MINUTOS_BLOQUEO_PIN = 15
+MINUTOS_SESION_CARNET = 30
+CLAVE_CARNET = 'entrada_carnet'      # la sesión se abrió con el carné y el PIN
+
+
+def _estudiante_del_codigo(request, codigo):
+    if not getattr(request, 'colegio', None):
+        return None
+    return (Estudiante.objects.select_related('user', 'curso', 'colegio')
+            .filter(codigo_carnet=codigo, colegio=request.colegio).first())
+
+
 def carnet_qr(request, codigo):
     """Lo que abre el QR del carné.
 
-    Con el kiosko activo en ese equipo, marca la asistencia. Si no, muestra que el
-    carné es válido (lo mismo que trae impreso: nombre, curso y colegio).
+    · Con el kiosko activo en ese equipo: marca la asistencia.
+    · Si no: muestra que el carné es válido y pide el PIN; con el PIN correcto el
+      estudiante entra a su menú (votar, boletín, horario, tareas, certificados).
     """
-    estudiante = (Estudiante.objects.select_related('user', 'curso', 'colegio')
-                  .filter(codigo_carnet=codigo, colegio=request.colegio).first()
-                  if getattr(request, 'colegio', None) else None)
+    from django.contrib.auth import login
+    estudiante = _estudiante_del_codigo(request, codigo)
     if estudiante is None:
         return render(request, 'notas/docente/carnet_verificado.html', {'estudiante': None}, status=404)
     if request.user.is_authenticated and request.session.get(CLAVE_KIOSKO):
         resultado = _registrar(request, estudiante)
         getattr(messages, resultado['nivel'])(request, resultado['mensaje'])
         return redirect('notas:vista_kiosko_asistencia')
-    return render(request, 'notas/docente/carnet_verificado.html', {'estudiante': estudiante})
+    if request.user.is_authenticated and request.user.id == estudiante.user_id:
+        return redirect('notas:carnet_menu', codigo=codigo)
+
+    error = ''
+    ahora = timezone.now()
+    bloqueado = estudiante.pin_bloqueado_hasta and estudiante.pin_bloqueado_hasta > ahora
+    if request.method == 'POST' and estudiante.is_active:
+        if bloqueado:
+            error = f'Demasiados intentos. Espere {MINUTOS_BLOQUEO_PIN} minutos o pídale el PIN a su director de grupo.'
+        elif estudiante.pin_carnet and (request.POST.get('pin') or '').strip() == estudiante.pin_carnet:
+            Estudiante.objects.filter(pk=estudiante.pk).update(pin_fallidos=0, pin_bloqueado_hasta=None)
+            login(request, estudiante.user, backend='django.contrib.auth.backends.ModelBackend')
+            request.session[CLAVE_CARNET] = codigo
+            # En un equipo del colegio la sesión no se queda abierta.
+            request.session.set_expiry(MINUTOS_SESION_CARNET * 60)
+            return redirect('notas:carnet_menu', codigo=codigo)
+        else:
+            fallidos = estudiante.pin_fallidos + 1
+            cambios = {'pin_fallidos': fallidos}
+            if fallidos >= MAX_INTENTOS_PIN:
+                cambios = {'pin_fallidos': 0,
+                           'pin_bloqueado_hasta': ahora + timedelta(minutes=MINUTOS_BLOQUEO_PIN)}
+                error = f'Demasiados intentos. Espere {MINUTOS_BLOQUEO_PIN} minutos o pídale el PIN a su director de grupo.'
+            else:
+                quedan = MAX_INTENTOS_PIN - fallidos
+                error = f'Ese PIN no es. Le quedan {quedan} intento{"s" if quedan != 1 else ""}.'
+            Estudiante.objects.filter(pk=estudiante.pk).update(**cambios)
+    return render(request, 'notas/docente/carnet_verificado.html', {
+        'estudiante': estudiante, 'error': error, 'pedir_pin': estudiante.is_active,
+        'otra_sesion': request.user if request.user.is_authenticated else None})
+
+
+def _menu_carnet(request, estudiante):
+    from ..modulos import activos
+    mods = activos(request.colegio)
+    opciones = []
+
+    def agregar(clave, nombre, icono, ruta, *args):
+        try:
+            opciones.append({'clave': clave, 'nombre': nombre, 'icono': icono, 'url': reverse(ruta, args=args)})
+        except Exception:
+            pass
+
+    if 'elecciones' in mods:
+        from votaciones.models import Eleccion
+        if Eleccion.objects.filter(colegio=request.colegio, estado='abierta').exists():
+            agregar('votar', 'Votar', 'fa-check-to-slot', 'votaciones:inicio')
+    agregar('boletin', 'Boletín y notas', 'fa-file-invoice', 'notas:mi_boletin')
+    if 'horarios' in mods:
+        agregar('horario', 'Mi horario', 'fa-calendar-week', 'horarios:mi_horario')
+    if 'salon' in mods:
+        agregar('tareas', 'Mis tareas', 'fa-list-check', 'aula:inicio')
+    if 'certificados' in mods:
+        agregar('certificados', 'Certificados', 'fa-award', 'certificados:mis_certificados')
+    agregar('panel', 'Todo mi panel', 'fa-house', 'notas:panel_estudiante')
+    return opciones
+
+
+def carnet_menu(request, codigo):
+    estudiante = _estudiante_del_codigo(request, codigo)
+    if estudiante is None:
+        return render(request, 'notas/docente/carnet_verificado.html', {'estudiante': None}, status=404)
+    if not request.user.is_authenticated or request.user.id != estudiante.user_id:
+        return redirect('notas:carnet_qr', codigo=codigo)
+    return render(request, 'notas/docente/carnet_menu.html', {
+        'estudiante': estudiante, 'codigo': codigo, 'opciones': _menu_carnet(request, estudiante),
+        'minutos': MINUTOS_SESION_CARNET})
+
+
+@require_POST
+def carnet_salir(request, codigo):
+    from django.contrib.auth import logout
+    logout(request)
+    messages.info(request, 'Sesión cerrada. Puede entregar el equipo al siguiente.')
+    return redirect('notas:carnet_qr', codigo=codigo)
+
+
+@login_required
+def pines_carnet(request):
+    """Lista para imprimir y entregar: estudiante, curso y PIN del carné.
+
+    La ve la administración (todos los cursos) y el director de grupo (los suyos).
+    """
+    if not request.colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    if es_admin(request):
+        cursos = Curso.objects.filter(colegio=request.colegio)
+    else:
+        docente = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
+        cursos = Curso.objects.filter(colegio=request.colegio, director_grado=docente) if docente else Curso.objects.none()
+    cursos = list(cursos.order_by('grado', 'nombre'))
+    if not cursos:
+        return HttpResponseNotFound("<h1>No tiene cursos a cargo</h1>")
+    curso = next((c for c in cursos if str(c.id) == request.GET.get('curso')), cursos[0])
+    estudiantes = list(Estudiante.objects.filter(colegio=request.colegio, curso=curso, is_active=True)
+                       .select_related('user').order_by('user__last_name', 'user__first_name'))
+    if request.method == 'POST':
+        est = next((e for e in estudiantes if str(e.id) == request.POST.get('estudiante')), None)
+        if est is not None:
+            est.asegurar_pin_carnet(nuevo=True)
+            messages.success(request, f'Nuevo PIN para {est}: {est.pin_carnet}.')
+        return redirect(f"{reverse('notas:pines_carnet')}?curso={curso.id}")
+    for est in estudiantes:
+        est.asegurar_pin_carnet()
+    return render(request, 'notas/admin_tools/pines_carnet.html', {
+        'colegio': request.colegio, 'cursos': cursos, 'curso': curso, 'estudiantes': estudiantes})
 
 
 @login_required

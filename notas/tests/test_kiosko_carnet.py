@@ -133,3 +133,70 @@ class CarnetYKiosko(ColegioDePrueba):
         self.assertContains(r, 'Leer con la cámara')
         self.assertContains(r, 'Marcar ausentes')
         self.assertContains(r, 'jsQR.js')
+
+
+class EntrarConElCarne(ColegioDePrueba):
+    """QR del carné + PIN: el estudiante entra a su menú."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.ana = cls.estudiantes[0]
+        cls.a.modulos_activos = list(cls.a.modulos_activos or []) + ['elecciones', 'horarios']
+        cls.a.save(update_fields=['modulos_activos'])
+
+    def setUp(self):
+        self.codigo = self.ana.asegurar_codigo_carnet()
+        self.pin = self.ana.asegurar_pin_carnet()
+
+    def test_con_el_pin_entra_al_menu(self):
+        c = self.cliente()
+        r = c.get(f'/c/{self.codigo}/')
+        self.assertContains(r, 'Escribe tu PIN')
+        r = c.post(f'/c/{self.codigo}/', {'pin': self.pin})
+        self.assertRedirects(r, f'/c/{self.codigo}/menu/', fetch_redirect_response=False)
+        r = c.get(f'/c/{self.codigo}/menu/')
+        self.assertContains(r, 'Hola, Ana')
+        self.assertContains(r, 'Boletín y notas')
+        self.assertContains(r, 'Mi horario')
+        self.assertNotContains(r, 'Votar')              # no hay elecciones abiertas
+        self.assertEqual(int(c.session['_auth_user_id']), self.ana.user_id)
+        self.assertLessEqual(c.session.get_expiry_age(), 30 * 60)
+
+    def test_salir_cierra_la_sesion(self):
+        c = self.cliente()
+        c.post(f'/c/{self.codigo}/', {'pin': self.pin})
+        c.post(f'/c/{self.codigo}/salir/')
+        self.assertNotIn('_auth_user_id', c.session)
+        self.assertRedirects(c.get(f'/c/{self.codigo}/menu/'), f'/c/{self.codigo}/', fetch_redirect_response=False)
+
+    def test_pin_errado_y_bloqueo(self):
+        c = self.cliente()
+        malo = '0000' if self.pin != '0000' else '1111'
+        for _ in range(5):
+            r = c.post(f'/c/{self.codigo}/', {'pin': malo})
+        self.assertContains(r, 'Demasiados intentos')
+        # Bloqueado: ni con el PIN bueno entra
+        r = c.post(f'/c/{self.codigo}/', {'pin': self.pin})
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('_auth_user_id', c.session)
+
+    def test_menu_de_otro_no(self):
+        beto = self.estudiantes[1]
+        r = self.cliente(beto.user).get(f'/c/{self.codigo}/menu/')
+        self.assertRedirects(r, f'/c/{self.codigo}/', fetch_redirect_response=False)
+
+    def test_con_eleccion_abierta_sale_votar(self):
+        from votaciones.models import Eleccion
+        Eleccion.objects.create(colegio=self.a, nombre='Gobierno', estado='abierta')
+        c = self.cliente()
+        c.post(f'/c/{self.codigo}/', {'pin': self.pin})
+        self.assertContains(c.get(f'/c/{self.codigo}/menu/'), 'Votar')
+
+    def test_lista_de_pines(self):
+        r = self.cliente(self.u_docente).get('/herramientas/pines-carnet/')   # director de 601
+        self.assertContains(r, self.pin)
+        self.cliente(self.rectora).post('/herramientas/pines-carnet/', {'estudiante': self.ana.id})
+        self.ana.refresh_from_db()
+        self.assertEqual(len(self.ana.pin_carnet), 4)
+        self.assertEqual(self.cliente(self.estudiantes[1].user).get('/herramientas/pines-carnet/').status_code, 404)
