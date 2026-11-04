@@ -49,9 +49,9 @@ class SabanaReporteParcial(ColegioDePrueba):
         self.assertEqual([m['nombre'] for m in r.context['pendientes']], ['Inglés'])
         self.assertContains(r, 'Entregar el taller')
         self.assertContains(r, 'Asignaturas sin reporte guardado')
-        # Los docentes salen bajo cada asignatura
-        self.assertContains(r, 'class="doc"')
-        self.assertContains(r, 'Sol Sociales')
+        # Abajo, la tabla de quién dicta cada asignatura
+        self.assertContains(r, 'class="srp-docentes"')
+        self.assertContains(r, '<td>Sociales</td><td>Sol Sociales</td>', html=False)
 
     def test_alerta_con_tres_o_mas(self):
         from notas import reporte_sabana
@@ -68,10 +68,11 @@ class SabanaReporteParcial(ColegioDePrueba):
         self.assertIn('spreadsheetml', r['Content-Type'])
         ws = openpyxl.load_workbook(BytesIO(r.content)).active
         filas = {ws.cell(row=i, column=2).value: [ws.cell(row=i, column=c).value for c in range(4, 8)]
-                 for i in range(7, 10)}
+                 for i in range(6, 9)}
         self.assertEqual(filas['Prueba Ana'], [None, 'X', 'X', 2])
-        self.assertEqual(ws.cell(row=6, column=2).value, 'Docente')
-        self.assertEqual(ws.cell(row=6, column=6).value, 'Sol Sociales')
+        docentes = {ws.cell(row=i, column=2).value: ws.cell(row=i, column=3).value for i in range(9, ws.max_row + 1)}
+        self.assertEqual(docentes['Asignatura'], 'Docente')
+        self.assertEqual(docentes['Sociales'], 'Sol Sociales')
         self.assertEqual(filas['Prueba Beto'], [None, None, None, 0])
 
     def test_pdf(self):

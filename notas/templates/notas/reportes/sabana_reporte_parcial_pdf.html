@@ -17,7 +17,9 @@
     table.s thead th { background: #eef1f6; }
     table.s th.mat { vertical-align: bottom; padding: 2px 1px; min-width: 16px; }
     table.s th.pend { color: #8a8f99; font-style: italic; }
-    table.s th.doc { vertical-align: bottom; padding: 2px 1px; font-weight: normal; font-style: italic; color: #444; }
+    table.d { border-collapse: collapse; margin: 8px auto 0; }
+    table.d th, table.d td { border: 1px solid #999; padding: 2px 8px; text-align: left; }
+    table.d thead th { background: #eef1f6; }
     table.s td.nom { text-align: left; white-space: nowrap; }
     table.s td.x { background: #f8d7da; color: #b42318; font-weight: bold; }
     table.s td.tot { font-weight: bold; }
@@ -43,11 +45,6 @@
         <th>N.º</th><th style="text-align:left">Estudiante</th>
         {% for m in materias %}<th class="mat {% if not m.reportada %}pend{% endif %}">{{ m.nombre|upper|truncatechars:26|svg_vertical:90 }}</th>{% endfor %}
         <th>Total</th>
-    </tr>
-    <tr>
-        <th></th><th style="text-align:left;font-weight:normal;font-style:italic">Docente</th>
-        {% for m in materias %}<th class="doc">{{ m.docentes|join:", "|truncatechars:34|svg_vertical:80 }}</th>{% endfor %}
-        <th></th>
     </tr></thead>
     <tbody>
     {% for f in filas %}
@@ -64,6 +61,12 @@
         {% for m in materias %}<td>{{ m.total }}</td>{% endfor %}
         <td>{{ total_reportes }}</td>
     </tr></tfoot>
+</table>
+<table class="d">
+    <thead><tr><th>Asignatura</th><th>Docente</th></tr></thead>
+    <tbody>
+    {% for m in materias %}<tr><td>{{ m.nombre }}</td><td>{{ m.docentes|join:", " }}</td></tr>{% endfor %}
+    </tbody>
 </table>
 <div class="nota">X = el docente reporta al estudiante con dificultades en la asignatura. En amarillo: {{ limite_alerta }} o más asignaturas. (I) = estudiante de inclusión.
 {% if pendientes %}<br><b>Asignaturas sin reporte guardado:</b> {% for m in pendientes %}{{ m.nombre }} ({{ m.docentes|join:", " }}){% if not forloop.last %}; {% endif %}{% endfor %}.{% endif %}
