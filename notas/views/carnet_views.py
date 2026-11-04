@@ -83,24 +83,90 @@ def generar_carnet_estudiante(request, estudiante_id):
 @login_required
 @user_passes_test(es_admin_del_colegio, login_url='/admin/login/')
 def impresion_masiva_carnets(request):
+    """Carnés de estudiantes (por curso) o de docentes, para imprimir uno o todos."""
     if not request.colegio:
         return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
-
+    from django.templatetags.static import static
+    tipo = 'docentes' if request.GET.get('tipo') == 'docentes' else 'estudiantes'
     cursos = Curso.objects.filter(colegio=request.colegio).order_by('nombre')
     curso_seleccionado_id = request.GET.get('curso_id')
-    estudiantes = Estudiante.objects.filter(colegio=request.colegio, is_active=True).select_related('user', 'curso')
-    if curso_seleccionado_id:
-        estudiantes = estudiantes.filter(curso_id=curso_seleccionado_id)
-    estudiantes = list(estudiantes)
-    for estudiante in estudiantes:
-        estudiante.qr_image_base64 = _qr_base64(url_carnet(request, estudiante), caja=6, borde=2)
+    foto_vacia = static('img/default-user.png')
+    personas = []
+    if tipo == 'estudiantes':
+        estudiantes = Estudiante.objects.filter(colegio=request.colegio, is_active=True).select_related('user', 'curso', 'ficha')
+        if curso_seleccionado_id:
+            estudiantes = estudiantes.filter(curso_id=curso_seleccionado_id)
+        for est in estudiantes:
+            try:
+                ficha = est.ficha
+            except Exception:
+                ficha = None
+            personas.append({
+                'id': f'e{est.id}', 'nombre': est.user.get_full_name() or est.user.username,
+                'foto': ficha.foto.url if ficha and ficha.foto else foto_vacia,
+                'documento': (f"{ficha.get_tipo_documento_display()}: {ficha.numero_documento}"
+                              if ficha and ficha.numero_documento else 'Documento: No reg.'),
+                'linea': f"Curso: {est.curso.nombre}" if est.curso_id else 'Curso: N/A',
+                'pie': 'CARNET ESTUDIANTIL',
+                'qr': _qr_base64(url_carnet(request, est), caja=6, borde=2)})
+    else:
+        directores = {}
+        for c in cursos:
+            if c.director_grado_id:
+                directores.setdefault(c.director_grado_id, []).append(c.nombre)
+        for doc in Docente.objects.filter(colegio=request.colegio, user__is_active=True).select_related('user', 'ficha'):
+            try:
+                ficha = doc.ficha
+            except Exception:
+                ficha = None
+            personas.append({
+                'id': f'd{doc.id}', 'nombre': doc.user.get_full_name() or doc.user.username,
+                'foto': ficha.foto.url if ficha and ficha.foto else foto_vacia,
+                'documento': f"C.C.: {ficha.numero_documento}" if ficha and ficha.numero_documento else 'Documento: No reg.',
+                'linea': ('Director(a) de grupo ' + ', '.join(directores[doc.id])) if doc.id in directores else 'Docente',
+                'pie': 'CARNET DOCENTE',
+                'qr': _qr_base64(request.build_absolute_uri(
+                    reverse('notas:carnet_qr', args=[doc.asegurar_codigo_carnet()])), caja=6, borde=2)})
 
     return render(request, 'notas/admin_tools/impresion_masiva_carnets.html', {
         'colegio': request.colegio,
-        'estudiantes': estudiantes,
+        'tipo': tipo,
+        'personas': personas,
         'cursos': cursos,
         'curso_seleccionado_id': curso_seleccionado_id,
     })
+
+
+@login_required
+def mi_carne(request):
+    """El carné digital del estudiante o del docente, para mostrarlo desde el celular."""
+    if not request.colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    from django.templatetags.static import static
+    est = Estudiante.objects.filter(user=request.user, colegio=request.colegio).select_related('curso').first()
+    doc = None if est else Docente.objects.filter(user=request.user, colegio=request.colegio).first()
+    if est is None and doc is None:
+        return HttpResponseNotFound("<h1>El carné es para estudiantes y docentes del colegio</h1>")
+    persona = est or doc
+    try:
+        ficha = persona.ficha
+    except Exception:
+        ficha = None
+    if est is not None:
+        documento = (f"{ficha.get_tipo_documento_display()}: {ficha.numero_documento}"
+                     if ficha and ficha.numero_documento else '')
+        linea, pie = (f"Curso {est.curso.nombre}" if est.curso_id else ''), 'CARNÉ ESTUDIANTIL'
+    else:
+        documento = f"C.C.: {ficha.numero_documento}" if ficha and ficha.numero_documento else ''
+        dirige = list(doc.cursos_dirigidos.values_list('nombre', flat=True))
+        linea, pie = (('Director(a) de grupo ' + ', '.join(dirige)) if dirige else 'Docente'), 'CARNÉ DOCENTE'
+    url = request.build_absolute_uri(reverse('notas:carnet_qr', args=[persona.asegurar_codigo_carnet()]))
+    return render(request, 'notas/docente/mi_carne.html', {
+        'colegio': request.colegio, 'nombre': request.user.get_full_name() or request.user.username,
+        'foto': ficha.foto.url if ficha and ficha.foto else static('img/default-user.png'),
+        'documento': documento, 'linea': linea, 'pie': pie, 'es_estudiante': est is not None,
+        'activo': est.is_active if est else request.user.is_active,
+        'qr': _qr_base64(url, caja=10, borde=2)})
 
 
 # ==============================================================================
@@ -130,6 +196,12 @@ def carnet_qr(request, codigo):
     from django.contrib.auth import login
     estudiante = _estudiante_del_codigo(request, codigo)
     if estudiante is None:
+        docente = (Docente.objects.select_related('user', 'colegio')
+                   .filter(codigo_carnet=codigo, colegio=request.colegio).first()
+                   if getattr(request, 'colegio', None) else None)
+        if docente is not None:
+            return render(request, 'notas/docente/carnet_verificado.html', {
+                'docente': docente, 'cursos_dirigidos': list(docente.cursos_dirigidos.values_list('nombre', flat=True))})
         return render(request, 'notas/docente/carnet_verificado.html', {'estudiante': None}, status=404)
     if request.user.is_authenticated and request.session.get(CLAVE_KIOSKO):
         resultado = _registrar(request, estudiante)
@@ -307,6 +379,9 @@ def _registrar(request, estudiante):
         defaults={'estado': 'P'})
     if creada:
         return {'ok': True, 'nivel': 'success', 'nombre': nombre, 'mensaje': f'{nombre}: presente.'}
+    if asistencia.excusa_id:
+        return {'ok': False, 'nivel': 'info', 'nombre': nombre,
+                'mensaje': f'{nombre} tiene excusa aprobada hoy: no se cambia su asistencia.'}
     if asistencia.estado == 'A':
         # Lo habían marcado ausente y llegó: queda como «tarde».
         asistencia.estado = 'T'

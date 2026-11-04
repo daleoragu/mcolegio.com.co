@@ -54,6 +54,7 @@ def asistencia_vista(request):
         asignaciones_docente = AsignacionDocente.objects.filter(docente=docente_actual, colegio=request.colegio).select_related('curso', 'materia').order_by('curso__nombre', 'materia__nombre')
 
     estudiantes_del_curso, asistencias_map, mostrar_lista = [], {}, False
+    excusados = {}
     asignacion_id = request.GET.get('asignacion_id')
     fecha_str = request.GET.get('fecha', timezone.localdate().strftime('%Y-%m-%d'))
     
@@ -89,6 +90,9 @@ def asistencia_vista(request):
             
             asistencias_hoy = Asistencia.objects.filter(asignacion=asignacion_actual, fecha=fecha_obj, colegio=request.colegio)
             asistencias_map = {a.estudiante_id: a.estado for a in asistencias_hoy}
+            # Días con excusa aprobada: se muestran bloqueados.
+            excusados = {a.estudiante_id: a.excusa.get_motivo_display()
+                         for a in asistencias_hoy.filter(excusa__isnull=False).select_related('excusa')}
         except AsignacionDocente.DoesNotExist:
             messages.warning(request, "La asignación seleccionada no es válida.")
 
@@ -97,6 +101,7 @@ def asistencia_vista(request):
         'asignaciones': asignaciones_docente,
         'estudiantes': estudiantes_del_curso,
         'asistencias_map': asistencias_map,
+        'excusados': excusados,
         'asignacion_seleccionada_id': asignacion_id,
         'fecha_seleccionada': fecha_str,
         'mostrar_lista': mostrar_lista,
@@ -164,6 +169,11 @@ def guardar_inasistencia_ajax(request):
         if (not es_admin(request) and asignacion.docente != docente_actual
                 and not (fecha_permiso and _cubre_reemplazo(request, docente_actual, asignacion, fecha_permiso))):
              return JsonResponse({'status': 'error', 'message': 'Permiso denegado'}, status=403)
+
+        if Asistencia.objects.filter(estudiante=estudiante, asignacion=asignacion, fecha=fecha_str,
+                                     excusa__isnull=False).exists():
+            return JsonResponse({'status': 'error', 'message': 'Tiene excusa aprobada ese día: no se puede cambiar.'},
+                                status=409)
 
         asistencia_obj, created = Asistencia.objects.update_or_create(
             colegio=request.colegio,

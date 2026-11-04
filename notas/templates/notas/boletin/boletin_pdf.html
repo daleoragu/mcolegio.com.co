@@ -148,7 +148,7 @@
                     {% for nota_comp in materia.comps %}<td class="nota">{{ nota_comp.valor_nota|coma_decimal|default_if_none:"" }}</td>{% endfor %}
                     <td class="nota"><strong>{{ materia.def|coma_decimal|default_if_none:"" }}</strong></td>
                     <td class="nota"><strong>{{ materia.def_acumulada|coma_decimal|default_if_none:"" }}</strong></td>
-                    <td class="nota">{{ materia.inasistencias|default_if_none:"0" }}</td>
+                    <td class="nota">{{ materia.inasistencias|default_if_none:"0" }}{% if materia.inasistencias_excusa %}<br><span style="font-size:6.5px;font-weight:normal">{{ materia.inasistencias_excusa }} con excusa</span>{% endif %}</td>
                 </tr>
                 
                 {% if boletin.estudiante.es_inclusion and materia.observacion_inclusion %}

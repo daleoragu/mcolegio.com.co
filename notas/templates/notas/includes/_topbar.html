@@ -61,6 +61,7 @@
                     {% if 'reporte_parcial' in mods %}{% if user.es_admin_colegio or user.docente %}<li><a class="dropdown-item {% if request.resolver_match.url_name == 'sabana_reporte_parcial' %}active{% endif %}" href="{% url 'notas:sabana_reporte_parcial' %}"><i class="fas fa-table-list fa-fw me-2 text-muted"></i>Sábana Reporte Parcial</a></li>{% endif %}{% endif %}
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'asistencia' %}active{% endif %}" href="{% url 'notas:asistencia' %}"><i class="fas fa-user-check fa-fw me-2 text-muted"></i>Toma de Asistencia</a></li>
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'vista_kiosko_asistencia' %}active{% endif %}" href="{% url 'notas:vista_kiosko_asistencia' %}"><i class="fas fa-qrcode fa-fw me-2 text-muted"></i>Kiosko de asistencia (QR)</a></li>
+                    {% if user.es_admin_colegio or user.docente.cursos_dirigidos.all %}<li><a class="dropdown-item {% if request.resolver_match.url_name == 'excusas' %}active{% endif %}" href="{% url 'notas:excusas' %}"><i class="fas fa-file-medical fa-fw me-2 text-muted"></i>Excusas de fallas</a></li>{% endif %}
                     <li><a class="dropdown-item {% if request.resolver_match.url_name == 'consulta_asistencia' %}active{% endif %}" href="{% url 'notas:consulta_asistencia' %}"><i class="fas fa-clipboard-list fa-fw me-2 text-muted"></i>Consultar Asistencia</a></li>
                     <li><a class="dropdown-item {% if 'observador' in request.path %}active{% endif %}" href="{% url 'notas:observador_selector' %}"><i class="fas fa-eye fa-fw me-2 text-muted"></i>Observador</a></li>
                     <li><a class="dropdown-item {% if 'boletin' in request.path %}active{% endif %}" href="{% url 'notas:selector_boletin' %}"><i class="fas fa-file-invoice fa-fw me-2 text-muted"></i>Generar Boletines</a></li>
@@ -174,10 +175,11 @@
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                 <li><h6 class="dropdown-header">{{ user.get_full_name|default:user.username }}</h6></li>
                 {% if user|has_group:"Estudiantes" and user.estudiante %}
-                    <li><a class="dropdown-item" href="{% url 'notas:editar_estudiante' user.estudiante.id %}"><i class="fas fa-camera fa-fw me-2 text-muted"></i>Mi Ficha / Foto</a></li>
+                    <li><a class="dropdown-item" href="{% url 'notas:mi_ficha' %}"><i class="fas fa-camera fa-fw me-2 text-muted"></i>Mi Ficha / Foto</a></li>
                 {% elif user.docente %}
                      <li><a class="dropdown-item" href="{% url 'notas:editar_docente' user.docente.id %}"><i class="fas fa-id-card fa-fw me-2 text-muted"></i>Mi Ficha</a></li>
                 {% endif %}
+                {% if user.estudiante or user.docente %}<li><a class="dropdown-item" href="{% url 'notas:mi_carne' %}"><i class="fas fa-id-badge fa-fw me-2 text-muted"></i>Mi carné</a></li>{% endif %}
                 <li><a class="dropdown-item" href="{% url 'notas:cambiar_password' %}"><i class="fas fa-key fa-fw me-2 text-muted"></i>Cambiar Contraseña</a></li>
                 <li><a class="dropdown-item" href="/copias/?volver={{ request.path|urlencode }}"><i class="fas fa-shield-halved fa-fw me-2 text-muted"></i>Copia de seguridad</a></li>
                 <li><hr class="dropdown-divider"></li>

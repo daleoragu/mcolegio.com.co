@@ -98,8 +98,17 @@
     <!-- Controles -->
     <div class="card p-3 mb-4 controls-card">
         <h2 class="h4">Gestión de Impresión de Carnets</h2>
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item"><a class="nav-link {% if tipo != 'docentes' %}active{% endif %}" href="?tipo=estudiantes"><i class="fas fa-user-graduate me-1"></i>Estudiantes</a></li>
+            <li class="nav-item"><a class="nav-link {% if tipo == 'docentes' %}active{% endif %}" href="?tipo=docentes"><i class="fas fa-chalkboard-user me-1"></i>Docentes</a></li>
+        </ul>
+        {% if tipo == 'docentes' %}
+        <p>Carnés de los docentes del colegio. El QR muestra que el carné es válido (nombre, colegio y, si aplica, el curso que dirige).</p>
+        <div><button type="button" onclick="imprimirTodos()" class="btn btn-success"><i class="fas fa-print"></i> Imprimir todos los carnés docentes</button></div>
+        {% else %}
         <p>Seleccione un curso para ver la lista de estudiantes. Puede imprimir un carnet individual o todos los de la lista.</p>
         <form method="get" class="row g-3 align-items-end">
+            <input type="hidden" name="tipo" value="estudiantes">
             <div class="col-md-5">
                 <label for="curso_id" class="form-label">Filtrar por Curso:</label>
                 <select name="curso_id" id="curso_id" class="form-select">
@@ -113,27 +122,28 @@
             </div>
         </form>
         <p class="small mt-2"><a href="{% url 'notas:pines_carnet' %}{% if curso_seleccionado_id %}?curso={{ curso_seleccionado_id }}{% endif %}"><i class="fas fa-key me-1"></i>Lista de PIN del carné para entregar</a> · El QR de cada carné sirve para la asistencia y, con el PIN, para que el estudiante entre a su menú.</p>
+        {% endif %}
     </div>
 
-    <!-- Lista de Estudiantes -->
+    <!-- Lista -->
     <div class="card">
         <div class="card-body">
             <table class="table table-hover student-list-table">
-                <thead><tr><th>Foto</th><th>Nombre del Estudiante</th><th>Curso</th><th class="text-end">Acciones</th></tr></thead>
+                <thead><tr><th>Foto</th><th>Nombre</th><th>{% if tipo == 'docentes' %}Cargo{% else %}Curso{% endif %}</th><th class="text-end">Acciones</th></tr></thead>
                 <tbody>
-                    {% for estudiante in estudiantes %}
+                    {% for p in personas %}
                         <tr>
-                            <td><img src="{% if estudiante.ficha.foto %}{{ estudiante.ficha.foto.url }}{% else %}{% static 'img/default-user.png' %}{% endif %}" alt="Foto" class="student-photo"></td>
-                            <td>{{ estudiante.user.get_full_name }}</td>
-                            <td>{{ estudiante.curso.nombre }}</td>
+                            <td><img src="{{ p.foto }}" alt="Foto" class="student-photo"></td>
+                            <td>{{ p.nombre }}</td>
+                            <td>{{ p.linea }}</td>
                             <td class="text-end">
-                                <button class="btn btn-secondary btn-sm" onclick="imprimirCarnetIndividual('carnet-{{ estudiante.id }}')">
+                                <button class="btn btn-secondary btn-sm" onclick="imprimirCarnetIndividual('carnet-{{ p.id }}')">
                                     <i class="fas fa-id-card"></i> Imprimir Carnet
                                 </button>
                             </td>
                         </tr>
                     {% empty %}
-                        <tr><td colspan="4" class="text-center text-muted py-4">No hay estudiantes para mostrar.</td></tr>
+                        <tr><td colspan="4" class="text-center text-muted py-4">No hay {% if tipo == 'docentes' %}docentes{% else %}estudiantes{% endif %} para mostrar.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -142,20 +152,20 @@
 
     <!-- Contenedor oculto con todos los carnets -->
     <div class="carnet-hidden-container">
-        {% for estudiante in estudiantes %}
-            <div id="carnet-{{ estudiante.id }}" class="carnet">
+        {% for p in personas %}
+            <div id="carnet-{{ p.id }}" class="carnet">
                 <div class="carnet-header">
                     {% if colegio.escudo %}<img src="{{ colegio.escudo.url }}" alt="Escudo" class="logo-escudo">{% endif %}
                     <h3>{{ colegio.nombre|upper }}</h3>
                 </div>
                 <div class="carnet-body">
-                    <img src="{% if estudiante.ficha.foto %}{{ estudiante.ficha.foto.url }}{% else %}{% static 'img/default-user.png' %}{% endif %}" alt="Foto" class="carnet-foto">
-                    <h4 class="carnet-nombre">{{ estudiante.user.get_full_name }}</h4>
-                    <p class="carnet-documento">{{ estudiante.ficha.get_tipo_documento_display|default:'Documento' }}: {{ estudiante.ficha.numero_documento|default:'No reg.' }}</p>
-                    <p class="carnet-curso">Curso: {{ estudiante.curso.nombre|default:'N/A' }}</p>
-                    <div class="carnet-qr"><img src="data:image/png;base64,{{ estudiante.qr_image_base64 }}" alt="QR"></div>
+                    <img src="{{ p.foto }}" alt="Foto" class="carnet-foto">
+                    <h4 class="carnet-nombre">{{ p.nombre }}</h4>
+                    <p class="carnet-documento">{{ p.documento }}</p>
+                    <p class="carnet-curso">{{ p.linea }}</p>
+                    <div class="carnet-qr"><img src="data:image/png;base64,{{ p.qr }}" alt="QR"></div>
                 </div>
-                <div class="carnet-footer">CARNET ESTUDIANTIL - {% now "Y" %}</div>
+                <div class="carnet-footer">{{ p.pie }} - {% now "Y" %}</div>
             </div>
         {% endfor %}
     </div>

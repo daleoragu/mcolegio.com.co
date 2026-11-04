@@ -1,0 +1,68 @@
+{% extends 'notas/base.html' %}
+{% block title %}Excusas{% endblock %}
+{% block page_title %}<h1>Excusas de fallas</h1>{% endblock %}
+{% block content %}
+<style>
+  .ex-chip { display:inline-block; border-radius:999px; padding:2px 10px; font-size:.78rem; font-weight:700; }
+  .ex-PENDIENTE { background:#fff3cd; color:#664d03; } .ex-APROBADA { background:#d1e7dd; color:#0f5132; }
+  .ex-RECHAZADA { background:#f8d7da; color:#842029; } .ex-ANULADA { background:#eef1f5; color:#4b5563; }
+  .ex-caja { background:#fff; border:1px solid #e3e7ef; border-radius:14px; padding:16px 18px; margin-bottom:14px; }
+</style>
+<div class="row g-3">
+  <div class="col-lg-8">
+    <form method="get" class="d-flex flex-wrap gap-2 mb-2">
+      <div class="btn-group flex-wrap" role="group" aria-label="Estado">
+        {% for k, t in estados %}<a class="btn btn-sm {% if estado == k %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?estado={{ k }}{% if q %}&q={{ q|urlencode }}{% endif %}">{{ t }}{% if k == 'PENDIENTE' and n_pendientes %} <span class="badge text-bg-danger">{{ n_pendientes }}</span>{% endif %}</a>{% endfor %}
+        <a class="btn btn-sm {% if estado == 'TODAS' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?estado=TODAS{% if q %}&q={{ q|urlencode }}{% endif %}">Todas</a>
+      </div>
+      <input type="hidden" name="estado" value="{{ estado }}">
+      <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm" style="max-width:220px" placeholder="Buscar estudiante…" aria-label="Buscar estudiante">
+    </form>
+    <div class="ex-caja p-0">
+      {% for e in excusas %}
+      <a href="{% url 'notas:excusa' e.pk %}" class="d-flex gap-3 align-items-center px-3 py-2 border-bottom text-decoration-none text-reset">
+        <div class="flex-grow-1">
+          <div class="fw-semibold">{{ e.estudiante.user.last_name }} {{ e.estudiante.user.first_name }} <span class="text-muted fw-normal">· {{ e.estudiante.curso.nombre }}</span></div>
+          <div class="small text-muted">{{ e.get_motivo_display }} · {{ e.desde|date:"d/m" }}{% if e.hasta != e.desde %} a {{ e.hasta|date:"d/m" }}{% endif %} · enviada {{ e.creada|date:"d/m h:i a" }}{% if e.soporte %} · <i class="fas fa-paperclip"></i> soporte{% endif %}{% if e.fuera_de_plazo %} · <span class="text-danger">fuera de plazo</span>{% endif %}</div>
+        </div>
+        <span class="ex-chip ex-{{ e.estado }}">{{ e.get_estado_display }}</span>
+      </a>
+      {% empty %}
+      <p class="text-muted text-center py-4 mb-0">No hay excusas {% if estado != 'TODAS' %}en «{{ estado|lower }}»{% endif %}.</p>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <form method="post" enctype="multipart/form-data" class="ex-caja">{% csrf_token %}
+      <input type="hidden" name="accion" value="registrar">
+      <h6 class="fw-bold mb-1"><i class="fas fa-plus me-1"></i>Registrar una excusa en papel</h6>
+      <p class="small text-muted">Si la familia la trajo al colegio. Aquí no aplica el plazo.</p>
+      <label class="form-label small fw-bold mb-1" for="rg-est">Estudiante</label>
+      <select name="estudiante" id="rg-est" class="form-select form-select-sm mb-2" required>
+        <option value="">— Escoja —</option>
+        {% for s in estudiantes %}<option value="{{ s.pk }}">{{ s.curso.nombre }} · {{ s.user.last_name }} {{ s.user.first_name }}</option>{% endfor %}
+      </select>
+      <select name="motivo" class="form-select form-select-sm mb-2" aria-label="Motivo">{% for k, t in motivos %}<option value="{{ k }}">{{ t }}</option>{% endfor %}</select>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><input type="date" name="desde" class="form-control form-control-sm" value="{{ hoy|date:'Y-m-d' }}" required aria-label="Desde"></div>
+        <div class="col-6"><input type="date" name="hasta" class="form-control form-control-sm" aria-label="Hasta"></div>
+      </div>
+      <textarea name="explicacion" class="form-control form-control-sm mb-2" rows="2" maxlength="1500" placeholder="Explicación"></textarea>
+      <input type="file" name="soporte" class="form-control form-control-sm mb-2" accept="image/*,.pdf" aria-label="Soporte">
+      <button class="btn btn-sm btn-primary w-100">Registrar</button>
+    </form>
+    {% if admin %}
+    <form method="post" class="ex-caja">{% csrf_token %}
+      <input type="hidden" name="accion" value="plazo">
+      <h6 class="fw-bold mb-1"><i class="fas fa-hourglass-half me-1"></i>Plazo para enviar la excusa</h6>
+      <div class="d-flex gap-2 align-items-center">
+        <input type="number" name="dias" min="0" max="30" value="{{ plazo }}" class="form-control form-control-sm" style="max-width:80px" aria-label="Días hábiles">
+        <span class="small">días hábiles después de la falla</span>
+        <button class="btn btn-sm btn-outline-primary ms-auto">Guardar</button>
+      </div>
+      <div class="form-text">0 = sin plazo. Lo que diga el manual de convivencia.</div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

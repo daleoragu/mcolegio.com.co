@@ -120,6 +120,9 @@ class Colegio(models.Model):
 
     # --- Configuración de Boletines en PDF ---
     mostrar_foto_estudiante_boletin = models.BooleanField(default=False, verbose_name="Mostrar Foto del Estudiante en Boletines")
+    dias_plazo_excusa = models.PositiveSmallIntegerField(
+        default=3, verbose_name="Días hábiles para enviar la excusa",
+        help_text="Después de la falla. 0 = sin plazo.")
     mostrar_firma_rector_boletin = models.BooleanField(default=False, verbose_name="Mostrar Firma del Rector en Boletines")
     fuente_firma_rector = models.CharField(max_length=100, choices=FONT_CHOICES, default='Helvetica', verbose_name="Fuente de la Firma del Rector")
     tamano_firma_rector = models.PositiveSmallIntegerField(default=10, verbose_name="Tamaño de Letra del Rector (pt)")
@@ -498,9 +501,23 @@ class Curso(models.Model):
 class Docente(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="docentes")
     user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Usuario de Login")
-    
+    # QR del carné docente: al azar, como el de los estudiantes (ver Estudiante.codigo_carnet).
+    codigo_carnet = models.CharField(max_length=16, unique=True, null=True, blank=True, editable=False,
+                                     verbose_name="Código del carné")
+
     def __str__(self): 
         return self.user.get_full_name() or self.user.username
+
+    def asegurar_codigo_carnet(self, nuevo=False):
+        if nuevo or not self.codigo_carnet:
+            codigo = nuevo_codigo_carnet()
+            while (Docente.objects.filter(codigo_carnet=codigo).exists()
+                   or Estudiante.objects.filter(codigo_carnet=codigo).exists()):
+                codigo = nuevo_codigo_carnet()
+            self.codigo_carnet = codigo
+            if self.pk:
+                Docente.objects.filter(pk=self.pk).update(codigo_carnet=codigo)
+        return self.codigo_carnet
         
     def es_director_de_grupo(self, curso):
         return self.cursos_dirigidos.filter(pk=curso.pk).exists()

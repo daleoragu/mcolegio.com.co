@@ -80,11 +80,15 @@
                             <!-- TAREA DE AJUSTE 1: Formato Apellido, Nombre -->
                             <td>{{ estudiante.user.last_name }}, {{ estudiante.user.first_name }}</td>
                             <td class="text-center radio-group">
+                                {% if estudiante.id in excusados %}
+                                    <span class="badge text-bg-success" title="Excusa aprobada por la coordinación o el director de grupo"><i class="fas fa-lock me-1"></i>Excusado · {{ excusados|get_item:estudiante.id }}</span>
+                                {% else %}
                                 {% with estado_actual=asistencias_map|get_item:estudiante.id %}
                                     <label><input type="radio" class="asistencia-radio" name="asistencia_{{ estudiante.id }}" value="P" data-estudiante-id="{{ estudiante.id }}" {% if not estado_actual or estado_actual == 'P' %}checked{% endif %}> Presente</label>
                                     <label><input type="radio" class="asistencia-radio" name="asistencia_{{ estudiante.id }}" value="A" data-estudiante-id="{{ estudiante.id }}" {% if estado_actual == 'A' %}checked{% endif %}> Ausente</label>
                                     <label><input type="radio" class="asistencia-radio" name="asistencia_{{ estudiante.id }}" value="T" data-estudiante-id="{{ estudiante.id }}" {% if estado_actual == 'T' %}checked{% endif %}> Tarde</label>
                                 {% endwith %}
+                                {% endif %}
                             </td>
                             <td class="text-center">
                                 <span class="save-status" id="status-{{ estudiante.id }}"></span>

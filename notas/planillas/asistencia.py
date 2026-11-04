@@ -140,6 +140,8 @@ def leer(archivo, colegio, usuario):
                     continue
                 vistos.add(clave)
                 antes = guardados.get((est_id, fecha))
+                if antes is not None and antes.excusa_id:
+                    continue          # día con excusa aprobada: lo maneja la coordinación, no el Excel
                 antes_clave = _estado_clave(antes.estado, antes.justificada) if antes else None
                 if texto:
                     estado, just = CODIGOS[texto]
@@ -188,6 +190,9 @@ def aplicar(cambios, colegio, usuario):
         if asignacion is None:
             continue
         if not Estudiante.objects.filter(pk=est_id, colegio=colegio, curso=asignacion.curso).exists():
+            continue
+        if Asistencia.objects.filter(estudiante_id=est_id, asignacion=asignacion, excusa__isnull=False,
+                                     fecha=datetime.date.fromisoformat(fecha)).exists():
             continue
         Asistencia.objects.update_or_create(
             colegio=colegio, estudiante_id=est_id, asignacion=asignacion,

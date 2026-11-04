@@ -1,0 +1,19 @@
+{% comment %}Formulario de la clase invertida: nueva (clase=None) o editar.{% endcomment %}
+<label class="form-label small fw-bold mb-1" for="inv-titulo-{{ prefijo }}">Título</label>
+<input name="titulo" id="inv-titulo-{{ prefijo }}" class="form-control mb-2" maxlength="60" required
+       value="{% if clase %}{{ clase.titulo }}{% else %}{{ borrador.titulo }}{% endif %}" placeholder="Ej.: La célula">
+<label class="form-label small fw-bold mb-1" for="inv-video-{{ prefijo }}">Enlace del video</label>
+<input type="url" name="video" id="inv-video-{{ prefijo }}" class="form-control mb-1" required maxlength="300"
+       value="{% if clase %}{{ clase.video }}{% else %}{{ borrador.video }}{% endif %}" placeholder="https://www.youtube.com/watch?v=…">
+<div class="form-text mb-2">De YouTube se ve dentro del aula. Otros enlaces (Drive, Vimeo…) se abren aparte.</div>
+<label class="form-label small fw-bold mb-1" for="inv-ins-{{ prefijo }}">Indicaciones (opcional)</label>
+<textarea name="instrucciones" id="inv-ins-{{ prefijo }}" class="form-control mb-2" rows="2" maxlength="3000"
+          placeholder="Vea el video completo antes de la clase y responda.">{% if clase %}{{ clase.instrucciones }}{% else %}{{ borrador.instrucciones }}{% endif %}</textarea>
+<label class="form-label small fw-bold mb-1" for="inv-preg-{{ prefijo }}">Preguntas (péguelas aquí)</label>
+<textarea name="preguntas" id="inv-preg-{{ prefijo }}" class="form-control mb-1 inv-preguntas" rows="9" required
+          style="font-family:ui-monospace,Consolas,monospace;font-size:.85rem"
+          placeholder="[1:20] ¿Qué es la célula?&#10;[3:45] ¿Cuál es el centro de control de la célula?&#10;A) La membrana&#10;*B) El núcleo&#10;C) El citoplasma&#10;¿Qué fue lo que más le llamó la atención?">{% if clase %}{{ clase.texto_preguntas }}{% else %}{{ borrador.preguntas }}{% endif %}</textarea>
+<div class="form-text mb-1">Numere las preguntas (1. 2. 3.) o sepárelas con una línea en blanco. Para las de selección escriba las opciones con letra (<b>A)</b> <b>B)</b>…) y marque la correcta con <b>*</b> o con una línea <b>RESPUESTA: B</b>: esas se califican solas. Las preguntas sin opciones son abiertas.<br><b>Para que el video se detenga en una pregunta</b>, ponga el minuto al comienzo: <b>[2:30]</b> ¿Qué es…? (solo con videos de YouTube). Las que no llevan minuto quedan para el final.</div>
+<div class="small mb-2 inv-cuenta text-primary fw-semibold" aria-live="polite"></div>
+{% include 'aula/_para.html' with actual=clase.para prefijo=prefijo %}
+{% include 'aula/_periodo_componente.html' with obj=clase %}

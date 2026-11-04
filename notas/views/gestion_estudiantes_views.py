@@ -126,17 +126,27 @@ def editar_estudiante_vista(request, estudiante_id):
     # 👇 FILTRADO: Obtener el estudiante solo si pertenece al colegio actual
     estudiante = get_object_or_404(Estudiante, id=estudiante_id, colegio=request.colegio)
     
-    if not (es_personal_admin(request.user) or request.user.id == estudiante.user.id):
+    if not es_personal_admin(request.user):
+        if request.user.id == estudiante.user.id:
+            # El estudiante pide los cambios; no edita directo (ni curso, ni nombres, ni inclusión).
+            return redirect('notas:mi_ficha')
         raise PermissionDenied
 
+    from .. import fichas as F
     ficha, created = FichaEstudiante.objects.get_or_create(estudiante=estudiante)
     if request.method == 'POST':
+        antes = F.foto_ficha(ficha, con_perfil=True)
         # Pasar el colegio al formulario para filtrar el curso
         form = AdminEditarEstudianteForm(request.POST, request.FILES, instance=ficha, colegio=request.colegio)
         if form.is_valid():
             form.save()
+            ficha.refresh_from_db()
+            estudiante.refresh_from_db()
+            estudiante.user.refresh_from_db()
+            F.registrar(request.colegio, estudiante, antes, F.foto_ficha(ficha, con_perfil=True), request.user, 'ADMIN',
+                        autorizado_por=request.user)
             messages.success(request, f"¡Ficha actualizada con éxito!")
-            return redirect('notas:dashboard' if request.user.id == estudiante.user.id else 'notas:gestion_estudiantes')
+            return redirect('notas:gestion_estudiantes')
     else:
         # Pasar el colegio al formulario para filtrar el curso
         form = AdminEditarEstudianteForm(instance=ficha, colegio=request.colegio)

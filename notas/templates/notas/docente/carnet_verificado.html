@@ -21,7 +21,13 @@
   .aviso { background: #fff3cd; color: #664d03; border-radius: 8px; padding: 8px 10px; margin-top: 12px; font-size: .9rem; }
 </style></head>
 <body><div class="caja">
-{% if estudiante %}
+{% if docente %}
+  <div class="ok">✔ Carné docente válido</div>
+  <div class="nombre">{{ docente.user.get_full_name|default:docente.user.username }}</div>
+  <div class="sub">Docente · {{ docente.colegio.nombre }}</div>
+  {% if cursos_dirigidos %}<div class="sub">Director(a) de grupo {{ cursos_dirigidos|join:", " }}</div>{% endif %}
+  {% if not docente.user.is_active %}<p class="no">Esta persona ya no está activa en el colegio.</p>{% endif %}
+{% elif estudiante %}
   <div class="ok">✔ Carné estudiantil válido</div>
   <div class="nombre">{{ estudiante.user.get_full_name|default:estudiante.user.username }}</div>
   <div class="sub">{% if estudiante.curso %}Curso {{ estudiante.curso.nombre }} · {% endif %}{{ estudiante.colegio.nombre }}</div>

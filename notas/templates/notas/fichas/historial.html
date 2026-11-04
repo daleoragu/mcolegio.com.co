@@ -1,0 +1,29 @@
+{% extends 'notas/base.html' %}
+{% block title %}Historial de la ficha · {{ estudiante }}{% endblock %}
+{% block page_title %}<h1>Historial de la ficha</h1>{% endblock %}
+{% block content %}
+<div class="mb-2"><a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Volver</a></div>
+<div class="bg-white border rounded-3 p-3">
+  <h5 class="fw-bold mb-1">{{ estudiante.user.get_full_name }}</h5>
+  <p class="text-muted small">Curso {{ estudiante.curso.nombre|default:"—" }} · Cada dato que cambió: quién lo hizo y quién lo autorizó.</p>
+  <div class="table-responsive">
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Fecha</th><th>Dato</th><th>Antes</th><th>Después</th><th>Lo hizo</th><th>Autorizó</th></tr></thead>
+    <tbody>
+    {% for c in cambios %}
+    <tr>
+      <td class="small text-nowrap">{{ c.creado|date:"d/m/Y h:i a" }}</td>
+      <td class="fw-semibold">{{ c.etiqueta }}</td>
+      <td class="small text-muted">{{ c.antes|default:"(vacío)"|truncatechars:80 }}</td>
+      <td class="small">{{ c.despues|default:"(vacío)"|truncatechars:80 }}</td>
+      <td class="small">{{ c.hecho_por.get_full_name|default:c.hecho_por.username|default:"—" }}<br><span class="text-muted">{{ c.get_origen_display }}</span></td>
+      <td class="small">{{ c.autorizado_por.get_full_name|default:c.autorizado_por.username|default:"—" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="text-muted">Todavía no hay cambios registrados.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}

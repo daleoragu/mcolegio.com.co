@@ -220,6 +220,8 @@ class Asistencia(models.Model):
     fecha = models.DateField(default=datetime.date.today)
     estado = models.CharField(max_length=1, choices=ESTADO_CHOICES, default='P')
     justificada = models.BooleanField(default=False)
+    # La excusa aprobada que justificó esta falla: mientras exista, el docente no la cambia.
+    excusa = models.ForeignKey('notas.Excusa', on_delete=models.SET_NULL, null=True, blank=True, related_name='asistencias')
     class Meta:
         unique_together = ('estudiante', 'asignacion', 'fecha', 'colegio')
         verbose_name = "Registro de Asistencia"; verbose_name_plural = "Registros de Asistencia"; ordering = ['-fecha', 'estudiante__user__last_name']

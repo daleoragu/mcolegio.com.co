@@ -1,0 +1,50 @@
+{% extends 'notas/base.html' %}
+{% block title %}Mi ficha{% endblock %}
+{% block page_title %}<h1>Mi ficha</h1>{% endblock %}
+{% block content %}
+<style>
+  .mf-caja { background:#fff; border:1px solid #e3e7ef; border-radius:14px; padding:16px 18px; margin-bottom:14px; }
+  .mf-chip { display:inline-block; border-radius:999px; padding:2px 10px; font-size:.78rem; font-weight:700; }
+  .mf-PENDIENTE { background:#fff3cd; color:#664d03; } .mf-APROBADA, .mf-PARCIAL { background:#d1e7dd; color:#0f5132; }
+  .mf-RECHAZADA { background:#f8d7da; color:#842029; }
+</style>
+<div class="mf-caja d-flex flex-wrap gap-3 align-items-center">
+  {% if ficha.foto %}<img src="{{ ficha.foto.url }}" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover">{% endif %}
+  <div class="flex-grow-1">
+    <div class="fw-bold fs-5">{{ estudiante.user.get_full_name }}</div>
+    <div class="text-muted small">Curso {{ estudiante.curso.nombre|default:"—" }}</div>
+  </div>
+  <div class="small text-muted" style="max-width:420px">Revise sus datos y escriba lo que haya que corregir. Los cambios <b>no se guardan de una vez</b>: le llegan a la administración y a su director de grupo para que los autoricen. Su nombre y su curso los corrige la secretaría.</div>
+</div>
+
+{% if pendiente %}
+<div class="mf-caja border-warning">
+  <div class="d-flex align-items-center gap-2 mb-2"><span class="mf-chip mf-PENDIENTE">Esperando autorización</span><span class="small text-muted">enviada {{ pendiente.creada|date:"d/m/Y h:i a" }}</span></div>
+  <ul class="small mb-2">{% for c in pendiente.cambios.values %}<li><b>{{ c.etiqueta }}:</b> {{ c.antes|default:"(vacío)" }} → {{ c.despues_txt|default:"(vacío)" }}</li>{% endfor %}</ul>
+  <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="accion" value="cancelar"><button class="btn btn-sm btn-outline-secondary">Cancelar la solicitud</button></form>
+  <span class="small text-muted ms-2">Si envía otra, reemplaza a esta.</span>
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="mf-caja">{% csrf_token %}
+  {% if form.errors %}<div class="alert alert-danger small">{% for f in form %}{% for e in f.errors %}<div>{{ f.label }}: {{ e }}</div>{% endfor %}{% endfor %}</div>{% endif %}
+  <div class="row g-3">
+    {% for f in form %}
+    <div class="{% if f.name == 'enfermedades_alergias' %}col-12{% else %}col-md-6 col-lg-4{% endif %}">
+      <label class="form-label small fw-bold mb-1" for="{{ f.id_for_label }}">{{ f.label }}</label>
+      {{ f }}
+    </div>
+    {% endfor %}
+  </div>
+  <button class="btn btn-primary mt-3"><i class="fas fa-paper-plane me-1"></i>Enviar los cambios para autorizar</button>
+</form>
+
+{% if recientes %}
+<div class="mf-caja">
+  <h6 class="fw-bold">Solicitudes anteriores</h6>
+  {% for s in recientes %}
+  <div class="small py-1 border-bottom"><span class="mf-chip mf-{{ s.estado }}">{{ s.get_estado_display }}</span> {{ s.creada|date:"d/m/Y" }} · {{ s.cambios|length }} dato(s){% if s.respuesta %} · «{{ s.respuesta }}»{% endif %}</div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

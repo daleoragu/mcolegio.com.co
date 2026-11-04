@@ -138,6 +138,10 @@ def crear(estudiante, ano, usuario=None):
     if not estudiante.es_inclusion:
         estudiante.es_inclusion = True
         estudiante.save(update_fields=['es_inclusion'])
+        from notas.models import CambioFicha
+        CambioFicha.objects.create(colegio=estudiante.colegio, estudiante=estudiante, campo='es_inclusion',
+                                   etiqueta='Programa de inclusión', antes='No', despues='Sí (al crear el PIAR)',
+                                   hecho_por=usuario, autorizado_por=usuario, origen='DOCENTE')
     return piar, bool(anterior)
 
 
