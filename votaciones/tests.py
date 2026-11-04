@@ -130,3 +130,51 @@ class Elecciones(ColegioDePrueba):
         self.a.modulos_activos = [m for m in self.a.modulos_activos if m != 'elecciones']
         self.a.save(update_fields=['modulos_activos'])
         self.assertEqual(self.cliente(self.ana.user).get('/votaciones/').status_code, 403)
+
+
+class BorrarElecciones(ColegioDePrueba):
+    """Una elección creada por error se puede borrar, aunque ya tenga votos."""
+    _preparar = Elecciones._preparar
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.a.modulos_activos = list(cls.a.modulos_activos or []) + ['elecciones']
+        cls.a.save(update_fields=['modulos_activos'])
+        cls.ana, cls.beto, cls.caro = cls.estudiantes
+        cls.otro_curso = Curso.objects.create(colegio=cls.a, nombre='1101', grado=11, subgrupo='1')
+        cls.dora = cls.crear_estudiante('dora', curso=cls.otro_curso)
+
+    def test_borrar_en_preparacion(self):
+        rectora, e, *_ = self._preparar()
+        rectora.post(f'/votaciones/{e.pk}/', {'accion': 'eliminar'})
+        self.assertFalse(Eleccion.objects.exists())
+        self.assertFalse(Cargo.objects.exists())
+
+    def test_abierta_con_votos_pide_escribir_eliminar(self):
+        rectora, e, personero, contralor, vocero = self._preparar()
+        rectora.post(f'/votaciones/{e.pk}/', {'accion': 'abrir'})
+        e.refresh_from_db()
+        self.assertEqual(e.estado, 'abierta')
+        ana = self.cliente(self.ana.user)
+        ana.post(f'/votaciones/{e.pk}/votar/', {f'cargo-{personero.pk}': personero.candidatos.first().pk,
+                                                f'cargo-{contralor.pk}': contralor.candidatos.first().pk,
+                                                f'cargo-{vocero.pk}': vocero.candidatos.filter(curso=self.curso).first().pk})
+        self.assertEqual(VotoEmitido.objects.count(), 1)
+        rectora.post(f'/votaciones/{e.pk}/', {'accion': 'eliminar'})
+        self.assertTrue(Eleccion.objects.exists())
+        rectora.post(f'/votaciones/{e.pk}/', {'accion': 'eliminar', 'confirmacion': 'eliminar'})
+        self.assertFalse(Eleccion.objects.exists())
+        self.assertFalse(VotoEmitido.objects.exists())
+        self.assertFalse(Papeleta.objects.exists())
+
+    def test_superusuario_puede_borrar(self):
+        _, e, *_ = self._preparar()
+        self.cliente(self.super).post(f'/votaciones/{e.pk}/', {'accion': 'eliminar'})
+        self.assertFalse(Eleccion.objects.exists())
+
+    def test_docente_o_estudiante_no_borran(self):
+        _, e, *_ = self._preparar()
+        self.cliente(self.u_docente).post(f'/votaciones/{e.pk}/', {'accion': 'eliminar'})
+        self.cliente(self.ana.user).post(f'/votaciones/{e.pk}/', {'accion': 'eliminar'})
+        self.assertTrue(Eleccion.objects.exists())
