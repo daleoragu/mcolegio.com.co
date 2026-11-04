@@ -14,6 +14,10 @@ El docente pega las preguntas como texto. Cada pregunta empieza con un número
     RESPUESTA: a                           ← o la correcta al final
 
 Las de selección con una correcta se califican solas; las abiertas las lee el docente.
+
+Con el minuto al comienzo («[2:30] ¿Qué es…?») el video de YouTube se pausa ahí,
+muestra la pregunta encima y sigue cuando el estudiante responde. Las preguntas
+sin minuto quedan para el final.
 """
 import re
 
@@ -21,6 +25,23 @@ from .juegos import _OPCION, _RESPUESTA, nota as nota_de
 
 MAX_PREGUNTAS = 50
 _NUMERO = re.compile(r'^\s*(?:pregunta\s*)?\d{1,3}\s*[.)\-:]\s*(.*)$', re.I)
+_TIEMPO = re.compile(r'^\s*[\[(]\s*(\d{1,2}(?::\d{1,2}){1,2})\s*[\])]\s*(.*)$')
+
+
+def a_segundos(texto):
+    """'2:30' -> 150; '1:02:05' -> 3725."""
+    total = 0
+    for parte in texto.split(':'):
+        total = total * 60 + int(parte)
+    return total
+
+
+def minuto(segundos):
+    if segundos is None:
+        return ''
+    h, resto = divmod(int(segundos), 3600)
+    m, s = divmod(resto, 60)
+    return f'{h}:{m:02d}:{s:02d}' if h else f'{m}:{s:02d}'
 
 
 def leer_preguntas(texto):
@@ -29,10 +50,15 @@ def leer_preguntas(texto):
 
     def cerrar():
         nonlocal actual
-        if actual and ' '.join(actual['texto']).strip():
+        texto_p = ' '.join(actual['texto']).strip() if actual else ''
+        segundo = None
+        m = _TIEMPO.match(texto_p)
+        if m:
+            segundo, texto_p = a_segundos(m.group(1)), m.group(2).strip()
+        if actual and texto_p:
             opciones = [{'texto': t[:300], 'correcta': marcada or (letra == actual['respuesta'])}
                         for letra, t, marcada in actual['opciones']]
-            preguntas.append({'texto': ' '.join(actual['texto']).strip()[:1000], 'opciones': opciones})
+            preguntas.append({'texto': texto_p[:1000], 'opciones': opciones, 'segundo': segundo})
         actual = None
 
     for linea in (texto or '').splitlines():
@@ -50,6 +76,8 @@ def leer_preguntas(texto):
             actual['opciones'].append((m.group(2).upper(), m.group(3).strip(), bool(m.group(1))))
             continue
         m = _NUMERO.match(limpia)
+        if not m and _TIEMPO.match(limpia):
+            m = re.match(r'(.*)', limpia)          # «[2:30] …» también empieza una pregunta
         if m:
             cerrar()
             actual = {'texto': [m.group(1).strip()] if m.group(1).strip() else [], 'opciones': [], 'respuesta': None}
@@ -103,6 +131,7 @@ def detalle(clase, respuesta):
     for i, p in enumerate(clase.preguntas):
         valor = datos.get(str(i))
         fila = {'n': i + 1, 'i': i, 'texto': p['texto'], 'abierta': not p.get('opciones'),
+                'segundo': p.get('segundo'), 'minuto': minuto(p.get('segundo')),
                 'opciones': [dict(o, k=k, elegida=(valor == k)) for k, o in enumerate(p.get('opciones', []))],
                 'valor': valor, 'calificable': es_calificable(p), 'acierto': None}
         if fila['calificable'] and respuesta is not None:

@@ -37,7 +37,7 @@ class LeerPreguntas(ColegioDePrueba):
         self.assertEqual(leer_preguntas('   \n\n'), [])
 
 
-class AulaInvertida(ColegioDePrueba):
+class _BaseInvertida(ColegioDePrueba):
 
     @classmethod
     def setUpTestData(cls):
@@ -62,6 +62,9 @@ class AulaInvertida(ColegioDePrueba):
     def responder(self, est, datos):
         c = self.cliente(est.user)
         return c, c.post(f'{self.base}/{self.clase.pk}/', datos)
+
+
+class AulaInvertida(_BaseInvertida):
 
     def test_el_docente_publica_y_avisa(self):
         r, self.clase = self.crear()
@@ -154,3 +157,78 @@ class AulaInvertida(ColegioDePrueba):
     def test_pestana_en_el_aula(self):
         r = self.cliente(self.ana.user).get(f'/aula/{self.aula.pk}/')
         self.assertContains(r, 'Aula invertida')
+
+
+PAUSADAS = """[0:05] ¿Qué es la fotosíntesis?
+[0:12] ¿Dónde ocurre?
+A) En la raíz
+*B) En las hojas
+¿Qué aprendió del video?
+"""
+
+
+class VideoConPausas(_BaseInvertida):
+    """El video se detiene en las preguntas con minuto y se guarda el avance."""
+
+    def test_lee_el_minuto(self):
+        p = leer_preguntas('[2:30] Uno\n1. [1:02:05] Dos\nA) x\n*B) y\nTres sin minuto')
+        self.assertEqual([x['segundo'] for x in p], [150, 3725, None])
+        self.assertEqual(p[0]['texto'], 'Uno')
+
+    def test_pagina_con_pausas(self):
+        _, self.clase = self.crear(preguntas=PAUSADAS)
+        self.assertTrue(self.clase.con_pausas)
+        r = self.cliente(self.ana.user).get(f'{self.base}/{self.clase.pk}/')
+        self.assertContains(r, 'invertida_pausas.js')
+        self.assertContains(r, 'id="inv-config"')
+        self.assertContains(r, 'aparece en el video en el minuto 0:05')
+        self.assertContains(r, 'id="inv-enviar" disabled')
+
+    def test_sin_youtube_no_hay_pausas(self):
+        _, self.clase = self.crear(preguntas=PAUSADAS, video='https://drive.google.com/file/d/abc/view')
+        self.assertFalse(self.clase.con_pausas)
+        self.assertNotContains(self.cliente(self.ana.user).get(f'{self.base}/{self.clase.pk}/'), 'invertida_pausas.js')
+
+    def test_guarda_el_avance_y_luego_envia(self):
+        import json
+        _, self.clase = self.crear(preguntas=PAUSADAS)
+        c = self.cliente(self.ana.user)
+        url = f'{self.base}/{self.clase.pk}/progreso/'
+        r = c.post(url, json.dumps({'respuestas': {'0': 'Hacer alimento', '1': '1', '9': 'x'}, 'visto': 14, 'duracion': 60}),
+                   content_type='application/json')
+        self.assertTrue(r.json()['ok'])
+        av = RespuestaInvertida.objects.get(estudiante=self.ana)
+        self.assertEqual((av.terminada, av.respuestas, av.visto_hasta, av.pct_visto),
+                         (False, {'0': 'Hacer alimento', '1': 1}, 14, 23))
+        # Al volver, la página trae lo que ya respondió en el video
+        r = c.get(f'{self.base}/{self.clase.pk}/')
+        self.assertContains(r, 'Hacer alimento')
+        self.assertContains(r, '"respondidas": [0, 1]')
+        # El docente lo ve «viendo el video» y no cuenta como respuesta enviada
+        r = self.profe.get(f'{self.base}/{self.clase.pk}/')
+        self.assertContains(r, 'Viendo el video')
+        self.assertContains(r, 'Vio el 23 % del video')
+        self.assertContains(r, '0 de 3 respondieron')
+        # Envía todo
+        c.post(f'{self.base}/{self.clase.pk}/', {'p0': 'Hacer alimento', 'p1': '1', 'p2': 'Mucho'})
+        av.refresh_from_db()
+        self.assertTrue(av.terminada)
+        self.assertEqual((av.aciertos, av.nota), (1, Decimal('5.0')))
+        self.assertEqual(RespuestaInvertida.objects.count(), 1)
+        # Ya enviada, el avance no la cambia
+        r = c.post(url, json.dumps({'respuestas': {'2': 'otra'}}), content_type='application/json')
+        self.assertFalse(r.json()['ok'])
+        self.assertContains(self.profe.get(f'{self.base}/{self.clase.pk}/'), '1 de 3 respondieron')
+
+    def test_el_visto_no_pasa_de_la_duracion(self):
+        import json
+        _, self.clase = self.crear(preguntas=PAUSADAS)
+        c = self.cliente(self.ana.user)
+        c.post(f'{self.base}/{self.clase.pk}/progreso/', json.dumps({'visto': 500, 'duracion': 60}),
+               content_type='application/json')
+        self.assertEqual(RespuestaInvertida.objects.get(estudiante=self.ana).visto_hasta, 60)
+
+    def test_el_docente_no_usa_el_avance(self):
+        _, self.clase = self.crear(preguntas=PAUSADAS)
+        r = self.profe.post(f'{self.base}/{self.clase.pk}/progreso/', '{}', content_type='application/json')
+        self.assertEqual(r.status_code, 403)

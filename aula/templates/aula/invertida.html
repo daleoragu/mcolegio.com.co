@@ -1,4 +1,5 @@
 {% extends base %}
+{% load static %}
 {% block page_title %}{% endblock %}
 {% block content %}
 {% include 'aula/_cabecera.html' %}
@@ -13,6 +14,14 @@
   .inv-op.errada { border-color:#dc3545; background:#f8d7da; }
   .inv-barra { height:8px; background:#eef1f5; border-radius:99px; overflow:hidden; }
   .inv-barra span { display:block; height:100%; background:#198754; }
+  .inv-video #inv-reproductor, .inv-video #inv-reproductor iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .inv-capa { position:fixed; inset:0; z-index:1060; background:rgba(15,23,42,.72); overflow:auto; padding:24px 14px; display:flex; align-items:flex-start; justify-content:center; }
+  .inv-capa.d-none { display:none !important; }
+  .inv-capa-caja { background:#fff; border-radius:16px; padding:18px; width:100%; max-width:560px; margin-top:6vh; box-shadow:0 10px 40px rgba(0,0,0,.35); }
+  .inv-capa-caja .inv-pregunta { border:0; padding:0; margin:0 0 12px; }
+  .inv-espera { border:1px dashed var(--au-linea); border-radius:12px; padding:10px 14px; margin-bottom:10px; color:var(--au-tenue); font-size:.9rem; }
+  @keyframes inv-sacudir { 0%,100% { transform:none } 25% { transform:translateX(-6px) } 75% { transform:translateX(6px) } }
+  .inv-sacudir { animation:inv-sacudir .3s 2; }
 </style>
 <div class="au">
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
@@ -23,7 +32,10 @@
 
 <div class="row g-3">
   <div class="col-lg-7">
-    {% if clase.youtube_id %}
+    {% if pausas %}
+    <div class="inv-video mb-2"><div id="inv-reproductor"></div></div>
+    <div class="small text-muted mb-2" id="inv-estado-video"><i class="fas fa-pause-circle me-1"></i>El video se detiene en cada pregunta: respóndala y sigue. No se puede adelantar más allá de la siguiente pregunta.</div>
+    {% elif clase.youtube_id %}
     <div class="inv-video mb-2">
       <iframe src="https://www.youtube-nocookie.com/embed/{{ clase.youtube_id }}?rel=0" title="{{ clase.titulo }}"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe>
@@ -59,11 +71,12 @@
       {% endfor %}
     {% else %}
       <form method="post" class="au-tarjeta" id="inv-form">{% csrf_token %}
-        <h6><i class="fas fa-pen me-1"></i>Después de ver el video, responda</h6>
+        <h6><i class="fas fa-pen me-1"></i>{% if pausas %}Responda mientras ve el video{% else %}Después de ver el video, responda{% endif %}</h6>
         {% if error %}<div class="alert alert-danger py-2 small">{{ error }}</div>{% endif %}
         {% for p in detalle %}
-        <div class="inv-pregunta {% if p.n in faltan %}falta{% endif %}">
-          <div class="fw-semibold mb-1">{{ p.n }}. {{ p.texto }}</div>
+        {% if pausas and p.segundo is not None %}<div class="inv-espera" id="inv-espera-{{ p.i }}"><i class="fas fa-clock me-1"></i>Pregunta {{ p.n }}: aparece en el video en el minuto {{ p.minuto }}.</div>{% endif %}
+        <div class="inv-pregunta {% if p.n in faltan %}falta{% endif %}{% if pausas and p.segundo is not None %} d-none{% endif %}" id="inv-p-{{ p.i }}" data-i="{{ p.i }}">
+          <div class="fw-semibold mb-1">{{ p.n }}. {{ p.texto }}{% if pausas and p.segundo is not None %} <span class="au-chip gris">{{ p.minuto }}</span>{% endif %}</div>
           {% if p.abierta %}
             <textarea name="p{{ p.i }}" class="form-control" rows="3" maxlength="3000" required aria-label="Respuesta a la pregunta {{ p.n }}">{{ p.previo }}</textarea>
           {% else %}{% for o in p.opciones %}
@@ -71,15 +84,25 @@
           {% endfor %}{% endif %}
         </div>
         {% endfor %}
-        <button class="btn au-oro w-100" onclick="return confirm('¿Enviar sus respuestas? Después no se pueden cambiar.')">Enviar respuestas</button>
+        {% if pausas %}<div class="form-text mb-2" id="inv-falta-video">Para enviar, primero responda las preguntas que salen en el video.</div>{% endif %}
+        <button class="btn au-oro w-100" id="inv-enviar" {% if pausas %}disabled{% endif %} onclick="return confirm('¿Enviar sus respuestas? Después no se pueden cambiar.')">Enviar respuestas</button>
       </form>
+      {% if pausas %}
+      <div class="inv-capa d-none" id="inv-capa" role="dialog" aria-modal="true" aria-labelledby="inv-capa-titulo">
+        <div class="inv-capa-caja">
+          <div class="small text-muted mb-1" id="inv-capa-titulo"><i class="fas fa-pause me-1"></i>Pausa: responda para seguir con el video</div>
+          <div id="inv-capa-pregunta"></div>
+          <button type="button" class="btn au-oro w-100" id="inv-seguir">Responder y seguir <i class="fas fa-play ms-1"></i></button>
+        </div>
+      </div>
+      {% endif %}
     {% endif %}
   {% else %}
     <div class="au-tarjeta">
       <h6 class="mb-2"><i class="fas fa-chart-simple me-1"></i>{{ enviadas }} de {{ filas|length }} respondieron</h6>
       {% for p in resumen %}
       <div class="mb-2 small">
-        <div><b>{{ p.n }}.</b> {{ p.texto|truncatechars:110 }}</div>
+        <div><b>{{ p.n }}.</b> {% if p.minuto and clase.youtube_id %}<span class="au-chip gris"><i class="fas fa-pause"></i> {{ p.minuto }}</span> {% endif %}{{ p.texto|truncatechars:110 }}</div>
         {% if p.calificable %}
           {% if p.pct is not None %}<div class="d-flex align-items-center gap-2"><div class="inv-barra flex-grow-1"><span style="width:{{ p.pct }}%"></span></div><span class="fw-semibold">{{ p.pct }} % acertó</span></div>{% endif %}
         {% elif p.abierta %}<span class="au-chip gris">Abierta</span>{% else %}<span class="au-chip gris">Selección sin respuesta correcta</span>{% endif %}
@@ -119,9 +142,9 @@
     {% for f in filas %}
     <tr>
       <td>{{ f.nombre }}</td>
-      <td>{% if f.r %}<span class="au-chip ok">Respondió</span> <span class="small text-muted">{{ f.r.enviada|date:"d M h:i a" }}</span>{% else %}<span class="au-chip pend">Pendiente</span>{% endif %}</td>
-      {% if clase.calificables %}<td class="text-center">{% if f.r %}{{ f.r.aciertos }} / {{ clase.calificables }}{% endif %}</td>{% endif %}
-      <td style="min-width:260px">{% if f.r %}
+      <td>{% if f.r and f.r.terminada %}<span class="au-chip ok">Respondió</span> <span class="small text-muted">{{ f.r.enviada|date:"d M h:i a" }}</span>{% elif f.r %}<span class="au-chip pend">Viendo el video</span>{% else %}<span class="au-chip gris">Pendiente</span>{% endif %}{% if f.r.pct_visto is not None %}<div class="small text-muted">Vio el {{ f.r.pct_visto }} % del video</div>{% endif %}</td>
+      {% if clase.calificables %}<td class="text-center">{% if f.r.terminada %}{{ f.r.aciertos }} / {{ clase.calificables }}{% endif %}</td>{% endif %}
+      <td style="min-width:260px">{% if f.r.terminada %}
         <form method="post" action="{% url 'aula:invertida_accion' aula.pk clase.pk %}" class="d-flex gap-1 m-0">{% csrf_token %}
           <input type="hidden" name="accion" value="nota"><input type="hidden" name="clave" value="{{ f.clave }}">
           <input name="nota" class="form-control form-control-sm" style="max-width:80px" inputmode="decimal" value="{{ f.r.nota|default_if_none:'' }}" aria-label="Nota de {{ f.nombre }}" placeholder="—">
@@ -157,4 +180,8 @@
 {% endif %}
 </div>
 {% if c.es_docente %}{% include 'aula/_invertida_js.html' %}{% endif %}
+{% if pausas %}
+{{ inv_config|json_script:"inv-config" }}
+<script src="{% static 'aula/invertida_pausas.js' %}"></script>
+{% endif %}
 {% endblock %}

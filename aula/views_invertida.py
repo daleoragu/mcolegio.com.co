@@ -3,8 +3,10 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.db import IntegrityError
-from django.http import Http404
+from django.http import Http404, JsonResponse
+from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -68,10 +70,10 @@ def invertidas(request, pk):
     clases = [x for x in aula.invertidas.all() if c.es_docente or (x.publicada and logica.para_c(x, c))]
     if c.es_docente:
         for x in clases:
-            x.n_respuestas = x.respuestas.count()
+            x.n_respuestas = x.respuestas.filter(terminada=True).count()
     else:
         mias = {r.clase_id: r for r in RespuestaInvertida.objects.filter(
-            clase__in=clases, **logica.filtro_persona(_persona(c)))}
+            clase__in=clases, terminada=True, **logica.filtro_persona(_persona(c)))}
         for x in clases:
             x.mia = mias.get(x.pk)
     datos = {'clases': clases}
@@ -98,7 +100,9 @@ def invertida(request, pk, iid):
     persona = _persona(c)
     if persona is None:
         raise _Prohibido('Esta clase la responden los estudiantes.')
-    mia = RespuestaInvertida.objects.filter(clase=clase, **logica.filtro_persona(persona)).first()
+    fila_mia = RespuestaInvertida.objects.filter(clase=clase, **logica.filtro_persona(persona)).first()
+    mia = fila_mia if fila_mia and fila_mia.terminada else None
+    avance = fila_mia if fila_mia and not fila_mia.terminada else None     # lo que lleva viendo el video
     error, faltan = '', []
     if request.method == 'POST' and mia is None:
         respuestas, faltan = INV.leer_respuestas(clase, request.POST)
@@ -106,22 +110,90 @@ def invertida(request, pk, iid):
             error = 'Le falta responder: ' + ', '.join(str(n) for n in faltan) + '.'
         else:
             aciertos, nota = INV.calificar(clase, respuestas)
-            try:
-                RespuestaInvertida.objects.create(clase=clase, respuestas=respuestas, aciertos=aciertos, nota=nota,
-                                                  **logica.filtro_persona(persona))
-            except IntegrityError:
-                pass
+            if avance is not None:
+                avance.respuestas, avance.aciertos, avance.nota = respuestas, aciertos, nota
+                avance.terminada, avance.enviada = True, timezone.now()
+                try:
+                    duracion = int(float(request.POST.get('duracion') or 0)) or avance.duracion
+                    visto = int(float(request.POST.get('visto') or 0))
+                except ValueError:
+                    duracion, visto = avance.duracion, 0
+                avance.duracion = min(duracion, 6 * 3600)
+                avance.visto_hasta = max(avance.visto_hasta, min(visto, avance.duracion or visto))
+                avance.save(update_fields=['respuestas', 'aciertos', 'nota', 'terminada', 'enviada',
+                                           'visto_hasta', 'duracion'])
+            else:
+                try:
+                    RespuestaInvertida.objects.create(clase=clase, respuestas=respuestas, aciertos=aciertos, nota=nota,
+                                                      **logica.filtro_persona(persona))
+                except IntegrityError:
+                    pass
             messages.success(request, '¡Respuestas enviadas!')
             return redirect('aula:invertida', pk=pk, iid=iid)
     detalle = INV.detalle(clase, mia)
     if mia is None:
-        # Si le faltó alguna, no pierde lo que ya había escrito o marcado.
+        # Si le faltó alguna (o ya había respondido mientras veía el video), no pierde lo que llevaba.
+        guardadas = avance.respuestas if avance else {}
         for fila in detalle:
-            fila['previo'] = request.POST.get(f'p{fila["i"]}', '') if request.method == 'POST' else ''
+            if request.method == 'POST':
+                fila['previo'] = request.POST.get(f'p{fila["i"]}', '')
+            else:
+                valor = guardadas.get(str(fila['i']))
+                fila['previo'] = '' if valor is None else str(valor)
             for o in fila['opciones']:
                 o['marcada'] = fila['previo'] == str(o['k'])
     return _render(request, c, 'aula/invertida.html', {
-        'clase': clase, 'mia': mia, 'detalle': detalle, 'error': error, 'faltan': faltan}, 'invertida')
+        'clase': clase, 'mia': mia, 'detalle': detalle, 'error': error, 'faltan': faltan,
+        'avance': avance, 'pausas': clase.con_pausas and mia is None,
+        'inv_config': {
+            'video': clase.youtube_id,
+            'pausas': [{'i': f['i'], 'segundo': f['segundo']} for f in detalle if f['segundo'] is not None],
+            'respondidas': sorted(int(k) for k in (avance.respuestas if avance else {})
+                                  if clase.preguntas[int(k)].get('segundo') is not None),
+            'visto': avance.visto_hasta if avance else 0,
+            'urlProgreso': reverse('aula:invertida_progreso', args=[pk, iid]),
+            'csrf': get_token(request),
+        }}, 'invertida')
+
+
+@require_POST
+@vista_aula
+def invertida_progreso(request, pk, iid):
+    """Mientras ve el video: guarda las respuestas que va dando y hasta dónde llegó."""
+    import json
+    c = _ctx(request, pk)
+    clase = _clase(c, iid)
+    persona = _persona(c)
+    if c.es_docente or persona is None:
+        raise _Prohibido('Solo para estudiantes.')
+    try:
+        datos = json.loads(request.body or b'{}')
+    except ValueError:
+        datos = {}
+    r, _ = RespuestaInvertida.objects.get_or_create(clase=clase, **logica.filtro_persona(persona),
+                                                    defaults={'terminada': False})
+    if r.terminada:
+        return JsonResponse({'ok': False, 'terminada': True})
+    nuevas = dict(r.respuestas)
+    for clave, valor in (datos.get('respuestas') or {}).items():
+        if not str(clave).isdigit() or int(clave) >= len(clase.preguntas):
+            continue
+        p = clase.preguntas[int(clave)]
+        if p.get('opciones'):
+            if str(valor).isdigit() and int(valor) < len(p['opciones']):
+                nuevas[str(clave)] = int(valor)
+        elif str(valor).strip():
+            nuevas[str(clave)] = str(valor).strip()[:3000]
+    r.respuestas = nuevas
+    try:
+        visto, duracion = int(float(datos.get('visto') or 0)), int(float(datos.get('duracion') or 0))
+    except (TypeError, ValueError):
+        visto = duracion = 0
+    if duracion > 0:
+        r.duracion = min(duracion, 6 * 3600)
+    r.visto_hasta = max(r.visto_hasta, min(visto, r.duracion or visto))
+    r.save(update_fields=['respuestas', 'visto_hasta', 'duracion'])
+    return JsonResponse({'ok': True})
 
 
 def _vista_docente(request, c, clase):
@@ -129,6 +201,7 @@ def _vista_docente(request, c, clase):
     personas = logica.personas_de(clase, aula)
     respuestas = {}
     for r in clase.respuestas.select_related('estudiante__user', 'integrante'):
+        r.en_curso = not r.terminada
         respuestas[logica.clave_de(r.estudiante or r.integrante)] = r
     filas = []
     for p in personas:
@@ -138,7 +211,7 @@ def _vista_docente(request, c, clase):
                       'detalle': INV.detalle(clase, r) if r else []})
     # Cuántos acertaron cada pregunta de selección, para ver qué no se entendió del video.
     resumen = []
-    enviadas = [f['r'] for f in filas if f['r']]
+    enviadas = [f['r'] for f in filas if f['r'] and f['r'].terminada]
     for fila in INV.detalle(clase, None):
         if fila['calificable'] and enviadas:
             bien = sum(1 for r in enviadas if INV.detalle(clase, r)[fila['i']]['acierto'])
@@ -176,8 +249,8 @@ def invertida_accion(request, pk, iid):
         clave = request.POST.get('clave') or ''
         r = next((x for x in clase.respuestas.select_related('estudiante', 'integrante')
                   if logica.clave_de(x.estudiante or x.integrante) == clave), None)
-        if r is None:
-            messages.warning(request, 'Ese estudiante no ha respondido.')
+        if r is None or (accion == 'nota' and not r.terminada):
+            messages.warning(request, 'Ese estudiante no ha enviado sus respuestas.')
         elif accion == 'reabrir':
             r.delete()
             messages.info(request, 'Listo: el estudiante puede responder de nuevo.')
@@ -201,7 +274,8 @@ def invertida_accion(request, pk, iid):
                 r.save(update_fields=['nota', 'nota_manual', 'comentario'])
                 messages.success(request, 'Nota guardada.')
     elif accion == 'planilla':
-        pares = [(r.estudiante, r.nota) for r in clase.respuestas.select_related('estudiante') if r.estudiante_id]
+        pares = [(r.estudiante, r.nota) for r in clase.respuestas.filter(terminada=True).select_related('estudiante')
+                 if r.estudiante_id]
         n, error = logica.pasar_notas_a_planilla(c.aula, clase.periodo, clase.componente, clase.titulo, pares)
         if error:
             messages.error(request, error)

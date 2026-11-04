@@ -60,6 +60,7 @@ urlpatterns = [
     path('<int:pk>/invertida/', vinv.invertidas, name='invertidas'),
     path('<int:pk>/invertida/<int:iid>/', vinv.invertida, name='invertida'),
     path('<int:pk>/invertida/<int:iid>/accion/', vinv.invertida_accion, name='invertida_accion'),
+    path('<int:pk>/invertida/<int:iid>/progreso/', vinv.invertida_progreso, name='invertida_progreso'),
 
     path('<int:pk>/importar/', vi.importar_notas, name='importar'),
     path('<int:pk>/tareas/<int:tid>/ficha/', vf.ficha, name='ficha'),

@@ -592,8 +592,17 @@ class ClaseInvertida(models.Model):
     def abiertas(self):
         return sum(1 for p in self.preguntas if not p.get('opciones'))
 
+    @property
+    def con_pausas(self):
+        """El video se pausa en las preguntas que tienen minuto (solo con YouTube)."""
+        return bool(self.youtube_id) and any(p.get('segundo') is not None for p in self.preguntas)
+
 
 class RespuestaInvertida(models.Model):
+    @property
+    def pct_visto(self):
+        return min(100, round(self.visto_hasta * 100 / self.duracion)) if self.duracion else None
+
     clase = models.ForeignKey(ClaseInvertida, on_delete=models.CASCADE, related_name='respuestas')
     estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, null=True, blank=True,
                                    related_name='+')
@@ -605,6 +614,10 @@ class RespuestaInvertida(models.Model):
     nota_manual = models.BooleanField(default=False)
     comentario = models.TextField(blank=True, verbose_name='Comentario para el estudiante')
     enviada = models.DateTimeField(auto_now_add=True)
+    # Mientras ve el video se guardan las respuestas que va dando (terminada=False).
+    terminada = models.BooleanField(default=True)
+    visto_hasta = models.PositiveIntegerField(default=0, help_text='Segundo más lejano que vio del video.')
+    duracion = models.PositiveIntegerField(default=0, help_text='Duración del video en segundos.')
 
     class Meta:
         ordering = ['enviada']

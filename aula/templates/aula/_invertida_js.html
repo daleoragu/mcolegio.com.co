@@ -1,7 +1,7 @@
 {% comment %}Cuenta en vivo las preguntas que va pegando el docente (la misma regla que aula/invertida.py, simplificada).{% endcomment %}
 <script>
 (function () {
-  var NUM = /^\s*(?:pregunta\s*)?\d{1,3}\s*[.)\-:]\s*/i, OP = /^\s*\*?\s*[A-Ha-h][).\-:]\s+\S/, RESP = /^\s*(ANSWER|RESPUESTA|CORRECTA)\s*[:=]/i;
+  var NUM = /^\s*(?:(?:pregunta\s*)?\d{1,3}\s*[.)\-:]\s*|[\[(]\s*\d{1,2}(?::\d{1,2}){1,2}\s*[\])])/i, OP = /^\s*\*?\s*[A-Ha-h][).\-:]\s+\S/, RESP = /^\s*(ANSWER|RESPUESTA|CORRECTA)\s*[:=]/i;
   function contar(texto) {
     var preguntas = 0, seleccion = 0, abierta = false, enPregunta = false, conOpciones = false;
     function cerrar() { if (enPregunta) { preguntas++; if (conOpciones) seleccion++; } enPregunta = false; conOpciones = false; }
