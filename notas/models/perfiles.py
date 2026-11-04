@@ -120,6 +120,9 @@ class Colegio(models.Model):
 
     # --- Configuración de Boletines en PDF ---
     mostrar_foto_estudiante_boletin = models.BooleanField(default=False, verbose_name="Mostrar Foto del Estudiante en Boletines")
+    dias_plazo_excusa = models.PositiveSmallIntegerField(
+        default=3, verbose_name="Días hábiles para enviar la excusa",
+        help_text="Después de la falla. 0 = sin plazo.")
     mostrar_firma_rector_boletin = models.BooleanField(default=False, verbose_name="Mostrar Firma del Rector en Boletines")
     fuente_firma_rector = models.CharField(max_length=100, choices=FONT_CHOICES, default='Helvetica', verbose_name="Fuente de la Firma del Rector")
     tamano_firma_rector = models.PositiveSmallIntegerField(default=10, verbose_name="Tamaño de Letra del Rector (pt)")

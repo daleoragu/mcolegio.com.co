@@ -156,7 +156,9 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
                         suma_pesos_area_acum += peso
 
                 valoracion_cualitativa = _get_valoracion(colegio, definitiva_valor_periodo, materia.id, curso.grado)
-                inasistencias = Asistencia.objects.filter(estudiante=estudiante, asignacion=asignacion, estado='A', fecha__range=(periodo.fecha_inicio, periodo.fecha_fin), colegio=colegio).count()
+                fallas = Asistencia.objects.filter(estudiante=estudiante, asignacion=asignacion, estado='A', fecha__range=(periodo.fecha_inicio, periodo.fecha_fin), colegio=colegio)
+                inasistencias = fallas.count()
+                inasistencias_excusa = fallas.filter(justificada=True).count() if inasistencias else 0
 
                 datos_materia = {
                     'nombre': materia.nombre, 'ih': asignacion.intensidad_horaria_semanal, 'docente': asignacion.docente,
@@ -166,6 +168,7 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
                     'comps': [notas_materia_periodo.filter(tipo_nota=c).first() for c in codigos_boletin],
                     'def_acumulada': definitiva_acumulada,
                     'v_n': valoracion_cualitativa, 'inasistencias': inasistencias,
+                    'inasistencias_excusa': inasistencias_excusa,
                     'logros': IndicadorLogroPeriodo.objects.filter(asignacion=asignacion, periodo=periodo, colegio=colegio),
                     'promedia': promedia_boletin,
                     # LA VARIABLE CLAVE QUE LE FALTABA AL BOLETÍN:

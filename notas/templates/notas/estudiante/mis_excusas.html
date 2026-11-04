@@ -1,0 +1,67 @@
+{% extends 'notas/base.html' %}
+{% block title %}Mis excusas{% endblock %}
+{% block page_title %}<h1>Mis excusas</h1>{% endblock %}
+{% block content %}
+<style>
+  .ex-chip { display:inline-block; border-radius:999px; padding:2px 10px; font-size:.78rem; font-weight:700; }
+  .ex-PENDIENTE { background:#fff3cd; color:#664d03; } .ex-APROBADA { background:#d1e7dd; color:#0f5132; }
+  .ex-RECHAZADA { background:#f8d7da; color:#842029; } .ex-ANULADA { background:#eef1f5; color:#4b5563; }
+  .ex-caja { background:#fff; border:1px solid #e3e7ef; border-radius:14px; padding:16px 18px; margin-bottom:14px; }
+</style>
+<div class="row g-3">
+  <div class="col-lg-5">
+    <form method="post" enctype="multipart/form-data" class="ex-caja">{% csrf_token %}
+      <h5 class="fw-bold mb-1"><i class="fas fa-file-medical me-1"></i>Enviar una excusa</h5>
+      <p class="small text-muted">Le llega al director de grupo y a la coordinación. Tiene {{ plazo }} días hábiles después de la falla para enviarla{% if plazo == 0 %} (sin plazo){% endif %}. También puede enviarla antes, si ya sabe que va a faltar (una cita, un viaje).</p>
+      <label class="form-label small fw-bold mb-1" for="ex-motivo">Motivo</label>
+      <select name="motivo" id="ex-motivo" class="form-select mb-2">
+        {% for k, t in motivos %}<option value="{{ k }}" {% if valores.motivo == k %}selected{% endif %}>{{ t }}</option>{% endfor %}
+      </select>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="form-label small fw-bold mb-1" for="ex-desde">Desde</label>
+          <input type="date" name="desde" id="ex-desde" class="form-control" required value="{% if valores.desde %}{{ valores.desde }}{% else %}{{ hoy|date:'Y-m-d' }}{% endif %}"></div>
+        <div class="col-6"><label class="form-label small fw-bold mb-1" for="ex-hasta">Hasta</label>
+          <input type="date" name="hasta" id="ex-hasta" class="form-control" value="{{ valores.hasta }}"></div>
+      </div>
+      <div class="form-text mt-0 mb-2">Si fue un solo día, deje «Hasta» vacío.</div>
+      <label class="form-label small fw-bold mb-1" for="ex-exp">Explicación</label>
+      <textarea name="explicacion" id="ex-exp" class="form-control mb-2" rows="3" maxlength="1500" placeholder="Ej.: Tuvo fiebre y lo llevamos al médico.">{{ valores.explicacion }}</textarea>
+      <label class="form-label small fw-bold mb-1" for="ex-soporte">Soporte (opcional)</label>
+      <input type="file" name="soporte" id="ex-soporte" class="form-control mb-1" accept="image/*,.pdf">
+      <div class="form-text mb-3">Foto o PDF de la incapacidad, fórmula médica o constancia (hasta 8 MB).</div>
+      <button class="btn btn-primary w-100"><i class="fas fa-paper-plane me-1"></i>Enviar excusa</button>
+    </form>
+  </div>
+  <div class="col-lg-7">
+    {% if fallas %}
+    <div class="ex-caja">
+      <h6 class="fw-bold">Fallas recientes</h6>
+      <ul class="list-unstyled mb-0 small">
+        {% for f in fallas %}
+        <li class="d-flex gap-2 align-items-baseline py-1 border-bottom">
+          <b style="min-width:90px">{{ f.fecha|date:"D d/m" }}</b>
+          <span class="flex-grow-1 text-muted">{{ f.materias|join:", " }}</span>
+          {% if f.justificada %}<span class="ex-chip ex-APROBADA">Con excusa</span>{% else %}<span class="ex-chip ex-RECHAZADA">Sin excusa</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    <div class="ex-caja">
+      <h6 class="fw-bold">Excusas enviadas</h6>
+      {% for e in excusas %}
+      <a href="{% url 'notas:excusa' e.pk %}" class="d-flex gap-2 align-items-center py-2 border-bottom text-decoration-none text-reset">
+        <div class="flex-grow-1">
+          <div class="fw-semibold">{{ e.get_motivo_display }}</div>
+          <div class="small text-muted">{{ e.desde|date:"d/m/Y" }}{% if e.hasta != e.desde %} a {{ e.hasta|date:"d/m/Y" }}{% endif %} · enviada {{ e.creada|date:"d/m h:i a" }}</div>
+          {% if e.respuesta %}<div class="small">«{{ e.respuesta }}»</div>{% endif %}
+        </div>
+        <span class="ex-chip ex-{{ e.estado }}">{{ e.get_estado_display }}</span>
+      </a>
+      {% empty %}
+      <p class="text-muted small mb-0">Todavía no ha enviado excusas.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

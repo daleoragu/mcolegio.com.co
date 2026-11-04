@@ -182,7 +182,7 @@
                             </td>
                             {% if forloop.first %}
                             <td rowspan="{{ materia.logros|length }}" style="vertical-align: middle;">{{ materia.ih }}</td>
-                            <td rowspan="{{ materia.logros|length }}" style="vertical-align: middle;">{{ materia.inasistencias|default_if_none:"0" }}</td>
+                            <td rowspan="{{ materia.logros|length }}" style="vertical-align: middle;">{{ materia.inasistencias|default_if_none:"0" }}{% if materia.inasistencias_excusa %}<br><span style="font-size:6.5px;font-weight:normal">{{ materia.inasistencias_excusa }} con excusa</span>{% endif %}</td>
                             {% endif %}
                         </tr>
                         {% endfor %}
@@ -192,7 +192,7 @@
                             <td style="text-align: left;">No hay indicadores definidos para esta asignatura.</td>
                             <td>-</td>
                             <td>{{ materia.ih }}</td>
-                            <td>{{ materia.inasistencias|default_if_none:"0" }}</td>
+                            <td>{{ materia.inasistencias|default_if_none:"0" }}{% if materia.inasistencias_excusa %}<br><span style="font-size:6.5px;font-weight:normal">{{ materia.inasistencias_excusa }} con excusa</span>{% endif %}</td>
                         </tr>
                     {% endif %}
                     {% if materia.observacion %}

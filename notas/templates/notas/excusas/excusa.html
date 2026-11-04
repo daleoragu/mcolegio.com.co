@@ -1,0 +1,93 @@
+{% extends 'notas/base.html' %}
+{% block title %}Excusa · {{ e.estudiante }}{% endblock %}
+{% block page_title %}<h1>Excusa</h1>{% endblock %}
+{% block content %}
+<style>
+  .ex-chip { display:inline-block; border-radius:999px; padding:2px 10px; font-size:.78rem; font-weight:700; }
+  .ex-PENDIENTE { background:#fff3cd; color:#664d03; } .ex-APROBADA { background:#d1e7dd; color:#0f5132; }
+  .ex-RECHAZADA { background:#f8d7da; color:#842029; } .ex-ANULADA { background:#eef1f5; color:#4b5563; }
+  .ex-caja { background:#fff; border:1px solid #e3e7ef; border-radius:14px; padding:16px 18px; margin-bottom:14px; }
+  .ex-dia { border:1px solid #e3e7ef; border-radius:10px; padding:6px 10px; margin-bottom:6px; }
+  .ex-A { color:#b02a37; font-weight:700; } .ex-AJ { color:#0f5132; font-weight:700; } .ex-P, .ex-T { color:#6c757d; }
+</style>
+<div class="mb-2">{% if puede %}<a href="{% url 'notas:excusas' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Excusas</a>{% else %}<a href="{% url 'notas:mis_excusas' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Mis excusas</a>{% endif %}</div>
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="ex-caja">
+      <div class="d-flex align-items-start gap-2">
+        <div class="flex-grow-1">
+          <h5 class="fw-bold mb-0">{{ e.estudiante.user.get_full_name }}</h5>
+          <div class="text-muted small">Curso {{ e.estudiante.curso.nombre|default:"—" }}{% if e.estudiante.curso.director_grado %} · Director(a): {{ e.estudiante.curso.director_grado.user.get_full_name }}{% endif %}</div>
+        </div>
+        <span class="ex-chip ex-{{ e.estado }}">{{ e.get_estado_display }}</span>
+      </div>
+      <hr>
+      <dl class="row mb-0 small">
+        <dt class="col-4">Motivo</dt><dd class="col-8">{{ e.get_motivo_display }}</dd>
+        <dt class="col-4">Fechas pedidas</dt><dd class="col-8">{{ e.desde|date:"l d/m/Y" }}{% if e.hasta != e.desde %} a {{ e.hasta|date:"l d/m/Y" }}{% endif %}</dd>
+        {% if e.estado == 'APROBADA' %}<dt class="col-4">Fechas aprobadas</dt><dd class="col-8">{{ e.aprobada_desde|date:"d/m/Y" }}{% if e.aprobada_hasta != e.aprobada_desde %} a {{ e.aprobada_hasta|date:"d/m/Y" }}{% endif %}</dd>{% endif %}
+        <dt class="col-4">Explicación</dt><dd class="col-8" style="white-space:pre-line">{{ e.explicacion|default:"—" }}</dd>
+        <dt class="col-4">Soporte</dt><dd class="col-8">{% if e.soporte %}<a href="{% url 'notas:excusa_soporte' e.pk %}" target="_blank" rel="noopener"><i class="fas fa-paperclip me-1"></i>{{ e.nombre_soporte|default:"Ver soporte" }}</a>{% else %}Sin soporte{% endif %}</dd>
+        <dt class="col-4">Enviada</dt><dd class="col-8">{{ e.creada|date:"d/m/Y h:i a" }}{% if e.enviada_por and e.enviada_por != e.estudiante.user %} · registrada por {{ e.enviada_por.get_full_name|default:e.enviada_por.username }}{% endif %}
+          {% if e.fuera_de_plazo %}<br><span class="text-danger">Fuera de plazo{% if limite %} (vencía el {{ limite|date:"d/m/Y" }}){% endif %}</span>{% endif %}</dd>
+        {% if e.revisada_por %}<dt class="col-4">Revisó</dt><dd class="col-8">{{ e.revisada_por.get_full_name|default:e.revisada_por.username }} · {{ e.revisada_en|date:"d/m/Y h:i a" }}</dd>{% endif %}
+        {% if e.respuesta %}<dt class="col-4">Respuesta</dt><dd class="col-8">{{ e.respuesta }}</dd>{% endif %}
+      </dl>
+    </div>
+    <div class="ex-caja">
+      <h6 class="fw-bold">Asistencia en esos días</h6>
+      {% for dia, regs in por_dia %}
+      <div class="ex-dia small">
+        <b>{{ dia|date:"l d/m" }}</b>
+        {% for r in regs %}<span class="ms-2">{{ r.asignacion.materia.nombre }}: <span class="{% if r.estado == 'A' and r.justificada %}ex-AJ{% else %}ex-{{ r.estado }}{% endif %}">{% if r.estado == 'A' and r.justificada %}con excusa{% else %}{{ r.get_estado_display|lower }}{% endif %}</span></span>{% empty %}<span class="text-muted ms-2">Sin registros todavía.</span>{% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if puede and otras %}
+    <div class="ex-caja">
+      <h6 class="fw-bold">Otras excusas del estudiante</h6>
+      {% for o in otras %}<a href="{% url 'notas:excusa' o.pk %}" class="d-flex small py-1 border-bottom text-decoration-none text-reset"><span class="flex-grow-1">{{ o.get_motivo_display }} · {{ o.desde|date:"d/m/Y" }}</span><span class="ex-chip ex-{{ o.estado }}">{{ o.get_estado_display }}</span></a>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="col-lg-5">
+    {% if puede %}
+      {% if e.estado == 'PENDIENTE' or e.estado == 'RECHAZADA' %}
+      <form method="post" class="ex-caja">{% csrf_token %}
+        <input type="hidden" name="accion" value="aprobar">
+        <h6 class="fw-bold text-success"><i class="fas fa-check me-1"></i>Aprobar</h6>
+        <p class="small text-muted">Escoja los días que cubre la excusa. Esos días quedan «ausente con excusa» en todas las clases, el docente no los puede cambiar y se le avisa a la familia y a los docentes del curso.</p>
+        <div class="row g-2 mb-2">
+          <div class="col-6"><label class="form-label small fw-bold mb-1" for="ap-desde">Desde</label><input type="date" name="desde" id="ap-desde" class="form-control" value="{{ e.desde|date:'Y-m-d' }}" required></div>
+          <div class="col-6"><label class="form-label small fw-bold mb-1" for="ap-hasta">Hasta</label><input type="date" name="hasta" id="ap-hasta" class="form-control" value="{{ e.hasta|date:'Y-m-d' }}" required></div>
+        </div>
+        <input name="respuesta" class="form-control mb-2" maxlength="500" placeholder="Mensaje para la familia (opcional)" aria-label="Mensaje para la familia">
+        <button class="btn btn-success w-100">Aprobar la excusa</button>
+      </form>
+      {% endif %}
+      {% if e.estado == 'PENDIENTE' %}
+      <form method="post" class="ex-caja">{% csrf_token %}
+        <input type="hidden" name="accion" value="rechazar">
+        <h6 class="fw-bold text-danger"><i class="fas fa-xmark me-1"></i>No aprobar</h6>
+        <input name="respuesta" class="form-control mb-2" maxlength="500" required placeholder="¿Por qué? (le llega a la familia)" aria-label="Motivo del rechazo">
+        <button class="btn btn-outline-danger w-100">No aprobar</button>
+      </form>
+      {% endif %}
+      {% if e.estado == 'APROBADA' %}
+      <form method="post" class="ex-caja" onsubmit="return confirm('¿Anular la aprobación? Esas fallas vuelven a quedar sin excusa.')">{% csrf_token %}
+        <input type="hidden" name="accion" value="anular">
+        <h6 class="fw-bold">Anular la aprobación</h6>
+        <p class="small text-muted">Si se aprobó por error. Los días que creó la excusa se borran y las fallas que ya estaban vuelven a quedar sin excusa.</p>
+        <input name="respuesta" class="form-control mb-2" maxlength="500" placeholder="Motivo (opcional)" aria-label="Motivo de la anulación">
+        <button class="btn btn-outline-secondary w-100">Anular</button>
+      </form>
+      {% endif %}
+    {% elif es_suya and e.estado == 'PENDIENTE' %}
+      <div class="ex-caja">
+        <p class="small text-muted">La excusa está esperando la revisión del director de grupo o la coordinación. Le llega un aviso cuando la revisen.</p>
+        <form method="post" onsubmit="return confirm('¿Cancelar esta excusa?')">{% csrf_token %}<input type="hidden" name="accion" value="cancelar"><button class="btn btn-sm btn-outline-danger">Cancelar la excusa</button></form>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -347,6 +347,9 @@ def _registrar(request, estudiante):
         defaults={'estado': 'P'})
     if creada:
         return {'ok': True, 'nivel': 'success', 'nombre': nombre, 'mensaje': f'{nombre}: presente.'}
+    if asistencia.excusa_id:
+        return {'ok': False, 'nivel': 'info', 'nombre': nombre,
+                'mensaje': f'{nombre} tiene excusa aprobada hoy: no se cambia su asistencia.'}
     if asistencia.estado == 'A':
         # Lo habían marcado ausente y llegó: queda como «tarde».
         asistencia.estado = 'T'
