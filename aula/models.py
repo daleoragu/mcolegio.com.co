@@ -547,3 +547,70 @@ class ArchivoFicha(models.Model):
 
     def __str__(self):
         return f'{self.get_tipo_display()} de la entrega {self.entrega_id}'
+
+
+# ---------------------------------------------------------------------------
+# Aula invertida: el estudiante ve el video en casa y responde las preguntas
+# ---------------------------------------------------------------------------
+class ClaseInvertida(models.Model):
+    """Un video (YouTube u otro enlace) con las preguntas que el docente pegó.
+
+    preguntas = [{'texto': '…', 'opciones': [{'texto': '…', 'correcta': bool}]}]
+    Con opciones y una correcta, se califica sola; sin opciones es abierta y la lee el docente.
+    """
+    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, related_name='invertidas')
+    titulo = models.CharField(max_length=60, help_text='Es también el nombre de la columna en la planilla.')
+    video = models.URLField(max_length=300)
+    instrucciones = models.TextField(blank=True)
+    texto_preguntas = models.TextField(blank=True, help_text='Las preguntas tal como las pegó el docente.')
+    preguntas = models.JSONField(default=list, blank=True)
+    publicada = models.BooleanField(default=True)
+    para = models.JSONField(default=list, blank=True, help_text='Vacío: toda la clase. Si no, solo los estudiantes escogidos.')
+    periodo = models.ForeignKey('notas.PeriodoAcademico', on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='+')
+    componente = models.CharField(max_length=6, blank=True)
+    creada = models.DateTimeField(auto_now_add=True)
+    pasada_planilla = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-creada']
+
+    def __str__(self):
+        return self.titulo
+
+    @property
+    def youtube_id(self):
+        import re
+        m = re.search(r'(?:youtu\.be/|youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/|live/))([\w-]{11})', self.video or '')
+        return m.group(1) if m else ''
+
+    @property
+    def calificables(self):
+        return sum(1 for p in self.preguntas if any(o.get('correcta') for o in p.get('opciones', [])))
+
+    @property
+    def abiertas(self):
+        return sum(1 for p in self.preguntas if not p.get('opciones'))
+
+
+class RespuestaInvertida(models.Model):
+    clase = models.ForeignKey(ClaseInvertida, on_delete=models.CASCADE, related_name='respuestas')
+    estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    respuestas = models.JSONField(default=dict, blank=True)     # {'0': índice de la opción | texto}
+    aciertos = models.PositiveSmallIntegerField(default=0)
+    nota = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    nota_manual = models.BooleanField(default=False)
+    comentario = models.TextField(blank=True, verbose_name='Comentario para el estudiante')
+    enviada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['enviada']
+        constraints = [
+            models.UniqueConstraint(fields=['clase', 'estudiante'], condition=models.Q(estudiante__isnull=False),
+                                    name='aula_invertida_una_por_estudiante'),
+            models.UniqueConstraint(fields=['clase', 'integrante'], condition=models.Q(integrante__isnull=False),
+                                    name='aula_invertida_una_por_integrante'),
+        ]

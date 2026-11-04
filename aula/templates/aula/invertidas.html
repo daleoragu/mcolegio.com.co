@@ -1,0 +1,52 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au">
+<div class="row g-3">
+  <div class="{% if c.es_docente %}col-lg-7{% else %}col-12{% endif %}">
+    {% if not c.es_docente %}
+    <div class="au-tarjeta small text-muted"><i class="fab fa-youtube text-danger me-1"></i>Vea el video que dejó su docente y responda las preguntas antes de la clase.</div>
+    {% endif %}
+    {% for x in clases %}
+    <a href="{% url 'aula:invertida' aula.pk x.pk %}" class="au-tarjeta d-flex align-items-center gap-3 text-decoration-none text-reset">
+        <div class="au-icono" style="background:#fde2e1;color:#c4302b"><i class="fab fa-youtube"></i></div>
+        <div class="flex-grow-1">
+            <div class="fw-bold">{{ x.titulo }}</div>
+            <div class="small text-muted">{{ x.preguntas|length }} pregunta{{ x.preguntas|length|pluralize }}{% if x.calificables %} · {{ x.calificables }} de selección{% endif %}{% if x.abiertas %} · {{ x.abiertas }} abierta{{ x.abiertas|pluralize }}{% endif %}</div>
+            <div class="small mt-1">
+                {% if x.para %}<span class="au-chip pend"><i class="fas fa-user-check"></i> {% if c.es_docente %}Solo {{ x.para|length }} estudiante{{ x.para|length|pluralize }}{% else %}Solo para usted{% endif %}</span>{% endif %}
+                {% if c.es_docente and not x.publicada %}<span class="au-chip gris">Oculta</span>{% endif %}
+                {% if x.pasada_planilla %}<span class="au-chip ok"><i class="fas fa-check"></i> En la planilla</span>{% endif %}
+            </div>
+        </div>
+        {% if c.es_docente %}
+            <div class="text-center small text-muted"><div class="fw-bold fs-5 text-dark">{{ x.n_respuestas }}</div>respondieron</div>
+        {% elif x.mia %}
+            <div class="text-center">{% if x.mia.nota is not None %}<div class="au-nota-grande" style="font-size:1.5rem">{{ x.mia.nota }}</div><div class="small text-muted">nota</div>{% else %}<span class="au-chip ok">Respondida</span>{% endif %}</div>
+        {% else %}
+            <span class="btn btn-sm au-oro">Ver y responder</span>
+        {% endif %}
+    </a>
+    {% empty %}
+    <div class="au-tarjeta text-center text-muted py-5">
+        <i class="fab fa-youtube fa-2x mb-2 d-block"></i>
+        Todavía no hay clases invertidas.
+        {% if c.es_docente %}<div class="small mt-2">Deje un video para que lo vean antes de la clase y pegue las preguntas: en clase se dedican a practicar y resolver dudas.</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% if c.es_docente %}
+  <div class="col-lg-5">
+    <form method="post" class="au-tarjeta">
+        {% csrf_token %}
+        <h6><i class="fas fa-plus me-1"></i>Nueva clase invertida</h6>
+        {% include 'aula/_invertida_form.html' with clase=None prefijo='n' %}
+        <button class="btn au-oro w-100">Publicar</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+</div>
+{% include 'aula/_invertida_js.html' %}
+{% endblock %}

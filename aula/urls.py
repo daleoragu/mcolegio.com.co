@@ -2,7 +2,7 @@ from django.urls import path
 
 from chat import views_salon as chs
 
-from . import views, views_examenes as vx, views_fichas as vf, views_importar as vi, views_juegos as vj
+from . import views, views_examenes as vx, views_fichas as vf, views_importar as vi, views_invertida as vinv, views_juegos as vj
 
 app_name = 'aula'
 
@@ -56,6 +56,10 @@ urlpatterns = [
     path('<int:pk>/cuestionarios/<int:cid>/jugar/estado/', vj.jugar_estado, name='jugar_estado'),
     path('<int:pk>/vivo/<int:sid>/', vj.vivo, name='vivo'),
     path('<int:pk>/vivo/<int:sid>/estado/', vj.vivo_estado, name='vivo_estado'),
+
+    path('<int:pk>/invertida/', vinv.invertidas, name='invertidas'),
+    path('<int:pk>/invertida/<int:iid>/', vinv.invertida, name='invertida'),
+    path('<int:pk>/invertida/<int:iid>/accion/', vinv.invertida_accion, name='invertida_accion'),
 
     path('<int:pk>/importar/', vi.importar_notas, name='importar'),
     path('<int:pk>/tareas/<int:tid>/ficha/', vf.ficha, name='ficha'),
