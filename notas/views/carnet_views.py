@@ -137,6 +137,38 @@ def impresion_masiva_carnets(request):
     })
 
 
+@login_required
+def mi_carne(request):
+    """El carné digital del estudiante o del docente, para mostrarlo desde el celular."""
+    if not request.colegio:
+        return HttpResponseNotFound("<h1>Colegio no configurado</h1>")
+    from django.templatetags.static import static
+    est = Estudiante.objects.filter(user=request.user, colegio=request.colegio).select_related('curso').first()
+    doc = None if est else Docente.objects.filter(user=request.user, colegio=request.colegio).first()
+    if est is None and doc is None:
+        return HttpResponseNotFound("<h1>El carné es para estudiantes y docentes del colegio</h1>")
+    persona = est or doc
+    try:
+        ficha = persona.ficha
+    except Exception:
+        ficha = None
+    if est is not None:
+        documento = (f"{ficha.get_tipo_documento_display()}: {ficha.numero_documento}"
+                     if ficha and ficha.numero_documento else '')
+        linea, pie = (f"Curso {est.curso.nombre}" if est.curso_id else ''), 'CARNÉ ESTUDIANTIL'
+    else:
+        documento = f"C.C.: {ficha.numero_documento}" if ficha and ficha.numero_documento else ''
+        dirige = list(doc.cursos_dirigidos.values_list('nombre', flat=True))
+        linea, pie = (('Director(a) de grupo ' + ', '.join(dirige)) if dirige else 'Docente'), 'CARNÉ DOCENTE'
+    url = request.build_absolute_uri(reverse('notas:carnet_qr', args=[persona.asegurar_codigo_carnet()]))
+    return render(request, 'notas/docente/mi_carne.html', {
+        'colegio': request.colegio, 'nombre': request.user.get_full_name() or request.user.username,
+        'foto': ficha.foto.url if ficha and ficha.foto else static('img/default-user.png'),
+        'documento': documento, 'linea': linea, 'pie': pie, 'es_estudiante': est is not None,
+        'activo': est.is_active if est else request.user.is_active,
+        'qr': _qr_base64(url, caja=10, borde=2)})
+
+
 # ==============================================================================
 # LO QUE ABRE EL QR
 # ==============================================================================

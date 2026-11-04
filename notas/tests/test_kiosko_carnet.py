@@ -230,3 +230,27 @@ class CarnetDocente(ColegioDePrueba):
         c.post('/asistencia/kiosko/', {'asignacion_id': self.asig.id})
         j = c.post('/asistencia/kiosko/registrar/', {'codigo': self.docente.asegurar_codigo_carnet()}).json()
         self.assertFalse(j['ok'])
+
+
+class MiCarneDigital(ColegioDePrueba):
+
+    def test_estudiante(self):
+        ana = self.estudiantes[0]
+        r = self.cliente(ana.user).get('/mi-carne/')
+        self.assertContains(r, 'CARNÉ ESTUDIANTIL')
+        self.assertContains(r, 'Curso 601')
+        ana.refresh_from_db()
+        self.assertTrue(ana.codigo_carnet)
+        self.assertContains(r, 'data:image/png;base64,')
+
+    def test_docente(self):
+        r = self.cliente(self.u_docente).get('/mi-carne/')
+        self.assertContains(r, 'CARNÉ DOCENTE')
+        self.assertContains(r, 'Director(a) de grupo 601')
+
+    def test_quien_no_es_estudiante_ni_docente(self):
+        self.assertEqual(self.cliente(self.rectora).get('/mi-carne/').status_code, 404)
+
+    def test_en_los_paneles(self):
+        self.assertContains(self.cliente(self.estudiantes[0].user).get('/dashboard/', follow=True), '/mi-carne/')
+        self.assertContains(self.cliente(self.u_docente).get('/dashboard/', follow=True), '/mi-carne/')

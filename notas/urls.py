@@ -245,6 +245,7 @@ urlpatterns = [
     path('asistencia/registrar-qr/<int:estudiante_id>/', carnet_views.registrar_asistencia_qr, name='registrar_asistencia_qr'),
     path('asistencia/kiosko/registrar/', carnet_views.kiosko_registrar, name='kiosko_registrar'),
     path('asistencia/kiosko/ausentes/', carnet_views.kiosko_marcar_ausentes, name='kiosko_marcar_ausentes'),
+    path('mi-carne/', carnet_views.mi_carne, name='mi_carne'),
     path('c/<str:codigo>/', carnet_views.carnet_qr, name='carnet_qr'),
     path('estudiante/mis-excusas/', excusas_views.mis_excusas, name='mis_excusas'),
     path('excusas/', excusas_views.bandeja, name='excusas'),
