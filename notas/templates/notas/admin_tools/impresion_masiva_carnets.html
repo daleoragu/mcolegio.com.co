@@ -1,202 +1,180 @@
 {% extends 'notas/base.html' %}
 {% load static %}
 
-{% block title %}Gestión de Impresión de Carnets{% endblock %}
+{% block title %}Impresión de carnés{% endblock %}
 
 {% block content %}
 <style>
-    /* --- ESTILOS UNIFICADOS DEL CARNET --- */
-    .carnet {
-        background: white;
-        border: 1px solid #ccc;
-        border-radius: 15px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        width: 320px;
-        font-family: 'Helvetica', sans-serif;
-        overflow: hidden;
-        page-break-inside: avoid;
-    }
-    .carnet-header {
-        background-color: {{ colegio.color_primario|default:'#0D6EFD' }};
-        color: {{ colegio.color_texto_primario|default:'#FFFFFF' }};
-        padding: 10px;
-        text-align: center;
-        position: relative;
-    }
-    .carnet-header .logo-escudo {
-        width: 50px; height: 50px; border-radius: 50%; position: absolute;
-        left: 15px; top: 50%; transform: translateY(-50%); background: white; padding: 5px; object-fit: contain;
-    }
-    .carnet-header h3 { margin: 0; font-size: 14px; font-weight: bold; padding-left: 55px; }
-    .carnet-body { padding: 20px; text-align: center; }
-    .carnet-foto {
-        width: 120px; height: 120px; border-radius: 50%; border: 4px solid #eee;
-        margin: 0 auto 15px auto; object-fit: cover; background-color: #f8f9fa;
-    }
-    .carnet-nombre { font-size: 18px; font-weight: bold; margin: 0; color: #333; }
-    .carnet-documento { font-size: 12px; color: #666; margin-bottom: 10px; }
-    .carnet-curso { font-size: 14px; color: {{ colegio.color_primario|default:'#0D6EFD' }}; font-weight: bold; margin-bottom: 20px; }
-    .carnet-qr { padding: 15px; background-color: #f8f9fa; border-radius: 10px; }
-    .carnet-qr img { width: 100%; max-width: 200px; display: block; margin: 0 auto; }
-    .carnet-footer { background-color: #f1f1f1; text-align: center; padding: 8px; font-size: 10px; color: #888; }
-    
-    /* --- ESTILOS DE LA PÁGINA --- */
-    .carnet-hidden-container { display: none; }
     .student-list-table { vertical-align: middle; }
-    .student-list-table img.student-photo { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+    .student-list-table img.student-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+    .cn-muestra { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+    .cn-muestra .carnet { transform: scale(1.6); transform-origin: top left; margin: 0 calc(54mm * .6) calc(85.6mm * .6) 0; }
+    /* Plantilla oculta: de aquí se copian los carnés a la hoja de impresión. */
+    .cn-plantilla { display: none; }
+</style>
 
-    /* --- INICIO: ESTILOS DE IMPRESIÓN CORREGIDOS --- */
-    @media print {
-        /* --- Reglas para imprimir UN SOLO carnet --- */
-        body.is-printing .controls-card,
-        body.is-printing .student-list-table,
-        body.is-printing header, /* Oculta la barra de navegación */
-        body.is-printing footer {
-            display: none; /* Ocultamos las partes principales de la página */
-        }
-
-        /* Hacemos visible el contenedor de carnets */
-        body.is-printing .carnet-hidden-container {
-            display: block;
-        }
-
-        /* Dentro del contenedor, ocultamos todos los carnets */
-        body.is-printing .carnet-hidden-container .carnet {
-            display: none;
-        }
-
-        /* Y finalmente, mostramos SOLO el carnet que tiene la clase para imprimir */
-        body.is-printing .carnet-hidden-container .carnet-to-print {
-            display: block; /* Lo hacemos visible */
-            position: absolute; /* Lo posicionamos en la esquina */
-            top: 20px;
-            left: 20px;
-            box-shadow: none;
-            border: 1px solid #999;
-        }
-
-        /* --- Reglas para imprimir TODOS los carnets --- */
-        body.printing-all .student-list-table, 
-        body.printing-all .controls-card,
-        body.printing-all header,
-        body.printing-all footer {
-            display: none;
-        }
-        body.printing-all .carnet-hidden-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr; /* Dos columnas por hoja */
-            gap: 20px;
-        }
-        body.printing-all .carnet {
-            box-shadow: none;
-            border: 1px solid #999;
-        }
-    }
+{# Estilos del carné: se usan en la muestra de la pantalla y en la hoja de impresión. #}
+<style id="cn-estilos-carne">
+    .carnet { width: 54mm; height: 85.6mm; box-sizing: border-box; background: #fff; border: .25mm solid #b9bfc9;
+              border-radius: 3mm; overflow: hidden; display: flex; flex-direction: column;
+              font-family: Helvetica, Arial, sans-serif; color: #222; break-inside: avoid; page-break-inside: avoid;
+              -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .carnet-header { background: {{ colegio.color_primario|default:'#0D6EFD' }}; color: {{ colegio.color_texto_primario|default:'#FFFFFF' }};
+                     display: flex; align-items: center; gap: 1.6mm; padding: 1.6mm 2mm; min-height: 12mm; }
+    .carnet-header img { width: 8.5mm; height: 8.5mm; object-fit: contain; background: #fff; border-radius: 50%; padding: .6mm; flex: 0 0 auto; }
+    .carnet-header h3 { margin: 0; font-size: 6.2pt; line-height: 1.15; font-weight: 700; text-transform: uppercase; }
+    .carnet-body { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 2mm 2.5mm 1mm; }
+    .carnet-foto { width: 19mm; height: 19mm; border-radius: 50%; object-fit: cover; border: .6mm solid #eef1f5; background: #f3f4f6; }
+    .carnet-nombre { margin: 1.4mm 0 .3mm; font-size: 8pt; line-height: 1.12; font-weight: 800; text-transform: uppercase;
+                     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .carnet-documento { margin: 0; font-size: 5.6pt; color: #555; }
+    .carnet-curso { margin: .6mm 0 1.2mm; font-size: 6.8pt; font-weight: 700; color: {{ colegio.color_primario|default:'#0D6EFD' }}; }
+    .carnet-qr img { width: 27mm; height: 27mm; display: block; image-rendering: pixelated; }
+    .carnet-footer { background: #f1f2f4; text-align: center; font-size: 5.2pt; letter-spacing: .3mm; color: #555; padding: 1.1mm;
+                     -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 </style>
 
 <div class="container py-4">
-    <!-- Controles -->
-    <div class="card p-3 mb-4 controls-card">
-        <h2 class="h4">Gestión de Impresión de Carnets</h2>
+    <div class="card p-3 mb-4">
+        <h2 class="h4">Impresión de carnés</h2>
         <ul class="nav nav-tabs mb-3">
             <li class="nav-item"><a class="nav-link {% if tipo != 'docentes' %}active{% endif %}" href="?tipo=estudiantes"><i class="fas fa-user-graduate me-1"></i>Estudiantes</a></li>
             <li class="nav-item"><a class="nav-link {% if tipo == 'docentes' %}active{% endif %}" href="?tipo=docentes"><i class="fas fa-chalkboard-user me-1"></i>Docentes</a></li>
         </ul>
-        {% if tipo == 'docentes' %}
-        <p>Carnés de los docentes del colegio. El QR muestra que el carné es válido (nombre, colegio y, si aplica, el curso que dirige).</p>
-        <div><button type="button" onclick="imprimirTodos()" class="btn btn-success"><i class="fas fa-print"></i> Imprimir todos los carnés docentes</button></div>
-        {% else %}
-        <p>Seleccione un curso para ver la lista de estudiantes. Puede imprimir un carnet individual o todos los de la lista.</p>
-        <form method="get" class="row g-3 align-items-end">
+        {% if tipo != 'docentes' %}
+        <form method="get" class="row g-2 align-items-end mb-2">
             <input type="hidden" name="tipo" value="estudiantes">
             <div class="col-md-5">
-                <label for="curso_id" class="form-label">Filtrar por Curso:</label>
-                <select name="curso_id" id="curso_id" class="form-select">
-                    <option value="">-- Todos los cursos --</option>
+                <label for="curso_id" class="form-label small fw-bold mb-1">Curso</label>
+                <select name="curso_id" id="curso_id" class="form-select" onchange="this.form.submit()">
+                    <option value="">— Todos los cursos —</option>
                     {% for curso in cursos %}<option value="{{ curso.id }}" {% if curso.id|stringformat:"s" == curso_seleccionado_id %}selected{% endif %}>{{ curso.nombre }}</option>{% endfor %}
                 </select>
             </div>
-            <div class="col-md-7">
-                <button type="submit" class="btn btn-primary me-2"><i class="fas fa-filter"></i> Filtrar</button>
-                <button type="button" onclick="imprimirTodos()" class="btn btn-success"><i class="fas fa-print"></i> Imprimir Todos los de la Lista</button>
-            </div>
         </form>
-        <p class="small mt-2"><a href="{% url 'notas:pines_carnet' %}{% if curso_seleccionado_id %}?curso={{ curso_seleccionado_id }}{% endif %}"><i class="fas fa-key me-1"></i>Lista de PIN del carné para entregar</a> · El QR de cada carné sirve para la asistencia y, con el PIN, para que el estudiante entre a su menú.</p>
+        {% endif %}
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <button type="button" class="btn btn-success" onclick="imprimirCarnes(false)"><i class="fas fa-print me-1"></i>Imprimir todos ({{ personas|length }})</button>
+            <button type="button" class="btn btn-outline-success" onclick="imprimirCarnes(true)"><i class="fas fa-check-square me-1"></i>Imprimir los marcados (<span id="cn-marcados">0</span>)</button>
+            <span class="small text-muted">Tamaño carné (5,4 × 8,6 cm) · <b>9 por hoja carta</b> · {{ hojas }} hoja{{ hojas|pluralize }} para todos.</span>
+        </div>
+        <div class="form-text">En la ventana de impresión deje la escala en 100 % («Tamaño real») y, si aparece, active «Gráficos de fondo» para que salga el color del colegio. El borde fino de cada carné es la línea de corte.</div>
+        {% if tipo != 'docentes' %}
+        <p class="small mt-2 mb-0"><a href="{% url 'notas:pines_carnet' %}{% if curso_seleccionado_id %}?curso={{ curso_seleccionado_id }}{% endif %}"><i class="fas fa-key me-1"></i>Lista de PIN del carné para entregar</a> · El QR sirve para la asistencia y, con el PIN, para que el estudiante entre a su menú.</p>
         {% endif %}
     </div>
 
-    <!-- Lista -->
-    <div class="card">
-        <div class="card-body">
-            <table class="table table-hover student-list-table">
-                <thead><tr><th>Foto</th><th>Nombre</th><th>{% if tipo == 'docentes' %}Cargo{% else %}Curso{% endif %}</th><th class="text-end">Acciones</th></tr></thead>
-                <tbody>
-                    {% for p in personas %}
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <div class="card"><div class="card-body">
+                <table class="table table-hover student-list-table mb-0">
+                    <thead><tr>
+                        <th style="width:36px"><input type="checkbox" class="form-check-input" id="cn-todos" aria-label="Marcar todos"></th>
+                        <th>Foto</th><th>Nombre</th><th>{% if tipo == 'docentes' %}Cargo{% else %}Curso{% endif %}</th><th class="text-end"></th>
+                    </tr></thead>
+                    <tbody>
+                        {% for p in personas %}
                         <tr>
-                            <td><img src="{{ p.foto }}" alt="Foto" class="student-photo"></td>
+                            <td><input type="checkbox" class="form-check-input cn-marca" value="{{ p.id }}" aria-label="Marcar a {{ p.nombre }}"></td>
+                            <td><img src="{{ p.foto }}" alt="" class="student-photo"></td>
                             <td>{{ p.nombre }}</td>
                             <td>{{ p.linea }}</td>
                             <td class="text-end">
-                                <button class="btn btn-secondary btn-sm" onclick="imprimirCarnetIndividual('carnet-{{ p.id }}')">
-                                    <i class="fas fa-id-card"></i> Imprimir Carnet
-                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="verMuestra('{{ p.id }}')"><i class="fas fa-eye"></i></button>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="imprimirCarnes(false, ['{{ p.id }}'])"><i class="fas fa-id-card"></i> Imprimir</button>
                             </td>
                         </tr>
-                    {% empty %}
-                        <tr><td colspan="4" class="text-center text-muted py-4">No hay {% if tipo == 'docentes' %}docentes{% else %}estudiantes{% endif %} para mostrar.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">No hay {% if tipo == 'docentes' %}docentes{% else %}estudiantes{% endif %} para mostrar.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div></div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card p-3">
+                <div class="small fw-bold mb-2">Así sale (tamaño aumentado)</div>
+                <div class="cn-muestra" id="cn-muestra"></div>
+            </div>
         </div>
     </div>
 
-    <!-- Contenedor oculto con todos los carnets -->
-    <div class="carnet-hidden-container">
+    <div class="cn-plantilla" aria-hidden="true">
         {% for p in personas %}
             <div id="carnet-{{ p.id }}" class="carnet">
                 <div class="carnet-header">
-                    {% if colegio.escudo %}<img src="{{ colegio.escudo.url }}" alt="Escudo" class="logo-escudo">{% endif %}
-                    <h3>{{ colegio.nombre|upper }}</h3>
+                    {% if colegio.escudo %}<img src="{{ colegio.escudo.url }}" alt="">{% endif %}
+                    <h3>{{ colegio.nombre }}</h3>
                 </div>
                 <div class="carnet-body">
-                    <img src="{{ p.foto }}" alt="Foto" class="carnet-foto">
+                    <img src="{{ p.foto }}" alt="" class="carnet-foto">
                     <h4 class="carnet-nombre">{{ p.nombre }}</h4>
                     <p class="carnet-documento">{{ p.documento }}</p>
                     <p class="carnet-curso">{{ p.linea }}</p>
                     <div class="carnet-qr"><img src="data:image/png;base64,{{ p.qr }}" alt="QR"></div>
                 </div>
-                <div class="carnet-footer">{{ p.pie }} - {% now "Y" %}</div>
+                <div class="carnet-footer">{{ p.pie }} · {% now "Y" %}</div>
             </div>
         {% endfor %}
     </div>
 </div>
 
 <script>
-    function imprimirCarnetIndividual(carnetId) {
-        const carnetElement = document.getElementById(carnetId);
-        if (!carnetElement) return;
+(function () {
+    // La hoja de impresión: solo los carnés, 3 × 3 en carta, sin nada más de la página.
+    const HOJA = `
+        @page { size: letter portrait; margin: 8mm; }
+        html, body { margin: 0; padding: 0; background: #fff; }
+        .hoja { display: grid; grid-template-columns: repeat(3, 54mm); grid-auto-rows: 85.6mm;
+                column-gap: 6mm; row-gap: 2mm; justify-content: center; }`;
 
-        // Añade clases temporales para controlar la visibilidad en la impresión
-        carnetElement.classList.add('carnet-to-print');
-        document.body.classList.add('is-printing');
-
-        window.print();
-
-        // Limpia las clases después de que se envíe la impresión
-        setTimeout(() => {
-            carnetElement.classList.remove('carnet-to-print');
-            document.body.classList.remove('is-printing');
-        }, 500);
+    function marcados() {
+        return Array.from(document.querySelectorAll('.cn-marca:checked')).map(c => c.value);
     }
+    function contar() { document.getElementById('cn-marcados').textContent = marcados().length; }
+    document.querySelectorAll('.cn-marca').forEach(c => c.addEventListener('change', contar));
+    const todos = document.getElementById('cn-todos');
+    if (todos) todos.addEventListener('change', () => {
+        document.querySelectorAll('.cn-marca').forEach(c => { c.checked = todos.checked; });
+        contar();
+    });
 
-    function imprimirTodos() {
-        // Prepara el cuerpo de la página para la impresión masiva
-        document.body.classList.add('printing-all');
-        window.print();
-        // Limpia la clase después de la impresión
-        setTimeout(() => {
-            document.body.classList.remove('printing-all');
-        }, 500);
-    }
+    window.verMuestra = function (id) {
+        const caja = document.getElementById('cn-muestra');
+        caja.innerHTML = '';
+        const c = document.getElementById('carnet-' + id);
+        if (c) caja.appendChild(c.cloneNode(true));
+    };
+
+    window.imprimirCarnes = function (soloMarcados, ids) {
+        ids = ids || (soloMarcados ? marcados() : Array.from(document.querySelectorAll('.cn-marca')).map(c => c.value));
+        if (!ids.length) { alert(soloMarcados ? 'Marque los carnés que quiere imprimir.' : 'No hay carnés para imprimir.'); return; }
+        const html = ids.map(id => (document.getElementById('carnet-' + id) || {}).outerHTML || '').join('');
+        const marco = document.createElement('iframe');
+        marco.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+        document.body.appendChild(marco);
+        const doc = marco.contentDocument;
+        doc.open();
+        doc.write('<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Carnés</title><style>' +
+                  document.getElementById('cn-estilos-carne').textContent + HOJA + '</style></head><body><div class="hoja">' +
+                  html + '</div></body></html>');
+        doc.close();
+        const imagenes = Array.from(doc.images);
+        let listas = 0;
+        const imprimir = () => {
+            marco.contentWindow.focus();
+            marco.contentWindow.print();
+            setTimeout(() => marco.remove(), 1500);
+        };
+        if (!imagenes.length) { imprimir(); return; }
+        imagenes.forEach(img => {
+            const una = () => { if (++listas === imagenes.length) imprimir(); };
+            if (img.complete) una(); else { img.addEventListener('load', una); img.addEventListener('error', una); }
+        });
+    };
+
+    const primero = document.querySelector('.cn-marca');
+    if (primero) verMuestra(primero.value);
+})();
 </script>
 {% endblock %}

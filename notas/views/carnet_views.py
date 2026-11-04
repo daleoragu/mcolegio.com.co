@@ -132,6 +132,7 @@ def impresion_masiva_carnets(request):
         'colegio': request.colegio,
         'tipo': tipo,
         'personas': personas,
+        'hojas': -(-len(personas) // 9),          # 9 carnés por hoja carta
         'cursos': cursos,
         'curso_seleccionado_id': curso_seleccionado_id,
     })
