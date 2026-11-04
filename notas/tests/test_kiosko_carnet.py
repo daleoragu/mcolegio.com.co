@@ -200,3 +200,33 @@ class EntrarConElCarne(ColegioDePrueba):
         self.ana.refresh_from_db()
         self.assertEqual(len(self.ana.pin_carnet), 4)
         self.assertEqual(self.cliente(self.estudiantes[1].user).get('/herramientas/pines-carnet/').status_code, 404)
+
+
+class CarnetDocente(ColegioDePrueba):
+
+    def test_imprimir_carnes_docentes(self):
+        r = self.cliente(self.rectora).get('/herramientas/imprimir-carnets/?tipo=docentes')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'CARNET DOCENTE')
+        self.assertContains(r, 'Pedro Profe')
+        self.assertContains(r, 'Director(a) de grupo 601')
+        self.docente.refresh_from_db()
+        self.assertTrue(self.docente.codigo_carnet)
+
+    def test_el_qr_del_docente_dice_que_es_valido(self):
+        codigo = self.docente.asegurar_codigo_carnet()
+        r = self.cliente().get(f'/c/{codigo}/')
+        self.assertContains(r, 'Carné docente válido')
+        self.assertContains(r, 'Pedro Profe')
+        self.assertNotContains(r, 'PIN')
+
+    def test_estudiantes_sigue_igual(self):
+        r = self.cliente(self.rectora).get('/herramientas/imprimir-carnets/')
+        self.assertContains(r, 'CARNET ESTUDIANTIL')
+        self.assertContains(r, 'Ana Prueba')
+
+    def test_el_docente_no_marca_asistencia_en_el_kiosko(self):
+        c = self.cliente(self.u_docente)
+        c.post('/asistencia/kiosko/', {'asignacion_id': self.asig.id})
+        j = c.post('/asistencia/kiosko/registrar/', {'codigo': self.docente.asegurar_codigo_carnet()}).json()
+        self.assertFalse(j['ok'])

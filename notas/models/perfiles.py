@@ -498,9 +498,23 @@ class Curso(models.Model):
 class Docente(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="docentes")
     user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Usuario de Login")
-    
+    # QR del carné docente: al azar, como el de los estudiantes (ver Estudiante.codigo_carnet).
+    codigo_carnet = models.CharField(max_length=16, unique=True, null=True, blank=True, editable=False,
+                                     verbose_name="Código del carné")
+
     def __str__(self): 
         return self.user.get_full_name() or self.user.username
+
+    def asegurar_codigo_carnet(self, nuevo=False):
+        if nuevo or not self.codigo_carnet:
+            codigo = nuevo_codigo_carnet()
+            while (Docente.objects.filter(codigo_carnet=codigo).exists()
+                   or Estudiante.objects.filter(codigo_carnet=codigo).exists()):
+                codigo = nuevo_codigo_carnet()
+            self.codigo_carnet = codigo
+            if self.pk:
+                Docente.objects.filter(pk=self.pk).update(codigo_carnet=codigo)
+        return self.codigo_carnet
         
     def es_director_de_grupo(self, curso):
         return self.cursos_dirigidos.filter(pk=curso.pk).exists()
