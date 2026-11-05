@@ -627,3 +627,68 @@ class RespuestaInvertida(models.Model):
             models.UniqueConstraint(fields=['clase', 'integrante'], condition=models.Q(integrante__isnull=False),
                                     name='aula_invertida_una_por_integrante'),
         ]
+
+
+# ---------------------------------------------------------------------------
+# Gamificación: juegos con las preguntas del docente (o de los bancos de prueba)
+# ---------------------------------------------------------------------------
+class JuegoAula(models.Model):
+    TIPOS = [
+        ('laberinto', 'Laberinto comelón'),
+        ('tanques', 'Batalla de tanques'),
+        ('tiro', 'Tiro al vuelo'),
+        ('salto', 'Salto al vacío'),
+        ('puente', 'Puente seguro'),
+        ('escape', 'Sala de escape'),
+        ('penaltis', 'Penaltis'),
+        ('tenis', 'Tenis'),
+        ('carrera', 'Carrera de carriles'),
+        ('baloncesto', 'Baloncesto'),
+    ]
+    # Se pueden jugar entre dos en el mismo equipo (sin nota: es una sola cuenta).
+    DOS_JUGADORES = ('penaltis', 'tenis')
+    # Terminan solos (se define la tanda o se acaba el partido): la nota es sobre lo que respondió.
+    TERMINAN_SOLOS = ('penaltis', 'tenis')
+    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, related_name='juegos')
+    tipo = models.CharField(max_length=10, choices=TIPOS, default='laberinto')
+    titulo = models.CharField(max_length=60, help_text='Es también el nombre de la columna en la planilla.')
+    texto_preguntas = models.TextField(blank=True)
+    preguntas = models.JSONField(default=list, blank=True)     # mismo formato que ClaseInvertida
+    segundos = models.PositiveSmallIntegerField(default=20, help_text='Tiempo por pregunta (en los juegos con reloj).')
+    minutos = models.PositiveSmallIntegerField(default=5, help_text='Duración del partido de tenis.')
+    publicado = models.BooleanField(default=True)
+    para = models.JSONField(default=list, blank=True)
+    periodo = models.ForeignKey('notas.PeriodoAcademico', on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='+')
+    componente = models.CharField(max_length=6, blank=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    pasado_planilla = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-creado']
+
+    def __str__(self):
+        return f'{self.titulo} ({self.get_tipo_display()})'
+
+
+class ResultadoJuegoAula(models.Model):
+    """La mejor nota de cada estudiante en el juego (y cuántas veces lo jugó)."""
+    juego = models.ForeignKey(JuegoAula, on_delete=models.CASCADE, related_name='resultados')
+    estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, null=True, blank=True, related_name='+')
+    integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    aciertos = models.PositiveSmallIntegerField(default=0)
+    total = models.PositiveSmallIntegerField(default=0)
+    puntaje = models.PositiveIntegerField(default=0)
+    nota = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    ultima_nota = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    intentos = models.PositiveSmallIntegerField(default=0)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['juego', 'estudiante'], condition=models.Q(estudiante__isnull=False),
+                                    name='aula_juego_uno_por_estudiante'),
+            models.UniqueConstraint(fields=['juego', 'integrante'], condition=models.Q(integrante__isnull=False),
+                                    name='aula_juego_uno_por_integrante'),
+        ]

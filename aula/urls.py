@@ -2,7 +2,7 @@ from django.urls import path
 
 from chat import views_salon as chs
 
-from . import views, views_examenes as vx, views_fichas as vf, views_importar as vi, views_invertida as vinv, views_juegos as vj
+from . import views, views_examenes as vx, views_fichas as vf, views_importar as vi, views_invertida as vinv, views_juegos as vj, views_gamificacion as vg
 
 app_name = 'aula'
 
@@ -61,6 +61,12 @@ urlpatterns = [
     path('<int:pk>/invertida/<int:iid>/', vinv.invertida, name='invertida'),
     path('<int:pk>/invertida/<int:iid>/accion/', vinv.invertida_accion, name='invertida_accion'),
     path('<int:pk>/invertida/<int:iid>/progreso/', vinv.invertida_progreso, name='invertida_progreso'),
+
+    path('<int:pk>/gamificacion/', vg.gamificacion, name='gamificacion'),
+    path('<int:pk>/gamificacion/<int:jid>/', vg.juego, name='juego'),
+    path('<int:pk>/gamificacion/<int:jid>/resultado/', vg.juego_resultado, name='juego_resultado'),
+    path('<int:pk>/gamificacion/<int:jid>/accion/', vg.juego_accion, name='juego_accion'),
+    path('<int:pk>/gamificacion/practica/<str:tipo>/<str:banco>/', vg.practica, name='juego_practica'),
 
     path('<int:pk>/importar/', vi.importar_notas, name='importar'),
     path('<int:pk>/tareas/<int:tid>/ficha/', vf.ficha, name='ficha'),
