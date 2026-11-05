@@ -1,5 +1,6 @@
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
+NUEVO     aula/animaplano.py
 NUEVO     aula/bancos/factorizacion.json
 NUEVO     aula/bancos_juegos.py
 NUEVO     aula/invertida.py
@@ -11,21 +12,30 @@ NUEVO     aula/migrations/0010_gamificacion.py
 NUEVO     aula/migrations/0011_juegos_deportes.py
 NUEVO     aula/migrations/0012_mascota_y_bandera.py
 NUEVO     aula/migrations/0013_juego_impostor.py
+NUEVO     aula/migrations/0014_juegos_dibujo_tesoro_carretera_unir_boxeo.py
+NUEVO     aula/migrations/0015_animaplano_y_ovejas.py
 CAMBIADO  aula/models.py
 NUEVO     aula/static/aula/invertida_pausas.js
+NUEVO     aula/static/aula/juegos/animaplano.js
 NUEVO     aula/static/aula/juegos/baloncesto.js
 NUEVO     aula/static/aula/juegos/bandera.js
+NUEVO     aula/static/aula/juegos/boxeo.js
 NUEVO     aula/static/aula/juegos/carrera.js
+NUEVO     aula/static/aula/juegos/carretera.js
+NUEVO     aula/static/aula/juegos/dibujo.js
 NUEVO     aula/static/aula/juegos/escape.js
 NUEVO     aula/static/aula/juegos/impostor.js
 NUEVO     aula/static/aula/juegos/laberinto.js
 NUEVO     aula/static/aula/juegos/motor.js
+NUEVO     aula/static/aula/juegos/ovejas.js
 NUEVO     aula/static/aula/juegos/penaltis.js
 NUEVO     aula/static/aula/juegos/puente.js
 NUEVO     aula/static/aula/juegos/salto.js
 NUEVO     aula/static/aula/juegos/tanques.js
 NUEVO     aula/static/aula/juegos/tenis.js
+NUEVO     aula/static/aula/juegos/tesoro.js
 NUEVO     aula/static/aula/juegos/tiro.js
+NUEVO     aula/static/aula/juegos/unir.js
 NUEVO     aula/static/aula/mascota.js
 CAMBIADO  aula/templates/aula/_cabecera.html
 NUEVO     aula/templates/aula/_invertida_form.html
@@ -160,6 +170,8 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0011_juegos_deportes.py            (penaltis, tenis, carrera y baloncesto)
   aula/migrations/0012_mascota_y_bandera.py          (mascota académica y captura la bandera)
   aula/migrations/0013_juego_impostor.py             (juego Expulsa al impostor)
+  aula/migrations/0014_juegos_dibujo_tesoro_carretera_unir_boxeo.py  (5 juegos nuevos)
+  aula/migrations/0015_animaplano_y_ovejas.py        (Animaplano y Ovejas y lobos)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

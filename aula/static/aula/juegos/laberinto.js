@@ -19,7 +19,8 @@
         '#..........##..........#',
         '########################',
     ];
-    const ESQUINAS = [[1, 1], [22, 1], [1, 11], [22, 11]];
+    // Las 4 esquinas primero; con más de 4 opciones se usan también 4 puntos del medio.
+    const ESQUINAS = [[1, 1], [22, 1], [1, 11], [22, 11]], MEDIO = [[5, 3], [18, 3], [5, 9], [18, 9]];
     const libre = (cx, cy) => cy >= 0 && cy < FILAS && cx >= 0 && cx < COLS && MAPA[cy][cx] !== '#';
     const DIRS = {arriba: [0, -1], abajo: [0, 1], izquierda: [-1, 0], derecha: [1, 0]};
 
@@ -69,11 +70,12 @@
         nombre: 'Laberinto comelón',
         instrucciones: 'Mueva la gota con las flechas y cómase la galleta de la respuesta correcta. ¡Cuidado con los virus!',
         controles: 'cruceta',
+        maxOpciones: 8,
         // Barra lateral: la galleta de la opción, con su color y su letra
         icono(ctx, k, tam) { galleta(ctx, k, tam / 2, tam / 2, tam * .4, false); },
         nuevaPregunta(m) {
             const n = m.opciones.length;
-            const esquinas = ESQUINAS.slice().sort(() => Math.random() - .5).slice(0, n);
+            const esquinas = ESQUINAS.slice().sort(() => Math.random() - .5).concat(MEDIO.slice().sort(() => Math.random() - .5)).slice(0, n);
             m.s = {
                 gota: ente(11, 9, 92),
                 // Nivel 1: un virus lento; luego más virus y más rápidos.
