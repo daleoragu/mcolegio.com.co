@@ -196,9 +196,19 @@
             ev.preventDefault();
             if (m.estado === 'inicio') return empezar();
             const [x, y] = punto(ev);
+            try { lienzo.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
+            m.puntero = {x, y};
             if (m.estado === 'jugando' && def.alTocar) def.alTocar(m, x, y);
         });
-        lienzo.addEventListener('pointermove', ev => { const [x, y] = punto(ev); m.puntero = {x, y}; });
+        lienzo.addEventListener('pointermove', ev => {
+            const [x, y] = punto(ev); m.puntero = {x, y};
+            if (m.estado === 'jugando' && def.alArrastrar && ev.buttons) def.alArrastrar(m, x, y);
+        });
+        // Soltar (el arco de la oveja se jala y se suelta)
+        ['pointerup', 'pointercancel'].forEach(e => lienzo.addEventListener(e, ev => {
+            const [x, y] = punto(ev);
+            if (m.estado === 'jugando' && def.alSoltar) def.alSoltar(m, x, y);
+        }));
 
         // --- Ciclo ----------------------------------------------------------------------
         let antes = performance.now();

@@ -654,6 +654,8 @@ class JuegoAula(models.Model):
         ('carretera', 'Carretera del saber'),
         ('unir', 'Une con líneas'),
         ('boxeo', 'Boxeo del saber'),
+        ('animaplano', 'Animaplano'),
+        ('ovejas', 'Ovejas y lobos'),
     ]
     # Se pueden jugar entre dos en el mismo equipo (sin nota: es una sola cuenta).
     DOS_JUGADORES = ('penaltis', 'tenis', 'boxeo')

@@ -200,3 +200,21 @@ class Gamificacion(ColegioDePrueba):
         # El boxeo termina por KO: la nota es sobre lo respondido, y se puede jugar entre dos
         self.assertIn('boxeo', JuegoAula.TERMINAN_SOLOS)
         self.assertContains(self.cliente(self.ana.user).get(f'{self.base}/{j.pk}/?jugadores=2'), 'jugadores: 2')
+
+    def test_animaplano(self):
+        # Sin preguntas: la plataforma arma las operaciones de la figura, en orden
+        j = self.crear(tipo='animaplano', preguntas='', figura='estrella', operaciones='multi')
+        from aula import animaplano
+        puntos = [int(next(o['texto'] for o in p['opciones'] if o['correcta'])) for p in j.preguntas]
+        self.assertEqual(puntos, animaplano.FIGURAS['estrella'][1][0])
+        self.assertIn('×', j.texto_preguntas)
+        r = self.cliente(self.ana.user).get(f'{self.base}/{j.pk}/')
+        self.assertEqual([p['i'] for p in r.context['preguntas']], list(range(len(puntos))))   # no se revuelven
+        # Con preguntas propias: cada respuesta tiene que ser un punto del 1 al 100
+        antes = JuegoAula.objects.count()
+        self.crear(tipo='animaplano', preguntas='1. 50 + 70 =\n*A) 120\nB) 110\n')
+        self.assertEqual(JuegoAula.objects.count(), antes)
+        j = self.crear(tipo='animaplano', preguntas='1. 8 × 5 − 8 =\n*A) 32\nB) 33\n2. (nuevo trazo) 7 × 3 =\n*A) 21\nB) 12\n')
+        self.assertEqual(len(j.preguntas), 2)
+        self.assertEqual(self.cliente(self.ana.user).get(f'{self.base}/practica/animaplano/matematicas/').status_code, 200)
+        self.assertContains(self.cliente(self.ana.user).get(f'{self.base}/practica/ovejas/colombia/'), 'aula/juegos/ovejas.js')

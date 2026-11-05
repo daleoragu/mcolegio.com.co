@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import bancos_juegos, logica
+from . import animaplano, bancos_juegos, logica
 from .invertida import leer_preguntas
 from .juegos import nota as nota_de
 from .models import JuegoAula, ResultadoJuegoAula
@@ -34,6 +34,8 @@ DESCRIPCIONES = {
     'tesoro': 'Cave en la marca correcta de la isla y arme el mapa del cofre.',
     'carretera': 'De ciudad en ciudad: choque el carro de la respuesta correcta, esquive los otros y no se quede sin gasolina.',
     'unir': 'Una cada pregunta con su respuesta trazando líneas.',
+    'animaplano': 'Resuelva cada operación, toque el punto del resultado y descubra la figura (1 a 100).',
+    'ovejas': 'La oveja arquera: jale el arco y suelte para reventar el globo del lobo con la respuesta correcta.',
     'boxeo': 'Cada guante es una respuesta: acierte para golpear, falle y lo golpean. Tres rivales. 1 o 2 jugadores.',
 }
 
@@ -60,10 +62,12 @@ def validar_preguntas(texto):
     return preguntas, ''
 
 
-def _para_jugar(preguntas):
-    """Las preguntas en otro orden cada vez (cada una con su número para calificar)."""
+def _para_jugar(preguntas, tipo=None):
+    """Las preguntas en otro orden cada vez (cada una con su número para calificar).
+    En el animaplano van en su orden: así se dibuja la figura."""
     lista = [dict(p, i=i) for i, p in enumerate(preguntas)]
-    random.shuffle(lista)
+    if tipo != 'animaplano':
+        random.shuffle(lista)
     return lista
 
 
@@ -78,7 +82,7 @@ def gamificacion(request, pk):
         error = _leer(request, j, aula)
         if error:
             messages.warning(request, error)
-            request.session['juego_borrador'] = {k: request.POST.get(k, '') for k in ('titulo', 'preguntas', 'tipo', 'segundos', 'minutos')}
+            request.session['juego_borrador'] = {k: request.POST.get(k, '') for k in ('titulo', 'preguntas', 'tipo', 'segundos', 'minutos', 'figura', 'operaciones')}
             return redirect('aula:gamificacion', pk=pk)
         j.save()
         request.session.pop('juego_borrador', None)
@@ -94,7 +98,8 @@ def gamificacion(request, pk):
     else:
         for j in juegos:
             j.n_resultados = j.resultados.count()
-    datos = {'juegos': juegos, 'tipos': [(k, n, DESCRIPCIONES[k]) for k, n in JuegoAula.TIPOS], 'bancos': bancos_juegos.BANCOS}
+    datos = {'juegos': juegos, 'tipos': [(k, n, DESCRIPCIONES[k]) for k, n in JuegoAula.TIPOS], 'bancos': bancos_juegos.BANCOS,
+             'figuras': [(k, n) for k, (n, _) in animaplano.FIGURAS.items()], 'operaciones': animaplano.OPERACIONES}
     if c.es_docente:
         datos.update(_datos_planilla(aula))
         datos['opciones_para'] = logica.opciones_para(aula)
@@ -117,9 +122,17 @@ def _leer(request, j, aula):
     if not j.titulo:
         return 'Escriba el título del juego.'
     texto = (request.POST.get('preguntas') or '').strip()
+    if j.tipo == 'animaplano' and not texto:
+        # Sin preguntas: la plataforma arma las operaciones de la figura escogida
+        texto = animaplano.generar(request.POST.get('figura'), request.POST.get('operaciones'))
     preguntas, error = validar_preguntas(texto)
     if error:
         return error
+    if j.tipo == 'animaplano':
+        malas = animaplano.revisar(preguntas)
+        if malas:
+            return ('En el animaplano cada respuesta correcta es un punto de la cuadrícula (un número del 1 al 100). Revise las preguntas '
+                    + ', '.join(map(str, malas[:15])) + '.')
     if j.pk and j.resultados.exists() and preguntas != j.preguntas:
         return 'Ya hay estudiantes que jugaron: no se pueden cambiar las preguntas. Cree otro juego.'
     j.texto_preguntas, j.preguntas = texto[:60000], preguntas
@@ -178,7 +191,7 @@ def juego(request, pk, jid):
                         reverse('aula:juego_resultado', args=[pk, jid]))
     jugadores = _jugadores(request, j.tipo)
     datos = {'juego': j, 'tipo': j.tipo, 'nombre_juego': j.get_tipo_display(), 'segundos': j.segundos, 'minutos': j.minutos,
-             'preguntas': _para_jugar(j.preguntas), 'guarda': not c.es_docente and jugadores == 1, 'jugadores': jugadores,
+             'preguntas': _para_jugar(j.preguntas, j.tipo), 'guarda': not c.es_docente and jugadores == 1, 'jugadores': jugadores,
              'dos_jugadores': j.tipo in JuegoAula.DOS_JUGADORES, 'tema': _tema(c.aula)}
     if c.es_docente:
         filas = []
@@ -240,6 +253,12 @@ def practica(request, pk, tipo, banco):
     c = _ctx(request, pk)
     if tipo not in dict(JuegoAula.TIPOS) or banco not in bancos_juegos.BANCOS:
         raise Http404
+    if tipo == 'animaplano':          # una figura al azar con operaciones de las cuatro
+        preguntas = leer_preguntas(animaplano.generar(random.choice(list(animaplano.FIGURAS)), 'mixtas'), MAX_PREGUNTAS)
+        return _render(request, c, 'aula/juego.html', {
+            'juego': None, 'tipo': tipo, 'nombre_juego': 'Animaplano', 'segundos': 30, 'minutos': 3,
+            'preguntas': [dict(p, i=i) for i, p in enumerate(preguntas)], 'guarda': False, 'jugadores': 1,
+            'banco': 'operaciones básicas', 'tema': ''}, 'gamificacion')
     if tipo == 'tanques':
         if banco == 'factorizacion':        # los 6 temas del juego original, cada uno su nivel
             return _tanques(request, c, [], False, 'Factorización', None, banco_propio=True)
