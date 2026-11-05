@@ -2,12 +2,20 @@ from django.urls import path
 
 from chat import views_salon as chs
 
-from . import views, views_examenes as vx, views_fichas as vf, views_importar as vi, views_invertida as vinv, views_juegos as vj, views_gamificacion as vg, views_mascota as vm, views_logica as vl
+from . import views, views_examenes as vx, views_fichas as vf, views_importar as vi, views_invertida as vinv, views_juegos as vj, views_gamificacion as vg, views_mascota as vm, views_logica as vl, views_eventos as ve
 
 app_name = 'aula'
 
 urlpatterns = [
     path('', views.inicio, name='inicio'),
+    # Eventos del colegio (olimpiada de matemáticas)
+    path('eventos/', ve.eventos, name='eventos'),
+    path('eventos/<int:eid>/', ve.jugar, name='evento'),
+    path('eventos/<int:eid>/configurar/', ve.configurar, name='evento_configurar'),
+    path('eventos/<int:eid>/resultados/', ve.resultados, name='evento_resultados'),
+    path('eventos/<int:eid>/registro/', ve.registro, name='evento_registro'),
+    path('eventos/<int:eid>/pregunta/', ve.pregunta, name='evento_pregunta'),
+    path('eventos/<int:eid>/responder/', ve.responder, name='evento_responder'),
     path('asignacion/<int:asignacion_id>/', views.por_asignacion, name='por_asignacion'),
     path('grupo/<int:grupo_id>/', views.por_grupo, name='por_grupo'),
 

@@ -86,6 +86,7 @@
             m.escala = lienzo.width / W;
         }
         ajustar(); window.addEventListener('resize', ajustar);
+        let vivo = true;
 
         // --- Ayudas de dibujo ------------------------------------------------------------
         m.texto = function (t, x, y, o) {
@@ -183,11 +184,15 @@
         }
         m.pulsar = (nombre) => tecla(nombre, true);
         m.soltar = (nombre) => tecla(nombre, false);
-        document.addEventListener('keydown', ev => {
+        const alBajar = ev => {
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(ev.key)) ev.preventDefault();
             if (!ev.repeat) tecla(ev.key, true);
-        });
-        document.addEventListener('keyup', ev => tecla(ev.key, false));
+        };
+        const alSubir = ev => tecla(ev.key, false);
+        document.addEventListener('keydown', alBajar);
+        document.addEventListener('keyup', alSubir);
+        // Apagar el juego (las olimpiadas cambian de reto sin recargar la página)
+        m.destruir = () => { vivo = false; document.removeEventListener('keydown', alBajar); document.removeEventListener('keyup', alSubir); window.removeEventListener('resize', ajustar); };
         function punto(ev) {
             const r = lienzo.getBoundingClientRect();
             return [(ev.clientX - r.left) * W / r.width, (ev.clientY - r.top) * H / r.height];
@@ -227,7 +232,7 @@
                 }
             }
             dibujar();
-            requestAnimationFrame(cuadro);
+            if (vivo) requestAnimationFrame(cuadro);
         }
 
         function dibujar() {

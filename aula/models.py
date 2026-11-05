@@ -743,3 +743,53 @@ class MascotaAula(models.Model):
 
     def __str__(self):
         return f'{self.nombre} ({self.get_especie_display()})'
+
+
+# ---------------------------------------------------------------------------
+# Eventos del colegio (en Mi Salón Virtual): por ahora, la olimpiada de matemáticas
+# ---------------------------------------------------------------------------
+class Evento(models.Model):
+    """Un evento del colegio. Se crea apagado: los estudiantes solo lo ven cuando el organizador lo activa."""
+    TIPOS = [('olimpiada', 'Olimpiada de matemáticas')]
+    colegio = models.ForeignKey('notas.Colegio', on_delete=models.CASCADE, related_name='eventos_aula')
+    tipo = models.CharField(max_length=12, choices=TIPOS, default='olimpiada')
+    titulo = models.CharField(max_length=80)      # lo escribe el organizador
+    activo = models.BooleanField(default=False)
+    # Además de los administradores del colegio, estos docentes también lo organizan
+    organizadores = models.ManyToManyField(User, blank=True, related_name='eventos_organizados')
+    config = models.JSONField(default=dict, blank=True)     # juegos, bloques, minutos, descanso, cada, por_parada
+    preguntas = models.JSONField(default=list, blank=True)  # [{ciclo, categoria, texto, opciones:[{texto, correcta}], origen}]
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado']
+
+    def __str__(self):
+        return self.titulo
+
+
+class ParticipacionEvento(models.Model):
+    """Lo que lleva un estudiante en el evento. El servidor cuenta los puntos y califica las preguntas."""
+    evento = models.ForeignKey(Evento, on_delete=models.CASCADE, related_name='participaciones')
+    estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, related_name='+')
+    ciclo = models.CharField(max_length=16)
+    puntos = models.PositiveIntegerField(default=0)
+    bonos = models.PositiveIntegerField(default=0)            # preguntas de competencia bien respondidas
+    preguntas_hechas = models.PositiveIntegerField(default=0)
+    segundos_ultimo_punto = models.FloatField(default=0)      # tiempo de juego hasta el último punto
+    bloque = models.PositiveSmallIntegerField(default=1)
+    terminada = models.BooleanField(default=False)
+    empezada = models.DateTimeField(default=timezone.now)
+    actualizada = models.DateTimeField(auto_now=True)
+    secuencia = models.PositiveIntegerField(default=0)        # para no contar dos veces lo que llega repetido
+    registro = models.JSONField(default=list, blank=True)     # [{tipo, juego, nivel, t, ...}]
+    pendiente = models.JSONField(default=dict, blank=True)    # la pregunta que se está respondiendo
+    vistas = models.JSONField(default=list, blank=True)       # preguntas ya hechas (para no repetir)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['evento', 'estudiante'], name='aula_evento_una_participacion')]
+
+    @property
+    def tiempo_efectivo(self):
+        """Tiempo hasta el último punto menos 30 s por cada pregunta bien respondida."""
+        return max(0.0, self.segundos_ultimo_punto - 30 * self.bonos)

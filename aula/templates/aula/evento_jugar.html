@@ -1,0 +1,68 @@
+{% extends base %}
+{% load static %}
+{% block page_title %}{% endblock %}
+{% block content %}
+<style>
+  #ol { max-width:1080px; margin:0 auto; background:#fff; border-radius:18px; padding:14px; position:relative; }
+  #ol:fullscreen { max-width:none; border-radius:0; overflow:auto; }
+  .ol-cab { display:flex; flex-wrap:wrap; gap:10px; align-items:center; background:linear-gradient(90deg,#1f3a68,#3b5bdb); color:#fff; border-radius:14px; padding:10px 14px; margin-bottom:10px; }
+  .ol-cab h5 { margin:0; font-weight:800; }
+  .ol-dato { background:rgba(255,255,255,.14); border-radius:10px; padding:4px 10px; text-align:center; min-width:76px; }
+  .ol-dato small { display:block; font-size:.65rem; opacity:.8; text-transform:uppercase; letter-spacing:.04em; }
+  .ol-dato b { font-size:1.15rem; }
+  .ol-reloj b { font-variant-numeric:tabular-nums; }
+  .ol-reloj.poco b { color:#ffd43b; }
+  .ol-reto { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .ol-reto .nombre { font-weight:800; color:#1f3a68; }
+  #ol-zona { position:relative; display:flex; justify-content:center; min-height:300px; }
+  #ol-zona canvas { display:block; max-width:100%; border-radius:12px; }
+  .ol-capa { position:absolute; inset:0; background:rgba(15,23,42,.6); display:flex; align-items:center; justify-content:center; border-radius:18px; z-index:20; padding:12px; }
+  .ol-capa[hidden] { display:none; }
+  .ol-caja { background:#fff; border-radius:18px; padding:22px; max-width:620px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,.3); }
+  .ol-op { display:block; width:100%; text-align:left; margin-bottom:8px; border:2px solid #dee2e6; border-radius:12px; padding:10px 14px; background:#fff; font-size:1rem; }
+  .ol-op:hover { border-color:#3b5bdb; }
+  .ol-op.bien { border-color:#2f9e44; background:#d3f9d8; }
+  .ol-op.mal { border-color:#e03131; background:#ffe3e3; }
+  .ol-respira { width:120px; height:120px; border-radius:50%; background:radial-gradient(circle,#99e9f2,#3bc9db); margin:14px auto; animation:respira 8s ease-in-out infinite; }
+  @keyframes respira { 0%,100% { transform:scale(.6); } 50% { transform:scale(1); } }
+  #ol-aviso { position:absolute; left:50%; top:110px; transform:translateX(-50%); background:#212529; color:#fff; padding:6px 14px; border-radius:20px; font-size:.85rem; z-index:15; }
+  #ol-aviso[hidden] { display:none; }
+  .ol-cat { display:inline-block; border-radius:8px; padding:2px 8px; font-size:.75rem; font-weight:700; color:#fff; }
+</style>
+<div class="au">
+<div id="ol">
+  <div class="ol-cab">
+    <div class="flex-grow-1"><h5>🏅 {{ ev.titulo }}</h5><div class="small" id="ol-ciclo"></div></div>
+    <div class="ol-dato ol-reloj" id="ol-reloj"><small>Bloque <span id="ol-bloque">1</span></small><b id="ol-tiempo">15:00</b></div>
+    <div class="ol-dato"><small>Puntos</small><b id="ol-puntos">0</b></div>
+    <div class="ol-dato"><small>Preguntas ✓</small><b id="ol-bonos">0</b></div>
+    <div class="ol-dato"><small>Tiempo efectivo</small><b id="ol-efectivo">0:00</b></div>
+    <button type="button" class="btn btn-sm btn-light" id="ol-completa" title="Pantalla completa"><i class="fas fa-expand"></i></button>
+  </div>
+  {% if datos.prueba %}<div class="alert alert-warning py-1 small mb-2">Modo prueba del organizador: no se guarda nada.
+    Ciclo: {% for k, n, r in ciclos %}<a href="?ciclo={{ k }}" class="ms-1 {% if datos.ciclo == k %}fw-bold{% endif %}">{{ n }}</a>{% endfor %}</div>{% endif %}
+  <div class="ol-reto"><span class="nombre" id="ol-reto-nombre"></span><span class="small text-muted" id="ol-reto-detalle"></span>
+    <span class="ms-auto d-flex gap-1">
+      <button type="button" class="btn btn-sm btn-outline-primary" id="ol-girar" hidden>Girar</button>
+      <button type="button" class="btn btn-sm btn-outline-primary" id="ol-voltear" hidden>Voltear</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="ol-deshacer" hidden>Deshacer</button>
+      <button type="button" class="btn btn-sm btn-outline-danger" id="ol-saltar">Saltar reto ⏭</button>
+    </span></div>
+  <div id="ol-aviso" hidden></div>
+  <div id="ol-zona"></div>
+  <p class="small text-muted mt-2 mb-0" id="ol-instrucciones"></p>
+  <div class="ol-capa" id="ol-capa"><div class="ol-caja" id="ol-caja"></div></div>
+</div>
+</div>
+{{ datos|json_script:"ol-datos" }}
+<script src="{% static 'aula/logica/comun.js' %}"></script>
+{% for j in scripts %}<script src="{% static 'aula/logica/'|add:j|add:'.js' %}"></script>
+{% endfor %}<script src="{% static 'aula/juegos/motor.js' %}"></script>
+<script src="{% static 'aula/juegos/tiro.js' %}"></script>
+<script src="{% static 'aula/juegos/laberinto.js' %}"></script>
+<script>
+window.OL_URLS = {registro: "{% url 'aula:evento_registro' ev.pk %}", pregunta: "{% url 'aula:evento_pregunta' ev.pk %}", responder: "{% url 'aula:evento_responder' ev.pk %}",
+                  volver: "{% url 'aula:eventos' %}", csrf: "{{ csrf_token }}"};
+</script>
+<script src="{% static 'aula/eventos/olimpiada.js' %}"></script>
+{% endblock %}

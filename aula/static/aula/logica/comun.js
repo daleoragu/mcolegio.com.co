@@ -2,7 +2,7 @@
  *
  *   Logica.registrar('hanoi', {nombre, instrucciones, total(datos), iniciar(zona, datos, i, api) → {deshacer?, ayuda?}})
  *   Logica.pagina({id, datos, clave, alGanar})     ← arma la página con la barra de niveles
- *   Logica.montar(zona, id, datos, i, api)         ← solo el juego (lo usan también las Matempiadas)
+ *   Logica.montar(zona, id, datos, i, api)         ← solo el juego (lo usan también las olimpiadas de Eventos)
  *
  * api: movimiento(n), gano(), lienzo(W, H), aviso(texto), sonido(tipo)
  */
@@ -198,6 +198,13 @@
                     $('#lg-sig').hidden = nivel >= total - 1;
                     setTimeout(() => { $('#lg-final').hidden = false; }, 450);
                     if (cfg.alGanar) cfg.alGanar(nivel, progreso[nivel]);
+                },
+                perdio(info) {
+                    if (ganado) return; ganado = true; sonido('mal');
+                    $('#lg-final-titulo').textContent = (info && info.titulo) || '¡Casi!';
+                    $('#lg-final-detalle').textContent = (info && info.detalle) || 'Inténtelo de nuevo.';
+                    $('#lg-sig').hidden = true;
+                    setTimeout(() => { $('#lg-final').hidden = false; }, 450);
                 },
                 aviso(t) { const a = $('#lg-aviso'); a.textContent = t; a.hidden = !t; clearTimeout(a._t); if (t) a._t = setTimeout(() => { a.hidden = true; }, 2500); },
             };

@@ -19,6 +19,11 @@ JUEGOS = [
     ('kadogemo', 'Cuatro cuadrantes', 'Acomode las 4 piezas para que los huecos queden como en la tarjeta.', 'kadogemo'),
     ('kiriku', 'Deslizables de colores', 'Deslice las fichas hasta copiar la tarjeta.', 'kiriku'),
     ('laberinto', 'Laberinto de colores', 'Lleve las fichas por el corredor hasta copiar la tarjeta.', 'laberinto_colores'),
+    ('fila', 'La fila exacta', 'Ordene a las personas en la fila cumpliendo todas las pistas.', 'fila'),
+    ('nonograma', 'Nonograma', 'Pinte la cuadrícula con las pistas de filas y columnas y descubra el dibujo.', 'nonograma'),
+    ('geoplano', 'Geoplano', 'Tienda la banda en los clavos y forme figuras con el área que se pide.', 'geoplano'),
+    ('regletas', 'Regletas en la balanza', 'Equilibre la balanza con regletas de colores y resuelva ecuaciones.', 'regletas'),
+    ('speedrun', 'Cálculo veloz', '10 operaciones contra reloj.', 'speedrun'),
 ]
 DATOS = {j[0]: j for j in JUEGOS}
 NIVELES = os.path.join(os.path.dirname(__file__), 'static', 'aula', 'logica', 'niveles')

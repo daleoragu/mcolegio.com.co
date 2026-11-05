@@ -21,7 +21,7 @@
   <div class="lgm">
     {% for id, nombre, desc, archivo in juegos %}
     <a href="{% url 'aula:logica_juego' aula.pk id %}" data-juego="{{ id }}">
-      <span class="ic">{% if id == 'tangram' %}🔷{% elif id == 'hanoi' %}🗼{% elif id == 'trancon' %}🚗{% elif id == 'safari' %}🦒{% elif id == 'cerditos' %}🐷{% elif id == 'ranas' %}🐸{% elif id == 'bango' %}🔢{% elif id == 'kadogemo' %}🟥{% elif id == 'kiriku' %}🔵{% else %}🌈{% endif %}</span>
+      <span class="ic">{% if id == 'tangram' %}🔷{% elif id == 'hanoi' %}🗼{% elif id == 'trancon' %}🚗{% elif id == 'safari' %}🦒{% elif id == 'cerditos' %}🐷{% elif id == 'ranas' %}🐸{% elif id == 'bango' %}🔢{% elif id == 'kadogemo' %}🟥{% elif id == 'kiriku' %}🔵{% elif id == 'laberinto' %}🌈{% elif id == 'fila' %}🧍{% elif id == 'nonograma' %}🔳{% elif id == 'geoplano' %}📐{% elif id == 'regletas' %}⚖️{% else %}⚡{% endif %}</span>
       <b>{{ nombre }}</b><small>{{ desc }}</small>
       <div class="prog"></div>
     </a>
