@@ -1,23 +1,55 @@
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
+NUEVO     aula/bancos/factorizacion.json
+NUEVO     aula/bancos_juegos.py
 NUEVO     aula/invertida.py
 CAMBIADO  aula/logica.py
+NUEVO     aula/mascota.py
 NUEVO     aula/migrations/0008_aula_invertida.py
 NUEVO     aula/migrations/0009_invertida_pausas.py
+NUEVO     aula/migrations/0010_gamificacion.py
+NUEVO     aula/migrations/0011_juegos_deportes.py
+NUEVO     aula/migrations/0012_mascota_y_bandera.py
+NUEVO     aula/migrations/0013_juego_impostor.py
 CAMBIADO  aula/models.py
 NUEVO     aula/static/aula/invertida_pausas.js
+NUEVO     aula/static/aula/juegos/baloncesto.js
+NUEVO     aula/static/aula/juegos/bandera.js
+NUEVO     aula/static/aula/juegos/carrera.js
+NUEVO     aula/static/aula/juegos/escape.js
+NUEVO     aula/static/aula/juegos/impostor.js
+NUEVO     aula/static/aula/juegos/laberinto.js
+NUEVO     aula/static/aula/juegos/motor.js
+NUEVO     aula/static/aula/juegos/penaltis.js
+NUEVO     aula/static/aula/juegos/puente.js
+NUEVO     aula/static/aula/juegos/salto.js
+NUEVO     aula/static/aula/juegos/tanques.js
+NUEVO     aula/static/aula/juegos/tenis.js
+NUEVO     aula/static/aula/juegos/tiro.js
+NUEVO     aula/static/aula/mascota.js
 CAMBIADO  aula/templates/aula/_cabecera.html
 NUEVO     aula/templates/aula/_invertida_form.html
 NUEVO     aula/templates/aula/_invertida_js.html
+NUEVO     aula/templates/aula/gamificacion.html
 NUEVO     aula/templates/aula/invertida.html
 NUEVO     aula/templates/aula/invertidas.html
+NUEVO     aula/templates/aula/juego.html
+NUEVO     aula/templates/aula/juego_tanques.html
+NUEVO     aula/templates/aula/mascota.html
+NUEVO     aula/tests/test_gamificacion.py
 NUEVO     aula/tests/test_invertida.py
+NUEVO     aula/tests/test_mascota.py
 CAMBIADO  aula/tests/test_para.py
 CAMBIADO  aula/urls.py
+NUEVO     aula/views_gamificacion.py
 NUEVO     aula/views_invertida.py
+NUEVO     aula/views_mascota.py
 CAMBIADO  notas/boletin/logic.py
+NUEVO     notas/colores.py
+CAMBIADO  notas/context_processors.py
 NUEVO     notas/excusas.py
 NUEVO     notas/fichas.py
+CAMBIADO  notas/forms/portal_forms.py
 NUEVO     notas/migrations/0055_estudiante_codigo_carnet.py
 NUEVO     notas/migrations/0056_estudiante_pin_carnet.py
 NUEVO     notas/migrations/0057_docente_codigo_carnet.py
@@ -25,6 +57,7 @@ NUEVO     notas/migrations/0058_excusas.py
 NUEVO     notas/migrations/0059_solicitudes_ficha.py
 NUEVO     notas/migrations/0060_permisos_salida.py
 NUEVO     notas/migrations/0061_permisos_sin_carne.py
+NUEVO     notas/migrations/0062_colores_iconos_topbar.py
 CAMBIADO  notas/models/__init__.py
 CAMBIADO  notas/models/academicos.py
 NUEVO     notas/models/excusas.py
@@ -40,6 +73,7 @@ CAMBIADO  notas/static/notas/js/ingresar_notas.js
 NUEVO     notas/static/notas/js/lector_qr.js
 NUEVO     notas/static/notas/vendor/jsQR.js
 CAMBIADO  notas/templates/notas/admin_crud/formulario_estudiante.html
+CAMBIADO  notas/templates/notas/admin_portal/personalizacion_portal.html
 CAMBIADO  notas/templates/notas/admin_tools/admin_dashboard.html
 CAMBIADO  notas/templates/notas/admin_tools/impresion_masiva_carnets.html
 NUEVO     notas/templates/notas/admin_tools/pines_carnet.html
@@ -64,6 +98,7 @@ NUEVO     notas/templates/notas/excusas/excusa.html
 NUEVO     notas/templates/notas/fichas/historial.html
 NUEVO     notas/templates/notas/fichas/solicitud.html
 NUEVO     notas/templates/notas/fichas/solicitudes.html
+CAMBIADO  notas/templates/notas/includes/_head.html
 CAMBIADO  notas/templates/notas/includes/_topbar.html
 CAMBIADO  notas/templates/notas/observador/detalle_observador.html
 CAMBIADO  notas/templates/notas/partials/_tabla_notas.html
@@ -75,6 +110,7 @@ CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial.html
 CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial_pdf.html
 CAMBIADO  notas/templatetags/nota_filters.py
 NUEVO     notas/templatetags/pases_tags.py
+NUEVO     notas/tests/test_colores_iconos.py
 NUEVO     notas/tests/test_excusas.py
 NUEVO     notas/tests/test_kiosko_carnet.py
 NUEVO     notas/tests/test_meses_asistencia.py
@@ -119,6 +155,11 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   notas/migrations/0059_solicitudes_ficha.py         (solicitudes y registro de cambios de la ficha)
   notas/migrations/0060_permisos_salida.py           (módulo Permisos)
   notas/migrations/0061_permisos_sin_carne.py        (anotar que no traía el carné)
+  notas/migrations/0062_colores_iconos_topbar.py     (color de la campana y los mensajes)
+  aula/migrations/0010_gamificacion.py               (juegos del aula)
+  aula/migrations/0011_juegos_deportes.py            (penaltis, tenis, carrera y baloncesto)
+  aula/migrations/0012_mascota_y_bandera.py          (mascota académica y captura la bandera)
+  aula/migrations/0013_juego_impostor.py             (juego Expulsa al impostor)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

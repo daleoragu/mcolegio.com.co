@@ -47,6 +47,9 @@ class Aula(models.Model):
     comentarios_activos = models.BooleanField(default=True, verbose_name='Los estudiantes pueden comentar')
     # Planilla del plan individual: {'pesos': {'tarea:12': 2, 'manual:3': 1}, 'faltantes_minima': false}
     planilla = models.JSONField(default=dict, blank=True)
+    # Preguntas que pone el docente para las mascotas de la clase (mismo formato que los juegos).
+    preguntas_mascota = models.JSONField(default=list, blank=True)
+    texto_preguntas_mascota = models.TextField(blank=True)
     creada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -627,3 +630,109 @@ class RespuestaInvertida(models.Model):
             models.UniqueConstraint(fields=['clase', 'integrante'], condition=models.Q(integrante__isnull=False),
                                     name='aula_invertida_una_por_integrante'),
         ]
+
+
+# ---------------------------------------------------------------------------
+# Gamificación: juegos con las preguntas del docente (o de los bancos de prueba)
+# ---------------------------------------------------------------------------
+class JuegoAula(models.Model):
+    TIPOS = [
+        ('laberinto', 'Laberinto comelón'),
+        ('tanques', 'Batalla de tanques'),
+        ('tiro', 'Tiro al vuelo'),
+        ('salto', 'Salto al vacío'),
+        ('puente', 'Puente seguro'),
+        ('escape', 'Sala de escape'),
+        ('penaltis', 'Penaltis'),
+        ('tenis', 'Tenis'),
+        ('carrera', 'Carrera de carriles'),
+        ('baloncesto', 'Baloncesto'),
+        ('bandera', 'Captura la bandera'),
+        ('impostor', 'Expulsa al impostor'),
+    ]
+    # Se pueden jugar entre dos en el mismo equipo (sin nota: es una sola cuenta).
+    DOS_JUGADORES = ('penaltis', 'tenis')
+    # Terminan solos (se define la tanda o se acaba el partido): la nota es sobre lo que respondió.
+    TERMINAN_SOLOS = ('penaltis', 'tenis')
+    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, related_name='juegos')
+    tipo = models.CharField(max_length=10, choices=TIPOS, default='laberinto')
+    titulo = models.CharField(max_length=60, help_text='Es también el nombre de la columna en la planilla.')
+    texto_preguntas = models.TextField(blank=True)
+    preguntas = models.JSONField(default=list, blank=True)     # mismo formato que ClaseInvertida
+    segundos = models.PositiveSmallIntegerField(default=20, help_text='Tiempo por pregunta (en los juegos con reloj).')
+    minutos = models.PositiveSmallIntegerField(default=5, help_text='Duración del partido de tenis.')
+    publicado = models.BooleanField(default=True)
+    para = models.JSONField(default=list, blank=True)
+    periodo = models.ForeignKey('notas.PeriodoAcademico', on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='+')
+    componente = models.CharField(max_length=6, blank=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    pasado_planilla = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-creado']
+
+    def __str__(self):
+        return f'{self.titulo} ({self.get_tipo_display()})'
+
+
+class ResultadoJuegoAula(models.Model):
+    """La mejor nota de cada estudiante en el juego (y cuántas veces lo jugó)."""
+    juego = models.ForeignKey(JuegoAula, on_delete=models.CASCADE, related_name='resultados')
+    estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, null=True, blank=True, related_name='+')
+    integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    aciertos = models.PositiveSmallIntegerField(default=0)
+    total = models.PositiveSmallIntegerField(default=0)
+    puntaje = models.PositiveIntegerField(default=0)
+    nota = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    ultima_nota = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    intentos = models.PositiveSmallIntegerField(default=0)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['juego', 'estudiante'], condition=models.Q(estudiante__isnull=False),
+                                    name='aula_juego_uno_por_estudiante'),
+            models.UniqueConstraint(fields=['juego', 'integrante'], condition=models.Q(integrante__isnull=False),
+                                    name='aula_juego_uno_por_integrante'),
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Mascota académica: se cuida respondiendo preguntas
+# ---------------------------------------------------------------------------
+class MascotaAula(models.Model):
+    """La mascota virtual de un estudiante en una clase. Sus necesidades bajan con las horas;
+    se atienden respondiendo preguntas. Si se le acaban dos, se desmaya y la racha vuelve a cero."""
+    ESPECIES = [('dragon', 'Dragoncito'), ('gato', 'Gatico'), ('robot', 'Robotín'), ('buho', 'Búho'),
+                ('ajolote', 'Ajolote'), ('perro', 'Perrito')]
+    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, related_name='mascotas')
+    estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, null=True, blank=True, related_name='+')
+    integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    especie = models.CharField(max_length=10, choices=ESPECIES, default='dragon')
+    nombre = models.CharField(max_length=20)
+    hambre = models.FloatField(default=80)      # 100 = llena, 0 = muerta de hambre
+    sueno = models.FloatField(default=80)       # 100 = descansada
+    higiene = models.FloatField(default=80)     # 100 = limpia
+    actualizada = models.DateTimeField(default=timezone.now)
+    nacida = models.DateTimeField(default=timezone.now, help_text='Desde cuándo lleva viva (la racha).')
+    mejor_racha = models.PositiveIntegerField(default=0)
+    debil = models.BooleanField(default=False)
+    reanimar = models.PositiveSmallIntegerField(default=0, help_text='Aciertos que lleva para reanimarla.')
+    respondidas = models.PositiveIntegerField(default=0)
+    aciertos = models.PositiveIntegerField(default=0)
+    pendiente = models.JSONField(default=dict, blank=True, help_text='La pregunta que está respondiendo (la califica el servidor).')
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['aula', 'estudiante'], condition=models.Q(estudiante__isnull=False),
+                                    name='aula_mascota_una_por_estudiante'),
+            models.UniqueConstraint(fields=['aula', 'integrante'], condition=models.Q(integrante__isnull=False),
+                                    name='aula_mascota_una_por_integrante'),
+        ]
+
+    def __str__(self):
+        return f'{self.nombre} ({self.get_especie_display()})'

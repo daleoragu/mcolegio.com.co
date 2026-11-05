@@ -105,7 +105,7 @@ class ParaAlgunos(ColegioDePrueba):
                                                       'para_modo': 'algunos', 'para': [f'e{self.beto.id}']})
         self.assertEqual(logica.novedades(self.aula, self.ana),
                          {'muro': 1, 'material': 1, 'tareas': 1, 'actividades': 0, 'cuestionarios': 0,
-                          'invertida': 0})
+                          'invertida': 0, 'gamificacion': 0})
         r = ana.get('/aula/')
         self.assertContains(r, 'au-globo esquina')
         self.assertEqual(r.context['asignaciones'][0].nuevos, 3)

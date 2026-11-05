@@ -44,7 +44,7 @@ def minuto(segundos):
     return f'{h}:{m:02d}:{s:02d}' if h else f'{m}:{s:02d}'
 
 
-def leer_preguntas(texto):
+def leer_preguntas(texto, maximo=MAX_PREGUNTAS):
     preguntas = []
     actual = None          # {'texto': [...], 'opciones': [(letra, texto, marcada)], 'respuesta': letra}
 
@@ -87,7 +87,7 @@ def leer_preguntas(texto):
             actual = {'texto': [], 'opciones': [], 'respuesta': None}
         actual['texto'].append(limpia)
     cerrar()
-    return preguntas[:MAX_PREGUNTAS]
+    return preguntas[:maximo]
 
 
 def es_calificable(pregunta):

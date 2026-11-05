@@ -154,7 +154,7 @@ def nombres_para(obj, aula):
 # ---------------------------------------------------------------------------
 # Novedades: el globo rojo con lo que el estudiante no ha visto
 # ---------------------------------------------------------------------------
-SECCIONES = ('muro', 'material', 'tareas', 'actividades', 'cuestionarios', 'invertida')
+SECCIONES = ('muro', 'material', 'tareas', 'actividades', 'cuestionarios', 'invertida', 'gamificacion')
 
 
 def _visto(aula, persona, crear=False):
@@ -197,6 +197,7 @@ def novedades(aula, persona, secciones_vistas=None):
         'cuestionarios': nuevas(aula.cuestionarios.filter(a_su_ritmo=True, preguntas__isnull=False).distinct(),
                                 'creado', 'cuestionarios', filtrar_para=False),
         'invertida': nuevas(aula.invertidas.filter(publicada=True), 'creada', 'invertida'),
+        'gamificacion': nuevas(aula.juegos.filter(publicado=True), 'creado', 'gamificacion'),
     }
 
 

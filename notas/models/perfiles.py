@@ -149,6 +149,11 @@ class Colegio(models.Model):
     color_fondo = models.CharField(max_length=7, default='#F8F9FA', help_text="Color de fondo general de las páginas")
     color_topbar = models.CharField(max_length=7, default='#343A40', verbose_name="Color de Fondo Barra Superior/Lateral")
     color_topbar_texto = models.CharField(max_length=7, default='#FFFFFF', verbose_name="Color de Texto Barra Superior/Lateral")
+    iconos_topbar_auto = models.BooleanField(
+        default=True, verbose_name="Color automático para la campana y los mensajes",
+        help_text="La plataforma escoge un color que contraste con la barra. Desmárquelo para escogerlo usted.")
+    color_iconos_topbar = models.CharField(max_length=7, default='#FFD43B', blank=True,
+                                           verbose_name="Color de la campana y los mensajes")
     color_footer = models.CharField(max_length=7, default='#212529', verbose_name="Color de Fondo Pie de Página")
     color_footer_texto = models.CharField(max_length=7, default='#FFFFFF', verbose_name="Color de Texto Pie de Página")
 

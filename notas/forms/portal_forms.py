@@ -197,7 +197,8 @@ class ColegioPersonalizacionForm(forms.ModelForm):
             'historia', 'mision', 'vision', 'modelo_pedagogico',
             'escudo', 'favicon',
             'color_primario', 'color_texto_primario', 'color_secundario', 'color_fondo', 
-            'color_topbar', 'color_topbar_texto', 'color_footer', 'color_footer_texto',
+            'color_topbar', 'color_topbar_texto', 'iconos_topbar_auto', 'color_iconos_topbar',
+            'color_footer', 'color_footer_texto',
             'telefono', 'email_contacto', 'correo_copias', 'whatsapp_numero', 'whatsapp_automatico',
             'url_facebook', 'url_instagram', 'url_tiktok', 'url_youtube',
             'layout_portal', 
@@ -227,6 +228,8 @@ class ColegioPersonalizacionForm(forms.ModelForm):
             'color_fondo': forms.TextInput(attrs={'type': 'color', 'class': 'form-control form-control-color'}),
             'color_topbar': forms.TextInput(attrs={'type': 'color', 'class': 'form-control form-control-color'}),
             'color_topbar_texto': forms.TextInput(attrs={'type': 'color', 'class': 'form-control form-control-color'}),
+            'iconos_topbar_auto': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'color_iconos_topbar': forms.TextInput(attrs={'type': 'color', 'class': 'form-control form-control-color'}),
             'color_footer': forms.TextInput(attrs={'type': 'color', 'class': 'form-control form-control-color'}),
             'color_footer_texto': forms.TextInput(attrs={'type': 'color', 'class': 'form-control form-control-color'}),
 

@@ -1,0 +1,126 @@
+{% extends base %}
+{% load static %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  .ms-aparato { background:linear-gradient(160deg,#7048e8,#5f3dc4); border-radius:28px; padding:18px; max-width:420px; margin:0 auto;
+                box-shadow:inset 0 -6px 0 rgba(0,0,0,.25), 0 8px 22px rgba(0,0,0,.2); }
+  .ms-pantalla { background:#c3fae8; border:6px solid #343a40; border-radius:14px; padding:10px; text-align:center; position:relative; }
+  .ms-pantalla canvas { width:100%; max-width:256px; image-rendering:pixelated; }
+  .ms-nombre { font-family:"Press Start 2P", monospace; font-size:11px; color:#212529; margin-bottom:6px; }
+  .ms-barras { display:grid; grid-template-columns:auto 1fr; gap:6px 8px; align-items:center; margin:10px 0 4px; font-size:.8rem; color:#fff; font-weight:700; }
+  .ms-barra { height:12px; background:rgba(0,0,0,.25); border-radius:99px; overflow:hidden; }
+  .ms-barra span { display:block; height:100%; transition:width .6s; }
+  .ms-botones { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px; }
+  .ms-botones button { border:0; border-radius:50%; width:70px; height:70px; font-weight:800; font-size:.72rem; color:#fff;
+                       box-shadow:inset 0 -4px 0 rgba(0,0,0,.3); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+  .ms-botones i { font-size:1.2rem; }
+  .ms-q { font-weight:700; margin-bottom:8px; }
+  .ms-op { display:block; width:100%; text-align:left; border:2px solid #e3e7ef; background:#fff; border-radius:10px; padding:8px 10px; margin-bottom:6px; }
+  .ms-op.bien { border-color:#2f9e44; background:#d3f9d8; } .ms-op.mal { border-color:#e03131; background:#ffe3e3; }
+  .ms-aviso { min-height:24px; font-weight:700; text-align:center; margin-top:8px; color:#fff; }
+  .ms-cifras { display:flex; justify-content:space-around; text-align:center; color:#fff; margin-top:8px; }
+  .ms-cifras b { display:block; font-family:"Press Start 2P", monospace; font-size:14px; }
+  .ms-cifras span { font-size:.72rem; opacity:.9; }
+  .ms-especie { border:3px solid transparent; border-radius:14px; background:#fff; padding:6px; text-align:center; cursor:pointer; display:block; }
+  .ms-especie:has(input:checked) { border-color:#7048e8; background:#f3f0ff; }
+  .ms-especie input { position:absolute; opacity:0; }
+  .ms-especie canvas { width:84px; height:84px; image-rendering:pixelated; }
+</style>
+<div class="au">
+<div class="row g-3">
+{% if c.es_docente %}
+  <div class="col-lg-7">
+    <div class="au-tarjeta">
+      <h6><i class="fas fa-paw me-1"></i>Mascotas de la clase ({{ tablero|length }})</h6>
+      <p class="small text-muted">Cada estudiante cuida su mascota respondiendo preguntas: comida, sueño y baño bajan con las horas. Si se le acaban dos, se desmaya y su racha vuelve a cero.</p>
+      <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead><tr><th></th><th>Estudiante</th><th>Mascota</th><th class="text-center">Días viva</th><th class="text-center">Mejor racha</th><th class="text-center">Aciertos</th><th>Cómo está</th></tr></thead>
+        <tbody>
+        {% for f in tablero %}<tr>
+          <td><canvas width="40" height="40" data-especie="{{ f.mascota.especie }}" data-animo="{{ f.animo }}" style="width:40px;height:40px;image-rendering:pixelated"></canvas></td>
+          <td>{{ f.dueno }}</td><td>{{ f.mascota.nombre }} <span class="text-muted small">· {{ f.mascota.get_especie_display }}</span></td>
+          <td class="text-center fw-bold">{{ f.dias }}</td><td class="text-center">{{ f.mascota.mejor_racha }}</td>
+          <td class="text-center">{{ f.mascota.aciertos }}/{{ f.mascota.respondidas }}</td>
+          <td class="small">{% if f.animo == 'desmayada' %}<span class="au-chip mal">Desmayada</span>{% elif f.animo == 'mal' %}<span class="au-chip pend">Necesita atención</span>{% else %}<span class="au-chip ok">Bien</span>{% endif %}</td>
+        </tr>{% empty %}<tr><td colspan="7" class="text-muted">Ningún estudiante ha adoptado mascota todavía.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <form method="post" class="au-tarjeta">{% csrf_token %}
+      <h6><i class="fas fa-question me-1"></i>Preguntas para las mascotas</h6>
+      <p class="small text-muted">Opcional. Si las deja vacías, las mascotas usan las preguntas de los juegos de la clase (o las de prueba). Ahora hay <b>{{ n_banco }}</b> pregunta(s) disponibles{% if propias %}, {{ propias }} suyas{% endif %}. Se pueden repetir y mezclar temas.</p>
+      <textarea name="preguntas" class="form-control mb-1 inv-preguntas" rows="10" style="font-family:ui-monospace,Consolas,monospace;font-size:.85rem"
+                placeholder="1. ¿Cuánto es 12 ÷ 4?&#10;A) 2&#10;*B) 3&#10;C) 4">{{ aula.texto_preguntas_mascota }}</textarea>
+      <div class="small mb-2 inv-cuenta text-primary fw-semibold" aria-live="polite"></div>
+      <button class="btn au-oro w-100">Guardar</button>
+    </form>
+  </div>
+{% elif not m %}
+  <div class="col-lg-8 mx-auto">
+    <form method="post" class="au-tarjeta">{% csrf_token %}
+      <h5 class="fw-bold"><i class="fas fa-egg me-1"></i>Adopte su mascota académica</h5>
+      <p class="text-muted small">Su mascota le pedirá comida, sueño y baño. Para atenderla, responda preguntas de la clase. ¡Cuídela todos los días para que su racha crezca!</p>
+      <div class="row g-2 mb-3">
+        {% for k, n in especies %}
+        <div class="col-4 col-md-2"><label class="ms-especie"><input type="radio" name="especie" value="{{ k }}" {% if forloop.first %}checked{% endif %}>
+          <canvas width="84" height="84" data-especie="{{ k }}"></canvas><div class="small fw-bold">{{ n }}</div></label></div>
+        {% endfor %}
+      </div>
+      <div class="d-flex gap-2"><input name="nombre" class="form-control" maxlength="20" placeholder="Póngale nombre" required aria-label="Nombre de la mascota">
+        <button class="btn au-oro">Adoptar</button></div>
+    </form>
+  </div>
+{% else %}
+  <div class="col-lg-6">
+    <div class="ms-aparato">
+      <div class="ms-pantalla">
+        <div class="ms-nombre">{{ m.nombre|upper }}</div>
+        <canvas id="ms-lienzo" width="256" height="256" aria-label="{{ m.nombre }}, su mascota"></canvas>
+      </div>
+      <div class="ms-barras">
+        <span><i class="fas fa-drumstick-bite me-1"></i>Comida</span><div class="ms-barra" role="progressbar" aria-label="Comida" aria-valuemin="0" aria-valuemax="100"><span id="ms-hambre"></span></div>
+        <span><i class="fas fa-moon me-1"></i>Sueño</span><div class="ms-barra" role="progressbar" aria-label="Sueño" aria-valuemin="0" aria-valuemax="100"><span id="ms-sueno"></span></div>
+        <span><i class="fas fa-soap me-1"></i>Baño</span><div class="ms-barra" role="progressbar" aria-label="Baño" aria-valuemin="0" aria-valuemax="100"><span id="ms-higiene"></span></div>
+      </div>
+      <div class="ms-botones">
+        <button type="button" data-accion="comer" style="background:#e8590c"><i class="fas fa-drumstick-bite"></i>Comer</button>
+        <button type="button" data-accion="dormir" style="background:#1c7ed6"><i class="fas fa-moon"></i>Dormir</button>
+        <button type="button" data-accion="banar" style="background:#0ca678"><i class="fas fa-soap"></i>Bañar</button>
+        <button type="button" data-accion="reanimar" class="d-none" style="background:#e03131;width:120px;border-radius:99px"><i class="fas fa-heart-pulse"></i>Reanimar</button>
+      </div>
+      <div class="ms-aviso" id="ms-aviso" role="status" aria-live="polite"></div>
+      <div class="ms-aviso" id="ms-reanimar"></div>
+      <div class="ms-cifras">
+        <div><b id="ms-dias">0</b><span>días viva</span></div>
+        <div><b id="ms-mejor">0</b><span>mejor racha</span></div>
+        <div><b id="ms-aciertos">0/0</b><span>aciertos</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="au-tarjeta" id="ms-pregunta" hidden aria-live="polite"></div>
+    <div class="au-tarjeta">
+      <h6><i class="fas fa-trophy me-1"></i>Mascotas de la clase con más días</h6>
+      {% for f in tablero %}
+      <div class="d-flex align-items-center gap-2 py-1 border-bottom">
+        <span class="fw-bold" style="width:22px">{{ forloop.counter }}</span>
+        <canvas width="32" height="32" data-especie="{{ f.mascota.especie }}" data-animo="{{ f.animo }}" style="width:32px;height:32px;image-rendering:pixelated"></canvas>
+        <span class="flex-grow-1 small">{{ f.mascota.nombre }} <span class="text-muted">· {{ f.dueno }}</span></span>
+        <b>{{ f.dias }}</b><span class="small text-muted">días</span>
+      </div>
+      {% empty %}<p class="small text-muted mb-0">Nadie todavía.</p>{% endfor %}
+    </div>
+  </div>
+  {{ ms_config|json_script:"ms-config" }}
+{% endif %}
+</div>
+</div>
+{% if c.es_docente %}{% include 'aula/_invertida_js.html' %}{% endif %}
+<script src="{% static 'aula/mascota.js' %}"></script>
+{% endblock %}

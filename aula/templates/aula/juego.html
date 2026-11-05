@@ -1,0 +1,166 @@
+{% extends base %}
+{% load static %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  .jg-zona { display:flex; gap:12px; align-items:flex-start; max-width:1020px; margin:0 auto; }
+  .jg-consola { background:#1d1d1d; border-radius:18px; padding:14px; flex:1 1 auto; min-width:0; max-width:760px; box-shadow:inset 0 -6px 0 #111; }
+  .jg-leyenda { flex:0 0 240px; background:#05070f; color:#e9ecef; border-radius:14px; padding:10px; border:4px solid #2b2b2b; }
+  .jg-leyenda h6 { font-family:"Press Start 2P", monospace; font-size:9px; color:#ffd43b; margin:2px 0 10px; }
+  .jg-leyenda .preg { font-size:.85rem; font-weight:700; margin-bottom:8px; color:#fff; }
+  .jg-op { display:flex; align-items:center; gap:8px; padding:6px; border-radius:10px; margin-bottom:6px; background:#11172b; border-left:6px solid; }
+  .jg-op canvas { width:36px; height:36px; flex:0 0 auto; }
+  .jg-op span { font-size:.88rem; line-height:1.2; }
+  @media (max-width: 991px) { .jg-zona { flex-direction:column; } .jg-leyenda { flex:none; width:100%; } }
+  .jg-consola canvas { display:block; width:100%; border:6px solid #2b2b2b; border-radius:8px; background:#05070f; touch-action:none; }
+  .jg-mandos { display:none; justify-content:space-between; align-items:center; padding:12px 6px 2px; user-select:none; -webkit-user-select:none; }
+  .jg-mandos.visible { display:flex; }
+  .jg-cruz { display:grid; grid-template-columns:repeat(3, 52px); grid-template-rows:repeat(3, 52px); gap:4px; }
+  .jg-cruz button, .jg-fuego { border:0; border-radius:10px; background:#343a40; color:#fff; font-size:1.2rem; touch-action:none; }
+  .jg-cruz button:active, .jg-fuego:active { background:#495057; }
+  .jg-fuego { width:84px; height:84px; border-radius:50%; background:#c92a2a; font-family:"Press Start 2P", monospace; font-size:.7rem; box-shadow:inset 0 -4px 0 #7a1414; }
+  .jg-resultado { max-width:760px; margin:12px auto 0; }
+</style>
+<div class="au">
+<div class="d-flex flex-wrap align-items-center gap-2 mb-2" style="max-width:760px;margin:0 auto">
+  <a href="{% url 'aula:gamificacion' aula.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Menú de juegos</a>
+  <h5 class="fw-bold mb-0 flex-grow-1">{% if juego %}{{ juego.titulo }}{% else %}{{ nombre_juego }} · {{ banco }}{% endif %}</h5>
+  <span class="small text-muted">{{ nombre_juego }}{% if not guarda %} · {% if juego %}prueba del docente{% else %}práctica sin nota{% endif %}{% endif %}{% if mio and mio.nota is not None %} · su mejor nota: <b>{{ mio.nota }}</b>{% endif %}</span>
+</div>
+
+{% if dos_jugadores %}
+<div class="d-flex justify-content-center gap-2 mb-2">
+  <a class="btn btn-sm {% if jugadores == 1 %}btn-dark{% else %}btn-outline-dark{% endif %}" href="?jugadores=1"><i class="fas fa-user me-1"></i>1 jugador (contra la compu)</a>
+  <a class="btn btn-sm {% if jugadores == 2 %}btn-dark{% else %}btn-outline-dark{% endif %}" href="?jugadores=2"><i class="fas fa-user-group me-1"></i>2 jugadores</a>
+</div>
+{% if jugadores == 2 %}<p class="text-center small text-muted mb-2">Dos jugadores en este mismo equipo, por turnos. Es para jugar: no se guarda nota.</p>{% endif %}
+{% endif %}
+{% if tipo == 'tanques' and juego %}
+<div class="au-tarjeta text-center" style="max-width:760px;margin:0 auto">
+  <div class="fs-1">🛡️</div>
+  <p class="mb-2">Los estudiantes juegan <b>Tanques</b> a pantalla completa: seis mapas, refuerzos, poderes y el búho de la base.</p>
+  <a class="btn au-oro" href="?jugar=1"><i class="fas fa-play me-1"></i>Probar el juego</a>
+</div>
+{% else %}
+<div class="jg-zona">
+<div class="jg-consola">
+  <canvas id="jg-lienzo" aria-label="{{ nombre_juego }}" tabindex="0"></canvas>
+  <div class="jg-mandos" id="jg-mandos">
+    <div class="jg-cruz">
+      <span></span><button type="button" data-tecla="arriba" aria-label="Arriba">▲</button><span></span>
+      <button type="button" data-tecla="izquierda" aria-label="Izquierda">◄</button><span></span><button type="button" data-tecla="derecha" aria-label="Derecha">►</button>
+      <span></span><button type="button" data-tecla="abajo" aria-label="Abajo">▼</button><span></span>
+    </div>
+    <button type="button" class="jg-fuego" data-tecla="disparo" id="jg-fuego">FUEGO</button>
+  </div>
+</div>
+<aside class="jg-leyenda" aria-label="Opciones de la pregunta">
+  <h6>OPCIONES</h6>
+  <div class="preg" id="jg-ley-preg">Presione ENTER o toque el juego para empezar.</div>
+  <div id="jg-ley-ops"></div>
+</aside>
+</div>
+<div class="jg-resultado" id="jg-resultado" aria-live="polite"></div>
+{% endif %}
+
+{% if c.es_docente and juego %}
+<div class="au-tarjeta mt-3" style="max-width:760px;margin-left:auto;margin-right:auto">
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+    <h6 class="mb-0 flex-grow-1"><i class="fas fa-trophy me-1"></i>Resultados ({{ juego.resultados.count }} jugaron)</h6>
+    <form method="post" action="{% url 'aula:juego_accion' aula.pk juego.pk %}" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="publicar">
+      <button class="btn btn-sm btn-outline-secondary">{% if juego.publicado %}Ocultar{% else %}Publicar{% endif %}</button></form>
+    {% if puede_planilla %}<form method="post" action="{% url 'aula:juego_accion' aula.pk juego.pk %}" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="planilla">
+      <button class="btn btn-sm au-oro" {% if not juego.componente %}disabled title="Escoja periodo y componente"{% endif %}>Pasar a la planilla</button></form>{% endif %}
+    <form method="post" action="{% url 'aula:juego_accion' aula.pk juego.pk %}" class="m-0" onsubmit="return confirm('¿Eliminar el juego y sus resultados?')">{% csrf_token %}<input type="hidden" name="accion" value="eliminar">
+      <button class="btn btn-sm btn-link text-danger">Eliminar</button></form>
+  </div>
+  {% if puede_planilla %}
+  <form method="post" action="{% url 'aula:juego_accion' aula.pk juego.pk %}" class="d-flex flex-wrap gap-2 align-items-end mb-2">{% csrf_token %}<input type="hidden" name="accion" value="periodo">
+    <div style="min-width:280px">{% include 'aula/_periodo_componente.html' with obj=juego %}</div><button class="btn btn-sm btn-outline-primary mb-2">Guardar</button></form>
+  {% endif %}
+  <table class="table table-sm mb-0">
+    <thead><tr><th>Estudiante</th><th class="text-center">Mejor nota</th><th class="text-center">Aciertos</th><th class="text-center">Puntaje</th><th class="text-center">Veces</th></tr></thead>
+    <tbody>
+    {% for f in filas %}<tr><td>{{ f.nombre }}</td>
+      {% if f.r %}<td class="text-center fw-bold">{{ f.r.nota|default_if_none:"—" }}</td><td class="text-center">{{ f.r.aciertos }}/{{ f.r.total }}</td><td class="text-center">{{ f.r.puntaje }}</td><td class="text-center">{{ f.r.intentos }}</td>
+      {% else %}<td colspan="4" class="text-center text-muted small">No ha jugado</td>{% endif %}</tr>
+    {% empty %}<tr><td colspan="5" class="text-muted">No hay estudiantes.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+</div>
+
+{% if tipo != 'tanques' or not juego %}
+{{ preguntas|json_script:"jg-preguntas" }}
+<script src="{% static 'aula/juegos/motor.js' %}"></script>
+<script src="{% static 'aula/juegos/'|add:tipo|add:'.js' %}"></script>
+<script>
+(function () {
+  const lienzo = document.getElementById('jg-lienzo');
+  const salida = document.getElementById('jg-resultado');
+  const GUARDA = {{ guarda|yesno:'true,false' }};
+  const URL_RESULTADO = {% if juego %}"{% url 'aula:juego_resultado' aula.pk juego.pk %}"{% else %}null{% endif %};
+  let textoFinal = '';
+  const m = Gamificacion.iniciar({
+    lienzo, tipo: '{{ tipo|escapejs }}', segundos: {{ segundos|default:20 }}, minutos: {{ minutos|default:3 }},
+    jugadores: {{ jugadores|default:1 }},
+    preguntas: JSON.parse(document.getElementById('jg-preguntas').textContent),
+    textoFinal: () => textoFinal,
+    // Barra lateral: cada opción con su ícono del juego (el tanque, la bandera…) y el texto completo
+    alCambiarPregunta: (mm) => {
+      const p = mm.pregunta; if (!p) return;
+      document.getElementById('jg-ley-preg').textContent = p.texto;
+      const caja = document.getElementById('jg-ley-ops'); caja.innerHTML = '';
+      p.opciones.forEach((o, k) => {
+        const fila = document.createElement('div'); fila.className = 'jg-op'; fila.style.borderLeftColor = Gamificacion.COLORES[k];
+        const c = document.createElement('canvas'); c.width = 72; c.height = 72;
+        Gamificacion.icono('{{ tipo|escapejs }}', c.getContext('2d'), k, 72);
+        const t = document.createElement('span'); t.textContent = o.texto;
+        fila.appendChild(c); fila.appendChild(t); caja.appendChild(fila);
+      });
+    },
+    alTerminar: async (r) => {
+      const otra = `<a class="btn au-oro" href="">Jugar otra vez</a> <a class="btn btn-outline-secondary" href="{% url 'aula:gamificacion' aula.pk %}">Menú de juegos</a>`;
+      if (!GUARDA || !URL_RESULTADO) {
+        textoFinal = {{ jugadores|default:1 }} === 2 ? 'PARTIDA DE 2: SIN NOTA' : 'PRÁCTICA: NO SE GUARDA NOTA';
+        salida.innerHTML = `<div class="au-tarjeta text-center">${r.aciertos} de ${r.total} correctas. ${otra}</div>`;
+        return;
+      }
+      textoFinal = 'GUARDANDO…';
+      try {
+        const resp = await fetch(URL_RESULTADO, {method: 'POST', credentials: 'same-origin',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+          body: JSON.stringify({respuestas: r.respuestas, puntaje: r.puntaje})});
+        const j = await resp.json();
+        textoFinal = j.nota ? `NOTA: ${j.nota} · MEJOR: ${j.mejor}` : 'RESULTADO GUARDADO';
+        salida.innerHTML = `<div class="au-tarjeta text-center"><div class="fw-bold fs-5">Nota de esta vez: ${j.nota || '—'}</div>
+          <div class="small text-muted mb-2">${j.aciertos} de ${j.total} correctas · su mejor nota: ${j.mejor || '—'} · lo ha jugado ${j.intentos} vez/veces</div>${otra}</div>`;
+      } catch (e) {
+        textoFinal = 'NO SE PUDO GUARDAR';
+        salida.innerHTML = `<div class="alert alert-warning">No se pudo guardar el resultado. Revise la conexión e inténtelo de nuevo.</div>${otra}`;
+      }
+    },
+  });
+  // Controles en pantalla (celular): cruceta y fuego para los juegos que se mueven
+  const def = Gamificacion;
+  const mandos = document.getElementById('jg-mandos');
+  const tipo = '{{ tipo|escapejs }}';
+  if (['laberinto', 'tanques', 'puente', 'carrera', 'bandera'].includes(tipo) && (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window)) {
+    mandos.classList.add('visible');
+    if (tipo !== 'tanques') document.getElementById('jg-fuego').style.visibility = 'hidden';
+  }
+  mandos.querySelectorAll('[data-tecla]').forEach(b => {
+    const t = b.dataset.tecla;
+    b.addEventListener('pointerdown', ev => { ev.preventDefault(); if (m.estado === 'inicio') { m.pulsar('aceptar'); } m.pulsar(t); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(e => b.addEventListener(e, () => m.soltar(t)));
+  });
+  window.juegoActual = m;      // para las pruebas automáticas
+  lienzo.focus();
+})();
+</script>
+{% endif %}
+{% endblock %}
