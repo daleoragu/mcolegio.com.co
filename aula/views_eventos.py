@@ -20,7 +20,9 @@ import random
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
+from django.contrib.auth.views import redirect_to_login
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -132,22 +134,80 @@ def _estudiante(request):
 
 
 def es_organizador(request, evento=None):
-    from notas.permisos import es_admin
-    if es_admin(request):
+    """Quien creó el evento, los organizadores que escogió y la administración de su colegio."""
+    u = request.user
+    if not u.is_authenticated:
+        return False
+    if evento is None:
+        return puede_crear(request)
+    if u.is_superuser or evento.creador_id == u.pk or evento.organizadores.filter(pk=u.pk).exists():
         return True
-    return evento is not None and evento.organizadores.filter(pk=request.user.pk).exists()
+    if evento.colegio_id:
+        from notas.permisos import es_admin_colegio
+        return es_admin_colegio(u, evento.colegio)
+    return False
 
 
 def puede_crear(request):
-    from notas.permisos import es_admin
-    return es_admin(request) or Evento.objects.filter(colegio=getattr(request, 'colegio', None), organizadores=request.user).exists()
+    """Cualquier docente crea eventos: el del colegio y el de Salón Digital (sin colegio)."""
+    u = request.user
+    if not u.is_authenticated:
+        return False
+    colegio = getattr(request, 'colegio', None)
+    if colegio is not None:
+        from notas.models import Docente
+        from notas.permisos import es_admin
+        return es_admin(request) or Docente.objects.filter(user=u, colegio=colegio).exists()
+    return u.is_superuser or hasattr(u, 'cuenta_salon')
+
+
+def es_admin_del_evento(request, ev):
+    """Puede escoger organizadores y eliminar: quien lo creó o la administración del colegio."""
+    from notas.permisos import es_admin_colegio
+    u = request.user
+    return u.is_authenticated and (u.is_superuser or ev.creador_id == u.pk or (ev.colegio_id and es_admin_colegio(u, ev.colegio)))
 
 
 def _evento(request, eid):
+    """Los eventos del colegio se ven desde su colegio; los abiertos (con código), desde cualquier parte."""
+    ev = get_object_or_404(Evento, pk=eid)
+    if not ev.codigo:
+        ev.save()
     colegio = getattr(request, 'colegio', None)
-    if colegio is None:
+    if ev.alcance == 'colegio' and (colegio is None or ev.colegio_id != colegio.id) and not es_organizador(request, ev):
         raise Http404
-    return get_object_or_404(Evento, pk=eid, colegio=colegio)
+    return ev
+
+
+def _base(request):
+    return 'notas/base.html' if getattr(request, 'colegio', None) is not None and request.user.is_authenticated else 'aula/base_salon.html'
+
+
+def clave_sesion(ev):
+    return f'evento_{ev.pk}'
+
+
+def participante(request, ev, crear=False):
+    """La participación de quien está jugando: estudiante del colegio (con su cuenta) o inscrito con el código."""
+    if ev.alcance == 'codigo':
+        tok = request.session.get(clave_sesion(ev))
+        return ParticipacionEvento.objects.filter(evento=ev, token=tok).first() if tok else None
+    est = _estudiante(request)
+    if est is None or ev.colegio_id != est.colegio_id:
+        return None
+    g = grupo_de_estudiante(config_de(ev), est)
+    if not g:
+        return None
+    if crear:
+        p, _ = ParticipacionEvento.objects.get_or_create(evento=ev, estudiante=est, defaults={'ciclo': g['id']})
+        return p
+    return ParticipacionEvento.objects.filter(evento=ev, estudiante=est).first()
+
+
+def grado_de(p):
+    if p.estudiante_id:
+        return p.estudiante.curso.grado if p.estudiante.curso_id else None
+    return p.grado
 
 
 def ranking(evento, ciclo=None):
@@ -162,7 +222,7 @@ def ranking(evento, ciclo=None):
 
 def hay_eventos_activos(request):
     colegio = getattr(request, 'colegio', None)
-    return colegio is not None and Evento.objects.filter(colegio=colegio, activo=True).exists()
+    return colegio is not None and Evento.objects.filter(colegio=colegio, activo=True, alcance='colegio').exists()
 
 
 # ---------------------------------------------------------------------------
@@ -170,23 +230,32 @@ def hay_eventos_activos(request):
 # ---------------------------------------------------------------------------
 @login_required
 def eventos(request):
+    from django.db.models import Q
+    from notas.permisos import es_admin
     colegio = getattr(request, 'colegio', None)
-    if colegio is None:
-        raise Http404
     organiza = puede_crear(request)
+    if colegio is None and not organiza:
+        return redirect('aula:evento_entrar')
     if request.method == 'POST':
         if not organiza:
-            return HttpResponseForbidden('Solo los organizadores crean eventos.')
+            return HttpResponseForbidden('Solo los docentes crean eventos.')
         titulo = ' '.join((request.POST.get('titulo') or '').split())[:80]
         if not titulo:
             messages.warning(request, 'Escriba el nombre del evento.')
             return redirect('aula:eventos')
-        ev = Evento.objects.create(colegio=colegio, titulo=titulo, config=dict(CONFIG), preguntas=_banco())
-        messages.success(request, f'Se creó «{ev.titulo}». Está apagado: configúrelo y actívelo cuando quiera que los estudiantes lo vean.')
+        alcance = request.POST.get('alcance') if colegio is not None else 'codigo'
+        ev = Evento.objects.create(colegio=colegio, creador=request.user, titulo=titulo, alcance=alcance if alcance in ('colegio', 'codigo') else 'colegio',
+                                   config=copy.deepcopy(CONFIG), preguntas=_banco())
+        messages.success(request, f'Se creó «{ev.titulo}». Está apagado: configúrelo y actívelo cuando quiera que los participantes lo vean.')
         return redirect('aula:evento_configurar', eid=ev.pk)
-    todos = Evento.objects.filter(colegio=colegio)
-    if not organiza:
-        todos = todos.filter(activo=True)
+    mios = Q(creador=request.user) | Q(organizadores=request.user)
+    if colegio is not None and es_admin(request):
+        todos = Evento.objects.filter(Q(colegio=colegio) | mios)
+    elif organiza:
+        todos = Evento.objects.filter(mios | Q(colegio=colegio, activo=True, alcance='colegio') if colegio else mios)
+    else:
+        todos = Evento.objects.filter(colegio=colegio, activo=True, alcance='colegio')
+    todos = todos.distinct()
     est = _estudiante(request)
     mias = {p.evento_id: p for p in ParticipacionEvento.objects.filter(evento__in=todos, estudiante=est)} if est else {}
     lista = []
@@ -198,7 +267,7 @@ def eventos(request):
     for ev in lista:
         g = grupo_de_estudiante(config_de(ev), est) if est else None
         ev.mi_grupo = g['nombre'] if g else None
-    return render(request, 'aula/eventos.html', {'eventos': lista, 'organiza': organiza, 'base': 'notas/base.html'})
+    return render(request, 'aula/eventos.html', {'eventos': lista, 'organiza': organiza, 'colegio': colegio, 'base': _base(request)})
 
 
 def _banco():
@@ -211,7 +280,7 @@ def configurar(request, eid):
     ev = _evento(request, eid)
     if not es_organizador(request, ev):
         return HttpResponseForbidden('Solo los organizadores configuran el evento.')
-    from notas.permisos import es_admin
+    puede_admin = es_admin_del_evento(request, ev)
     if request.method == 'POST':
         accion = request.POST.get('accion')
         if accion == 'activar':
@@ -287,7 +356,7 @@ def configurar(request, eid):
             if accion == 'pegar':
                 preguntas, origen = leer_preguntas(request.POST.get('texto') or '', 300), 'propia'
             else:
-                j = JuegoAula.objects.filter(pk=request.POST.get('juego') or 0, aula__colegio=ev.colegio).first()
+                j = _juegos_salon(ev).filter(pk=request.POST.get('juego') or 0).first()
                 if j is None:
                     messages.warning(request, 'Escoja un juego del salón virtual.')
                     return redirect('aula:evento_configurar', eid=ev.pk)
@@ -308,17 +377,21 @@ def configurar(request, eid):
             ev.preguntas = list(ev.preguntas) + [p for p in _banco() if p not in ev.preguntas]
             ev.save(update_fields=['preguntas'])
             messages.success(request, 'Se agregó el banco inicial de preguntas.')
-        elif accion == 'organizadores' and es_admin(request):
+        elif accion == 'alcance' and ev.colegio_id:
+            ev.alcance = 'codigo' if request.POST.get('alcance') == 'codigo' else 'colegio'
+            ev.save(update_fields=['alcance'])
+            messages.success(request, 'Ahora entra quien tenga el código del evento.' if ev.alcance == 'codigo' else 'Ahora solo participan los estudiantes del colegio.')
+        elif accion == 'organizadores' and puede_admin:
             from notas.models import Docente
             ids = request.POST.getlist('organizadores')
-            usuarios = [d.user for d in Docente.objects.filter(colegio=ev.colegio, user_id__in=ids)]
+            usuarios = [d.user for d in Docente.objects.filter(colegio=ev.colegio, user_id__in=ids)] if ev.colegio_id else []
             ev.organizadores.set(usuarios)
             messages.success(request, f'Organizadores: {len(usuarios)} docente(s), además de la administración.')
         elif accion == 'reiniciar':
             n = ev.participaciones.count()
             ev.participaciones.all().delete()
             messages.success(request, f'Se borraron {n} participación(es): todos empiezan de cero.')
-        elif accion == 'eliminar' and es_admin(request):
+        elif accion == 'eliminar' and puede_admin:
             ev.delete()
             messages.info(request, 'Evento eliminado.')
             return redirect('aula:eventos')
@@ -329,10 +402,11 @@ def configurar(request, eid):
     for p in ev.preguntas:
         conteo[(p.get('ciclo'), p.get('categoria'))] = conteo.get((p.get('ciclo'), p.get('categoria')), 0) + 1
     tabla = [{'ciclo': g['nombre'], 'cifras': [conteo.get((g['id'], ca), 0) for ca, _, _ in CATEGORIAS]} for g in grupos(c)]
-    grados_cols = sorted(set(grados_del_colegio(ev.colegio)) | {x for g in grupos(c) for x in g['grados']})
-    cursos = Curso.objects.filter(colegio=ev.colegio).order_by('grado', 'nombre')
-    estudiantes = Estudiante.objects.filter(colegio=ev.colegio, curso__isnull=False).select_related('user', 'curso').order_by('curso__grado', 'curso__nombre', 'user__last_name')
-    juegos_salon = JuegoAula.objects.filter(aula__colegio=ev.colegio).select_related('aula').order_by('-pk')[:200]
+    base_grados = grados_del_colegio(ev.colegio) if ev.colegio_id and ev.alcance == 'colegio' else todos_los_grados()
+    grados_cols = sorted(set(base_grados) | {x for g in grupos(c) for x in g['grados']})
+    cursos = Curso.objects.filter(colegio=ev.colegio).order_by('grado', 'nombre') if ev.colegio_id else Curso.objects.none()
+    estudiantes = Estudiante.objects.filter(colegio=ev.colegio, curso__isnull=False).select_related('user', 'curso').order_by('curso__grado', 'curso__nombre', 'user__last_name') if ev.colegio_id else Estudiante.objects.none()
+    juegos_salon = _juegos_salon(ev).select_related('aula').order_by('-pk')[:200]
     filas_juegos = []
     for j in JUEGOS:
         pj = c['por_juego'].get(j[0]) or {}
@@ -345,44 +419,107 @@ def configurar(request, eid):
         'todos_grados': [(g, etiqueta_grado(g)) for g in todos_los_grados()], 'niveles': NIVELES,
         'grupos': [dict(g, rango=rango_grados(g)) for g in grupos(c)], 'cursos': cursos, 'estudiantes': estudiantes,
         'part': c['participantes'], 'dificultades': DIFICULTADES, 'estilos': ESTILOS, 'categorias': CATEGORIAS, 'tabla': tabla,
-        'preguntas': list(enumerate(ev.preguntas)), 'juegos_salon': juegos_salon, 'es_admin': es_admin(request),
-        'docentes': Docente.objects.filter(colegio=ev.colegio).select_related('user').order_by('user__last_name'),
-        'organizadores': set(ev.organizadores.values_list('pk', flat=True)), 'base': 'notas/base.html'})
+        'preguntas': list(enumerate(ev.preguntas)), 'juegos_salon': juegos_salon, 'es_admin': puede_admin,
+        'docentes': Docente.objects.filter(colegio=ev.colegio).select_related('user').order_by('user__last_name') if ev.colegio_id else [],
+        'enlace': request.build_absolute_uri(reverse('aula:evento_inscribirse', args=[ev.codigo])),
+        'organizadores': set(ev.organizadores.values_list('pk', flat=True)), 'base': _base(request)})
 
 
-@login_required
+def _juegos_salon(ev):
+    """Los juegos del salón virtual de donde se pueden importar preguntas."""
+    if ev.colegio_id:
+        return JuegoAula.objects.filter(aula__colegio=ev.colegio)
+    return JuegoAula.objects.filter(aula__grupo__propietario__usuario=ev.creador) if ev.creador_id else JuegoAula.objects.none()
+
+
 def jugar(request, eid):
     ev = _evento(request, eid)
     organiza = es_organizador(request, ev)
     if not ev.activo and not organiza:
         raise Http404
-    est = _estudiante(request)
     c = config_de(ev)
-    grupo = grupo_de_estudiante(c, est)
-    if not organiza and not grupo:
-        messages.info(request, 'Usted no está entre los participantes de este evento.')
-        return redirect('aula:eventos')
-    if not organiza and not juegos_para(c, [int(est.curso.grado)]):
+    p = participante(request, ev)
+    if ev.alcance == 'codigo':
+        est = None
+        grupo = (grupo_por_id(c, p.ciclo) or next((g for g in grupos(c) if p.grado in g['grados']), None)) if p else None
+        if not grupo and not organiza:
+            return redirect('aula:evento_inscribirse', codigo=ev.codigo)
+    else:
+        if not request.user.is_authenticated and not organiza:
+            return redirect_to_login(request.get_full_path())
+        est = _estudiante(request)
+        grupo = grupo_de_estudiante(c, est)
+        if not organiza and not grupo:
+            messages.info(request, 'Usted no está entre los participantes de este evento.')
+            return redirect('aula:eventos')
+    grado = (int(est.curso.grado) if est and est.curso_id else p.grado if p else None)
+    if not organiza and not juegos_para(c, [grado]):
         messages.info(request, 'Este evento no tiene juegos para su grado.')
-        return redirect('aula:eventos')
+        return redirect('aula:eventos' if request.user.is_authenticated else 'aula:evento_entrar')
     if grupo is None:          # prueba del organizador: escoge el grupo
         grupo = grupo_por_id(c, request.GET.get('ciclo')) or grupos(c)[0]
     from .views_logica import niveles
     datos = {
-        'evento': ev.pk, 'titulo': ev.titulo, 'prueba': est is None, 'ciclo': grupo['id'],
+        'evento': ev.pk, 'titulo': ev.titulo, 'prueba': p is None and est is None, 'ciclo': grupo['id'],
         'grupo': {'id': grupo['id'], 'nombre': grupo['nombre'], 'grados': rango_grados(grupo), 'nivel': grupo.get('nivel', 0), 'gmax': max(grupo['grados'] or [11])},
-        'config': c, 'juegos': juegos_para(c, [int(est.curso.grado)] if est and est.curso_id else grupo['grados']),
+        'config': c, 'juegos': juegos_para(c, [grado] if grado is not None else grupo['grados']),
         'dificultad': {j[0]: dificultad(c, j[0]) for j in JUEGOS},
         'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito')},
-        'usuario': request.user.pk,
+        'usuario': request.user.pk or (p.token[:8] if p else 'anon'),
     }
-    if est is not None:
-        p = ParticipacionEvento.objects.filter(evento=ev, estudiante=est).first()
+    if p is not None or est is not None:
         datos['servidor'] = _estado(p, c) if p else None
     scripts = ['tangram', 'trancon', 'cerditos', 'ranas', 'bango', 'kadogemo', 'kiriku', 'laberinto_colores', 'hanoi', 'fila',
                'nonograma', 'geoplano', 'regletas', 'speedrun', 'fijas', 'sokoban', 'bloque', 'cubo', 'conejos', 'perrito', 'caperucita', 'ladron']
     return render(request, 'aula/evento_jugar.html', {'ev': ev, 'datos': datos, 'grupos': grupos(c), 'organiza': organiza, 'scripts': scripts,
-                                                      'categorias': CATEGORIAS, 'base': 'notas/base.html'})
+                                                      'categorias': CATEGORIAS, 'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
+
+
+def entrar_codigo(request):
+    """Para los eventos abiertos: se escribe el código del evento."""
+    codigo = (request.POST.get('codigo') or request.GET.get('codigo') or '').strip().upper()
+    if codigo:
+        if Evento.objects.filter(codigo=codigo, alcance='codigo').exists():
+            return redirect('aula:evento_inscribirse', codigo=codigo)
+        messages.warning(request, 'No hay ningún evento abierto con ese código.')
+    return render(request, 'aula/evento_entrar.html', {'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
+
+
+def inscribirse(request, codigo):
+    """Evento abierto: el participante escribe su nombre, su institución y su grado (no necesita cuenta)."""
+    ev = get_object_or_404(Evento, codigo=(codigo or '').upper(), alcance='codigo')
+    c = config_de(ev)
+    if participante(request, ev):
+        return redirect('aula:evento', eid=ev.pk)
+    grados = sorted({x for g in grupos(c) for x in g['grados']})
+    error = ''
+    if request.method == 'POST':
+        nombre = ' '.join((request.POST.get('nombre') or '').split())[:120]
+        institucion = ' '.join((request.POST.get('institucion') or '').split())[:120]
+        try:
+            grado = int(request.POST.get('grado'))
+        except (TypeError, ValueError):
+            grado = None
+        g = next((x for x in grupos(c) if grado in x['grados']), None)
+        if not ev.activo:
+            error = 'El evento todavía no está abierto.'
+        elif len(nombre) < 5 or not institucion or g is None:
+            error = 'Escriba su nombre completo, su institución y escoja su grado.'
+        else:
+            import secrets
+            p = ParticipacionEvento.objects.create(evento=ev, nombre=nombre, institucion=institucion, grado=grado, ciclo=g['id'],
+                                                   token=secrets.token_urlsafe(24))
+            request.session[clave_sesion(ev)] = p.token
+            return redirect('aula:evento', eid=ev.pk)
+    sugerido = {'nombre': '', 'institucion': '', 'grado': None}
+    est = _estudiante(request)
+    if est is not None:
+        sugerido = {'nombre': est.user.get_full_name(), 'institucion': est.colegio.nombre, 'grado': est.curso.grado if est.curso_id else None}
+    if request.method == 'POST':
+        sugerido.update({k: request.POST.get(k, '') for k in ('nombre', 'institucion')})
+    return render(request, 'aula/evento_inscribirse.html', {
+        'ev': ev, 'grados': [(x, etiqueta_grado(x)) for x in grados], 'error': error, 'sugerido': sugerido, 'post': request.POST,
+        'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
 
 
 @login_required
@@ -396,13 +533,13 @@ def resultados(request, eid):
         r['Content-Disposition'] = f'attachment; filename="resultados-evento-{ev.pk}.csv"'
         r.write('﻿')
         w = csv.writer(r)
-        w.writerow(['Grupo', 'Puesto', 'Estudiante', 'Curso', 'Puntos', 'Preguntas bien', 'Tiempo efectivo (s)', 'Terminó'])
+        w.writerow(['Grupo', 'Puesto', 'Participante', 'Curso o institución', 'Puntos', 'Preguntas bien', 'Tiempo efectivo (s)', 'Terminó'])
         for n, _, filas in tablas:
             for p in filas:
-                w.writerow([n, p.puesto, p.estudiante.user.get_full_name(), p.estudiante.curso.nombre if p.estudiante.curso_id else '',
+                w.writerow([n, p.puesto, p.nombre_completo, p.de_donde,
                             p.puntos, p.bonos, round(p.tiempo_efectivo, 1), 'sí' if p.terminada else 'no'])
         return r
-    return render(request, 'aula/evento_resultados.html', {'ev': ev, 'tablas': tablas, 'base': 'notas/base.html'})
+    return render(request, 'aula/evento_resultados.html', {'ev': ev, 'tablas': tablas, 'base': _base(request)})
 
 
 # ---------------------------------------------------------------------------
@@ -415,14 +552,9 @@ def _estado(p, c):
 
 
 def _participacion(request, ev):
-    est = _estudiante(request)
-    if est is None or not ev.activo:
+    if not ev.activo:
         return None
-    g = grupo_de_estudiante(config_de(ev), est)
-    if not g:
-        return None
-    p, _ = ParticipacionEvento.objects.get_or_create(evento=ev, estudiante=est, defaults={'ciclo': g['id']})
-    return p
+    return participante(request, ev, crear=True)
 
 
 def _leer_grupo(request, clave, g, pref):
@@ -436,7 +568,6 @@ def _leer_grupo(request, clave, g, pref):
 
 
 @require_POST
-@login_required
 def registro(request, eid):
     """Llegan, en orden, los retos superados y los cambios de bloque (pueden llegar tarde si no había internet)."""
     ev = _evento(request, eid)
@@ -459,7 +590,8 @@ def registro(request, eid):
             continue
         p.secuencia = seq
         t = max(0.0, min(t, tope, transcurrido))
-        permitidos = {j[0] for j in juegos_para(c, [int(p.estudiante.curso.grado)] if p.estudiante.curso_id else todos_los_grados())}
+        g = grado_de(p)
+        permitidos = {j[0] for j in juegos_para(c, [int(g)] if g is not None else todos_los_grados())}
         if tipo == 'punto' and e.get('juego') in permitidos:
             ultimo = next((r for r in reversed(p.registro) if r.get('tipo') == 'punto'), None)
             if ultimo and t - ultimo.get('t', 0) < 2:      # demasiado rápido para un reto: no cuenta
@@ -478,7 +610,6 @@ def registro(request, eid):
     return JsonResponse({'ok': True, **_estado(p, c)})
 
 
-@login_required
 def pregunta(request, eid):
     """La siguiente pregunta de competencia (solo si ya le toca). Las opciones van revueltas y sin decir cuál es."""
     ev = _evento(request, eid)
@@ -521,7 +652,6 @@ def pregunta(request, eid):
 
 
 @require_POST
-@login_required
 def responder(request, eid):
     ev = _evento(request, eid)
     c = config_de(ev)

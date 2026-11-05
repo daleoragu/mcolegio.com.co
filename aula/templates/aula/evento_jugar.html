@@ -62,7 +62,7 @@
 <script src="{% static 'aula/juegos/laberinto.js' %}"></script>
 <script>
 window.OL_URLS = {registro: "{% url 'aula:evento_registro' ev.pk %}", pregunta: "{% url 'aula:evento_pregunta' ev.pk %}", responder: "{% url 'aula:evento_responder' ev.pk %}",
-                  volver: "{% url 'aula:eventos' %}", csrf: "{{ csrf_token }}"};
+                  volver: "{% if user.is_authenticated %}{% url 'aula:eventos' %}{% else %}{% url 'aula:evento_entrar' %}{% endif %}", csrf: "{{ csrf_token }}"};
 </script>
 <script src="{% static 'aula/eventos/olimpiada.js' %}"></script>
 {% endblock %}

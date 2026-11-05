@@ -6,12 +6,23 @@
 {% block content %}
 {% include 'aula/_estilos.html' %}
 <div class="au" style="max-width:960px;margin:0 auto">
-  <a href="{% url 'aula:inicio' %}" class="btn btn-sm btn-outline-secondary mb-3"><i class="fas fa-arrow-left me-1"></i>Mi Salón Virtual</a>
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="{% url 'aula:inicio' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% if colegio %}Mi Salón Virtual{% else %}Mis aulas{% endif %}</a>
+    <a href="{% url 'aula:evento_entrar' %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-key me-1"></i>Entrar a un evento con código</a>
+  </div>
   {% if organiza %}
-  <form method="post" class="au-tarjeta d-flex flex-wrap gap-2 align-items-end">{% csrf_token %}
-    <div class="flex-grow-1"><label class="form-label small fw-bold mb-1" for="ev-titulo">Nueva olimpiada de matemáticas</label>
-      <input name="titulo" id="ev-titulo" class="form-control" maxlength="80" required placeholder="Nombre del evento (el que ustedes le pongan)"></div>
-    <button class="btn au-oro"><i class="fas fa-plus me-1"></i>Crear (queda apagada)</button>
+  <form method="post" class="au-tarjeta">{% csrf_token %}
+    <div class="d-flex flex-wrap gap-2 align-items-end">
+      <div class="flex-grow-1"><label class="form-label small fw-bold mb-1" for="ev-titulo">Nueva olimpiada de matemáticas</label>
+        <input name="titulo" id="ev-titulo" class="form-control" maxlength="80" required placeholder="Nombre del evento (el que usted le ponga)"></div>
+      <button class="btn au-oro"><i class="fas fa-plus me-1"></i>Crear (queda apagada)</button>
+    </div>
+    {% if colegio %}
+    <div class="d-flex flex-wrap gap-3 small mt-2">
+      <label><input type="radio" name="alcance" value="colegio" class="form-check-input me-1" checked>Solo para estudiantes de este colegio (entran con su cuenta)</label>
+      <label><input type="radio" name="alcance" value="codigo" class="form-check-input me-1">Abierto con código: pueden entrar estudiantes de otros colegios o sin cuenta</label>
+    </div>
+    {% else %}<div class="small text-muted mt-2">Sus eventos son abiertos: los estudiantes (de sus grupos, de otros colegios o sin cuenta) entran con el código del evento.</div>{% endif %}
   </form>
   {% endif %}
   {% for ev in eventos %}
@@ -20,7 +31,7 @@
     <div class="flex-grow-1">
       <div class="fw-bold fs-5" style="color:#1f3a68">{{ ev.titulo }}</div>
       <div class="small text-muted">{{ ev.get_tipo_display }}
-        {% if ev.organiza %} · {% if ev.activo %}<span class="text-success fw-bold">ACTIVO: lo ven los estudiantes</span>{% else %}<span class="text-danger fw-bold">APAGADO: los estudiantes no lo ven</span>{% endif %} · {{ ev.n_participantes }} participante(s){% endif %}
+        {% if ev.organiza %} · {% if ev.alcance == 'codigo' %}<span class="badge bg-info text-dark">Abierto · código {{ ev.codigo }}</span> · {% endif %}{% if ev.activo %}<span class="text-success fw-bold">ACTIVO: lo ven los estudiantes</span>{% else %}<span class="text-danger fw-bold">APAGADO: los estudiantes no lo ven</span>{% endif %} · {{ ev.n_participantes }} participante(s){% endif %}
         {% if ev.mi_grupo %} · Usted participa en <b>{{ ev.mi_grupo }}</b>{% endif %}
         {% if ev.mia %} · Usted lleva <b>{{ ev.mia.puntos }}</b> punto(s){% if ev.mia.terminada %} · terminó{% endif %}{% endif %}
       </div>

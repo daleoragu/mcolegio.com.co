@@ -1,0 +1,14 @@
+{% extends base %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-key me-2"></i>Entrar a un evento</h4>{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au" style="max-width:480px;margin:0 auto">
+  <form method="post" class="au-tarjeta text-center">{% csrf_token %}
+    <div class="fs-1">🏅</div>
+    <p>Escriba el código que le dio su docente o el organizador del evento.</p>
+    <input name="codigo" class="form-control form-control-lg text-center font-monospace mb-3" maxlength="8" required autocomplete="off"
+           style="letter-spacing:.2em;text-transform:uppercase" placeholder="CÓDIGO" autofocus>
+    <button class="btn au-oro btn-lg w-100">Entrar</button>
+  </form>
+</div>
+{% endblock %}

@@ -184,3 +184,59 @@ class Olimpiada(ColegioDePrueba):
         self.assertEqual(self.cliente(self.ana.user).get(f'/aula/eventos/{ev.pk}/').status_code, 302)
         self.assertEqual(self.cliente(e602.user).get(f'/aula/eventos/{ev.pk}/').status_code, 200)
         self.assertTrue(self.post(self.cliente(self.ana.user), f'/aula/eventos/{ev.pk}/registro/', {'eventos': []}).get('prueba'))
+
+    def test_el_docente_crea_su_evento(self):
+        profe = self.cliente(self.u_docente)
+        self.assertContains(profe.get('/aula/'), 'Eventos</div>')          # la tarjeta le aparece a todo docente
+        profe.post('/aula/eventos/', {'titulo': 'Reto de 6.º', 'alcance': 'codigo'})
+        ev = Evento.objects.get(titulo='Reto de 6.º')
+        self.assertEqual((ev.creador, ev.alcance, len(ev.codigo), ev.colegio), (self.u_docente, 'codigo', 6, self.a))
+        self.assertEqual(profe.get(f'/aula/eventos/{ev.pk}/configurar/').status_code, 200)
+        self.assertContains(profe.get(f'/aula/eventos/{ev.pk}/configurar/'), ev.codigo)
+        # otro docente no lo configura
+        from django.contrib.auth.models import User
+        from notas.models import Docente
+        u2 = User.objects.create_user('otra', password='x'); Docente.objects.create(colegio=self.a, user=u2)
+        self.assertEqual(self.cliente(u2).get(f'/aula/eventos/{ev.pk}/configurar/').status_code, 403)
+
+    def test_salon_digital_y_participantes_de_afuera(self):
+        from django.contrib.auth.models import User
+        from django.test import Client
+        from salon_digital.models import Cuenta
+        u = User.objects.create_user('libre', password='x', first_name='Lina')
+        Cuenta.objects.create(usuario=u, slug='lina', nombre_publico='Lina')
+        docente = Client(HTTP_HOST='testserver'); docente.force_login(u)
+        docente.post('/aula/eventos/', {'titulo': 'Olimpiada intercolegial'})
+        ev = Evento.objects.get(titulo='Olimpiada intercolegial')
+        self.assertEqual((ev.colegio, ev.alcance, ev.creador), (None, 'codigo', u))
+        # Apagado: no se puede inscribir
+        anon = Client(HTTP_HOST='testserver')
+        r = anon.post(f'/aula/eventos/c/{ev.codigo}/', {'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'grado': '7'})
+        self.assertFalse(ParticipacionEvento.objects.exists())
+        docente.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'activar'})
+        # Entra con el código, sin cuenta
+        r = anon.post('/aula/eventos/entrar/', {'codigo': ev.codigo.lower()})
+        self.assertRedirects(r, f'/aula/eventos/c/{ev.codigo}/', fetch_redirect_response=False)
+        r = anon.post(f'/aula/eventos/c/{ev.codigo}/', {'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'grado': '7'})
+        self.assertRedirects(r, f'/aula/eventos/{ev.pk}/', fetch_redirect_response=False)
+        p = ParticipacionEvento.objects.get(evento=ev)
+        self.assertEqual((p.nombre, p.institucion, p.grado, p.ciclo, p.estudiante), ('Pedro Pérez', 'Colegio Otro', 7, 'exploradores', None))
+        r = anon.get(f'/aula/eventos/{ev.pk}/')
+        self.assertEqual(r.context['datos']['grupo']['nombre'], 'Exploradores')
+        r = anon.post(f'/aula/eventos/{ev.pk}/registro/', json.dumps({'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': 9}]}),
+                      content_type='application/json').json()
+        self.assertEqual(r['puntos'], 1)
+        # Una estudiante de otro colegio también entra con el código (se le llena su nombre)
+        ana = self.cliente(self.ana.user)
+        self.assertContains(ana.get(f'/aula/eventos/c/{ev.codigo}/'), 'Ana Prueba')
+        # Resultados del docente: nombre e institución
+        r = docente.get(f'/aula/eventos/{ev.pk}/resultados/')
+        self.assertContains(r, 'Pedro Pérez')
+        self.assertContains(r, 'Colegio Otro')
+        # Sin inscripción no se juega: lo manda a inscribirse
+        self.assertEqual(Client(HTTP_HOST='testserver').get(f'/aula/eventos/{ev.pk}/').status_code, 302)
+
+    def test_evento_del_colegio_no_se_ve_desde_afuera(self):
+        from django.test import Client
+        ev = self.crear(); ev.activo = True; ev.save()
+        self.assertEqual(Client(HTTP_HOST='testserver').get(f'/aula/eventos/{ev.pk}/').status_code, 404)

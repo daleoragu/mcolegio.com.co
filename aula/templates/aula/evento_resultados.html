@@ -15,11 +15,11 @@
     <div class="col-lg-4"><div class="au-tarjeta h-100">
       <h6 class="mb-1">{{ nombre }} <span class="text-muted small">({{ rango }})</span></h6>
       <table class="table table-sm small mb-0">
-        <thead><tr><th>#</th><th>Estudiante</th><th class="text-center">Pts</th><th class="text-center" title="Preguntas bien">✓</th><th class="text-end">Tiempo</th></tr></thead>
+        <thead><tr><th>#</th><th>Participante</th><th class="text-center">Pts</th><th class="text-center" title="Preguntas bien">✓</th><th class="text-end">Tiempo</th></tr></thead>
         <tbody>
         {% for p in filas %}<tr {% if p.puesto <= 3 %}class="fw-bold"{% endif %}>
           <td>{% if p.puesto == 1 %}🥇{% elif p.puesto == 2 %}🥈{% elif p.puesto == 3 %}🥉{% else %}{{ p.puesto }}{% endif %}</td>
-          <td>{{ p.estudiante.user.get_full_name }}<div class="text-muted" style="font-size:.7rem">{{ p.estudiante.curso.nombre }}{% if not p.terminada %} · jugando{% endif %}</div></td>
+          <td>{{ p.nombre_completo }}<div class="text-muted" style="font-size:.7rem">{{ p.de_donde }}{% if not p.terminada %} · jugando{% endif %}</div></td>
           <td class="text-center">{{ p.puntos }}</td><td class="text-center">{{ p.bonos }}</td>
           <td class="text-end">{{ p.tiempo_efectivo|floatformat:0 }} s</td></tr>
         {% empty %}<tr><td colspan="5" class="text-muted">Nadie ha participado.</td></tr>{% endfor %}
