@@ -16,7 +16,7 @@
     function pintarAve(ctx, k, x, y, dir, alaArriba, e) {
         const col = Gamificacion.COLORES[k], ala = oscuro(col), especie = k % 4;
         ctx.save(); ctx.translate(x, y); ctx.scale(dir * e, e);
-        const chico = especie === 3 ? .75 : 1; ctx.scale(chico, chico);
+        const chico = especie === 3 ? .75 : 1;   // E–H repiten las especies con otro color ctx.scale(chico, chico);
         // cola
         ctx.fillStyle = ala;
         if (especie === 1) { ctx.fillRect(-20, -1, 10, 3); ctx.fillRect(-24, 1, 8, 3); } else ctx.fillRect(-15, -3, 6, 5);
@@ -43,6 +43,7 @@
         nombre: 'Tiro al vuelo',
         instrucciones: 'Toque o haga clic en el ave que lleva la respuesta correcta. También puede presionar A, B, C o D.',
         conReloj: true,
+        maxOpciones: 8,
         fondo: '#74c0fc',
         // Barra lateral: el ave con la letra de su opción
         icono(ctx, k, tam) {
@@ -64,7 +65,7 @@
             if (a) { a.cae = true; a.vy = -60; setTimeout(() => m.responder(a.k), 350); }
         },
         alTecla(m, t, crudo) {
-            const k = 'ABCD'.indexOf(String(crudo || '').toUpperCase());
+            const k = 'ABCDEFGH'.indexOf(String(crudo || '').toUpperCase());
             const a = k >= 0 && m.s.aves.find(a => a.k === k && !a.cae);
             if (a) this.alTocar(m, a.x, Y0 + a.y);
         },

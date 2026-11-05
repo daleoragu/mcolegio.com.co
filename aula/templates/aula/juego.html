@@ -23,6 +23,18 @@
   .jg-cruz button:active, .jg-fuego:active { background:#495057; }
   .jg-fuego { width:84px; height:84px; border-radius:50%; background:#c92a2a; font-family:"Press Start 2P", monospace; font-size:.7rem; box-shadow:inset 0 -4px 0 #7a1414; }
   .jg-resultado { max-width:760px; margin:12px auto 0; }
+  /* Pantalla completa: el juego ocupa todo y la barra de opciones va al lado (o debajo en vertical) */
+  .jg-consola { position:relative; }
+  .jg-completa-btn { position:absolute; top:4px; right:6px; z-index:3; border:0; border-radius:8px; background:rgba(255,255,255,.12); color:#fff; padding:2px 8px; font-size:.8rem; }
+  .jg-completa-btn:hover { background:rgba(255,255,255,.25); }
+  .jg-zona.completa { position:fixed; inset:0; z-index:3000; max-width:none; margin:0; padding:10px; background:#0b0b0b; gap:10px;
+                      align-items:center; justify-content:center; overflow:auto; }
+  .jg-zona.completa .jg-consola { flex:0 1 auto; max-width:none; width:min(100%, calc((100vh - 70px) * 4 / 3)); }
+  .jg-zona.completa.con-mandos .jg-consola { width:min(100%, calc((100vh - 190px) * 4 / 3)); }
+  .jg-zona.completa .jg-leyenda { max-height:calc(100vh - 20px); overflow:auto; }
+  @media (orientation: landscape) { .jg-zona.completa { flex-direction:row; } .jg-zona.completa .jg-leyenda { flex:0 0 220px; width:220px; } }
+  @media (orientation: landscape) and (max-height: 500px) { .jg-zona.completa .jg-leyenda { flex-basis:180px; width:180px; font-size:.8rem; } }
+  @media (orientation: portrait) { .jg-zona.completa { flex-direction:column; justify-content:flex-start; } .jg-zona.completa .jg-consola { width:100%; } }
 </style>
 <div class="au">
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2" style="max-width:760px;margin:0 auto">
@@ -47,6 +59,7 @@
 {% else %}
 <div class="jg-zona">
 <div class="jg-consola">
+  <button type="button" class="jg-completa-btn" id="jg-completa" title="Pantalla completa (se activa sola al empezar)"><i class="fas fa-expand"></i></button>
   <canvas id="jg-lienzo" aria-label="{{ nombre_juego }}" tabindex="0"></canvas>
   <div class="jg-mandos" id="jg-mandos">
     <div class="jg-cruz">
@@ -107,11 +120,25 @@
   let textoFinal = '';
   const m = Gamificacion.iniciar({
     lienzo, tipo: '{{ tipo|escapejs }}', segundos: {{ segundos|default:20 }}, minutos: {{ minutos|default:3 }},
-    jugadores: {{ jugadores|default:1 }},
+    jugadores: {{ jugadores|default:1 }}, tema: '{{ tema|default:""|escapejs }}',
     preguntas: JSON.parse(document.getElementById('jg-preguntas').textContent),
     textoFinal: () => textoFinal,
     // Barra lateral: cada opción con su ícono del juego (el tanque, la bandera…) y el texto completo
     alCambiarPregunta: (mm) => {
+      // Algunos juegos arman su propia lista (Une con líneas muestra las preguntas del tablero)
+      const propia = mm.def.leyenda && mm.def.leyenda(mm);
+      if (propia) {
+        document.getElementById('jg-ley-preg').textContent = propia.titulo;
+        const caja = document.getElementById('jg-ley-ops'); caja.innerHTML = '';
+        propia.filas.forEach(f => {
+          const fila = document.createElement('div'); fila.className = 'jg-op'; fila.style.borderLeftColor = f.color;
+          if (f.hecho) fila.style.opacity = '.45';
+          const b = document.createElement('b'); b.textContent = f.letra; b.style.cssText = `flex:0 0 28px;height:28px;border-radius:50%;background:${f.color};color:#111;display:flex;align-items:center;justify-content:center`;
+          const t = document.createElement('span'); t.textContent = f.texto;
+          fila.appendChild(b); fila.appendChild(t); caja.appendChild(fila);
+        });
+        return;
+      }
       const p = mm.pregunta; if (!p) return;
       document.getElementById('jg-ley-preg').textContent = p.texto;
       const caja = document.getElementById('jg-ley-ops'); caja.innerHTML = '';
@@ -149,7 +176,7 @@
   const def = Gamificacion;
   const mandos = document.getElementById('jg-mandos');
   const tipo = '{{ tipo|escapejs }}';
-  if (['laberinto', 'tanques', 'puente', 'carrera', 'bandera'].includes(tipo) && (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window)) {
+  if (['laberinto', 'tanques', 'puente', 'carrera', 'bandera', 'carretera', 'tesoro'].includes(tipo) && (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window)) {
     mandos.classList.add('visible');
     if (tipo !== 'tanques') document.getElementById('jg-fuego').style.visibility = 'hidden';
   }
@@ -158,6 +185,36 @@
     b.addEventListener('pointerdown', ev => { ev.preventDefault(); if (m.estado === 'inicio') { m.pulsar('aceptar'); } m.pulsar(t); });
     ['pointerup', 'pointerleave', 'pointercancel'].forEach(e => b.addEventListener(e, () => m.soltar(t)));
   });
+  // Pantalla completa: se activa sola al empezar y con el botón se entra o se sale.
+  // En los iPhone el navegador no deja: ahí el juego se agranda dentro de la página.
+  const zona = document.querySelector('.jg-zona'), boton = document.getElementById('jg-completa');
+  if (mandos.classList.contains('visible')) zona.classList.add('con-mandos');
+  const real = () => document.fullscreenElement || document.webkitFullscreenElement;
+  function marcar() {
+    const dentro = zona.classList.contains('completa');
+    boton.innerHTML = dentro ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
+    document.body.style.overflow = dentro ? 'hidden' : '';
+    window.dispatchEvent(new Event('resize'));
+  }
+  function completa(entrar) {
+    if (entrar) {
+      zona.classList.add('completa');
+      const pedir = zona.requestFullscreen || zona.webkitRequestFullscreen;
+      if (pedir) { try { const pr = pedir.call(zona); if (pr && pr.catch) pr.catch(() => {}); } catch (e) { /* sigue agrandado en la página */ } }
+      try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* no todos dejan */ }
+    } else {
+      zona.classList.remove('completa');
+      if (real()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    }
+    marcar();
+  }
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(e => document.addEventListener(e, () => { if (!real()) { zona.classList.remove('completa'); marcar(); } }));
+  boton.addEventListener('click', ev => { ev.stopPropagation(); completa(!zona.classList.contains('completa')); lienzo.focus(); });
+  let yaSeActivo = false;
+  function alEmpezar() { if (!yaSeActivo && m.estado === 'inicio') { yaSeActivo = true; completa(true); } }
+  lienzo.addEventListener('pointerdown', alEmpezar, true);
+  document.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') alEmpezar(); }, true);
+
   window.juegoActual = m;      // para las pruebas automáticas
   lienzo.focus();
 })();

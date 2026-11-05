@@ -30,6 +30,11 @@ DESCRIPCIONES = {
     'baloncesto': 'Lance al aro de la respuesta correcta. ¡Encestar seguido hace racha!',
     'bandera': 'Robe la bandera correcta y tráigala a su base sin que lo atrapen.',
     'impostor': 'En la nave, saque por la compuerta a los impostores (las respuestas equivocadas).',
+    'dibujo': 'Cada respuesta correcta pinta una parte del dibujo. El dibujo depende de la materia.',
+    'tesoro': 'Cave en la marca correcta de la isla y arme el mapa del cofre.',
+    'carretera': 'De ciudad en ciudad: choque el carro de la respuesta correcta, esquive los otros y no se quede sin gasolina.',
+    'unir': 'Una cada pregunta con su respuesta trazando líneas.',
+    'boxeo': 'Cada guante es una respuesta: acierte para golpear, falle y lo golpean. Tres rivales. 1 o 2 jugadores.',
 }
 
 
@@ -38,18 +43,20 @@ def _persona(c):
 
 
 def validar_preguntas(texto):
-    """(preguntas, error). Cada pregunta: de 2 a 4 opciones y una correcta marcada."""
+    """(preguntas, error). Cada pregunta: de 2 a 8 opciones (A–H, como en PuntoExacto) y una correcta marcada.
+
+    Los juegos que solo tienen sitio para 4 muestran la correcta y 3 de las otras al azar."""
     preguntas = leer_preguntas(texto, MAX_PREGUNTAS)
     if not preguntas:
         return [], 'Pegue al menos una pregunta con sus opciones.'
     malas = []
     for n, p in enumerate(preguntas, 1):
         ops = p.get('opciones', [])
-        if not (2 <= len(ops) <= 4) or sum(1 for o in ops if o.get('correcta')) != 1:
+        if not (2 <= len(ops) <= 8) or sum(1 for o in ops if o.get('correcta')) != 1:
             malas.append(n)
     if malas:
         return preguntas, ('Revise las preguntas ' + ', '.join(map(str, malas[:15])) + ('…' if len(malas) > 15 else '') +
-                           ': en los juegos cada pregunta lleva de 2 a 4 opciones (A, B, C, D) y una sola correcta marcada con *.')
+                           ': en los juegos cada pregunta lleva de 2 a 8 opciones (A a H) y una sola correcta marcada con *.')
     return preguntas, ''
 
 
@@ -124,6 +131,14 @@ def _leer(request, j, aula):
     return ''
 
 
+def _tema(aula):
+    """La materia del aula: el juego «Arma el dibujo» escoge el dibujo con ella."""
+    try:
+        return aula.asignacion.materia.nombre if aula.asignacion_id else aula.titulo
+    except AttributeError:
+        return aula.titulo
+
+
 def _jugadores(request, tipo):
     return 2 if tipo in JuegoAula.DOS_JUGADORES and request.GET.get('jugadores') == '2' else 1
 
@@ -164,7 +179,7 @@ def juego(request, pk, jid):
     jugadores = _jugadores(request, j.tipo)
     datos = {'juego': j, 'tipo': j.tipo, 'nombre_juego': j.get_tipo_display(), 'segundos': j.segundos, 'minutos': j.minutos,
              'preguntas': _para_jugar(j.preguntas), 'guarda': not c.es_docente and jugadores == 1, 'jugadores': jugadores,
-             'dos_jugadores': j.tipo in JuegoAula.DOS_JUGADORES}
+             'dos_jugadores': j.tipo in JuegoAula.DOS_JUGADORES, 'tema': _tema(c.aula)}
     if c.es_docente:
         filas = []
         resultados = {logica.clave_de(r.estudiante or r.integrante): r
@@ -230,13 +245,13 @@ def practica(request, pk, tipo, banco):
             return _tanques(request, c, [], False, 'Factorización', None, banco_propio=True)
         preguntas = [dict(p, i=i) for i, p in enumerate(bancos_juegos.preguntas(banco, 25))]
         return _tanques(request, c, preguntas, False, bancos_juegos.BANCOS[banco], None)
-    cuantas = {'escape': 8, 'penaltis': 30, 'tenis': 40}.get(tipo, 12)
+    cuantas = {'escape': 8, 'penaltis': 30, 'tenis': 40, 'unir': 10, 'dibujo': 16, 'boxeo': 40}.get(tipo, 12)
     preguntas = bancos_juegos.preguntas(banco, cuantas)
     return _render(request, c, 'aula/juego.html', {
         'juego': None, 'tipo': tipo, 'nombre_juego': dict(JuegoAula.TIPOS)[tipo], 'segundos': 20 if tipo != 'escape' else 12,
         'minutos': 3, 'preguntas': [dict(p, i=i) for i, p in enumerate(preguntas)], 'guarda': False,
         'jugadores': _jugadores(request, tipo), 'dos_jugadores': tipo in JuegoAula.DOS_JUGADORES,
-        'banco': bancos_juegos.BANCOS[banco]}, 'gamificacion')
+        'banco': bancos_juegos.BANCOS[banco], 'tema': f'{banco} {_tema(c.aula)}'}, 'gamificacion')
 
 
 @require_POST

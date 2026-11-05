@@ -80,7 +80,7 @@
       <textarea name="preguntas" id="gm-preguntas" class="form-control mb-1 inv-preguntas" rows="9" required
                 style="font-family:ui-monospace,Consolas,monospace;font-size:.85rem"
                 placeholder="1. ¿Cuánto es 3/4 + 1/4?&#10;A) 1/2&#10;*B) 1&#10;C) 4/8&#10;D) 3/16&#10;&#10;2. ¿Qué fracción es mayor?&#10;A) 1/3&#10;*B) 1/2&#10;C) 1/4">{{ borrador.preguntas }}</textarea>
-      <div class="form-text mb-1">Cada pregunta con 2 a 4 opciones (A, B, C, D) y la correcta marcada con <b>*</b> o con una línea <b>RESPUESTA: B</b>. El juego pone cada opción en una galleta, un tanque, un ave, una plataforma o una baldosa. Cada 3 preguntas el juego sube de nivel: más rápido y con menos tiempo.</div>
+      <div class="form-text mb-1">Cada pregunta con 2 a 8 opciones (A a H, como en PuntoExacto) y la correcta marcada con <b>*</b> o con una línea <b>RESPUESTA: B</b>. El juego pone cada opción en una galleta, un tanque, un ave, una plataforma o una baldosa. Cada 3 preguntas el juego sube de nivel: más rápido y con menos tiempo. Los juegos con sitio para 4 (tanques, bandera, penaltis…) muestran la correcta y 3 de las otras al azar; el impostor, las aves, el laberinto, el dibujo y el tesoro muestran hasta 8, y la carretera hasta 6. «Une con líneas» usa solo la respuesta correcta de cada pregunta.</div>
       <div class="small mb-2 inv-cuenta text-primary fw-semibold" aria-live="polite"></div>
       <div class="d-flex align-items-center gap-2 mb-2"><label class="small fw-bold" for="gm-seg">Segundos por pregunta</label>
         <input type="number" name="segundos" id="gm-seg" class="form-control form-control-sm" style="max-width:90px" min="5" max="120" value="{{ borrador.segundos|default:'20' }}">

@@ -12,8 +12,9 @@
 (function () {
     'use strict';
     const W = 480, H = 360, ARRIBA = 50, ABAJO = 310;
-    const LETRAS = ['A', 'B', 'C', 'D'];
-    const COLORES = ['#ff5d5d', '#4dabf7', '#ffd43b', '#69db7c'];
+    // Hasta 8 opciones (A–H), como en PuntoExacto. Cada juego dice cuántas caben (maxOpciones, 4 si no dice).
+    const LETRAS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    const COLORES = ['#ff5d5d', '#4dabf7', '#ffd43b', '#69db7c', '#da77f2', '#ff922b', '#20c997', '#f783ac'];
     const FUENTE = '"Press Start 2P", ui-monospace, monospace';
     const JUEGOS = {};
 
@@ -48,19 +49,28 @@
         return lineas;
     }
 
+    /* Si la pregunta trae más opciones de las que caben en el juego, quedan la correcta y otras al azar.
+     * Cada opción guarda su número original (_k): con ese se califica en el servidor. */
+    function recortar(opciones, max) {
+        const ops = opciones.map((o, k) => Object.assign({}, o, {_k: k}));
+        if (ops.length <= max) return ops;
+        const buena = ops.filter(o => o.correcta).slice(0, 1), malas = ops.filter(o => !o.correcta).sort(() => Math.random() - .5);
+        return buena.concat(malas.slice(0, max - buena.length)).sort((a, b) => a._k - b._k);
+    }
+
     function iniciar(op) {
         const def = JUEGOS[op.tipo];
         const lienzo = op.lienzo, ctx = lienzo.getContext('2d');
         const m = {
-            W, H, ARRIBA, ABAJO, LETRAS, COLORES, FUENTE, ctx, sonidos: SONIDOS,
-            preguntas: op.preguntas.filter(p => (p.opciones || []).length >= 2).map(p => Object.assign({}, p, {opciones: p.opciones.slice(0, 4)})),
+            W, H, ARRIBA, ABAJO, LETRAS, COLORES, FUENTE, ctx, sonidos: SONIDOS, partir: (t, a) => partir(ctx, t, a),
+            preguntas: op.preguntas.filter(p => (p.opciones || []).length >= 2).map(p => Object.assign({}, p, {opciones: recortar(p.opciones, def.maxOpciones || 4)})),
             indice: 0, vidas: 3, puntaje: 0, aciertos: 0, respuestas: [], estado: 'inicio',
             // Dos jugadores en el mismo equipo: se turnan las preguntas y cada uno lleva su marcador.
             jugadores: op.jugadores === 2 ? 2 : 1, turno: 0, marcador: [0, 0],
             opciones_juego: {minutos: op.minutos || 3},
             nombres: op.nombres || (op.jugadores === 2 ? ['JUGADOR 1', 'JUGADOR 2'] : ['USTED', 'COMPU']),
             segundos: Math.max(5, op.segundos || 20), reloj: 0, aviso: null, avisoHasta: 0, teclas: new Set(), t: 0,
-            def,
+            def, tema: op.tema || '', textoFinal: op.textoFinal,
         };
         m.total = m.preguntas.length;
         Object.defineProperty(m, 'pregunta', {get: () => m.preguntas[m.indice]});
@@ -119,7 +129,8 @@
         m.responder = function (k) {
             if (m.estado !== 'jugando' || m.t < esperaHasta) return;
             const p = m.pregunta, bien = k !== null && k !== undefined && p.opciones[k] && p.opciones[k].correcta;
-            m.respuestas.push({i: p.i !== undefined ? p.i : m.indice, opcion: k === undefined ? null : k});
+            const original = k === null || k === undefined || !p.opciones[k] ? null : (p.opciones[k]._k !== undefined ? p.opciones[k]._k : k);
+            m.respuestas.push({i: p.i !== undefined ? p.i : m.indice, opcion: original});
             if (def.alResponder) def.alResponder(m, bien, k);
             if (bien) {
                 m.aciertos += 1; m.puntaje += 100 + (def.conReloj ? Math.round(m.reloj * 5) : 0);
@@ -234,9 +245,10 @@
             ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, W, ARRIBA); ctx.fillRect(0, ABAJO, W, H - ABAJO);
             ctx.fillStyle = '#ffd43b'; ctx.fillRect(0, ARRIBA - 2, W, 2); ctx.fillRect(0, ABAJO, W, 2);
             const p = m.pregunta;
-            if (p) {
+            const arriba = def.textoArriba ? def.textoArriba(m) : (p && p.texto);
+            if (arriba) {
                 ctx.font = `9px ${FUENTE}`;
-                const lineas = partir(ctx, p.texto, W - 130).slice(0, 3);
+                const lineas = partir(ctx, arriba, W - 130).slice(0, 3);
                 lineas.forEach((l, i) => m.texto(l, 8, 8 + i * 13, {tam: 9}));
             }
             m.texto(`NIV ${m.nivel} · ${Math.min(m.indice + 1, m.total)}/${m.total}`, W - 8, 7, {tam: 8, alinear: 'right', color: '#aaa'});
@@ -248,13 +260,15 @@
                 ctx.fillStyle = frac < .25 ? '#ff5d5d' : '#69db7c'; ctx.fillRect(0, ARRIBA - 6, W * frac, 4);
             }
             // Opciones abajo, en dos columnas
-            (p ? p.opciones : []).forEach((o, k) => {
-                const x = 8 + (k % 2) * (W / 2), y = ABAJO + 8 + Math.floor(k / 2) * 22;
+            if (def.abajo) return def.abajo(m, ctx);
+            const ops = p ? p.opciones : [], col = ops.length > 4 ? 4 : 2, tam = col === 4 ? 6 : 8;
+            ops.forEach((o, k) => {
+                const x = 8 + (k % col) * (W / col), y = ABAJO + 8 + Math.floor(k / col) * 22;
                 m.etiqueta(k, x + 8, y + 7, 8);
-                ctx.font = `8px ${FUENTE}`;
-                let t = o.texto; while (ctx.measureText(t).width > W / 2 - 34 && t.length > 3) t = t.slice(0, -2);
+                ctx.font = `${tam}px ${FUENTE}`;
+                let t = o.texto; while (ctx.measureText(t).width > W / col - 30 && t.length > 3) t = t.slice(0, -2);
                 if (t !== o.texto) t = t.slice(0, -1) + '…';
-                m.texto(t, x + 22, y + 3, {tam: 8});
+                m.texto(t, x + 20, y + 3 + (8 - tam) / 2, {tam});
             });
         }
 
@@ -290,5 +304,5 @@
         ctx.fillText(LETRAS[k], tam / 2, tam / 2 + 1);
     }
 
-    window.Gamificacion = {registrar, iniciar, icono, LETRAS, COLORES, W, H, ARRIBA, ABAJO};
+    window.Gamificacion = {registrar, iniciar, icono, LETRAS, COLORES, W, H, ARRIBA, ABAJO, juego: tipo => JUEGOS[tipo]};
 })();

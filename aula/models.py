@@ -649,11 +649,16 @@ class JuegoAula(models.Model):
         ('baloncesto', 'Baloncesto'),
         ('bandera', 'Captura la bandera'),
         ('impostor', 'Expulsa al impostor'),
+        ('dibujo', 'Arma el dibujo'),
+        ('tesoro', 'Búsqueda del tesoro'),
+        ('carretera', 'Carretera del saber'),
+        ('unir', 'Une con líneas'),
+        ('boxeo', 'Boxeo del saber'),
     ]
     # Se pueden jugar entre dos en el mismo equipo (sin nota: es una sola cuenta).
-    DOS_JUGADORES = ('penaltis', 'tenis')
+    DOS_JUGADORES = ('penaltis', 'tenis', 'boxeo')
     # Terminan solos (se define la tanda o se acaba el partido): la nota es sobre lo que respondió.
-    TERMINAN_SOLOS = ('penaltis', 'tenis')
+    TERMINAN_SOLOS = ('penaltis', 'tenis', 'boxeo')
     aula = models.ForeignKey(Aula, on_delete=models.CASCADE, related_name='juegos')
     tipo = models.CharField(max_length=10, choices=TIPOS, default='laberinto')
     titulo = models.CharField(max_length=60, help_text='Es también el nombre de la columna en la planilla.')

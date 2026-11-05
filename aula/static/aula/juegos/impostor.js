@@ -43,6 +43,7 @@
         nombre: 'Expulsa al impostor',
         instrucciones: 'Los impostores llevan la respuesta equivocada. Tóquelos (o presione su letra) para sacarlos por la compuerta. ¡No expulse al tripulante de la respuesta correcta!',
         conReloj: true,
+        maxOpciones: 8,
         fondo: '#0b0d1f',
         icono(ctx, k, tam) { tripulante(ctx, k, tam / 2, tam * .56, {e: tam / 44}); },
         nuevaPregunta(m) {
@@ -66,7 +67,7 @@
             if (t && Math.hypot(t.x - x, Y0 + t.y - y) < 24) this.expulsar(m, t);
         },
         alTecla(m, t, crudo) {
-            const k = 'ABCD'.indexOf(String(crudo || '').toUpperCase());
+            const k = 'ABCDEFGH'.indexOf(String(crudo || '').toUpperCase());
             const p = k >= 0 && m.s.gente.find(g => g.k === k);
             if (p) this.expulsar(m, p);
         },
