@@ -24,6 +24,9 @@ JUEGOS = [
     ('geoplano', 'Geoplano', 'Tienda la banda en los clavos y forme figuras con el área que se pide.', 'geoplano'),
     ('regletas', 'Regletas en la balanza', 'Equilibre la balanza con regletas de colores y resuelva ecuaciones.', 'regletas'),
     ('speedrun', 'Cálculo veloz', '10 operaciones contra reloj.', 'speedrun'),
+    ('sokoban', 'Empuja cajas', 'Empuje las cajas hasta las marcas sin dejarlas atrapadas.', 'sokoban'),
+    ('bloque', 'Bloque rodante', 'Haga rodar el bloque en 3D hasta dejarlo parado sobre el hueco.', 'bloque'),
+    ('cubo', 'Cubo del binomio y del trinomio', 'Arme (a + b)³ y (a + b + c)³ con las piezas Montessori en 3D.', 'cubo'),
     ('fijas', 'Picas y fijas con figuras', 'Adivine el orden secreto: solo sabrá cuántas están exactas y cuántas en otro sitio. Solo o entre dos.', 'fijas'),
 ]
 DATOS = {j[0]: j for j in JUEGOS}

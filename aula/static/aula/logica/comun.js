@@ -150,6 +150,33 @@
         };
     }
 
+    // Botones de flechas en la pantalla (los usan también otros juegos de mover)
+    function cruceta(zona, mover) {
+        const c = document.createElement('div');
+        c.style.cssText = 'display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(2,46px);gap:4px;justify-content:center;margin-top:8px;user-select:none';
+        [['', ''], ['▲', 'arriba'], ['', ''], ['◄', 'izquierda'], ['▼', 'abajo'], ['►', 'derecha']].forEach(([t, d]) => {
+            const b = document.createElement(d ? 'button' : 'span');
+            if (d) { b.type = 'button'; b.textContent = t; b.className = 'btn btn-secondary'; b.style.fontSize = '1.2rem'; b.addEventListener('click', () => mover(d)); }
+            c.appendChild(b);
+        });
+        zona.appendChild(c);
+    }
+    function teclasYDedo(L, mover, vivo) {
+        const t = ev => {
+            if (!vivo()) { document.removeEventListener('keydown', t); return; }
+            const d = {ArrowUp: 'arriba', ArrowDown: 'abajo', ArrowLeft: 'izquierda', ArrowRight: 'derecha', w: 'arriba', s: 'abajo', a: 'izquierda', d: 'derecha'}[ev.key];
+            if (d) { ev.preventDefault(); mover(d); }
+        };
+        document.addEventListener('keydown', t);
+        let ini = null;
+        L.cv.addEventListener('pointerdown', ev => { ini = L.punto(ev); });
+        L.cv.addEventListener('pointerup', ev => {
+            if (!ini) return; const p = L.punto(ev), dx = p.x - ini.x, dy = p.y - ini.y; ini = null;
+            if (Math.max(Math.abs(dx), Math.abs(dy)) < 18) return;
+            mover(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'derecha' : 'izquierda') : (dy > 0 ? 'abajo' : 'arriba'));
+        });
+    }
+
     function montar(zona, id, datos, i, api) {
         const def = JUEGOS[id];
         zona.innerHTML = '';
@@ -229,5 +256,5 @@
         window.logicaActual = {cargar, get nivel() { return nivel; }, get ctrl() { return ctrl; }};
     }
 
-    window.Logica = {registrar: (id, def) => { JUEGOS[id] = def; }, juego: id => JUEGOS[id], montar, pagina, lienzo, piezasGrilla, sonido, redondo};
+    window.Logica = {registrar: (id, def) => { JUEGOS[id] = def; }, juego: id => JUEGOS[id], montar, pagina, lienzo, piezasGrilla, sonido, redondo, cruceta, teclasYDedo};
 })();
