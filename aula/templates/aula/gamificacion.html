@@ -45,6 +45,11 @@
         </a>
         {% endfor %}
 
+        <div class="gm-seccion">▸ MASCOTA ACADÉMICA</div>
+        <a class="gm-item" href="{% url 'aula:mascota' aula.pk %}">
+          <span class="cursor">►</span><span>{% if c.es_docente %}MASCOTAS DE LA CLASE{% else %}MI MASCOTA{% endif %}<span class="tipo">Cuídela respondiendo preguntas: comida, sueño y baño. ¿Cuántos días la mantiene viva?</span></span>
+        </a>
+
         <div class="gm-seccion">▸ PRÁCTICA LIBRE (SIN NOTA)</div>
         <div class="gm-tema">TEMA: <button type="button" id="gm-tema-ant" aria-label="Tema anterior">◄</button><span id="gm-tema">{{ bancos.matematicas|upper }}</span><button type="button" id="gm-tema-sig" aria-label="Tema siguiente">►</button></div>
         {% for k, nombre, desc in tipos %}

@@ -57,6 +57,14 @@
         nombre: 'Laberinto comelón',
         instrucciones: 'Mueva la gota con las flechas y cómase la galleta de la respuesta correcta. ¡Cuidado con los virus!',
         controles: 'cruceta',
+        // Barra lateral: la galleta de la opción, con su color y su letra
+        icono(ctx, k, tam) {
+            const r = tam * .4, c = tam / 2;
+            ctx.fillStyle = Gamificacion.COLORES[k]; ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(0,0,0,.25)'; [[-.4, -.3], [.35, -.1], [-.1, .4], [.3, .35]].forEach(([x, y]) => { ctx.beginPath(); ctx.arc(c + x * r, c + y * r, tam * .05, 0, Math.PI * 2); ctx.fill(); });
+            ctx.fillStyle = '#111'; ctx.font = `bold ${Math.round(tam * .42)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(Gamificacion.LETRAS[k], c, c + 1);
+        },
         nuevaPregunta(m) {
             const n = m.opciones.length;
             const esquinas = ESQUINAS.slice().sort(() => Math.random() - .5).slice(0, n);

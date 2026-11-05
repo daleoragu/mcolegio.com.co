@@ -28,6 +28,7 @@ DESCRIPCIONES = {
     'tenis': 'Responda bien para pasar la pelota por encima de la malla. Partido con reloj. 1 o 2 jugadores.',
     'carrera': 'Cámbiese al carril de la respuesta correcta antes de que llegue la barrera.',
     'baloncesto': 'Lance al aro de la respuesta correcta. ¡Encestar seguido hace racha!',
+    'bandera': 'Robe la bandera correcta y tráigala a su base sin que lo atrapen.',
 }
 
 
@@ -133,11 +134,32 @@ def _juego(c, jid):
     return j
 
 
+def _tanques(request, c, preguntas, guarda, titulo, url_resultado, banco_propio=False):
+    """El juego de tanques con el diseño «Tanques del Álgebra», a pantalla completa."""
+    from django.middleware.csrf import get_token
+    from django.shortcuts import render
+    from django.urls import reverse
+    aula = c.aula
+    persona = _persona(c)
+    docente = aula.asignacion.docente.user.get_full_name() if aula.asignacion_id and aula.asignacion.docente_id else ''
+    return render(request, 'aula/juego_tanques.html', {'mcolegio': {
+        'preguntas': preguntas, 'guarda': guarda, 'urlResultado': url_resultado, 'csrf': get_token(request),
+        'titulo': titulo, 'subtitulo': titulo.upper()[:28], 'eyebrow': aula.titulo,
+        'nombre': logica.nombre_de(persona) if persona else (request.user.get_full_name() or request.user.username),
+        'curso': aula.asignacion.curso.nombre if aula.asignacion_id else '',
+        'colegio': aula.colegio.nombre if aula.colegio_id else '', 'docente': docente,
+        'volver': reverse('aula:gamificacion', args=[aula.pk]), 'bancoPropio': banco_propio}})
+
+
 @vista_aula
 def juego(request, pk, jid):
     """Jugar el juego del docente (el docente también lo puede probar; su resultado no se guarda)."""
     c = _ctx(request, pk)
     j = _juego(c, jid)
+    if j.tipo == 'tanques' and (not c.es_docente or request.GET.get('jugar')):
+        from django.urls import reverse
+        return _tanques(request, c, _para_jugar(j.preguntas), not c.es_docente, j.titulo,
+                        reverse('aula:juego_resultado', args=[pk, jid]))
     jugadores = _jugadores(request, j.tipo)
     datos = {'juego': j, 'tipo': j.tipo, 'nombre_juego': j.get_tipo_display(), 'segundos': j.segundos, 'minutos': j.minutos,
              'preguntas': _para_jugar(j.preguntas), 'guarda': not c.es_docente and jugadores == 1, 'jugadores': jugadores,
@@ -202,6 +224,11 @@ def practica(request, pk, tipo, banco):
     c = _ctx(request, pk)
     if tipo not in dict(JuegoAula.TIPOS) or banco not in bancos_juegos.BANCOS:
         raise Http404
+    if tipo == 'tanques':
+        if banco == 'factorizacion':        # los 6 temas del juego original, cada uno su nivel
+            return _tanques(request, c, [], False, 'Factorización', None, banco_propio=True)
+        preguntas = [dict(p, i=i) for i, p in enumerate(bancos_juegos.preguntas(banco, 25))]
+        return _tanques(request, c, preguntas, False, bancos_juegos.BANCOS[banco], None)
     cuantas = {'escape': 8, 'penaltis': 30, 'tenis': 40}.get(tipo, 12)
     preguntas = bancos_juegos.preguntas(banco, cuantas)
     return _render(request, c, 'aula/juego.html', {

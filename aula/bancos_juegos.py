@@ -7,6 +7,7 @@ import random
 
 BANCOS = {
     'matematicas': 'Matemáticas (operaciones)',
+    'factorizacion': 'Factorización (álgebra 8°)',
     'colombia': 'Cultura general de Colombia',
     'ingles': 'Inglés básico',
 }
@@ -72,9 +73,23 @@ _INGLES = [
 ]
 
 
+def _factorizacion():
+    """Los 6 temas de factorización (del juego Tanques del Álgebra), en el formato de la plataforma."""
+    import json
+    import os
+    ruta = os.path.join(os.path.dirname(__file__), 'bancos', 'factorizacion.json')
+    with open(ruta, encoding='utf-8') as f:
+        temas = json.load(f)
+    return [{'texto': f"Factoriza: {it['q']}", 'opciones': _opciones(it['c'], it['d']), 'tema': t['name']}
+            for t in temas for it in t['items']]
+
+
 def preguntas(banco, n=10):
     if banco == 'matematicas':
         return _matematicas(n)
+    if banco == 'factorizacion':
+        todas = _factorizacion()
+        return random.sample(todas, min(n, len(todas)))
     datos = {'colombia': _COLOMBIA, 'ingles': _INGLES}.get(banco, _COLOMBIA)
     elegidas = random.sample(datos, min(n, len(datos)))     # los juegos largos vuelven a barajarlas
     return [{'texto': t, 'opciones': _opciones(c, malos)} for t, c, malos in elegidas]

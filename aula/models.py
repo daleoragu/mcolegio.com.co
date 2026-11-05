@@ -47,6 +47,9 @@ class Aula(models.Model):
     comentarios_activos = models.BooleanField(default=True, verbose_name='Los estudiantes pueden comentar')
     # Planilla del plan individual: {'pesos': {'tarea:12': 2, 'manual:3': 1}, 'faltantes_minima': false}
     planilla = models.JSONField(default=dict, blank=True)
+    # Preguntas que pone el docente para las mascotas de la clase (mismo formato que los juegos).
+    preguntas_mascota = models.JSONField(default=list, blank=True)
+    texto_preguntas_mascota = models.TextField(blank=True)
     creada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -644,6 +647,7 @@ class JuegoAula(models.Model):
         ('tenis', 'Tenis'),
         ('carrera', 'Carrera de carriles'),
         ('baloncesto', 'Baloncesto'),
+        ('bandera', 'Captura la bandera'),
     ]
     # Se pueden jugar entre dos en el mismo equipo (sin nota: es una sola cuenta).
     DOS_JUGADORES = ('penaltis', 'tenis')
@@ -692,3 +696,42 @@ class ResultadoJuegoAula(models.Model):
             models.UniqueConstraint(fields=['juego', 'integrante'], condition=models.Q(integrante__isnull=False),
                                     name='aula_juego_uno_por_integrante'),
         ]
+
+
+# ---------------------------------------------------------------------------
+# Mascota académica: se cuida respondiendo preguntas
+# ---------------------------------------------------------------------------
+class MascotaAula(models.Model):
+    """La mascota virtual de un estudiante en una clase. Sus necesidades bajan con las horas;
+    se atienden respondiendo preguntas. Si se le acaban dos, se desmaya y la racha vuelve a cero."""
+    ESPECIES = [('dragon', 'Dragoncito'), ('gato', 'Gatico'), ('robot', 'Robotín'), ('buho', 'Búho'),
+                ('ajolote', 'Ajolote'), ('perro', 'Perrito')]
+    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, related_name='mascotas')
+    estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, null=True, blank=True, related_name='+')
+    integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    especie = models.CharField(max_length=10, choices=ESPECIES, default='dragon')
+    nombre = models.CharField(max_length=20)
+    hambre = models.FloatField(default=80)      # 100 = llena, 0 = muerta de hambre
+    sueno = models.FloatField(default=80)       # 100 = descansada
+    higiene = models.FloatField(default=80)     # 100 = limpia
+    actualizada = models.DateTimeField(default=timezone.now)
+    nacida = models.DateTimeField(default=timezone.now, help_text='Desde cuándo lleva viva (la racha).')
+    mejor_racha = models.PositiveIntegerField(default=0)
+    debil = models.BooleanField(default=False)
+    reanimar = models.PositiveSmallIntegerField(default=0, help_text='Aciertos que lleva para reanimarla.')
+    respondidas = models.PositiveIntegerField(default=0)
+    aciertos = models.PositiveIntegerField(default=0)
+    pendiente = models.JSONField(default=dict, blank=True, help_text='La pregunta que está respondiendo (la califica el servidor).')
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['aula', 'estudiante'], condition=models.Q(estudiante__isnull=False),
+                                    name='aula_mascota_una_por_estudiante'),
+            models.UniqueConstraint(fields=['aula', 'integrante'], condition=models.Q(integrante__isnull=False),
+                                    name='aula_mascota_una_por_integrante'),
+        ]
+
+    def __str__(self):
+        return f'{self.nombre} ({self.get_especie_display()})'

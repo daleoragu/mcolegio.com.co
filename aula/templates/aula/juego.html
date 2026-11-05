@@ -6,7 +6,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
-  .jg-consola { background:#1d1d1d; border-radius:18px; padding:14px; max-width:760px; margin:0 auto; box-shadow:inset 0 -6px 0 #111; }
+  .jg-zona { display:flex; gap:12px; align-items:flex-start; max-width:1020px; margin:0 auto; }
+  .jg-consola { background:#1d1d1d; border-radius:18px; padding:14px; flex:1 1 auto; min-width:0; max-width:760px; box-shadow:inset 0 -6px 0 #111; }
+  .jg-leyenda { flex:0 0 240px; background:#05070f; color:#e9ecef; border-radius:14px; padding:10px; border:4px solid #2b2b2b; }
+  .jg-leyenda h6 { font-family:"Press Start 2P", monospace; font-size:9px; color:#ffd43b; margin:2px 0 10px; }
+  .jg-leyenda .preg { font-size:.85rem; font-weight:700; margin-bottom:8px; color:#fff; }
+  .jg-op { display:flex; align-items:center; gap:8px; padding:6px; border-radius:10px; margin-bottom:6px; background:#11172b; border-left:6px solid; }
+  .jg-op canvas { width:36px; height:36px; flex:0 0 auto; }
+  .jg-op span { font-size:.88rem; line-height:1.2; }
+  @media (max-width: 991px) { .jg-zona { flex-direction:column; } .jg-leyenda { flex:none; width:100%; } }
   .jg-consola canvas { display:block; width:100%; border:6px solid #2b2b2b; border-radius:8px; background:#05070f; touch-action:none; }
   .jg-mandos { display:none; justify-content:space-between; align-items:center; padding:12px 6px 2px; user-select:none; -webkit-user-select:none; }
   .jg-mandos.visible { display:flex; }
@@ -30,6 +38,14 @@
 </div>
 {% if jugadores == 2 %}<p class="text-center small text-muted mb-2">Dos jugadores en este mismo equipo, por turnos. Es para jugar: no se guarda nota.</p>{% endif %}
 {% endif %}
+{% if tipo == 'tanques' and juego %}
+<div class="au-tarjeta text-center" style="max-width:760px;margin:0 auto">
+  <div class="fs-1">🛡️</div>
+  <p class="mb-2">Los estudiantes juegan <b>Tanques</b> a pantalla completa: seis mapas, refuerzos, poderes y el búho de la base.</p>
+  <a class="btn au-oro" href="?jugar=1"><i class="fas fa-play me-1"></i>Probar el juego</a>
+</div>
+{% else %}
+<div class="jg-zona">
 <div class="jg-consola">
   <canvas id="jg-lienzo" aria-label="{{ nombre_juego }}" tabindex="0"></canvas>
   <div class="jg-mandos" id="jg-mandos">
@@ -41,7 +57,14 @@
     <button type="button" class="jg-fuego" data-tecla="disparo" id="jg-fuego">FUEGO</button>
   </div>
 </div>
+<aside class="jg-leyenda" aria-label="Opciones de la pregunta">
+  <h6>OPCIONES</h6>
+  <div class="preg" id="jg-ley-preg">Presione ENTER o toque el juego para empezar.</div>
+  <div id="jg-ley-ops"></div>
+</aside>
+</div>
 <div class="jg-resultado" id="jg-resultado" aria-live="polite"></div>
+{% endif %}
 
 {% if c.es_docente and juego %}
 <div class="au-tarjeta mt-3" style="max-width:760px;margin-left:auto;margin-right:auto">
@@ -71,6 +94,7 @@
 {% endif %}
 </div>
 
+{% if tipo != 'tanques' or not juego %}
 {{ preguntas|json_script:"jg-preguntas" }}
 <script src="{% static 'aula/juegos/motor.js' %}"></script>
 <script src="{% static 'aula/juegos/'|add:tipo|add:'.js' %}"></script>
@@ -86,6 +110,19 @@
     jugadores: {{ jugadores|default:1 }},
     preguntas: JSON.parse(document.getElementById('jg-preguntas').textContent),
     textoFinal: () => textoFinal,
+    // Barra lateral: cada opción con su ícono del juego (el tanque, la bandera…) y el texto completo
+    alCambiarPregunta: (mm) => {
+      const p = mm.pregunta; if (!p) return;
+      document.getElementById('jg-ley-preg').textContent = p.texto;
+      const caja = document.getElementById('jg-ley-ops'); caja.innerHTML = '';
+      p.opciones.forEach((o, k) => {
+        const fila = document.createElement('div'); fila.className = 'jg-op'; fila.style.borderLeftColor = Gamificacion.COLORES[k];
+        const c = document.createElement('canvas'); c.width = 72; c.height = 72;
+        Gamificacion.icono('{{ tipo|escapejs }}', c.getContext('2d'), k, 72);
+        const t = document.createElement('span'); t.textContent = o.texto;
+        fila.appendChild(c); fila.appendChild(t); caja.appendChild(fila);
+      });
+    },
     alTerminar: async (r) => {
       const otra = `<a class="btn au-oro" href="">Jugar otra vez</a> <a class="btn btn-outline-secondary" href="{% url 'aula:gamificacion' aula.pk %}">Menú de juegos</a>`;
       if (!GUARDA || !URL_RESULTADO) {
@@ -112,7 +149,7 @@
   const def = Gamificacion;
   const mandos = document.getElementById('jg-mandos');
   const tipo = '{{ tipo|escapejs }}';
-  if (['laberinto', 'tanques', 'puente'].includes(tipo) && (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window)) {
+  if (['laberinto', 'tanques', 'puente', 'carrera', 'bandera'].includes(tipo) && (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window)) {
     mandos.classList.add('visible');
     if (tipo !== 'tanques') document.getElementById('jg-fuego').style.visibility = 'hidden';
   }
@@ -125,4 +162,5 @@
   lienzo.focus();
 })();
 </script>
+{% endif %}
 {% endblock %}

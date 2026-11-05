@@ -15,6 +15,16 @@
         instrucciones: 'Toque o haga clic en el ave que lleva la respuesta correcta. También puede presionar A, B, C o D.',
         conReloj: true,
         fondo: '#74c0fc',
+        // Barra lateral: el ave con la letra de su opción
+        icono(ctx, k, tam) {
+            const e = tam / 28;
+            ctx.fillStyle = '#5c3d2e'; ctx.fillRect(5 * e, 13 * e, 16 * e, 8 * e); ctx.fillRect(19 * e, 9 * e, 6 * e, 6 * e);
+            ctx.fillStyle = '#7a5442'; ctx.fillRect(8 * e, 8 * e, 9 * e, 5 * e);
+            ctx.fillStyle = '#f59f00'; ctx.fillRect(25 * e, 11 * e, 3 * e, 2 * e);
+            ctx.fillStyle = Gamificacion.COLORES[k]; ctx.beginPath(); ctx.arc(8 * e, 22 * e, 6 * e, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#111'; ctx.font = `bold ${Math.round(7 * e)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(Gamificacion.LETRAS[k], 8 * e, 22.5 * e);
+        },
         nuevaPregunta(m) { m.s = {aves: m.opciones.map((_, k) => ave(k, m.nivel)), disparos: []}; },
         alTocar(m, x, y) {
             m.s.disparos.push({x, y, t: m.t}); m.sonidos.toque();

@@ -93,6 +93,12 @@
         };
         m.aviso = function (texto, color, seg) { m.avisoTexto = texto; m.avisoColor = color; m.avisoHasta = m.t + (seg || 1); };
 
+        // Cada pregunta nueva se le avisa a la página (para la barra lateral con las opciones).
+        function nueva(repetir) {
+            def.nuevaPregunta(m, repetir);
+            if (op.alCambiarPregunta && m.estado !== 'fin') op.alCambiarPregunta(m);
+        }
+
         // --- Reglas ------------------------------------------------------------------
         let enPausa = false, terminado = false, esperaHasta = 0;
         function siguiente() {
@@ -105,7 +111,7 @@
             if (m.indice >= m.total || m.vidas <= 0) return terminar();
             m.reloj = tiempoDeLaPregunta();
             if (m.nivel > nivelAntes) { m.aviso('¡NIVEL ' + m.nivel + '!', '#ffd43b', 1.2); sonido(880, .1); setTimeout(() => sonido(1175, .2), 100); }
-            def.nuevaPregunta(m);
+            nueva();
         }
         // Con cada nivel hay un poco menos de tiempo (nunca menos de la mitad ni de 5 s).
         function tiempoDeLaPregunta() { return Math.max(5, m.segundos * Math.max(.5, 1 - (m.nivel - 1) * .1)); }
@@ -137,7 +143,7 @@
                 m.estado = 'pausa'; setTimeout(terminar, 1100); return;
             }
             m.estado = 'pausa';
-            setTimeout(() => { if (!terminado) { m.estado = 'jugando'; def.nuevaPregunta(m, true); } }, 1100);
+            setTimeout(() => { if (!terminado) { m.estado = 'jugando'; nueva(true); } }, 1100);
         };
         function terminar() {
             if (terminado) return;
@@ -149,7 +155,7 @@
         function empezar() {
             if (m.estado !== 'inicio') return;
             if (!m.total) { m.estado = 'fin'; return; }
-            m.estado = 'jugando'; m.reloj = tiempoDeLaPregunta(); def.nuevaPregunta(m); SONIDOS.toque();
+            m.estado = 'jugando'; m.reloj = tiempoDeLaPregunta(); nueva(); SONIDOS.toque();
         }
 
         // --- Entrada ------------------------------------------------------------------
@@ -273,5 +279,16 @@
         return m;
     }
 
-    window.Gamificacion = {registrar, iniciar, LETRAS, COLORES, W, H, ARRIBA, ABAJO};
+    /* El ícono de la opción k para la barra lateral: el del juego (tanque, bandera…) o la letra con su color. */
+    function icono(tipo, ctx, k, tam) {
+        ctx.clearRect(0, 0, tam, tam);
+        const def = JUEGOS[tipo];
+        if (def && def.icono) { def.icono(ctx, k, tam); return; }
+        ctx.fillStyle = COLORES[k]; ctx.beginPath(); ctx.arc(tam / 2, tam / 2, tam * .42, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = '#111'; ctx.font = `bold ${Math.round(tam * .5)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(LETRAS[k], tam / 2, tam / 2 + 1);
+    }
+
+    window.Gamificacion = {registrar, iniciar, icono, LETRAS, COLORES, W, H, ARRIBA, ABAJO};
 })();

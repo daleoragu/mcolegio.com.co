@@ -69,9 +69,11 @@ class Gamificacion(ColegioDePrueba):
         self.assertContains(r, 'AULA ARCADE')
         self.assertContains(r, 'REPASO')
         self.assertContains(r, 'PRÁCTICA LIBRE')
+        j = self.crear(tipo='bandera')
         r = self.cliente(self.ana.user).get(f'{self.base}/{j.pk}/')
         self.assertContains(r, 'aula/juegos/motor.js')
-        self.assertContains(r, 'aula/juegos/tanques.js')
+        self.assertContains(r, 'aula/juegos/bandera.js')
+        self.assertContains(r, 'jg-leyenda')
 
     def test_el_servidor_califica(self):
         j = self.crear()
@@ -155,3 +157,23 @@ class Gamificacion(ColegioDePrueba):
         j = self.crear(tipo='tenis', minutos='10')
         self.assertEqual(j.minutos, 10)
         self.assertContains(self.cliente(self.ana.user).get(f'{self.base}/{j.pk}/'), 'minutos: 10')
+
+    def test_tanques_con_el_diseno_nuevo(self):
+        j = self.crear(tipo='tanques')
+        r = self.cliente(self.ana.user).get(f'{self.base}/{j.pk}/')
+        self.assertTemplateUsed(r, 'aula/juego_tanques.html')
+        self.assertContains(r, 'mcolegio-config')
+        self.assertContains(r, '"guarda": true')
+        # El docente ve los resultados y puede probarlo (sin guardar)
+        r = self.profe.get(f'{self.base}/{j.pk}/')
+        self.assertContains(r, 'Probar el juego')
+        r = self.profe.get(f'{self.base}/{j.pk}/?jugar=1')
+        self.assertContains(r, '"guarda": false')
+
+    def test_banco_de_factorizacion(self):
+        p = bancos_juegos.preguntas('factorizacion', 10)
+        self.assertEqual(len(p), 10)
+        self.assertTrue(all(sum(1 for o in x['opciones'] if o['correcta']) == 1 for x in p))
+        r = self.cliente(self.ana.user).get(f'{self.base}/practica/tanques/factorizacion/')
+        self.assertContains(r, '"bancoPropio": true')
+        self.assertEqual(self.cliente(self.ana.user).get(f'{self.base}/practica/laberinto/factorizacion/').status_code, 200)
