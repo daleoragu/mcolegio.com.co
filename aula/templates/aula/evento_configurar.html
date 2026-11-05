@@ -36,16 +36,16 @@
         <div class="col-6"><label class="fw-bold">Bono por pregunta bien (s)</label><input type="number" name="bono" class="form-control form-control-sm" min="0" max="300" value="{{ c.bono }}"></div>
       </div>
       <h6 class="mt-3"><i class="fas fa-gamepad me-1"></i>Minijuegos: para qué grados y con qué dificultad</h6>
-      <p class="small text-muted mb-1">Marque en qué grados sale cada juego (sin ningún grado, el juego no sale). «Según el ciclo» ajusta la dificultad sola: Exploradores (6.º–7.º) fácil, Investigadores (8.º–9.º) media y Expertos (10.º–11.º) difícil; también la puede fijar.</p>
+      <p class="small text-muted mb-1">Marque en qué grados sale cada juego (sin ningún grado, el juego no sale). «Según el grupo» usa la dificultad de cada grupo (se define abajo, en Grupos); también la puede fijar para un juego.</p>
       <div style="overflow-x:auto">
       <table class="table table-sm small align-middle mb-0" id="ev-tabla">
-        <thead><tr><th>Juego</th>{% for g in grados %}<th class="text-center">{{ g }}.º<br><input type="checkbox" class="form-check-input ev-col" data-g="{{ g }}" title="Todos los juegos para {{ g }}.º"></th>{% endfor %}<th>Dificultad</th></tr></thead>
+        <thead><tr><th>Juego</th>{% for g, et in grados %}<th class="text-center" style="font-size:.7rem">{{ et }}<br><input type="checkbox" class="form-check-input ev-col" data-g="{{ g }}" title="Todos los juegos para {{ et }}"></th>{% endfor %}<th>Dificultad</th></tr></thead>
         <tbody>
         {% for est, nombre_est in estilos %}
           <tr class="table-light"><td colspan="{{ grados|length|add:2 }}" class="fw-bold">{{ nombre_est }}</td></tr>
           {% for f in filas_juegos %}{% if f.estilo == est %}
           <tr><td>{{ f.nombre }}</td>
-            {% for g in grados %}<td class="text-center"><input type="checkbox" class="form-check-input" name="g_{{ f.id }}" value="{{ g }}" data-g="{{ g }}" {% if g in f.grados %}checked{% endif %}></td>{% endfor %}
+            {% for g, et in grados %}<td class="text-center"><input type="checkbox" class="form-check-input" name="g_{{ f.id }}" value="{{ g }}" data-g="{{ g }}" {% if g in f.grados %}checked{% endif %}></td>{% endfor %}
             <td><select name="d_{{ f.id }}" class="form-select form-select-sm" style="min-width:120px">{% for k, n in dificultades %}<option value="{{ k }}" {% if f.dificultad == k %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></td></tr>
           {% endif %}{% endfor %}
         {% endfor %}
@@ -54,6 +54,49 @@
       </div>
       <script>document.querySelectorAll('.ev-col').forEach(c => c.addEventListener('change', () => document.querySelectorAll(`#ev-tabla tbody input[data-g="${c.dataset.g}"]`).forEach(x => { x.checked = c.checked; })));</script>
       <button class="btn au-oro w-100 mt-3">Guardar reglas y juegos</button>
+    </form>
+
+    <form method="post" class="au-tarjeta">{% csrf_token %}<input type="hidden" name="accion" value="grupos">
+      <h6><i class="fas fa-people-group me-1"></i>Grupos de participantes</h6>
+      <p class="small text-muted mb-2">Cada grupo compite aparte (tiene su propio podio y sus propias preguntas). Póngale el nombre que quiera, escoja sus grados (desde preescolar) y su dificultad. Un grado solo puede estar en un grupo.</p>
+      {% for g in grupos %}
+      <div class="border rounded-3 p-2 mb-2">
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
+          <input name="gn_{{ g.id }}" class="form-control form-control-sm" style="max-width:220px" maxlength="40" value="{{ g.nombre }}">
+          <select name="gl_{{ g.id }}" class="form-select form-select-sm" style="max-width:130px">{% for n, et in niveles %}<option value="{{ n }}" {% if g.nivel == n %}selected{% endif %}>{{ et }}</option>{% endfor %}</select>
+          <label class="small ms-auto text-danger"><input type="checkbox" name="gx_{{ g.id }}" class="form-check-input me-1">Quitar grupo</label>
+        </div>
+        <div class="d-flex flex-wrap gap-2 small">{% for n, et in todos_grados %}<label><input type="checkbox" name="gg_{{ g.id }}" value="{{ n }}" class="form-check-input me-1" {% if n in g.grados %}checked{% endif %}>{{ et }}</label>{% endfor %}</div>
+      </div>
+      {% endfor %}
+      <div class="border rounded-3 p-2 mb-2" style="background:#f8f9fa">
+        <div class="small fw-bold mb-1">Nuevo grupo (opcional)</div>
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
+          <input name="nuevo_nombre" class="form-control form-control-sm" style="max-width:220px" maxlength="40" placeholder="Nombre (ej.: Semillitas)">
+          <select name="nl_nuevo" class="form-select form-select-sm" style="max-width:130px">{% for n, et in niveles %}<option value="{{ n }}">{{ et }}</option>{% endfor %}</select>
+        </div>
+        <div class="d-flex flex-wrap gap-2 small">{% for n, et in todos_grados %}<label><input type="checkbox" name="ng_nuevo" value="{{ n }}" class="form-check-input me-1">{{ et }}</label>{% endfor %}</div>
+      </div>
+      <button class="btn btn-sm btn-outline-primary">Guardar grupos</button>
+    </form>
+
+    <form method="post" class="au-tarjeta">{% csrf_token %}<input type="hidden" name="accion" value="participantes">
+      <h6><i class="fas fa-user-check me-1"></i>¿Quiénes participan?</h6>
+      <div class="d-flex flex-column gap-1 small mb-2">
+        <label><input type="radio" name="modo" value="grados" class="form-check-input me-1" {% if part.modo == 'grados' %}checked{% endif %}>Todos los estudiantes de los grados de los grupos</label>
+        <label><input type="radio" name="modo" value="cursos" class="form-check-input me-1" {% if part.modo == 'cursos' %}checked{% endif %}>Solo estos cursos</label>
+        <label><input type="radio" name="modo" value="estudiantes" class="form-check-input me-1" {% if part.modo == 'estudiantes' %}checked{% endif %}>Solo estos estudiantes (por ejemplo, los clasificados)</label>
+      </div>
+      <div class="row g-2">
+        <div class="col-md-5"><label class="small fw-bold">Cursos</label>
+          <select name="cursos" multiple class="form-select form-select-sm" size="8">{% for cu in cursos %}<option value="{{ cu.pk }}" {% if cu.pk in part.cursos %}selected{% endif %}>{{ cu.nombre }}</option>{% endfor %}</select></div>
+        <div class="col-md-7"><label class="small fw-bold">Estudiantes</label>
+          <input type="search" class="form-control form-control-sm mb-1" placeholder="Buscar por nombre o curso…" id="ev-buscar">
+          <select name="estudiantes" multiple class="form-select form-select-sm" size="7" id="ev-estudiantes">{% for e in estudiantes %}<option value="{{ e.pk }}" {% if e.pk in part.estudiantes %}selected{% endif %}>{{ e.curso.nombre }} · {{ e.user.get_full_name|default:e.user.username }}</option>{% endfor %}</select></div>
+      </div>
+      <p class="small text-muted mt-1 mb-2">Mantenga presionado Ctrl (o ⌘) para escoger varios. Los escogidos también tienen que estar en el grado de algún grupo.</p>
+      <button class="btn btn-sm btn-outline-primary">Guardar participantes</button>
+      <script>document.getElementById('ev-buscar').addEventListener('input', e => { const t = e.target.value.toLowerCase(); document.querySelectorAll('#ev-estudiantes option').forEach(o => { o.hidden = t && !o.textContent.toLowerCase().includes(t); }); });</script>
     </form>
 
     {% if es_admin %}
@@ -72,14 +115,14 @@
     <div class="au-tarjeta">
       <h6><i class="fas fa-circle-question me-1"></i>Preguntas de competencia ({{ preguntas|length }})</h6>
       <table class="table table-sm text-center small mb-2">
-        <thead><tr><th class="text-start">Ciclo</th>{% for k, n, d in categorias %}<th title="{{ d }}">{{ n }}</th>{% endfor %}</tr></thead>
+        <thead><tr><th class="text-start">Grupo</th>{% for k, n, d in categorias %}<th title="{{ d }}">{{ n }}</th>{% endfor %}</tr></thead>
         <tbody>{% for f in tabla %}<tr><td class="text-start">{{ f.ciclo }}</td>{% for x in f.cifras %}<td class="{% if not x %}text-danger fw-bold{% endif %}">{{ x }}</td>{% endfor %}</tr>{% endfor %}</tbody>
       </table>
       <p class="small text-muted">Euclides: geométrico y espacial · Newton: numérico y algebraico · Bernoulli: aleatorio, estadístico y combinatorio. Las preguntas salen rotando los tres pensamientos.</p>
       <form method="post" class="mb-3">{% csrf_token %}<input type="hidden" name="accion" value="pegar">
         <label class="small fw-bold">Pegar preguntas (formato Saber: opciones A) B) … y la correcta con *)</label>
         <div class="d-flex gap-2 my-1">
-          <select name="ciclo" class="form-select form-select-sm">{% for k, n, r in ciclos %}<option value="{{ k }}">{{ n }} ({{ r }})</option>{% endfor %}</select>
+          <select name="ciclo" class="form-select form-select-sm">{% for g in grupos %}<option value="{{ g.id }}">{{ g.nombre }} ({{ g.rango }})</option>{% endfor %}</select>
           <select name="categoria" class="form-select form-select-sm">{% for k, n, d in categorias %}<option value="{{ k }}">{{ n }}</option>{% endfor %}</select>
         </div>
         <textarea name="texto" rows="5" class="form-control form-control-sm" style="font-family:ui-monospace,monospace" placeholder="1. ¿Cuánto es 2³?&#10;A) 6&#10;*B) 8&#10;C) 9"></textarea>
@@ -92,7 +135,7 @@
           {% for j in juegos_salon %}<option value="{{ j.pk }}">{{ j.aula.titulo }} · {{ j.titulo }} ({{ j.preguntas|length }} preg.)</option>{% endfor %}
         </select>
         <div class="d-flex gap-2 mb-1">
-          <select name="ciclo" class="form-select form-select-sm">{% for k, n, r in ciclos %}<option value="{{ k }}">{{ n }} ({{ r }})</option>{% endfor %}</select>
+          <select name="ciclo" class="form-select form-select-sm">{% for g in grupos %}<option value="{{ g.id }}">{{ g.nombre }} ({{ g.rango }})</option>{% endfor %}</select>
           <select name="categoria" class="form-select form-select-sm">{% for k, n, d in categorias %}<option value="{{ k }}">{{ n }}</option>{% endfor %}</select>
         </div>
         <button class="btn btn-sm btn-outline-primary">Importar</button>

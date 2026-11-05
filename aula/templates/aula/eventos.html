@@ -21,6 +21,7 @@
       <div class="fw-bold fs-5" style="color:#1f3a68">{{ ev.titulo }}</div>
       <div class="small text-muted">{{ ev.get_tipo_display }}
         {% if ev.organiza %} · {% if ev.activo %}<span class="text-success fw-bold">ACTIVO: lo ven los estudiantes</span>{% else %}<span class="text-danger fw-bold">APAGADO: los estudiantes no lo ven</span>{% endif %} · {{ ev.n_participantes }} participante(s){% endif %}
+        {% if ev.mi_grupo %} · Usted participa en <b>{{ ev.mi_grupo }}</b>{% endif %}
         {% if ev.mia %} · Usted lleva <b>{{ ev.mia.puntos }}</b> punto(s){% if ev.mia.terminada %} · terminó{% endif %}{% endif %}
       </div>
     </div>
@@ -37,6 +38,5 @@
   {% empty %}
   <div class="au-tarjeta text-center text-muted py-4">{% if organiza %}Todavía no hay eventos. Cree el primero arriba.{% else %}No hay eventos abiertos en este momento.{% endif %}</div>
   {% endfor %}
-  {% if ciclo %}<p class="small text-muted">Usted participa en el ciclo <b>{{ ciclo }}</b>.</p>{% endif %}
 </div>
 {% endblock %}

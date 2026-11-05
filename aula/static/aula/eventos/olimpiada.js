@@ -6,8 +6,9 @@
     'use strict';
     const D = JSON.parse(document.getElementById('ol-datos').textContent), U = window.OL_URLS, C = D.config;
     const $ = s => document.querySelector(s);
-    const CICLOS = {exploradores: ['Exploradores', '6.º y 7.º', 0], investigadores: ['Investigadores', '8.º y 9.º', 1], expertos: ['Expertos', '10.º y 11.º', 2]};
-    const CI = CICLOS[D.ciclo] ? CICLOS[D.ciclo][2] : 0;
+    // El grupo del estudiante (nombre, grados y dificultad los pone el organizador)
+    const GR = D.grupo || {nombre: '', grados: '', nivel: 0, gmax: 11};
+    const CI = GR.nivel || 0, PEQUES = GR.gmax <= 2, PRIMARIA = GR.gmax <= 5;
     const CAT_COLOR = {Euclides: '#1971c2', Newton: '#e8590c', Bernoulli: '#2f9e44'};
     const NOMBRE = Object.fromEntries(D.juegos.map(j => [j[0], j[1]]));
     const CLAVE = `mc-evento:${D.usuario}:${D.evento}${D.prueba ? ':prueba:' + D.ciclo : ''}`;
@@ -43,7 +44,7 @@
     const mmss = s => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
     const efectivo = () => Math.max(0, E.ultimoPunto - C.bono * E.bonos);
     function pintarCab() {
-        $('#ol-ciclo').textContent = CICLOS[D.ciclo] ? `Ciclo ${CICLOS[D.ciclo][0]} (${CICLOS[D.ciclo][1]}) · ${C.bloques} bloque(s) de ${C.minutos} min` : '';
+        $('#ol-ciclo').textContent = `${GR.nombre} (${GR.grados}) · ${C.bloques} bloque(s) de ${C.minutos} min`;
         $('#ol-bloque').textContent = `${E.bloque}/${C.bloques}`;
         $('#ol-tiempo').textContent = mmss(E.restante);
         $('#ol-reloj').classList.toggle('poco', E.restante < 60);
@@ -133,10 +134,12 @@
         for (let k = 0; k < n; k++) {
             let txt, r;
             const t = az(0, 2);
-            if (CI === 0) { if (t === 0) { const a = az(12, 90), b = az(5, 60); r = a + b; txt = `${a} + ${b}`; } else if (t === 1) { const a = az(2, 9), b = az(2, 10); r = a * b; txt = `${a} × ${b}`; } else { const b = az(2, 9); r = az(2, 10); txt = `${b * r} ÷ ${b}`; } }
+            if (PEQUES) { if (t === 1) { const a = az(5, 20), b = az(1, a - 1); r = a - b; txt = `${a} − ${b}`; } else { const a = az(1, 10), b = az(1, 10); r = a + b; txt = `${a} + ${b}`; } }
+            else if (PRIMARIA && CI === 0) { if (t === 0) { const a = az(10, 60), b = az(5, 39); r = a + b; txt = `${a} + ${b}`; } else if (t === 1) { const a = az(2, 10), b = az(2, 10); r = a * b; txt = `${a} × ${b}`; } else { const a = az(20, 99), b = az(5, 19); r = a - b; txt = `${a} − ${b}`; } }
+            else if (CI === 0) { if (t === 0) { const a = az(12, 90), b = az(5, 60); r = a + b; txt = `${a} + ${b}`; } else if (t === 1) { const a = az(2, 9), b = az(2, 10); r = a * b; txt = `${a} × ${b}`; } else { const b = az(2, 9); r = az(2, 10); txt = `${b * r} ÷ ${b}`; } }
             else if (CI === 1) { if (t === 0) { const a = az(-15, 15), b = az(-15, 15); r = a * b; txt = `(${a}) × (${b})`; } else if (t === 1) { const a = az(2, 15); r = a * a; txt = `${a}²`; } else { const x = az(2, 15), b = az(2, 20); r = x; txt = `x + ${b} = ${x + b}; x = ?`; } }
             else { if (t === 0) { const a = az(2, 9), x = az(2, 12), b = az(1, 20); r = x; txt = `${a}x − ${b} = ${a * x - b}; x = ?`; } else if (t === 1) { const p = [5, 10, 15, 20, 25][az(0, 4)], v = az(2, 30) * 20; r = p * v / 100; txt = `${p} % de ${v}`; } else { const a = az(2, 5); r = 2 ** a * 3; txt = `2^${a} · 3`; } }
-            const malos = new Set(); while (malos.size < 3) { const d = r + [-10, -2, -1, 1, 2, 10, 5, -5][az(0, 7)]; if (d !== r) malos.add(d); }
+            const malos = new Set(); while (malos.size < 3) { const d = r + [-10, -2, -1, 1, 2, 10, 5, -5][az(0, 7)]; if (d !== r && d >= 0) malos.add(d); }
             const ops = [{texto: String(r), correcta: true}].concat([...malos].map(v => ({texto: String(v), correcta: false}))).sort(() => Math.random() - .5);
             out.push({i: k, texto: '¿' + txt + '?', opciones: ops});
         }
@@ -219,7 +222,7 @@
     function mostrarPortada() {
         const seguir = E.puntos > 0 || E.bloque > 1;
         capa(`<h3 class="fw-bold" style="color:#1f3a68">🏅 ${document.querySelector('.ol-cab h5').textContent.replace('🏅 ', '')}</h3>
-              <p class="mb-2">Ciclo <b>${CICLOS[D.ciclo] ? CICLOS[D.ciclo][0] : ''}</b>. Así se juega:</p>
+              <p class="mb-2">Grupo <b>${GR.nombre}</b> (${GR.grados}). Así se juega:</p>
               <ul class="small">
                 <li><b>${C.bloques} bloque(s) de ${C.minutos} minutos</b> contra reloj, con <b>${C.descanso} min de descanso visual</b> entre bloques.</li>
                 <li>Cada reto superado (rompecabezas, arcade o manipulativo) suma <b>1 punto</b>. Si uno se le complica, puede saltarlo.</li>

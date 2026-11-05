@@ -40,7 +40,7 @@
     <button type="button" class="btn btn-sm btn-light" id="ol-completa" title="Pantalla completa"><i class="fas fa-expand"></i></button>
   </div>
   {% if datos.prueba %}<div class="alert alert-warning py-1 small mb-2">Modo prueba del organizador: no se guarda nada.
-    Ciclo: {% for k, n, r in ciclos %}<a href="?ciclo={{ k }}" class="ms-1 {% if datos.ciclo == k %}fw-bold{% endif %}">{{ n }}</a>{% endfor %}</div>{% endif %}
+    Grupo: {% for g in grupos %}<a href="?ciclo={{ g.id }}" class="ms-1 {% if datos.ciclo == g.id %}fw-bold{% endif %}">{{ g.nombre }}</a>{% endfor %}</div>{% endif %}
   <div class="ol-reto"><span class="nombre" id="ol-reto-nombre"></span><span class="small text-muted" id="ol-reto-detalle"></span>
     <span class="ms-auto d-flex gap-1">
       <button type="button" class="btn btn-sm btn-outline-primary" id="ol-girar" hidden>Girar</button>

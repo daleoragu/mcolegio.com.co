@@ -142,3 +142,45 @@ class Olimpiada(ColegioDePrueba):
         self.admin.post(url, {'accion': 'quitar', 'i': len(ev.preguntas) - 1})
         ev.refresh_from_db()
         self.assertEqual(len(ev.preguntas), 46)
+
+    def test_grupos_con_nombre_y_grados_de_primaria(self):
+        ev = self.crear(); ev.activo = True; ev.save()
+        quinto = Curso.objects.create(colegio=self.a, nombre='501', grado=5, subgrupo='1')
+        e5 = self.crear_estudiante('quinta', curso=quinto)
+        url = f'/aula/eventos/{ev.pk}/configurar/'
+        self.assertContains(self.admin.get(url), 'Grupos de participantes')
+        # Se agrega un grupo de primaria con el nombre que se quiera
+        self.admin.post(url, {'accion': 'grupos', 'gn_exploradores': 'Exploradores', 'gg_exploradores': ['6', '7'], 'gl_exploradores': '0',
+                              'gn_investigadores': 'Investigadores', 'gg_investigadores': ['8', '9'], 'gl_investigadores': '1',
+                              'gn_expertos': 'Expertos', 'gg_expertos': ['10', '11'], 'gl_expertos': '2',
+                              'nuevo_nombre': 'Pequeños Genios', 'ng_nuevo': ['3', '4', '5'], 'nl_nuevo': '0'})
+        ev.refresh_from_db()
+        g = ev.config['grupos'][-1]
+        self.assertEqual((g['nombre'], g['grados'], g['id']), ('Pequeños Genios', [3, 4, 5], 'pequeñosgenios'))
+        c = self.cliente(e5.user)
+        r = c.get(f'/aula/eventos/{ev.pk}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.context['datos']['grupo']['nombre'], 'Pequeños Genios')
+        self.post(c, f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'inicio'}]})
+        self.assertEqual(ParticipacionEvento.objects.get(estudiante=e5).ciclo, 'pequeñosgenios')
+        # Un grado no puede estar en dos grupos
+        self.admin.post(url, {'accion': 'grupos', 'gn_exploradores': 'X', 'gg_exploradores': ['5', '6'], 'gl_exploradores': '0',
+                              'gn_pequeñosgenios': 'Pequeños Genios', 'gg_pequeñosgenios': ['5']})
+        ev.refresh_from_db()
+        self.assertEqual(ev.config['grupos'][0]['grados'], [6, 7])          # no cambió
+        # Resultados con el grupo nuevo
+        self.assertContains(self.admin.get(f'/aula/eventos/{ev.pk}/resultados/'), 'Pequeños Genios')
+
+    def test_participantes_por_curso_o_por_estudiante(self):
+        ev = self.crear(); ev.activo = True; ev.save()
+        otro = Curso.objects.create(colegio=self.a, nombre='602', grado=6, subgrupo='2')
+        e602 = self.crear_estudiante('dora', curso=otro)
+        url = f'/aula/eventos/{ev.pk}/configurar/'
+        self.admin.post(url, {'accion': 'participantes', 'modo': 'cursos', 'cursos': [self.curso.pk]})
+        self.assertEqual(self.cliente(self.ana.user).get(f'/aula/eventos/{ev.pk}/').status_code, 200)
+        self.assertEqual(self.cliente(e602.user).get(f'/aula/eventos/{ev.pk}/').status_code, 302)
+        # Solo algunos estudiantes (por ejemplo, los clasificados)
+        self.admin.post(url, {'accion': 'participantes', 'modo': 'estudiantes', 'estudiantes': [e602.pk]})
+        self.assertEqual(self.cliente(self.ana.user).get(f'/aula/eventos/{ev.pk}/').status_code, 302)
+        self.assertEqual(self.cliente(e602.user).get(f'/aula/eventos/{ev.pk}/').status_code, 200)
+        self.assertTrue(self.post(self.cliente(self.ana.user), f'/aula/eventos/{ev.pk}/registro/', {'eventos': []}).get('prueba'))
