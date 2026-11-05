@@ -58,7 +58,7 @@
         const T = cfg.tablero, P = cfg.piezas.map((p, i) => ({...p, i, celdas: norm(p.celdas), x: cfg.bandeja[i].x, y: cfg.bandeja[i].y, en: null}));
         let arrastre = null, ultima = null, ultimoToque = {i: -1, t: 0};
         function norm(c) { const mf = Math.min(...c.map(a => a[0])), mc = Math.min(...c.map(a => a[1])); return c.map(([f, k, t]) => [f - mf, k - mc, t]); }
-        function girar(p) { p.celdas = norm(p.celdas.map(([f, c, t]) => [c, -f, t])); }
+        function girar(p) { p.celdas = norm(p.celdas.map(([f, c, t]) => [c, -f, cfg.girarTipo ? cfg.girarTipo(t) : t])); }
         function voltear(p) { p.celdas = norm(p.celdas.map(([f, c, t]) => [f, -c, t])); }
         function cel(p) { return T.cel * (p.en ? 1 : (cfg.escalaBandeja || .6)); }
         function ocupadas(salvo) {

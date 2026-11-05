@@ -29,6 +29,8 @@ JUEGOS = [
     ('cubo', 'Cubo del binomio y del trinomio', 'Arme (a + b)³ y (a + b + c)³ con las piezas Montessori en 3D.', 'cubo'),
     ('conejos', 'Conejos saltarines', 'Los conejos saltan sobre hongos y zorros hasta meterse en los huecos.', 'conejos'),
     ('perrito', 'Perrito a su casita', 'Deslice las fichas del camino hasta que cada perrito llegue a su casita.', 'perrito'),
+    ('caperucita', 'Caperucita', 'Ponga las piezas de camino para llevar a Caperucita donde la abuela, esquivando al lobo.', 'caperucita'),
+    ('ladron', 'Atrapa al ladrón', 'Encierre el carro del ladrón con los edificios antes de que escape.', 'ladron'),
     ('fijas', 'Picas y fijas con figuras', 'Adivine el orden secreto: solo sabrá cuántas están exactas y cuántas en otro sitio. Solo o entre dos.', 'fijas'),
 ]
 DATOS = {j[0]: j for j in JUEGOS}

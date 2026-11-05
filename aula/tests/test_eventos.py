@@ -53,9 +53,29 @@ class Olimpiada(ColegioDePrueba):
         self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'organizadores', 'organizadores': [self.u_docente.pk]})
         self.assertEqual(profe.get(f'/aula/eventos/{ev.pk}/configurar/').status_code, 200)
         profe.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'config', 'titulo': 'Otro nombre', 'bloques': '3', 'minutos': '10',
-                                                        'descanso': '2', 'cada': '4', 'por_parada': '5', 'bono': '30', 'juegos': ['tangram', 'geoplano']})
+                                                        'descanso': '2', 'cada': '4', 'por_parada': '5', 'bono': '30',
+                                                        'g_tangram': ['6', '7'], 'd_tangram': 'dificil', 'g_geoplano': ['10', '11']})
         ev.refresh_from_db()
         self.assertEqual((ev.titulo, ev.config['bloques'], ev.config['por_parada'], ev.config['juegos']), ('Otro nombre', 3, 2, ['tangram', 'geoplano']))
+        self.assertEqual(ev.config['por_juego']['tangram'], {'grados': [6, 7], 'dificultad': 'dificil'})
+
+    def test_juegos_por_grado(self):
+        ev = self.crear(); ev.activo = True
+        ev.config = dict(ev.config, juegos=['tangram', 'geoplano'], por_juego={'tangram': {'grados': [6], 'dificultad': 'media'}, 'geoplano': {'grados': [10], 'dificultad': 'auto'}})
+        ev.save()
+        c = self.cliente(self.ana.user)          # Ana está en 6.º
+        r = c.get(f'/aula/eventos/{ev.pk}/')
+        datos = r.context['datos']
+        self.assertEqual([j[0] for j in datos['juegos']], ['tangram'])
+        self.assertEqual(datos['dificultad']['tangram'], 'media')
+        # un punto en un juego que no es de su grado no cuenta
+        r = self.post(c, f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'geoplano', 'nivel': 1, 't': 10},
+                                                                          {'seq': 2, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 1, 't': 20}]})
+        self.assertEqual(r['puntos'], 1)
+        # sin juegos para su grado no puede entrar
+        ev.config = dict(ev.config, por_juego={'tangram': {'grados': [9]}, 'geoplano': {'grados': [10]}})
+        ev.save()
+        self.assertEqual(c.get(f'/aula/eventos/{ev.pk}/').status_code, 302)
 
     def test_puntos_preguntas_y_ranking(self):
         ev = self.crear()

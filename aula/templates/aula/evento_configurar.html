@@ -22,7 +22,7 @@
   </form>
 
   <div class="row g-3">
-  <div class="col-lg-6">
+  <div class="col-12">
     <form method="post" class="au-tarjeta">{% csrf_token %}<input type="hidden" name="accion" value="config">
       <h6><i class="fas fa-sliders me-1"></i>Reglas</h6>
       <label class="form-label small fw-bold mb-1">Nombre del evento</label>
@@ -35,16 +35,24 @@
         <div class="col-6"><label class="fw-bold">Preguntas por parada (máx. 2)</label><input type="number" name="por_parada" class="form-control form-control-sm" min="1" max="2" value="{{ c.por_parada }}"></div>
         <div class="col-6"><label class="fw-bold">Bono por pregunta bien (s)</label><input type="number" name="bono" class="form-control form-control-sm" min="0" max="300" value="{{ c.bono }}"></div>
       </div>
-      <h6 class="mt-3"><i class="fas fa-gamepad me-1"></i>Minijuegos del evento</h6>
-      <p class="small text-muted mb-1">La dificultad cambia sola según el ciclo: Exploradores (6.º–7.º), Investigadores (8.º–9.º), Expertos (10.º–11.º).</p>
-      {% for est, nombre_est in estilos %}
-      <div class="small fw-bold mt-2">{{ nombre_est }}</div>
-      <div class="row g-1">
-        {% for id, nombre, estilo in juegos %}{% if estilo == est %}
-        <div class="col-sm-6"><label class="small"><input type="checkbox" name="juegos" value="{{ id }}" class="form-check-input me-1" {% if id in c.juegos %}checked{% endif %}>{{ nombre }}</label></div>
-        {% endif %}{% endfor %}
+      <h6 class="mt-3"><i class="fas fa-gamepad me-1"></i>Minijuegos: para qué grados y con qué dificultad</h6>
+      <p class="small text-muted mb-1">Marque en qué grados sale cada juego (sin ningún grado, el juego no sale). «Según el ciclo» ajusta la dificultad sola: Exploradores (6.º–7.º) fácil, Investigadores (8.º–9.º) media y Expertos (10.º–11.º) difícil; también la puede fijar.</p>
+      <div style="overflow-x:auto">
+      <table class="table table-sm small align-middle mb-0" id="ev-tabla">
+        <thead><tr><th>Juego</th>{% for g in grados %}<th class="text-center">{{ g }}.º<br><input type="checkbox" class="form-check-input ev-col" data-g="{{ g }}" title="Todos los juegos para {{ g }}.º"></th>{% endfor %}<th>Dificultad</th></tr></thead>
+        <tbody>
+        {% for est, nombre_est in estilos %}
+          <tr class="table-light"><td colspan="{{ grados|length|add:2 }}" class="fw-bold">{{ nombre_est }}</td></tr>
+          {% for f in filas_juegos %}{% if f.estilo == est %}
+          <tr><td>{{ f.nombre }}</td>
+            {% for g in grados %}<td class="text-center"><input type="checkbox" class="form-check-input" name="g_{{ f.id }}" value="{{ g }}" data-g="{{ g }}" {% if g in f.grados %}checked{% endif %}></td>{% endfor %}
+            <td><select name="d_{{ f.id }}" class="form-select form-select-sm" style="min-width:120px">{% for k, n in dificultades %}<option value="{{ k }}" {% if f.dificultad == k %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></td></tr>
+          {% endif %}{% endfor %}
+        {% endfor %}
+        </tbody>
+      </table>
       </div>
-      {% endfor %}
+      <script>document.querySelectorAll('.ev-col').forEach(c => c.addEventListener('change', () => document.querySelectorAll(`#ev-tabla tbody input[data-g="${c.dataset.g}"]`).forEach(x => { x.checked = c.checked; })));</script>
       <button class="btn au-oro w-100 mt-3">Guardar reglas y juegos</button>
     </form>
 

@@ -34,14 +34,35 @@ JUEGOS = [
     ('kadogemo', 'Cuatro cuadrantes (tipo Kadogemo)', 'logica'), ('nonograma', 'Nonograma', 'logica'), ('hanoi', 'Torres de Hanói', 'logica'),
     ('ranas', 'Ranas saltarinas', 'logica'), ('cerditos', 'Los tres cerditos', 'logica'), ('kiriku', 'Deslizables de colores', 'logica'),
     ('laberinto', 'Laberinto de colores', 'logica'), ('fijas', 'Picas y fijas con figuras', 'logica'),
-    ('sokoban', 'Empuja cajas (tipo Sokoban)', 'logica'), ('conejos', 'Conejos saltarines', 'logica'), ('perrito', 'Perrito a su casita', 'logica'), ('bloque', 'Bloque rodante (tipo Bloxorz)', 'logica'),
+    ('sokoban', 'Empuja cajas (tipo Sokoban)', 'logica'), ('conejos', 'Conejos saltarines', 'logica'), ('perrito', 'Perrito a su casita', 'logica'),
+    ('caperucita', 'Caperucita (piezas de camino)', 'logica'), ('ladron', 'Atrapa al ladrón', 'logica'), ('bloque', 'Bloque rodante (tipo Bloxorz)', 'logica'),
     ('tiro', 'Tiro al vuelo (aves con la respuesta)', 'arcade'), ('pacman', 'Laberinto comelón (galleta con el resultado)', 'arcade'),
     ('speedrun', 'Cálculo veloz (contrarreloj)', 'arcade'),
     ('geoplano', 'Geoplano (bandas elásticas)', 'montessori'), ('regletas', 'Regletas en la balanza (Cuisenaire)', 'montessori'),
     ('cubo', 'Cubo del binomio y del trinomio 3D', 'montessori'),
 ]
 ESTILOS = [('logica', 'Lógica y rompecabezas'), ('arcade', 'Acción arcade con matemáticas'), ('montessori', 'Simuladores Montessori')]
-CONFIG = {'juegos': [j[0] for j in JUEGOS], 'bloques': 2, 'minutos': 15, 'descanso': 3, 'cada': 5, 'por_parada': 1, 'bono': 30}
+CONFIG = {'juegos': [j[0] for j in JUEGOS], 'bloques': 2, 'minutos': 15, 'descanso': 3, 'cada': 5, 'por_parada': 1, 'bono': 30,
+          'por_juego': {}}      # por_juego: {id: {'grados': [6, 7…], 'dificultad': 'auto'|'facil'|'media'|'dificil'}}
+GRADOS = [6, 7, 8, 9, 10, 11]
+DIFICULTADES = [('auto', 'Según el ciclo'), ('facil', 'Fácil'), ('media', 'Media'), ('dificil', 'Difícil')]
+GRADOS_CICLO = {'exploradores': [6, 7], 'investigadores': [8, 9], 'expertos': [10, 11]}
+
+
+def juegos_para(c, grados):
+    """Los juegos habilitados para alguno de esos grados (si no se dijo nada, para todos)."""
+    out = []
+    for j in JUEGOS:
+        if j[0] not in c['juegos']:
+            continue
+        g = (c['por_juego'].get(j[0]) or {}).get('grados')
+        if g is None or set(g) & set(grados):
+            out.append(j)
+    return out
+
+
+def dificultad(c, juego):
+    return (c['por_juego'].get(juego) or {}).get('dificultad', 'auto')
 BANCO = os.path.join(os.path.dirname(__file__), 'bancos', 'olimpiada.json')
 
 
@@ -160,11 +181,18 @@ def configurar(request, eid):
                     pass
             entero('bloques', 1, 6); entero('minutos', 5, 60); entero('descanso', 1, 15)
             entero('cada', 1, 20); entero('por_parada', 1, 2); entero('bono', 0, 300)
-            elegidos = [j for j in request.POST.getlist('juegos') if j in {x[0] for x in JUEGOS}]
+            # Por cada juego: para qué grados va y con qué dificultad
+            por_juego, elegidos = {}, []
+            for j in JUEGOS:
+                grados = sorted({int(g) for g in request.POST.getlist('g_' + j[0]) if g.isdigit() and int(g) in GRADOS})
+                dif = request.POST.get('d_' + j[0])
+                por_juego[j[0]] = {'grados': grados, 'dificultad': dif if dif in dict(DIFICULTADES) else 'auto'}
+                if grados:
+                    elegidos.append(j[0])
             if not elegidos:
-                messages.warning(request, 'Escoja al menos un juego.')
+                messages.warning(request, 'Escoja al menos un juego para algún grado.')
                 return redirect('aula:evento_configurar', eid=ev.pk)
-            c['juegos'] = elegidos
+            c['juegos'], c['por_juego'] = elegidos, por_juego
             titulo = ' '.join((request.POST.get('titulo') or '').split())[:80]
             if titulo:
                 ev.titulo = titulo
@@ -222,8 +250,15 @@ def configurar(request, eid):
         conteo[(p.get('ciclo'), p.get('categoria'))] = conteo.get((p.get('ciclo'), p.get('categoria')), 0) + 1
     tabla = [{'ciclo': n, 'cifras': [conteo[(k, ca)] for ca, _, _ in CATEGORIAS]} for k, n, _ in CICLOS]
     juegos_salon = JuegoAula.objects.filter(aula__colegio=ev.colegio).select_related('aula').order_by('-pk')[:200]
+    filas_juegos = []
+    for j in JUEGOS:
+        pj = c['por_juego'].get(j[0]) or {}
+        grados = pj.get('grados', GRADOS if j[0] in c['juegos'] else [])
+        if j[0] not in c['juegos']:
+            grados = []
+        filas_juegos.append({'id': j[0], 'nombre': j[1], 'estilo': j[2], 'grados': grados, 'dificultad': pj.get('dificultad', 'auto')})
     return render(request, 'aula/evento_configurar.html', {
-        'ev': ev, 'c': c, 'juegos': JUEGOS, 'estilos': ESTILOS, 'ciclos': CICLOS, 'categorias': CATEGORIAS, 'tabla': tabla,
+        'ev': ev, 'c': c, 'juegos': JUEGOS, 'filas_juegos': filas_juegos, 'grados': GRADOS, 'dificultades': DIFICULTADES, 'estilos': ESTILOS, 'ciclos': CICLOS, 'categorias': CATEGORIAS, 'tabla': tabla,
         'preguntas': list(enumerate(ev.preguntas)), 'juegos_salon': juegos_salon, 'es_admin': es_admin(request),
         'docentes': Docente.objects.filter(colegio=ev.colegio).select_related('user').order_by('user__last_name'),
         'organizadores': set(ev.organizadores.values_list('pk', flat=True)), 'base': 'notas/base.html'})
@@ -240,11 +275,15 @@ def jugar(request, eid):
     if not organiza and not ciclo:
         messages.info(request, 'Este evento es para los grados 6.º a 11.º.')
         return redirect('aula:eventos')
+    if not organiza and not juegos_para(config_de(ev), [int(est.curso.grado)]):
+        messages.info(request, 'Este evento no tiene juegos para su grado.')
+        return redirect('aula:eventos')
     from .views_logica import niveles
     c = config_de(ev)
     datos = {
         'evento': ev.pk, 'titulo': ev.titulo, 'prueba': est is None, 'ciclo': ciclo or request.GET.get('ciclo', 'exploradores'),
-        'config': c, 'juegos': [j for j in JUEGOS if j[0] in c['juegos']],
+        'config': c, 'juegos': juegos_para(c, [int(est.curso.grado)] if est and est.curso_id else GRADOS_CICLO.get(ciclo or request.GET.get('ciclo', 'exploradores'), [6, 7])),
+        'dificultad': {j[0]: dificultad(c, j[0]) for j in JUEGOS},
         'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito')},
         'usuario': request.user.pk,
     }
@@ -252,7 +291,7 @@ def jugar(request, eid):
         p = ParticipacionEvento.objects.filter(evento=ev, estudiante=est).first()
         datos['servidor'] = _estado(p, c) if p else None
     scripts = ['tangram', 'trancon', 'cerditos', 'ranas', 'bango', 'kadogemo', 'kiriku', 'laberinto_colores', 'hanoi', 'fila',
-               'nonograma', 'geoplano', 'regletas', 'speedrun', 'fijas', 'sokoban', 'bloque', 'cubo', 'conejos', 'perrito']
+               'nonograma', 'geoplano', 'regletas', 'speedrun', 'fijas', 'sokoban', 'bloque', 'cubo', 'conejos', 'perrito', 'caperucita', 'ladron']
     return render(request, 'aula/evento_jugar.html', {'ev': ev, 'datos': datos, 'ciclos': CICLOS, 'organiza': organiza, 'scripts': scripts,
                                                       'categorias': CATEGORIAS, 'base': 'notas/base.html'})
 
@@ -321,7 +360,8 @@ def registro(request, eid):
             continue
         p.secuencia = seq
         t = max(0.0, min(t, tope, transcurrido))
-        if tipo == 'punto' and e.get('juego') in c['juegos']:
+        permitidos = {j[0] for j in juegos_para(c, [int(p.estudiante.curso.grado)] if p.estudiante.curso_id else GRADOS)}
+        if tipo == 'punto' and e.get('juego') in permitidos:
             ultimo = next((r for r in reversed(p.registro) if r.get('tipo') == 'punto'), None)
             if ultimo and t - ultimo.get('t', 0) < 2:      # demasiado rápido para un reto: no cuenta
                 continue

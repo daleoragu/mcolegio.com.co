@@ -64,9 +64,11 @@
     let actual = null, motor = null;
     function limpiarZona() { if (motor && motor.destruir) motor.destruir(); motor = null; actual = null; $('#ol-zona').innerHTML = ''; }
     function rango(id) {
-        if (id === 'hanoi') return [CI, CI];          // 3, 4 o 5 discos
+        // dificultad escogida por el organizador para ese juego; si no, la del ciclo del estudiante
+        const ci = {facil: 0, media: 1, dificil: 2}[(D.dificultad || {})[id]] ?? CI;
+        if (id === 'hanoi') return [ci, ci];          // 3, 4 o 5 discos
         const def = Logica.juego(id), total = def ? def.total(D.niveles[id] || {}) : 30;
-        const a = Math.floor(total * CI / 3), b = Math.max(a, Math.floor(total * (CI + 1) / 3) - 1);
+        const a = Math.floor(total * ci / 3), b = Math.max(a, Math.floor(total * (ci + 1) / 3) - 1);
         return [a, b];
     }
     function escogerReto() {
