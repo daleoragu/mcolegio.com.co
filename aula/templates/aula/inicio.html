@@ -6,6 +6,10 @@
 {% block content %}
 {% include 'aula/_estilos.html' %}
 <div class="au">
+{% if ver_eventos %}<a href="{% url 'aula:eventos' %}" class="au-tarjeta d-flex align-items-center gap-3 text-decoration-none mb-3" style="background:linear-gradient(90deg,#fff3bf,#fff);border-left:6px solid #f59f00">
+  <div class="au-icono" style="background:#f59f00"><i class="fas fa-trophy"></i></div>
+  <div><div class="fw-bold" style="color:#1f3a68">Eventos</div><div class="small text-muted">{% if rol == 'estudiante' %}¡Hay un evento abierto! Entre a participar.{% else %}Olimpiadas y eventos del colegio: créelos, configúrelos y actívelos.{% endif %}</div></div>
+</a>{% endif %}
 {% if rol != 'estudiante' %}<div class="d-flex justify-content-end flex-wrap gap-2 mb-2">
     <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:lista' %}"><i class="fas fa-book-open-reader me-1"></i>Mis materiales</a>
     <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:instrumentos' %}"><i class="fas fa-list-check me-1"></i>Mis rúbricas y listas de chequeo</a>

@@ -1,0 +1,42 @@
+{% extends base %}
+{% block page_title %}
+<h4 class="mb-0"><i class="fas fa-trophy me-2"></i>Eventos</h4>
+<p class="text-muted small mb-0">Olimpiadas y eventos del colegio en Mi Salón Virtual.</p>
+{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au" style="max-width:960px;margin:0 auto">
+  <a href="{% url 'aula:inicio' %}" class="btn btn-sm btn-outline-secondary mb-3"><i class="fas fa-arrow-left me-1"></i>Mi Salón Virtual</a>
+  {% if organiza %}
+  <form method="post" class="au-tarjeta d-flex flex-wrap gap-2 align-items-end">{% csrf_token %}
+    <div class="flex-grow-1"><label class="form-label small fw-bold mb-1" for="ev-titulo">Nueva olimpiada de matemáticas</label>
+      <input name="titulo" id="ev-titulo" class="form-control" maxlength="80" required placeholder="Nombre del evento (el que ustedes le pongan)"></div>
+    <button class="btn au-oro"><i class="fas fa-plus me-1"></i>Crear (queda apagada)</button>
+  </form>
+  {% endif %}
+  {% for ev in eventos %}
+  <div class="au-tarjeta d-flex flex-wrap align-items-center gap-3">
+    <div class="au-icono" style="background:{% if ev.activo %}#f59f00{% else %}#adb5bd{% endif %}"><i class="fas fa-medal"></i></div>
+    <div class="flex-grow-1">
+      <div class="fw-bold fs-5" style="color:#1f3a68">{{ ev.titulo }}</div>
+      <div class="small text-muted">{{ ev.get_tipo_display }}
+        {% if ev.organiza %} · {% if ev.activo %}<span class="text-success fw-bold">ACTIVO: lo ven los estudiantes</span>{% else %}<span class="text-danger fw-bold">APAGADO: los estudiantes no lo ven</span>{% endif %} · {{ ev.n_participantes }} participante(s){% endif %}
+        {% if ev.mi_grupo %} · Usted participa en <b>{{ ev.mi_grupo }}</b>{% endif %}
+        {% if ev.mia %} · Usted lleva <b>{{ ev.mia.puntos }}</b> punto(s){% if ev.mia.terminada %} · terminó{% endif %}{% endif %}
+      </div>
+    </div>
+    <div class="d-flex flex-wrap gap-1">
+      {% if ev.organiza %}
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'aula:evento_configurar' ev.pk %}"><i class="fas fa-gear me-1"></i>Configurar</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:evento_resultados' ev.pk %}"><i class="fas fa-ranking-star me-1"></i>Resultados</a>
+        <a class="btn btn-sm btn-outline-dark" href="{% url 'aula:evento' ev.pk %}"><i class="fas fa-play me-1"></i>Probar</a>
+      {% else %}
+        <a class="btn au-oro" href="{% url 'aula:evento' ev.pk %}"><i class="fas fa-play me-1"></i>{% if ev.mia %}Seguir{% else %}Participar{% endif %}</a>
+      {% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <div class="au-tarjeta text-center text-muted py-4">{% if organiza %}Todavía no hay eventos. Cree el primero arriba.{% else %}No hay eventos abiertos en este momento.{% endif %}</div>
+  {% endfor %}
+</div>
+{% endblock %}

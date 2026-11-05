@@ -45,6 +45,11 @@
         </a>
         {% endfor %}
 
+        <div class="gm-seccion">▸ JUEGOS DE LÓGICA</div>
+        <a class="gm-item" href="{% url 'aula:logica' aula.pk %}">
+          <span class="cursor">►</span><span>ROMPECABEZAS Y RETOS<span class="tipo">Tangram, Hanói, Trancón, Safari, Cerditos, Ranas, Tablero 36, Cuadrantes, Empuja cajas, Bloque rodante, Cubo del binomio, Conejos, Perrito, Picas y fijas y más.</span></span>
+        </a>
+
         <div class="gm-seccion">▸ MASCOTA ACADÉMICA</div>
         <a class="gm-item" href="{% url 'aula:mascota' aula.pk %}">
           <span class="cursor">►</span><span>{% if c.es_docente %}MASCOTAS DE LA CLASE{% else %}MI MASCOTA{% endif %}<span class="tipo">Cuídela respondiendo preguntas: comida, sueño y baño. ¿Cuántos días la mantiene viva?</span></span>

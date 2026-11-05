@@ -153,8 +153,10 @@ def inicio(request):
         asig.aula_virtual = aulas.get(asig.id)
         asig.pendientes = pendientes.get(asig.id, 0)
         asig.nuevos = nuevos.get(asig.id, 0)
+    from .views_eventos import hay_eventos_activos, puede_crear
+    ver_eventos = hay_eventos_activos(request) or (rol != 'estudiante' and puede_crear(request))
     return render(request, 'aula/inicio.html', {'asignaciones': asignaciones, 'rol': rol, 'colegio': colegio,
-                                                'base': 'notas/base.html'})
+                                                'ver_eventos': ver_eventos, 'base': 'notas/base.html'})
 
 
 @login_required

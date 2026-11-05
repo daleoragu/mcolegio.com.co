@@ -1,0 +1,32 @@
+{% extends base %}
+{% block page_title %}
+<h4 class="mb-0"><i class="fas fa-ranking-star me-2"></i>{{ ev.titulo }}: resultados</h4>
+<p class="text-muted small mb-0">Gana quien tenga más puntos; si empatan, el menor tiempo efectivo (tiempo hasta el último punto menos los bonos).</p>
+{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au" style="max-width:1080px;margin:0 auto">
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="{% url 'aula:evento_configurar' ev.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Configuración</a>
+    <a href="?csv=1" class="btn btn-sm btn-outline-success"><i class="fas fa-file-csv me-1"></i>Descargar (Excel/CSV)</a>
+  </div>
+  <div class="row g-3">
+  {% for nombre, rango, filas in tablas %}
+    <div class="col-lg-4"><div class="au-tarjeta h-100">
+      <h6 class="mb-1">{{ nombre }} <span class="text-muted small">({{ rango }})</span></h6>
+      <table class="table table-sm small mb-0">
+        <thead><tr><th>#</th><th>Estudiante</th><th class="text-center">Pts</th><th class="text-center" title="Preguntas bien">✓</th><th class="text-end">Tiempo</th></tr></thead>
+        <tbody>
+        {% for p in filas %}<tr {% if p.puesto <= 3 %}class="fw-bold"{% endif %}>
+          <td>{% if p.puesto == 1 %}🥇{% elif p.puesto == 2 %}🥈{% elif p.puesto == 3 %}🥉{% else %}{{ p.puesto }}{% endif %}</td>
+          <td>{{ p.estudiante.user.get_full_name }}<div class="text-muted" style="font-size:.7rem">{{ p.estudiante.curso.nombre }}{% if not p.terminada %} · jugando{% endif %}</div></td>
+          <td class="text-center">{{ p.puntos }}</td><td class="text-center">{{ p.bonos }}</td>
+          <td class="text-end">{{ p.tiempo_efectivo|floatformat:0 }} s</td></tr>
+        {% empty %}<tr><td colspan="5" class="text-muted">Nadie ha participado.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div></div>
+  {% endfor %}
+  </div>
+</div>
+{% endblock %}

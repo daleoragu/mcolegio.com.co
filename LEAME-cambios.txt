@@ -2,9 +2,20 @@ ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro
 
 NUEVO     aula/animaplano.py
 NUEVO     aula/bancos/factorizacion.json
+NUEVO     aula/bancos/olimpiada.json
 NUEVO     aula/bancos_juegos.py
 NUEVO     aula/invertida.py
 CAMBIADO  aula/logica.py
+NUEVO     aula/logica_generadores/LEAME.txt
+NUEVO     aula/logica_generadores/bloque.py
+NUEVO     aula/logica_generadores/conejos.py
+NUEVO     aula/logica_generadores/logica.py
+NUEVO     aula/logica_generadores/nonograma.py
+NUEVO     aula/logica_generadores/perrito.py
+NUEVO     aula/logica_generadores/sokoban.py
+NUEVO     aula/logica_generadores/tangram.py
+NUEVO     aula/logica_generadores/tangram_bits.py
+NUEVO     aula/logica_generadores/trancon.py
 NUEVO     aula/mascota.py
 NUEVO     aula/migrations/0008_aula_invertida.py
 NUEVO     aula/migrations/0009_invertida_pausas.py
@@ -14,7 +25,9 @@ NUEVO     aula/migrations/0012_mascota_y_bandera.py
 NUEVO     aula/migrations/0013_juego_impostor.py
 NUEVO     aula/migrations/0014_juegos_dibujo_tesoro_carretera_unir_boxeo.py
 NUEVO     aula/migrations/0015_animaplano_y_ovejas.py
+NUEVO     aula/migrations/0016_eventos.py
 CAMBIADO  aula/models.py
+NUEVO     aula/static/aula/eventos/olimpiada.js
 NUEVO     aula/static/aula/invertida_pausas.js
 NUEVO     aula/static/aula/juegos/animaplano.js
 NUEVO     aula/static/aula/juegos/baloncesto.js
@@ -36,23 +49,80 @@ NUEVO     aula/static/aula/juegos/tenis.js
 NUEVO     aula/static/aula/juegos/tesoro.js
 NUEVO     aula/static/aula/juegos/tiro.js
 NUEVO     aula/static/aula/juegos/unir.js
+NUEVO     aula/static/aula/logica/bango.js
+NUEVO     aula/static/aula/logica/bloque.js
+NUEVO     aula/static/aula/logica/caperucita.js
+NUEVO     aula/static/aula/logica/cerditos.js
+NUEVO     aula/static/aula/logica/comun.js
+NUEVO     aula/static/aula/logica/conejos.js
+NUEVO     aula/static/aula/logica/cubo.js
+NUEVO     aula/static/aula/logica/fijas.js
+NUEVO     aula/static/aula/logica/fila.js
+NUEVO     aula/static/aula/logica/geoplano.js
+NUEVO     aula/static/aula/logica/hanoi.js
+NUEVO     aula/static/aula/logica/kadogemo.js
+NUEVO     aula/static/aula/logica/kiriku.js
+NUEVO     aula/static/aula/logica/laberinto_colores.js
+NUEVO     aula/static/aula/logica/ladron.js
+NUEVO     aula/static/aula/logica/niveles/bango.json
+NUEVO     aula/static/aula/logica/niveles/bloque.json
+NUEVO     aula/static/aula/logica/niveles/caperucita.json
+NUEVO     aula/static/aula/logica/niveles/cerditos.json
+NUEVO     aula/static/aula/logica/niveles/conejos.json
+NUEVO     aula/static/aula/logica/niveles/cubo.json
+NUEVO     aula/static/aula/logica/niveles/fijas.json
+NUEVO     aula/static/aula/logica/niveles/fila.json
+NUEVO     aula/static/aula/logica/niveles/geoplano.json
+NUEVO     aula/static/aula/logica/niveles/hanoi.json
+NUEVO     aula/static/aula/logica/niveles/kadogemo.json
+NUEVO     aula/static/aula/logica/niveles/kiriku.json
+NUEVO     aula/static/aula/logica/niveles/laberinto.json
+NUEVO     aula/static/aula/logica/niveles/ladron.json
+NUEVO     aula/static/aula/logica/niveles/nonograma.json
+NUEVO     aula/static/aula/logica/niveles/perrito.json
+NUEVO     aula/static/aula/logica/niveles/ranas.json
+NUEVO     aula/static/aula/logica/niveles/regletas.json
+NUEVO     aula/static/aula/logica/niveles/safari.json
+NUEVO     aula/static/aula/logica/niveles/sokoban.json
+NUEVO     aula/static/aula/logica/niveles/speedrun.json
+NUEVO     aula/static/aula/logica/niveles/tangram.json
+NUEVO     aula/static/aula/logica/niveles/trancon.json
+NUEVO     aula/static/aula/logica/nonograma.js
+NUEVO     aula/static/aula/logica/perrito.js
+NUEVO     aula/static/aula/logica/ranas.js
+NUEVO     aula/static/aula/logica/regletas.js
+NUEVO     aula/static/aula/logica/sokoban.js
+NUEVO     aula/static/aula/logica/speedrun.js
+NUEVO     aula/static/aula/logica/tangram.js
+NUEVO     aula/static/aula/logica/trancon.js
 NUEVO     aula/static/aula/mascota.js
 CAMBIADO  aula/templates/aula/_cabecera.html
 NUEVO     aula/templates/aula/_invertida_form.html
 NUEVO     aula/templates/aula/_invertida_js.html
+NUEVO     aula/templates/aula/evento_configurar.html
+NUEVO     aula/templates/aula/evento_jugar.html
+NUEVO     aula/templates/aula/evento_resultados.html
+NUEVO     aula/templates/aula/eventos.html
 NUEVO     aula/templates/aula/gamificacion.html
+CAMBIADO  aula/templates/aula/inicio.html
 NUEVO     aula/templates/aula/invertida.html
 NUEVO     aula/templates/aula/invertidas.html
 NUEVO     aula/templates/aula/juego.html
 NUEVO     aula/templates/aula/juego_tanques.html
+NUEVO     aula/templates/aula/logica_juego.html
+NUEVO     aula/templates/aula/logica_menu.html
 NUEVO     aula/templates/aula/mascota.html
+NUEVO     aula/tests/test_eventos.py
 NUEVO     aula/tests/test_gamificacion.py
 NUEVO     aula/tests/test_invertida.py
 NUEVO     aula/tests/test_mascota.py
 CAMBIADO  aula/tests/test_para.py
 CAMBIADO  aula/urls.py
+CAMBIADO  aula/views.py
+NUEVO     aula/views_eventos.py
 NUEVO     aula/views_gamificacion.py
 NUEVO     aula/views_invertida.py
+NUEVO     aula/views_logica.py
 NUEVO     aula/views_mascota.py
 CAMBIADO  notas/boletin/logic.py
 NUEVO     notas/colores.py
@@ -172,6 +242,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0013_juego_impostor.py             (juego Expulsa al impostor)
   aula/migrations/0014_juegos_dibujo_tesoro_carretera_unir_boxeo.py  (5 juegos nuevos)
   aula/migrations/0015_animaplano_y_ovejas.py        (Animaplano y Ovejas y lobos)
+  aula/migrations/0016_eventos.py                    (Eventos: olimpiada de matemáticas)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

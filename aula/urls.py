@@ -2,12 +2,20 @@ from django.urls import path
 
 from chat import views_salon as chs
 
-from . import views, views_examenes as vx, views_fichas as vf, views_importar as vi, views_invertida as vinv, views_juegos as vj, views_gamificacion as vg, views_mascota as vm
+from . import views, views_examenes as vx, views_fichas as vf, views_importar as vi, views_invertida as vinv, views_juegos as vj, views_gamificacion as vg, views_mascota as vm, views_logica as vl, views_eventos as ve
 
 app_name = 'aula'
 
 urlpatterns = [
     path('', views.inicio, name='inicio'),
+    # Eventos del colegio (olimpiada de matemáticas)
+    path('eventos/', ve.eventos, name='eventos'),
+    path('eventos/<int:eid>/', ve.jugar, name='evento'),
+    path('eventos/<int:eid>/configurar/', ve.configurar, name='evento_configurar'),
+    path('eventos/<int:eid>/resultados/', ve.resultados, name='evento_resultados'),
+    path('eventos/<int:eid>/registro/', ve.registro, name='evento_registro'),
+    path('eventos/<int:eid>/pregunta/', ve.pregunta, name='evento_pregunta'),
+    path('eventos/<int:eid>/responder/', ve.responder, name='evento_responder'),
     path('asignacion/<int:asignacion_id>/', views.por_asignacion, name='por_asignacion'),
     path('grupo/<int:grupo_id>/', views.por_grupo, name='por_grupo'),
 
@@ -63,6 +71,8 @@ urlpatterns = [
     path('<int:pk>/invertida/<int:iid>/progreso/', vinv.invertida_progreso, name='invertida_progreso'),
 
     path('<int:pk>/gamificacion/', vg.gamificacion, name='gamificacion'),
+    path('<int:pk>/logica/', vl.logica_menu, name='logica'),
+    path('<int:pk>/logica/<slug:juego>/', vl.logica_juego, name='logica_juego'),
     path('<int:pk>/mascota/', vm.mascota, name='mascota'),
     path('<int:pk>/mascota/pedir/', vm.mascota_pedir, name='mascota_pedir'),
     path('<int:pk>/mascota/responder/', vm.mascota_responder, name='mascota_responder'),
