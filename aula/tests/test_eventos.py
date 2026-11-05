@@ -240,3 +240,28 @@ class Olimpiada(ColegioDePrueba):
         from django.test import Client
         ev = self.crear(); ev.activo = True; ev.save()
         self.assertEqual(Client(HTTP_HOST='testserver').get(f'/aula/eventos/{ev.pk}/').status_code, 404)
+
+    def test_juegos_arcade_y_propios_en_el_evento(self):
+        from aula.models import Aula, JuegoAula
+        profe = self.cliente(self.u_docente); profe.get(f'/aula/asignacion/{self.asig.id}/')
+        aula = Aula.objects.get(asignacion=self.asig)
+        j = JuegoAula.objects.create(aula=aula, tipo='impostor', titulo='Fracciones', preguntas=[
+            {'texto': '1/2 + 1/2', 'opciones': [{'texto': '1', 'correcta': True}, {'texto': '2', 'correcta': False}]},
+            {'texto': '1/4 + 1/4', 'opciones': [{'texto': '1/2', 'correcta': True}, {'texto': '1/8', 'correcta': False}]}])
+        ev = self.crear(); ev.activo = True; ev.save()
+        url = f'/aula/eventos/{ev.pk}/configurar/'
+        r = self.admin.get(url)
+        self.assertContains(r, 'Expulsa al impostor (arcade)')          # todos los arcade
+        self.assertContains(r, 'Fracciones · Expulsa al impostor')       # y los propios del salón virtual
+        datos = {'accion': 'config', 'titulo': ev.titulo, 'bloques': '2', 'minutos': '15', 'descanso': '3', 'cada': '5', 'por_parada': '1', 'bono': '30',
+                 f'g_p_{j.pk}': ['6'], 'g_a_ovejas': ['6'], 'g_tangram': ['10']}
+        self.admin.post(url, datos)
+        r = self.cliente(self.ana.user).get(f'/aula/eventos/{ev.pk}/')
+        d = r.context['datos']
+        self.assertEqual(sorted(x[0] for x in d['juegos']), sorted([f'p_{j.pk}', 'a_ovejas']))
+        self.assertEqual(d['motor'], {f'p_{j.pk}': 'impostor', 'a_ovejas': 'ovejas'})
+        self.assertEqual(len(d['propios'][f'p_{j.pk}']['preguntas']), 2)
+        self.assertContains(r, 'aula/juegos/impostor.js')
+        self.assertContains(r, 'aula/juegos/ovejas.js')
+        res = self.post(self.cliente(self.ana.user), f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': f'p_{j.pk}', 'nivel': 0, 't': 10}]})
+        self.assertEqual(res['puntos'], 1)

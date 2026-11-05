@@ -52,8 +52,42 @@ JUEGOS = [
     ('geoplano', 'Geoplano (bandas elásticas)', 'montessori'), ('regletas', 'Regletas en la balanza (Cuisenaire)', 'montessori'),
     ('cubo', 'Cubo del binomio y del trinomio 3D', 'montessori'),
 ]
-ESTILOS = [('logica', 'Lógica y rompecabezas'), ('arcade', 'Acción arcade con matemáticas'), ('montessori', 'Simuladores Montessori')]
-CONFIG = {'juegos': [j[0] for j in JUEGOS], 'bloques': 2, 'minutos': 15, 'descanso': 3, 'cada': 5, 'por_parada': 1, 'bono': 30,
+ESTILOS = [('logica', 'Lógica y rompecabezas'), ('arcade', 'Acción arcade (con operaciones según el grupo)'), ('montessori', 'Simuladores Montessori'),
+           ('propio', 'Juegos propios del salón virtual (con sus preguntas)')]
+# Juegos arcade de la Gamificación que no sirven como reto corto (página propia, partido por minutos, 3 rivales, figura en orden)
+NO_EN_EVENTO = {'tanques', 'tenis', 'boxeo', 'animaplano'}
+
+
+def _arcade():
+    """Todos los juegos arcade de la Gamificación como retos del evento (tiro y laberinto ya están arriba)."""
+    from .models import JuegoAula as J
+    return [('a_' + k, f'{n} (arcade)', 'arcade') for k, n in J.TIPOS if k not in NO_EN_EVENTO and k not in ('tiro', 'laberinto')]
+
+
+def juegos_del_evento(ev):
+    """Los juegos que se pueden poner en el evento: los de lógica, todos los arcade y los juegos propios
+    que los docentes armaron en el salón virtual con sus preguntas."""
+    lista = list(JUEGOS) + _arcade()
+    for j in _juegos_salon(ev).select_related('aula').order_by('-pk')[:80]:
+        if len(j.preguntas) >= 2:
+            lista.append((f'p_{j.pk}', f'{j.titulo} · {j.get_tipo_display()} ({j.aula.titulo}, {len(j.preguntas)} preg.)', 'propio'))
+    return lista
+
+
+def tipo_motor(juego, propios=None):
+    """El juego de la Gamificación con que se juega ese reto (None si es de lógica)."""
+    if juego == 'tiro':
+        return 'tiro'
+    if juego == 'pacman':
+        return 'laberinto'
+    if juego.startswith('a_'):
+        return juego[2:]
+    if juego.startswith('p_') and propios is not None:
+        t = propios.get(juego, {}).get('tipo')
+        return 'impostor' if t in ('tenis', 'boxeo', 'animaplano') else t
+    return None
+CONFIG = {'juegos': [j[0] for j in JUEGOS] + ['a_' + k for k in ('salto', 'puente', 'escape', 'penaltis', 'carrera', 'baloncesto', 'bandera',
+                                                                   'impostor', 'dibujo', 'tesoro', 'carretera', 'unir', 'ovejas')], 'bloques': 2, 'minutos': 15, 'descanso': 3, 'cada': 5, 'por_parada': 1, 'bono': 30,
           'por_juego': {},      # {id: {'grados': [6, 7…], 'dificultad': 'auto'|'facil'|'media'|'dificil'}}
           'grupos': GRUPOS_BASE,
           'participantes': {'modo': 'grados', 'cursos': [], 'estudiantes': []}}   # modo: grados | cursos | estudiantes
@@ -104,10 +138,10 @@ def rango_grados(g):
         else f'{etiqueta_grado(gs[0])} a {etiqueta_grado(gs[-1])}'
 
 
-def juegos_para(c, grados):
+def juegos_para(c, grados, lista=None):
     """Los juegos habilitados para alguno de esos grados (si no se dijo nada, para todos)."""
     out = []
-    for j in JUEGOS:
+    for j in (lista if lista is not None else JUEGOS):
         if j[0] not in c['juegos']:
             continue
         g = (c['por_juego'].get(j[0]) or {}).get('grados')
@@ -298,7 +332,7 @@ def configurar(request, eid):
             entero('cada', 1, 20); entero('por_parada', 1, 2); entero('bono', 0, 300)
             # Por cada juego: para qué grados va y con qué dificultad
             por_juego, elegidos = {}, []
-            for j in JUEGOS:
+            for j in juegos_del_evento(ev):
                 grados = sorted({int(g) for g in request.POST.getlist('g_' + j[0]) if g.lstrip('-').isdigit() and int(g) in todos_los_grados()})
                 dif = request.POST.get('d_' + j[0])
                 por_juego[j[0]] = {'grados': grados, 'dificultad': dif if dif in dict(DIFICULTADES) else 'auto'}
@@ -408,7 +442,7 @@ def configurar(request, eid):
     estudiantes = Estudiante.objects.filter(colegio=ev.colegio, curso__isnull=False).select_related('user', 'curso').order_by('curso__grado', 'curso__nombre', 'user__last_name') if ev.colegio_id else Estudiante.objects.none()
     juegos_salon = _juegos_salon(ev).select_related('aula').order_by('-pk')[:200]
     filas_juegos = []
-    for j in JUEGOS:
+    for j in juegos_del_evento(ev):
         pj = c['por_juego'].get(j[0]) or {}
         grados = pj.get('grados', grados_cols if j[0] in c['juegos'] else [])
         if j[0] not in c['juegos']:
@@ -453,7 +487,7 @@ def jugar(request, eid):
             messages.info(request, 'Usted no está entre los participantes de este evento.')
             return redirect('aula:eventos')
     grado = (int(est.curso.grado) if est and est.curso_id else p.grado if p else None)
-    if not organiza and not juegos_para(c, [grado]):
+    if not organiza and not juegos_para(c, [grado], juegos_del_evento(ev)):
         messages.info(request, 'Este evento no tiene juegos para su grado.')
         return redirect('aula:eventos' if request.user.is_authenticated else 'aula:evento_entrar')
     if grupo is None:          # prueba del organizador: escoge el grupo
@@ -462,16 +496,27 @@ def jugar(request, eid):
     datos = {
         'evento': ev.pk, 'titulo': ev.titulo, 'prueba': p is None and est is None, 'ciclo': grupo['id'],
         'grupo': {'id': grupo['id'], 'nombre': grupo['nombre'], 'grados': rango_grados(grupo), 'nivel': grupo.get('nivel', 0), 'gmax': max(grupo['grados'] or [11])},
-        'config': c, 'juegos': juegos_para(c, [grado] if grado is not None else grupo['grados']),
+        'config': c, 'juegos': juegos_para(c, [grado] if grado is not None else grupo['grados'], juegos_del_evento(ev)),
         'dificultad': {j[0]: dificultad(c, j[0]) for j in JUEGOS},
+        'propios': {}, 'motor': {},
         'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito')},
         'usuario': request.user.pk or (p.token[:8] if p else 'anon'),
     }
     if p is not None or est is not None:
         datos['servidor'] = _estado(p, c) if p else None
+    # Los juegos propios: su tipo y sus preguntas; y con qué juego arcade se juega cada reto
+    for jid, _, _ in datos['juegos']:
+        if jid.startswith('p_'):
+            j = JuegoAula.objects.filter(pk=int(jid[2:])).first()
+            if j:
+                datos['propios'][jid] = {'tipo': j.tipo, 'titulo': j.titulo, 'preguntas': [dict(q, i=k) for k, q in enumerate(j.preguntas)]}
+        t = tipo_motor(jid, datos['propios'])
+        if t:
+            datos['motor'][jid] = t
+    motores = sorted(set(datos['motor'].values()))
     scripts = ['tangram', 'trancon', 'cerditos', 'ranas', 'bango', 'kadogemo', 'kiriku', 'laberinto_colores', 'hanoi', 'fila',
                'nonograma', 'geoplano', 'regletas', 'speedrun', 'fijas', 'sokoban', 'bloque', 'cubo', 'conejos', 'perrito', 'caperucita', 'ladron']
-    return render(request, 'aula/evento_jugar.html', {'ev': ev, 'datos': datos, 'grupos': grupos(c), 'organiza': organiza, 'scripts': scripts,
+    return render(request, 'aula/evento_jugar.html', {'ev': ev, 'datos': datos, 'grupos': grupos(c), 'organiza': organiza, 'scripts': scripts, 'motores': motores,
                                                       'categorias': CATEGORIAS, 'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
 
 
@@ -591,7 +636,7 @@ def registro(request, eid):
         p.secuencia = seq
         t = max(0.0, min(t, tope, transcurrido))
         g = grado_de(p)
-        permitidos = {j[0] for j in juegos_para(c, [int(g)] if g is not None else todos_los_grados())}
+        permitidos = {j[0] for j in juegos_para(c, [int(g)] if g is not None else todos_los_grados(), juegos_del_evento(ev))}
         if tipo == 'punto' and e.get('juego') in permitidos:
             ultimo = next((r for r in reversed(p.registro) if r.get('tipo') == 'punto'), None)
             if ultimo and t - ultimo.get('t', 0) < 2:      # demasiado rápido para un reto: no cuenta
