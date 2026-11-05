@@ -23,6 +23,18 @@
     const libre = (cx, cy) => cy >= 0 && cy < FILAS && cx >= 0 && cx < COLS && MAPA[cy][cx] !== '#';
     const DIRS = {arriba: [0, -1], abajo: [0, 1], izquierda: [-1, 0], derecha: [1, 0]};
 
+    // La galleta clave: del color de su opción, con chispas de chocolate, borde tostado y su letra.
+    function galleta(ctx, k, x, y, r, brillo) {
+        if (brillo) { ctx.fillStyle = Gamificacion.COLORES[k] + '55'; ctx.beginPath(); ctx.arc(x, y, r * 1.55, 0, Math.PI * 2); ctx.fill(); }
+        ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(x, y, r + 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = Gamificacion.COLORES[k]; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.arc(x - r * .3, y - r * .35, r * .35, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#4a2c17';
+        [[-.55, -.15], [.5, -.45], [.55, .35], [-.35, .55], [.05, -.65]].forEach(([a, b]) => { ctx.beginPath(); ctx.arc(x + a * r, y + b * r, Math.max(1, r * .11), 0, Math.PI * 2); ctx.fill(); });
+        ctx.fillStyle = '#111'; ctx.font = `bold ${Math.round(r * 1.05)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(Gamificacion.LETRAS[k], x, y + 1);
+    }
+
     function ente(cx, cy, vel) { return {cx, cy, x: cx * C, y: cy * C, dir: null, quiere: null, vel}; }
 
     function mover(e, dt, elegir) {
@@ -58,13 +70,7 @@
         instrucciones: 'Mueva la gota con las flechas y cómase la galleta de la respuesta correcta. ¡Cuidado con los virus!',
         controles: 'cruceta',
         // Barra lateral: la galleta de la opción, con su color y su letra
-        icono(ctx, k, tam) {
-            const r = tam * .4, c = tam / 2;
-            ctx.fillStyle = Gamificacion.COLORES[k]; ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = 'rgba(0,0,0,.25)'; [[-.4, -.3], [.35, -.1], [-.1, .4], [.3, .35]].forEach(([x, y]) => { ctx.beginPath(); ctx.arc(c + x * r, c + y * r, tam * .05, 0, Math.PI * 2); ctx.fill(); });
-            ctx.fillStyle = '#111'; ctx.font = `bold ${Math.round(tam * .42)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(Gamificacion.LETRAS[k], c, c + 1);
-        },
+        icono(ctx, k, tam) { galleta(ctx, k, tam / 2, tam / 2, tam * .4, false); },
         nuevaPregunta(m) {
             const n = m.opciones.length;
             const esquinas = ESQUINAS.slice().sort(() => Math.random() - .5).slice(0, n);
@@ -74,9 +80,12 @@
                 virus: [ente(10, 1, 50), ente(13, 1, 50), ente(1, 5, 50), ente(22, 5, 50)]
                     .slice(0, Math.min(4, m.nivel)).map(v => Object.assign(v, {vel: Math.min(85, 48 + m.nivel * 6)})),
                 galletas: esquinas.map((p, k) => ({cx: p[0], cy: p[1], k})),
+                puntos: new Set(),
                 elegir: elegirVirus(m),
                 invencible: m.t + 2.5,
             };
+            for (let y = 0; y < FILAS; y++) for (let x = 0; x < COLS; x++)
+                if (libre(x, y) && !esquinas.some(p => p[0] === x && p[1] === y) && !(x === 11 && y === 9)) m.s.puntos.add(x + ',' + y);
         },
         alTecla(m, t) { if (DIRS[t]) m.s.gota.quiere = t; },
         actualizar(m, dt) {
@@ -86,6 +95,8 @@
             const g = s.galletas.find(g => g.cx === s.gota.cx && g.cy === s.gota.cy &&
                                             Math.hypot(s.gota.x - g.cx * C, s.gota.y - g.cy * C) < 6);
             if (g) { m.responder(g.k); return; }
+            const clave = s.gota.cx + ',' + s.gota.cy;
+            if (s.puntos.delete(clave)) m.puntaje += 1;
             if (m.t > s.invencible && s.virus.some(v => Math.hypot(v.x - s.gota.x, v.y - s.gota.y) < 13)) m.perderVida('¡UN VIRUS!');
         },
         dibujar(m, ctx) {
@@ -97,9 +108,11 @@
                 }
             }
             if (!s) return;
+            ctx.fillStyle = '#ffe8cc';
+            s.puntos.forEach(c => { const [x, y] = c.split(','); ctx.fillRect(X0 + x * C + C / 2 - 1.5, Y0 + y * C + C / 2 - 1.5, 3, 3); });
             s.galletas.forEach(g => {
-                const pulso = 1 + Math.sin(m.t * 6) * .12;
-                m.etiqueta(g.k, X0 + g.cx * C + C / 2, Y0 + g.cy * C + C / 2, 9 * pulso);
+                const pulso = 1 + Math.sin(m.t * 6 + g.k) * .1;
+                galleta(ctx, g.k, X0 + g.cx * C + C / 2, Y0 + g.cy * C + C / 2, 9.5 * pulso, true);
             });
             // La gota: una gota de agua sonriente
             const gx = X0 + s.gota.x + C / 2, gy = Y0 + s.gota.y + C / 2;

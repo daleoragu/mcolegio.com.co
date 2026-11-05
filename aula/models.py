@@ -648,6 +648,7 @@ class JuegoAula(models.Model):
         ('carrera', 'Carrera de carriles'),
         ('baloncesto', 'Baloncesto'),
         ('bandera', 'Captura la bandera'),
+        ('impostor', 'Expulsa al impostor'),
     ]
     # Se pueden jugar entre dos en el mismo equipo (sin nota: es una sola cuenta).
     DOS_JUGADORES = ('penaltis', 'tenis')

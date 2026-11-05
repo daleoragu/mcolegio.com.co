@@ -29,6 +29,7 @@ DESCRIPCIONES = {
     'carrera': 'Cámbiese al carril de la respuesta correcta antes de que llegue la barrera.',
     'baloncesto': 'Lance al aro de la respuesta correcta. ¡Encestar seguido hace racha!',
     'bandera': 'Robe la bandera correcta y tráigala a su base sin que lo atrapen.',
+    'impostor': 'En la nave, saque por la compuerta a los impostores (las respuestas equivocadas).',
 }
 
 

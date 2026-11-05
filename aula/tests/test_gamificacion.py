@@ -177,3 +177,9 @@ class Gamificacion(ColegioDePrueba):
         r = self.cliente(self.ana.user).get(f'{self.base}/practica/tanques/factorizacion/')
         self.assertContains(r, '"bancoPropio": true')
         self.assertEqual(self.cliente(self.ana.user).get(f'{self.base}/practica/laberinto/factorizacion/').status_code, 200)
+
+    def test_expulsa_al_impostor(self):
+        j = self.crear(tipo='impostor')
+        r = self.cliente(self.ana.user).get(f'{self.base}/{j.pk}/')
+        self.assertContains(r, 'aula/juegos/impostor.js')
+        self.assertContains(self.cliente(self.ana.user).get(f'{self.base}/'), 'EXPULSA AL IMPOSTOR')
