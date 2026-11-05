@@ -668,6 +668,10 @@ class JuegoAula(models.Model):
     preguntas = models.JSONField(default=list, blank=True)     # mismo formato que ClaseInvertida
     segundos = models.PositiveSmallIntegerField(default=20, help_text='Tiempo por pregunta (en los juegos con reloj).')
     minutos = models.PositiveSmallIntegerField(default=5, help_text='Duración del partido de tenis.')
+    VELOCIDADES = [('lenta', 'Lenta'), ('normal', 'Normal'), ('rapida', 'Rápida')]
+    RITMO = {'lenta': .6, 'normal': 1, 'rapida': 1.3}
+    velocidad = models.CharField(max_length=6, choices=VELOCIDADES, default='normal',
+                                 help_text='Lenta: todo se mueve más despacio y hay más tiempo para responder.')
     publicado = models.BooleanField(default=True)
     para = models.JSONField(default=list, blank=True)
     periodo = models.ForeignKey('notas.PeriodoAcademico', on_delete=models.SET_NULL, null=True, blank=True,

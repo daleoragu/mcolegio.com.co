@@ -92,7 +92,7 @@
         const {juego, nivel} = E.reto, zona = $('#ol-zona');
         $('#ol-reto-nombre').textContent = 'Reto: ' + (NOMBRE[juego] || juego);
         const api = {
-            movimiento() {}, sonido: Logica.sonido, compacto: true,
+            movimiento() {}, sonido: Logica.sonido, compacto: true, ritmo: (D.ritmo || {})[juego] || 1,
             gano() { if (actual === api) superado(); },
             perdio() { if (actual === api) { aviso('¡Casi! Va otro reto.'); setTimeout(siguienteReto, 1200); } },
             aviso,
@@ -105,7 +105,7 @@
             $('#ol-reto-detalle').textContent = `Responda bien ${Math.min(2, preguntas.length)} de ${preguntas.length}.`;
             $('#ol-instrucciones').textContent = def.instrucciones || '';
             const cv = document.createElement('canvas'); cv.style.width = '100%'; cv.style.maxWidth = '720px'; cv.style.touchAction = 'none'; zona.appendChild(cv);
-            motor = Gamificacion.iniciar({lienzo: cv, tipo, preguntas, segundos: 20, minutos: 2, jugadores: 1, tema: propio ? propio.titulo : '',
+            motor = Gamificacion.iniciar({lienzo: cv, tipo, preguntas, segundos: 20, minutos: 2, jugadores: 1, ritmo: (D.ritmo || {})[juego] || 1, tema: propio ? propio.titulo : '',
                 alTerminar: r => { if (actual !== api) return; const meta = Math.min(2, preguntas.length); if (r.aciertos >= meta) setTimeout(superado, 600); else { aviso(`${r.aciertos} de ${preguntas.length}: va otro reto.`); setTimeout(siguienteReto, 1500); } }});
             ['#ol-girar', '#ol-voltear', '#ol-deshacer'].forEach(s => { $(s).hidden = true; });
             return;

@@ -82,7 +82,7 @@ def gamificacion(request, pk):
         error = _leer(request, j, aula)
         if error:
             messages.warning(request, error)
-            request.session['juego_borrador'] = {k: request.POST.get(k, '') for k in ('titulo', 'preguntas', 'tipo', 'segundos', 'minutos', 'figura', 'operaciones')}
+            request.session['juego_borrador'] = {k: request.POST.get(k, '') for k in ('titulo', 'preguntas', 'tipo', 'segundos', 'minutos', 'figura', 'operaciones', 'velocidad')}
             return redirect('aula:gamificacion', pk=pk)
         j.save()
         request.session.pop('juego_borrador', None)
@@ -119,6 +119,8 @@ def _leer(request, j, aula):
         j.minutos = max(1, min(60, int(request.POST.get('minutos') or 5)))
     except ValueError:
         j.minutos = 5
+    v = request.POST.get('velocidad')
+    j.velocidad = v if v in JuegoAula.RITMO else 'normal'
     if not j.titulo:
         return 'Escriba el título del juego.'
     texto = (request.POST.get('preguntas') or '').strip()
@@ -192,7 +194,8 @@ def juego(request, pk, jid):
     jugadores = _jugadores(request, j.tipo)
     datos = {'juego': j, 'tipo': j.tipo, 'nombre_juego': j.get_tipo_display(), 'segundos': j.segundos, 'minutos': j.minutos,
              'preguntas': _para_jugar(j.preguntas, j.tipo), 'guarda': not c.es_docente and jugadores == 1, 'jugadores': jugadores,
-             'dos_jugadores': j.tipo in JuegoAula.DOS_JUGADORES, 'tema': _tema(c.aula)}
+             'dos_jugadores': j.tipo in JuegoAula.DOS_JUGADORES, 'tema': _tema(c.aula),
+             'ritmo': JuegoAula.RITMO.get(j.velocidad, 1), 'velocidad': j.velocidad}
     if c.es_docente:
         filas = []
         resultados = {logica.clave_de(r.estudiante or r.integrante): r
@@ -270,7 +273,9 @@ def practica(request, pk, tipo, banco):
         'juego': None, 'tipo': tipo, 'nombre_juego': dict(JuegoAula.TIPOS)[tipo], 'segundos': 20 if tipo != 'escape' else 12,
         'minutos': 3, 'preguntas': [dict(p, i=i) for i, p in enumerate(preguntas)], 'guarda': False,
         'jugadores': _jugadores(request, tipo), 'dos_jugadores': tipo in JuegoAula.DOS_JUGADORES,
-        'banco': bancos_juegos.BANCOS[banco], 'tema': f'{banco} {_tema(c.aula)}'}, 'gamificacion')
+        'banco': bancos_juegos.BANCOS[banco], 'tema': f'{banco} {_tema(c.aula)}',
+        'ritmo': JuegoAula.RITMO.get(request.GET.get('velocidad'), 1), 'velocidad': request.GET.get('velocidad') if request.GET.get('velocidad') in JuegoAula.RITMO else 'normal',
+        'elegir_velocidad': True, 'velocidades': JuegoAula.VELOCIDADES}, 'gamificacion')
 
 
 @require_POST

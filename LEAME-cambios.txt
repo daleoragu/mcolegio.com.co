@@ -27,6 +27,7 @@ NUEVO     aula/migrations/0014_juegos_dibujo_tesoro_carretera_unir_boxeo.py
 NUEVO     aula/migrations/0015_animaplano_y_ovejas.py
 NUEVO     aula/migrations/0016_eventos.py
 NUEVO     aula/migrations/0017_eventos_abiertos.py
+NUEVO     aula/migrations/0018_velocidad_juegos.py
 CAMBIADO  aula/models.py
 NUEVO     aula/static/aula/eventos/olimpiada.js
 NUEVO     aula/static/aula/invertida_pausas.js
@@ -248,6 +249,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0015_animaplano_y_ovejas.py        (Animaplano y Ovejas y lobos)
   aula/migrations/0016_eventos.py                    (Eventos: olimpiada de matemáticas)
   aula/migrations/0017_eventos_abiertos.py           (eventos que crea el docente y eventos abiertos con código)
+  aula/migrations/0018_velocidad_juegos.py           (velocidad lenta, normal o rápida de los juegos)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

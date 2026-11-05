@@ -43,6 +43,12 @@
   <span class="small text-muted">{{ nombre_juego }}{% if not guarda %} · {% if juego %}prueba del docente{% else %}práctica sin nota{% endif %}{% endif %}{% if mio and mio.nota is not None %} · su mejor nota: <b>{{ mio.nota }}</b>{% endif %}</span>
 </div>
 
+{% if elegir_velocidad %}
+<div class="d-flex justify-content-center align-items-center gap-1 mb-2 small">
+  <span class="text-muted me-1">Velocidad:</span>
+  {% for v, n in velocidades %}<a class="btn btn-sm {% if velocidad == v %}btn-dark{% else %}btn-outline-dark{% endif %}" href="?velocidad={{ v }}{% if jugadores == 2 %}&jugadores=2{% endif %}">{{ n }}</a>{% endfor %}
+</div>
+{% endif %}
 {% if dos_jugadores %}
 <div class="d-flex justify-content-center gap-2 mb-2">
   <a class="btn btn-sm {% if jugadores == 1 %}btn-dark{% else %}btn-outline-dark{% endif %}" href="?jugadores=1"><i class="fas fa-user me-1"></i>1 jugador (contra la compu)</a>
@@ -120,7 +126,7 @@
   let textoFinal = '';
   const m = Gamificacion.iniciar({
     lienzo, tipo: '{{ tipo|escapejs }}', segundos: {{ segundos|default:20 }}, minutos: {{ minutos|default:3 }},
-    jugadores: {{ jugadores|default:1 }}, tema: '{{ tema|default:""|escapejs }}',
+    jugadores: {{ jugadores|default:1 }}, ritmo: {{ ritmo|default:1|stringformat:"s"|cut:"," }}, tema: '{{ tema|default:""|escapejs }}',
     preguntas: JSON.parse(document.getElementById('jg-preguntas').textContent),
     textoFinal: () => textoFinal,
     // Barra lateral: cada opción con su ícono del juego (el tanque, la bandera…) y el texto completo

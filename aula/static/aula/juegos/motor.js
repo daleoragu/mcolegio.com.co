@@ -2,7 +2,7 @@
  *
  *   Gamificacion.registrar('laberinto', {nombre, conReloj, controles, nuevaPregunta(m), actualizar(m, dt),
  *                                         dibujar(m, ctx), alTocar(m, x, y), alTecla(m, tecla)});
- *   Gamificacion.iniciar({lienzo, tipo, preguntas, segundos, alTerminar});
+ *   Gamificacion.iniciar({lienzo, tipo, preguntas, segundos, ritmo, alTerminar});   ritmo: 0.6 lento · 1 normal · 1.3 rápido
  *
  * Pantalla lógica de 480 × 360: arriba (0–50) la pregunta, abajo (310–360) las
  * opciones A–D, y en medio (50–310) el juego. Cada pregunta se responde una vez:
@@ -69,7 +69,9 @@
             jugadores: op.jugadores === 2 ? 2 : 1, turno: 0, marcador: [0, 0],
             opciones_juego: {minutos: op.minutos || 3},
             nombres: op.nombres || (op.jugadores === 2 ? ['JUGADOR 1', 'JUGADOR 2'] : ['USTED', 'COMPU']),
-            segundos: Math.max(5, op.segundos || 20), reloj: 0, aviso: null, avisoHasta: 0, teclas: new Set(), t: 0,
+            // ritmo: velocidad del juego (lenta 0.6, normal 1, rápida 1.3); en lenta también hay más tiempo para responder
+            ritmo: Math.max(.3, Math.min(2, op.ritmo || 1)),
+            segundos: Math.max(5, op.segundos || 20) / Math.max(.3, Math.min(2, op.ritmo || 1)), reloj: 0, aviso: null, avisoHasta: 0, teclas: new Set(), t: 0,
             def, tema: op.tema || '', textoFinal: op.textoFinal,
         };
         m.total = m.preguntas.length;
@@ -226,9 +228,9 @@
                         m.reloj -= dt;
                         if (m.reloj <= 0) { m.reloj = 0; if (def.alAcabarReloj) def.alAcabarReloj(m); else m.responder(null); }
                     }
-                    def.actualizar(m, dt);
+                    def.actualizar(m, dt * m.ritmo);
                 } else if (m.estado === 'pausa' && def.actualizarEnPausa) {
-                    def.actualizarEnPausa(m, dt);
+                    def.actualizarEnPausa(m, dt * m.ritmo);
                 }
             }
             dibujar();

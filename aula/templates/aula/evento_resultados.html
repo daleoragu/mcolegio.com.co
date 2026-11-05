@@ -1,30 +1,50 @@
 {% extends base %}
 {% block page_title %}
 <h4 class="mb-0"><i class="fas fa-ranking-star me-2"></i>{{ ev.titulo }}: resultados</h4>
-<p class="text-muted small mb-0">Gana quien tenga más puntos; si empatan, el menor tiempo efectivo (tiempo hasta el último punto menos los bonos).</p>
+<p class="text-muted small mb-0">Gana quien tenga más puntos; si empatan, el menor tiempo efectivo (tiempo hasta el último punto menos los bonos). Los resultados quedan guardados en la plataforma.</p>
 {% endblock %}
 {% block content %}
 {% include 'aula/_estilos.html' %}
 <div class="au" style="max-width:1080px;margin:0 auto">
-  <div class="d-flex flex-wrap gap-2 mb-3">
+  <div class="d-flex flex-wrap gap-2 mb-2">
     <a href="{% url 'aula:evento_configurar' ev.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Configuración</a>
-    <a href="?csv=1" class="btn btn-sm btn-outline-success"><i class="fas fa-file-csv me-1"></i>Descargar (Excel/CSV)</a>
+    <a href="?{{ consulta }}{% if consulta %}&{% endif %}csv=1" class="btn btn-sm btn-outline-success"><i class="fas fa-file-csv me-1"></i>Descargar lo que se ve (Excel/CSV)</a>
   </div>
+  <form method="get" class="au-tarjeta d-flex flex-wrap gap-2 align-items-end">
+    <div><label class="small fw-bold d-block">Grupo</label>
+      <select name="grupo" class="form-select form-select-sm">
+        <option value="">Cada grupo aparte</option>
+        <option value="todos" {% if gsel == 'todos' %}selected{% endif %}>Todos los grupos juntos</option>
+        {% for g in grupos %}<option value="{{ g.id }}" {% if gsel == g.id %}selected{% endif %}>{{ g.nombre }}</option>{% endfor %}
+      </select></div>
+    <div><label class="small fw-bold d-block">Grado</label>
+      <select name="grado" class="form-select form-select-sm">
+        <option value="">Todos</option>
+        {% for g, et in grados %}<option value="{{ g }}" {% if gr == g|stringformat:'s' %}selected{% endif %}>{{ et }}</option>{% endfor %}
+      </select></div>
+    <div class="flex-grow-1"><label class="small fw-bold d-block">Buscar</label>
+      <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Nombre, curso o institución"></div>
+    <button class="btn btn-sm btn-primary">Filtrar</button>
+    {% if gsel or gr or q %}<a href="?" class="btn btn-sm btn-link">Quitar filtros</a>{% endif %}
+  </form>
   <div class="row g-3">
   {% for nombre, rango, filas in tablas %}
-    <div class="col-lg-4"><div class="au-tarjeta h-100">
-      <h6 class="mb-1">{{ nombre }} <span class="text-muted small">({{ rango }})</span></h6>
+    <div class="{% if tablas|length == 1 %}col-12{% else %}col-lg-4{% endif %}"><div class="au-tarjeta h-100">
+      <h6 class="mb-1">{{ nombre }} {% if rango %}<span class="text-muted small">({{ rango }})</span>{% endif %} <span class="badge bg-light text-dark">{{ filas|length }}</span></h6>
+      <div style="overflow-x:auto">
       <table class="table table-sm small mb-0">
-        <thead><tr><th>#</th><th>Participante</th><th class="text-center">Pts</th><th class="text-center" title="Preguntas bien">✓</th><th class="text-end">Tiempo</th></tr></thead>
+        <thead><tr><th>#</th><th>Participante</th>{% if tablas|length == 1 %}<th>Grupo</th><th>Grado</th>{% endif %}<th class="text-center">Pts</th><th class="text-center" title="Preguntas bien">✓</th><th class="text-end">Tiempo</th></tr></thead>
         <tbody>
         {% for p in filas %}<tr {% if p.puesto <= 3 %}class="fw-bold"{% endif %}>
           <td>{% if p.puesto == 1 %}🥇{% elif p.puesto == 2 %}🥈{% elif p.puesto == 3 %}🥉{% else %}{{ p.puesto }}{% endif %}</td>
           <td>{{ p.nombre_completo }}<div class="text-muted" style="font-size:.7rem">{{ p.de_donde }}{% if not p.terminada %} · jugando{% endif %}</div></td>
+          {% if tablas|length == 1 %}<td>{{ p.grupo_nombre }}</td><td>{{ p.grado_txt }}</td>{% endif %}
           <td class="text-center">{{ p.puntos }}</td><td class="text-center">{{ p.bonos }}</td>
           <td class="text-end">{{ p.tiempo_efectivo|floatformat:0 }} s</td></tr>
-        {% empty %}<tr><td colspan="5" class="text-muted">Nadie ha participado.</td></tr>{% endfor %}
+        {% empty %}<tr><td colspan="7" class="text-muted">Nadie con esos filtros.</td></tr>{% endfor %}
         </tbody>
       </table>
+      </div>
     </div></div>
   {% endfor %}
   </div>
