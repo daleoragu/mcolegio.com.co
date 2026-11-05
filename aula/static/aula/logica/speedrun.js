@@ -24,7 +24,7 @@
         total: () => 30,
         titulo: (d, i) => `Ronda ${i + 1} · ${i < 10 ? 'sumas, restas y tablas' : i < 20 ? 'con negativos y cuadrados' : 'con porcentajes y combinadas'}`,
         iniciar(zona, datos, i, api) {
-            const TOTAL = 10, SEG = 75 - Math.floor(i / 10) * 5;
+            const TOTAL = 10, SEG = Math.round((75 - Math.floor(i / 10) * 5) / (api.ritmo || 1));     // lenta: más tiempo
             const ops = Array.from({length: TOTAL}, () => operacion(i));
             let k = 0, bien = 0, fin = false, inicio = performance.now(), escrito = '';
             const caja = document.createElement('div');

@@ -235,3 +235,11 @@ class Gamificacion(ColegioDePrueba):
             celdas = [tuple(c) for p in d['soluciones'][str(n)].values() for c in p]
             self.assertEqual(len(set(celdas)), 35)
             self.assertNotIn(((n - 1) // 6, (n - 1) % 6), celdas)
+
+    def test_velocidad_de_los_juegos(self):
+        j = self.crear(tipo='ovejas', velocidad='lenta')
+        self.assertEqual(j.velocidad, 'lenta')
+        self.assertContains(self.cliente(self.ana.user).get(f'{self.base}/{j.pk}/'), 'ritmo: 0.6')
+        r = self.cliente(self.ana.user).get(f'{self.base}/practica/tiro/matematicas/?velocidad=rapida')
+        self.assertContains(r, 'ritmo: 1.3')
+        self.assertContains(r, 'Velocidad:')

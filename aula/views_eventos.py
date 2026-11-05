@@ -334,8 +334,9 @@ def configurar(request, eid):
             por_juego, elegidos = {}, []
             for j in juegos_del_evento(ev):
                 grados = sorted({int(g) for g in request.POST.getlist('g_' + j[0]) if g.lstrip('-').isdigit() and int(g) in todos_los_grados()})
-                dif = request.POST.get('d_' + j[0])
-                por_juego[j[0]] = {'grados': grados, 'dificultad': dif if dif in dict(DIFICULTADES) else 'auto'}
+                dif, vel = request.POST.get('d_' + j[0]), request.POST.get('v_' + j[0])
+                por_juego[j[0]] = {'grados': grados, 'dificultad': dif if dif in dict(DIFICULTADES) else 'auto',
+                                   'velocidad': vel if vel in JuegoAula.RITMO else 'normal'}
                 if grados:
                     elegidos.append(j[0])
             if not elegidos:
@@ -447,9 +448,10 @@ def configurar(request, eid):
         grados = pj.get('grados', grados_cols if j[0] in c['juegos'] else [])
         if j[0] not in c['juegos']:
             grados = []
-        filas_juegos.append({'id': j[0], 'nombre': j[1], 'estilo': j[2], 'grados': grados, 'dificultad': pj.get('dificultad', 'auto')})
+        filas_juegos.append({'id': j[0], 'nombre': j[1], 'estilo': j[2], 'grados': grados, 'dificultad': pj.get('dificultad', 'auto'),
+                             'velocidad': pj.get('velocidad', 'normal'), 'con_velocidad': j[2] in ('arcade', 'propio') or j[0] == 'speedrun'})
     return render(request, 'aula/evento_configurar.html', {
-        'ev': ev, 'c': c, 'juegos': JUEGOS, 'filas_juegos': filas_juegos, 'grados': [(g, etiqueta_grado(g)) for g in grados_cols],
+        'ev': ev, 'c': c, 'juegos': JUEGOS, 'filas_juegos': filas_juegos, 'velocidades': JuegoAula.VELOCIDADES, 'grados': [(g, etiqueta_grado(g)) for g in grados_cols],
         'todos_grados': [(g, etiqueta_grado(g)) for g in todos_los_grados()], 'niveles': NIVELES,
         'grupos': [dict(g, rango=rango_grados(g)) for g in grupos(c)], 'cursos': cursos, 'estudiantes': estudiantes,
         'part': c['participantes'], 'dificultades': DIFICULTADES, 'estilos': ESTILOS, 'categorias': CATEGORIAS, 'tabla': tabla,
@@ -499,6 +501,7 @@ def jugar(request, eid):
         'config': c, 'juegos': juegos_para(c, [grado] if grado is not None else grupo['grados'], juegos_del_evento(ev)),
         'dificultad': {j[0]: dificultad(c, j[0]) for j in JUEGOS},
         'propios': {}, 'motor': {},
+        'ritmo': {j[0]: JuegoAula.RITMO.get((c['por_juego'].get(j[0]) or {}).get('velocidad', 'normal'), 1) for j in juegos_del_evento(ev)},
         'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito')},
         'usuario': request.user.pk or (p.token[:8] if p else 'anon'),
     }
@@ -569,22 +572,50 @@ def inscribirse(request, codigo):
 
 @login_required
 def resultados(request, eid):
+    """Los resultados quedan en la base de datos (una participación por estudiante o inscrito).
+    Se filtran por grupo (o todos juntos), por grado y por nombre, curso o institución."""
     ev = _evento(request, eid)
     if not es_organizador(request, ev):
         return HttpResponseForbidden('Solo los organizadores ven todos los resultados.')
-    tablas = [(g['nombre'], rango_grados(g), ranking(ev, g['id'])) for g in grupos(config_de(ev))]
+    c = config_de(ev)
+    gsel, gr, q = request.GET.get('grupo', ''), request.GET.get('grado', ''), (request.GET.get('q') or '').strip().lower()
+
+    def filtrar(lista):
+        out = []
+        for p in lista:
+            if gr.lstrip('-').isdigit() and grado_de(p) != int(gr):
+                continue
+            if q and q not in f'{p.nombre_completo} {p.de_donde}'.lower():
+                continue
+            out.append(p)
+        for k, p in enumerate(out, 1):        # el puesto dentro de lo que se está viendo
+            p.puesto = k
+        return out
+    if gsel == 'todos':
+        tablas = [('Todos los grupos juntos', '', filtrar(ranking(ev)))]
+    else:
+        tablas = [(g['nombre'], rango_grados(g), filtrar(ranking(ev, g['id']))) for g in grupos(c) if not gsel or g['id'] == gsel]
+    nombres = {g['id']: g['nombre'] for g in grupos(c)}
+    for _, _, filas in tablas:
+        for p in filas:
+            p.grupo_nombre = nombres.get(p.ciclo, p.ciclo)
+            g = grado_de(p)
+            p.grado_txt = etiqueta_grado(g) if g is not None else ''
     if request.GET.get('csv'):
         r = HttpResponse(content_type='text/csv; charset=utf-8')
         r['Content-Disposition'] = f'attachment; filename="resultados-evento-{ev.pk}.csv"'
-        r.write('﻿')
+        r.write('\ufeff')
         w = csv.writer(r)
-        w.writerow(['Grupo', 'Puesto', 'Participante', 'Curso o institución', 'Puntos', 'Preguntas bien', 'Tiempo efectivo (s)', 'Terminó'])
+        w.writerow(['Grupo', 'Puesto', 'Participante', 'Grado', 'Curso o institución', 'Puntos', 'Preguntas bien', 'Tiempo efectivo (s)', 'Terminó'])
         for n, _, filas in tablas:
             for p in filas:
-                w.writerow([n, p.puesto, p.nombre_completo, p.de_donde,
+                w.writerow([p.grupo_nombre, p.puesto, p.nombre_completo, p.grado_txt, p.de_donde,
                             p.puntos, p.bonos, round(p.tiempo_efectivo, 1), 'sí' if p.terminada else 'no'])
         return r
-    return render(request, 'aula/evento_resultados.html', {'ev': ev, 'tablas': tablas, 'base': _base(request)})
+    grados_hay = sorted({g for g in (grado_de(p) for p in ev.participaciones.select_related('estudiante__curso')) if g is not None})
+    return render(request, 'aula/evento_resultados.html', {
+        'ev': ev, 'tablas': tablas, 'grupos': grupos(c), 'gsel': gsel, 'gr': gr, 'q': request.GET.get('q', ''),
+        'grados': [(g, etiqueta_grado(g)) for g in grados_hay], 'consulta': request.GET.urlencode(), 'base': _base(request)})
 
 
 # ---------------------------------------------------------------------------

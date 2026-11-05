@@ -57,7 +57,7 @@ class Olimpiada(ColegioDePrueba):
                                                         'g_tangram': ['6', '7'], 'd_tangram': 'dificil', 'g_geoplano': ['10', '11']})
         ev.refresh_from_db()
         self.assertEqual((ev.titulo, ev.config['bloques'], ev.config['por_parada'], ev.config['juegos']), ('Otro nombre', 3, 2, ['tangram', 'geoplano']))
-        self.assertEqual(ev.config['por_juego']['tangram'], {'grados': [6, 7], 'dificultad': 'dificil'})
+        self.assertEqual(ev.config['por_juego']['tangram'], {'grados': [6, 7], 'dificultad': 'dificil', 'velocidad': 'normal'})
 
     def test_juegos_por_grado(self):
         ev = self.crear(); ev.activo = True
@@ -265,3 +265,22 @@ class Olimpiada(ColegioDePrueba):
         self.assertContains(r, 'aula/juegos/ovejas.js')
         res = self.post(self.cliente(self.ana.user), f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': f'p_{j.pk}', 'nivel': 0, 't': 10}]})
         self.assertEqual(res['puntos'], 1)
+
+    def test_resultados_con_filtros_y_velocidad(self):
+        ev = self.crear(); ev.activo = True; ev.save()
+        septimo = Curso.objects.create(colegio=self.a, nombre='701', grado=7, subgrupo='1')
+        e7 = self.crear_estudiante('sofia', curso=septimo)
+        for est, t in [(self.ana, 10), (e7, 5)]:
+            self.post(self.cliente(est.user), f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': t}]})
+        url = f'/aula/eventos/{ev.pk}/resultados/'
+        filas = self.admin.get(url + '?grado=7').context['tablas'][0][2]
+        self.assertEqual([p.estudiante for p in filas], [e7])
+        filas = self.admin.get(url + '?grupo=todos&q=ana').context['tablas'][0][2]
+        self.assertEqual([p.estudiante for p in filas], [self.ana])
+        self.assertEqual(len(self.admin.get(url + '?grupo=todos').context['tablas']), 1)
+        csv = self.admin.get(url + '?grado=7&csv=1').content.decode()
+        self.assertIn('Sofia Prueba', csv); self.assertNotIn('Ana Prueba', csv)
+        # Velocidad por juego en el evento
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'config', 'titulo': ev.titulo, 'g_a_ovejas': ['6'], 'v_a_ovejas': 'lenta'})
+        d = self.cliente(self.ana.user).get(f'/aula/eventos/{ev.pk}/').context['datos']
+        self.assertEqual(d['ritmo']['a_ovejas'], .6)

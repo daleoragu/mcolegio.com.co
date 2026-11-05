@@ -98,6 +98,13 @@
       <div class="d-flex align-items-center gap-2 mb-2"><label class="small fw-bold" for="gm-seg">Segundos por pregunta</label>
         <input type="number" name="segundos" id="gm-seg" class="form-control form-control-sm" style="max-width:90px" min="5" max="120" value="{{ borrador.segundos|default:'20' }}">
         <span class="form-text m-0">(los juegos con reloj)</span></div>
+      <div class="d-flex align-items-center gap-2 mb-2"><label class="small fw-bold" for="gm-vel">Velocidad</label>
+        <select name="velocidad" id="gm-vel" class="form-select form-select-sm" style="max-width:140px">
+          <option value="lenta" {% if borrador.velocidad == 'lenta' %}selected{% endif %}>Lenta</option>
+          <option value="normal" {% if not borrador.velocidad or borrador.velocidad == 'normal' %}selected{% endif %}>Normal</option>
+          <option value="rapida" {% if borrador.velocidad == 'rapida' %}selected{% endif %}>Rápida</option>
+        </select>
+        <span class="form-text m-0">(lenta: todo se mueve más despacio y hay más tiempo)</span></div>
       <div class="d-flex align-items-center gap-2 mb-2"><label class="small fw-bold" for="gm-min">Minutos del partido</label>
         <input type="number" name="minutos" id="gm-min" class="form-control form-control-sm" style="max-width:90px" min="1" max="60" value="{{ borrador.minutos|default:'5' }}">
         <span class="form-text m-0">(solo tenis)</span></div>
