@@ -34,7 +34,7 @@ JUEGOS = [
     ('kadogemo', 'Cuatro cuadrantes (tipo Kadogemo)', 'logica'), ('nonograma', 'Nonograma', 'logica'), ('hanoi', 'Torres de Hanói', 'logica'),
     ('ranas', 'Ranas saltarinas', 'logica'), ('cerditos', 'Los tres cerditos', 'logica'), ('kiriku', 'Deslizables de colores', 'logica'),
     ('laberinto', 'Laberinto de colores', 'logica'), ('fijas', 'Picas y fijas con figuras', 'logica'),
-    ('sokoban', 'Empuja cajas (tipo Sokoban)', 'logica'), ('bloque', 'Bloque rodante (tipo Bloxorz)', 'logica'),
+    ('sokoban', 'Empuja cajas (tipo Sokoban)', 'logica'), ('conejos', 'Conejos saltarines', 'logica'), ('perrito', 'Perrito a su casita', 'logica'), ('bloque', 'Bloque rodante (tipo Bloxorz)', 'logica'),
     ('tiro', 'Tiro al vuelo (aves con la respuesta)', 'arcade'), ('pacman', 'Laberinto comelón (galleta con el resultado)', 'arcade'),
     ('speedrun', 'Cálculo veloz (contrarreloj)', 'arcade'),
     ('geoplano', 'Geoplano (bandas elásticas)', 'montessori'), ('regletas', 'Regletas en la balanza (Cuisenaire)', 'montessori'),
@@ -245,14 +245,14 @@ def jugar(request, eid):
     datos = {
         'evento': ev.pk, 'titulo': ev.titulo, 'prueba': est is None, 'ciclo': ciclo or request.GET.get('ciclo', 'exploradores'),
         'config': c, 'juegos': [j for j in JUEGOS if j[0] in c['juegos']],
-        'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque')},
+        'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito')},
         'usuario': request.user.pk,
     }
     if est is not None:
         p = ParticipacionEvento.objects.filter(evento=ev, estudiante=est).first()
         datos['servidor'] = _estado(p, c) if p else None
     scripts = ['tangram', 'trancon', 'cerditos', 'ranas', 'bango', 'kadogemo', 'kiriku', 'laberinto_colores', 'hanoi', 'fila',
-               'nonograma', 'geoplano', 'regletas', 'speedrun', 'fijas', 'sokoban', 'bloque', 'cubo']
+               'nonograma', 'geoplano', 'regletas', 'speedrun', 'fijas', 'sokoban', 'bloque', 'cubo', 'conejos', 'perrito']
     return render(request, 'aula/evento_jugar.html', {'ev': ev, 'datos': datos, 'ciclos': CICLOS, 'organiza': organiza, 'scripts': scripts,
                                                       'categorias': CATEGORIAS, 'base': 'notas/base.html'})
 
