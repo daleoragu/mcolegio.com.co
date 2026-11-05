@@ -1,0 +1,62 @@
+{% extends base %}
+{% load static %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<style>
+  #lg-pantalla { max-width:1020px; margin:0 auto; background:#fff; border-radius:18px; padding:12px; }
+  #lg-pantalla:fullscreen { max-width:none; border-radius:0; overflow:auto; }
+  .lg-barra { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px; }
+  #lg-niveles { display:flex; gap:4px; overflow-x:auto; padding:4px 2px; max-width:100%; scrollbar-width:thin; }
+  .lg-nivel { min-width:36px; height:32px; border-radius:10px; border:2px solid #dee2e6; background:#f8f9fa; font-weight:700; font-size:.8rem; flex:0 0 auto; }
+  .lg-nivel.hecho { background:#d3f9d8; border-color:#69db7c; color:#2b8a3e; }
+  .lg-nivel.actual { border-color:#f59f00; background:#fff3bf; color:#e8590c; }
+  .lg-datos { font-size:.85rem; color:#495057; }
+  #lg-zona { position:relative; display:flex; justify-content:center; }
+  .lg-lienzo { display:block; border-radius:14px; }
+  #lg-aviso { position:absolute; left:50%; top:150px; transform:translateX(-50%); background:#212529; color:#fff; padding:6px 14px; border-radius:20px; font-size:.85rem; z-index:5; max-width:90%; }
+  #lg-final { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.45); border-radius:18px; z-index:6; }
+  #lg-final[hidden], #lg-aviso[hidden] { display:none; }
+  #lg-final .caja { background:#fff; border-radius:18px; padding:22px 26px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+  #lg-final .caja h4 { color:#2b8a3e; font-weight:800; }
+</style>
+<div class="au">
+<div id="lg-pantalla" style="position:relative">
+  <div class="lg-barra">
+    <a href="{% url 'aula:logica' aula.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Juegos de lógica</a>
+    <h5 class="fw-bold mb-0 me-2">{{ nombre }}</h5>
+    <span class="lg-datos" id="lg-nivel-titulo"></span>
+    <span class="ms-auto lg-datos">Movimientos: <b id="lg-movs">0</b> · Tiempo: <b id="lg-tiempo">0:00</b></span>
+  </div>
+  <div class="lg-barra">
+    <div id="lg-niveles" aria-label="Niveles"></div>
+  </div>
+  <div class="lg-barra">
+    <span class="lg-datos text-success fw-semibold" id="lg-progreso"></span>
+    <span class="ms-auto d-flex flex-wrap gap-1">
+      <button type="button" class="btn btn-sm btn-outline-primary" id="lg-girar" hidden><i class="fas fa-rotate-right me-1"></i>Girar</button>
+      <button type="button" class="btn btn-sm btn-outline-primary" id="lg-voltear" hidden><i class="fas fa-arrows-left-right me-1"></i>Voltear</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="lg-deshacer" hidden><i class="fas fa-rotate-left me-1"></i>Deshacer</button>
+      <button type="button" class="btn btn-sm btn-outline-warning" id="lg-ayuda" hidden><i class="fas fa-lightbulb me-1"></i>Ayuda</button>
+      <button type="button" class="btn btn-sm btn-outline-danger" id="lg-reiniciar"><i class="fas fa-arrows-rotate me-1"></i>Reiniciar</button>
+      <button type="button" class="btn btn-sm btn-outline-dark" id="lg-completa" title="Pantalla completa"><i class="fas fa-expand"></i></button>
+    </span>
+  </div>
+  <div id="lg-aviso" hidden></div>
+  <div id="lg-zona"></div>
+  <p class="small text-muted mt-2 mb-0" id="lg-instrucciones"></p>
+  <div id="lg-final" hidden><div class="caja">
+    <h4 id="lg-final-titulo">¡Lo logró!</h4>
+    <div class="mb-3" id="lg-final-detalle"></div>
+    <button type="button" class="btn au-oro" id="lg-sig">Siguiente nivel</button>
+    <button type="button" class="btn btn-outline-secondary" id="lg-repetir">Repetir</button>
+  </div></div>
+</div>
+</div>
+{{ niveles|json_script:"lg-datos" }}
+<script src="{% static 'aula/logica/comun.js' %}"></script>
+<script src="{% static 'aula/logica/'|add:archivo|add:'.js' %}"></script>
+<script>
+Logica.pagina({id: '{{ juego|escapejs }}', datos: JSON.parse(document.getElementById('lg-datos').textContent), clave: '{{ clave|escapejs }}'});
+</script>
+{% endblock %}

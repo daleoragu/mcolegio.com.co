@@ -1,0 +1,39 @@
+{% extends base %}
+{% load static %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<style>
+  .lgm { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; max-width:1020px; margin:0 auto; }
+  .lgm a { display:block; background:#fff; border:2px solid #e9ecef; border-radius:16px; padding:14px; text-decoration:none; color:#212529; transition:transform .1s; }
+  .lgm a:hover { transform:translateY(-2px); border-color:#fab005; }
+  .lgm .ic { font-size:2rem; line-height:1; }
+  .lgm b { display:block; margin:6px 0 4px; }
+  .lgm small { color:#6c757d; }
+  .lgm .prog { font-size:.75rem; color:#2f9e44; font-weight:600; margin-top:6px; }
+</style>
+<div class="au">
+  <div class="d-flex align-items-center gap-2 mb-3" style="max-width:1020px;margin:0 auto">
+    <a href="{% url 'aula:gamificacion' aula.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Menú de juegos</a>
+    <h5 class="fw-bold mb-0">🧩 Juegos de lógica</h5>
+    <span class="small text-muted">Sin nota: retos con niveles para pensar. Su avance queda guardado en este equipo.</span>
+  </div>
+  <div class="lgm">
+    {% for id, nombre, desc, archivo in juegos %}
+    <a href="{% url 'aula:logica_juego' aula.pk id %}" data-juego="{{ id }}">
+      <span class="ic">{% if id == 'tangram' %}🔷{% elif id == 'hanoi' %}🗼{% elif id == 'trancon' %}🚗{% elif id == 'safari' %}🦒{% elif id == 'cerditos' %}🐷{% elif id == 'ranas' %}🐸{% elif id == 'bango' %}🔢{% elif id == 'kadogemo' %}🟥{% elif id == 'kiriku' %}🔵{% else %}🌈{% endif %}</span>
+      <b>{{ nombre }}</b><small>{{ desc }}</small>
+      <div class="prog"></div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+<script>
+document.querySelectorAll('.lgm a').forEach(a => {
+  try {
+    const p = JSON.parse(localStorage.getItem('mc-logica:{{ request.user.pk }}:' + a.dataset.juego) || '{}'), n = Object.keys(p).length;
+    if (n) a.querySelector('.prog').textContent = `✓ ${n} nivel(es) superado(s)`;
+  } catch (e) { /* sin almacenamiento */ }
+});
+</script>
+{% endblock %}

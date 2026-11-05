@@ -218,3 +218,20 @@ class Gamificacion(ColegioDePrueba):
         self.assertEqual(len(j.preguntas), 2)
         self.assertEqual(self.cliente(self.ana.user).get(f'{self.base}/practica/animaplano/matematicas/').status_code, 200)
         self.assertContains(self.cliente(self.ana.user).get(f'{self.base}/practica/ovejas/colombia/'), 'aula/juegos/ovejas.js')
+
+    def test_juegos_de_logica(self):
+        from aula.views_logica import JUEGOS, niveles
+        r = self.cliente(self.ana.user).get(f'/aula/{self.aula.pk}/logica/')
+        self.assertContains(r, 'Juegos de lógica')
+        for id_, nombre, _, archivo in JUEGOS:
+            r = self.cliente(self.ana.user).get(f'/aula/{self.aula.pk}/logica/{id_}/')
+            self.assertContains(r, f'aula/logica/{archivo}.js')
+            self.assertContains(r, 'lg-datos')
+            self.assertTrue(niveles(id_) is not None)
+        self.assertEqual(self.cliente(self.ana.user).get(f'/aula/{self.aula.pk}/logica/otro/').status_code, 404)
+        # Tablero 36: cada reto tiene su solución y cubre las 35 casillas
+        d = niveles('bango')
+        for n in d['retos']:
+            celdas = [tuple(c) for p in d['soluciones'][str(n)].values() for c in p]
+            self.assertEqual(len(set(celdas)), 35)
+            self.assertNotIn(((n - 1) // 6, (n - 1) % 6), celdas)

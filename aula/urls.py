@@ -2,7 +2,7 @@ from django.urls import path
 
 from chat import views_salon as chs
 
-from . import views, views_examenes as vx, views_fichas as vf, views_importar as vi, views_invertida as vinv, views_juegos as vj, views_gamificacion as vg, views_mascota as vm
+from . import views, views_examenes as vx, views_fichas as vf, views_importar as vi, views_invertida as vinv, views_juegos as vj, views_gamificacion as vg, views_mascota as vm, views_logica as vl
 
 app_name = 'aula'
 
@@ -63,6 +63,8 @@ urlpatterns = [
     path('<int:pk>/invertida/<int:iid>/progreso/', vinv.invertida_progreso, name='invertida_progreso'),
 
     path('<int:pk>/gamificacion/', vg.gamificacion, name='gamificacion'),
+    path('<int:pk>/logica/', vl.logica_menu, name='logica'),
+    path('<int:pk>/logica/<slug:juego>/', vl.logica_juego, name='logica_juego'),
     path('<int:pk>/mascota/', vm.mascota, name='mascota'),
     path('<int:pk>/mascota/pedir/', vm.mascota_pedir, name='mascota_pedir'),
     path('<int:pk>/mascota/responder/', vm.mascota_responder, name='mascota_responder'),
