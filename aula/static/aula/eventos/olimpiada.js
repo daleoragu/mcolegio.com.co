@@ -88,7 +88,7 @@
         const {juego, nivel} = E.reto, zona = $('#ol-zona');
         $('#ol-reto-nombre').textContent = 'Reto: ' + (NOMBRE[juego] || juego);
         const api = {
-            movimiento() {}, sonido: Logica.sonido,
+            movimiento() {}, sonido: Logica.sonido, compacto: true,
             gano() { if (actual === api) superado(); },
             perdio() { if (actual === api) { aviso('¡Casi! Va otro reto.'); setTimeout(siguienteReto, 1200); } },
             aviso,

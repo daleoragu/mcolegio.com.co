@@ -33,7 +33,7 @@ JUEGOS = [
     ('fila', 'La fila exacta (permutaciones)', 'logica'), ('bango', 'Tablero 36 (tipo Bango)', 'logica'),
     ('kadogemo', 'Cuatro cuadrantes (tipo Kadogemo)', 'logica'), ('nonograma', 'Nonograma', 'logica'), ('hanoi', 'Torres de Hanói', 'logica'),
     ('ranas', 'Ranas saltarinas', 'logica'), ('cerditos', 'Los tres cerditos', 'logica'), ('kiriku', 'Deslizables de colores', 'logica'),
-    ('laberinto', 'Laberinto de colores', 'logica'),
+    ('laberinto', 'Laberinto de colores', 'logica'), ('fijas', 'Picas y fijas con figuras', 'logica'),
     ('tiro', 'Tiro al vuelo (aves con la respuesta)', 'arcade'), ('pacman', 'Laberinto comelón (galleta con el resultado)', 'arcade'),
     ('speedrun', 'Cálculo veloz (contrarreloj)', 'arcade'),
     ('geoplano', 'Geoplano (bandas elásticas)', 'montessori'), ('regletas', 'Regletas en la balanza (Cuisenaire)', 'montessori'),
@@ -250,7 +250,7 @@ def jugar(request, eid):
         p = ParticipacionEvento.objects.filter(evento=ev, estudiante=est).first()
         datos['servidor'] = _estado(p, c) if p else None
     scripts = ['tangram', 'trancon', 'cerditos', 'ranas', 'bango', 'kadogemo', 'kiriku', 'laberinto_colores', 'hanoi', 'fila',
-               'nonograma', 'geoplano', 'regletas', 'speedrun']
+               'nonograma', 'geoplano', 'regletas', 'speedrun', 'fijas']
     return render(request, 'aula/evento_jugar.html', {'ev': ev, 'datos': datos, 'ciclos': CICLOS, 'organiza': organiza, 'scripts': scripts,
                                                       'categorias': CATEGORIAS, 'base': 'notas/base.html'})
 

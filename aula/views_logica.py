@@ -24,6 +24,7 @@ JUEGOS = [
     ('geoplano', 'Geoplano', 'Tienda la banda en los clavos y forme figuras con el área que se pide.', 'geoplano'),
     ('regletas', 'Regletas en la balanza', 'Equilibre la balanza con regletas de colores y resuelva ecuaciones.', 'regletas'),
     ('speedrun', 'Cálculo veloz', '10 operaciones contra reloj.', 'speedrun'),
+    ('fijas', 'Picas y fijas con figuras', 'Adivine el orden secreto: solo sabrá cuántas están exactas y cuántas en otro sitio. Solo o entre dos.', 'fijas'),
 ]
 DATOS = {j[0]: j for j in JUEGOS}
 NIVELES = os.path.join(os.path.dirname(__file__), 'static', 'aula', 'logica', 'niveles')
