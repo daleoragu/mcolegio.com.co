@@ -1,0 +1,22 @@
+{% extends base %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-medal me-2"></i>{{ ev.titulo }}</h4><p class="text-muted small mb-0">Inscripción al evento</p>{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au" style="max-width:520px;margin:0 auto">
+  {% if not ev.activo %}<div class="alert alert-warning">El evento todavía no está abierto. Puede inscribirse cuando el organizador lo active.</div>{% endif %}
+  {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+  <form method="post" class="au-tarjeta">{% csrf_token %}
+    <label class="form-label fw-bold small">Nombre completo</label>
+    <input name="nombre" class="form-control mb-2" maxlength="120" required value="{{ sugerido.nombre }}" placeholder="Nombres y apellidos">
+    <label class="form-label fw-bold small">Colegio o institución</label>
+    <input name="institucion" class="form-control mb-2" maxlength="120" required value="{{ sugerido.institucion }}">
+    <label class="form-label fw-bold small">Grado</label>
+    <select name="grado" class="form-select mb-3" required>
+      <option value="">— Escoja su grado —</option>
+      {% for g, et in grados %}<option value="{{ g }}" {% if sugerido.grado == g %}selected{% endif %}>{{ et }}</option>{% endfor %}
+    </select>
+    <button class="btn au-oro btn-lg w-100" {% if not ev.activo %}disabled{% endif %}>Inscribirme y empezar</button>
+    <p class="small text-muted mt-2 mb-0">Su participación queda guardada en este equipo y navegador: juegue siempre desde el mismo.</p>
+  </form>
+</div>
+{% endblock %}

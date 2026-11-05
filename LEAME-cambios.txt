@@ -26,6 +26,7 @@ NUEVO     aula/migrations/0013_juego_impostor.py
 NUEVO     aula/migrations/0014_juegos_dibujo_tesoro_carretera_unir_boxeo.py
 NUEVO     aula/migrations/0015_animaplano_y_ovejas.py
 NUEVO     aula/migrations/0016_eventos.py
+NUEVO     aula/migrations/0017_eventos_abiertos.py
 CAMBIADO  aula/models.py
 NUEVO     aula/static/aula/eventos/olimpiada.js
 NUEVO     aula/static/aula/invertida_pausas.js
@@ -100,11 +101,14 @@ CAMBIADO  aula/templates/aula/_cabecera.html
 NUEVO     aula/templates/aula/_invertida_form.html
 NUEVO     aula/templates/aula/_invertida_js.html
 NUEVO     aula/templates/aula/evento_configurar.html
+NUEVO     aula/templates/aula/evento_entrar.html
+NUEVO     aula/templates/aula/evento_inscribirse.html
 NUEVO     aula/templates/aula/evento_jugar.html
 NUEVO     aula/templates/aula/evento_resultados.html
 NUEVO     aula/templates/aula/eventos.html
 NUEVO     aula/templates/aula/gamificacion.html
 CAMBIADO  aula/templates/aula/inicio.html
+CAMBIADO  aula/templates/aula/inicio_salon.html
 NUEVO     aula/templates/aula/invertida.html
 NUEVO     aula/templates/aula/invertidas.html
 NUEVO     aula/templates/aula/juego.html
@@ -243,6 +247,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0014_juegos_dibujo_tesoro_carretera_unir_boxeo.py  (5 juegos nuevos)
   aula/migrations/0015_animaplano_y_ovejas.py        (Animaplano y Ovejas y lobos)
   aula/migrations/0016_eventos.py                    (Eventos: olimpiada de matemáticas)
+  aula/migrations/0017_eventos_abiertos.py           (eventos que crea el docente y eventos abiertos con código)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

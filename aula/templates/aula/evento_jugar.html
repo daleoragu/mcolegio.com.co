@@ -58,11 +58,11 @@
 <script src="{% static 'aula/logica/comun.js' %}"></script>
 {% for j in scripts %}<script src="{% static 'aula/logica/'|add:j|add:'.js' %}"></script>
 {% endfor %}<script src="{% static 'aula/juegos/motor.js' %}"></script>
-<script src="{% static 'aula/juegos/tiro.js' %}"></script>
-<script src="{% static 'aula/juegos/laberinto.js' %}"></script>
+{% for t in motores %}<script src="{% static 'aula/juegos/'|add:t|add:'.js' %}"></script>
+{% endfor %}
 <script>
 window.OL_URLS = {registro: "{% url 'aula:evento_registro' ev.pk %}", pregunta: "{% url 'aula:evento_pregunta' ev.pk %}", responder: "{% url 'aula:evento_responder' ev.pk %}",
-                  volver: "{% url 'aula:eventos' %}", csrf: "{{ csrf_token }}"};
+                  volver: "{% if user.is_authenticated %}{% url 'aula:eventos' %}{% else %}{% url 'aula:evento_entrar' %}{% endif %}", csrf: "{{ csrf_token }}"};
 </script>
 <script src="{% static 'aula/eventos/olimpiada.js' %}"></script>
 {% endblock %}

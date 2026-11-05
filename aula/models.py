@@ -751,7 +751,12 @@ class MascotaAula(models.Model):
 class Evento(models.Model):
     """Un evento del colegio. Se crea apagado: los estudiantes solo lo ven cuando el organizador lo activa."""
     TIPOS = [('olimpiada', 'Olimpiada de matemáticas')]
-    colegio = models.ForeignKey('notas.Colegio', on_delete=models.CASCADE, related_name='eventos_aula')
+    ALCANCES = [('colegio', 'Solo los estudiantes de mi colegio'), ('codigo', 'Abierto: entra quien tenga el código del evento')]
+    # Sin colegio: lo creó un docente de Salón Digital (siempre es abierto con código)
+    colegio = models.ForeignKey('notas.Colegio', on_delete=models.CASCADE, related_name='eventos_aula', null=True, blank=True)
+    creador = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='eventos_creados')
+    alcance = models.CharField(max_length=8, choices=ALCANCES, default='colegio')
+    codigo = models.CharField(max_length=8, unique=True, null=True, blank=True)
     tipo = models.CharField(max_length=12, choices=TIPOS, default='olimpiada')
     titulo = models.CharField(max_length=80)      # lo escribe el organizador
     activo = models.BooleanField(default=False)
@@ -767,11 +772,27 @@ class Evento(models.Model):
     def __str__(self):
         return self.titulo
 
+    def save(self, *args, **kwargs):
+        if not self.codigo:
+            import secrets
+            letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+            while True:
+                c = ''.join(secrets.choice(letras) for _ in range(6))
+                if not Evento.objects.filter(codigo=c).exists():
+                    self.codigo = c
+                    break
+        super().save(*args, **kwargs)
+
 
 class ParticipacionEvento(models.Model):
     """Lo que lleva un estudiante en el evento. El servidor cuenta los puntos y califica las preguntas."""
     evento = models.ForeignKey(Evento, on_delete=models.CASCADE, related_name='participaciones')
-    estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, related_name='+')
+    # Estudiante del colegio (entra con su cuenta) o inscrito con el código del evento (sin cuenta)
+    estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, related_name='+', null=True, blank=True)
+    nombre = models.CharField(max_length=120, blank=True)
+    institucion = models.CharField(max_length=120, blank=True)
+    grado = models.SmallIntegerField(null=True, blank=True)
+    token = models.CharField(max_length=40, blank=True, db_index=True)
     ciclo = models.CharField(max_length=16)
     puntos = models.PositiveIntegerField(default=0)
     bonos = models.PositiveIntegerField(default=0)            # preguntas de competencia bien respondidas
@@ -787,7 +808,18 @@ class ParticipacionEvento(models.Model):
     vistas = models.JSONField(default=list, blank=True)       # preguntas ya hechas (para no repetir)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=['evento', 'estudiante'], name='aula_evento_una_participacion')]
+        constraints = [models.UniqueConstraint(fields=['evento', 'estudiante'], condition=models.Q(estudiante__isnull=False),
+                                               name='aula_evento_una_participacion')]
+
+    @property
+    def nombre_completo(self):
+        return self.estudiante.user.get_full_name() if self.estudiante_id else self.nombre
+
+    @property
+    def de_donde(self):
+        if self.estudiante_id:
+            return self.estudiante.curso.nombre if self.estudiante.curso_id else ''
+        return self.institucion
 
     @property
     def tiempo_efectivo(self):

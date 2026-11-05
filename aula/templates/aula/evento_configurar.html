@@ -21,6 +21,26 @@
     <button class="btn {% if ev.activo %}btn-outline-danger{% else %}btn-success{% endif %}">{% if ev.activo %}Apagar{% else %}Activar el evento{% endif %}</button>
   </form>
 
+  <div class="au-tarjeta">
+    <h6><i class="fas fa-door-open me-1"></i>¿Cómo entran los participantes?</h6>
+    {% if ev.alcance == 'codigo' %}
+      <p class="mb-1">Evento <b>abierto</b>: entra quien tenga el código, de este u otro colegio, de Salón Digital o sin cuenta. Cada uno escribe su nombre, su institución y su grado.</p>
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+        <span class="fs-3 fw-bold font-monospace" style="letter-spacing:.15em">{{ ev.codigo }}</span>
+        <input class="form-control form-control-sm" style="max-width:420px" readonly value="{{ enlace }}" onclick="this.select()">
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard && navigator.clipboard.writeText('{{ enlace }}'); this.textContent='¡Copiado!'">Copiar enlace</button>
+      </div>
+      <p class="small text-muted mb-1">Comparta el enlace o dicte el código (se escribe en «Entrar a un evento con código»).</p>
+    {% else %}
+      <p class="mb-1">Solo para <b>estudiantes de este colegio</b>, que entran con su cuenta (según los grupos y la lista de participantes de abajo).</p>
+    {% endif %}
+    {% if ev.colegio_id %}
+    <form method="post" class="mt-1">{% csrf_token %}<input type="hidden" name="accion" value="alcance">
+      <input type="hidden" name="alcance" value="{% if ev.alcance == 'codigo' %}colegio{% else %}codigo{% endif %}">
+      <button class="btn btn-sm btn-outline-primary">{% if ev.alcance == 'codigo' %}Cambiar a: solo mi colegio{% else %}Abrirlo con código (para otros colegios o sin cuenta){% endif %}</button>
+    </form>{% endif %}
+  </div>
+
   <div class="row g-3">
   <div class="col-12">
     <form method="post" class="au-tarjeta">{% csrf_token %}<input type="hidden" name="accion" value="config">
@@ -80,6 +100,7 @@
       <button class="btn btn-sm btn-outline-primary">Guardar grupos</button>
     </form>
 
+    {% if ev.alcance == 'colegio' %}
     <form method="post" class="au-tarjeta">{% csrf_token %}<input type="hidden" name="accion" value="participantes">
       <h6><i class="fas fa-user-check me-1"></i>¿Quiénes participan?</h6>
       <div class="d-flex flex-column gap-1 small mb-2">
@@ -98,8 +119,9 @@
       <button class="btn btn-sm btn-outline-primary">Guardar participantes</button>
       <script>document.getElementById('ev-buscar').addEventListener('input', e => { const t = e.target.value.toLowerCase(); document.querySelectorAll('#ev-estudiantes option').forEach(o => { o.hidden = t && !o.textContent.toLowerCase().includes(t); }); });</script>
     </form>
+    {% endif %}
 
-    {% if es_admin %}
+    {% if es_admin and ev.colegio_id %}
     <form method="post" class="au-tarjeta">{% csrf_token %}<input type="hidden" name="accion" value="organizadores">
       <h6><i class="fas fa-user-gear me-1"></i>Docentes organizadores</h6>
       <p class="small text-muted mb-1">Además de la administración, estos docentes pueden configurar, activar y ver los resultados.</p>

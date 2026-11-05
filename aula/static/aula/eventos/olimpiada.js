@@ -11,6 +11,7 @@
     const CI = GR.nivel || 0, PEQUES = GR.gmax <= 2, PRIMARIA = GR.gmax <= 5;
     const CAT_COLOR = {Euclides: '#1971c2', Newton: '#e8590c', Bernoulli: '#2f9e44'};
     const NOMBRE = Object.fromEntries(D.juegos.map(j => [j[0], j[1]]));
+    const MOTOR = D.motor || {};     // reto → juego arcade con que se juega
     const CLAVE = `mc-evento:${D.usuario}:${D.evento}${D.prueba ? ':prueba:' + D.ciclo : ''}`;
     const nuevo = () => ({fase: 'portada', bloque: 1, restante: C.minutos * 60, activo: 0, ultimoPunto: 0, seq: 0, cola: [], puntos: 0, bonos: 0,
                           hechas: 0, debe: 0, usados: {}, reto: null, descansoHasta: 0});
@@ -77,7 +78,7 @@
         const opciones = ids.length > 1 ? ids.filter(i => i !== previo) : ids;
         const juego = opciones[Math.floor(Math.random() * opciones.length)];
         let nivel = 0;
-        if (!['tiro', 'pacman'].includes(juego)) {
+        if (!MOTOR[juego]) {
             const [a, b] = rango(juego), usados = E.usados[juego] || [];
             const libres = []; for (let k = a; k <= b; k++) if (!usados.includes(k)) libres.push(k);
             const lista = libres.length ? libres : Array.from({length: b - a + 1}, (_, k) => a + k);
@@ -97,12 +98,15 @@
             aviso,
         };
         actual = api;
-        if (juego === 'tiro' || juego === 'pacman') {
-            $('#ol-reto-detalle').textContent = 'Responda bien 2 de 3 operaciones.';
-            $('#ol-instrucciones').textContent = juego === 'tiro' ? 'Toque el ave con el resultado correcto (o presione su letra).' : 'Lleve la gota (flechas) a la galleta del resultado correcto. ¡Cuidado con los virus!';
+        if (MOTOR[juego]) {
+            // Juego arcade: con operaciones según el grupo, o con las preguntas del juego propio del docente
+            const propio = (D.propios || {})[juego], tipo = MOTOR[juego], def = Gamificacion.juego(tipo) || {};
+            const preguntas = propio ? propio.preguntas.slice().sort(() => Math.random() - .5).slice(0, 3) : operaciones(3);
+            $('#ol-reto-detalle').textContent = `Responda bien ${Math.min(2, preguntas.length)} de ${preguntas.length}.`;
+            $('#ol-instrucciones').textContent = def.instrucciones || '';
             const cv = document.createElement('canvas'); cv.style.width = '100%'; cv.style.maxWidth = '720px'; cv.style.touchAction = 'none'; zona.appendChild(cv);
-            motor = Gamificacion.iniciar({lienzo: cv, tipo: juego === 'pacman' ? 'laberinto' : 'tiro', preguntas: operaciones(3), segundos: 20,
-                alTerminar: r => { if (actual !== api) return; if (r.aciertos >= 2) setTimeout(superado, 600); else { aviso(`${r.aciertos} de 3: va otro reto.`); setTimeout(siguienteReto, 1500); } }});
+            motor = Gamificacion.iniciar({lienzo: cv, tipo, preguntas, segundos: 20, minutos: 2, jugadores: 1, tema: propio ? propio.titulo : '',
+                alTerminar: r => { if (actual !== api) return; const meta = Math.min(2, preguntas.length); if (r.aciertos >= meta) setTimeout(superado, 600); else { aviso(`${r.aciertos} de ${preguntas.length}: va otro reto.`); setTimeout(siguienteReto, 1500); } }});
             ['#ol-girar', '#ol-voltear', '#ol-deshacer'].forEach(s => { $(s).hidden = true; });
             return;
         }
