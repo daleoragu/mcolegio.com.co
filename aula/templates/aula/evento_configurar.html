@@ -37,7 +37,8 @@
       <form method="post" class="border rounded-3 p-2 mt-2" style="background:#f8f9fa">{% csrf_token %}<input type="hidden" name="accion" value="inscripcion">
         <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
           <b class="small"><i class="fas fa-clipboard-list me-1"></i>Formulario de inscripción</b>
-          <a href="{% url 'aula:evento_inscripciones' ev.pk %}" class="btn btn-sm btn-outline-primary ms-auto">Ver inscripciones{% if n_pendientes %} <span class="badge bg-danger">{{ n_pendientes }} pendiente{{ n_pendientes|pluralize }}</span>{% endif %}</a>
+          <a href="{% url 'aula:evento_planilla' ev.pk %}?vacia=1" class="btn btn-sm btn-outline-success ms-auto"><i class="fas fa-file-excel me-1"></i>Planilla de inscripción</a>
+          <a href="{% url 'aula:evento_inscripciones' ev.pk %}" class="btn btn-sm btn-outline-primary">Ver inscripciones{% if n_pendientes %} <span class="badge bg-danger">{{ n_pendientes }} pendiente{{ n_pendientes|pluralize }}</span>{% endif %}</a>
         </div>
         <div class="form-check small"><input class="form-check-input" type="checkbox" name="abierta" id="ins-abierta" {% if ins.abierta %}checked{% endif %}>
           <label class="form-check-label" for="ins-abierta">Recibir inscripciones</label></div>

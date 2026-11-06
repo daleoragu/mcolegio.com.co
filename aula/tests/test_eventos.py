@@ -496,3 +496,68 @@ class Olimpiada(ColegioDePrueba):
             self.assertContains(self.admin.get(f'/aula/eventos/{ev.pk}/resultados/'), 'Guardar las grabaciones del evento en mi nube')
         self.assertEqual(ana.get(url).status_code, 403)
         self.assertEqual(ana.post(url, json.dumps({'accion': 'borrar', 'ids': [1]}), content_type='application/json').status_code, 403)
+
+    def test_planilla_de_inscripcion(self):
+        """El organizador descarga la planilla, los colegios la llenan y él la sube: se crean y actualizan inscripciones."""
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import Client
+        from openpyxl import load_workbook
+        from aula.planilla_eventos import leer_grado
+        ev = self.crear('Intercolegial 2026')
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'alcance', 'alcance': 'codigo'})
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripcion', 'abierta': 'on', 'aprobacion': 'on', 'cupo_colegio': '3', 'cupo_nivel': '2'})
+        ev.refresh_from_db()
+        url = f'/aula/eventos/{ev.pk}/planilla/'
+        r = self.admin.get(url + '?vacia=1')
+        self.assertIn('spreadsheetml', r['Content-Type'])
+        libro = load_workbook(io.BytesIO(r.content))
+        hoja = libro['Inscripción']
+        self.assertEqual(hoja['A3'].value, 'Nombre completo')
+        self.assertIn('Instrucciones', libro.sheetnames)
+        self.assertEqual((leer_grado('7.º'), leer_grado('Séptimo'), leer_grado(8), leer_grado('Transición'), leer_grado('x')), (7, 7, 8, 0, None))
+        # Un colegio la llena
+        filas = [
+            ['Pedro Pérez Gómez', '1001001', 'Colegio San José', 'Ibagué', '7.º', 'familia@correo.co', 'Rosa Gómez', 'Prof. Luis', 'SÍ'],
+            ['María Ruiz López', '1001002', 'Colegio San José', 'Ibagué', 'Sexto', '', 'Ana López', '', 'si'],
+            ['Juan Sin Permiso', '1001003', 'Colegio San José', '', '9', '', '', '', 'NO'],          # sin autorización
+            ['Luis Fuera Grado', '1001004', 'Colegio San José', '', 'Transición', '', 'Rosa', '', 'SÍ'],   # grado que no está
+            ['Tercero Exploradores', '1001005', 'colegio san jose', '', '6', '', 'Carlos Ruiz', '', 'SÍ'],  # cupo de nivel (2)
+            ['Pedro Repetido', '1001001', 'Colegio San José', '', '7', '', 'Rosa Gómez', '', 'SÍ'],        # repetido en la planilla
+            [None] * 9,
+        ]
+        for f in filas:
+            hoja.append(f)
+        salida = io.BytesIO(); libro.save(salida)
+        r = self.admin.post(url, {'archivo': SimpleUploadedFile('planilla.xlsx', salida.getvalue())}, follow=True)
+        self.assertContains(r, '2 inscripción(es) nueva(s)')
+        errores = '\n'.join(m for _, m in r.context['errores_planilla'])
+        self.assertIn('autorización', errores); self.assertIn('Transición', errores); self.assertIn('cupo', errores); self.assertIn('repetido', errores)
+        ps = {p.datos['documento']: p for p in ParticipacionEvento.objects.filter(evento=ev)}
+        self.assertEqual(set(ps), {'1001001', '1001002'})
+        pedro = ps['1001001']
+        self.assertEqual((pedro.estado, pedro.grado, pedro.ciclo, pedro.datos['autorizacion']['origen']), ('pendiente', 7, 'exploradores', 'planilla'))
+        # Con «aprobar de una vez», y al subirla de nuevo se actualiza (no se repite)
+        libro = load_workbook(io.BytesIO(self.admin.get(url).content))
+        hoja = libro['Inscripción']
+        fila = next(r for r in range(4, hoja.max_row + 1) if hoja.cell(r, 2).value == '1001001')
+        self.assertEqual(hoja.cell(fila, 11).value, pedro.datos['clave'])          # la clave sale en la planilla
+        hoja.cell(fila, 4).value = 'Espinal'
+        salida = io.BytesIO(); libro.save(salida)
+        r = self.admin.post(url, {'archivo': SimpleUploadedFile('planilla.xlsx', salida.getvalue()), 'aprobar': 'on'}, follow=True)
+        self.assertContains(r, 'actualizada(s)')
+        pedro.refresh_from_db()
+        self.assertEqual((pedro.datos['ciudad'], ParticipacionEvento.objects.filter(evento=ev).count()), ('Espinal', 2))
+        # CSV también sirve
+        csv_txt = 'Nombre completo;Número de documento;Colegio o institución;Grado;Acudiente (o docente) que autoriza los datos;Autoriza datos (SÍ)\nCamila Torres Díaz;2002001;Liceo Nacional;10;Marta Díaz;SÍ\n'
+        self.admin.post(url, {'archivo': SimpleUploadedFile('p.csv', csv_txt.encode('utf-8'), content_type='text/csv'), 'aprobar': 'on'})
+        camila = ParticipacionEvento.objects.get(evento=ev, datos__documento='2002001')
+        self.assertEqual((camila.estado, camila.ciclo), ('aprobada', 'expertos'))
+        # El estudiante entra con su documento y la clave de la planilla
+        c = Client(HTTP_HOST='testserver')
+        r = c.post(f'/aula/eventos/c/{ev.codigo}/', {'accion': 'recuperar', 'documento': '2002001', 'clave': camila.datos['clave']})
+        self.assertRedirects(r, f'/aula/eventos/c/{ev.codigo}/', fetch_redirect_response=False)
+        # Un archivo cualquiera no rompe nada; y nadie más la descarga
+        r = self.admin.post(url, {'archivo': SimpleUploadedFile('x.xlsx', b'basura')}, follow=True)
+        self.assertContains(r, 'No se pudo leer')
+        self.assertEqual(self.cliente(self.ana.user).get(url).status_code, 403)

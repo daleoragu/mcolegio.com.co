@@ -751,6 +751,43 @@ def avisar_inscripcion(request, ev, p):
 
 
 @login_required
+def planilla(request, eid):
+    """Planilla de inscripción en Excel: descargarla (vacía o con los inscritos) y subirla llena."""
+    from . import planilla_eventos
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores manejan la planilla.')
+    c = config_de(ev)
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            messages.warning(request, 'Escoja el archivo de la planilla.')
+            return redirect('aula:evento_inscripciones', eid=ev.pk)
+        if archivo.size > 5 * 1024 * 1024:
+            messages.warning(request, 'El archivo es muy grande (máximo 5 MB).')
+            return redirect('aula:evento_inscripciones', eid=ev.pk)
+        from salon_digital.utils import ip_cliente
+        r = planilla_eventos.importar(ev, archivo, c, request.user, ip_cliente(request) or '', aprobar=bool(request.POST.get('aprobar')))
+        partes = []
+        if r['nuevas']:
+            partes.append(f"{r['nuevas']} inscripción(es) nueva(s)")
+        if r['actualizadas']:
+            partes.append(f"{r['actualizadas']} actualizada(s)")
+        if partes:
+            messages.success(request, 'Planilla subida: ' + ' y '.join(partes) + '.')
+        elif not r['errores']:
+            messages.info(request, 'La planilla no tenía estudiantes.')
+        request.session[f'evento_planilla_{ev.pk}'] = r['errores'][:300]
+        return redirect(f"{reverse('aula:evento_inscripciones', args=[ev.pk])}?estado=todas")
+    inscritos = [] if request.GET.get('vacia') else list(ev.participaciones.filter(estudiante__isnull=True).order_by('institucion', 'grado', 'nombre'))
+    grados = sorted({x for g in grupos(c) for x in g['grados']})
+    archivo = planilla_eventos.descargar(ev, grados, etiqueta_grado, inscritos)
+    nombre = f"planilla {_nombre_archivo(ev.titulo, 50)}{' (vacia)' if request.GET.get('vacia') else ''}.xlsx"
+    return HttpResponse(archivo.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        headers={'Content-Disposition': f'attachment; filename="{nombre}"'})
+
+
+@login_required
 def inscripciones(request, eid):
     """El organizador revisa las inscripciones de los de fuera: aprueba o rechaza, con los cupos a la vista."""
     ev = _evento(request, eid)
@@ -828,6 +865,7 @@ def inscripciones(request, eid):
         return r
     return render(request, 'aula/evento_inscripciones.html', {
         'ev': ev, 'lista': lista, 'filtro': filtro, 'cuenta': cuenta, 'ins': ins,
+        'errores_planilla': request.session.pop(f'evento_planilla_{ev.pk}', None),
         'resumen': sorted(resumen.values(), key=lambda r: r['nombre'].lower()), 'base': _base(request)})
 
 
