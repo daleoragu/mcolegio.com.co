@@ -46,8 +46,9 @@
     }
 
     Gamificacion.registrar('carretera', {
+        joystick: 'h',
         nombre: 'Carretera del saber',
-        instrucciones: 'Maneje con las flechas (o tocando a los lados). Choque el carro de la respuesta correcta y esquive los de las equivocadas. Los carros blancos con bomba dan gasolina. ¡Con 3 aciertos seguidos llega el cóndor!',
+        instrucciones: 'Maneje con las flechas (o arrastrando el dedo a los lados). Choque el carro de la respuesta correcta y esquive los de las equivocadas. Los carros blancos con bomba dan gasolina. ¡Con 3 aciertos seguidos llega el cóndor!',
         controles: 'cruceta',
         maxOpciones: 6,
         fondo: '#2b8a3e',

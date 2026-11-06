@@ -191,9 +191,9 @@
   const def = Gamificacion;
   const mandos = document.getElementById('jg-mandos');
   const tipo = '{{ tipo|escapejs }}';
-  if (['laberinto', 'tanques', 'puente', 'carrera', 'bandera', 'carretera', 'tesoro'].includes(tipo) && (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window)) {
-    mandos.classList.add('visible'); if (m.ajustar) m.ajustar();
-    if (tipo !== 'tanques') document.getElementById('jg-fuego').style.visibility = 'hidden';
+  // Los que se mueven usan la palanca que aparece donde se pone el dedo; aquí solo queda el botón de fuego.
+  if (tipo === 'tanques' && (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window)) {
+    mandos.classList.add('visible'); mandos.querySelector('.jg-cruz').style.visibility = 'hidden'; if (m.ajustar) m.ajustar();
   }
   mandos.querySelectorAll('[data-tecla]').forEach(b => {
     const t = b.dataset.tecla;

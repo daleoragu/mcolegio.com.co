@@ -105,12 +105,9 @@
             $('#ol-reto-detalle').textContent = `Responda bien ${Math.min(2, preguntas.length)} de ${preguntas.length}.`;
             $('#ol-instrucciones').textContent = def.instrucciones || '';
             const cv = document.createElement('canvas'); cv.className = 'ol-motor'; zona.appendChild(cv);
-            // En el celular, flechas para los juegos que se mueven con ellas
-            const conFlechas = ['laberinto', 'carrera', 'bandera', 'puente', 'carretera', 'tesoro'].includes(tipo) && (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window);
             motor = Gamificacion.iniciar({lienzo: cv, tipo, preguntas, segundos: 20, minutos: 2, jugadores: 1, ritmo: (D.ritmo || {})[juego] || 1, tema: propio ? propio.titulo : '',
-                reservaAbajo: () => conFlechas && getComputedStyle(zona).flexDirection !== 'row' ? 112 : 0,
                 alTerminar: r => { if (actual !== api) return; const meta = Math.min(2, preguntas.length); if (r.aciertos >= meta) setTimeout(superado, 600); else { aviso(`${r.aciertos} de ${preguntas.length}: va otro reto.`); setTimeout(siguienteReto, 1500); } }});
-            if (conFlechas) Logica.cruceta(zona, d => { if (motor.estado === 'inicio') motor.pulsar('aceptar'); motor.pulsar(d); setTimeout(() => motor.soltar(d), 160); });
+            // En el celular los que se mueven usan la palanca que aparece donde se pone el dedo (motor.js)
             ['#ol-girar', '#ol-voltear', '#ol-deshacer'].forEach(s => { $(s).hidden = true; });
             return;
         }

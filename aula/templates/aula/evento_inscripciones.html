@@ -1,0 +1,84 @@
+{% extends base %}
+{% block page_title %}
+<h4 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>{{ ev.titulo }}</h4>
+<p class="text-muted small mb-0">Inscripciones de los participantes de fuera · solo para los organizadores.</p>
+{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au" style="max-width:1180px;margin:0 auto">
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="{% url 'aula:evento_configurar' ev.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Configuración</a>
+    <a href="{% url 'aula:evento_resultados' ev.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-ranking-star me-1"></i>Resultados</a>
+    <a href="?estado={{ filtro }}&csv=1" class="btn btn-sm btn-outline-success ms-auto"><i class="fas fa-file-csv me-1"></i>Descargar (CSV)</a>
+  </div>
+  <div class="au-tarjeta small">
+    {% if ins.aprobacion %}<b>Las inscripciones las aprueba el organizador.</b>{% else %}<b>Las inscripciones se aprueban solas</b> (actívelo en la configuración para revisarlas una por una).{% endif %}
+    Cupo por institución: <b>{% if ins.cupo_colegio %}{{ ins.cupo_colegio }}{% else %}sin límite{% endif %}</b> ·
+    por institución en cada nivel: <b>{% if ins.cupo_nivel %}{{ ins.cupo_nivel }}{% else %}sin límite{% endif %}</b>.
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+    {% for e, n in cuenta.items %}
+    <a href="?estado={{ e }}" class="btn btn-sm {% if filtro == e %}btn-primary{% else %}btn-outline-primary{% endif %}">{% if e == 'pendiente' %}Pendientes{% elif e == 'aprobada' %}Aprobadas{% else %}Rechazadas{% endif %} <span class="badge bg-light text-dark">{{ n }}</span></a>
+    {% endfor %}
+    <a href="?estado=todas" class="btn btn-sm {% if filtro == 'todas' %}btn-primary{% else %}btn-outline-primary{% endif %}">Todas</a>
+    {% if cuenta.pendiente %}
+    <form method="post" class="ms-auto" onsubmit="return confirm('¿Aprobar todas las pendientes que caben en los cupos?')">{% csrf_token %}<input type="hidden" name="accion" value="aprobar_todas">
+      <button class="btn btn-sm btn-success"><i class="fas fa-check-double me-1"></i>Aprobar todas las que caben</button></form>
+    {% endif %}
+  </div>
+
+  <div class="au-tarjeta p-0" style="overflow-x:auto">
+    <table class="table table-sm align-middle mb-0 small">
+      <thead class="table-light"><tr><th>Participante</th><th>Institución</th><th>Grado · nivel</th><th>Contacto</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
+      <tbody>
+      {% for p in lista %}
+        <tr>
+          <td><b>{{ p.nombre }}</b>{% if p.datos.documento %}<div class="text-muted">Doc. {{ p.datos.documento }}</div>{% endif %}</td>
+          <td>{{ p.institucion }}{% if p.datos.ciudad %}<div class="text-muted">{{ p.datos.ciudad }}</div>{% endif %}</td>
+          <td>{{ p.grado_txt }}<div class="text-muted">{{ p.grupo_nombre }}</div></td>
+          <td>{{ p.datos.contacto }}{% if p.datos.acompanante %}<div class="text-muted">Docente: {{ p.datos.acompanante }}</div>{% endif %}</td>
+          <td>
+            {% if p.estado == 'aprobada' %}<span class="badge bg-success">Aprobada</span>
+            {% elif p.estado == 'pendiente' %}<span class="badge bg-warning text-dark">Pendiente</span>{% if p.sin_cupo %}<div class="text-danger" style="max-width:220px">{{ p.sin_cupo }}</div>{% endif %}
+            {% else %}<span class="badge bg-danger">Rechazada</span>{% if p.datos.motivo %}<div class="text-muted">{{ p.datos.motivo }}</div>{% endif %}{% endif %}
+          </td>
+          <td class="text-end">
+            <div class="d-flex flex-wrap gap-1 justify-content-end">
+            {% if p.estado != 'aprobada' %}
+              <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="aprobar"><input type="hidden" name="pid" value="{{ p.pk }}">
+                {% if p.sin_cupo %}<input type="hidden" name="forzar" value="1"><button class="btn btn-sm btn-outline-success" onclick="return confirm('La institución ya llenó el cupo. ¿Aprobar de todos modos?')">Aprobar sobre el cupo</button>
+                {% else %}<button class="btn btn-sm btn-success">Aprobar</button>{% endif %}</form>
+            {% endif %}
+            {% if p.estado != 'rechazada' %}
+              <form method="post" class="d-flex gap-1">{% csrf_token %}<input type="hidden" name="accion" value="rechazar"><input type="hidden" name="pid" value="{{ p.pk }}">
+                <input name="motivo" class="form-control form-control-sm" style="width:140px" placeholder="Motivo (opcional)"><button class="btn btn-sm btn-outline-danger">Rechazar</button></form>
+            {% endif %}
+              <form method="post" onsubmit="return confirm('¿Eliminar esta inscripción?')">{% csrf_token %}<input type="hidden" name="accion" value="eliminar"><input type="hidden" name="pid" value="{{ p.pk }}">
+                <button class="btn btn-sm btn-link text-danger p-0 px-1" title="Eliminar"><i class="fas fa-trash"></i></button></form>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-3">No hay inscripciones {% if filtro == 'pendiente' %}pendientes{% elif filtro == 'aprobada' %}aprobadas{% elif filtro == 'rechazada' %}rechazadas{% endif %}.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if resumen %}
+  <div class="au-tarjeta">
+    <h6><i class="fas fa-school me-1"></i>Cupos por institución</h6>
+    <table class="table table-sm small mb-0">
+      <thead><tr><th>Institución</th><th>Aprobadas</th><th>Pendientes</th><th>Rechazadas</th><th>Aprobadas por nivel</th></tr></thead>
+      <tbody>{% for r in resumen %}
+        <tr><td>{{ r.nombre }}</td>
+          <td><b {% if ins.cupo_colegio and r.aprobada >= ins.cupo_colegio %}class="text-danger"{% endif %}>{{ r.aprobada }}</b>{% if ins.cupo_colegio %} / {{ ins.cupo_colegio }}{% endif %}</td>
+          <td>{{ r.pendiente }}</td><td>{{ r.rechazada }}</td>
+          <td>{% for n, k in r.niveles.items %}<span class="badge {% if ins.cupo_nivel and k >= ins.cupo_nivel %}bg-danger{% else %}bg-secondary{% endif %} me-1">{{ n }}: {{ k }}{% if ins.cupo_nivel %}/{{ ins.cupo_nivel }}{% endif %}</span>{% endfor %}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

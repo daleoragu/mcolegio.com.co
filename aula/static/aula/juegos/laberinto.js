@@ -67,8 +67,9 @@
     }
 
     Gamificacion.registrar('laberinto', {
+        joystick: '4',
         nombre: 'Laberinto comelón',
-        instrucciones: 'Mueva la gota con las flechas y cómase la galleta de la respuesta correcta. ¡Cuidado con los virus!',
+        instrucciones: 'Mueva la gota con las flechas (en el celular, arrastrando el dedo en cualquier parte) y cómase la galleta de la respuesta correcta. ¡Cuidado con los virus!',
         controles: 'cruceta',
         maxOpciones: 8,
         // Barra lateral: la galleta de la opción, con su color y su letra

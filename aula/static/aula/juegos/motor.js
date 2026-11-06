@@ -86,7 +86,11 @@
         function ajustar() {
             const padre = lienzo.parentElement, cs = padre ? getComputedStyle(padre) : null, cl = getComputedStyle(lienzo);
             const bordes = (parseFloat(cl.borderLeftWidth) || 0) + (parseFloat(cl.borderRightWidth) || 0);
-            const anchoPadre = padre ? padre.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) - bordes : W;
+            let anchoPadre = padre ? padre.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) - bordes : W;
+            // en fila (celular acostado) el enunciado va al lado del juego y le quita ancho
+            const enFila = cs && cs.display.includes('flex') && cs.flexDirection === 'row';
+            if (enunciado) enunciado.style.maxWidth = enFila ? '190px' : lienzo.style.width || '';
+            if (enFila && enunciado && enunciado.style.display !== 'none') anchoPadre -= enunciado.offsetWidth + (parseFloat(cs.columnGap) || 0);
             const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
             const completa = !!(document.fullscreenElement || lienzo.closest('.completa'));
             const reserva = (op.reservaAbajo ? op.reservaAbajo() : 0) + bordes;
@@ -96,6 +100,24 @@
             lienzo.style.width = ancho + 'px'; lienzo.style.height = (ancho * H / W) + 'px';
             lienzo.width = Math.round(ancho * ratio); lienzo.height = Math.round(ancho * H / W * ratio);
             m.escala = lienzo.width / W;
+        }
+        // Enunciado completo encima del juego: en el celular la letra del lienzo queda muy pequeña. La página del
+        // juego ya lo muestra en su leyenda (.jg-leyenda); en las demás (olimpiada) lo pone el motor.
+        let enunciado = null, textoEnunciado = null;
+        if (op.enunciado !== false && !document.querySelector('.jg-leyenda') && lienzo.parentElement) {
+            enunciado = document.createElement('div');
+            enunciado.className = 'motor-enunciado';
+            enunciado.style.cssText = 'display:none;margin:0 auto 6px;padding:6px 10px;border-radius:8px;background:#05070f;color:#fff;font:600 15px/1.3 system-ui,sans-serif;text-align:left;overflow-wrap:anywhere';
+            lienzo.parentElement.insertBefore(enunciado, lienzo);
+        }
+        function verEnunciado() {
+            if (!enunciado) return;
+            const p = m.pregunta, t = m.estado === 'jugando' ? ((def.textoArriba ? def.textoArriba(m) : (p && p.texto)) || '') : '';
+            const mostrar = !!t && (m.enunciadoCortado || lienzo.clientWidth < 640);
+            const nuevo = mostrar ? t : '';
+            if (nuevo === textoEnunciado) return;
+            textoEnunciado = nuevo; enunciado.textContent = nuevo; enunciado.style.display = nuevo ? '' : 'none';
+            ajustar();
         }
         const reajustar = () => { ajustar(); setTimeout(ajustar, 120); };
         ajustar(); requestAnimationFrame(ajustar);
@@ -210,7 +232,7 @@
         document.addEventListener('keyup', alSubir);
         // Apagar el juego (las olimpiadas cambian de reto sin recargar la página)
         m.destruir = () => {
-            vivo = false; document.removeEventListener('keydown', alBajar); document.removeEventListener('keyup', alSubir);
+            vivo = false; quitarPalanca(); if (enunciado) enunciado.remove(); document.removeEventListener('keydown', alBajar); document.removeEventListener('keyup', alSubir);
             window.removeEventListener('resize', reajustar); window.removeEventListener('orientationchange', reajustar);
             document.removeEventListener('fullscreenchange', reajustar); document.removeEventListener('webkitfullscreenchange', reajustar);
             if (window.visualViewport) window.visualViewport.removeEventListener('resize', reajustar);
@@ -219,20 +241,87 @@
             const r = lienzo.getBoundingClientRect();
             return [(ev.clientX - r.left) * W / r.width, (ev.clientY - r.top) * H / r.height];
         }
+        // Con el dedo: en los juegos que se mueven con flechas (def.joystick: '8' libre, '4' sin diagonales,
+        // 'h' solo a los lados) un toque en cualquier parte del juego pone ahí una palanca: arrastrar mueve
+        // y soltar se detiene. Un toque corto, sin arrastrar, sigue siendo un toque normal (alTocar).
+        const conPalanca = !!def.joystick;
+        const zonaDedo = conPalanca ? (op.zonaTactil || lienzo.closest('.jg-zona, #ol-zona, #ol') || lienzo.parentElement || lienzo) : lienzo;
+        let palanca = null, perilla = null;
+        function verPalanca(x0, y0, x, y) {
+            if (!perilla) {
+                perilla = document.createElement('div');
+                perilla.innerHTML = '<div></div>';
+                perilla.style.cssText = 'position:fixed;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;border:3px solid rgba(255,255,255,.55);background:rgba(0,0,0,.18);pointer-events:none;z-index:2147483000';
+                perilla.firstChild.style.cssText = 'position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 2px 8px rgba(0,0,0,.4)';
+                (document.fullscreenElement || document.webkitFullscreenElement || document.body).appendChild(perilla);
+            }
+            perilla.style.left = x0 + 'px'; perilla.style.top = y0 + 'px';
+            perilla.firstChild.style.transform = `translate(${x - x0}px,${y - y0}px)`;
+        }
+        function quitarPalanca() { if (perilla) { perilla.remove(); perilla = null; } }
+        function direcciones(dx, dy) {
+            const d = Math.hypot(dx, dy), modo = def.joystick, r = new Set();
+            if (d < 14) return r;
+            if (modo === 'h') { if (Math.abs(dx) > 10) r.add(dx < 0 ? 'izquierda' : 'derecha'); return r; }
+            if (modo === '4') { if (Math.abs(dx) > Math.abs(dy)) r.add(dx < 0 ? 'izquierda' : 'derecha'); else r.add(dy < 0 ? 'arriba' : 'abajo'); return r; }
+            if (Math.abs(dx) > d * .38) r.add(dx < 0 ? 'izquierda' : 'derecha');
+            if (Math.abs(dy) > d * .38) r.add(dy < 0 ? 'arriba' : 'abajo');
+            return r;
+        }
+        function moverPalanca(ev) {
+            const p = palanca, R = 50;
+            let dx = ev.clientX - p.x0, dy = ev.clientY - p.y0;
+            const d = Math.hypot(dx, dy);
+            if (d > 10) p.arrastro = true;
+            if (d > R) { dx *= R / d; dy *= R / d; }
+            verPalanca(p.x0, p.y0, p.x0 + dx, p.y0 + dy);
+            const nuevas = direcciones(dx, dy);
+            p.dirs.forEach(t => { if (!nuevas.has(t)) m.soltar(t); });
+            nuevas.forEach(t => { if (!p.dirs.has(t)) m.pulsar(t); });
+            p.dirs = nuevas;
+        }
+        function soltarPalanca() { if (!palanca) return; palanca.dirs.forEach(t => m.soltar(t)); palanca = null; quitarPalanca(); }
+        if (conPalanca && zonaDedo !== lienzo) {
+            zonaDedo.style.touchAction = 'none';
+            zonaDedo.addEventListener('pointerdown', ev => {
+                if (ev.pointerType === 'mouse' || ev.target === lienzo || ev.target.closest('button, a, input, select, textarea, label')) return;
+                ev.preventDefault();
+                if (m.estado === 'inicio') return empezar();
+                if (palanca) return;
+                palanca = {id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, dirs: new Set(), arrastro: true};
+                try { zonaDedo.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
+                verPalanca(ev.clientX, ev.clientY, ev.clientX, ev.clientY);
+            });
+            zonaDedo.addEventListener('pointermove', ev => { if (palanca && palanca.id === ev.pointerId && ev.target !== lienzo) moverPalanca(ev); });
+            ['pointerup', 'pointercancel'].forEach(e => zonaDedo.addEventListener(e, ev => { if (palanca && palanca.id === ev.pointerId) soltarPalanca(); }));
+        }
         lienzo.addEventListener('pointerdown', ev => {
             ev.preventDefault();
             if (m.estado === 'inicio') return empezar();
             const [x, y] = punto(ev);
             try { lienzo.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
             m.puntero = {x, y};
+            if (conPalanca && ev.pointerType !== 'mouse') {
+                if (palanca) return;
+                palanca = {id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, dirs: new Set(), arrastro: false, x, y};
+                verPalanca(ev.clientX, ev.clientY, ev.clientX, ev.clientY);
+                return;
+            }
             if (m.estado === 'jugando' && def.alTocar) def.alTocar(m, x, y);
         });
         lienzo.addEventListener('pointermove', ev => {
+            if (palanca && palanca.id === ev.pointerId) { moverPalanca(ev); return; }
             const [x, y] = punto(ev); m.puntero = {x, y};
             if (m.estado === 'jugando' && def.alArrastrar && ev.buttons) def.alArrastrar(m, x, y);
         });
         // Soltar (el arco de la oveja se jala y se suelta)
         ['pointerup', 'pointercancel'].forEach(e => lienzo.addEventListener(e, ev => {
+            if (palanca && palanca.id === ev.pointerId) {
+                const toque = !palanca.arrastro && e === 'pointerup' ? palanca : null;
+                soltarPalanca();
+                if (toque && m.estado === 'jugando' && def.alTocar) def.alTocar(m, toque.x, toque.y);
+                return;
+            }
             const [x, y] = punto(ev);
             if (m.estado === 'jugando' && def.alSoltar) def.alSoltar(m, x, y);
         }));
@@ -253,7 +342,7 @@
                     def.actualizarEnPausa(m, dt * m.ritmo);
                 }
             }
-            dibujar();
+            dibujar(); verEnunciado();
             if (vivo) requestAnimationFrame(cuadro);
         }
 
@@ -284,10 +373,18 @@
             const p = m.pregunta;
             const arriba = def.textoArriba ? def.textoArriba(m) : (p && p.texto);
             if (arriba) {
-                ctx.font = `9px ${FUENTE}`;
-                const lineas = partir(ctx, arriba, W - 130).slice(0, 3);
-                lineas.forEach((l, i) => m.texto(l, 8, 8 + i * 13, {tam: 9}));
-            }
+                // La letra se achica hasta que quepa todo el enunciado (de 9 a 6 puntos); si aun así no cabe,
+                // el enunciado completo también se ve encima del juego (ver «enunciado» abajo).
+                let tam = 9, lineas = [];
+                for (tam = 9; tam >= 6; tam--) {
+                    ctx.font = `${tam}px ${FUENTE}`; lineas = partir(ctx, arriba, W - 130);
+                    if (lineas.length * (tam + 4) <= 44) break;
+                }
+                tam = Math.max(6, tam); const caben = Math.floor(44 / (tam + 4));
+                if (lineas.length > caben) { lineas = lineas.slice(0, caben); lineas[caben - 1] += '…'; }
+                lineas.forEach((l, i) => m.texto(l, 8, 6 + i * (tam + 4), {tam}));
+                m.enunciadoCortado = lineas.length && lineas[lineas.length - 1].endsWith('…');
+            } else { m.enunciadoCortado = false; }
             m.texto(`NIV ${m.nivel} · ${Math.min(m.indice + 1, m.total)}/${m.total}`, W - 8, 7, {tam: 8, alinear: 'right', color: '#aaa'});
             m.texto(String(m.puntaje).padStart(5, '0'), W - 8, 20, {tam: 9, alinear: 'right', color: '#ffd43b'});
             if (!def.sinVidas) m.texto('♥'.repeat(Math.max(0, m.vidas)), W - 8, 34, {tam: 9, alinear: 'right', color: '#ff5d5d'});

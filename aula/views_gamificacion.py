@@ -44,21 +44,22 @@ def _persona(c):
     return c.estudiante or c.integrante
 
 
-def validar_preguntas(texto):
-    """(preguntas, error). Cada pregunta: de 2 a 8 opciones (A–H, como en PuntoExacto) y una correcta marcada.
-
-    Los juegos que solo tienen sitio para 4 muestran la correcta y 3 de las otras al azar."""
+def validar_preguntas(texto, maximo=8, juego=''):
+    """(preguntas, error). Cada pregunta: de 2 a `maximo` opciones (hasta 8, A–H, como en PuntoExacto) y una correcta
+    marcada. Cada juego dice cuántas caben (JuegoAula.MAX_OPCIONES): el boxeo, por ejemplo, solo 2 (los dos guantes)."""
     preguntas = leer_preguntas(texto, MAX_PREGUNTAS)
     if not preguntas:
         return [], 'Pegue al menos una pregunta con sus opciones.'
     malas = []
     for n, p in enumerate(preguntas, 1):
         ops = p.get('opciones', [])
-        if not (2 <= len(ops) <= 8) or sum(1 for o in ops if o.get('correcta')) != 1:
+        if not (2 <= len(ops) <= maximo) or sum(1 for o in ops if o.get('correcta')) != 1:
             malas.append(n)
     if malas:
+        letras = 'ABCDEFGH'[maximo - 1]
         return preguntas, ('Revise las preguntas ' + ', '.join(map(str, malas[:15])) + ('…' if len(malas) > 15 else '') +
-                           ': en los juegos cada pregunta lleva de 2 a 8 opciones (A a H) y una sola correcta marcada con *.')
+                           f': {"en «" + juego + "» " if juego else "en los juegos "}cada pregunta lleva de 2 a {maximo} opciones '
+                           f'(A a {letras}) y una sola correcta marcada con *.')
     return preguntas, ''
 
 
@@ -99,7 +100,8 @@ def gamificacion(request, pk):
         for j in juegos:
             j.n_resultados = j.resultados.count()
     datos = {'juegos': juegos, 'tipos': [(k, n, DESCRIPCIONES[k]) for k, n in JuegoAula.TIPOS], 'bancos': bancos_juegos.BANCOS,
-             'figuras': [(k, n) for k, (n, _) in animaplano.FIGURAS.items()], 'operaciones': animaplano.OPERACIONES}
+             'figuras': [(k, n) for k, (n, _) in animaplano.FIGURAS.items()], 'operaciones': animaplano.OPERACIONES,
+             'max_opciones': {k: JuegoAula.MAX_OPCIONES.get(k, 4) for k, _ in JuegoAula.TIPOS}}
     if c.es_docente:
         datos.update(_datos_planilla(aula))
         datos['opciones_para'] = logica.opciones_para(aula)
@@ -127,7 +129,7 @@ def _leer(request, j, aula):
     if j.tipo == 'animaplano' and not texto:
         # Sin preguntas: la plataforma arma las operaciones de la figura escogida
         texto = animaplano.generar(request.POST.get('figura'), request.POST.get('operaciones'))
-    preguntas, error = validar_preguntas(texto)
+    preguntas, error = validar_preguntas(texto, JuegoAula.MAX_OPCIONES.get(j.tipo, 4), j.get_tipo_display())
     if error:
         return error
     if j.tipo == 'animaplano':

@@ -31,6 +31,22 @@
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard && navigator.clipboard.writeText('{{ enlace }}'); this.textContent='¡Copiado!'">Copiar enlace</button>
       </div>
       <p class="small text-muted mb-1">Comparta el enlace o dicte el código (se escribe en «Entrar a un evento con código»).</p>
+      <form method="post" class="border rounded-3 p-2 mt-2" style="background:#f8f9fa">{% csrf_token %}<input type="hidden" name="accion" value="inscripcion">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+          <b class="small"><i class="fas fa-clipboard-list me-1"></i>Formulario de inscripción</b>
+          <a href="{% url 'aula:evento_inscripciones' ev.pk %}" class="btn btn-sm btn-outline-primary ms-auto">Ver inscripciones{% if n_pendientes %} <span class="badge bg-danger">{{ n_pendientes }} pendiente{{ n_pendientes|pluralize }}</span>{% endif %}</a>
+        </div>
+        <div class="form-check small"><input class="form-check-input" type="checkbox" name="abierta" id="ins-abierta" {% if ins.abierta %}checked{% endif %}>
+          <label class="form-check-label" for="ins-abierta">Recibir inscripciones</label></div>
+        <div class="form-check small"><input class="form-check-input" type="checkbox" name="aprobacion" id="ins-aprob" {% if ins.aprobacion %}checked{% endif %}>
+          <label class="form-check-label" for="ins-aprob"><b>Las inscripciones las aprueba el organizador</b> (piden documento y contacto; se pueden inscribir antes de activar el evento y solo juegan las aprobadas)</label></div>
+        <div class="d-flex flex-wrap gap-3 align-items-center small mt-1">
+          <label>Cupo por institución <input type="number" name="cupo_colegio" min="0" max="9999" value="{{ ins.cupo_colegio }}" class="form-control form-control-sm d-inline-block" style="width:80px"></label>
+          <label>Cupo por institución en cada nivel <input type="number" name="cupo_nivel" min="0" max="9999" value="{{ ins.cupo_nivel }}" class="form-control form-control-sm d-inline-block" style="width:80px"></label>
+          <span class="text-muted">(0 = sin límite; los niveles son los grupos del evento)</span>
+          <button class="btn btn-sm au-oro ms-auto">Guardar</button>
+        </div>
+      </form>
     {% else %}
       <p class="mb-1">Solo para <b>estudiantes de este colegio</b>, que entran con su cuenta (según los grupos y la lista de participantes de abajo).</p>
     {% endif %}

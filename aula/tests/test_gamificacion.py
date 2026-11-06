@@ -188,7 +188,7 @@ class Gamificacion(ColegioDePrueba):
 
     def test_ocho_opciones_y_juegos_nuevos(self):
         texto = '1. ¿Capital del Tolima?\nA) Neiva\nB) Cali\nC) Tunja\nD) Pasto\nE) Armenia\nF) Pereira\n*G) Ibagué\nH) Bogotá\n'
-        for tipo in ('dibujo', 'tesoro', 'carretera', 'unir', 'boxeo'):
+        for tipo in ('dibujo', 'tesoro', 'unir'):
             j = self.crear(tipo=tipo, preguntas=texto)
             self.assertEqual((j.tipo, len(j.preguntas[0]['opciones'])), (tipo, 8))
             r = self.cliente(self.ana.user).get(f'{self.base}/{j.pk}/')
@@ -197,6 +197,20 @@ class Gamificacion(ColegioDePrueba):
         # El juego manda el número original de la opción (G = 6): el servidor la califica bien
         r = self.jugar(self.ana, [{'i': 0, 'opcion': 6}], j)
         self.assertEqual((r['aciertos'], r['total']), (1, 1))
+        # Cada juego admite las opciones que le caben: la carretera 6 y el boxeo 2 (los dos guantes)
+        antes = JuegoAula.objects.count()
+        for tipo in ('carretera', 'boxeo'):
+            r = self.profe.post(f'{self.base}/', {'tipo': tipo, 'titulo': 'X', 'preguntas': texto, 'segundos': '15'}, follow=True)
+            self.assertContains(r, 'opciones')
+        self.assertEqual(JuegoAula.objects.count(), antes)
+        j = self.crear(tipo='boxeo', preguntas='1. ¿Capital del Tolima?\nA) Neiva\n*B) Ibagué\n')
+        self.assertEqual((j.tipo, len(j.preguntas[0]['opciones'])), ('boxeo', 2))
+        r = self.jugar(self.ana, [{'i': 0, 'opcion': 1}], j)
+        self.assertEqual((r['aciertos'], r['total']), (1, 1))
+        # La página trae el editor con lo que cabe en cada juego
+        r = self.profe.get(f'{self.base}/')
+        self.assertContains(r, 'aula/juegos/editor.js')
+        self.assertContains(r, '"boxeo": 2')
         # El boxeo termina por KO: la nota es sobre lo respondido, y se puede jugar entre dos
         self.assertIn('boxeo', JuegoAula.TERMINAN_SOLOS)
         self.assertContains(self.cliente(self.ana.user).get(f'{self.base}/{j.pk}/?jugadores=2'), 'jugadores: 2')

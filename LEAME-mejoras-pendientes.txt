@@ -1,0 +1,25 @@
+MEJORAS PENDIENTES (ideas acordadas para hacer más adelante)
+============================================================
+
+1. Salón Digital (docentes sin colegio): "Mis colegas", amigos entre profesores
+   ---------------------------------------------------------------------------
+   Pedido: que los docentes que usan la plataforma sin colegio puedan agregarse como amigos,
+   al estilo de una red social, pero SOLO entre profesores (nada de estudiantes), para hacer
+   trabajos cooperativos y otras cosas.
+
+   Idea de cómo hacerlo:
+   - Buscar colegas por nombre, correo o el enlace de su perfil público (salon_digital.Cuenta.slug).
+   - Solicitud de amistad: enviar, aceptar, rechazar, bloquear. Solo se ven los datos del perfil
+     público (nombre, área, institución, foto), nunca los estudiantes ni las notas.
+   - Lo que se puede hacer entre amigos:
+       · Compartir materiales, juegos de Gamificación, cuestionarios y rúbricas (copiar a mi salón).
+       · Coorganizar eventos (olimpiadas): agregar a un colega como organizador del evento.
+       · Proyectos cooperativos: un espacio con muro, archivos y tareas entre varios docentes.
+       · Mensajes directos entre docentes (reutilizar el módulo de chat).
+   - Notificaciones: nueva solicitud, solicitud aceptada, material compartido.
+   - Privacidad: el docente decide si su perfil aparece en las búsquedas; se puede quitar
+     a un amigo en cualquier momento y bloquear para que no vuelva a enviar solicitudes.
+   - Modelos sugeridos (app salon_digital): Amistad(de, para, estado, creada),
+     ProyectoColegas(titulo, miembros, creado), y una relación para compartir objetos.
+
+   Estado: anotado; no se ha empezado.

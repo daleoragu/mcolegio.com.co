@@ -188,7 +188,7 @@
 
     Gamificacion.registrar('ovejas', {
         nombre: 'Ovejas y lobos',
-        instrucciones: 'Mantenga presionado, arrastre hacia atrás y suelte para disparar con el arco (como una catapulta). Reviente los globos de la canasta con la respuesta correcta antes de que aterricen. ↑ ↓ mueven la oveja; A–F disparan directo.',
+        instrucciones: 'Mantenga presionado, arrastre hacia atrás y suelte para disparar con el arco (como una catapulta). Reviente los globos de la canasta con la respuesta correcta antes de que aterricen. ↑ ↓ (o arrastrar la torre con el dedo) mueven la oveja; A–F disparan directo.',
         maxOpciones: 6,
         fondo: '#a5d8ff',
         icono(ctx, k, tam) { ctx.save(); ctx.scale(tam / 56, tam / 56); racimo(ctx, k, 28, 26, 1, 0); ctx.restore(); },
@@ -200,12 +200,18 @@
                                                        lobos: 1 + Math.floor(Math.random() * 3), gafas: Math.floor(Math.random() * 4), cordero: Math.random() < .35})),
                    flechas: [], jalon: null, salvados: [], estallidos: []};
         },
-        alTocar(m, x, y) { m.s.jalon = {x0: x, y0: y, dx: 0, dy: 0, largo: 0}; },
+        alTocar(m, x, y) {
+            // Tocar la torre (a la derecha) y arrastrar sube o baja la oveja; en otra parte, se jala el arco
+            if (x > TORRE - 40) { m.s.subir = {y0: y, oy: m.ov.y}; return; }
+            m.s.jalon = {x0: x, y0: y, dx: 0, dy: 0, largo: 0};
+        },
         alArrastrar(m, x, y) {
+            if (m.s.subir) { m.ov.y = Math.max(76, Math.min(206, m.s.subir.oy + y - m.s.subir.y0)); return; }
             const j = m.s.jalon; if (!j) return;
             j.dx = j.x0 - x; j.dy = j.y0 - y; j.largo = Math.hypot(j.dx, j.dy);
         },
         alSoltar(m, x, y) {
+            if (m.s.subir) { m.s.subir = null; return; }
             const j = m.s.jalon; if (!j) return;
             m.s.jalon = null;
             if (j.largo > 12) {

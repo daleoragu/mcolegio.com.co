@@ -657,6 +657,9 @@ class JuegoAula(models.Model):
         ('animaplano', 'Animaplano'),
         ('ovejas', 'Ovejas y lobos'),
     ]
+    # Cuántas opciones caben en cada juego (las demás, 4). El editor no deja poner más.
+    MAX_OPCIONES = {'boxeo': 2, 'carretera': 6, 'ovejas': 6, 'laberinto': 8, 'tiro': 8, 'impostor': 8, 'dibujo': 8,
+                    'tesoro': 8, 'unir': 8, 'animaplano': 8}
     # Se pueden jugar entre dos en el mismo equipo (sin nota: es una sola cuenta).
     DOS_JUGADORES = ('penaltis', 'tenis', 'boxeo')
     # Terminan solos (se define la tanda o se acaba el partido): la nota es sobre lo que respondió.
@@ -810,6 +813,11 @@ class ParticipacionEvento(models.Model):
     registro = models.JSONField(default=list, blank=True)     # [{tipo, juego, nivel, t, ...}]
     pendiente = models.JSONField(default=dict, blank=True)    # la pregunta que se está respondiendo
     vistas = models.JSONField(default=list, blank=True)       # preguntas ya hechas (para no repetir)
+    # Inscripción de los que vienen de fuera del colegio (eventos abiertos): si el organizador pide aprobarlas,
+    # quedan pendientes hasta que las apruebe (con los cupos por institución y por nivel que haya puesto).
+    ESTADOS = [('aprobada', 'Aprobada'), ('pendiente', 'Pendiente de aprobación'), ('rechazada', 'Rechazada')]
+    estado = models.CharField(max_length=10, choices=ESTADOS, default='aprobada', db_index=True)
+    datos = models.JSONField(default=dict, blank=True)        # documento, ciudad, contacto, acompañante, clave, motivo
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['evento', 'estudiante'], condition=models.Q(estudiante__isnull=False),

@@ -65,6 +65,7 @@
     }
 
     Gamificacion.registrar('tanques', {
+        joystick: '4',
         nombre: 'Batalla de tanques',
         instrucciones: 'Flechas para moverse, espacio (o FUEGO) para disparar. Destruya el tanque con la respuesta correcta y no deje que le disparen a la insignia de su base.',
         controles: 'cruceta-fuego',

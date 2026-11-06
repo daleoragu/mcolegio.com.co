@@ -50,8 +50,9 @@
     }
 
     Gamificacion.registrar('tesoro', {
+        joystick: '8',
         nombre: 'Búsqueda del tesoro',
-        instrucciones: 'Lleve al explorador a la marca de la respuesta correcta (tóquela, presione su letra o camine con las flechas) y cave. Cada acierto es un trozo del mapa del cofre.',
+        instrucciones: 'Lleve al explorador a la marca de la respuesta correcta (tóquela, presione su letra o camine con las flechas o arrastrando el dedo) y cave. Cada acierto es un trozo del mapa del cofre.',
         conReloj: true,
         maxOpciones: 8,
         controles: 'cruceta',
@@ -74,6 +75,7 @@
             if (mk) this.ir(m, mk);
         },
         alTecla(m, t, crudo) {
+            if (['arriba', 'abajo', 'izquierda', 'derecha'].includes(t)) { m.ex.meta = null; return; }
             const k = 'ABCDEFGH'.indexOf(String(crudo || '').toUpperCase());
             if (k >= 0 && k < m.s.marcas.length) this.ir(m, m.s.marcas[k]);   // las flechas caminan; las letras van a su marca
         },

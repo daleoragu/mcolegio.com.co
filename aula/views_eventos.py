@@ -90,7 +90,10 @@ CONFIG = {'juegos': [j[0] for j in JUEGOS] + ['a_' + k for k in ('salto', 'puent
                                                                    'impostor', 'dibujo', 'tesoro', 'carretera', 'unir', 'ovejas')], 'bloques': 2, 'minutos': 15, 'descanso': 3, 'cada': 5, 'por_parada': 1, 'bono': 30,
           'por_juego': {},      # {id: {'grados': [6, 7…], 'dificultad': 'auto'|'facil'|'media'|'dificil'}}
           'grupos': GRUPOS_BASE,
-          'participantes': {'modo': 'grados', 'cursos': [], 'estudiantes': []}}   # modo: grados | cursos | estudiantes
+          'participantes': {'modo': 'grados', 'cursos': [], 'estudiantes': []},   # modo: grados | cursos | estudiantes
+          # Eventos abiertos: inscripción de los de fuera. aprobacion: el organizador aprueba cada una;
+          # cupo_colegio: máximo por institución; cupo_nivel: máximo por institución en cada nivel (grupo); 0 = sin límite
+          'inscripcion': {'abierta': True, 'aprobacion': False, 'cupo_colegio': 0, 'cupo_nivel': 0}}
 DIFICULTADES = [('auto', 'Según el grupo'), ('facil', 'Fácil'), ('media', 'Media'), ('dificil', 'Difícil')]
 
 
@@ -158,6 +161,7 @@ BANCO = os.path.join(os.path.dirname(__file__), 'bancos', 'olimpiada.json')
 def config_de(evento):
     c = copy.deepcopy(CONFIG)
     c.update({k: v for k, v in (evento.config or {}).items() if k in CONFIG})
+    c['inscripcion'] = dict(CONFIG['inscripcion'], **(c.get('inscripcion') or {}))
     return c
 
 
@@ -245,7 +249,7 @@ def grado_de(p):
 
 
 def ranking(evento, ciclo=None):
-    qs = evento.participaciones.select_related('estudiante__user', 'estudiante__curso')
+    qs = evento.participaciones.filter(estado='aprobada').select_related('estudiante__user', 'estudiante__curso')
     if ciclo:
         qs = qs.filter(ciclo=ciclo)
     lista = sorted(qs, key=lambda p: (-p.puntos, p.tiempo_efectivo, p.pk))
@@ -416,6 +420,18 @@ def configurar(request, eid):
             ev.alcance = 'codigo' if request.POST.get('alcance') == 'codigo' else 'colegio'
             ev.save(update_fields=['alcance'])
             messages.success(request, 'Ahora entra quien tenga el código del evento.' if ev.alcance == 'codigo' else 'Ahora solo participan los estudiantes del colegio.')
+        elif accion == 'inscripcion':
+            c = config_de(ev)
+            def cupo(k):
+                try:
+                    return max(0, min(9999, int(request.POST.get(k) or 0)))
+                except ValueError:
+                    return 0
+            c['inscripcion'] = {'abierta': bool(request.POST.get('abierta')), 'aprobacion': bool(request.POST.get('aprobacion')),
+                                'cupo_colegio': cupo('cupo_colegio'), 'cupo_nivel': cupo('cupo_nivel')}
+            ev.config = dict(ev.config or {}, inscripcion=c['inscripcion'])
+            ev.save(update_fields=['config'])
+            messages.success(request, 'Inscripción guardada.')
         elif accion == 'organizadores' and puede_admin:
             from notas.models import Docente
             ids = request.POST.getlist('organizadores')
@@ -455,7 +471,8 @@ def configurar(request, eid):
         'todos_grados': [(g, etiqueta_grado(g)) for g in todos_los_grados()], 'niveles': NIVELES,
         'grupos': [dict(g, rango=rango_grados(g)) for g in grupos(c)], 'cursos': cursos, 'estudiantes': estudiantes,
         'part': c['participantes'], 'dificultades': DIFICULTADES, 'estilos': ESTILOS, 'categorias': CATEGORIAS, 'tabla': tabla,
-        'preguntas': list(enumerate(ev.preguntas)), 'juegos_salon': juegos_salon, 'es_admin': puede_admin,
+        'preguntas': list(enumerate(ev.preguntas)), 'juegos_salon': juegos_salon, 'es_admin': puede_admin, 'ins': c['inscripcion'],
+        'n_pendientes': ev.participaciones.filter(estado='pendiente').count(),
         'docentes': Docente.objects.filter(colegio=ev.colegio).select_related('user').order_by('user__last_name') if ev.colegio_id else [],
         'enlace': request.build_absolute_uri(reverse('aula:evento_inscribirse', args=[ev.codigo])),
         'organizadores': set(ev.organizadores.values_list('pk', flat=True)), 'base': _base(request)})
@@ -475,6 +492,8 @@ def jugar(request, eid):
         raise Http404
     c = config_de(ev)
     p = participante(request, ev)
+    if p is not None and p.estado != 'aprobada' and not organiza:
+        return estado_inscripcion(request, ev, p)
     if ev.alcance == 'codigo':
         est = None
         grupo = (grupo_por_id(c, p.ciclo) or next((g for g in grupos(c) if p.grado in g['grados']), None)) if p else None
@@ -533,41 +552,182 @@ def entrar_codigo(request):
     return render(request, 'aula/evento_entrar.html', {'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
 
 
+def normalizar(texto):
+    """Para contar los cupos: «Colegio  San José» y «colegio san jose» son la misma institución."""
+    import unicodedata
+    t = unicodedata.normalize('NFKD', texto or '').encode('ascii', 'ignore').decode().lower()
+    return ' '.join(t.replace('.', ' ').split())
+
+
+def cupos(ev, institucion, ciclo, estados=('aprobada', 'pendiente')):
+    """(en la institución, en la institución y ese nivel) contando las inscripciones con esos estados."""
+    clave = normalizar(institucion)
+    misma = [p for p in ev.participaciones.filter(estado__in=estados, estudiante__isnull=True) if normalizar(p.institucion) == clave]
+    return len(misma), sum(1 for p in misma if p.ciclo == ciclo)
+
+
+def sin_cupo(ev, c, institucion, ciclo, estados=('aprobada', 'pendiente')):
+    """El motivo si la institución ya llenó su cupo (total o en ese nivel); '' si todavía cabe."""
+    ins = c['inscripcion']
+    total, nivel = cupos(ev, institucion, ciclo, estados)
+    if ins['cupo_colegio'] and total >= ins['cupo_colegio']:
+        return f'La institución ya tiene sus {ins["cupo_colegio"]} cupo(s) en este evento.'
+    if ins['cupo_nivel'] and nivel >= ins['cupo_nivel']:
+        g = grupo_por_id(c, ciclo)
+        return f'La institución ya tiene sus {ins["cupo_nivel"]} cupo(s) en el nivel {g["nombre"] if g else ciclo}.'
+    return ''
+
+
+def estado_inscripcion(request, ev, p):
+    c = config_de(ev)
+    g = grupo_por_id(c, p.ciclo)
+    return render(request, 'aula/evento_inscripcion_estado.html', {
+        'ev': ev, 'p': p, 'grupo': g['nombre'] if g else p.ciclo, 'grado': etiqueta_grado(p.grado) if p.grado is not None else '',
+        'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
+
+
 def inscribirse(request, codigo):
-    """Evento abierto: el participante escribe su nombre, su institución y su grado (no necesita cuenta)."""
+    """Evento abierto: el participante llena el formulario de inscripción (no necesita cuenta).
+    Si el organizador pide aprobarlas, queda pendiente hasta que la apruebe; los cupos por institución
+    y por nivel se revisan al inscribirse y otra vez al aprobar."""
     ev = get_object_or_404(Evento, codigo=(codigo or '').upper(), alcance='codigo')
     c = config_de(ev)
-    if participante(request, ev):
-        return redirect('aula:evento', eid=ev.pk)
+    ins = c['inscripcion']
+    p = participante(request, ev)
+    if p:
+        return redirect('aula:evento', eid=ev.pk) if p.estado == 'aprobada' else estado_inscripcion(request, ev, p)
     grados = sorted({x for g in grupos(c) for x in g['grados']})
+    # Con aprobación se pueden inscribir antes de que empiece; sin ella, solo con el evento activo
+    recibe = ins['abierta'] and (ev.activo or ins['aprobacion'])
     error = ''
-    if request.method == 'POST':
-        nombre = ' '.join((request.POST.get('nombre') or '').split())[:120]
-        institucion = ' '.join((request.POST.get('institucion') or '').split())[:120]
+    if request.method == 'POST' and request.POST.get('accion') == 'recuperar':
+        doc, clave = ''.join((request.POST.get('documento') or '').split()), (request.POST.get('clave') or '').strip().upper()
+        q = next((x for x in ev.participaciones.filter(estudiante__isnull=True)
+                  if doc and x.datos.get('documento') == doc and x.datos.get('clave') == clave), None)
+        if q:
+            request.session[clave_sesion(ev)] = q.token
+            return redirect('aula:evento_inscribirse', codigo=ev.codigo)
+        error = 'No encontramos una inscripción con ese documento y esa clave.'
+    elif request.method == 'POST':
+        limpio = lambda k, n: ' '.join((request.POST.get(k) or '').split())[:n]
+        nombre, institucion, ciudad = limpio('nombre', 120), limpio('institucion', 120), limpio('ciudad', 80)
+        documento, contacto, acompanante = ''.join((request.POST.get('documento') or '').split())[:20], limpio('contacto', 120), limpio('acompanante', 120)
         try:
             grado = int(request.POST.get('grado'))
         except (TypeError, ValueError):
             grado = None
         g = next((x for x in grupos(c) if grado in x['grados']), None)
-        if not ev.activo:
-            error = 'El evento todavía no está abierto.'
+        if not recibe:
+            error = 'Las inscripciones de este evento no están abiertas.'
         elif len(nombre) < 5 or not institucion or g is None:
             error = 'Escriba su nombre completo, su institución y escoja su grado.'
+        elif ins['aprobacion'] and (len(documento) < 5 or len(contacto) < 7):
+            error = 'Escriba su número de documento y un correo o celular de contacto.'
+        elif documento and any(x.datos.get('documento') == documento for x in ev.participaciones.filter(estudiante__isnull=True).exclude(estado='rechazada')):
+            error = 'Ya hay una inscripción con ese documento. Si ya se inscribió, use «Ya me inscribí».'
         else:
+            error = sin_cupo(ev, c, institucion, g['id'])
+        if not error:
             import secrets
-            p = ParticipacionEvento.objects.create(evento=ev, nombre=nombre, institucion=institucion, grado=grado, ciclo=g['id'],
-                                                   token=secrets.token_urlsafe(24))
+            clave = ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(6))
+            p = ParticipacionEvento.objects.create(
+                evento=ev, nombre=nombre, institucion=institucion, grado=grado, ciclo=g['id'], token=secrets.token_urlsafe(24),
+                estado='pendiente' if ins['aprobacion'] else 'aprobada',
+                datos={'documento': documento, 'ciudad': ciudad, 'contacto': contacto, 'acompanante': acompanante, 'clave': clave})
             request.session[clave_sesion(ev)] = p.token
+            if p.estado == 'pendiente':
+                return redirect('aula:evento_inscribirse', codigo=ev.codigo)
             return redirect('aula:evento', eid=ev.pk)
-    sugerido = {'nombre': '', 'institucion': '', 'grado': None}
+    sugerido = {'nombre': '', 'institucion': '', 'grado': None, 'ciudad': '', 'documento': '', 'contacto': '', 'acompanante': ''}
     est = _estudiante(request)
     if est is not None:
-        sugerido = {'nombre': est.user.get_full_name(), 'institucion': est.colegio.nombre, 'grado': est.curso.grado if est.curso_id else None}
-    if request.method == 'POST':
-        sugerido.update({k: request.POST.get(k, '') for k in ('nombre', 'institucion')})
+        sugerido.update({'nombre': est.user.get_full_name(), 'institucion': est.colegio.nombre, 'grado': est.curso.grado if est.curso_id else None})
+    if request.method == 'POST' and request.POST.get('accion') != 'recuperar':
+        sugerido.update({k: request.POST.get(k, '') for k in ('nombre', 'institucion', 'ciudad', 'documento', 'contacto', 'acompanante')})
+        try:
+            sugerido['grado'] = int(request.POST.get('grado'))
+        except (TypeError, ValueError):
+            pass
     return render(request, 'aula/evento_inscribirse.html', {
         'ev': ev, 'grados': [(x, etiqueta_grado(x)) for x in grados], 'error': error, 'sugerido': sugerido, 'post': request.POST,
+        'ins': ins, 'recibe': recibe, 'niveles': grupos(c),
         'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
+
+
+@login_required
+def inscripciones(request, eid):
+    """El organizador revisa las inscripciones de los de fuera: aprueba o rechaza, con los cupos a la vista."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores revisan las inscripciones.')
+    c = config_de(ev)
+    ins = c['inscripcion']
+    externas = ev.participaciones.filter(estudiante__isnull=True)
+    if request.method == 'POST':
+        accion = request.POST.get('accion')
+        if accion == 'aprobar_todas':
+            n = saltadas = 0
+            for p in externas.filter(estado='pendiente').order_by('empezada', 'pk'):
+                if sin_cupo(ev, c, p.institucion, p.ciclo, ('aprobada',)):
+                    saltadas += 1
+                    continue
+                p.estado, p.empezada = 'aprobada', timezone.now()
+                p.save(update_fields=['estado', 'empezada'])
+                n += 1
+            messages.success(request, f'Se aprobaron {n} inscripción(es).' + (f' {saltadas} quedaron pendientes porque su institución ya llenó el cupo.' if saltadas else ''))
+        else:
+            p = get_object_or_404(externas, pk=request.POST.get('pid'))
+            if accion == 'aprobar':
+                motivo = sin_cupo(ev, c, p.institucion, p.ciclo, ('aprobada',))
+                if motivo and not request.POST.get('forzar'):
+                    messages.warning(request, f'{p.nombre}: {motivo} Puede aprobarla de todos modos con «Aprobar sobre el cupo».')
+                else:
+                    p.estado, p.empezada = 'aprobada', timezone.now()
+                    p.datos.pop('motivo', None)
+                    p.save(update_fields=['estado', 'empezada', 'datos'])
+                    messages.success(request, f'Inscripción de {p.nombre} aprobada.')
+            elif accion == 'rechazar':
+                p.estado = 'rechazada'
+                p.datos['motivo'] = ' '.join((request.POST.get('motivo') or '').split())[:200]
+                p.save(update_fields=['estado', 'datos'])
+                messages.success(request, f'Inscripción de {p.nombre} rechazada.')
+            elif accion == 'pendiente':
+                p.estado = 'pendiente'
+                p.save(update_fields=['estado'])
+            elif accion == 'eliminar':
+                p.delete()
+                messages.success(request, 'Inscripción eliminada.')
+        return redirect(f"{reverse('aula:evento_inscripciones', args=[ev.pk])}?{request.GET.urlencode()}")
+    filtro = request.GET.get('estado', 'pendiente')
+    lista = list(externas.order_by('empezada', 'pk'))
+    nombres = {g['id']: g['nombre'] for g in grupos(c)}
+    # Cupos usados por institución (y por nivel) con las aprobadas
+    resumen = {}
+    for p in lista:
+        r = resumen.setdefault(normalizar(p.institucion), {'nombre': p.institucion, 'aprobada': 0, 'pendiente': 0, 'rechazada': 0, 'niveles': {}})
+        r[p.estado] += 1
+        if p.estado == 'aprobada':
+            r['niveles'][nombres.get(p.ciclo, p.ciclo)] = r['niveles'].get(nombres.get(p.ciclo, p.ciclo), 0) + 1
+    for p in lista:
+        p.grupo_nombre = nombres.get(p.ciclo, p.ciclo)
+        p.grado_txt = etiqueta_grado(p.grado) if p.grado is not None else ''
+        p.sin_cupo = sin_cupo(ev, c, p.institucion, p.ciclo, ('aprobada',)) if p.estado == 'pendiente' else ''
+    cuenta = {e: sum(1 for p in lista if p.estado == e) for e, _ in ParticipacionEvento.ESTADOS}
+    if filtro in cuenta:
+        lista = [p for p in lista if p.estado == filtro]
+    if request.GET.get('csv'):
+        r = HttpResponse(content_type='text/csv; charset=utf-8')
+        r['Content-Disposition'] = f'attachment; filename="inscripciones-evento-{ev.pk}.csv"'
+        r.write('\ufeff')
+        w = csv.writer(r)
+        w.writerow(['Estado', 'Nombre', 'Documento', 'Institución', 'Ciudad', 'Grado', 'Nivel', 'Contacto', 'Docente acompañante', 'Fecha'])
+        for p in lista:
+            w.writerow([p.get_estado_display(), p.nombre, p.datos.get('documento', ''), p.institucion, p.datos.get('ciudad', ''), p.grado_txt,
+                        p.grupo_nombre, p.datos.get('contacto', ''), p.datos.get('acompanante', ''), timezone.localtime(p.empezada).strftime('%Y-%m-%d %H:%M')])
+        return r
+    return render(request, 'aula/evento_inscripciones.html', {
+        'ev': ev, 'lista': lista, 'filtro': filtro, 'cuenta': cuenta, 'ins': ins,
+        'resumen': sorted(resumen.values(), key=lambda r: r['nombre'].lower()), 'base': _base(request)})
 
 
 @login_required
@@ -630,7 +790,8 @@ def _estado(p, c):
 def _participacion(request, ev):
     if not ev.activo:
         return None
-    return participante(request, ev, crear=True)
+    p = participante(request, ev, crear=True)
+    return p if p is not None and p.estado == 'aprobada' else None
 
 
 def _leer_grupo(request, clave, g, pref):
