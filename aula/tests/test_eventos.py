@@ -704,3 +704,50 @@ class Olimpiada(ColegioDePrueba):
         self.admin.post(conf, {'accion': 'veedor_quitar', 'token': tok})
         self.assertEqual(luis.get(f'/aula/eventos/v/{tok}/').status_code, 404)
         self.assertEqual(luis.get('/aula/eventos/v/inventado1234567890/').status_code, 404)
+
+    def test_podio_de_colegios(self):
+        """De cada colegio cuenta solo su mejor estudiante de cada nivel; el colegio suma esos puntos (con el peso del nivel)."""
+        from django.test import Client
+        ev = self.crear('Olimpiada Zona Norte')
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        self.admin.post(conf, {'accion': 'alcance', 'alcance': 'codigo'})
+        self.admin.post(conf, {'accion': 'activar'})
+        ev.refresh_from_db()
+        def inscrito(nombre, colegio, grado, puntos, seg):
+            return ParticipacionEvento.objects.create(evento=ev, nombre=nombre, institucion=colegio, grado=grado,
+                                                      ciclo={6: 'exploradores', 8: 'investigadores', 10: 'expertos'}[grado],
+                                                      puntos=puntos, segundos_ultimo_punto=seg, token=nombre)
+        # San José: el mejor de Exploradores tiene 10 (el de 9 no cuenta) y el de Expertos 6 → 16
+        inscrito('Ana Uno', 'Colegio San José', 6, 10, 600); inscrito('Beto Dos', 'colegio san jose', 6, 9, 500)
+        inscrito('Caro Tres', 'Colegio San José', 10, 6, 700)
+        # Liceo: un representante por nivel en los tres niveles: 7 + 5 + 4 = 16, pero con menos tiempo → gana el desempate
+        inscrito('Dani Cuatro', 'Liceo Nacional', 6, 7, 300); inscrito('Eva Cinco', 'Liceo Nacional', 8, 5, 300)
+        inscrito('Fede Seis', 'Liceo Nacional', 10, 4, 300)
+        inscrito('Gabi Siete', 'Institución Técnica', 8, 20, 900)
+        from aula.views_eventos import podio_colegios
+        p = podio_colegios(ev)
+        self.assertEqual([(x['colegio'], x['puntaje']) for x in p], [('Institución Técnica', 20), ('Liceo Nacional', 16), ('Colegio San José', 16)])
+        sj = p[2]
+        self.assertEqual(dict(sj['por_nivel'])['Exploradores']['nombre'], 'Ana Uno')        # solo el mejor del nivel
+        self.assertIsNone(dict(sj['por_nivel'])['Investigadores'])
+        # Peso por nivel: Expertos vale el doble
+        self.admin.post(conf, {'accion': 'podio_colegios', 'activo': 'on', 'peso_exploradores': '1', 'peso_investigadores': '1', 'peso_expertos': '2'})
+        ev.refresh_from_db()
+        p = podio_colegios(ev)
+        self.assertEqual([(x['colegio'], x['puntaje']) for x in p][:2], [('Colegio San José', 22), ('Liceo Nacional', 20)])
+        # Se ve en resultados, en el CSV, en vivo y para los veedores
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/resultados/')
+        self.assertContains(r, 'Podio de colegios'); self.assertContains(r, 'Liceo Nacional')
+        self.assertIn('Colegio San José', self.admin.get(f'/aula/eventos/{ev.pk}/resultados/?csv=colegios').content.decode())
+        j = self.admin.get(f'/aula/eventos/{ev.pk}/en-vivo/?json=1').json()
+        self.assertEqual(j['colegios'][0]['colegio'], 'Colegio San José')
+        self.admin.post(conf, {'accion': 'veedor_grupo', 'grupo': 'Rectores'})
+        ev.refresh_from_db()
+        r = Client(HTTP_HOST='testserver').get(f"/aula/eventos/v/{ev.config['veedores'][0]['token']}/")
+        self.assertContains(r, 'Podio de colegios'); self.assertNotContains(r, 'peso_expertos')
+        # Diplomas para los primeros colegios
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/diplomas/?tipo=colegios&n=3')
+        self.assertContains(r, 'podio de colegios'); self.assertContains(r, 'Colegio San José')
+        # Se puede ocultar
+        self.admin.post(conf, {'accion': 'podio_colegios'})
+        self.assertNotContains(self.admin.get(f'/aula/eventos/{ev.pk}/resultados/'), 'Puntaje del colegio')

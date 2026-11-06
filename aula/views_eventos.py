@@ -102,7 +102,9 @@ CONFIG = {'juegos': [j[0] for j in JUEGOS] + ['a_' + k for k in ('salto', 'puent
           # Fechas (hora de Colombia, 'AAAA-MM-DDTHH:MM'; vacío = sin límite): hasta cuándo se inscriben y cuándo se presenta
           'fechas': {'inscripcion_hasta': '', 'prueba_desde': '', 'prueba_hasta': ''},
           # Veedores: profesores (o grupos de profesores) invitados que ven los resultados en vivo con un enlace de solo lectura
-          'veedores': []}
+          'veedores': [],
+          # Podio de colegios: de cada colegio cuenta su mejor estudiante de cada nivel, con el peso del nivel
+          'podio_colegios': {'activo': True, 'pesos': {}}}
 DIFICULTADES = [('auto', 'Según el grupo'), ('facil', 'Fácil'), ('media', 'Media'), ('dificil', 'Difícil')]
 
 
@@ -173,6 +175,7 @@ def config_de(evento):
     c['inscripcion'] = dict(CONFIG['inscripcion'], **(c.get('inscripcion') or {}))
     c['vigilancia'] = dict(CONFIG['vigilancia'], **(c.get('vigilancia') or {}))
     c['fechas'] = dict(CONFIG['fechas'], **(c.get('fechas') or {}))
+    c['podio_colegios'] = dict(CONFIG['podio_colegios'], **(c.get('podio_colegios') or {}))
     return c
 
 
@@ -298,12 +301,52 @@ def grado_de(p):
 
 
 def ranking(evento, ciclo=None):
-    qs = evento.participaciones.filter(estado='aprobada').select_related('estudiante__user', 'estudiante__curso')
+    qs = evento.participaciones.filter(estado='aprobada').select_related('estudiante__user', 'estudiante__curso', 'estudiante__colegio')
     if ciclo:
         qs = qs.filter(ciclo=ciclo)
     lista = sorted(qs, key=lambda p: (-p.puntos, p.tiempo_efectivo, p.pk))
     for i, p in enumerate(lista, 1):
         p.puesto = i
+    return lista
+
+
+def colegio_de(p):
+    """El colegio con que compite el participante: su institución (inscritos) o el colegio de su cuenta."""
+    if p.estudiante_id:
+        return p.estudiante.colegio.nombre if p.estudiante.colegio_id else ''
+    return p.institucion
+
+
+def podio_colegios(ev, c=None):
+    """Podio de colegios. De cada colegio cuenta SOLO su mejor estudiante de cada nivel (el mejor puesto del nivel).
+    Puntaje = suma de (puntos de ese estudiante × peso del nivel). Desempate: menor suma de tiempos efectivos de sus
+    representantes; luego, más niveles con representante."""
+    c = c or config_de(ev)
+    pesos = c['podio_colegios'].get('pesos') or {}
+    colegios = {}
+    for g in grupos(c):
+        vistos = set()
+        for p in ranking(ev, g['id']):          # ya viene ordenado: el primero de cada colegio es su representante
+            nombre = colegio_de(p)
+            clave = normalizar(nombre)
+            if not clave or clave in vistos:
+                continue
+            vistos.add(clave)
+            try:
+                peso = float(pesos.get(g['id'], 1) or 1)
+            except (TypeError, ValueError):
+                peso = 1.0
+            x = colegios.setdefault(clave, {'colegio': nombre, 'puntaje': 0.0, 'tiempo': 0.0, 'niveles': {}, 'n': 0})
+            x['puntaje'] += p.puntos * peso
+            x['tiempo'] += p.tiempo_efectivo
+            x['n'] += 1
+            x['niveles'][g['id']] = {'nombre': p.nombre_completo, 'puntos': p.puntos, 'puesto': p.puesto, 'tiempo': round(p.tiempo_efectivo)}
+    lista = sorted(colegios.values(), key=lambda x: (-x['puntaje'], x['tiempo'], -x['n'], x['colegio'].lower()))
+    for i, x in enumerate(lista, 1):
+        x['puesto'] = i
+        x['puntaje'] = round(x['puntaje'], 2) if x['puntaje'] != int(x['puntaje']) else int(x['puntaje'])
+        x['tiempo'] = round(x['tiempo'])
+        x['por_nivel'] = [(g['nombre'], x['niveles'].get(g['id'])) for g in grupos(c)]
     return lista
 
 
@@ -623,6 +666,18 @@ def configurar(request, eid):
                 messages.success(request, f'{len(agregados)} veedor(es) invitado(s).' + (f' Se envió el enlace por correo a {enviados}.' if enviados else ' Copie y envíe el enlace de cada uno.'))
             ev.config = dict(ev.config or {}, veedores=lista)
             ev.save(update_fields=['config'])
+        elif accion == 'podio_colegios':
+            c = config_de(ev)
+            pesos = {}
+            for g in grupos(c):
+                try:
+                    pesos[g['id']] = max(0.0, min(10.0, float((request.POST.get('peso_' + g['id']) or '1').replace(',', '.'))))
+                except ValueError:
+                    pesos[g['id']] = 1.0
+            ev.config = dict(ev.config or {}, podio_colegios={'activo': bool(request.POST.get('activo')), 'pesos': pesos})
+            ev.save(update_fields=['config'])
+            messages.success(request, 'Podio de colegios guardado.')
+            return redirect('aula:evento_resultados', eid=ev.pk)
         elif accion == 'fechas':
             c = config_de(ev)
             nuevas = {}
@@ -1106,6 +1161,17 @@ def _resultados(request, ev, veedor=None):
             p.grupo_nombre = nombres.get(p.ciclo, p.ciclo)
             g = grado_de(p)
             p.grado_txt = etiqueta_grado(g) if g is not None else ''
+    if request.GET.get('csv') == 'colegios':
+        r = HttpResponse(content_type='text/csv; charset=utf-8')
+        r['Content-Disposition'] = f'attachment; filename="podio-colegios-evento-{ev.pk}.csv"'
+        r.write('\ufeff')
+        w = csv.writer(r)
+        niveles = grupos(c)
+        w.writerow(['Puesto', 'Colegio', 'Puntaje', 'Tiempo efectivo sumado (s)'] + [f'{g["nombre"]}: representante (puntos)' for g in niveles])
+        for x in podio_colegios(ev, c):
+            w.writerow([x['puesto'], x['colegio'], x['puntaje'], x['tiempo']] +
+                       [f"{r_['nombre']} ({r_['puntos']})" if r_ else '—' for _, r_ in x['por_nivel']])
+        return r
     if request.GET.get('csv'):
         r = HttpResponse(content_type='text/csv; charset=utf-8')
         r['Content-Disposition'] = f'attachment; filename="resultados-evento-{ev.pk}.csv"'
@@ -1123,7 +1189,9 @@ def _resultados(request, ev, veedor=None):
         'grados': [(g, etiqueta_grado(g)) for g in grados_hay], 'consulta': request.GET.urlencode(), 'base': _base(request),
         'vigilancia': not veedor and (c['vigilancia']['activa'] or GrabacionEvento.objects.filter(participacion__evento=ev).exists()),
         'grab': None if veedor else _resumen_grabaciones(ev), 'nubes': _nubes(), 'cfg_nube': _config_nube(request, ev),
-        'veedor': veedor, 'vent': ventana(c), 'hide_cuenta': bool(veedor) and not request.user.is_authenticated})
+        'veedor': veedor, 'vent': ventana(c), 'hide_cuenta': bool(veedor) and not request.user.is_authenticated,
+        'podio': podio_colegios(ev, c) if c['podio_colegios']['activo'] else None,
+        'pesos': [(g['id'], g['nombre'], (c['podio_colegios'].get('pesos') or {}).get(g['id'], 1)) for g in grupos(c)]})
 
 
 @login_required
@@ -1148,9 +1216,16 @@ def _en_vivo(request, ev, veedor=None):
                        'filas': [{'puesto': p.puesto, 'nombre': p.nombre_completo, 'de': p.de_donde, 'puntos': p.puntos,
                                   'bonos': p.bonos, 'tiempo': round(p.tiempo_efectivo), 'terminada': p.terminada} for p in filas[:cuantos]]})
     if request.GET.get('json'):
-        return JsonResponse({'tablas': tablas, 'activo': ev.activo, 'hora': timezone.localtime().strftime('%H:%M:%S')})
+        return JsonResponse({'tablas': tablas, 'colegios': _podio_vivo(ev, c), 'activo': ev.activo, 'hora': timezone.localtime().strftime('%H:%M:%S')})
     volver = reverse('aula:evento_veedor', args=[veedor['token']]) if veedor else reverse('aula:evento_resultados', args=[ev.pk])
-    return render(request, 'aula/evento_en_vivo.html', {'ev': ev, 'tablas': tablas, 'cuantos': cuantos, 'volver': volver, 'veedor': veedor})
+    return render(request, 'aula/evento_en_vivo.html', {'ev': ev, 'tablas': tablas, 'cuantos': cuantos, 'volver': volver, 'veedor': veedor,
+                                                        'colegios': _podio_vivo(ev, c)})
+
+
+def _podio_vivo(ev, c):
+    if not c['podio_colegios']['activo']:
+        return None
+    return [{'puesto': x['puesto'], 'colegio': x['colegio'], 'puntaje': x['puntaje'], 'niveles': x['n']} for x in podio_colegios(ev, c)[:10]]
 
 
 # ---------------------------------------------------------------------------
@@ -1211,7 +1286,11 @@ def diplomas(request, eid):
         primeros = 3
     PUESTOS = ['Primer', 'Segundo', 'Tercer', 'Cuarto', 'Quinto', 'Sexto', 'Séptimo', 'Octavo', 'Noveno', 'Décimo']
     lista = []
-    for g in grupos(c):
+    if tipo == 'colegios':           # podio de colegios: diploma para los primeros colegios
+        for x in [x for x in podio_colegios(ev, c) if x['puntaje'] > 0][:primeros]:
+            lista.append({'nombre': x['colegio'], 'de': '', 'grupo': 'Podio de colegios', 'puntos': x['puntaje'],
+                          'puesto': f'{PUESTOS[x["puesto"] - 1]} puesto' if x['puesto'] <= len(PUESTOS) else f'Puesto {x["puesto"]}'})
+    for g in ([] if tipo == 'colegios' else grupos(c)):
         if gsel and g['id'] != gsel:
             continue
         filas = ranking(ev, g['id'])
