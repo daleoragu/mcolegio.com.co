@@ -1,5 +1,6 @@
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
+NUEVO     LEAME-mejoras-pendientes.txt
 NUEVO     aula/animaplano.py
 NUEVO     aula/bancos/factorizacion.json
 NUEVO     aula/bancos/olimpiada.json
@@ -9,6 +10,7 @@ CAMBIADO  aula/logica.py
 NUEVO     aula/logica_generadores/LEAME.txt
 NUEVO     aula/logica_generadores/bloque.py
 NUEVO     aula/logica_generadores/conejos.py
+NUEVO     aula/logica_generadores/kadogemo.py
 NUEVO     aula/logica_generadores/logica.py
 NUEVO     aula/logica_generadores/nonograma.py
 NUEVO     aula/logica_generadores/perrito.py
@@ -28,6 +30,7 @@ NUEVO     aula/migrations/0015_animaplano_y_ovejas.py
 NUEVO     aula/migrations/0016_eventos.py
 NUEVO     aula/migrations/0017_eventos_abiertos.py
 NUEVO     aula/migrations/0018_velocidad_juegos.py
+NUEVO     aula/migrations/0019_inscripcion_eventos.py
 CAMBIADO  aula/models.py
 NUEVO     aula/static/aula/eventos/olimpiada.js
 NUEVO     aula/static/aula/invertida_pausas.js
@@ -38,6 +41,7 @@ NUEVO     aula/static/aula/juegos/boxeo.js
 NUEVO     aula/static/aula/juegos/carrera.js
 NUEVO     aula/static/aula/juegos/carretera.js
 NUEVO     aula/static/aula/juegos/dibujo.js
+NUEVO     aula/static/aula/juegos/editor.js
 NUEVO     aula/static/aula/juegos/escape.js
 NUEVO     aula/static/aula/juegos/impostor.js
 NUEVO     aula/static/aula/juegos/laberinto.js
@@ -104,6 +108,8 @@ NUEVO     aula/templates/aula/_invertida_js.html
 NUEVO     aula/templates/aula/evento_configurar.html
 NUEVO     aula/templates/aula/evento_entrar.html
 NUEVO     aula/templates/aula/evento_inscribirse.html
+NUEVO     aula/templates/aula/evento_inscripcion_estado.html
+NUEVO     aula/templates/aula/evento_inscripciones.html
 NUEVO     aula/templates/aula/evento_jugar.html
 NUEVO     aula/templates/aula/evento_resultados.html
 NUEVO     aula/templates/aula/eventos.html
@@ -250,6 +256,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0016_eventos.py                    (Eventos: olimpiada de matemáticas)
   aula/migrations/0017_eventos_abiertos.py           (eventos que crea el docente y eventos abiertos con código)
   aula/migrations/0018_velocidad_juegos.py           (velocidad lenta, normal o rápida de los juegos)
+  aula/migrations/0019_inscripcion_eventos.py        (inscripción a eventos: aprobación y cupos)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

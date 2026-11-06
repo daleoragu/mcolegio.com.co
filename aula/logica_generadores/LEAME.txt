@@ -4,9 +4,10 @@ así todos tienen solución y se ordenan por dificultad. Los niveles quedan en a
   trancon.py       Trancón (6x6) y Safari (7x7 con hipopótamo y rocas): python3 trancon.py trancon 600 21
   tangram.py       piezas y solucionador del tangram
   tangram_bits.py  arma figuras al azar juntando las 7 piezas (luego se escogen las reconocibles)
-  logica.py        Tablero 36, Cerditos, Ranas, Cuatro cuadrantes, Deslizables y Laberinto de colores
+  logica.py        Tablero 36, Cerditos, Ranas, Deslizables y Laberinto de colores
   nonograma.py     nonogramas que se resuelven solo con lógica (solución única)
   sokoban.py       Empuja cajas: cuartos al azar, cajas jaladas desde las metas y resueltas por empujones
   bloque.py        Bloque rodante: tableros al azar resueltos con búsqueda en anchura
   conejos.py       Conejos saltarines: conejos, zorros y hongos resueltos con búsqueda en anchura
   perrito.py       Perrito a su casita: caminos armados, revueltos y resueltos con búsqueda en anchura
+  kadogemo.py      Kadogemo: tablero con puntos fijos; tarjetas con la cuenta de colores a la vista (todas con solución)

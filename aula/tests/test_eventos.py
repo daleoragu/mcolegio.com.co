@@ -284,3 +284,74 @@ class Olimpiada(ColegioDePrueba):
         self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'config', 'titulo': ev.titulo, 'g_a_ovejas': ['6'], 'v_a_ovejas': 'lenta'})
         d = self.cliente(self.ana.user).get(f'/aula/eventos/{ev.pk}/').context['datos']
         self.assertEqual(d['ritmo']['a_ovejas'], .6)
+
+    def test_inscripcion_con_aprobacion_y_cupos(self):
+        """Los de fuera llenan el formulario; el organizador aprueba con cupos por institución y por nivel."""
+        from django.contrib.auth.models import User
+        from django.test import Client
+        from salon_digital.models import Cuenta
+        u = User.objects.create_user('libre2', password='x', first_name='Lina')
+        Cuenta.objects.create(usuario=u, slug='lina2', nombre_publico='Lina')
+        org = Client(HTTP_HOST='testserver'); org.force_login(u)
+        org.post('/aula/eventos/', {'titulo': 'Intercolegial'})
+        ev = Evento.objects.get(titulo='Intercolegial')
+        org.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripcion', 'abierta': 'on', 'aprobacion': 'on', 'cupo_colegio': '2', 'cupo_nivel': '1'})
+        url = f'/aula/eventos/c/{ev.codigo}/'
+        # Con aprobación se inscriben aunque el evento siga apagado, pero piden documento y contacto
+        uno = Client(HTTP_HOST='testserver')
+        r = uno.post(url, {'nombre': 'Pedro Pérez', 'institucion': 'Colegio San José', 'grado': '7'})
+        self.assertContains(r, 'documento')
+        datos = {'nombre': 'Pedro Pérez', 'institucion': 'Colegio San José', 'ciudad': 'Ibagué', 'grado': '7', 'documento': '100001', 'contacto': '3001234567'}
+        r = uno.post(url, datos)
+        self.assertRedirects(r, url, fetch_redirect_response=False)
+        p = ParticipacionEvento.objects.get(evento=ev)
+        self.assertEqual((p.estado, p.datos['ciudad'], len(p.datos['clave'])), ('pendiente', 'Ibagué', 6))
+        self.assertContains(uno.get(url), 'Inscripción recibida')
+        # El cupo por nivel (1 en Exploradores) cuenta las pendientes; la misma institución escrita distinto es la misma
+        dos = Client(HTTP_HOST='testserver')
+        r = dos.post(url, dict(datos, nombre='María Gómez', documento='100002', institucion='colegio  san jose', grado='6'))
+        self.assertContains(r, 'nivel Exploradores')
+        r = dos.post(url, dict(datos, nombre='María Gómez', documento='100002', institucion='colegio  san jose', grado='8'))
+        self.assertEqual(ParticipacionEvento.objects.filter(evento=ev).count(), 2)
+        # El mismo documento no se inscribe dos veces; el cupo por institución (2) ya está lleno
+        r = Client(HTTP_HOST='testserver').post(url, dict(datos, nombre='Otro Nombre', grado='10'))
+        self.assertContains(r, 'Ya hay una inscripción con ese documento')
+        r = Client(HTTP_HOST='testserver').post(url, dict(datos, nombre='Otro Nombre', documento='100003', grado='10'))
+        self.assertContains(r, 'sus 2 cupo(s)')
+        # Pendiente: no juega aunque se active el evento
+        org.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'activar'})
+        self.assertContains(uno.get(f'/aula/eventos/{ev.pk}/'), 'Inscripción recibida')
+        r = uno.post(f'/aula/eventos/{ev.pk}/registro/', json.dumps({'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': 9}]}),
+                     content_type='application/json').json()
+        self.assertTrue(r.get('prueba'))
+        # El organizador las ve y las aprueba
+        r = org.get(f'/aula/eventos/{ev.pk}/inscripciones/')
+        self.assertContains(r, 'María Gómez'); self.assertContains(r, '3001234567')
+        self.assertContains(org.get(f'/aula/eventos/{ev.pk}/configurar/'), '2 pendientes')
+        org.post(f'/aula/eventos/{ev.pk}/inscripciones/', {'accion': 'aprobar_todas'})
+        self.assertEqual(ParticipacionEvento.objects.filter(evento=ev, estado='aprobada').count(), 2)
+        r = uno.post(f'/aula/eventos/{ev.pk}/registro/', json.dumps({'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': 9}]}),
+                     content_type='application/json').json()
+        self.assertEqual(r['puntos'], 1)
+        # Rechazar con motivo: lo ve el participante y sale del ranking
+        q = ParticipacionEvento.objects.get(evento=ev, nombre='María Gómez')
+        org.post(f'/aula/eventos/{ev.pk}/inscripciones/', {'accion': 'rechazar', 'pid': q.pk, 'motivo': 'Falta el permiso firmado'})
+        self.assertContains(dos.get(f'/aula/eventos/{ev.pk}/'), 'Falta el permiso firmado')
+        tablas = org.get(f'/aula/eventos/{ev.pk}/resultados/').context['tablas']
+        self.assertEqual([p.nombre for _, _, filas in tablas for p in filas], ['Pedro Pérez'])
+        # Desde otro equipo: con el documento y la clave recupera su inscripción
+        otro = Client(HTTP_HOST='testserver')
+        r = otro.post(url, {'accion': 'recuperar', 'documento': '100001', 'clave': p.datos['clave'].lower()})
+        self.assertRedirects(r, url, fetch_redirect_response=False)
+        self.assertRedirects(otro.get(url), f'/aula/eventos/{ev.pk}/', fetch_redirect_response=False)
+        # Aprobar sobre el cupo solo si el organizador lo fuerza
+        org.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripcion', 'abierta': 'on', 'aprobacion': 'on', 'cupo_colegio': '1', 'cupo_nivel': '0'})
+        org.post(f'/aula/eventos/{ev.pk}/inscripciones/', {'accion': 'aprobar', 'pid': q.pk})
+        self.assertEqual(ParticipacionEvento.objects.get(pk=q.pk).estado, 'rechazada')
+        org.post(f'/aula/eventos/{ev.pk}/inscripciones/', {'accion': 'aprobar', 'pid': q.pk, 'forzar': '1'})
+        self.assertEqual(ParticipacionEvento.objects.get(pk=q.pk).estado, 'aprobada')
+        # CSV de inscripciones
+        r = org.get(f'/aula/eventos/{ev.pk}/inscripciones/?estado=todas&csv=1')
+        self.assertIn('Colegio San José', r.content.decode())
+        # Otro usuario no ve las inscripciones
+        self.assertEqual(Client(HTTP_HOST='testserver').get(f'/aula/eventos/{ev.pk}/inscripciones/').status_code, 302)

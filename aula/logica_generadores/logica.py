@@ -166,33 +166,7 @@ for n in range(1, 11):
 print('ranas', len(ranas))
 OUT['ranas'] = {'pads': PADS, 'retos': ranas}
 
-# ---------- Cuatro cuadrantes (tipo Kadogemo) ----------
-KPIEZAS = {   # 3x3 con huecos (los huecos muestran el punto de color)
-    'U': [(0,1),(1,1)], 'H': [(0,1),(2,1)], 'C': [(1,1),(1,2)], 'S': [(0,0),(2,2)],
-}
-KCOL = {'U': '#e03131', 'H': '#2f9e44', 'C': '#1971c2', 'S': '#f59f00'}
-def korient(huecos):
-    res = []
-    for esp in (0, 1):
-        for r in range(4):
-            h = [(f, 2 - c) if esp else (f, c) for f, c in huecos]
-            for _ in range(r): h = [(c, 2 - f) for f, c in h]
-            k = tuple(sorted(h))
-            if k not in res: res.append(k)
-    return res
-KOR = {k: korient(v) for k, v in KPIEZAS.items()}
-kad = []
-vk = set()
-while len(kad) < 30:
-    orden = random.sample(list(KPIEZAS), 4)
-    tarjeta = []
-    for q, n in enumerate(orden):
-        h = random.choice(KOR[n])
-        for f, c in h: tarjeta.append([(q // 2) * 3 + f, (q % 2) * 3 + c, n])
-    k = tuple(sorted(map(tuple, tarjeta)))
-    if k in vk: continue
-    vk.add(k); kad.append({'puntos': tarjeta})
-OUT['kadogemo'] = {'piezas': KPIEZAS, 'colores': KCOL, 'retos': kad}
+# ---------- Cuatro cuadrantes (Kadogemo): ahora en kadogemo.py (tablero con puntos fijos) ----------
 
 # ---------- Deslizables de colores (tipo Kiriku): 4x4 con un hueco, como el 15 ----------
 def mezclar_desliz(obj, pasos):

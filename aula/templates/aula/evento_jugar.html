@@ -4,7 +4,11 @@
 {% block content %}
 <style>
   #ol { max-width:1080px; margin:0 auto; background:#fff; border-radius:18px; padding:14px; position:relative; }
-  #ol:fullscreen { max-width:none; border-radius:0; overflow:auto; }
+  #ol:fullscreen { max-width:none; border-radius:0; overflow:auto; padding:6px 10px; }
+  #ol:fullscreen #ol-instrucciones { display:none; }
+  #ol:fullscreen .ol-cab { padding:6px 10px; margin-bottom:6px; }
+  #ol-zona canvas.ol-motor { display:block; margin:0 auto; border-radius:12px; touch-action:none; }
+  @media (max-width: 600px) { #ol { padding:8px; } .ol-dato { min-width:60px; padding:2px 6px; } .ol-dato b { font-size:.95rem; } .ol-cab h5 { font-size:.95rem; } }
   .ol-cab { display:flex; flex-wrap:wrap; gap:10px; align-items:center; background:linear-gradient(90deg,#1f3a68,#3b5bdb); color:#fff; border-radius:14px; padding:10px 14px; margin-bottom:10px; }
   .ol-cab h5 { margin:0; font-weight:800; }
   .ol-dato { background:rgba(255,255,255,.14); border-radius:10px; padding:4px 10px; text-align:center; min-width:76px; }
@@ -28,6 +32,7 @@
   #ol-aviso { position:absolute; left:50%; top:110px; transform:translateX(-50%); background:#212529; color:#fff; padding:6px 14px; border-radius:20px; font-size:.85rem; z-index:15; }
   #ol-aviso[hidden] { display:none; }
   .ol-cat { display:inline-block; border-radius:8px; padding:2px 8px; font-size:.75rem; font-weight:700; color:#fff; }
+  @media (orientation: landscape) and (max-height: 600px) { #ol-zona { flex-direction:row; justify-content:center; align-items:center; gap:14px; } }
 </style>
 <div class="au">
 <div id="ol">

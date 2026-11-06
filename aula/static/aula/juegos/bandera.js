@@ -12,8 +12,9 @@
     }
 
     Gamificacion.registrar('bandera', {
+        joystick: '8',
         nombre: 'Captura la bandera',
-        instrucciones: 'Muévase con las flechas. Tome la bandera de la respuesta correcta en el campo rival y tráigala a su base sin que lo atrapen los guardias.',
+        instrucciones: 'Muévase con las flechas (en el celular, ponga el dedo en cualquier parte y arrástrelo). Tome la bandera de la respuesta correcta en el campo rival y tráigala a su base sin que lo atrapen los guardias.',
         controles: 'cruceta',
         fondo: '#2f9e44',
         icono(ctx, k, tam) {

@@ -104,9 +104,10 @@
             const preguntas = propio ? propio.preguntas.slice().sort(() => Math.random() - .5).slice(0, 3) : operaciones(3);
             $('#ol-reto-detalle').textContent = `Responda bien ${Math.min(2, preguntas.length)} de ${preguntas.length}.`;
             $('#ol-instrucciones').textContent = def.instrucciones || '';
-            const cv = document.createElement('canvas'); cv.style.width = '100%'; cv.style.maxWidth = '720px'; cv.style.touchAction = 'none'; zona.appendChild(cv);
+            const cv = document.createElement('canvas'); cv.className = 'ol-motor'; zona.appendChild(cv);
             motor = Gamificacion.iniciar({lienzo: cv, tipo, preguntas, segundos: 20, minutos: 2, jugadores: 1, ritmo: (D.ritmo || {})[juego] || 1, tema: propio ? propio.titulo : '',
                 alTerminar: r => { if (actual !== api) return; const meta = Math.min(2, preguntas.length); if (r.aciertos >= meta) setTimeout(superado, 600); else { aviso(`${r.aciertos} de ${preguntas.length}: va otro reto.`); setTimeout(siguienteReto, 1500); } }});
+            // En el celular los que se mueven usan la palanca que aparece donde se pone el dedo (motor.js)
             ['#ol-girar', '#ol-voltear', '#ol-deshacer'].forEach(s => { $(s).hidden = true; });
             return;
         }

@@ -15,7 +15,7 @@
     }
     Logica.registrar('cubo', {
         nombre: 'Cubo del binomio y del trinomio',
-        instrucciones: 'Arme el cubo con todas sus piezas. Escoja una pieza de la caja, gírela si hace falta y toque en la capa de la derecha dónde va su esquina de arriba a la izquierda. Con ▲▼ cambia de capa. Toque una pieza puesta para quitarla. Las caras de a² son rojas, las de b² azules, las de c² amarillas y las mezcladas negras.',
+        instrucciones: 'Arme el cubo con todas sus piezas. Escoja una pieza de la caja (abajo a la derecha se ve en 3D cómo queda, con sus medidas), gírela si hace falta y toque en la capa de la derecha dónde va su esquina de arriba a la izquierda (en el celular: un toque muestra cómo queda y otro la pone). Con ▲▼ cambia de capa. Toque una pieza puesta para quitarla. Las caras de a² son rojas, las de b² azules, las de c² amarillas y las mezcladas negras.',
         total: () => NIVELES.length,
         titulo: (d, i) => NIVELES[i].lados.length === 2 ? `Binomio (a + b)³ con a = ${NIVELES[i].lados[0]}, b = ${NIVELES[i].lados[1]}` : `Trinomio (a + b + c)³ con a = ${NIVELES[i].lados[0]}, b = ${NIVELES[i].lados[1]}, c = ${NIVELES[i].lados[2]}`,
         iniciar(zona, datos, i, api) {
@@ -84,7 +84,34 @@
                 const formula = claves.map(k => `${grupos[k].total > 1 ? grupos[k].total : ''}${nombre(grupos[k].dims, lados)}`).join(' + ');
                 L.texto((m === 2 ? '(a + b)³ = ' : '(a + b + c)³ = ') + formula, 20, H - 40, {tam: m === 2 ? 17 : 13, negrita: true, color: '#1f3a68'});
                 L.texto(`Piezas puestas: ${piezas.length} de ${huecos.length}`, 20, H - 16, {tam: 13, color: '#495057'});
+                manoEnDibujo();
             };
+            // La pieza que se tiene en la mano, en 3D y girada como va a quedar, con sus medidas
+            function manoEnDibujo() {
+                const d = dimsActuales(), g = grupos[sel], BX = GX - 6, BY = GY + n * G + 12, BW = 290, BH = Math.min(100, H - BY - 8);
+                ctx.fillStyle = '#fff'; Logica.redondo(ctx, BX, BY, BW, BH, 10); ctx.fill();
+                ctx.strokeStyle = '#fab005'; ctx.lineWidth = 2; ctx.stroke();
+                L.texto(`En la mano: ${nombre(d, lados)} (quedan ${g.total - g.puestas})`, BX + 10, BY + 16, {tam: 12, negrita: true, color: '#1f3a68'});
+                const u = Math.min(14, (BH - 30) / (d[2] + (d[0] + d[1]) * .5), 90 / ((d[0] + d[1]) * .87));
+                const px = BX + 14 + d[1] * u * .87, py = BY + 26 + d[2] * u;
+                const mi = (x, y, z) => [px + (x - y) * u * .87, py + (x + y) * u * .5 - z * u];
+                const cara = (pts, color) => { ctx.fillStyle = color; ctx.beginPath(); pts.forEach((q, k) => (k ? ctx.lineTo : ctx.moveTo).call(ctx, ...q)); ctx.closePath(); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1; ctx.stroke(); };
+                const [a, b, c] = d;
+                cara([mi(0, 0, c), mi(a, 0, c), mi(a, b, c), mi(0, b, c)], colorCara(a, b));
+                cara([mi(0, b, 0), mi(a, b, 0), mi(a, b, c), mi(0, b, c)], sombra(colorCara(a, c), .8));
+                cara([mi(a, 0, 0), mi(a, b, 0), mi(a, b, c), mi(a, 0, c)], sombra(colorCara(b, c), .65));
+                // cuadritos para contar el tamaño
+                ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1;
+                const linea = (p, q) => { ctx.beginPath(); ctx.moveTo(...p); ctx.lineTo(...q); ctx.stroke(); };
+                for (let k = 1; k < a; k++) { linea(mi(k, 0, c), mi(k, b, c)); linea(mi(k, b, 0), mi(k, b, c)); }
+                for (let k = 1; k < b; k++) { linea(mi(0, k, c), mi(a, k, c)); linea(mi(a, k, 0), mi(a, k, c)); }
+                for (let k = 1; k < c; k++) { linea(mi(0, b, k), mi(a, b, k)); linea(mi(a, 0, k), mi(a, b, k)); }
+                const tx = BX + 130;
+                L.texto(`Ancho ${a} · fondo ${b} · alto ${c}`, tx, BY + 40, {tam: 12, color: '#495057'});
+                const sale = capa + c > n;
+                L.texto(c > 1 ? `Ocupa las capas ${capa + 1} a ${capa + c}` : `Ocupa la capa ${capa + 1}`, tx, BY + 58, {tam: 12, negrita: true, color: sale ? '#c92a2a' : '#2f9e44'});
+                L.texto(sale ? 'No cabe: baje de capa o gírela' : '↻ Girar cambia cómo queda', tx, BY + 76, {tam: 11, color: sale ? '#c92a2a' : '#868e96'});
+            }
             function sombra(hex, f) { const v = parseInt(hex.slice(1), 16); return `rgb(${(v >> 16) * f | 0},${(v >> 8 & 255) * f | 0},${(v & 255) * f | 0})`; }
             // La caja de piezas y los controles (botones de la página)
             const panel = document.createElement('div');
@@ -99,16 +126,22 @@
                 panel.querySelector('[data-a="baja"]').addEventListener('click', () => { capa = Math.max(0, capa - 1); L.dibujar(); });
             }
             function celdaCapa(ev) { const {x, y} = L.punto(ev), cx = Math.floor((x - GX) / G), cy = Math.floor((y - GY) / G); return cx >= 0 && cy >= 0 && cx < n && cy < n ? [cx, cy] : null; }
-            L.cv.addEventListener('pointermove', ev => { hover = celdaCapa(ev); L.dibujar(); });
+            L.cv.addEventListener('pointermove', ev => { if (ev.pointerType !== 'mouse') return; hover = celdaCapa(ev); L.dibujar(); });
             L.cv.addEventListener('pointerdown', ev => {
                 const c = celdaCapa(ev); if (!c) return;
                 const idx = ocupa.get(c[0] + ',' + c[1] + ',' + capa);
-                if (idx !== undefined) { quitar(idx); api.sonido('toque'); pintarPanel(); L.dibujar(); return; }
+                if (idx !== undefined) { quitar(idx); hover = null; api.sonido('toque'); pintarPanel(); L.dibujar(); return; }
+                // Con el dedo no hay «pasar por encima»: el primer toque muestra cómo queda y el segundo la pone
+                if (ev.pointerType !== 'mouse' && !(hover && hover[0] === c[0] && hover[1] === c[1])) {
+                    hover = c; L.dibujar();
+                    api.aviso(cabe([c[0], c[1], capa], dimsActuales()) ? 'Así queda (en amarillo). Toque otra vez para ponerla o gírela.' : 'Ahí no cabe. Pruebe girarla o escoger otro sitio.');
+                    return;
+                }
                 const g = grupos[sel];
                 if (g.puestas >= g.total) { api.aviso('Ya puso todas las piezas de ese tipo: escoja otra.'); return; }
                 const dims = dimsActuales();
                 if (!cabe([c[0], c[1], capa], dims)) { api.aviso('No cabe ahí: se sale del cubo o choca con otra pieza. Pruebe girarla.'); api.sonido('mal'); return; }
-                poner([c[0], c[1], capa], dims, sel); api.movimiento(); api.sonido('toque');
+                poner([c[0], c[1], capa], dims, sel); hover = null; api.movimiento(); api.sonido('toque');
                 if (g.puestas >= g.total) { const otra = claves.find(k => grupos[k].puestas < grupos[k].total); if (otra) { sel = otra; orient = 0; } }
                 pintarPanel(); L.dibujar(); revisar();
             });

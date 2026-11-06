@@ -7,15 +7,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
   .jg-zona { display:flex; gap:12px; align-items:flex-start; max-width:1020px; margin:0 auto; }
-  .jg-consola { background:#1d1d1d; border-radius:18px; padding:14px; flex:1 1 auto; min-width:0; max-width:760px; box-shadow:inset 0 -6px 0 #111; }
+  .jg-consola { background:#1d1d1d; border-radius:18px; padding:14px; flex:1 1 0; min-width:0; max-width:760px; box-shadow:inset 0 -6px 0 #111; }
   .jg-leyenda { flex:0 0 240px; background:#05070f; color:#e9ecef; border-radius:14px; padding:10px; border:4px solid #2b2b2b; }
   .jg-leyenda h6 { font-family:"Press Start 2P", monospace; font-size:9px; color:#ffd43b; margin:2px 0 10px; }
   .jg-leyenda .preg { font-size:.85rem; font-weight:700; margin-bottom:8px; color:#fff; }
   .jg-op { display:flex; align-items:center; gap:8px; padding:6px; border-radius:10px; margin-bottom:6px; background:#11172b; border-left:6px solid; }
   .jg-op canvas { width:36px; height:36px; flex:0 0 auto; }
   .jg-op span { font-size:.88rem; line-height:1.2; }
-  @media (max-width: 991px) { .jg-zona { flex-direction:column; } .jg-leyenda { flex:none; width:100%; } }
-  .jg-consola canvas { display:block; width:100%; border:6px solid #2b2b2b; border-radius:8px; background:#05070f; touch-action:none; }
+  @media (max-width: 991px) { .jg-zona { flex-direction:column; } .jg-consola { flex:none; width:100%; max-width:none; } .jg-leyenda { flex:none; width:100%; } }
+  .jg-consola canvas { display:block; margin:0 auto; border:6px solid #2b2b2b; border-radius:8px; background:#05070f; touch-action:none; }
   .jg-mandos { display:none; justify-content:space-between; align-items:center; padding:12px 6px 2px; user-select:none; -webkit-user-select:none; }
   .jg-mandos.visible { display:flex; }
   .jg-cruz { display:grid; grid-template-columns:repeat(3, 52px); grid-template-rows:repeat(3, 52px); gap:4px; }
@@ -29,12 +29,18 @@
   .jg-completa-btn:hover { background:rgba(255,255,255,.25); }
   .jg-zona.completa { position:fixed; inset:0; z-index:3000; max-width:none; margin:0; padding:10px; background:#0b0b0b; gap:10px;
                       align-items:center; justify-content:center; overflow:auto; }
-  .jg-zona.completa .jg-consola { flex:0 1 auto; max-width:none; width:min(100%, calc((100vh - 70px) * 4 / 3)); }
-  .jg-zona.completa.con-mandos .jg-consola { width:min(100%, calc((100vh - 190px) * 4 / 3)); }
-  .jg-zona.completa .jg-leyenda { max-height:calc(100vh - 20px); overflow:auto; }
-  @media (orientation: landscape) { .jg-zona.completa { flex-direction:row; } .jg-zona.completa .jg-leyenda { flex:0 0 220px; width:220px; } }
-  @media (orientation: landscape) and (max-height: 500px) { .jg-zona.completa .jg-leyenda { flex-basis:180px; width:180px; font-size:.8rem; } }
-  @media (orientation: portrait) { .jg-zona.completa { flex-direction:column; justify-content:flex-start; } .jg-zona.completa .jg-consola { width:100%; } }
+  /* En pantalla completa el juego toma todo el alto que hay (lo calcula el motor) */
+  .jg-zona.completa { height:100vh; height:100dvh; align-items:stretch; }
+  .jg-zona.completa .jg-consola { flex:1 1 0; max-width:none; padding:6px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; }
+  .jg-zona.completa .jg-leyenda { max-height:100%; overflow:auto; }
+  /* las flechas quedan encima del juego, transparentes, para no quitarle alto */
+  .jg-zona.completa .jg-mandos.visible { position:absolute; left:10px; right:10px; bottom:10px; z-index:4; pointer-events:none; padding:0; }
+  .jg-zona.completa .jg-mandos.visible button { pointer-events:auto; opacity:.6; }
+  .jg-zona.completa .jg-cruz { grid-template-columns:repeat(3, 46px); grid-template-rows:repeat(3, 46px); }
+  .jg-zona.completa .jg-fuego { width:70px; height:70px; }
+  @media (orientation: landscape) { .jg-zona.completa { flex-direction:row; } .jg-zona.completa .jg-leyenda { flex:0 0 230px; width:230px; } }
+  @media (orientation: landscape) and (max-height: 520px) { .jg-zona.completa .jg-leyenda { flex-basis:170px; width:170px; font-size:.75rem; padding:6px; } .jg-zona.completa .jg-op canvas { width:26px; height:26px; } }
+  @media (orientation: portrait) { .jg-zona.completa { flex-direction:column; } .jg-zona.completa .jg-consola { flex:none; } .jg-zona.completa .jg-leyenda { flex:1 1 auto; width:100%; } }
 </style>
 <div class="au">
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2" style="max-width:760px;margin:0 auto">
@@ -126,7 +132,10 @@
   let textoFinal = '';
   const m = Gamificacion.iniciar({
     lienzo, tipo: '{{ tipo|escapejs }}', segundos: {{ segundos|default:20 }}, minutos: {{ minutos|default:3 }},
-    jugadores: {{ jugadores|default:1 }}, ritmo: {{ ritmo|default:1|stringformat:"s"|cut:"," }}, tema: '{{ tema|default:""|escapejs }}',
+    jugadores: {{ jugadores|default:1 }},
+    // lo que va debajo del juego (las flechas en el celular), salvo en pantalla completa, donde quedan encima
+    reservaAbajo: () => { const md = document.getElementById('jg-mandos'); return md && md.classList.contains('visible') && !document.querySelector('.jg-zona.completa') ? md.offsetHeight + 8 : 0; },
+    ritmo: {{ ritmo|default:1|stringformat:"s"|cut:"," }}, tema: '{{ tema|default:""|escapejs }}',
     preguntas: JSON.parse(document.getElementById('jg-preguntas').textContent),
     textoFinal: () => textoFinal,
     // Barra lateral: cada opción con su ícono del juego (el tanque, la bandera…) y el texto completo
@@ -182,9 +191,9 @@
   const def = Gamificacion;
   const mandos = document.getElementById('jg-mandos');
   const tipo = '{{ tipo|escapejs }}';
-  if (['laberinto', 'tanques', 'puente', 'carrera', 'bandera', 'carretera', 'tesoro'].includes(tipo) && (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window)) {
-    mandos.classList.add('visible');
-    if (tipo !== 'tanques') document.getElementById('jg-fuego').style.visibility = 'hidden';
+  // Los que se mueven usan la palanca que aparece donde se pone el dedo; aquí solo queda el botón de fuego.
+  if (tipo === 'tanques' && (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window)) {
+    mandos.classList.add('visible'); mandos.querySelector('.jg-cruz').style.visibility = 'hidden'; if (m.ajustar) m.ajustar();
   }
   mandos.querySelectorAll('[data-tecla]').forEach(b => {
     const t = b.dataset.tecla;

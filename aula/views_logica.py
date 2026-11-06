@@ -16,7 +16,7 @@ JUEGOS = [
     ('cerditos', 'Los tres cerditos', 'Retos de día (al jardín) y de noche (a la casita), con el lobo afuera.', 'cerditos'),
     ('ranas', 'Ranas saltarinas', 'Salte ranas hasta que solo quede la roja.', 'ranas'),
     ('bango', 'Tablero 36', 'Cubra el tablero con 7 piezas dejando destapado solo el número del reto.', 'bango'),
-    ('kadogemo', 'Cuatro cuadrantes', 'Acomode las 4 piezas para que los huecos queden como en la tarjeta.', 'kadogemo'),
+    ('kadogemo', 'Cuatro cuadrantes', 'Tape el tablero de puntos con las 4 piezas y deje a la vista solo los colores que pide la tarjeta.', 'kadogemo'),
     ('kiriku', 'Deslizables de colores', 'Deslice las fichas hasta copiar la tarjeta.', 'kiriku'),
     ('laberinto', 'Laberinto de colores', 'Lleve las fichas por el corredor hasta copiar la tarjeta.', 'laberinto_colores'),
     ('fila', 'La fila exacta', 'Ordene a las personas en la fila cumpliendo todas las pistas.', 'fila'),

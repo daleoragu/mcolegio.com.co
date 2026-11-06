@@ -28,11 +28,22 @@
         contenedor.appendChild(cv);
         const ctx = cv.getContext('2d');
         const L = {cv, ctx, W, H, escala: 1, dibujar: null};
+        // Cabe entero en la pantalla de cualquier equipo: el ancho de su caja y el alto visible que queda
+        // debajo de las barras, menos lo que va debajo del tablero (flechas, piezas, botones).
         L.ajustar = function () {
             const caja = contenedor.getBoundingClientRect();
             let ancho = caja.width || W;
-            const maxAlto = (document.fullscreenElement ? window.innerHeight - 90 : window.innerHeight * .78);
-            if (ancho * H / W > maxAlto) ancho = maxAlto * W / H;
+            const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            // Lo que acompaña al tablero: debajo (resta alto) o al lado si la caja va en fila (resta ancho)
+            let debajo = 0;
+            const enFila = getComputedStyle(contenedor).flexDirection === 'row';
+            [...contenedor.children].forEach(el => {
+                if (el === cv || el.offsetParent === null || getComputedStyle(el).position === 'absolute') return;
+                if (enFila) ancho -= el.offsetWidth + 14; else debajo += el.offsetHeight + 8;
+            });
+            const completa = !!document.fullscreenElement;
+            const maxAlto = completa ? vh - Math.max(0, cv.getBoundingClientRect().top) - debajo - 10 : Math.max(240, vh * .82 - debajo);
+            if (ancho * H / W > maxAlto) ancho = Math.max(200, maxAlto * W / H);
             const dpr = window.devicePixelRatio || 1;
             cv.style.width = ancho + 'px'; cv.style.height = (ancho * H / W) + 'px';
             cv.width = Math.round(ancho * dpr); cv.height = Math.round(ancho * H / W * dpr); L.escala = cv.width / W;
@@ -44,9 +55,11 @@
             o = o || {}; ctx.font = `${o.negrita ? 'bold ' : ''}${o.tam || 14}px system-ui, sans-serif`; ctx.fillStyle = o.color || '#212529';
             ctx.textAlign = o.alinear || 'left'; ctx.textBaseline = o.base || 'alphabetic'; ctx.fillText(t, x, y);
         };
-        window.addEventListener('resize', L.ajustar);
-        document.addEventListener('fullscreenchange', () => setTimeout(L.ajustar, 50));
-        requestAnimationFrame(L.ajustar);
+        const reajustar = () => { if (!cv.isConnected) return; L.ajustar(); setTimeout(L.ajustar, 150); };
+        window.addEventListener('resize', reajustar); window.addEventListener('orientationchange', reajustar);
+        document.addEventListener('fullscreenchange', reajustar);
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', reajustar);
+        requestAnimationFrame(L.ajustar); setTimeout(L.ajustar, 200);      // otra vez cuando ya están las flechas o las piezas
         return L;
     }
 
@@ -152,7 +165,10 @@
 
     // Botones de flechas en la pantalla (los usan también otros juegos de mover)
     function cruceta(zona, mover) {
+        // Solo en pantallas táctiles: en el computador se usan las flechas del teclado
+        if (!(matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window)) return null;
         const c = document.createElement('div');
+        c.className = 'lg-cruceta';
         c.style.cssText = 'display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(2,46px);gap:4px;justify-content:center;margin-top:8px;user-select:none';
         [['', ''], ['▲', 'arriba'], ['', ''], ['◄', 'izquierda'], ['▼', 'abajo'], ['►', 'derecha']].forEach(([t, d]) => {
             const b = document.createElement(d ? 'button' : 'span');

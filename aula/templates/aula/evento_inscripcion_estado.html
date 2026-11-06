@@ -1,0 +1,30 @@
+{% extends base %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-medal me-2"></i>{{ ev.titulo }}</h4><p class="text-muted small mb-0">Su inscripción</p>{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au" style="max-width:560px;margin:0 auto">
+  <div class="au-tarjeta text-center" style="border-top:6px solid {% if p.estado == 'rechazada' %}#e03131{% else %}#fab005{% endif %}">
+    {% if p.estado == 'pendiente' %}
+      <div class="fs-1">⏳</div>
+      <h5 class="mb-1">Inscripción recibida</h5>
+      <p class="mb-2">El organizador la está revisando. Cuando la apruebe, entre otra vez a este mismo enlace{% if not ev.activo %} el día del evento{% endif %} para jugar.</p>
+    {% else %}
+      <div class="fs-1">✋</div>
+      <h5 class="mb-1">La inscripción no fue aprobada</h5>
+      {% if p.datos.motivo %}<p class="mb-2"><b>Motivo:</b> {{ p.datos.motivo }}</p>{% endif %}
+      <p class="small text-muted">Si cree que es un error, comuníquese con el organizador del evento.</p>
+    {% endif %}
+    <div class="border rounded-3 p-2 my-2 d-inline-block">
+      <div class="small text-muted">Su clave de inscripción (guárdela)</div>
+      <div class="fs-3 fw-bold font-monospace" style="letter-spacing:.2em">{{ p.datos.clave }}</div>
+    </div>
+    <table class="table table-sm small text-start mb-0 mt-2">
+      <tr><th>Nombre</th><td>{{ p.nombre }}</td></tr>
+      {% if p.datos.documento %}<tr><th>Documento</th><td>{{ p.datos.documento }}</td></tr>{% endif %}
+      <tr><th>Institución</th><td>{{ p.institucion }}{% if p.datos.ciudad %} · {{ p.datos.ciudad }}{% endif %}</td></tr>
+      <tr><th>Grado</th><td>{{ grado }} · nivel {{ grupo }}</td></tr>
+    </table>
+  </div>
+  <p class="small text-muted text-center">Con su documento y la clave puede ver su inscripción desde otro equipo, en «Ya me inscribí».</p>
+</div>
+{% endblock %}
