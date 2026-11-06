@@ -121,7 +121,10 @@
         if (MOTOR[juego]) {
             // Juego arcade: con operaciones según el grupo, o con las preguntas del juego propio del docente
             const propio = (D.propios || {})[juego], tipo = MOTOR[juego], def = Gamificacion.juego(tipo) || {};
-            const preguntas = propio ? propio.preguntas.slice().sort(() => Math.random() - .5).slice(0, 3) : operaciones(3);
+            // Juego propio: sus preguntas · si el organizador lo pidió: preguntas del banco del grado · si no: operaciones
+            const delBanco = D.arcade_preguntas && D.arcade_preguntas.length >= 3
+                ? D.arcade_preguntas.slice().sort(() => Math.random() - .5).slice(0, 3).map((q, i) => Object.assign({i}, q)) : null;
+            const preguntas = propio ? propio.preguntas.slice().sort(() => Math.random() - .5).slice(0, 3) : (delBanco || operaciones(3));
             $('#ol-reto-detalle').textContent = `Responda bien ${Math.min(2, preguntas.length)} de ${preguntas.length}.`;
             $('#ol-instrucciones').textContent = def.instrucciones || '';
             const cv = document.createElement('canvas'); cv.className = 'ol-motor'; zona.appendChild(cv);

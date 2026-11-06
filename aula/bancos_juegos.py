@@ -10,6 +10,8 @@ BANCOS = {
     'factorizacion': 'Factorización (álgebra 8°)',
     'colombia': 'Cultura general de Colombia',
     'ingles': 'Inglés básico',
+    # Banco de la olimpiada de matemáticas (40 preguntas por grado; aula/bancos/olimpiada_6_11.json)
+    **{f'olimpiada{g}': f'Olimpiada de matemáticas {g}.º' for g in range(6, 12)},
 }
 
 
@@ -84,9 +86,20 @@ def _factorizacion():
             for t in temas for it in t['items']]
 
 
+def _olimpiada(grado):
+    from .planilla_preguntas import banco_olimpiada
+    return [{'texto': p['texto'], 'opciones': [dict(o) for o in p['opciones']], 'tema': p['tema']} for p in banco_olimpiada() if p['grado'] == grado]
+
+
 def preguntas(banco, n=10):
     if banco == 'matematicas':
         return _matematicas(n)
+    if banco.startswith('olimpiada') and banco[9:].isdigit():
+        todas = _olimpiada(int(banco[9:]))
+        random.shuffle(todas)
+        for p in todas:
+            random.shuffle(p['opciones'])
+        return todas[:n]
     if banco == 'factorizacion':
         todas = _factorizacion()
         return random.sample(todas, min(n, len(todas)))

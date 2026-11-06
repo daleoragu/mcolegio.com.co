@@ -15,6 +15,7 @@ urlpatterns = [
     path('eventos/c/<str:codigo>/', ve.inscribirse, name='evento_inscribirse'),
     path('eventos/<int:eid>/inscripciones/', ve.inscripciones, name='evento_inscripciones'),
     path('eventos/<int:eid>/planilla/', ve.planilla, name='evento_planilla'),
+    path('eventos/<int:eid>/preguntas/planilla/', ve.preguntas_planilla, name='evento_preguntas_planilla'),
     path('eventos/<int:eid>/en-vivo/', ve.en_vivo, name='evento_en_vivo'),
     path('eventos/<int:eid>/diplomas/', ve.diplomas, name='evento_diplomas'),
     path('eventos/<int:eid>/grabacion/', ve.grabacion, name='evento_grabacion'),
@@ -110,6 +111,7 @@ urlpatterns = [
     path('instrumentos/', views.instrumentos, name='instrumentos'),
     path('banco/', vb.banco, name='banco'),
     path('banco/json/', vb.banco_json, name='banco_json'),
+    path('banco/planilla/', vb.banco_planilla, name='banco_planilla'),
     path('instrumentos/<int:iid>/', views.instrumento, name='instrumento'),
     path('instrumentos/<int:iid>/accion/', views.instrumento_accion, name='instrumento_accion'),
 ]

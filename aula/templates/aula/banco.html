@@ -21,6 +21,25 @@
           <label class="form-check-label" for="bc-comp">Compartirlas con los docentes de mi colegio</label></div>{% endif %}
         <button class="btn au-oro w-100">Guardar en el banco</button>
       </form>
+      <div class="au-tarjeta">
+        <h6><i class="fas fa-file-excel text-success me-1"></i>Planilla de Excel</h6>
+        <div class="d-flex flex-wrap gap-1 mb-2">
+          <a class="btn btn-sm btn-outline-success" href="{% url 'aula:banco_planilla' %}?de=vacia">Vacía</a>
+          <a class="btn btn-sm btn-outline-success" href="{% url 'aula:banco_planilla' %}?de=mias&tema={{ tema|urlencode }}&q={{ q|urlencode }}">Mis preguntas{% if tema %} de «{{ tema }}»{% endif %}</a>
+          <a class="btn btn-sm btn-outline-success" href="{% url 'aula:banco_planilla' %}?de=olimpiada">Banco 6.º–11.º</a>
+        </div>
+        <form method="post" action="{% url 'aula:banco_planilla' %}" enctype="multipart/form-data">{% csrf_token %}
+          <input type="file" name="archivo" accept=".xlsx,.csv" class="form-control form-control-sm mb-1" required>
+          <input name="tema" class="form-control form-control-sm mb-1" maxlength="80" placeholder="Tema (si la planilla no lo trae)">
+          {% if colegio %}<div class="form-check small mb-1"><input class="form-check-input" type="checkbox" name="compartida" id="bc-comp2"><label class="form-check-label" for="bc-comp2">Compartirlas con mi colegio</label></div>{% endif %}
+          <button class="btn btn-sm au-oro w-100">Subir planilla</button>
+        </form>
+      </div>
+      <form method="post" class="au-tarjeta">{% csrf_token %}<input type="hidden" name="accion" value="olimpiada">
+        <h6 class="mb-1">🏅 Banco olimpiada 6.º–11.º</h6>
+        <p class="small text-muted mb-2">240 preguntas de matemáticas (40 por grado) en los pensamientos numérico, geométrico y aleatorio, con su grado y su tema.</p>
+        <button class="btn btn-sm btn-success w-100">Agregarlas a mi banco</button>
+      </form>
       <div class="au-tarjeta small text-muted">También puede guardar las preguntas de un juego al publicarlo (casilla «Guardar estas preguntas en mi banco»).</div>
     </div>
     <div class="col-lg-8">

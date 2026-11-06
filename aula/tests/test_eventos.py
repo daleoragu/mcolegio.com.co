@@ -561,3 +561,70 @@ class Olimpiada(ColegioDePrueba):
         r = self.admin.post(url, {'archivo': SimpleUploadedFile('x.xlsx', b'basura')}, follow=True)
         self.assertContains(r, 'No se pudo leer')
         self.assertEqual(self.cliente(self.ana.user).get(url).status_code, 403)
+
+    def test_preguntas_por_grado_planilla_y_banco_611(self):
+        """Olimpiada 6.º–11.º: banco de 240 preguntas, planilla de Excel de preguntas y preguntas por grado."""
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from openpyxl import load_workbook
+        from aula import planilla_preguntas
+        banco = planilla_preguntas.banco_olimpiada()
+        self.assertEqual(len(banco), 240)
+        for g in range(6, 12):
+            del_grado = [p for p in banco if p['grado'] == g]
+            self.assertEqual(len(del_grado), 40)
+            self.assertEqual({p['categoria'] for p in del_grado}, {'euclides', 'newton', 'bernoulli'})
+        for p in banco:      # cada una: 4 opciones distintas y una sola correcta
+            textos = [o['texto'] for o in p['opciones']]
+            self.assertEqual((len(textos), len(set(textos)), sum(o['correcta'] for o in p['opciones'])), (4, 4, 1), p['texto'])
+        ev = self.crear('Primera Olimpiada Matemática Zona Norte del Tolima')
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        # Cargar el banco: cada pregunta al grupo de su grado
+        self.admin.post(conf, {'accion': 'banco_611'})
+        ev.refresh_from_db()
+        n611 = [x for x in ev.preguntas if x.get('origen') == 'Banco olimpiada 6.º–11.º']
+        ya_estaban = {(x['ciclo'], x['texto']) for x in ev.preguntas if x.get('origen') != 'Banco olimpiada 6.º–11.º'}
+        self.assertEqual(len(n611), 240 - sum(1 for p in banco if (p['ciclo'], p['texto']) in ya_estaban))
+        self.assertGreater(len(n611), 230)
+        self.assertTrue(all(x['ciclo'] == {6: 'exploradores', 7: 'exploradores', 8: 'investigadores', 9: 'investigadores'}.get(x['grado'], 'expertos') for x in n611))
+        self.admin.post(conf, {'accion': 'banco_611'})          # no se repiten
+        ev.refresh_from_db(); self.assertEqual(len([x for x in ev.preguntas if x.get('origen') == 'Banco olimpiada 6.º–11.º']), len(n611))
+        # Planilla: descargar las del evento y subir una propia (nivel por nombre o por grado)
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/preguntas/planilla/')
+        hoja = load_workbook(io.BytesIO(r.content))['Preguntas']
+        self.assertEqual([c.value for c in hoja[1]][:5], ['Grado', 'Nivel', 'Pensamiento', 'Tema', 'Pregunta'])
+        self.assertGreaterEqual(hoja.max_row, len(n611) + 1)
+        libro = load_workbook(io.BytesIO(self.admin.get(f'/aula/eventos/{ev.pk}/preguntas/planilla/?de=vacia').content))
+        h = libro['Preguntas']
+        h.append(['7.º', '', 'Euclides', 'Ángulos', '¿Cuánto suman los ángulos de un cuadrilátero?', '180°', '360°', '270°', '', '', '', '', '', 'B'])
+        h.append(['', 'Expertos', 'Newton', '', '¿Cuánto es 2^10?', '1024', '512', '', '', '', '', '', '', 'A'])
+        h.append(['8', '', '', '', 'Sin respuesta marcada', 'a', 'b', '', '', '', '', '', '', 'Z'])
+        out = io.BytesIO(); libro.save(out)
+        r = self.admin.post(f'/aula/eventos/{ev.pk}/preguntas/planilla/', {'archivo': SimpleUploadedFile('p.xlsx', out.getvalue()), 'ciclo': 'exploradores', 'categoria': 'newton'}, follow=True)
+        self.assertContains(r, 'Se agregaron 2 pregunta(s)'); self.assertContains(r, '1 fila(s) con problemas')
+        ev.refresh_from_db()
+        cuadri = next(x for x in ev.preguntas if 'cuadrilátero' in x['texto'])
+        self.assertEqual((cuadri['ciclo'], cuadri['categoria'], cuadri['grado']), ('exploradores', 'euclides', 7))
+        self.assertEqual(next(x for x in ev.preguntas if '2^10' in x['texto'])['ciclo'], 'expertos')
+        # La pregunta de competencia de Ana (7.º) es de su grado
+        self.admin.post(conf, {'accion': 'activar'})
+        ana = self.cliente(self.ana.user)
+        self.post(ana, f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'inicio'}]})
+        p = ParticipacionEvento.objects.get(evento=ev, estudiante=self.ana)
+        grado = int(self.ana.curso.grado)
+        p.puntos, p.preguntas_hechas = 5, 0
+        p.save()
+        q = ana.get(f'/aula/eventos/{ev.pk}/pregunta/').json()['pregunta']
+        x = next(x for x in ev.preguntas if x['texto'] == q['texto'])
+        self.assertIn(x.get('grado'), (grado, None))
+        # Retos arcade con el banco del grado (sin las preguntas de competencia)
+        d = ana.get(f'/aula/eventos/{ev.pk}/').context['datos']
+        self.assertIsNone(d['arcade_preguntas'])
+        self.admin.post(conf, {'accion': 'arcade', 'arcade': 'banco'})
+        d = ana.get(f'/aula/eventos/{ev.pk}/').context['datos']
+        competencia = {x['texto'] for x in ev.preguntas}
+        self.assertFalse(any(q['texto'] in competencia for q in d['arcade_preguntas']))      # nunca las de competencia
+        ev.refresh_from_db(); ev.preguntas = [x for x in ev.preguntas if x.get('origen') != 'Banco olimpiada 6.º–11.º']; ev.save()
+        d = ana.get(f'/aula/eventos/{ev.pk}/').context['datos']
+        textos_grado = {p['texto'] for p in banco if p['grado'] == grado}
+        self.assertTrue(d['arcade_preguntas'] and all(q['texto'] in textos_grado for q in d['arcade_preguntas']))

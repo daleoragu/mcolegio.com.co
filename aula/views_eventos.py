@@ -26,6 +26,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from . import planilla_preguntas
 from .invertida import leer_preguntas
 from .models import Evento, GrabacionEvento, JuegoAula, ParticipacionEvento
 
@@ -95,7 +96,9 @@ CONFIG = {'juegos': [j[0] for j in JUEGOS] + ['a_' + k for k in ('salto', 'puent
           # cupo_colegio: máximo por institución; cupo_nivel: máximo por institución en cada nivel (grupo); 0 = sin límite
           'inscripcion': {'abierta': True, 'aprobacion': False, 'cupo_colegio': 0, 'cupo_nivel': 0},
           # Vigilancia: cámara y micrófono encendidos y grabados durante el evento (se borran solos a los `dias`)
-          'vigilancia': {'activa': False, 'dias': 30}}
+          'vigilancia': {'activa': False, 'dias': 30},
+          # Retos arcade: 'operaciones' (las arma la plataforma según el grupo) o 'banco' (preguntas del banco 6.º–11.º del grado)
+          'arcade': 'operaciones'}
 DIFICULTADES = [('auto', 'Según el grupo'), ('facil', 'Fácil'), ('media', 'Media'), ('dificil', 'Difícil')]
 
 
@@ -316,6 +319,68 @@ def _banco():
         return json.load(f)
 
 
+def grupo_para(c, nivel='', grado=None):
+    """El grupo del evento para una pregunta: por el nombre o id del nivel; si no, el que tiene ese grado."""
+    if nivel:
+        n = normalizar(nivel)
+        g = next((g for g in grupos(c) if normalizar(g['nombre']) == n or g['id'] == n), None)
+        if g:
+            return g
+    if grado is not None:
+        return next((g for g in grupos(c) if grado in g['grados']), None)
+    return None
+
+
+def agregar_preguntas(ev, preguntas, origen, ciclo_defecto=None, cat_defecto='newton'):
+    """Agrega preguntas de competencia al evento (cada una a su grupo por nivel o grado). Devuelve (agregadas, saltadas)."""
+    c = config_de(ev)
+    ya = {(x.get('ciclo'), x.get('texto')) for x in ev.preguntas}
+    nuevas, saltadas = [], 0
+    for p in preguntas:
+        g = grupo_para(c, p.get('nivel', ''), p.get('grado')) or grupo_por_id(c, ciclo_defecto)
+        cat = p.get('categoria') or cat_defecto
+        if g is None or (g['id'], p['texto']) in ya or cat not in {k for k, _, _ in CATEGORIAS}:
+            saltadas += 1
+            continue
+        ya.add((g['id'], p['texto']))
+        nuevas.append({'ciclo': g['id'], 'categoria': cat, 'grado': p.get('grado'), 'tema': p.get('tema', ''), 'texto': p['texto'],
+                       'opciones': p['opciones'], 'origen': origen})
+    if nuevas:
+        ev.preguntas = list(ev.preguntas) + nuevas
+        ev.save(update_fields=['preguntas'])
+    return len(nuevas), saltadas
+
+
+@login_required
+def preguntas_planilla(request, eid):
+    """Planilla de Excel de las preguntas de competencia: descargar (las del evento, vacía o el banco 6.º–11.º) y subir."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores manejan las preguntas.')
+    c = config_de(ev)
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if not archivo or archivo.size > 5 * 1024 * 1024:
+            messages.warning(request, 'Escoja la planilla (máximo 5 MB).')
+            return redirect('aula:evento_configurar', eid=ev.pk)
+        preguntas, errores = planilla_preguntas.importar(archivo)
+        cat = request.POST.get('categoria') if request.POST.get('categoria') in {k for k, _, _ in CATEGORIAS} else 'newton'
+        n, saltadas = agregar_preguntas(ev, preguntas, f'Planilla: {archivo.name[:60]}', request.POST.get('ciclo'), cat)
+        messages.success(request, f'Se agregaron {n} pregunta(s) de la planilla.' + (f' {saltadas} no se agregaron (sin grupo para su grado o repetidas).' if saltadas else ''))
+        if errores:
+            messages.warning(request, f'{len(errores)} fila(s) con problemas: ' + ' · '.join((f'fila {f}: ' if f else '') + m for f, m in errores[:12]) + (' …' if len(errores) > 12 else ''))
+        return redirect('aula:evento_configurar', eid=ev.pk)
+    de = request.GET.get('de', 'evento')
+    nombres = {g['id']: g['nombre'] for g in grupos(c)}
+    lista = [] if de == 'vacia' else planilla_preguntas.banco_olimpiada() if de == 'olimpiada' else ev.preguntas
+    if de == 'olimpiada':
+        lista = [dict(p, ciclo=(grupo_para(c, '', p['grado']) or {}).get('id', p['ciclo'])) for p in lista]
+    archivo = planilla_preguntas.descargar(lista, ev.titulo, nombres)
+    nombre = {'vacia': 'planilla de preguntas (vacia)', 'olimpiada': 'banco olimpiada 6 a 11'}.get(de, f'preguntas {_nombre_archivo(ev.titulo, 50)}')
+    return HttpResponse(archivo.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        headers={'Content-Disposition': f'attachment; filename="{nombre}.xlsx"'})
+
+
 def limpiar_grabaciones(ev, c=None):
     """Borra las grabaciones que ya cumplieron los días que dice el evento (también lo hace el comando
     `python manage.py limpiar_grabaciones_eventos`, para correrlo cada día)."""
@@ -439,6 +504,15 @@ def configurar(request, eid):
             ev.preguntas = list(ev.preguntas) + [p for p in _banco() if p not in ev.preguntas]
             ev.save(update_fields=['preguntas'])
             messages.success(request, 'Se agregó el banco inicial de preguntas.')
+        elif accion == 'banco_611':
+            n, sin = agregar_preguntas(ev, [dict(p, nivel='') for p in planilla_preguntas.banco_olimpiada()], 'Banco olimpiada 6.º–11.º')
+            messages.success(request, f'Se agregaron {n} pregunta(s) del banco 6.º–11.º, cada una al grupo de su grado.'
+                             + (f' {sin} no se agregaron (su grado no está en ningún grupo o ya estaban).' if sin else ''))
+        elif accion == 'arcade':
+            c = config_de(ev)
+            ev.config = dict(ev.config or {}, arcade='banco' if request.POST.get('arcade') == 'banco' else 'operaciones')
+            ev.save(update_fields=['config'])
+            messages.success(request, 'Los retos de juegos arcade ahora usan ' + ('las preguntas del banco 6.º–11.º del grado de cada estudiante.' if ev.config['arcade'] == 'banco' else 'operaciones según el grupo.'))
         elif accion == 'alcance' and ev.colegio_id:
             ev.alcance = 'codigo' if request.POST.get('alcance') == 'codigo' else 'colegio'
             ev.save(update_fields=['alcance'])
@@ -524,6 +598,17 @@ def configurar(request, eid):
         'organizadores': set(ev.organizadores.values_list('pk', flat=True)), 'base': _base(request)})
 
 
+def _preguntas_arcade(ev, c, grado, grupo):
+    """Preguntas del banco 6.º–11.º para los retos arcade del estudiante (su grado; si no, las de los grados de su grupo).
+    Se quitan las que el evento usa como preguntas de competencia, para no revelar sus respuestas."""
+    competencia = {x.get('texto') for x in ev.preguntas}
+    banco = [p for p in planilla_preguntas.banco_olimpiada() if p['texto'] not in competencia]
+    grados = [grado] if grado is not None else (grupo or {}).get('grados', [])
+    lista = [p for p in banco if p['grado'] in grados] or [p for p in banco if p['grado'] in (grupo or {}).get('grados', [])]
+    random.shuffle(lista)
+    return [{'texto': p['texto'], 'opciones': p['opciones']} for p in lista[:60]]
+
+
 def _juegos_salon(ev):
     """Los juegos del salón virtual de donde se pueden importar preguntas."""
     if ev.colegio_id:
@@ -570,6 +655,7 @@ def jugar(request, eid):
         'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito')},
         'usuario': request.user.pk or (p.token[:8] if p else 'anon'),
         'vigilancia': c['vigilancia'] if c['vigilancia']['activa'] else None,
+        'arcade_preguntas': _preguntas_arcade(ev, c, grado, grupo) if c.get('arcade') == 'banco' else None,
         'acepto_vigilancia': bool(p and (p.datos or {}).get('vigilancia', {}).get('acepto')),
     }
     if p is not None or est is not None:
@@ -1219,6 +1305,9 @@ def pregunta(request, eid):
         hechas = p.preguntas_hechas if p else random.randint(0, 2)
         cat = CATEGORIAS[hechas % 3][0]
         del_ciclo = [(i, x) for i, x in enumerate(ev.preguntas) if x.get('ciclo') == ciclo]
+        grado = grado_de(p) if p else None
+        if grado is not None and any(x.get('grado') == grado for _, x in del_ciclo):
+            del_ciclo = [(i, x) for i, x in del_ciclo if x.get('grado') in (grado, None)]      # las de su grado (y las generales)
         opciones = [(i, x) for i, x in del_ciclo if x.get('categoria') == cat] or del_ciclo
         if not opciones:
             return JsonResponse({'pregunta': None})

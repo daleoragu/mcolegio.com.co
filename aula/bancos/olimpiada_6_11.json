@@ -1,0 +1,6242 @@
+[
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "MCM",
+"texto": "¿Cuál es el mínimo común múltiplo de 15 y 20?",
+"opciones": [
+{
+"texto": "300",
+"correcta": false
+},
+{
+"texto": "120",
+"correcta": false
+},
+{
+"texto": "5",
+"correcta": false
+},
+{
+"texto": "60",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "MCD",
+"texto": "¿Cuál es el máximo común divisor de 16 y 40?",
+"opciones": [
+{
+"texto": "8",
+"correcta": true
+},
+{
+"texto": "4",
+"correcta": false
+},
+{
+"texto": "80",
+"correcta": false
+},
+{
+"texto": "16",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Operaciones",
+"texto": "¿Cuánto es 2 + 3 × 4 − 8?",
+"opciones": [
+{
+"texto": "12",
+"correcta": false
+},
+{
+"texto": "-10",
+"correcta": false
+},
+{
+"texto": "8",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Potencias",
+"texto": "¿Cuánto es 5^2?",
+"opciones": [
+{
+"texto": "30",
+"correcta": false
+},
+{
+"texto": "10",
+"correcta": false
+},
+{
+"texto": "25",
+"correcta": true
+},
+{
+"texto": "5",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Decimales",
+"texto": "¿Cuánto es 7,5 + 0,46?",
+"opciones": [
+{
+"texto": "7,96",
+"correcta": true
+},
+{
+"texto": "12,1",
+"correcta": false
+},
+{
+"texto": "8,06",
+"correcta": false
+},
+{
+"texto": "7,55",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Números primos",
+"texto": "¿Cuál de estos números es primo?",
+"opciones": [
+{
+"texto": "87",
+"correcta": false
+},
+{
+"texto": "39",
+"correcta": false
+},
+{
+"texto": "43",
+"correcta": true
+},
+{
+"texto": "77",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Problemas",
+"texto": "Un cuaderno cuesta $3.700. ¿Cuánto pagan por 7 cuadernos?",
+"opciones": [
+{
+"texto": "$25.900",
+"correcta": true
+},
+{
+"texto": "$3.707",
+"correcta": false
+},
+{
+"texto": "$22.200",
+"correcta": false
+},
+{
+"texto": "$29.600",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "MCM",
+"texto": "¿Cuál es el mínimo común múltiplo de 12 y 18?",
+"opciones": [
+{
+"texto": "6",
+"correcta": false
+},
+{
+"texto": "36",
+"correcta": true
+},
+{
+"texto": "216",
+"correcta": false
+},
+{
+"texto": "72",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "MCD",
+"texto": "¿Cuál es el máximo común divisor de 48 y 60?",
+"opciones": [
+{
+"texto": "12",
+"correcta": true
+},
+{
+"texto": "6",
+"correcta": false
+},
+{
+"texto": "24",
+"correcta": false
+},
+{
+"texto": "240",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Fracciones",
+"texto": "¿Cuál es la fracción 4/8 simplificada al máximo?",
+"opciones": [
+{
+"texto": "1/2",
+"correcta": true
+},
+{
+"texto": "1/3",
+"correcta": false
+},
+{
+"texto": "2/4",
+"correcta": false
+},
+{
+"texto": "2/1",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Operaciones",
+"texto": "¿Cuánto es 9 + 9 × 5 − 7?",
+"opciones": [
+{
+"texto": "83",
+"correcta": false
+},
+{
+"texto": "47",
+"correcta": true
+},
+{
+"texto": "-9",
+"correcta": false
+},
+{
+"texto": "49",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Potencias",
+"texto": "¿Cuánto es 3^4?",
+"opciones": [
+{
+"texto": "81",
+"correcta": true
+},
+{
+"texto": "84",
+"correcta": false
+},
+{
+"texto": "27",
+"correcta": false
+},
+{
+"texto": "12",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Decimales",
+"texto": "¿Cuánto es 8,1 + 0,51?",
+"opciones": [
+{
+"texto": "8,15",
+"correcta": false
+},
+{
+"texto": "13,2",
+"correcta": false
+},
+{
+"texto": "8,61",
+"correcta": true
+},
+{
+"texto": "8,71",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Divisibilidad",
+"texto": "¿Entre cuál de estos números es divisible 248?",
+"opciones": [
+{
+"texto": "5",
+"correcta": false
+},
+{
+"texto": "4",
+"correcta": true
+},
+{
+"texto": "9",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Problemas",
+"texto": "Un cuaderno cuesta $1.800. ¿Cuánto pagan por 9 cuadernos?",
+"opciones": [
+{
+"texto": "$14.400",
+"correcta": false
+},
+{
+"texto": "$18.000",
+"correcta": false
+},
+{
+"texto": "$1.809",
+"correcta": false
+},
+{
+"texto": "$16.200",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "MCM",
+"texto": "¿Cuál es el mínimo común múltiplo de 6 y 8?",
+"opciones": [
+{
+"texto": "24",
+"correcta": true
+},
+{
+"texto": "48",
+"correcta": false
+},
+{
+"texto": "25",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Fracciones",
+"texto": "¿Cuál es la fracción 24/54 simplificada al máximo?",
+"opciones": [
+{
+"texto": "9/4",
+"correcta": false
+},
+{
+"texto": "4/9",
+"correcta": true
+},
+{
+"texto": "12/27",
+"correcta": false
+},
+{
+"texto": "4/10",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Operaciones",
+"texto": "¿Cuánto es 8 + 9 × 6 − 3?",
+"opciones": [
+{
+"texto": "59",
+"correcta": true
+},
+{
+"texto": "35",
+"correcta": false
+},
+{
+"texto": "99",
+"correcta": false
+},
+{
+"texto": "61",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Perímetro",
+"texto": "Un rectángulo mide 15 cm de largo y 7 cm de ancho. ¿Cuál es su perímetro?",
+"opciones": [
+{
+"texto": "22 cm",
+"correcta": false
+},
+{
+"texto": "105 cm",
+"correcta": false
+},
+{
+"texto": "44 cm",
+"correcta": true
+},
+{
+"texto": "37 cm",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Área",
+"texto": "¿Cuál es el área de un rectángulo de 9 m por 9 m?",
+"opciones": [
+{
+"texto": "81 m²",
+"correcta": true
+},
+{
+"texto": "162 m²",
+"correcta": false
+},
+{
+"texto": "18 m²",
+"correcta": false
+},
+{
+"texto": "36 m²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Ángulos",
+"texto": "¿Cuánto mide el complemento de un ángulo de 80°?",
+"opciones": [
+{
+"texto": "10°",
+"correcta": true
+},
+{
+"texto": "280°",
+"correcta": false
+},
+{
+"texto": "100°",
+"correcta": false
+},
+{
+"texto": "80°",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Ángulos",
+"texto": "¿Cuánto mide el suplemento de un ángulo de 47°?",
+"opciones": [
+{
+"texto": "47°",
+"correcta": false
+},
+{
+"texto": "43°",
+"correcta": false
+},
+{
+"texto": "133°",
+"correcta": true
+},
+{
+"texto": "313°",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Triángulos",
+"texto": "Dos ángulos de un triángulo miden 33° y 50°. ¿Cuánto mide el tercero?",
+"opciones": [
+{
+"texto": "97°",
+"correcta": true
+},
+{
+"texto": "7°",
+"correcta": false
+},
+{
+"texto": "277°",
+"correcta": false
+},
+{
+"texto": "83°",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de un cubo de 4 cm de arista?",
+"opciones": [
+{
+"texto": "12 cm³",
+"correcta": false
+},
+{
+"texto": "16 cm³",
+"correcta": false
+},
+{
+"texto": "96 cm³",
+"correcta": false
+},
+{
+"texto": "64 cm³",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Perímetro",
+"texto": "Un rectángulo mide 11 cm de largo y 5 cm de ancho. ¿Cuál es su perímetro?",
+"opciones": [
+{
+"texto": "27 cm",
+"correcta": false
+},
+{
+"texto": "55 cm",
+"correcta": false
+},
+{
+"texto": "32 cm",
+"correcta": true
+},
+{
+"texto": "16 cm",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Área",
+"texto": "¿Cuál es el área de un rectángulo de 10 m por 7 m?",
+"opciones": [
+{
+"texto": "34 m²",
+"correcta": false
+},
+{
+"texto": "140 m²",
+"correcta": false
+},
+{
+"texto": "70 m²",
+"correcta": true
+},
+{
+"texto": "17 m²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Ángulos",
+"texto": "¿Cuánto mide el complemento de un ángulo de 22°?",
+"opciones": [
+{
+"texto": "158°",
+"correcta": false
+},
+{
+"texto": "338°",
+"correcta": false
+},
+{
+"texto": "68°",
+"correcta": true
+},
+{
+"texto": "22°",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Ángulos",
+"texto": "¿Cuánto mide el suplemento de un ángulo de 93°?",
+"opciones": [
+{
+"texto": "267°",
+"correcta": false
+},
+{
+"texto": "87°",
+"correcta": true
+},
+{
+"texto": "93°",
+"correcta": false
+},
+{
+"texto": "3°",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Triángulos",
+"texto": "Dos ángulos de un triángulo miden 53° y 54°. ¿Cuánto mide el tercero?",
+"opciones": [
+{
+"texto": "253°",
+"correcta": false
+},
+{
+"texto": "74°",
+"correcta": false
+},
+{
+"texto": "73°",
+"correcta": true
+},
+{
+"texto": "107°",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de un cubo de 2 cm de arista?",
+"opciones": [
+{
+"texto": "8 cm³",
+"correcta": true
+},
+{
+"texto": "4 cm³",
+"correcta": false
+},
+{
+"texto": "6 cm³",
+"correcta": false
+},
+{
+"texto": "24 cm³",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Perímetro",
+"texto": "Un rectángulo mide 4 cm de largo y 3 cm de ancho. ¿Cuál es su perímetro?",
+"opciones": [
+{
+"texto": "12 cm",
+"correcta": false
+},
+{
+"texto": "14 cm",
+"correcta": true
+},
+{
+"texto": "11 cm",
+"correcta": false
+},
+{
+"texto": "7 cm",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Área",
+"texto": "¿Cuál es el área de un rectángulo de 14 m por 12 m?",
+"opciones": [
+{
+"texto": "336 m²",
+"correcta": false
+},
+{
+"texto": "26 m²",
+"correcta": false
+},
+{
+"texto": "168 m²",
+"correcta": true
+},
+{
+"texto": "52 m²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Promedio",
+"texto": "¿Cuál es el promedio de 7, 9, 7, 9, 3?",
+"opciones": [
+{
+"texto": "35",
+"correcta": false
+},
+{
+"texto": "7",
+"correcta": true
+},
+{
+"texto": "8",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Moda",
+"texto": "¿Cuál es la moda de los datos 8, 6, 8, 8, 4, 5?",
+"opciones": [
+{
+"texto": "5",
+"correcta": false
+},
+{
+"texto": "8",
+"correcta": true
+},
+{
+"texto": "4",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "Se lanza un dado. ¿Cuál es la probabilidad de sacar un número mayor que 4?",
+"opciones": [
+{
+"texto": "1/3",
+"correcta": true
+},
+{
+"texto": "2/3",
+"correcta": false
+},
+{
+"texto": "2/8",
+"correcta": false
+},
+{
+"texto": "1/4",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Promedio",
+"texto": "¿Cuál es el promedio de 8, 10, 6, 9, 2?",
+"opciones": [
+{
+"texto": "8",
+"correcta": false
+},
+{
+"texto": "35",
+"correcta": false
+},
+{
+"texto": "7",
+"correcta": true
+},
+{
+"texto": "6",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Moda",
+"texto": "¿Cuál es la moda de los datos 2, 9, 6, 9, 9, 7?",
+"opciones": [
+{
+"texto": "9",
+"correcta": true
+},
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "7",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "Se lanza un dado. ¿Cuál es la probabilidad de sacar un número par?",
+"opciones": [
+{
+"texto": "1/3",
+"correcta": false
+},
+{
+"texto": "1/2",
+"correcta": true
+},
+{
+"texto": "3/9",
+"correcta": false
+},
+{
+"texto": "1/4",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Promedio",
+"texto": "¿Cuál es el promedio de 2, 10, 7, 4, 2?",
+"opciones": [
+{
+"texto": "4",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": false
+},
+{
+"texto": "25",
+"correcta": false
+},
+{
+"texto": "5",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 6,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Moda",
+"texto": "¿Cuál es la moda de los datos 6, 8, 3, 3, 3, 2?",
+"opciones": [
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "8",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 6.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Números enteros",
+"texto": "¿Cuánto es (-18) + (10)?",
+"opciones": [
+{
+"texto": "8",
+"correcta": false
+},
+{
+"texto": "28",
+"correcta": false
+},
+{
+"texto": "-8",
+"correcta": true
+},
+{
+"texto": "-28",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Números enteros",
+"texto": "¿Cuánto es (-5) × (-9)?",
+"opciones": [
+{
+"texto": "45",
+"correcta": true
+},
+{
+"texto": "46",
+"correcta": false
+},
+{
+"texto": "-45",
+"correcta": false
+},
+{
+"texto": "-14",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Fracciones",
+"texto": "¿Cuánto es 1/7 × 3/5?",
+"opciones": [
+{
+"texto": "3/35",
+"correcta": true
+},
+{
+"texto": "4/12",
+"correcta": false
+},
+{
+"texto": "5/21",
+"correcta": false
+},
+{
+"texto": "5/42",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Porcentajes",
+"texto": "¿Cuál es el 75 % de 440?",
+"opciones": [
+{
+"texto": "110",
+"correcta": false
+},
+{
+"texto": "660",
+"correcta": false
+},
+{
+"texto": "119",
+"correcta": false
+},
+{
+"texto": "330",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Proporcionalidad",
+"texto": "Si 5 kilos de arroz cuestan $5.500, ¿cuánto cuestan 20 kilos?",
+"opciones": [
+{
+"texto": "$110.000",
+"correcta": false
+},
+{
+"texto": "$22.000",
+"correcta": true
+},
+{
+"texto": "$5.504",
+"correcta": false
+},
+{
+"texto": "$27.500",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Ecuaciones",
+"texto": "Resuelva: 5x + 6 = 21",
+"opciones": [
+{
+"texto": "x = -3",
+"correcta": false
+},
+{
+"texto": "x = 4",
+"correcta": false
+},
+{
+"texto": "x = 3",
+"correcta": true
+},
+{
+"texto": "x = 15",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Porcentajes",
+"texto": "Unos tenis cuestan $20.000 y tienen 30 % de descuento. ¿Cuánto se paga?",
+"opciones": [
+{
+"texto": "$19.970",
+"correcta": false
+},
+{
+"texto": "$26.000",
+"correcta": false
+},
+{
+"texto": "$14.000",
+"correcta": true
+},
+{
+"texto": "$6.000",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Números enteros",
+"texto": "¿Cuánto es (-3) + (2)?",
+"opciones": [
+{
+"texto": "-5",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "5",
+"correcta": false
+},
+{
+"texto": "-1",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Números enteros",
+"texto": "¿Cuánto es (-4) × (2)?",
+"opciones": [
+{
+"texto": "8",
+"correcta": false
+},
+{
+"texto": "-8",
+"correcta": true
+},
+{
+"texto": "-2",
+"correcta": false
+},
+{
+"texto": "-7",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Fracciones",
+"texto": "¿Cuánto es 1/2 × 4/7?",
+"opciones": [
+{
+"texto": "7/8",
+"correcta": false
+},
+{
+"texto": "5/9",
+"correcta": false
+},
+{
+"texto": "2/7",
+"correcta": true
+},
+{
+"texto": "7/16",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Porcentajes",
+"texto": "¿Cuál es el 75 % de 740?",
+"opciones": [
+{
+"texto": "185",
+"correcta": false
+},
+{
+"texto": "149",
+"correcta": false
+},
+{
+"texto": "555",
+"correcta": true
+},
+{
+"texto": "1110",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Proporcionalidad",
+"texto": "Si 6 kilos de arroz cuestan $4.500, ¿cuánto cuestan 24 kilos?",
+"opciones": [
+{
+"texto": "$22.500",
+"correcta": false
+},
+{
+"texto": "$4.504",
+"correcta": false
+},
+{
+"texto": "$108.000",
+"correcta": false
+},
+{
+"texto": "$18.000",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Proporcionalidad inversa",
+"texto": "5 obreros hacen una obra en 10 días. ¿En cuántos días la hacen 10 obreros (al mismo ritmo)?",
+"opciones": [
+{
+"texto": "20 días",
+"correcta": false
+},
+{
+"texto": "9 días",
+"correcta": false
+},
+{
+"texto": "12 días",
+"correcta": false
+},
+{
+"texto": "5 días",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Ecuaciones",
+"texto": "Resuelva: 5x + 4 = 24",
+"opciones": [
+{
+"texto": "x = 5",
+"correcta": false
+},
+{
+"texto": "x = 20",
+"correcta": false
+},
+{
+"texto": "x = 4",
+"correcta": true
+},
+{
+"texto": "x = -4",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Porcentajes",
+"texto": "Unos tenis cuestan $90.000 y tienen 10 % de descuento. ¿Cuánto se paga?",
+"opciones": [
+{
+"texto": "$9.000",
+"correcta": false
+},
+{
+"texto": "$81.000",
+"correcta": true
+},
+{
+"texto": "$89.990",
+"correcta": false
+},
+{
+"texto": "$99.000",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Números enteros",
+"texto": "¿Cuánto es (-11) + (3)?",
+"opciones": [
+{
+"texto": "14",
+"correcta": false
+},
+{
+"texto": "-8",
+"correcta": true
+},
+{
+"texto": "8",
+"correcta": false
+},
+{
+"texto": "-14",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Números enteros",
+"texto": "¿Cuánto es (-5) × (-6)?",
+"opciones": [
+{
+"texto": "-30",
+"correcta": false
+},
+{
+"texto": "30",
+"correcta": true
+},
+{
+"texto": "-11",
+"correcta": false
+},
+{
+"texto": "31",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "newton",
+"tema": "Fracciones",
+"texto": "¿Cuánto es 4/7 × 1/4?",
+"opciones": [
+{
+"texto": "5/11",
+"correcta": false
+},
+{
+"texto": "8/7",
+"correcta": false
+},
+{
+"texto": "1/7",
+"correcta": true
+},
+{
+"texto": "16/7",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Área",
+"texto": "¿Cuál es el área de un triángulo de base 10 cm y altura 9 cm?",
+"opciones": [
+{
+"texto": "90 cm²",
+"correcta": false
+},
+{
+"texto": "38 cm²",
+"correcta": false
+},
+{
+"texto": "45 cm²",
+"correcta": true
+},
+{
+"texto": "19 cm²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Círculo",
+"texto": "¿Cuál es la longitud de una circunferencia de radio 3 cm? (use π ≈ 3,14)",
+"opciones": [
+{
+"texto": "9,42 cm",
+"correcta": false
+},
+{
+"texto": "19,84 cm",
+"correcta": false
+},
+{
+"texto": "28,26 cm",
+"correcta": false
+},
+{
+"texto": "18,84 cm",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Círculo",
+"texto": "¿Cuál es el área de un círculo de radio 10 m? (use π ≈ 3,14)",
+"opciones": [
+{
+"texto": "314 m²",
+"correcta": true
+},
+{
+"texto": "62,8 m²",
+"correcta": false
+},
+{
+"texto": "100 m²",
+"correcta": false
+},
+{
+"texto": "1256 m²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Polígonos",
+"texto": "¿Cuánto suman los ángulos internos de un octágono?",
+"opciones": [
+{
+"texto": "1080°",
+"correcta": true
+},
+{
+"texto": "1260°",
+"correcta": false
+},
+{
+"texto": "1440°",
+"correcta": false
+},
+{
+"texto": "360°",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Escalas",
+"texto": "En un plano a escala 1:200, una pared mide 7 cm. ¿Cuánto mide en la realidad?",
+"opciones": [
+{
+"texto": "14 m",
+"correcta": true
+},
+{
+"texto": "140 m",
+"correcta": false
+},
+{
+"texto": "1400 m",
+"correcta": false
+},
+{
+"texto": "1,4 m",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de una caja de 5 cm × 6 cm × 5 cm?",
+"opciones": [
+{
+"texto": "30 cm³",
+"correcta": false
+},
+{
+"texto": "170 cm³",
+"correcta": false
+},
+{
+"texto": "16 cm³",
+"correcta": false
+},
+{
+"texto": "150 cm³",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Área",
+"texto": "¿Cuál es el área de un triángulo de base 24 cm y altura 6 cm?",
+"opciones": [
+{
+"texto": "144 cm²",
+"correcta": false
+},
+{
+"texto": "72 cm²",
+"correcta": true
+},
+{
+"texto": "60 cm²",
+"correcta": false
+},
+{
+"texto": "30 cm²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Círculo",
+"texto": "¿Cuál es la longitud de una circunferencia de radio 7 cm? (use π ≈ 3,14)",
+"opciones": [
+{
+"texto": "44,96 cm",
+"correcta": false
+},
+{
+"texto": "21,98 cm",
+"correcta": false
+},
+{
+"texto": "153,86 cm",
+"correcta": false
+},
+{
+"texto": "43,96 cm",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Círculo",
+"texto": "¿Cuál es el área de un círculo de radio 4 m? (use π ≈ 3,14)",
+"opciones": [
+{
+"texto": "25,12 m²",
+"correcta": false
+},
+{
+"texto": "50,24 m²",
+"correcta": true
+},
+{
+"texto": "16 m²",
+"correcta": false
+},
+{
+"texto": "200,96 m²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Polígonos",
+"texto": "¿Cuánto suman los ángulos internos de un dodecágono?",
+"opciones": [
+{
+"texto": "1980°",
+"correcta": false
+},
+{
+"texto": "360°",
+"correcta": false
+},
+{
+"texto": "2160°",
+"correcta": false
+},
+{
+"texto": "1800°",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Escalas",
+"texto": "En un plano a escala 1:500, una pared mide 7 cm. ¿Cuánto mide en la realidad?",
+"opciones": [
+{
+"texto": "3500 m",
+"correcta": false
+},
+{
+"texto": "35 m",
+"correcta": true
+},
+{
+"texto": "3,5 m",
+"correcta": false
+},
+{
+"texto": "350 m",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de una caja de 5 cm × 6 cm × 2 cm?",
+"opciones": [
+{
+"texto": "30 cm³",
+"correcta": false
+},
+{
+"texto": "104 cm³",
+"correcta": false
+},
+{
+"texto": "60 cm³",
+"correcta": true
+},
+{
+"texto": "13 cm³",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Área",
+"texto": "¿Cuál es el área de un triángulo de base 8 cm y altura 8 cm?",
+"opciones": [
+{
+"texto": "33 cm²",
+"correcta": false
+},
+{
+"texto": "64 cm²",
+"correcta": false
+},
+{
+"texto": "32 cm²",
+"correcta": true
+},
+{
+"texto": "16 cm²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "euclides",
+"tema": "Círculo",
+"texto": "¿Cuál es la longitud de una circunferencia de radio 9 cm? (use π ≈ 3,14)",
+"opciones": [
+{
+"texto": "28,26 cm",
+"correcta": false
+},
+{
+"texto": "57,52 cm",
+"correcta": false
+},
+{
+"texto": "254,34 cm",
+"correcta": false
+},
+{
+"texto": "56,52 cm",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Promedio",
+"texto": "Las notas de Ana son 5, 9, 4, 9, 8. ¿Cuál es su promedio?",
+"opciones": [
+{
+"texto": "9",
+"correcta": false
+},
+{
+"texto": "35",
+"correcta": false
+},
+{
+"texto": "7",
+"correcta": true
+},
+{
+"texto": "8",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Mediana",
+"texto": "¿Cuál es la mediana de 8, 16, 2, 29, 9?",
+"opciones": [
+{
+"texto": "8",
+"correcta": false
+},
+{
+"texto": "9",
+"correcta": true
+},
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "12",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "En una bolsa hay 6 balotas rojas, 1 azul y 2 verdes. Si se saca una sin mirar, ¿cuál es la probabilidad de que sea roja?",
+"opciones": [
+{
+"texto": "6/3",
+"correcta": false
+},
+{
+"texto": "1/3",
+"correcta": false
+},
+{
+"texto": "2/3",
+"correcta": true
+},
+{
+"texto": "1/9",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Promedio",
+"texto": "Las notas de Ana son 5, 5, 10, 3, 7. ¿Cuál es su promedio?",
+"opciones": [
+{
+"texto": "10",
+"correcta": false
+},
+{
+"texto": "30",
+"correcta": false
+},
+{
+"texto": "7",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Mediana",
+"texto": "¿Cuál es la mediana de 3, 25, 4, 10, 2?",
+"opciones": [
+{
+"texto": "8",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": false
+},
+{
+"texto": "4",
+"correcta": true
+},
+{
+"texto": "5",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "En una bolsa hay 4 balotas rojas, 3 azules y 2 verdes. Si se saca una sin mirar, ¿cuál es la probabilidad de que sea roja?",
+"opciones": [
+{
+"texto": "4/9",
+"correcta": true
+},
+{
+"texto": "5/9",
+"correcta": false
+},
+{
+"texto": "4/5",
+"correcta": false
+},
+{
+"texto": "1/9",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Promedio",
+"texto": "Las notas de Ana son 3, 9, 4, 8, 11. ¿Cuál es su promedio?",
+"opciones": [
+{
+"texto": "7",
+"correcta": true
+},
+{
+"texto": "8",
+"correcta": false
+},
+{
+"texto": "11",
+"correcta": false
+},
+{
+"texto": "35",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 7,
+"ciclo": "exploradores",
+"categoria": "bernoulli",
+"tema": "Mediana",
+"texto": "¿Cuál es la mediana de 12, 14, 2, 15, 18?",
+"opciones": [
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "12",
+"correcta": false
+},
+{
+"texto": "14",
+"correcta": true
+},
+{
+"texto": "15",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 7.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Potencias",
+"texto": "Simplifique: 3^3 · 3^5",
+"opciones": [
+{
+"texto": "3^2",
+"correcta": false
+},
+{
+"texto": "3^8",
+"correcta": true
+},
+{
+"texto": "9^8",
+"correcta": false
+},
+{
+"texto": "3^15",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Potencias",
+"texto": "Simplifique: 6^5 ÷ 6^4",
+"opciones": [
+{
+"texto": "7^1",
+"correcta": false
+},
+{
+"texto": "6^9",
+"correcta": false
+},
+{
+"texto": "1^1",
+"correcta": false
+},
+{
+"texto": "6^1",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Radicación",
+"texto": "¿Cuánto es √400?",
+"opciones": [
+{
+"texto": "20",
+"correcta": true
+},
+{
+"texto": "21",
+"correcta": false
+},
+{
+"texto": "200",
+"correcta": false
+},
+{
+"texto": "40",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Notación científica",
+"texto": "¿Cómo se escribe 60.200 en notación científica?",
+"opciones": [
+{
+"texto": "6,02 × 10^3",
+"correcta": false
+},
+{
+"texto": "6,02 × 10^4",
+"correcta": true
+},
+{
+"texto": "60,2 × 10^4",
+"correcta": false
+},
+{
+"texto": "6,02 × 10^5",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Productos notables",
+"texto": "¿Cuál es el desarrollo de (x + 2)²?",
+"opciones": [
+{
+"texto": "x² + 5x + 4",
+"correcta": false
+},
+{
+"texto": "x² + 4x + 4",
+"correcta": true
+},
+{
+"texto": "x² + 2x + 4",
+"correcta": false
+},
+{
+"texto": "x² + 4",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Factorización",
+"texto": "Factorice: x² − 49",
+"opciones": [
+{
+"texto": "(x + 7)(x − 7)",
+"correcta": true
+},
+{
+"texto": "(x − 49)(x + 1)",
+"correcta": false
+},
+{
+"texto": "(x + 7)²",
+"correcta": false
+},
+{
+"texto": "(x − 7)²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Factorización",
+"texto": "Factorice: x² + 13x + 42",
+"opciones": [
+{
+"texto": "(x + 13)(x + 42)",
+"correcta": false
+},
+{
+"texto": "(x − 7)(x − 6)",
+"correcta": false
+},
+{
+"texto": "(x + 42)(x + 1)",
+"correcta": false
+},
+{
+"texto": "(x + 7)(x + 6)",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Factorización",
+"texto": "Factorice: 8x² + 2x",
+"opciones": [
+{
+"texto": "2x(4x − 1)",
+"correcta": false
+},
+{
+"texto": "x(8x + 1)",
+"correcta": false
+},
+{
+"texto": "2(4x² + x)",
+"correcta": false
+},
+{
+"texto": "2x(4x + 1)",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Números reales",
+"texto": "¿Cuál de estos números es irracional?",
+"opciones": [
+{
+"texto": "0,25",
+"correcta": false
+},
+{
+"texto": "3/4",
+"correcta": false
+},
+{
+"texto": "√2",
+"correcta": true
+},
+{
+"texto": "√16",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Potencias",
+"texto": "Simplifique: 4^2 · 4^3",
+"opciones": [
+{
+"texto": "4^1",
+"correcta": false
+},
+{
+"texto": "4^5",
+"correcta": true
+},
+{
+"texto": "16^5",
+"correcta": false
+},
+{
+"texto": "4^6",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Potencias",
+"texto": "Simplifique: 5^6 ÷ 5^4",
+"opciones": [
+{
+"texto": "5^10",
+"correcta": false
+},
+{
+"texto": "1^2",
+"correcta": false
+},
+{
+"texto": "5^2",
+"correcta": true
+},
+{
+"texto": "5^1",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Radicación",
+"texto": "¿Cuánto es √196?",
+"opciones": [
+{
+"texto": "28",
+"correcta": false
+},
+{
+"texto": "15",
+"correcta": false
+},
+{
+"texto": "98",
+"correcta": false
+},
+{
+"texto": "14",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Notación científica",
+"texto": "¿Cómo se escribe 9.100 en notación científica?",
+"opciones": [
+{
+"texto": "9,1 × 10^4",
+"correcta": false
+},
+{
+"texto": "9,1 × 10^3",
+"correcta": true
+},
+{
+"texto": "91 × 10^3",
+"correcta": false
+},
+{
+"texto": "9,1 × 10^2",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Productos notables",
+"texto": "¿Cuál es el desarrollo de (x + 5)²?",
+"opciones": [
+{
+"texto": "x² + 25",
+"correcta": false
+},
+{
+"texto": "x² + 10x + 25",
+"correcta": true
+},
+{
+"texto": "x² + 5x + 25",
+"correcta": false
+},
+{
+"texto": "x² + 10x + 10",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Factorización",
+"texto": "Factorice: x² − 144",
+"opciones": [
+{
+"texto": "(x − 144)(x + 1)",
+"correcta": false
+},
+{
+"texto": "(x + 12)²",
+"correcta": false
+},
+{
+"texto": "(x − 12)²",
+"correcta": false
+},
+{
+"texto": "(x + 12)(x − 12)",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Factorización",
+"texto": "Factorice: x² + 7x + 6",
+"opciones": [
+{
+"texto": "(x + 7)(x + 1)",
+"correcta": false
+},
+{
+"texto": "(x + 7)(x + 6)",
+"correcta": false
+},
+{
+"texto": "(x − 6)(x − 1)",
+"correcta": false
+},
+{
+"texto": "(x + 6)(x + 1)",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Factorización",
+"texto": "Factorice: 24x² + 8x",
+"opciones": [
+{
+"texto": "8x(3x + 1)",
+"correcta": true
+},
+{
+"texto": "8x(3x − 1)",
+"correcta": false
+},
+{
+"texto": "8(3x² + x)",
+"correcta": false
+},
+{
+"texto": "x(24x + 1)",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Potencias",
+"texto": "Simplifique: 5^6 · 5^2",
+"opciones": [
+{
+"texto": "5^4",
+"correcta": false
+},
+{
+"texto": "5^8",
+"correcta": true
+},
+{
+"texto": "25^8",
+"correcta": false
+},
+{
+"texto": "5^12",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Teorema de Pitágoras",
+"texto": "Los catetos de un triángulo rectángulo miden 3 y 4. ¿Cuánto mide la hipotenusa?",
+"opciones": [
+{
+"texto": "5",
+"correcta": true
+},
+{
+"texto": "7",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Teorema de Pitágoras",
+"texto": "Una escalera de 10 m se apoya en una pared y su pie queda a 6 m de la pared. ¿A qué altura llega?",
+"opciones": [
+{
+"texto": "8 m",
+"correcta": true
+},
+{
+"texto": "4 m",
+"correcta": false
+},
+{
+"texto": "16 m",
+"correcta": false
+},
+{
+"texto": "9 m",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de un cilindro de radio 5 cm y altura 9 cm? (deje π)",
+"opciones": [
+{
+"texto": "45π cm³",
+"correcta": false
+},
+{
+"texto": "90π cm³",
+"correcta": false
+},
+{
+"texto": "450π cm³",
+"correcta": false
+},
+{
+"texto": "225π cm³",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Área",
+"texto": "¿Cuál es el área lateral de un prisma de base cuadrada de lado 5 cm y altura 10 cm?",
+"opciones": [
+{
+"texto": "250 cm²",
+"correcta": false
+},
+{
+"texto": "201 cm²",
+"correcta": false
+},
+{
+"texto": "100 cm²",
+"correcta": false
+},
+{
+"texto": "200 cm²",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Teorema de Pitágoras",
+"texto": "Los catetos de un triángulo rectángulo miden 6 y 8. ¿Cuánto mide la hipotenusa?",
+"opciones": [
+{
+"texto": "14",
+"correcta": false
+},
+{
+"texto": "10",
+"correcta": true
+},
+{
+"texto": "11",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de un cilindro de radio 2 cm y altura 10 cm? (deje π)",
+"opciones": [
+{
+"texto": "80π cm³",
+"correcta": false
+},
+{
+"texto": "41π cm³",
+"correcta": false
+},
+{
+"texto": "20π cm³",
+"correcta": false
+},
+{
+"texto": "40π cm³",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Área",
+"texto": "¿Cuál es el área lateral de un prisma de base cuadrada de lado 3 cm y altura 9 cm?",
+"opciones": [
+{
+"texto": "108 cm²",
+"correcta": true
+},
+{
+"texto": "54 cm²",
+"correcta": false
+},
+{
+"texto": "126 cm²",
+"correcta": false
+},
+{
+"texto": "81 cm²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Teorema de Pitágoras",
+"texto": "Los catetos de un triángulo rectángulo miden 7 y 24. ¿Cuánto mide la hipotenusa?",
+"opciones": [
+{
+"texto": "31",
+"correcta": false
+},
+{
+"texto": "25",
+"correcta": true
+},
+{
+"texto": "18",
+"correcta": false
+},
+{
+"texto": "26",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Teorema de Pitágoras",
+"texto": "Una escalera de 17 m se apoya en una pared y su pie queda a 8 m de la pared. ¿A qué altura llega?",
+"opciones": [
+{
+"texto": "25 m",
+"correcta": false
+},
+{
+"texto": "16 m",
+"correcta": false
+},
+{
+"texto": "15 m",
+"correcta": true
+},
+{
+"texto": "9 m",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Área",
+"texto": "Un trapecio tiene bases de 15 cm y 3 cm y altura 6 cm. ¿Cuál es su área?",
+"opciones": [
+{
+"texto": "90 cm²",
+"correcta": false
+},
+{
+"texto": "54 cm²",
+"correcta": true
+},
+{
+"texto": "270 cm²",
+"correcta": false
+},
+{
+"texto": "108 cm²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de un cilindro de radio 5 cm y altura 7 cm? (deje π)",
+"opciones": [
+{
+"texto": "350π cm³",
+"correcta": false
+},
+{
+"texto": "175π cm³",
+"correcta": true
+},
+{
+"texto": "70π cm³",
+"correcta": false
+},
+{
+"texto": "35π cm³",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Área",
+"texto": "¿Cuál es el área lateral de un prisma de base cuadrada de lado 5 cm y altura 6 cm?",
+"opciones": [
+{
+"texto": "170 cm²",
+"correcta": false
+},
+{
+"texto": "150 cm²",
+"correcta": false
+},
+{
+"texto": "120 cm²",
+"correcta": true
+},
+{
+"texto": "60 cm²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Área",
+"texto": "Un trapecio tiene bases de 9 cm y 7 cm y altura 7 cm. ¿Cuál es su área?",
+"opciones": [
+{
+"texto": "63 cm²",
+"correcta": false
+},
+{
+"texto": "112 cm²",
+"correcta": false
+},
+{
+"texto": "441 cm²",
+"correcta": false
+},
+{
+"texto": "56 cm²",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de un cilindro de radio 1 cm y altura 8 cm? (deje π)",
+"opciones": [
+{
+"texto": "16π cm³",
+"correcta": false
+},
+{
+"texto": "7π cm³",
+"correcta": false
+},
+{
+"texto": "8π cm³",
+"correcta": true
+},
+{
+"texto": "9π cm³",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "Se lanzan dos monedas. ¿Cuál es la probabilidad de que salgan dos caras?",
+"opciones": [
+{
+"texto": "2/4",
+"correcta": false
+},
+{
+"texto": "1/4",
+"correcta": true
+},
+{
+"texto": "1/3",
+"correcta": false
+},
+{
+"texto": "1/2",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "Se lanzan dos dados. ¿Cuál es la probabilidad de que sumen 3?",
+"opciones": [
+{
+"texto": "1/18",
+"correcta": true
+},
+{
+"texto": "1/6",
+"correcta": false
+},
+{
+"texto": "1/3",
+"correcta": false
+},
+{
+"texto": "2/12",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Estadística",
+"texto": "¿Cuál es el rango de los datos 27, 45, 19, 33, 13, 56?",
+"opciones": [
+{
+"texto": "43",
+"correcta": true
+},
+{
+"texto": "69",
+"correcta": false
+},
+{
+"texto": "56",
+"correcta": false
+},
+{
+"texto": "32",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Estadística",
+"texto": "En un curso de 30 estudiantes, 6 prefieren el fútbol. ¿Qué porcentaje es?",
+"opciones": [
+{
+"texto": "24 %",
+"correcta": false
+},
+{
+"texto": "25 %",
+"correcta": false
+},
+{
+"texto": "20 %",
+"correcta": true
+},
+{
+"texto": "6 %",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "Se lanzan dos dados. ¿Cuál es la probabilidad de que sumen 7?",
+"opciones": [
+{
+"texto": "1/12",
+"correcta": false
+},
+{
+"texto": "6/12",
+"correcta": false
+},
+{
+"texto": "1/6",
+"correcta": true
+},
+{
+"texto": "1/7",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Estadística",
+"texto": "¿Cuál es el rango de los datos 20, 13, 46, 53, 18, 14?",
+"opciones": [
+{
+"texto": "40",
+"correcta": true
+},
+{
+"texto": "27",
+"correcta": false
+},
+{
+"texto": "66",
+"correcta": false
+},
+{
+"texto": "53",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Estadística",
+"texto": "En un curso de 25 estudiantes, 5 prefieren el fútbol. ¿Qué porcentaje es?",
+"opciones": [
+{
+"texto": "20 %",
+"correcta": true
+},
+{
+"texto": "25 %",
+"correcta": false
+},
+{
+"texto": "5 %",
+"correcta": false
+},
+{
+"texto": "21 %",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 8,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "Se lanzan dos dados. ¿Cuál es la probabilidad de que sumen 5?",
+"opciones": [
+{
+"texto": "4/12",
+"correcta": false
+},
+{
+"texto": "1/6",
+"correcta": false
+},
+{
+"texto": "1/5",
+"correcta": false
+},
+{
+"texto": "1/9",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 8.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Sistemas de ecuaciones",
+"texto": "Resuelva el sistema: x + y = -1; x − y = 1",
+"opciones": [
+{
+"texto": "x = 0, y = -1",
+"correcta": true
+},
+{
+"texto": "x = -1, y = 0",
+"correcta": false
+},
+{
+"texto": "x = -1, y = 1",
+"correcta": false
+},
+{
+"texto": "x = 0, y = 1",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Función lineal",
+"texto": "¿Cuál es la pendiente de la recta que pasa por (-2, 1) y (7, 10)?",
+"opciones": [
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": true
+},
+{
+"texto": "-1",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Función lineal",
+"texto": "Si f(x) = −2x − 4, ¿cuánto vale f(1)?",
+"opciones": [
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "-6",
+"correcta": true
+},
+{
+"texto": "6",
+"correcta": false
+},
+{
+"texto": "-5",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Ecuación cuadrática",
+"texto": "Resuelva: x² − 5x = 0",
+"opciones": [
+{
+"texto": "x = -5 y x = 0",
+"correcta": false
+},
+{
+"texto": "x = 0 y x = 6",
+"correcta": false
+},
+{
+"texto": "x = 1 y x = 5",
+"correcta": false
+},
+{
+"texto": "x = 0 y x = 5",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Ecuación cuadrática",
+"texto": "¿Cuántas soluciones reales tiene x² − 2x + 4 = 0?",
+"opciones": [
+{
+"texto": "Ninguna solución real",
+"correcta": true
+},
+{
+"texto": "Infinitas soluciones",
+"correcta": false
+},
+{
+"texto": "Una solución real (doble)",
+"correcta": false
+},
+{
+"texto": "Dos soluciones reales distintas",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Interés simple",
+"texto": "¿Cuánto interés simple producen $1.300.000 al 5 % anual durante 3 años?",
+"opciones": [
+{
+"texto": "$390.000",
+"correcta": false
+},
+{
+"texto": "$65.000",
+"correcta": false
+},
+{
+"texto": "$195.000",
+"correcta": true
+},
+{
+"texto": "$1.495.000",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Sistemas de ecuaciones",
+"texto": "Resuelva el sistema: x + y = 4; x − y = 6",
+"opciones": [
+{
+"texto": "x = 5, y = -1",
+"correcta": true
+},
+{
+"texto": "x = 4, y = 6",
+"correcta": false
+},
+{
+"texto": "x = -5, y = 1",
+"correcta": false
+},
+{
+"texto": "x = -1, y = 5",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Función lineal",
+"texto": "¿Cuál es la pendiente de la recta que pasa por (4, -4) y (8, -12)?",
+"opciones": [
+{
+"texto": "-2",
+"correcta": true
+},
+{
+"texto": "-4",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "-1/2",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Función lineal",
+"texto": "Si f(x) = 3x − 2, ¿cuánto vale f(-1)?",
+"opciones": [
+{
+"texto": "-1",
+"correcta": false
+},
+{
+"texto": "-5",
+"correcta": true
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "-9",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Ecuación cuadrática",
+"texto": "¿Cuántas soluciones reales tiene 3x² − 6x − 4 = 0?",
+"opciones": [
+{
+"texto": "Dos soluciones reales distintas",
+"correcta": true
+},
+{
+"texto": "Infinitas soluciones",
+"correcta": false
+},
+{
+"texto": "Una solución real (doble)",
+"correcta": false
+},
+{
+"texto": "Ninguna solución real",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Interés simple",
+"texto": "¿Cuánto interés simple producen $500.000 al 2 % anual durante 1 años?",
+"opciones": [
+{
+"texto": "$10.000",
+"correcta": true
+},
+{
+"texto": "$11.000",
+"correcta": false
+},
+{
+"texto": "$510.000",
+"correcta": false
+},
+{
+"texto": "$20.000",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Sistemas de ecuaciones",
+"texto": "Resuelva el sistema: x + y = 2; x − y = -10",
+"opciones": [
+{
+"texto": "x = -4, y = 6",
+"correcta": true
+},
+{
+"texto": "x = 4, y = -6",
+"correcta": false
+},
+{
+"texto": "x = 6, y = -4",
+"correcta": false
+},
+{
+"texto": "x = 2, y = -10",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Función lineal",
+"texto": "¿Cuál es la pendiente de la recta que pasa por (2, 5) y (8, -1)?",
+"opciones": [
+{
+"texto": "-0",
+"correcta": false
+},
+{
+"texto": "-2",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "-1",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Función lineal",
+"texto": "Si f(x) = −3x − 6, ¿cuánto vale f(1)?",
+"opciones": [
+{
+"texto": "-8",
+"correcta": false
+},
+{
+"texto": "-9",
+"correcta": true
+},
+{
+"texto": "3",
+"correcta": false
+},
+{
+"texto": "15",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Ecuación cuadrática",
+"texto": "Resuelva: x² − 4x − 12 = 0",
+"opciones": [
+{
+"texto": "x = -4 y x = -12",
+"correcta": false
+},
+{
+"texto": "x = -2 y x = 7",
+"correcta": false
+},
+{
+"texto": "x = -2 y x = 6",
+"correcta": true
+},
+{
+"texto": "x = -6 y x = 2",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Ecuación cuadrática",
+"texto": "¿Cuántas soluciones reales tiene 2x² + x − 3 = 0?",
+"opciones": [
+{
+"texto": "Una solución real (doble)",
+"correcta": false
+},
+{
+"texto": "Dos soluciones reales distintas",
+"correcta": true
+},
+{
+"texto": "Infinitas soluciones",
+"correcta": false
+},
+{
+"texto": "Ninguna solución real",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Interés simple",
+"texto": "¿Cuánto interés simple producen $1.100.000 al 5 % anual durante 2 años?",
+"opciones": [
+{
+"texto": "$55.000",
+"correcta": false
+},
+{
+"texto": "$1.210.000",
+"correcta": false
+},
+{
+"texto": "$220.000",
+"correcta": false
+},
+{
+"texto": "$110.000",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "newton",
+"tema": "Sistemas de ecuaciones",
+"texto": "Resuelva el sistema: x + y = 4; x − y = 10",
+"opciones": [
+{
+"texto": "x = -3, y = 7",
+"correcta": false
+},
+{
+"texto": "x = -7, y = 3",
+"correcta": false
+},
+{
+"texto": "x = 7, y = -3",
+"correcta": true
+},
+{
+"texto": "x = 4, y = 10",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Teorema de Thales",
+"texto": "Dos rectas paralelas cortan a dos transversales. En una se forman segmentos de 6 cm y 4 cm; en la otra, el que corresponde a 6 cm mide 24 cm. ¿Cuánto mide el otro?",
+"opciones": [
+{
+"texto": "8 cm",
+"correcta": false
+},
+{
+"texto": "24 cm",
+"correcta": false
+},
+{
+"texto": "16 cm",
+"correcta": true
+},
+{
+"texto": "22 cm",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de una esfera de radio 4 cm? (V = 4/3 π r³, deje π)",
+"opciones": [
+{
+"texto": "64π cm³",
+"correcta": false
+},
+{
+"texto": "256/3π cm³",
+"correcta": true
+},
+{
+"texto": "257/3π cm³",
+"correcta": false
+},
+{
+"texto": "64/3π cm³",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de un cono de radio 1 cm y altura 3 cm? (V = π r² h / 3, deje π)",
+"opciones": [
+{
+"texto": "6π cm³",
+"correcta": false
+},
+{
+"texto": "π cm³",
+"correcta": true
+},
+{
+"texto": "π cm³ (1)",
+"correcta": false
+},
+{
+"texto": "3π cm³",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es la distancia entre (-2, -2) y (3, 10)?",
+"opciones": [
+{
+"texto": "17",
+"correcta": false
+},
+{
+"texto": "169",
+"correcta": false
+},
+{
+"texto": "13",
+"correcta": true
+},
+{
+"texto": "8",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Teorema de Thales",
+"texto": "Dos rectas paralelas cortan a dos transversales. En una se forman segmentos de 3 cm y 4 cm; en la otra, el que corresponde a 3 cm mide 6 cm. ¿Cuánto mide el otro?",
+"opciones": [
+{
+"texto": "11 cm",
+"correcta": false
+},
+{
+"texto": "8 cm",
+"correcta": true
+},
+{
+"texto": "6 cm",
+"correcta": false
+},
+{
+"texto": "12 cm",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Semejanza",
+"texto": "Un poste de 4 m da una sombra de 2 m. A la misma hora, un árbol da una sombra de 12 m. ¿Cuánto mide el árbol?",
+"opciones": [
+{
+"texto": "48 m",
+"correcta": false
+},
+{
+"texto": "6 m",
+"correcta": false
+},
+{
+"texto": "24 m",
+"correcta": true
+},
+{
+"texto": "14 m",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de una esfera de radio 6 cm? (V = 4/3 π r³, deje π)",
+"opciones": [
+{
+"texto": "48π cm³",
+"correcta": false
+},
+{
+"texto": "216π cm³",
+"correcta": false
+},
+{
+"texto": "288π cm³",
+"correcta": true
+},
+{
+"texto": "144π cm³",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de un cono de radio 4 cm y altura 3 cm? (V = π r² h / 3, deje π)",
+"opciones": [
+{
+"texto": "48π cm³",
+"correcta": false
+},
+{
+"texto": "16π cm³",
+"correcta": true
+},
+{
+"texto": "24π cm³",
+"correcta": false
+},
+{
+"texto": "4π cm³",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es la distancia entre (3, 0) y (6, 4)?",
+"opciones": [
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "5",
+"correcta": true
+},
+{
+"texto": "7",
+"correcta": false
+},
+{
+"texto": "25",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Teorema de Thales",
+"texto": "Dos rectas paralelas cortan a dos transversales. En una se forman segmentos de 5 cm y 3 cm; en la otra, el que corresponde a 5 cm mide 20 cm. ¿Cuánto mide el otro?",
+"opciones": [
+{
+"texto": "7 cm",
+"correcta": false
+},
+{
+"texto": "12 cm",
+"correcta": true
+},
+{
+"texto": "15 cm",
+"correcta": false
+},
+{
+"texto": "17 cm",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de un cono de radio 3 cm y altura 6 cm? (V = π r² h / 3, deje π)",
+"opciones": [
+{
+"texto": "6π cm³",
+"correcta": false
+},
+{
+"texto": "36π cm³",
+"correcta": false
+},
+{
+"texto": "54π cm³",
+"correcta": false
+},
+{
+"texto": "18π cm³",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es la distancia entre (-2, 0) y (3, 12)?",
+"opciones": [
+{
+"texto": "8",
+"correcta": false
+},
+{
+"texto": "13",
+"correcta": true
+},
+{
+"texto": "17",
+"correcta": false
+},
+{
+"texto": "169",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Semejanza",
+"texto": "Un poste de 5 m da una sombra de 2 m. A la misma hora, un árbol da una sombra de 12 m. ¿Cuánto mide el árbol?",
+"opciones": [
+{
+"texto": "60 m",
+"correcta": false
+},
+{
+"texto": "17 m",
+"correcta": false
+},
+{
+"texto": "30 m",
+"correcta": true
+},
+{
+"texto": "15 m",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "euclides",
+"tema": "Volumen",
+"texto": "¿Cuál es el volumen de una esfera de radio 3 cm? (V = 4/3 π r³, deje π)",
+"opciones": [
+{
+"texto": "12π cm³",
+"correcta": false
+},
+{
+"texto": "37π cm³",
+"correcta": false
+},
+{
+"texto": "36π cm³",
+"correcta": true
+},
+{
+"texto": "27π cm³",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Conteo",
+"texto": "¿De cuántas formas se pueden ordenar 4 libros distintos en un estante?",
+"opciones": [
+{
+"texto": "12",
+"correcta": false
+},
+{
+"texto": "16",
+"correcta": false
+},
+{
+"texto": "24",
+"correcta": true
+},
+{
+"texto": "25",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Conteo",
+"texto": "¿Cuántos comités de 2 personas se pueden formar con 7 personas?",
+"opciones": [
+{
+"texto": "14",
+"correcta": false
+},
+{
+"texto": "42",
+"correcta": false
+},
+{
+"texto": "21",
+"correcta": true
+},
+{
+"texto": "9",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Conteo",
+"texto": "Un menú tiene 3 sopas, 3 platos fuertes y 3 postres. ¿Cuántos almuerzos distintos (sopa, plato y postre) se pueden armar?",
+"opciones": [
+{
+"texto": "18",
+"correcta": false
+},
+{
+"texto": "9",
+"correcta": false
+},
+{
+"texto": "12",
+"correcta": false
+},
+{
+"texto": "27",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Estadística",
+"texto": "En una tabla, 3 estudiantes sacaron 2, 5 sacaron 3 y 2 sacaron 5. ¿Cuál es el promedio?",
+"opciones": [
+{
+"texto": "10",
+"correcta": false
+},
+{
+"texto": "3,3",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": false
+},
+{
+"texto": "3,1",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Conteo",
+"texto": "¿De cuántas formas se pueden ordenar 3 libros distintos en un estante?",
+"opciones": [
+{
+"texto": "6",
+"correcta": true
+},
+{
+"texto": "9",
+"correcta": false
+},
+{
+"texto": "8",
+"correcta": false
+},
+{
+"texto": "7",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Conteo",
+"texto": "¿Cuántos comités de 3 personas se pueden formar con 6 personas?",
+"opciones": [
+{
+"texto": "9",
+"correcta": false
+},
+{
+"texto": "18",
+"correcta": false
+},
+{
+"texto": "20",
+"correcta": true
+},
+{
+"texto": "120",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Conteo",
+"texto": "Un menú tiene 4 sopas, 4 platos fuertes y 3 postres. ¿Cuántos almuerzos distintos (sopa, plato y postre) se pueden armar?",
+"opciones": [
+{
+"texto": "48",
+"correcta": true
+},
+{
+"texto": "11",
+"correcta": false
+},
+{
+"texto": "24",
+"correcta": false
+},
+{
+"texto": "19",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 9,
+"ciclo": "investigadores",
+"categoria": "bernoulli",
+"tema": "Conteo",
+"texto": "¿Cuántos comités de 2 personas se pueden formar con 8 personas?",
+"opciones": [
+{
+"texto": "10",
+"correcta": false
+},
+{
+"texto": "28",
+"correcta": true
+},
+{
+"texto": "16",
+"correcta": false
+},
+{
+"texto": "56",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 9.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Trigonometría",
+"texto": "¿Cuánto vale cos(45°)?",
+"opciones": [
+{
+"texto": "√2/2",
+"correcta": true
+},
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "√3",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Trigonometría",
+"texto": "¿Cuántos radianes son 135°?",
+"opciones": [
+{
+"texto": "π/3",
+"correcta": false
+},
+{
+"texto": "3π/4",
+"correcta": true
+},
+{
+"texto": "2π",
+"correcta": false
+},
+{
+"texto": "135π",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Trigonometría",
+"texto": "¿A qué es igual sen²(x) + cos²(x)?",
+"opciones": [
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": true
+},
+{
+"texto": "tan(x)",
+"correcta": false
+},
+{
+"texto": "2 sen(x) cos(x)",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Trigonometría",
+"texto": "En un triángulo rectángulo la hipotenusa mide 8 cm y un ángulo agudo mide 30°. ¿Cuánto mide el cateto opuesto a ese ángulo?",
+"opciones": [
+{
+"texto": "4 cm",
+"correcta": true
+},
+{
+"texto": "16 cm",
+"correcta": false
+},
+{
+"texto": "8 cm",
+"correcta": false
+},
+{
+"texto": "4√3 cm",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Sucesiones",
+"texto": "En la progresión aritmética 8, 12, 16, … ¿cuál es el término 18?",
+"opciones": [
+{
+"texto": "80",
+"correcta": false
+},
+{
+"texto": "68",
+"correcta": false
+},
+{
+"texto": "76",
+"correcta": true
+},
+{
+"texto": "144",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Sucesiones",
+"texto": "En la progresión geométrica 1, 3, 9, … ¿cuál es el término 6?",
+"opciones": [
+{
+"texto": "243",
+"correcta": true
+},
+{
+"texto": "18",
+"correcta": false
+},
+{
+"texto": "729",
+"correcta": false
+},
+{
+"texto": "246",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Inecuaciones",
+"texto": "Resuelva: 5x − 1 > 3",
+"opciones": [
+{
+"texto": "x > 2/5",
+"correcta": false
+},
+{
+"texto": "x > 4",
+"correcta": false
+},
+{
+"texto": "x < 4/5",
+"correcta": false
+},
+{
+"texto": "x > 4/5",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Trigonometría",
+"texto": "¿Cuánto vale tan(30°)?",
+"opciones": [
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "√3/3",
+"correcta": true
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "√3",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Trigonometría",
+"texto": "¿Cuántos radianes son 45°?",
+"opciones": [
+{
+"texto": "π/3",
+"correcta": false
+},
+{
+"texto": "2π",
+"correcta": false
+},
+{
+"texto": "45π",
+"correcta": false
+},
+{
+"texto": "π/4",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Trigonometría",
+"texto": "En un triángulo rectángulo la hipotenusa mide 12 cm y un ángulo agudo mide 30°. ¿Cuánto mide el cateto opuesto a ese ángulo?",
+"opciones": [
+{
+"texto": "12 cm",
+"correcta": false
+},
+{
+"texto": "6 cm",
+"correcta": true
+},
+{
+"texto": "6√3 cm",
+"correcta": false
+},
+{
+"texto": "24 cm",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Sucesiones",
+"texto": "En la progresión aritmética 10, 13, 16, … ¿cuál es el término 13?",
+"opciones": [
+{
+"texto": "40",
+"correcta": false
+},
+{
+"texto": "130",
+"correcta": false
+},
+{
+"texto": "49",
+"correcta": false
+},
+{
+"texto": "46",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Sucesiones",
+"texto": "En la progresión geométrica 2, 6, 18, … ¿cuál es el término 7?",
+"opciones": [
+{
+"texto": "4374",
+"correcta": false
+},
+{
+"texto": "42",
+"correcta": false
+},
+{
+"texto": "1458",
+"correcta": true
+},
+{
+"texto": "1461",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Inecuaciones",
+"texto": "Resuelva: 5x + 5 > 11",
+"opciones": [
+{
+"texto": "x < 6/5",
+"correcta": false
+},
+{
+"texto": "x > 16/5",
+"correcta": false
+},
+{
+"texto": "x > 6",
+"correcta": false
+},
+{
+"texto": "x > 6/5",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Trigonometría",
+"texto": "¿Cuánto vale cos(30°)?",
+"opciones": [
+{
+"texto": "√3/2",
+"correcta": true
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "√3",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Trigonometría",
+"texto": "¿Cuántos radianes son 120°?",
+"opciones": [
+{
+"texto": "2π/3",
+"correcta": true
+},
+{
+"texto": "2π",
+"correcta": false
+},
+{
+"texto": "π/3",
+"correcta": false
+},
+{
+"texto": "120π",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Trigonometría",
+"texto": "En un triángulo rectángulo la hipotenusa mide 10 cm y un ángulo agudo mide 30°. ¿Cuánto mide el cateto opuesto a ese ángulo?",
+"opciones": [
+{
+"texto": "10 cm",
+"correcta": false
+},
+{
+"texto": "20 cm",
+"correcta": false
+},
+{
+"texto": "5√3 cm",
+"correcta": false
+},
+{
+"texto": "5 cm",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Sucesiones",
+"texto": "En la progresión aritmética 4, 10, 16, … ¿cuál es el término 18?",
+"opciones": [
+{
+"texto": "112",
+"correcta": false
+},
+{
+"texto": "106",
+"correcta": true
+},
+{
+"texto": "72",
+"correcta": false
+},
+{
+"texto": "94",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Sucesiones",
+"texto": "En la progresión geométrica 2, 4, 8, … ¿cuál es el término 6?",
+"opciones": [
+{
+"texto": "66",
+"correcta": false
+},
+{
+"texto": "24",
+"correcta": false
+},
+{
+"texto": "64",
+"correcta": true
+},
+{
+"texto": "128",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es el punto medio entre (-12, 4) y (8, -8)?",
+"opciones": [
+{
+"texto": "(10, -6)",
+"correcta": false
+},
+{
+"texto": "(-3, -2)",
+"correcta": false
+},
+{
+"texto": "(-4, -4)",
+"correcta": false
+},
+{
+"texto": "(-2, -2)",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es la ecuación de la recta de pendiente 4 que pasa por (1, -2)?",
+"opciones": [
+{
+"texto": "y = −6x + 4",
+"correcta": false
+},
+{
+"texto": "y = 4x − 6",
+"correcta": true
+},
+{
+"texto": "y = 4x − 2",
+"correcta": false
+},
+{
+"texto": "y = −4x − 6",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Cónicas",
+"texto": "¿Cuáles son el centro y el radio de la circunferencia (x + 5)² + (y − 0)² = 25?",
+"opciones": [
+{
+"texto": "Centro (0, -5), radio 5",
+"correcta": false
+},
+{
+"texto": "Centro (-5, 0), radio 25",
+"correcta": false
+},
+{
+"texto": "Centro (5, 0), radio 5",
+"correcta": false
+},
+{
+"texto": "Centro (-5, 0), radio 5",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "En un triángulo, a = 10, A = 30° y B = 90°. Por la ley de los senos, ¿cuánto mide b?",
+"opciones": [
+{
+"texto": "5",
+"correcta": false
+},
+{
+"texto": "20",
+"correcta": true
+},
+{
+"texto": "10",
+"correcta": false
+},
+{
+"texto": "10√3",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "Una recta tiene pendiente 4. ¿Qué pendiente tiene una recta perpendicular a ella?",
+"opciones": [
+{
+"texto": "1/4",
+"correcta": false
+},
+{
+"texto": "-1/4",
+"correcta": true
+},
+{
+"texto": "4",
+"correcta": false
+},
+{
+"texto": "-4",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es el punto medio entre (0, 2) y (-6, 2)?",
+"opciones": [
+{
+"texto": "(-6, 4)",
+"correcta": false
+},
+{
+"texto": "(-3, 2)",
+"correcta": true
+},
+{
+"texto": "(2, -3)",
+"correcta": false
+},
+{
+"texto": "(-3, 0)",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es la ecuación de la recta de pendiente 4 que pasa por (-2, -9)?",
+"opciones": [
+{
+"texto": "y = −x + 4",
+"correcta": false
+},
+{
+"texto": "y = 4x − 1",
+"correcta": true
+},
+{
+"texto": "y = 4x − 9",
+"correcta": false
+},
+{
+"texto": "y = −4x − 1",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Cónicas",
+"texto": "¿Cuáles son el centro y el radio de la circunferencia (x − 5)² + (y − 2)² = 36?",
+"opciones": [
+{
+"texto": "Centro (-5, -2), radio 6",
+"correcta": false
+},
+{
+"texto": "Centro (5, 2), radio 36",
+"correcta": false
+},
+{
+"texto": "Centro (5, 2), radio 6",
+"correcta": true
+},
+{
+"texto": "Centro (2, 5), radio 6",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "Una recta tiene pendiente 2. ¿Qué pendiente tiene una recta perpendicular a ella?",
+"opciones": [
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "-1/2",
+"correcta": true
+},
+{
+"texto": "1/2",
+"correcta": false
+},
+{
+"texto": "-2",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es el punto medio entre (-6, -12) y (4, 4)?",
+"opciones": [
+{
+"texto": "(-1, -4)",
+"correcta": true
+},
+{
+"texto": "(-2, -8)",
+"correcta": false
+},
+{
+"texto": "(-4, -1)",
+"correcta": false
+},
+{
+"texto": "(5, 8)",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es la ecuación de la recta de pendiente 2 que pasa por (3, 2)?",
+"opciones": [
+{
+"texto": "y = 2x + 2",
+"correcta": false
+},
+{
+"texto": "y = −2x − 4",
+"correcta": false
+},
+{
+"texto": "y = 2x − 4",
+"correcta": true
+},
+{
+"texto": "y = −4x + 2",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Cónicas",
+"texto": "¿Cuáles son el centro y el radio de la circunferencia (x + 3)² + (y + 4)² = 16?",
+"opciones": [
+{
+"texto": "Centro (3, 4), radio 4",
+"correcta": false
+},
+{
+"texto": "Centro (-3, -4), radio 4",
+"correcta": true
+},
+{
+"texto": "Centro (-4, -3), radio 4",
+"correcta": false
+},
+{
+"texto": "Centro (-3, -4), radio 16",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "Una recta tiene pendiente 3. ¿Qué pendiente tiene una recta perpendicular a ella?",
+"opciones": [
+{
+"texto": "-1/3",
+"correcta": true
+},
+{
+"texto": "-3",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": false
+},
+{
+"texto": "1/3",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es el punto medio entre (-8, -12) y (-8, -2)?",
+"opciones": [
+{
+"texto": "(-8, -7)",
+"correcta": true
+},
+{
+"texto": "(-7, -8)",
+"correcta": false
+},
+{
+"texto": "(-16, -14)",
+"correcta": false
+},
+{
+"texto": "(0, 5)",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Estadística",
+"texto": "¿Qué mide la desviación estándar de un conjunto de datos?",
+"opciones": [
+{
+"texto": "El valor central de los datos ordenados",
+"correcta": false
+},
+{
+"texto": "La diferencia entre el mayor y el menor",
+"correcta": false
+},
+{
+"texto": "Qué tan dispersos están los datos respecto al promedio",
+"correcta": true
+},
+{
+"texto": "El dato que más se repite",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "En un curso, 10 hombres y 7 mujeres juegan fútbol. Si se escoge al azar a alguien que juega fútbol, ¿cuál es la probabilidad de que sea mujer?",
+"opciones": [
+{
+"texto": "10/17",
+"correcta": false
+},
+{
+"texto": "11/24",
+"correcta": false
+},
+{
+"texto": "7/24",
+"correcta": false
+},
+{
+"texto": "7/17",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "La probabilidad de que llueva mañana es 5/8. ¿Cuál es la probabilidad de que NO llueva?",
+"opciones": [
+{
+"texto": "1/8",
+"correcta": false
+},
+{
+"texto": "5/8",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "3/8",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "En un curso, 15 hombres y 3 mujeres juegan fútbol. Si se escoge al azar a alguien que juega fútbol, ¿cuál es la probabilidad de que sea mujer?",
+"opciones": [
+{
+"texto": "5/6",
+"correcta": false
+},
+{
+"texto": "3/31",
+"correcta": false
+},
+{
+"texto": "1/6",
+"correcta": true
+},
+{
+"texto": "11/31",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "En un curso, 6 hombres y 10 mujeres juegan fútbol. Si se escoge al azar a alguien que juega fútbol, ¿cuál es la probabilidad de que sea mujer?",
+"opciones": [
+{
+"texto": "10/29",
+"correcta": false
+},
+{
+"texto": "3/8",
+"correcta": false
+},
+{
+"texto": "14/29",
+"correcta": false
+},
+{
+"texto": "5/8",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "La probabilidad de que llueva mañana es 1/4. ¿Cuál es la probabilidad de que NO llueva?",
+"opciones": [
+{
+"texto": "3/4",
+"correcta": true
+},
+{
+"texto": "1/4",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "3/5",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "En un curso, 14 hombres y 16 mujeres juegan fútbol. Si se escoge al azar a alguien que juega fútbol, ¿cuál es la probabilidad de que sea mujer?",
+"opciones": [
+{
+"texto": "16/35",
+"correcta": false
+},
+{
+"texto": "19/35",
+"correcta": false
+},
+{
+"texto": "7/15",
+"correcta": false
+},
+{
+"texto": "8/15",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "En un curso, 7 hombres y 7 mujeres juegan fútbol. Si se escoge al azar a alguien que juega fútbol, ¿cuál es la probabilidad de que sea mujer?",
+"opciones": [
+{
+"texto": "7/26",
+"correcta": false
+},
+{
+"texto": "1/3",
+"correcta": false
+},
+{
+"texto": "1/2",
+"correcta": true
+},
+{
+"texto": "5/13",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 10.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Logaritmos",
+"texto": "¿Cuánto es log en base 3 de 81?",
+"opciones": [
+{
+"texto": "4",
+"correcta": true
+},
+{
+"texto": "27",
+"correcta": false
+},
+{
+"texto": "5",
+"correcta": false
+},
+{
+"texto": "12",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Logaritmos",
+"texto": "¿A qué es igual log(a · b)?",
+"opciones": [
+{
+"texto": "log(a + b)",
+"correcta": false
+},
+{
+"texto": "log a − log b",
+"correcta": false
+},
+{
+"texto": "log a · log b",
+"correcta": false
+},
+{
+"texto": "log a + log b",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Ecuaciones exponenciales",
+"texto": "Resuelva: 2^x = 32",
+"opciones": [
+{
+"texto": "x = 32",
+"correcta": false
+},
+{
+"texto": "x = 6",
+"correcta": false
+},
+{
+"texto": "x = 16",
+"correcta": false
+},
+{
+"texto": "x = 5",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = 5x^3?",
+"opciones": [
+{
+"texto": "8x²",
+"correcta": false
+},
+{
+"texto": "15x^3",
+"correcta": false
+},
+{
+"texto": "15x²",
+"correcta": true
+},
+{
+"texto": "5x²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = 4x² + 8x + 9?",
+"opciones": [
+{
+"texto": "8x²",
+"correcta": false
+},
+{
+"texto": "8x² + 8x + 9",
+"correcta": false
+},
+{
+"texto": "8x + 8",
+"correcta": true
+},
+{
+"texto": "4x + 8",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es el límite cuando x → 1 de (x² − 1) / (x − 1)?",
+"opciones": [
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": true
+},
+{
+"texto": "3",
+"correcta": false
+},
+{
+"texto": "0",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es el límite cuando x → ∞ de (5x² + 1) / (3x² − 3)?",
+"opciones": [
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "5/3",
+"correcta": true
+},
+{
+"texto": "-1/3",
+"correcta": false
+},
+{
+"texto": "∞",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Cuál es el dominio de f(x) = √(x − 8)?",
+"opciones": [
+{
+"texto": "x > 8",
+"correcta": false
+},
+{
+"texto": "Todos los reales",
+"correcta": false
+},
+{
+"texto": "x ≥ 8",
+"correcta": true
+},
+{
+"texto": "x ≤ 8",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "Si f(x) = x² y g(x) = 2x + 5, ¿cuánto vale f(g(2))?",
+"opciones": [
+{
+"texto": "13",
+"correcta": false
+},
+{
+"texto": "21",
+"correcta": false
+},
+{
+"texto": "98",
+"correcta": false
+},
+{
+"texto": "81",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Integrales",
+"texto": "¿Cuál es la integral de 5x^3 dx?",
+"opciones": [
+{
+"texto": "15x² + C",
+"correcta": false
+},
+{
+"texto": "6x^4 + C",
+"correcta": false
+},
+{
+"texto": "(5/4)x^4 + C",
+"correcta": true
+},
+{
+"texto": "5x^4 + C",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Ecuaciones exponenciales",
+"texto": "Resuelva: 5^x = 625",
+"opciones": [
+{
+"texto": "x = 4",
+"correcta": true
+},
+{
+"texto": "x = 5",
+"correcta": false
+},
+{
+"texto": "x = 125",
+"correcta": false
+},
+{
+"texto": "x = 625",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = 3x^5?",
+"opciones": [
+{
+"texto": "3x^4",
+"correcta": false
+},
+{
+"texto": "8x^4",
+"correcta": false
+},
+{
+"texto": "15x^5",
+"correcta": false
+},
+{
+"texto": "15x^4",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = 3x² + 4x − 4?",
+"opciones": [
+{
+"texto": "3x + 4",
+"correcta": false
+},
+{
+"texto": "6x² + 4x − 4",
+"correcta": false
+},
+{
+"texto": "6x + 4",
+"correcta": true
+},
+{
+"texto": "6x²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es el límite cuando x → 2 de (x² − 4) / (x − 2)?",
+"opciones": [
+{
+"texto": "5",
+"correcta": false
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "4",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es el límite cuando x → ∞ de (9x² + 1) / (7x² − 3)?",
+"opciones": [
+{
+"texto": "-1/3",
+"correcta": false
+},
+{
+"texto": "9/7",
+"correcta": true
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "∞",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Cuál es el dominio de f(x) = √(x − 1)?",
+"opciones": [
+{
+"texto": "x ≥ 1",
+"correcta": true
+},
+{
+"texto": "x ≤ 1",
+"correcta": false
+},
+{
+"texto": "x > 1",
+"correcta": false
+},
+{
+"texto": "Todos los reales",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "Si f(x) = x² y g(x) = 3x + 1, ¿cuánto vale f(g(4))?",
+"opciones": [
+{
+"texto": "169",
+"correcta": true
+},
+{
+"texto": "49",
+"correcta": false
+},
+{
+"texto": "145",
+"correcta": false
+},
+{
+"texto": "75",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Integrales",
+"texto": "¿Cuál es la integral de x^4 dx?",
+"opciones": [
+{
+"texto": "2x^5 + C",
+"correcta": false
+},
+{
+"texto": "4x^3 + C",
+"correcta": false
+},
+{
+"texto": "(1/5)x^5 + C",
+"correcta": true
+},
+{
+"texto": "x^5 + C",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Optimización",
+"texto": "Con 12 m de malla se quiere cercar un terreno rectangular de la mayor área posible. ¿Cuál es esa área?",
+"opciones": [
+{
+"texto": "12 m²",
+"correcta": false
+},
+{
+"texto": "10 m²",
+"correcta": false
+},
+{
+"texto": "18 m²",
+"correcta": false
+},
+{
+"texto": "9 m²",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Cónicas",
+"texto": "¿Cuál es el vértice de la parábola y = 2x² + 16x + 36?",
+"opciones": [
+{
+"texto": "(-4, 36)",
+"correcta": false
+},
+{
+"texto": "(-4, 4)",
+"correcta": true
+},
+{
+"texto": "(4, 4)",
+"correcta": false
+},
+{
+"texto": "(4, -4)",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Cónicas",
+"texto": "En la elipse x²/49 + y²/9 = 1, ¿cuánto mide el eje mayor?",
+"opciones": [
+{
+"texto": "6",
+"correcta": false
+},
+{
+"texto": "7",
+"correcta": false
+},
+{
+"texto": "14",
+"correcta": true
+},
+{
+"texto": "49",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Integrales",
+"texto": "¿Cuál es el área bajo la recta y = 2x entre x = 0 y x = 3?",
+"opciones": [
+{
+"texto": "3",
+"correcta": false
+},
+{
+"texto": "9",
+"correcta": true
+},
+{
+"texto": "6",
+"correcta": false
+},
+{
+"texto": "18",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Derivadas",
+"texto": "¿Cuál es la pendiente de la recta tangente a y = x² en el punto x = 1?",
+"opciones": [
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": true
+},
+{
+"texto": "3",
+"correcta": false
+},
+{
+"texto": "4",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Optimización",
+"texto": "Con 16 m de malla se quiere cercar un terreno rectangular de la mayor área posible. ¿Cuál es esa área?",
+"opciones": [
+{
+"texto": "32 m²",
+"correcta": false
+},
+{
+"texto": "16 m²",
+"correcta": true
+},
+{
+"texto": "15 m²",
+"correcta": false
+},
+{
+"texto": "17 m²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Cónicas",
+"texto": "¿Cuál es el vértice de la parábola y = 2x²?",
+"opciones": [
+{
+"texto": "(3, 0)",
+"correcta": false
+},
+{
+"texto": "(1, 0)",
+"correcta": false
+},
+{
+"texto": "(2, 0)",
+"correcta": false
+},
+{
+"texto": "(0, 0)",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Cónicas",
+"texto": "En la elipse x²/25 + y²/9 = 1, ¿cuánto mide el eje mayor?",
+"opciones": [
+{
+"texto": "25",
+"correcta": false
+},
+{
+"texto": "5",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": false
+},
+{
+"texto": "10",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Optimización",
+"texto": "Con 4 m de malla se quiere cercar un terreno rectangular de la mayor área posible. ¿Cuál es esa área?",
+"opciones": [
+{
+"texto": "0 m²",
+"correcta": false
+},
+{
+"texto": "1 m²",
+"correcta": true
+},
+{
+"texto": "4 m²",
+"correcta": false
+},
+{
+"texto": "2 m²",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Cónicas",
+"texto": "¿Cuál es el vértice de la parábola y = −x² − 6x − 8?",
+"opciones": [
+{
+"texto": "(-3, 1)",
+"correcta": true
+},
+{
+"texto": "(1, -3)",
+"correcta": false
+},
+{
+"texto": "(3, 1)",
+"correcta": false
+},
+{
+"texto": "(-3, -8)",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Cónicas",
+"texto": "En la elipse x²/25 + y²/4 = 1, ¿cuánto mide el eje mayor?",
+"opciones": [
+{
+"texto": "4",
+"correcta": false
+},
+{
+"texto": "25",
+"correcta": false
+},
+{
+"texto": "10",
+"correcta": true
+},
+{
+"texto": "5",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Cónicas",
+"texto": "¿Cuál es el vértice de la parábola y = −x² − 8x − 21?",
+"opciones": [
+{
+"texto": "(-4, -21)",
+"correcta": false
+},
+{
+"texto": "(-4, -5)",
+"correcta": true
+},
+{
+"texto": "(4, -5)",
+"correcta": false
+},
+{
+"texto": "(-5, -4)",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Cónicas",
+"texto": "¿Cuál es el vértice de la parábola y = x² + 8x + 16?",
+"opciones": [
+{
+"texto": "(4, 0)",
+"correcta": false
+},
+{
+"texto": "(-4, 16)",
+"correcta": false
+},
+{
+"texto": "(0, -4)",
+"correcta": false
+},
+{
+"texto": "(-4, 0)",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Cónicas",
+"texto": "En la elipse x²/16 + y²/4 = 1, ¿cuánto mide el eje mayor?",
+"opciones": [
+{
+"texto": "16",
+"correcta": false
+},
+{
+"texto": "4",
+"correcta": false
+},
+{
+"texto": "9",
+"correcta": false
+},
+{
+"texto": "8",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "Se lanza una moneda 4 veces. ¿Cuál es la probabilidad de que salgan 4 caras?",
+"opciones": [
+{
+"texto": "1/4",
+"correcta": false
+},
+{
+"texto": "1/17",
+"correcta": false
+},
+{
+"texto": "1/8",
+"correcta": false
+},
+{
+"texto": "1/16",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Conteo",
+"texto": "¿De cuántas maneras se pueden escoger 2 estudiantes de un grupo de 12 para representar al colegio?",
+"opciones": [
+{
+"texto": "132",
+"correcta": false
+},
+{
+"texto": "144",
+"correcta": false
+},
+{
+"texto": "24",
+"correcta": false
+},
+{
+"texto": "66",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "A y B son eventos independientes con P(A) = 1/4 y P(B) = 1/5. ¿Cuánto es P(A y B)?",
+"opciones": [
+{
+"texto": "9/20",
+"correcta": false
+},
+{
+"texto": "1/20",
+"correcta": true
+},
+{
+"texto": "2/5",
+"correcta": false
+},
+{
+"texto": "1/21",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "En un juego se gana $1.000 con probabilidad 1/4 y se pierde $200 con probabilidad 3/4. ¿Cuál es la ganancia esperada?",
+"opciones": [
+{
+"texto": "$800",
+"correcta": false
+},
+{
+"texto": "$100",
+"correcta": true
+},
+{
+"texto": "−$50",
+"correcta": false
+},
+{
+"texto": "$250",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "Se lanza una moneda 3 veces. ¿Cuál es la probabilidad de que salgan 3 caras?",
+"opciones": [
+{
+"texto": "1/6",
+"correcta": false
+},
+{
+"texto": "1/8",
+"correcta": true
+},
+{
+"texto": "3/8",
+"correcta": false
+},
+{
+"texto": "1/3",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Conteo",
+"texto": "¿De cuántas maneras se pueden escoger 2 estudiantes de un grupo de 9 para representar al colegio?",
+"opciones": [
+{
+"texto": "81",
+"correcta": false
+},
+{
+"texto": "36",
+"correcta": true
+},
+{
+"texto": "18",
+"correcta": false
+},
+{
+"texto": "72",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "A y B son eventos independientes con P(A) = 3/4 y P(B) = 2/3. ¿Cuánto es P(A y B)?",
+"opciones": [
+{
+"texto": "11/12",
+"correcta": false
+},
+{
+"texto": "3/4",
+"correcta": false
+},
+{
+"texto": "1/2",
+"correcta": true
+},
+{
+"texto": "1/12",
+"correcta": false
+}
+],
+"origen": "Banco olimpiada 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Conteo",
+"texto": "¿De cuántas maneras se pueden escoger 3 estudiantes de un grupo de 8 para representar al colegio?",
+"opciones": [
+{
+"texto": "512",
+"correcta": false
+},
+{
+"texto": "336",
+"correcta": false
+},
+{
+"texto": "24",
+"correcta": false
+},
+{
+"texto": "56",
+"correcta": true
+}
+],
+"origen": "Banco olimpiada 11.º"
+}
+]

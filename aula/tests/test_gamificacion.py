@@ -344,3 +344,36 @@ class Gamificacion(ColegioDePrueba):
         # Los estudiantes no entran
         self.assertEqual(self.cliente(self.ana.user).get('/aula/banco/').status_code, 403)
         self.assertContains(self.profe.get(f'{self.base}/'), '/aula/banco/json/')
+
+    def test_planilla_de_preguntas_banco_y_editor(self):
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from openpyxl import load_workbook
+        from aula.models import PreguntaBanco
+        # El banco 6.º–11.º a mi banco (con grado y tema)
+        self.profe.post('/aula/banco/', {'accion': 'olimpiada'})
+        self.assertEqual(PreguntaBanco.objects.filter(propietario=self.u_docente).count(), 240)
+        self.assertTrue(PreguntaBanco.objects.filter(grado=9, tema__startswith='Olimpiada 9.º').exists())
+        # Descargar mi banco y subir una planilla
+        libro = load_workbook(io.BytesIO(self.profe.get('/aula/banco/planilla/?de=mias').content))
+        self.assertGreaterEqual(libro['Preguntas'].max_row, 241)
+        libro = load_workbook(io.BytesIO(self.profe.get('/aula/banco/planilla/?de=vacia').content))
+        h = libro['Preguntas']
+        h.append(['6', '', 'Newton', 'Fracciones', '¿Cuánto es 1/2 + 1/4?', '3/4', '2/6', '1/8', '1', '', '', '', '', 'A'])
+        out = io.BytesIO(); libro.save(out)
+        self.profe.post('/aula/banco/planilla/', {'archivo': SimpleUploadedFile('p.xlsx', out.getvalue())})
+        q = PreguntaBanco.objects.get(texto='¿Cuánto es 1/2 + 1/4?')
+        self.assertEqual((q.grado, q.tema, q.competencia), (6, 'Fracciones', 'Pensamiento numérico'))
+        # El editor de juegos la lee (sin guardar) y respeta las opciones que caben (boxeo: 2)
+        j = self.profe.post('/aula/banco/planilla/?leer=1&max=8', {'archivo': SimpleUploadedFile('p.xlsx', out.getvalue())}).json()
+        self.assertIn('*A) 3/4', j['texto'])
+        j = self.profe.post('/aula/banco/planilla/?leer=1&max=2', {'archivo': SimpleUploadedFile('p.xlsx', out.getvalue())}).json()
+        self.assertEqual((j['texto'], len(j['errores'])), ('', 1))
+        self.assertContains(self.profe.get(f'{self.base}/'), '/aula/banco/planilla/')
+        # Práctica libre con las preguntas de la olimpiada de cada grado
+        r = self.cliente(self.ana.user).get(f'{self.base}/practica/laberinto/olimpiada9/')
+        self.assertEqual(r.status_code, 200)
+        from aula.planilla_preguntas import banco_olimpiada
+        de9 = {p['texto'] for p in banco_olimpiada() if p['grado'] == 9}
+        self.assertTrue(all(p['texto'] in de9 for p in r.context['preguntas']))
+        self.assertContains(self.cliente(self.ana.user).get(f'{self.base}/'), 'OLIMPIADA DE MATEMÁTICAS 11.º')
