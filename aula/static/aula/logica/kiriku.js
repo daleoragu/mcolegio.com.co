@@ -7,7 +7,7 @@ Logica.registrar('kiriku', {
     titulo: (d, i) => `Tarjeta ${i + 1} · se puede en ${d.retos[i].minimo} movimientos`,
     iniciar(zona, datos, i, api) {
         const reto = datos.retos[i], W = 620, H = 380, L = api.lienzo(W, H), ctx = L.ctx, C = 78, TX = 40, TY = 40;
-        const COL = {R: '#e64980', A: '#1098ad', V: '#40c057', N: '#fd7e14'};
+        const COL = {R: '#e64980', A: '#1098ad', V: '#40c057', N: '#fd7e14'}, SIM = {R: '▲', A: '●', V: '■', N: '★'};
         let g = reto.inicio.map(f => f.split('')), movs = 0;
         const historia = [];
         const meta = reto.meta.map(f => f.split(''));
@@ -20,6 +20,7 @@ Logica.registrar('kiriku', {
                 ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.arc(TX + c * C + C / 2 + 2, TY + f * C + C / 2 + 4, C * .4, 0, Math.PI * 2); ctx.fill();
                 ctx.fillStyle = COL[v]; ctx.beginPath(); ctx.arc(TX + c * C + C / 2, TY + f * C + C / 2, C * .4, 0, Math.PI * 2); ctx.fill();
                 ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.beginPath(); ctx.arc(TX + c * C + C * .4, TY + f * C + C * .38, C * .12, 0, Math.PI * 2); ctx.fill();
+                Logica.simbolo(ctx, SIM[v], TX + c * C + C / 2, TY + f * C + C / 2, C * .4);
             }
             const KX = 420, KY = 70, K = 34;
             ctx.fillStyle = '#fff'; Logica.redondo(ctx, KX - 16, KY - 40, 4 * K + 32, 4 * K + 60, 12); ctx.fill();
@@ -27,6 +28,7 @@ Logica.registrar('kiriku', {
             meta.forEach((fila, f) => fila.forEach((v, c) => {
                 if (v === '.') { ctx.strokeStyle = '#ced4da'; ctx.beginPath(); ctx.arc(KX + c * K + K / 2, KY + f * K + K / 2, K * .36, 0, Math.PI * 2); ctx.stroke(); return; }
                 ctx.fillStyle = COL[v]; ctx.beginPath(); ctx.arc(KX + c * K + K / 2, KY + f * K + K / 2, K * .38, 0, Math.PI * 2); ctx.fill();
+                Logica.simbolo(ctx, SIM[v], KX + c * K + K / 2, KY + f * K + K / 2, K * .38);
             }));
             L.texto(`Movimientos: ${movs}`, KX - 10, KY + 4 * K + 48, {tam: 13, color: '#495057'});
         };

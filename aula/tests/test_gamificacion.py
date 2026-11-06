@@ -274,3 +274,73 @@ class Gamificacion(ColegioDePrueba):
         r = c.get(f'{self.base}/practica/bandera/matematicas/')
         self.assertContains(r, 'id="jg-instr"')
         self.assertContains(r, 'ponga el dedo en cualquier parte')
+
+    def test_avance_de_logica_en_el_servidor(self):
+        """El avance de los juegos de lógica queda en la plataforma y el docente lo ve."""
+        from aula.models import ProgresoLogica
+        ana = self.cliente(self.ana.user)
+        url = f'/aula/{self.aula.pk}/logica/tangram/avance/'
+        r = ana.post(url, json.dumps({'total': 16, 'niveles': {'0': {'estrellas': 2, 'movs': 30, 'segundos': 95, 'ayudas': 1},
+                                                               '1': {'estrellas': 3, 'movs': 12, 'segundos': 40}}}), content_type='application/json').json()
+        self.assertEqual(set(r['niveles']), {'0', '1'})
+        # Lo mejor de cada nivel: más estrellas reemplaza; menos estrellas no
+        ana.post(url, json.dumps({'niveles': {'0': {'estrellas': 3, 'movs': 20, 'segundos': 60}, '1': {'estrellas': 1, 'segundos': 5}}}), content_type='application/json')
+        p = ProgresoLogica.objects.get(aula=self.aula, estudiante=self.ana, juego='tangram')
+        self.assertEqual((p.niveles['0']['estrellas'], p.niveles['1']['segundos'], p.total, p.superados), (3, 40, 16, 2))
+        # Al volver (en otro equipo) la página trae lo guardado
+        r = ana.get(f'/aula/{self.aula.pk}/logica/tangram/')
+        self.assertEqual(set(r.context['servidor']), {'0', '1'})
+        self.assertContains(r, '/logica/tangram/avance/')
+        # El docente no guarda avance; ve el informe
+        self.assertTrue(self.profe.post(url, json.dumps({'niveles': {'0': {'estrellas': 3}}}), content_type='application/json').json()['prueba'])
+        r = self.profe.get(f'/aula/{self.aula.pk}/logica/informe/')
+        fila = next(f for f in r.context['filas'] if f['superados'])
+        self.assertEqual((fila['superados'], fila['estrellas']), (2, 6))
+        self.assertContains(self.profe.get(f'/aula/{self.aula.pk}/logica/informe/?juego=tangram'), '2 de 16')
+        self.assertContains(self.profe.get(f'/aula/{self.aula.pk}/logica/'), 'Avance de los estudiantes')
+        self.assertEqual(ana.get(f'/aula/{self.aula.pk}/logica/informe/').status_code, 403)
+
+    def test_analisis_de_preguntas(self):
+        """El docente ve qué preguntas se fallan más, la opción equivocada que más escogen y quién necesita refuerzo."""
+        j = self.crear(tipo='laberinto')
+        # Ana: la primera bien y la segunda mal; Beto: las dos mal con la misma opción equivocada
+        bien0 = next(k for k, o in enumerate(j.preguntas[0]['opciones']) if o['correcta'])
+        mal0 = next(k for k, o in enumerate(j.preguntas[0]['opciones']) if not o['correcta'])
+        mal1 = next(k for k, o in enumerate(j.preguntas[1]['opciones']) if not o['correcta'])
+        self.jugar(self.ana, [{'i': 0, 'opcion': bien0}, {'i': 1, 'opcion': mal1}], j)
+        self.jugar(self.beto, [{'i': 0, 'opcion': mal0}, {'i': 1, 'opcion': mal1}], j)
+        # El segundo intento de Beto no cambia el primero
+        self.jugar(self.beto, [{'i': 0, 'opcion': bien0}, {'i': 1, 'opcion': None}], j)
+        r = self.profe.get(f'{self.base}/{j.pk}/analisis/')
+        ps = {p['n']: p for p in r.context['preguntas']}
+        self.assertEqual((ps[1]['bien'], ps[1]['respondieron'], ps[2]['pct']), (1, 2, 0))
+        self.assertEqual(ps[2]['errada'][1], 2)
+        self.assertEqual([e['nombre'] for e in r.context['refuerzo']][0].split()[0], 'Prueba')
+        self.assertEqual(len(r.context['refuerzo']), 2)
+        r = self.profe.get(f'{self.base}/{j.pk}/analisis/?intento=ultimo')
+        ps = {p['n']: p for p in r.context['preguntas']}
+        self.assertEqual((ps[1]['bien'], ps[2]['tiempo']), (2, 1))
+        self.assertContains(self.profe.get(f'{self.base}/{j.pk}/'), 'Análisis de preguntas')
+        self.assertEqual(self.cliente(self.ana.user).get(f'{self.base}/{j.pk}/analisis/').status_code, 403)
+
+    def test_banco_de_preguntas(self):
+        from aula.models import PreguntaBanco
+        r = self.profe.post('/aula/banco/', {'accion': 'agregar', 'tema': 'Fracciones', 'grado': '6', 'compartida': 'on',
+                                              'preguntas': PREGUNTAS + '\n\n9. Abierta sin opciones'}, follow=True)
+        n = PreguntaBanco.objects.filter(propietario=self.u_docente, tema='Fracciones').count()
+        self.assertGreaterEqual(n, 2)
+        self.assertContains(r, 'no se guardaron')
+        # No se repiten
+        self.profe.post('/aula/banco/', {'accion': 'agregar', 'tema': 'Fracciones', 'preguntas': PREGUNTAS})
+        self.assertEqual(PreguntaBanco.objects.filter(tema='Fracciones').count(), n)
+        # El editor las trae por JSON (filtradas por tema)
+        j = self.profe.get('/aula/banco/json/?tema=Fracciones').json()
+        self.assertEqual((len(j['preguntas']), j['temas']), (n, ['Fracciones']))
+        self.profe.post('/aula/banco/json/', {'ids': [j['preguntas'][0]['id']]})
+        self.assertEqual(PreguntaBanco.objects.get(pk=j['preguntas'][0]['id']).usos, 1)
+        # Al publicar un juego se pueden guardar sus preguntas en el banco
+        self.crear(titulo='Repaso de potencias', preguntas='1. ¿2³?\nA) 6\n*B) 8\n', al_banco='on')
+        self.assertTrue(PreguntaBanco.objects.filter(tema='Repaso de potencias', texto='¿2³?').exists())
+        # Los estudiantes no entran
+        self.assertEqual(self.cliente(self.ana.user).get('/aula/banco/').status_code, 403)
+        self.assertContains(self.profe.get(f'{self.base}/'), '/aula/banco/json/')

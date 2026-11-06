@@ -11,6 +11,8 @@
     <a href="{% url 'aula:eventos' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Eventos</a>
     <a href="{% url 'aula:evento' ev.pk %}" class="btn btn-sm btn-outline-dark"><i class="fas fa-play me-1"></i>Probar como estudiante</a>
     <a href="{% url 'aula:evento_resultados' ev.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-ranking-star me-1"></i>Resultados</a>
+    <a href="{% url 'aula:evento_en_vivo' ev.pk %}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="fas fa-tower-broadcast me-1"></i>Ranking en vivo (proyectar)</a>
+    <a href="{% url 'aula:evento_diplomas' ev.pk %}" class="btn btn-sm btn-outline-success"><i class="fas fa-award me-1"></i>Diplomas</a>
   </div>
 
   <form method="post" class="au-tarjeta d-flex flex-wrap align-items-center gap-3" style="border-left:6px solid {% if ev.activo %}#2f9e44{% else %}#e03131{% endif %}">{% csrf_token %}

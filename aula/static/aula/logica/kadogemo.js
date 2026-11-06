@@ -5,12 +5,13 @@
  * verificadas con un solucionador (aula/logica_generadores/kadogemo.py). */
 Logica.registrar('kadogemo', {
     nombre: 'Cuatro cuadrantes',
-    instrucciones: 'Ponga las 4 piezas, una en cada cuadro, para que a la vista queden exactamente los puntos que pide la tarjeta (ni más ni menos de cada color; las casillas en blanco no cuentan). Un toque gira la pieza; dos toques la voltean.',
+    instrucciones: 'Ponga las 4 piezas, una en cada cuadro, para que a la vista queden exactamente los puntos que pide la tarjeta (ni más ni menos de cada color; las casillas en blanco no cuentan). Cada color lleva su símbolo (▲ rojo, ★ amarillo, ■ verde, ● azul, ◆ blanco) por si cuesta distinguir los colores. Un toque gira la pieza; dos toques la voltean.',
     total: d => d.retos.length,
     titulo: (d, i) => `Tarjeta ${i + 1}`,
     iniciar(zona, datos, i, api) {
         const reto = datos.retos[i], CEL = 44, SEP = 14, TX = 30, TY = 40, W = 760, H = 380, L = api.lienzo(W, H), ctx = L.ctx;
         const nombres = Object.keys(datos.piezas), T = datos.tablero, PUNTOS = datos.puntos;
+        const SIMBOLO = {R: '▲', A: '★', V: '■', Z: '●', B: '◆'};     // para jugar sin depender del color
         const px = c => TX + c * CEL + (c >= 3 ? SEP : 0), py = f => TY + f * CEL + (f >= 3 ? SEP : 0);
         const bandeja = nombres.map((_, k) => ({x: 345 + (k % 2) * 108, y: 50 + Math.floor(k / 2) * 120}));
         let ayudas = 0, ganado = false;
@@ -53,6 +54,7 @@ Logica.registrar('kadogemo', {
             ctx.fillStyle = PUNTOS[col]; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = col === 'B' ? '#868e96' : 'rgba(0,0,0,.35)'; ctx.lineWidth = 1.5; ctx.stroke();
             ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.arc(x - r * .3, y - r * .3, r * .3, 0, Math.PI * 2); ctx.fill();
+            Logica.simbolo(ctx, SIMBOLO[col], x, y, r);
         }
         L.dibujar = function () {
             L.limpiar('#fbf3e4');

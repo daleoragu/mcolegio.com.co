@@ -1,0 +1,70 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<style>
+  .ana-barra { height:10px; background:#f1f3f5; border-radius:6px; overflow:hidden; }
+  .ana-barra > div { height:100%; }
+  .ana-preg { border-left:6px solid #dee2e6; }
+  .ana-preg.roja { border-left-color:#e03131; } .ana-preg.amarilla { border-left-color:#f59f00; } .ana-preg.verde { border-left-color:#2f9e44; }
+  .ana-op { font-size:.82rem; display:grid; grid-template-columns:24px 1fr 46px 120px; gap:6px; align-items:center; margin-bottom:3px; }
+  .ana-op.ok { font-weight:700; color:#2b8a3e; }
+</style>
+<div class="au" style="max-width:1100px;margin:0 auto">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <a href="{% url 'aula:juego' aula.pk juego.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{{ juego.titulo }}</a>
+    <h5 class="fw-bold mb-0">🔎 Análisis de preguntas</h5>
+    <div class="ms-auto btn-group btn-group-sm">
+      <a class="btn {% if cual == 'primeras' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?intento=primero&orden={{ orden }}" title="Lo que sabían antes de practicar">Primer intento</a>
+      <a class="btn {% if cual == 'ultimas' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?intento=ultimo&orden={{ orden }}">Último intento</a>
+    </div>
+    <div class="btn-group btn-group-sm">
+      <a class="btn {% if orden == 'dificiles' %}btn-dark{% else %}btn-outline-dark{% endif %}" href="?intento={% if cual == 'ultimas' %}ultimo{% else %}primero{% endif %}&orden=dificiles">Más falladas primero</a>
+      <a class="btn {% if orden == 'numero' %}btn-dark{% else %}btn-outline-dark{% endif %}" href="?intento={% if cual == 'ultimas' %}ultimo{% else %}primero{% endif %}&orden=numero">En orden</a>
+    </div>
+  </div>
+  {% if not con_datos %}
+    <div class="alert alert-info">Todavía no hay respuestas para analizar. Aparecen cuando los estudiantes jueguen (los resultados de antes de esta mejora solo tienen la nota).</div>
+  {% endif %}
+  <div class="row g-3">
+    <div class="col-lg-8">
+      {% for p in preguntas %}
+      <div class="au-tarjeta ana-preg {% if p.pct is None %}{% elif p.pct < 50 %}roja{% elif p.pct < 75 %}amarilla{% else %}verde{% endif %}">
+        <div class="d-flex gap-2 align-items-start">
+          <b class="text-muted">{{ p.n }}.</b>
+          <div class="flex-grow-1"><div class="fw-semibold">{{ p.texto }}</div>
+            {% if p.respondieron %}
+            <div class="small text-muted">{{ p.bien }} de {{ p.respondieron }} la respondieron bien{% if p.tiempo %} · a {{ p.tiempo }} se le{{ p.tiempo|pluralize:"s" }} acabó el tiempo{% endif %}</div>
+            {% else %}<div class="small text-muted">Nadie la ha respondido todavía.</div>{% endif %}
+          </div>
+          {% if p.pct is not None %}<span class="fs-5 fw-bold {% if p.pct < 50 %}text-danger{% elif p.pct < 75 %}text-warning{% else %}text-success{% endif %}">{{ p.pct }}%</span>{% endif %}
+        </div>
+        {% if p.respondieron %}
+        <div class="mt-2">
+          {% for o in p.opciones %}
+          <div class="ana-op {% if o.correcta %}ok{% endif %}"><span>{{ o.letra }})</span><span>{{ o.texto }}{% if o.correcta %} ✓{% endif %}</span><span class="text-end">{{ o.veces }}</span>
+            <div class="ana-barra"><div style="width:{{ o.pct }}%;background:{% if o.correcta %}#40c057{% else %}#fa5252{% endif %}"></div></div></div>
+          {% endfor %}
+        </div>
+        {% if p.errada and p.errada.1 > 1 %}<div class="small mt-1 text-danger"><i class="fas fa-triangle-exclamation me-1"></i>Error frecuente: {{ p.errada.1 }} escogieron «{{ p.errada.0 }}». Vale la pena explicar por qué no es.</div>{% endif %}
+        {% if p.fallaron %}<details class="small mt-1"><summary>Quiénes la fallaron ({{ p.fallaron|length }})</summary>{{ p.fallaron|join:", " }}</details>{% endif %}
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="col-lg-4">
+      <div class="au-tarjeta">
+        <h6><i class="fas fa-hands-helping me-1"></i>Necesitan refuerzo <span class="badge bg-danger">{{ refuerzo|length }}</span></h6>
+        <p class="small text-muted mb-2">Menos del 60 % bien en el {% if cual == 'primeras' %}primer{% else %}último{% endif %} intento.</p>
+        {% for e in refuerzo %}<div class="d-flex justify-content-between small border-bottom py-1"><span>{{ e.nombre }}</span><b class="text-danger">{{ e.pct }}%</b></div>
+        {% empty %}<div class="small text-success">Nadie por debajo del 60 %.</div>{% endfor %}
+      </div>
+      <div class="au-tarjeta">
+        <h6><i class="fas fa-users me-1"></i>Todos ({{ estudiantes|length }})</h6>
+        {% for e in estudiantes %}<div class="d-flex justify-content-between small border-bottom py-1"><span>{{ e.nombre }}</span><span>{{ e.bien }}/{{ e.total }} · <b>{{ e.pct }}%</b></span></div>{% endfor %}
+        {% if sin_jugar %}<div class="small text-muted mt-2"><b>No han jugado ({{ sin_jugar|length }}):</b> {{ sin_jugar|join:", " }}</div>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

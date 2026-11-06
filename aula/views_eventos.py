@@ -603,7 +603,17 @@ def inscribirse(request, codigo):
     # Con aprobación se pueden inscribir antes de que empiece; sin ella, solo con el evento activo
     recibe = ins['abierta'] and (ev.activo or ins['aprobacion'])
     error = ''
+    from django.core.cache import cache
+    from salon_digital.utils import ip_cliente
+    ip = ip_cliente(request) or ''
     if request.method == 'POST' and request.POST.get('accion') == 'recuperar':
+        # Máximo 10 intentos cada 15 minutos por equipo (la clave no se puede adivinar probando)
+        llave = f'evento-recuperar:{ev.pk}:{ip}'
+        if (cache.get(llave) or 0) >= 10:
+            return render(request, 'aula/evento_inscribirse.html', {
+                'ev': ev, 'grados': [(x, etiqueta_grado(x)) for x in grados], 'error': 'Demasiados intentos. Espere 15 minutos.',
+                'sugerido': {}, 'ins': ins, 'recibe': recibe, 'niveles': grupos(c), 'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
+        cache.set(llave, (cache.get(llave) or 0) + 1, 15 * 60)
         doc, clave = ''.join((request.POST.get('documento') or '').split()), (request.POST.get('clave') or '').strip().upper()
         q = next((x for x in ev.participaciones.filter(estudiante__isnull=True)
                   if doc and x.datos.get('documento') == doc and x.datos.get('clave') == clave), None)
@@ -620,7 +630,17 @@ def inscribirse(request, codigo):
         except (TypeError, ValueError):
             grado = None
         g = next((x for x in grupos(c) if grado in x['grados']), None)
-        if not recibe:
+        llave = f'evento-inscribir:{ev.pk}:{ip}'
+        acudiente = limpio('acudiente', 120)
+        if request.POST.get('sitio_web'):            # campo escondido: solo lo llenan los robots
+            error = 'No se pudo enviar la inscripción.'
+        elif (cache.get(llave) or 0) >= 60:           # muchas inscripciones seguidas desde el mismo equipo
+            error = 'Se enviaron demasiadas inscripciones desde este equipo. Espere unos minutos.'
+        elif not request.POST.get('autoriza'):
+            error = 'Para inscribirse debe marcar la autorización del tratamiento de datos personales.'
+        elif ins['aprobacion'] and len(acudiente) < 5:
+            error = 'Escriba el nombre del acudiente (o del docente responsable) que autoriza los datos.'
+        elif not recibe:
             error = 'Las inscripciones de este evento no están abiertas.'
         elif len(nombre) < 5 or not institucion or g is None:
             error = 'Escriba su nombre completo, su institución y escoja su grado.'
@@ -632,21 +652,24 @@ def inscribirse(request, codigo):
             error = sin_cupo(ev, c, institucion, g['id'])
         if not error:
             import secrets
+            cache.set(llave, (cache.get(llave) or 0) + 1, 10 * 60)
             clave = ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(6))
             p = ParticipacionEvento.objects.create(
                 evento=ev, nombre=nombre, institucion=institucion, grado=grado, ciclo=g['id'], token=secrets.token_urlsafe(24),
                 estado='pendiente' if ins['aprobacion'] else 'aprobada',
-                datos={'documento': documento, 'ciudad': ciudad, 'contacto': contacto, 'acompanante': acompanante, 'clave': clave})
+                datos={'documento': documento, 'ciudad': ciudad, 'contacto': contacto, 'acompanante': acompanante, 'clave': clave,
+                       # Ley 1581 de 2012: quién autorizó el tratamiento de los datos, cuándo y desde dónde
+                       'autorizacion': {'acudiente': acudiente, 'fecha': timezone.now().isoformat(timespec='seconds'), 'ip': ip}})
             request.session[clave_sesion(ev)] = p.token
             if p.estado == 'pendiente':
                 return redirect('aula:evento_inscribirse', codigo=ev.codigo)
             return redirect('aula:evento', eid=ev.pk)
-    sugerido = {'nombre': '', 'institucion': '', 'grado': None, 'ciudad': '', 'documento': '', 'contacto': '', 'acompanante': ''}
+    sugerido = {'nombre': '', 'institucion': '', 'grado': None, 'ciudad': '', 'documento': '', 'contacto': '', 'acompanante': '', 'acudiente': ''}
     est = _estudiante(request)
     if est is not None:
         sugerido.update({'nombre': est.user.get_full_name(), 'institucion': est.colegio.nombre, 'grado': est.curso.grado if est.curso_id else None})
     if request.method == 'POST' and request.POST.get('accion') != 'recuperar':
-        sugerido.update({k: request.POST.get(k, '') for k in ('nombre', 'institucion', 'ciudad', 'documento', 'contacto', 'acompanante')})
+        sugerido.update({k: request.POST.get(k, '') for k in ('nombre', 'institucion', 'ciudad', 'documento', 'contacto', 'acompanante', 'acudiente')})
         try:
             sugerido['grado'] = int(request.POST.get('grado'))
         except (TypeError, ValueError):
@@ -655,6 +678,30 @@ def inscribirse(request, codigo):
         'ev': ev, 'grados': [(x, etiqueta_grado(x)) for x in grados], 'error': error, 'sugerido': sugerido, 'post': request.POST,
         'ins': ins, 'recibe': recibe, 'niveles': grupos(c),
         'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
+
+
+def avisar_inscripcion(request, ev, p):
+    """Le avisa por correo al inscrito (si dejó un correo de contacto) que su inscripción se aprobó o se rechazó."""
+    contacto = (p.datos.get('contacto') or '').strip()
+    if '@' not in contacto or p.estado == 'pendiente':
+        return 0
+    from notas.mensajeria import enviar_correo
+    enlace = request.build_absolute_uri(reverse('aula:evento_inscribirse', args=[ev.codigo]))
+    if p.estado == 'aprobada':
+        asunto = f'{ev.titulo}: inscripción aprobada'
+        texto = (f'Hola,\n\nLa inscripción de {p.nombre} ({p.institucion}) en «{ev.titulo}» fue APROBADA.\n\n'
+                 f'Para participar entre a este enlace{" el día del evento" if not ev.activo else ""}: {enlace}\n'
+                 f'Si entra desde otro equipo, use «Ya me inscribí» con el documento y la clave {p.datos.get("clave", "")}.\n\n'
+                 '¡Muchos éxitos!')
+    else:
+        motivo = p.datos.get('motivo') or ''
+        asunto = f'{ev.titulo}: inscripción no aprobada'
+        texto = (f'Hola,\n\nLa inscripción de {p.nombre} ({p.institucion}) en «{ev.titulo}» no fue aprobada.'
+                 + (f'\nMotivo: {motivo}' if motivo else '') + '\n\nSi cree que es un error, comuníquese con el organizador del evento.')
+    try:
+        return enviar_correo(ev.colegio, asunto, texto, [contacto], fail_silently=True, copia=False) or 0
+    except Exception:          # sin correo configurado: no se cae la aprobación
+        return 0
 
 
 @login_required
@@ -669,7 +716,7 @@ def inscripciones(request, eid):
     if request.method == 'POST':
         accion = request.POST.get('accion')
         if accion == 'aprobar_todas':
-            n = saltadas = 0
+            n = saltadas = correos = 0
             for p in externas.filter(estado='pendiente').order_by('empezada', 'pk'):
                 if sin_cupo(ev, c, p.institucion, p.ciclo, ('aprobada',)):
                     saltadas += 1
@@ -677,7 +724,9 @@ def inscripciones(request, eid):
                 p.estado, p.empezada = 'aprobada', timezone.now()
                 p.save(update_fields=['estado', 'empezada'])
                 n += 1
-            messages.success(request, f'Se aprobaron {n} inscripción(es).' + (f' {saltadas} quedaron pendientes porque su institución ya llenó el cupo.' if saltadas else ''))
+                correos += avisar_inscripcion(request, ev, p)
+            messages.success(request, f'Se aprobaron {n} inscripción(es).' + (f' {saltadas} quedaron pendientes porque su institución ya llenó el cupo.' if saltadas else '')
+                             + (f' Se avisó por correo a {correos}.' if correos else ''))
         else:
             p = get_object_or_404(externas, pk=request.POST.get('pid'))
             if accion == 'aprobar':
@@ -688,12 +737,14 @@ def inscripciones(request, eid):
                     p.estado, p.empezada = 'aprobada', timezone.now()
                     p.datos.pop('motivo', None)
                     p.save(update_fields=['estado', 'empezada', 'datos'])
-                    messages.success(request, f'Inscripción de {p.nombre} aprobada.')
+                    aviso = ' Se le avisó por correo.' if avisar_inscripcion(request, ev, p) else ''
+                    messages.success(request, f'Inscripción de {p.nombre} aprobada.{aviso}')
             elif accion == 'rechazar':
                 p.estado = 'rechazada'
                 p.datos['motivo'] = ' '.join((request.POST.get('motivo') or '').split())[:200]
                 p.save(update_fields=['estado', 'datos'])
-                messages.success(request, f'Inscripción de {p.nombre} rechazada.')
+                aviso = ' Se le avisó por correo.' if avisar_inscripcion(request, ev, p) else ''
+                messages.success(request, f'Inscripción de {p.nombre} rechazada.{aviso}')
             elif accion == 'pendiente':
                 p.estado = 'pendiente'
                 p.save(update_fields=['estado'])
@@ -723,10 +774,11 @@ def inscripciones(request, eid):
         r['Content-Disposition'] = f'attachment; filename="inscripciones-evento-{ev.pk}.csv"'
         r.write('\ufeff')
         w = csv.writer(r)
-        w.writerow(['Estado', 'Nombre', 'Documento', 'Institución', 'Ciudad', 'Grado', 'Nivel', 'Contacto', 'Docente acompañante', 'Fecha'])
+        w.writerow(['Estado', 'Nombre', 'Documento', 'Institución', 'Ciudad', 'Grado', 'Nivel', 'Contacto', 'Docente acompañante', 'Fecha', 'Autorizó los datos', 'Fecha de la autorización'])
         for p in lista:
             w.writerow([p.get_estado_display(), p.nombre, p.datos.get('documento', ''), p.institucion, p.datos.get('ciudad', ''), p.grado_txt,
-                        p.grupo_nombre, p.datos.get('contacto', ''), p.datos.get('acompanante', ''), timezone.localtime(p.empezada).strftime('%Y-%m-%d %H:%M')])
+                        p.grupo_nombre, p.datos.get('contacto', ''), p.datos.get('acompanante', ''), timezone.localtime(p.empezada).strftime('%Y-%m-%d %H:%M'),
+                        (p.datos.get('autorizacion') or {}).get('acudiente', ''), (p.datos.get('autorizacion') or {}).get('fecha', '')])
         return r
     return render(request, 'aula/evento_inscripciones.html', {
         'ev': ev, 'lista': lista, 'filtro': filtro, 'cuenta': cuenta, 'ins': ins,
@@ -779,6 +831,61 @@ def resultados(request, eid):
     return render(request, 'aula/evento_resultados.html', {
         'ev': ev, 'tablas': tablas, 'grupos': grupos(c), 'gsel': gsel, 'gr': gr, 'q': request.GET.get('q', ''),
         'grados': [(g, etiqueta_grado(g)) for g in grados_hay], 'consulta': request.GET.urlencode(), 'base': _base(request)})
+
+
+@login_required
+def en_vivo(request, eid):
+    """Ranking en vivo para proyectar en el auditorio: los primeros de cada grupo, se actualiza solo."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores proyectan el ranking.')
+    c = config_de(ev)
+    try:
+        cuantos = max(3, min(30, int(request.GET.get('n') or 10)))
+    except ValueError:
+        cuantos = 10
+    tablas = []
+    for g in grupos(c):
+        filas = ranking(ev, g['id'])
+        tablas.append({'nombre': g['nombre'], 'grados': rango_grados(g), 'total': len(filas),
+                       'filas': [{'puesto': p.puesto, 'nombre': p.nombre_completo, 'de': p.de_donde, 'puntos': p.puntos,
+                                  'bonos': p.bonos, 'tiempo': round(p.tiempo_efectivo), 'terminada': p.terminada} for p in filas[:cuantos]]})
+    if request.GET.get('json'):
+        return JsonResponse({'tablas': tablas, 'activo': ev.activo, 'hora': timezone.localtime().strftime('%H:%M:%S')})
+    return render(request, 'aula/evento_en_vivo.html', {'ev': ev, 'tablas': tablas, 'cuantos': cuantos})
+
+
+@login_required
+def diplomas(request, eid):
+    """Diplomas para imprimir (o guardar en PDF desde el navegador): de los primeros puestos de cada grupo
+    o de participación para todos."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores sacan los diplomas.')
+    c = config_de(ev)
+    tipo = request.GET.get('tipo', 'ganadores')
+    gsel = request.GET.get('grupo', '')
+    try:
+        primeros = max(1, min(20, int(request.GET.get('n') or 3)))
+    except ValueError:
+        primeros = 3
+    PUESTOS = ['Primer', 'Segundo', 'Tercer', 'Cuarto', 'Quinto', 'Sexto', 'Séptimo', 'Octavo', 'Noveno', 'Décimo']
+    lista = []
+    for g in grupos(c):
+        if gsel and g['id'] != gsel:
+            continue
+        filas = ranking(ev, g['id'])
+        if tipo == 'ganadores':
+            filas = [p for p in filas if p.puntos > 0][:primeros]
+        for p in filas:
+            lista.append({'nombre': p.nombre_completo, 'de': p.de_donde, 'grupo': g['nombre'], 'puntos': p.puntos,
+                          'puesto': (f'{PUESTOS[p.puesto - 1]} puesto' if p.puesto <= len(PUESTOS) else f'Puesto {p.puesto}') if tipo == 'ganadores' else ''})
+    firma = {k: ' '.join((request.GET.get(k) or '').split())[:80] for k in ('firmante', 'cargo', 'lugar')}
+    if not firma['firmante'] and request.user.is_authenticated:
+        firma['firmante'] = request.user.get_full_name()
+    return render(request, 'aula/evento_diplomas.html', {
+        'ev': ev, 'lista': lista, 'tipo': tipo, 'gsel': gsel, 'primeros': primeros, 'grupos': grupos(c), 'firma': firma,
+        'colegio': ev.colegio, 'fecha': timezone.localdate()})
 
 
 # ---------------------------------------------------------------------------

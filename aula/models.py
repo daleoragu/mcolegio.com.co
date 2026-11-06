@@ -702,6 +702,10 @@ class ResultadoJuegoAula(models.Model):
     nota = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     ultima_nota = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     intentos = models.PositiveSmallIntegerField(default=0)
+    # Qué opción escogió en cada pregunta ({"número de pregunta": opción; -1 = se le acabó el tiempo}):
+    # el primer intento (lo que sabía) y el último. Con esto el docente ve qué preguntas fallan más.
+    primeras = models.JSONField(default=dict, blank=True)
+    ultimas = models.JSONField(default=dict, blank=True)
     actualizado = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -711,6 +715,64 @@ class ResultadoJuegoAula(models.Model):
             models.UniqueConstraint(fields=['juego', 'integrante'], condition=models.Q(integrante__isnull=False),
                                     name='aula_juego_uno_por_integrante'),
         ]
+
+
+class PreguntaBanco(models.Model):
+    """Banco de preguntas del docente, por tema. Las preguntas compartidas las pueden usar los demás
+    docentes del mismo colegio. Desde el editor de juegos se traen al juego que se está armando."""
+    propietario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='preguntas_banco')
+    colegio = models.ForeignKey('notas.Colegio', on_delete=models.CASCADE, null=True, blank=True, related_name='+')
+    tema = models.CharField(max_length=80)
+    competencia = models.CharField(max_length=80, blank=True)
+    grado = models.SmallIntegerField(null=True, blank=True)
+    texto = models.TextField()
+    opciones = models.JSONField(default=list)               # [{texto, correcta}]
+    compartida = models.BooleanField(default=False)
+    usos = models.PositiveIntegerField(default=0)            # veces que se ha llevado a un juego
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['tema', '-creada']
+        indexes = [models.Index(fields=['propietario', 'tema']), models.Index(fields=['colegio', 'compartida'])]
+
+    def __str__(self):
+        return self.texto[:60]
+
+
+class ProgresoLogica(models.Model):
+    """El avance de un estudiante en un juego de lógica del aula: los niveles superados, con sus estrellas,
+    movimientos, tiempo y ayudas. Antes solo quedaba en el navegador; ahora lo ve el docente."""
+    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, related_name='progresos_logica')
+    estudiante = models.ForeignKey('notas.Estudiante', on_delete=models.CASCADE, null=True, blank=True, related_name='+')
+    integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE, null=True, blank=True, related_name='+')
+    juego = models.CharField(max_length=16)
+    niveles = models.JSONField(default=dict, blank=True)      # {"3": {"estrellas", "movs", "segundos", "ayudas", "fecha"}}
+    total = models.PositiveSmallIntegerField(default=0)       # cuántos niveles tiene el juego
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['aula', 'juego', 'estudiante'], condition=models.Q(estudiante__isnull=False),
+                                    name='aula_logica_uno_por_estudiante'),
+            models.UniqueConstraint(fields=['aula', 'juego', 'integrante'], condition=models.Q(integrante__isnull=False),
+                                    name='aula_logica_uno_por_integrante'),
+        ]
+
+    @property
+    def superados(self):
+        return len(self.niveles)
+
+    @property
+    def estrellas(self):
+        return sum(int(v.get('estrellas') or 0) for v in self.niveles.values())
+
+    @property
+    def segundos(self):
+        return sum(int(v.get('segundos') or 0) for v in self.niveles.values())
+
+    @property
+    def ayudas(self):
+        return sum(int(v.get('ayudas') or 0) for v in self.niveles.values())
 
 
 # ---------------------------------------------------------------------------

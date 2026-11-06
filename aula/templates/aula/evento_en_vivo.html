@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ ev.titulo }} · en vivo</title>
+<style>
+  :root { --oro:#f2b632; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:radial-gradient(circle at top, #1f3a68, #0b1430 70%); color:#fff; font-family:system-ui, 'Segoe UI', sans-serif; min-height:100vh; }
+  header { display:flex; align-items:center; gap:16px; padding:14px 24px; }
+  header h1 { margin:0; font-size:clamp(1.3rem, 3vw, 2.4rem); font-weight:900; flex:1; }
+  header .hora { font-size:1rem; opacity:.75; }
+  header button, header a { background:rgba(255,255,255,.12); color:#fff; border:0; border-radius:10px; padding:8px 12px; font-size:.9rem; cursor:pointer; text-decoration:none; }
+  .grupos { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:18px; padding:0 24px 24px; }
+  .grupo { background:rgba(255,255,255,.07); border-radius:18px; padding:14px 16px; }
+  .grupo h2 { margin:0 0 8px; font-size:clamp(1.1rem, 2vw, 1.6rem); color:var(--oro); }
+  .grupo h2 small { color:#cfd8ea; font-size:.7em; font-weight:500; }
+  .fila { display:grid; grid-template-columns:44px 1fr auto auto; gap:10px; align-items:center; padding:8px 10px; border-radius:12px; margin-bottom:6px; background:rgba(255,255,255,.06); transition:background .4s; }
+  .fila.p1 { background:linear-gradient(90deg, #f2b632, #d99a12); color:#1d2433; }
+  .fila.p2 { background:linear-gradient(90deg, #cfd8e3, #9aa7b8); color:#1d2433; }
+  .fila.p3 { background:linear-gradient(90deg, #d9915a, #a8622f); color:#fff; }
+  .fila.nuevo { animation:brillo 1.2s; }
+  @keyframes brillo { from { box-shadow:0 0 0 4px #fff; } to { box-shadow:0 0 0 0 transparent; } }
+  .puesto { font-size:1.4rem; font-weight:900; text-align:center; }
+  .nombre { font-weight:800; font-size:clamp(.95rem, 1.6vw, 1.25rem); line-height:1.15; }
+  .nombre small { display:block; font-weight:500; opacity:.75; font-size:.75em; }
+  .pts { font-size:clamp(1.2rem, 2.2vw, 1.8rem); font-weight:900; }
+  .tiempo { font-size:.85rem; opacity:.8; text-align:right; min-width:60px; }
+  .vacio { opacity:.6; padding:10px; }
+</style></head>
+<body>
+<header>
+  <h1>🏅 {{ ev.titulo }}</h1>
+  <span class="hora" id="hora"></span>
+  <button type="button" onclick="document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()">⛶ Pantalla completa</button>
+  <a href="{% url 'aula:evento_resultados' ev.pk %}">Resultados</a>
+</header>
+<div class="grupos" id="grupos"></div>
+{{ tablas|json_script:"ev-tablas" }}
+<script>
+(function () {
+  const caja = document.getElementById('grupos'), MEDALLA = {1: '🥇', 2: '🥈', 3: '🥉'};
+  let antes = {};
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+  const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  function pintar(tablas) {
+    const ahora = {};
+    caja.innerHTML = tablas.map(t => `<section class="grupo"><h2>${esc(t.nombre)} <small>${esc(t.grados)} · ${t.total} participante${t.total === 1 ? '' : 's'}</small></h2>` +
+      (t.filas.length ? t.filas.map(f => {
+        const k = t.nombre + '|' + f.nombre; ahora[k] = f.puntos;
+        const nuevo = k in antes && antes[k] !== f.puntos;
+        return `<div class="fila p${f.puesto <= 3 ? f.puesto : ''}${nuevo ? ' nuevo' : ''}"><span class="puesto">${MEDALLA[f.puesto] || f.puesto}</span>
+          <span class="nombre">${esc(f.nombre)}<small>${esc(f.de || '')}${f.terminada ? ' · terminó' : ''}</small></span>
+          <span class="pts">${f.puntos}</span><span class="tiempo">${mmss(f.tiempo)}${f.bonos ? '<br>✓' + f.bonos : ''}</span></div>`;
+      }).join('') : '<div class="vacio">Todavía nadie tiene puntos.</div>') + '</section>').join('');
+    antes = ahora;
+  }
+  pintar(JSON.parse(document.getElementById('ev-tablas').textContent));
+  async function actualizar() {
+    try {
+      const r = await fetch('?json=1&n={{ cuantos }}', {credentials: 'same-origin'});
+      if (r.ok) { const j = await r.json(); pintar(j.tablas); document.getElementById('hora').textContent = 'Actualizado ' + j.hora; }
+    } catch (e) { /* sin conexión: se intenta otra vez */ }
+  }
+  setInterval(actualizar, 8000);
+})();
+</script>
+</body></html>

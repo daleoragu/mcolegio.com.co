@@ -2,7 +2,7 @@ from django.urls import path
 
 from chat import views_salon as chs
 
-from . import views, views_examenes as vx, views_fichas as vf, views_importar as vi, views_invertida as vinv, views_juegos as vj, views_gamificacion as vg, views_mascota as vm, views_logica as vl, views_eventos as ve
+from . import views, views_examenes as vx, views_fichas as vf, views_importar as vi, views_invertida as vinv, views_juegos as vj, views_gamificacion as vg, views_mascota as vm, views_logica as vl, views_eventos as ve, views_banco as vb
 
 app_name = 'aula'
 
@@ -14,6 +14,8 @@ urlpatterns = [
     path('eventos/entrar/', ve.entrar_codigo, name='evento_entrar'),
     path('eventos/c/<str:codigo>/', ve.inscribirse, name='evento_inscribirse'),
     path('eventos/<int:eid>/inscripciones/', ve.inscripciones, name='evento_inscripciones'),
+    path('eventos/<int:eid>/en-vivo/', ve.en_vivo, name='evento_en_vivo'),
+    path('eventos/<int:eid>/diplomas/', ve.diplomas, name='evento_diplomas'),
     path('eventos/<int:eid>/configurar/', ve.configurar, name='evento_configurar'),
     path('eventos/<int:eid>/resultados/', ve.resultados, name='evento_resultados'),
     path('eventos/<int:eid>/registro/', ve.registro, name='evento_registro'),
@@ -75,13 +77,16 @@ urlpatterns = [
 
     path('<int:pk>/gamificacion/', vg.gamificacion, name='gamificacion'),
     path('<int:pk>/logica/', vl.logica_menu, name='logica'),
+    path('<int:pk>/logica/informe/', vl.logica_informe, name='logica_informe'),
     path('<int:pk>/logica/<slug:juego>/', vl.logica_juego, name='logica_juego'),
+    path('<int:pk>/logica/<slug:juego>/avance/', vl.logica_avance, name='logica_avance'),
     path('<int:pk>/mascota/', vm.mascota, name='mascota'),
     path('<int:pk>/mascota/pedir/', vm.mascota_pedir, name='mascota_pedir'),
     path('<int:pk>/mascota/responder/', vm.mascota_responder, name='mascota_responder'),
     path('<int:pk>/mascota/estado/', vm.mascota_estado, name='mascota_estado'),
     path('<int:pk>/gamificacion/<int:jid>/', vg.juego, name='juego'),
     path('<int:pk>/gamificacion/<int:jid>/resultado/', vg.juego_resultado, name='juego_resultado'),
+    path('<int:pk>/gamificacion/<int:jid>/analisis/', vg.juego_analisis, name='juego_analisis'),
     path('<int:pk>/gamificacion/<int:jid>/accion/', vg.juego_accion, name='juego_accion'),
     path('<int:pk>/gamificacion/practica/<str:tipo>/<str:banco>/', vg.practica, name='juego_practica'),
 
@@ -97,6 +102,8 @@ urlpatterns = [
 
     path('escala/', views.escala, name='escala'),
     path('instrumentos/', views.instrumentos, name='instrumentos'),
+    path('banco/', vb.banco, name='banco'),
+    path('banco/json/', vb.banco_json, name='banco_json'),
     path('instrumentos/<int:iid>/', views.instrumento, name='instrumento'),
     path('instrumentos/<int:iid>/accion/', views.instrumento_accion, name='instrumento_accion'),
 ]

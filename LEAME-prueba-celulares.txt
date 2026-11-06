@@ -1,0 +1,25 @@
+PRUEBA EN CELULARES REALES (antes de una olimpiada o de usar los juegos con un curso)
+=================================================================================
+Las pruebas automáticas usan un navegador simulado. Esta lista se hace a mano, en 15 minutos,
+con 2 o 3 equipos reales: un Android, un iPhone (Safari) y un computador.
+
+En cada equipo:
+[ ] 1. Entrar a Mi Salón Virtual > Gamificación con una cuenta de estudiante.
+[ ] 2. Abrir «Captura la bandera»: botón «Instrucciones» → se lee completo y se cierra.
+[ ] 3. Tocar el juego: entra a pantalla completa (en iPhone se agranda dentro de la página).
+[ ] 4. Poner el dedo en cualquier parte y arrastrar: aparece la palanca y el jugador se mueve.
+[ ] 5. Girar el celular (vertical ↔ horizontal): todo el juego cabe, nada queda cortado.
+[ ] 6. Una pregunta larga se lee completa (encima del juego o en el panel de opciones).
+[ ] 7. Juegos de lógica > Cuatro cuadrantes: las instrucciones salen solas la primera vez;
+       arrastrar, girar (un toque) y voltear (dos toques) las piezas.
+[ ] 8. Superar un nivel de cualquier juego de lógica, cerrar sesión y entrar desde OTRO equipo:
+       el nivel aparece superado. El docente lo ve en «Avance de los estudiantes».
+[ ] 9. Cubo del binomio: un toque muestra la pieza en amarillo, otro la pone.
+[ ] 10. Evento con código: inscribirse (con la casilla de autorización de datos), quedar pendiente,
+        aprobar desde el computador del organizador, volver a entrar y jugar un reto.
+[ ] 11. Durante el evento: abrir «Ranking en vivo» en el computador del video beam y ver que
+        los puntos cambian solos (cada 8 segundos).
+[ ] 12. Quitar el internet a mitad de un reto y volverlo a poner: los puntos no se pierden.
+[ ] 13. Al final: «Diplomas» → Imprimir o guardar en PDF (hoja horizontal, sin márgenes del navegador).
+
+Si algo falla, anote: equipo (marca y modelo), navegador, vertical u horizontal, y qué pasó.

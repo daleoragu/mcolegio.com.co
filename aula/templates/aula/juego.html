@@ -101,6 +101,7 @@
 <div class="au-tarjeta mt-3" style="max-width:760px;margin-left:auto;margin-right:auto">
   <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
     <h6 class="mb-0 flex-grow-1"><i class="fas fa-trophy me-1"></i>Resultados ({{ juego.resultados.count }} jugaron)</h6>
+    <a href="{% url 'aula:juego_analisis' aula.pk juego.pk %}" class="btn btn-sm btn-primary"><i class="fas fa-magnifying-glass-chart me-1"></i>Análisis de preguntas</a>
     <form method="post" action="{% url 'aula:juego_accion' aula.pk juego.pk %}" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="publicar">
       <button class="btn btn-sm btn-outline-secondary">{% if juego.publicado %}Ocultar{% else %}Publicar{% endif %}</button></form>
     {% if puede_planilla %}<form method="post" action="{% url 'aula:juego_accion' aula.pk juego.pk %}" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="planilla">

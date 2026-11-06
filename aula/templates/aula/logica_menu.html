@@ -18,7 +18,8 @@
   <div class="d-flex align-items-center gap-2 mb-3" style="max-width:1020px;margin:0 auto">
     <a href="{% url 'aula:gamificacion' aula.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Menú de juegos</a>
     <h5 class="fw-bold mb-0">🧩 Juegos de lógica</h5>
-    <span class="small text-muted">Sin nota: retos con niveles para pensar. Su avance queda guardado en este equipo.</span>
+    <span class="small text-muted">Sin nota: retos con niveles para pensar. El avance queda guardado en la plataforma.</span>
+    {% if c.es_docente %}<a href="{% url 'aula:logica_informe' aula.pk %}" class="btn btn-sm au-oro ms-auto"><i class="fas fa-chart-column me-1"></i>Avance de los estudiantes</a>{% endif %}
   </div>
   <div class="lgm">
     {% for id, nombre, desc, archivo, ins in juegos %}

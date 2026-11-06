@@ -1,0 +1,62 @@
+{% extends base %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-box-archive me-2"></i>Banco de preguntas</h4><p class="text-muted small mb-0">Sus preguntas por tema, para llevarlas a los juegos con «Traer del banco».</p>{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au" style="max-width:1100px;margin:0 auto">
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <form method="post" class="au-tarjeta">{% csrf_token %}<input type="hidden" name="accion" value="agregar">
+        <h6><i class="fas fa-plus me-1"></i>Agregar preguntas</h6>
+        <label class="form-label small fw-bold mb-1">Tema</label>
+        <input name="tema" class="form-control form-control-sm mb-2" maxlength="80" required list="bc-temas" placeholder="Ej.: Fracciones" value="{{ tema }}">
+        <datalist id="bc-temas">{% for t in temas %}<option value="{{ t }}">{% endfor %}</datalist>
+        <div class="row g-2 mb-2">
+          <div class="col-7"><input name="competencia" class="form-control form-control-sm" maxlength="80" placeholder="Competencia (opcional)"></div>
+          <div class="col-5"><select name="grado" class="form-select form-select-sm"><option value="">Grado</option>{% for g, n in grados %}<option value="{{ g }}">{{ n }}</option>{% endfor %}</select></div>
+        </div>
+        <textarea name="preguntas" class="form-control form-control-sm mb-1" rows="10" required style="font-family:ui-monospace,monospace;font-size:.8rem"
+          placeholder="1. ¿Cuánto es 3/4 + 1/4?&#10;A) 1/2&#10;*B) 1&#10;C) 4/8&#10;&#10;2. ¿Qué fracción es mayor?&#10;A) 1/3&#10;*B) 1/2"></textarea>
+        <div class="form-text mb-2">Numeradas, con opciones A, B, C… y la correcta marcada con <b>*</b>.</div>
+        {% if colegio %}<div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="compartida" id="bc-comp">
+          <label class="form-check-label" for="bc-comp">Compartirlas con los docentes de mi colegio</label></div>{% endif %}
+        <button class="btn au-oro w-100">Guardar en el banco</button>
+      </form>
+      <div class="au-tarjeta small text-muted">También puede guardar las preguntas de un juego al publicarlo (casilla «Guardar estas preguntas en mi banco»).</div>
+    </div>
+    <div class="col-lg-8">
+      <form method="get" class="au-tarjeta d-flex flex-wrap gap-2 align-items-end">
+        <div><label class="small fw-bold d-block">Tema</label><select name="tema" class="form-select form-select-sm"><option value="">Todos ({{ total }})</option>{% for t in temas %}<option value="{{ t }}" {% if t == tema %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+        {% if colegio %}<div><label class="small fw-bold d-block">De</label><select name="de" class="form-select form-select-sm">
+          <option value="">Mías y compartidas</option><option value="mias" {% if de == 'mias' %}selected{% endif %}>Solo mías</option><option value="compartidas" {% if de == 'compartidas' %}selected{% endif %}>De otros docentes</option></select></div>{% endif %}
+        <div class="flex-grow-1"><label class="small fw-bold d-block">Buscar</label><input type="search" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Palabra de la pregunta, tema o competencia"></div>
+        <button class="btn btn-sm btn-primary">Filtrar</button>
+      </form>
+      {% for p in lista %}
+      <div class="au-tarjeta py-2">
+        <div class="d-flex gap-2 align-items-start">
+          <div class="flex-grow-1">
+            <div class="small text-muted">{{ p.tema }}{% if p.competencia %} · {{ p.competencia }}{% endif %}{% if p.grado is not None %} · grado {{ p.grado }}{% endif %}
+              {% if p.propietario_id != request.user.pk %} · de {{ p.propietario.get_full_name|default:p.propietario.username }}{% elif p.compartida %} · <span class="text-success">compartida</span>{% endif %}
+              {% if p.usos %} · usada {{ p.usos }} vez/veces{% endif %}</div>
+            <div class="fw-semibold">{{ p.texto }}</div>
+            <div class="small">{% for o in p.opciones %}<span class="me-2 {% if o.correcta %}text-success fw-bold{% endif %}">{% cycle 'A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' %}) {{ o.texto }}</span>{% endfor %}{% resetcycle %}</div>
+          </div>
+          {% if p.propietario_id == request.user.pk %}
+          <div class="d-flex flex-column gap-1">
+            {% if colegio %}<form method="post">{% csrf_token %}<input type="hidden" name="accion" value="compartir"><input type="hidden" name="pid" value="{{ p.pk }}">
+              <button class="btn btn-sm btn-link p-0" title="{% if p.compartida %}Dejar de compartir{% else %}Compartir con mi colegio{% endif %}"><i class="fas {% if p.compartida %}fa-users{% else %}fa-user-lock{% endif %}"></i></button></form>{% endif %}
+            <form method="post" onsubmit="return confirm('¿Borrar esta pregunta del banco?')">{% csrf_token %}<input type="hidden" name="accion" value="borrar"><input type="hidden" name="pid" value="{{ p.pk }}">
+              <button class="btn btn-sm btn-link text-danger p-0" title="Borrar"><i class="fas fa-trash"></i></button></form>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% empty %}
+      <div class="au-tarjeta text-center text-muted">No hay preguntas{% if tema or q %} con esos filtros{% endif %}. Agregue las primeras a la izquierda.</div>
+      {% endfor %}
+      {% if tema %}<form method="post" onsubmit="return confirm('¿Borrar TODAS sus preguntas del tema «{{ tema }}»?')">{% csrf_token %}<input type="hidden" name="accion" value="borrar_tema"><input type="hidden" name="tema" value="{{ tema }}">
+        <button class="btn btn-sm btn-outline-danger">Borrar mis preguntas de «{{ tema }}»</button></form>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

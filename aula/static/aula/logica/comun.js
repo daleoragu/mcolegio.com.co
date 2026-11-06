@@ -63,6 +63,16 @@
         return L;
     }
 
+    /* Un símbolo dentro de una ficha de color, para jugar sin depender del color (daltonismo):
+     * rojo y rosado ▲, azul ●, verde ■, amarillo y naranja ★, blanco ◆. */
+    function simbolo(ctx, s, x, y, r) {
+        if (!s || r < 6) return;
+        ctx.save();
+        ctx.font = `bold ${Math.round(r * .85)}px system-ui, "Segoe UI Symbol", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = Math.max(2, r * .2); ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.strokeText(s, x, y + 1);
+        ctx.fillStyle = 'rgba(25,25,35,.78)'; ctx.fillText(s, x, y + 1);
+        ctx.restore();
+    }
     function redondo(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
 
     /* Piezas de cuadritos que se arrastran a un tablero (Tablero 36, Cuatro cuadrantes, Cerditos).
@@ -207,7 +217,26 @@
         const $ = s => document.querySelector(s);
         let progreso = {};
         try { progreso = JSON.parse(localStorage.getItem(cfg.clave) || '{}'); } catch (e) { progreso = {}; }
-        let nivel = Math.min(total - 1, Object.keys(progreso).length), ctrl = null, movs = 0, inicio = 0, reloj = null, ganado = false;
+        // El avance también queda en el servidor (lo ve el docente y sigue en otro equipo): se juntan los dos
+        const servidor = cfg.servidor || {}, mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+        const aSeg = t => { const m = /^(\d+):(\d\d)$/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : 0; };
+        Object.keys(servidor).forEach(k => {
+            const s = servidor[k], l = progreso[k];
+            if (!l || (s.estrellas || 0) > (l.estrellas || 0)) progreso[k] = {estrellas: s.estrellas, movs: s.movs, tiempo: mmss(s.segundos || 0), ayudas: s.ayudas || 0};
+        });
+        function subir(lista) {
+            if (!cfg.urlAvance || !Object.keys(lista).length) return;
+            fetch(cfg.urlAvance, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRFToken': cfg.csrf || ''},
+                                  body: JSON.stringify({total, niveles: lista})}).catch(() => { /* queda en el navegador y se sube la próxima vez */ });
+        }
+        // Lo que solo estaba en este navegador (o con más estrellas) se sube
+        const faltan = {};
+        Object.keys(progreso).forEach(k => {
+            const l = progreso[k], s = servidor[k];
+            if (!s || (l.estrellas || 0) > (s.estrellas || 0)) faltan[k] = {estrellas: l.estrellas, movs: l.movs, segundos: aSeg(l.tiempo), ayudas: l.ayudas || 0};
+        });
+        subir(faltan);
+        let nivel = Math.min(total - 1, Object.keys(progreso).length), ctrl = null, movs = 0, inicio = 0, reloj = null, ganado = false, ayudas = 0;
         $('#lg-instrucciones').textContent = def.instrucciones;
         function guardar() { try { localStorage.setItem(cfg.clave, JSON.stringify(progreso)); } catch (e) { /* sin almacenamiento */ } }
         function barra() {
@@ -225,7 +254,7 @@
         }
         function tiempo() { const s = Math.floor((performance.now() - inicio) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
         function cargar(i) {
-            nivel = i; movs = 0; ganado = false; inicio = performance.now();
+            nivel = i; movs = 0; ayudas = 0; ganado = false; inicio = performance.now();
             $('#lg-final').hidden = true; $('#lg-movs').textContent = '0';
             clearInterval(reloj); reloj = setInterval(() => { if (!ganado) $('#lg-tiempo').textContent = tiempo(); }, 500);
             const api = {
@@ -234,8 +263,9 @@
                     if (ganado) return; ganado = true; sonido('gano');
                     const est = (info && info.estrellas) || 3;
                     const antes = progreso[nivel];
-                    if (!antes || (antes.estrellas || 0) <= est) progreso[nivel] = {estrellas: est, movs, tiempo: tiempo()};
+                    if (!antes || (antes.estrellas || 0) <= est) progreso[nivel] = {estrellas: est, movs, tiempo: tiempo(), ayudas};
                     guardar(); barra();
+                    subir({[nivel]: {estrellas: est, movs, segundos: Math.floor((performance.now() - inicio) / 1000), ayudas}});
                     $('#lg-final-titulo').textContent = (info && info.titulo) || '¡Lo logró!';
                     $('#lg-final-detalle').textContent = `${'★'.repeat(est)}${'☆'.repeat(3 - est)} · ${movs} movimiento(s) · ${tiempo()}${info && info.detalle ? ' · ' + info.detalle : ''}`;
                     $('#lg-sig').hidden = nivel >= total - 1;
@@ -259,7 +289,7 @@
         }
         $('#lg-reiniciar').addEventListener('click', () => cargar(nivel));
         $('#lg-deshacer').addEventListener('click', () => ctrl.deshacer && ctrl.deshacer());
-        $('#lg-ayuda').addEventListener('click', () => ctrl.ayuda && ctrl.ayuda());
+        $('#lg-ayuda').addEventListener('click', () => { if (ctrl.ayuda) { ayudas += 1; ctrl.ayuda(); } });
         $('#lg-girar').addEventListener('click', () => ctrl.girar && ctrl.girar());
         $('#lg-voltear').addEventListener('click', () => ctrl.voltear && ctrl.voltear());
         $('#lg-sig').addEventListener('click', () => cargar(Math.min(total - 1, nivel + 1)));
@@ -272,5 +302,5 @@
         window.logicaActual = {cargar, get nivel() { return nivel; }, get ctrl() { return ctrl; }};
     }
 
-    window.Logica = {registrar: (id, def) => { JUEGOS[id] = def; }, juego: id => JUEGOS[id], montar, pagina, lienzo, piezasGrilla, sonido, redondo, cruceta, teclasYDedo};
+    window.Logica = {registrar: (id, def) => { JUEGOS[id] = def; }, juego: id => JUEGOS[id], montar, pagina, lienzo, piezasGrilla, sonido, redondo, simbolo, cruceta, teclasYDedo};
 })();
