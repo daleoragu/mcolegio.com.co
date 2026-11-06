@@ -39,7 +39,8 @@
       <input class="form-check-input" type="checkbox" name="autoriza" id="ins-autoriza" required>
       <label class="form-check-label" for="ins-autoriza">
         Autorizo el tratamiento de estos datos personales (Ley 1581 de 2012) solo para la inscripción, la organización y la
-        publicación de los resultados de este evento. Si el participante es menor de edad, autoriza su acudiente o el docente responsable.
+        publicación de los resultados de este evento.{% if vigilancia %} <b>Este evento exige cámara y micrófono encendidos y los graba</b> para
+        vigilar la prueba: autorizo esa grabación (imagen y voz), que solo ven los organizadores y se borra a los {{ vigilancia.dias }} días.{% endif %} Si el participante es menor de edad, autoriza su acudiente o el docente responsable.
         <a href="/privacidad/" target="_blank" rel="noopener">Política de tratamiento de datos</a>.
       </label>
     </div>

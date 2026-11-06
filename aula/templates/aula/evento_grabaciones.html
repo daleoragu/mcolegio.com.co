@@ -1,0 +1,41 @@
+{% extends base %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-video me-2"></i>{{ p.nombre_completo }}</h4><p class="text-muted small mb-0">{{ ev.titulo }} · grabación de cámara y micrófono (privada, se borra a los {{ dias }} días)</p>{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au" style="max-width:1100px;margin:0 auto">
+  <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+    <a href="{% url 'aula:evento_resultados' ev.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Resultados</a>
+    <span class="small text-muted">{{ trozos|length }} trozo(s) de unos 30 s · {{ mb }} MB · {{ p.de_donde }} · {{ p.puntos }} punto(s)</span>
+    {% if trozos %}<button type="button" class="btn btn-sm btn-primary ms-auto" id="gr-todo"><i class="fas fa-play me-1"></i>Ver todo seguido</button>{% endif %}
+  </div>
+  <div class="au-tarjeta small">
+    {% if vig.acepto %}Aceptó la grabación el {{ vig.acepto|slice:":10" }} a las {{ vig.acepto|slice:"11:16" }}.{% else %}No hay registro de que haya aceptado la grabación.{% endif %}
+    {% if vig.cortes %}<div class="mt-1"><b class="text-danger">⚠ Cámara o micrófono apagados {{ vig.cortes|length }} vez/veces:</b>
+      {% for x in vig.cortes %}<span class="badge {% if x.tipo == 'corte' %}bg-danger{% else %}bg-success{% endif %} me-1">{% if x.tipo == 'corte' %}se apagó{% else %}volvió{% endif %} {{ x.hora }}{% if x.motivo %} ({{ x.motivo }}){% endif %}</span>{% endfor %}</div>
+    {% else %}<div class="mt-1 text-success">No apagó la cámara ni el micrófono.</div>{% endif %}
+  </div>
+  {% if trozos %}
+  <div class="au-tarjeta">
+    <video id="gr-video" controls playsinline style="width:100%;max-height:60vh;background:#000;border-radius:10px"></video>
+    <div class="small text-muted mt-1" id="gr-cual"></div>
+  </div>
+  <div class="d-flex flex-wrap gap-1">
+    {% for t in trozos %}<button type="button" class="btn btn-sm btn-outline-dark gr-trozo" data-url="{% url 'aula:evento_grabacion_archivo' ev.pk t.pk %}" data-k="{{ forloop.counter0 }}"
+      title="{{ t.creada|date:'H:i:s' }}">{{ t.creada|date:"H:i:s" }}</button>{% endfor %}
+  </div>
+  <script>
+  (function () {
+    const v = document.getElementById('gr-video'), bs = [...document.querySelectorAll('.gr-trozo')], cual = document.getElementById('gr-cual');
+    let k = 0, seguido = false;
+    function ver(i) { k = i; bs.forEach((b, j) => b.classList.toggle('active', j === i)); v.src = bs[i].dataset.url; v.play().catch(() => {}); cual.textContent = `Trozo ${i + 1} de ${bs.length} · ${bs[i].title}`; }
+    bs.forEach((b, i) => b.addEventListener('click', () => { seguido = false; ver(i); }));
+    document.getElementById('gr-todo').addEventListener('click', () => { seguido = true; ver(0); });
+    v.addEventListener('ended', () => { if (seguido && k < bs.length - 1) ver(k + 1); });
+    ver(0); v.pause();
+  })();
+  </script>
+  {% else %}
+  <div class="au-tarjeta text-center text-muted">No hay grabaciones de este participante{% if dias %} (o ya se borraron: se guardan {{ dias }} días){% endif %}.</div>
+  {% endif %}
+</div>
+{% endblock %}

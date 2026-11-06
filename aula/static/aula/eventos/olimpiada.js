@@ -215,7 +215,7 @@
     // --- Bloques, descanso y final -----------------------------------------------------------
     function finDeBloque() {
         limpiarZona(); E.restante = 0;
-        if (E.bloque >= C.bloques) { E.fase = 'fin'; encolar({tipo: 'fin'}); guardar(); return mostrarFin(); }
+        if (E.bloque >= C.bloques) { E.fase = 'fin'; encolar({tipo: 'fin'}); guardar(); if (VIG) terminarGrabacion(); return mostrarFin(); }
         E.fase = 'descanso'; E.descansoHasta = Date.now() + C.descanso * 60000; guardar(); mostrarDescanso();
     }
     function mostrarDescanso() {
@@ -258,18 +258,142 @@
                 <li>Cada ${C.cada} puntos sale una <b>pregunta de competencia</b> (Euclides, Newton o Bernoulli): no da puntos, pero bien respondida le resta <b>${C.bono} segundos</b> a su tiempo.</li>
                 <li>Gana quien tenga <b>más puntos</b>; si hay empate, el <b>menor tiempo efectivo</b>.</li>
               </ul>
-              <div class="text-center"><button class="btn au-oro btn-lg" id="ol-empezar">${seguir ? 'Seguir' : '¡Empezar!'}</button></div>`);
+              ${VIG ? `<div class="border rounded-3 p-2 mb-2" style="background:#fff5f5">
+                <b>📷🎤 Este evento exige cámara y micrófono encendidos.</b>
+                <div class="small">Se graba su imagen y su voz mientras juega, solo para vigilar la prueba. Lo ven únicamente los organizadores y se borra a los ${VIG.dias} días.
+                  Si apaga la cámara o el micrófono, el juego se detiene hasta que los vuelva a encender (el reloj sigue).</div>
+                <div class="form-check small mt-1"><input class="form-check-input" type="checkbox" id="ol-acepto" ${D.acepto_vigilancia ? 'checked' : ''}>
+                  <label class="form-check-label" for="ol-acepto">Acepto que me graben durante el evento (mi acudiente lo autorizó).</label></div>
+                <div class="d-flex align-items-center gap-2 mt-1"><button type="button" class="btn btn-sm btn-danger" id="ol-encender">Encender cámara y micrófono</button>
+                  <span class="small fw-semibold" id="ol-cam-estado"></span></div></div>` : ''}
+              <div class="text-center"><button class="btn au-oro btn-lg" id="ol-empezar" ${VIG ? 'disabled' : ''}>${seguir ? 'Seguir' : '¡Empezar!'}</button></div>`);
+        if (VIG) {
+            const listo = () => { $('#ol-empezar').disabled = !(Vig.stream && Vig.stream.active && $('#ol-acepto').checked); };
+            $('#ol-acepto').addEventListener('change', listo);
+            $('#ol-encender').addEventListener('click', async () => {
+                const est = $('#ol-cam-estado');
+                try { await encender(); est.textContent = '✅ Encendidos'; est.style.color = '#2f9e44'; $('#ol-encender').hidden = true; }
+                catch (e) { est.textContent = permisoTexto(e); est.style.color = '#e03131'; }
+                listo();
+            });
+            if (!puedeGrabar()) { $('#ol-cam-estado').textContent = 'Este navegador no puede grabar: use Chrome, Edge o Firefox actualizados (o Safari 14.5 o más nuevo).'; $('#ol-cam-estado').style.color = '#e03131'; $('#ol-encender').disabled = true; }
+        }
         $('#ol-empezar').addEventListener('click', () => {
+            if (VIG) { if (!(Vig.stream && Vig.stream.active)) return; avisoVig('acepto'); empezarGrabacion(); }
             if (!seguir) encolar({tipo: 'inicio'});
             const z = $('#ol'); if (z.requestFullscreen && !document.fullscreenElement) z.requestFullscreen().catch(() => {});
             volverAJugar();
         });
     }
+    // --- Vigilancia: cámara y micrófono encendidos y grabados (solo si el evento lo exige) ---------
+    // Se graba en trozos independientes de ~30 s (se puede ver cada uno solo) y se suben al servidor.
+    // Si la cámara o el micrófono se apagan, el juego se tapa hasta que se vuelvan a encender (el reloj sigue).
+    const VIG = D.vigilancia;
+    const Vig = {stream: null, rec: null, n: 0, cola: [], subiendo: false, apagada: false, parar: false};
+    function avisoVig(tipo, motivo) {
+        if (D.prueba || !U.grabacion) return;
+        const f = new FormData(); f.append('tipo', tipo); f.append('t', Math.round(E.activo)); if (motivo) f.append('motivo', motivo);
+        pedir(U.grabacion, {method: 'POST', headers: {'X-CSRFToken': U.csrf}, body: f}, 10000).catch(() => {});
+    }
+    const puedeGrabar = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+    function tipoVideo() {
+        for (const t of ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4;codecs=avc1,mp4a', 'video/mp4']) {
+            try { if (MediaRecorder.isTypeSupported(t)) return t; } catch (e) { /* sigue */ }
+        }
+        return '';
+    }
+    async function encender() {
+        if (!puedeGrabar()) throw new Error('Este navegador no puede grabar. Use Chrome, Edge o Firefox actualizados (o Safari 14.5 o más nuevo).');
+        if (Vig.stream && Vig.stream.active) return Vig.stream;
+        Vig.stream = await navigator.mediaDevices.getUserMedia({video: {width: {ideal: 320}, height: {ideal: 240}, frameRate: {ideal: 10, max: 15}, facingMode: 'user'}, audio: true});
+        Vig.stream.getTracks().forEach(t => t.addEventListener('ended', () => apagada('se apagó ' + (t.kind === 'video' ? 'la cámara' : 'el micrófono'))));
+        espejo();
+        return Vig.stream;
+    }
+    function espejo() {
+        let caja = document.getElementById('ol-espejo');
+        if (!caja) {
+            caja = document.createElement('div'); caja.id = 'ol-espejo';
+            caja.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:2147483000;width:96px;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.4);background:#000;pointer-events:none';
+            caja.innerHTML = '<video autoplay muted playsinline style="width:100%;display:block;transform:scaleX(-1)"></video><div style="position:absolute;top:3px;left:5px;color:#fff;font:700 10px system-ui;text-shadow:0 0 3px #000"><span style="color:#ff4d4f">●</span> GRABANDO</div>';
+            $('#ol').appendChild(caja);
+        }
+        caja.querySelector('video').srcObject = Vig.stream;
+    }
+    function grabarTrozo() {
+        if (Vig.parar || !Vig.stream || !Vig.stream.active) return;
+        const tipo = tipoVideo(), partes = [], inicio = E.activo;
+        let rec;
+        try { rec = new MediaRecorder(Vig.stream, Object.assign({videoBitsPerSecond: 120000, audioBitsPerSecond: 32000}, tipo ? {mimeType: tipo} : {})); }
+        catch (e) { rec = new MediaRecorder(Vig.stream); }
+        Vig.rec = rec;
+        rec.ondataavailable = ev => { if (ev.data && ev.data.size) partes.push(ev.data); };
+        rec.onstop = () => {
+            if (partes.length) { Vig.n += 1; Vig.cola.push({n: Vig.n, t: inicio, blob: new Blob(partes, {type: rec.mimeType || tipo || 'video/webm'})}); if (Vig.cola.length > 40) Vig.cola.shift(); subirTrozos(); }
+            if (!Vig.parar) grabarTrozo();       // el siguiente trozo, sin pausa
+        };
+        rec.start();
+        setTimeout(() => { if (rec.state !== 'inactive') rec.stop(); }, 30000);
+    }
+    async function subirTrozos() {
+        if (D.prueba) { Vig.cola = []; return; }
+        if (Vig.subiendo || !Vig.cola.length) return;
+        Vig.subiendo = true;
+        while (Vig.cola.length) {
+            const t = Vig.cola[0], f = new FormData(), ext = (t.blob.type || '').includes('mp4') ? 'mp4' : 'webm';
+            f.append('trozo', t.blob, `trozo-${t.n}.${ext}`); f.append('n', t.n); f.append('t', Math.round(t.t));
+            try {
+                const r = await pedir(U.grabacion, {method: 'POST', headers: {'X-CSRFToken': U.csrf}, body: f}, 60000);
+                if (!r.ok && r.status !== 400) throw new Error('reintentar');
+                Vig.cola.shift();
+            } catch (e) { break; }      // sin internet: se reintenta luego
+        }
+        Vig.subiendo = false;
+    }
+    setInterval(subirTrozos, 15000); window.addEventListener('online', subirTrozos);
+    function empezarGrabacion() { if (VIG && !Vig.rec) { Vig.parar = false; grabarTrozo(); } }
+    function terminarGrabacion() { Vig.parar = true; if (Vig.rec && Vig.rec.state !== 'inactive') Vig.rec.stop(); setTimeout(() => { if (Vig.stream) Vig.stream.getTracks().forEach(t => t.stop()); const e = document.getElementById('ol-espejo'); if (e) e.remove(); }, 800); }
+    function apagada(motivo) {
+        if (!VIG || Vig.apagada || E.fase === 'fin' || E.fase === 'portada') return;
+        Vig.apagada = true; avisoVig('corte', motivo);
+        let capa2 = document.getElementById('ol-camara');
+        if (!capa2) {
+            capa2 = document.createElement('div'); capa2.id = 'ol-camara';
+            capa2.style.cssText = 'position:absolute;inset:0;z-index:50;background:rgba(15,20,35,.92);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;border-radius:18px';
+            $('#ol').style.position = 'relative'; $('#ol').appendChild(capa2);
+        }
+        capa2.innerHTML = '<div style="font-size:2.5rem">📷🎤</div><h5 class="fw-bold">Se apagó la cámara o el micrófono</h5><p class="small mb-3">Este evento exige tenerlos encendidos. El reloj sigue corriendo: enciéndalos para seguir jugando.</p><button type="button" class="btn btn-warning btn-lg">Encender de nuevo</button><div class="small mt-2 text-warning ol-cam-error"></div>';
+        capa2.hidden = false;
+        capa2.querySelector('button').addEventListener('click', async () => {
+            try {
+                Vig.stream = null; await encender(); Vig.apagada = false; capa2.hidden = true; avisoVig('reanudo');
+                if (Vig.rec && Vig.rec.state !== 'inactive') { try { Vig.rec.stop(); } catch (e) { /* sigue */ } } else { Vig.rec = null; empezarGrabacion(); }
+            } catch (e) { capa2.querySelector('.ol-cam-error').textContent = permisoTexto(e); }
+        });
+    }
+    function permisoTexto(e) {
+        if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) return 'El navegador no dio permiso. Toque el candado 🔒 junto a la dirección, permita cámara y micrófono, y vuelva a intentar.';
+        if (e && e.name === 'NotFoundError') return 'No se encontró cámara o micrófono en este equipo.';
+        if (e && e.name === 'NotReadableError') return 'Otra aplicación está usando la cámara. Ciérrela y vuelva a intentar.';
+        return (e && e.message) || 'No se pudo encender la cámara y el micrófono.';
+    }
+    // Revisa cada 2 s que sigan encendidos (si el sistema la apaga, el evento «ended» no siempre llega)
+    setInterval(() => {
+        if (!VIG || !Vig.stream || Vig.apagada || !['jugando', 'pregunta', 'descanso'].includes(E.fase)) return;
+        if (!Vig.stream.active || Vig.stream.getTracks().some(t => t.readyState === 'ended')) apagada('se desconectó');
+    }, 2000);
+
     // --- Actualizar: guarda, recarga la página y sigue donde iba (con otro reto) -----------------
     async function actualizar() {
         const b = $('#ol-actualizar'); if (b) { b.disabled = true; b.innerHTML = '<i class="fas fa-rotate fa-spin me-1"></i>Actualizando…'; }
         if (E.fase === 'jugando' || E.fase === 'pregunta') { E.reto = null; if (E.fase === 'pregunta') E.fase = 'jugando'; }
         guardar();
+        if (VIG) {        // el trozo que se estaba grabando también se sube antes de recargar
+            Vig.parar = true;
+            if (Vig.rec && Vig.rec.state !== 'inactive') { try { Vig.rec.stop(); } catch (e) { /* sigue */ } }
+            await new Promise(r => setTimeout(r, 400));
+            try { await Promise.race([subirTrozos(), new Promise(r => setTimeout(r, 6000))]); } catch (e) { /* sigue */ }
+        }
         try { await Promise.race([enviar(), new Promise(r => setTimeout(r, 4000))]); } catch (e) { /* sigue */ }
         try { sessionStorage.setItem(CLAVE + ':seguir', '1'); } catch (e) { /* sin almacenamiento */ }
         location.reload();
@@ -289,12 +413,18 @@
     pintarCab();
     let vieneDeActualizar = false;
     try { vieneDeActualizar = sessionStorage.getItem(CLAVE + ':seguir') === '1'; sessionStorage.removeItem(CLAVE + ':seguir'); } catch (e) { /* sin almacenamiento */ }
+    // Con vigilancia, a mitad del evento (después de Actualizar) se vuelve a encender la cámara antes de seguir
+    const conCamara = fn => {
+        if (!VIG) return fn();
+        encender().then(() => { empezarGrabacion(); avisoVig('reanudo'); fn(); })
+                  .catch(() => { E.fase = E.fase === 'portada' ? 'jugando' : E.fase; fn(); Vig.apagada = false; apagada('no se pudo encender al volver'); });
+    };
     if (E.fase === 'fin') mostrarFin();
-    else if (E.fase === 'descanso') mostrarDescanso();
-    else if (E.fase === 'pregunta') preguntar();
-    else if (vieneDeActualizar && E.fase === 'jugando') { aviso('Listo: siga donde iba.'); volverAJugar(); }
+    else if (E.fase === 'descanso') conCamara(mostrarDescanso);
+    else if (E.fase === 'pregunta') conCamara(preguntar);
+    else if (vieneDeActualizar && E.fase === 'jugando') conCamara(() => { aviso('Listo: siga donde iba.'); volverAJugar(); });
     else mostrarPortada();
     enviar();
-    window.olimpiada = {estado: () => E};
+    window.olimpiada = {estado: () => E, vigilancia: () => Vig};
     if (D.prueba) Object.assign(window.olimpiada, {superado, finDeBloque});      // solo en la prueba del organizador
 })();

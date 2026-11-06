@@ -27,7 +27,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .invertida import leer_preguntas
-from .models import Evento, JuegoAula, ParticipacionEvento
+from .models import Evento, GrabacionEvento, JuegoAula, ParticipacionEvento
 
 import copy
 
@@ -93,7 +93,9 @@ CONFIG = {'juegos': [j[0] for j in JUEGOS] + ['a_' + k for k in ('salto', 'puent
           'participantes': {'modo': 'grados', 'cursos': [], 'estudiantes': []},   # modo: grados | cursos | estudiantes
           # Eventos abiertos: inscripción de los de fuera. aprobacion: el organizador aprueba cada una;
           # cupo_colegio: máximo por institución; cupo_nivel: máximo por institución en cada nivel (grupo); 0 = sin límite
-          'inscripcion': {'abierta': True, 'aprobacion': False, 'cupo_colegio': 0, 'cupo_nivel': 0}}
+          'inscripcion': {'abierta': True, 'aprobacion': False, 'cupo_colegio': 0, 'cupo_nivel': 0},
+          # Vigilancia: cámara y micrófono encendidos y grabados durante el evento (se borran solos a los `dias`)
+          'vigilancia': {'activa': False, 'dias': 30}}
 DIFICULTADES = [('auto', 'Según el grupo'), ('facil', 'Fácil'), ('media', 'Media'), ('dificil', 'Difícil')]
 
 
@@ -162,6 +164,7 @@ def config_de(evento):
     c = copy.deepcopy(CONFIG)
     c.update({k: v for k, v in (evento.config or {}).items() if k in CONFIG})
     c['inscripcion'] = dict(CONFIG['inscripcion'], **(c.get('inscripcion') or {}))
+    c['vigilancia'] = dict(CONFIG['vigilancia'], **(c.get('vigilancia') or {}))
     return c
 
 
@@ -313,12 +316,31 @@ def _banco():
         return json.load(f)
 
 
+def limpiar_grabaciones(ev, c=None):
+    """Borra las grabaciones que ya cumplieron los días que dice el evento (también lo hace el comando
+    `python manage.py limpiar_grabaciones_eventos`, para correrlo cada día)."""
+    c = c or config_de(ev)
+    limite = timezone.now() - timezone.timedelta(days=c['vigilancia']['dias'])
+    viejas = GrabacionEvento.objects.filter(participacion__evento=ev, creada__lt=limite)
+    n = viejas.count()
+    if n:
+        viejas.delete()
+    return n
+
+
+def _resumen_grabaciones(ev):
+    from django.db.models import Count, Sum
+    r = GrabacionEvento.objects.filter(participacion__evento=ev).aggregate(n=Count('id'), b=Sum('bytes'), p=Count('participacion', distinct=True))
+    return {'trozos': r['n'] or 0, 'mb': round((r['b'] or 0) / 1048576, 1), 'participantes': r['p'] or 0}
+
+
 @login_required
 def configurar(request, eid):
     ev = _evento(request, eid)
     if not es_organizador(request, ev):
         return HttpResponseForbidden('Solo los organizadores configuran el evento.')
     puede_admin = es_admin_del_evento(request, ev)
+    limpiar_grabaciones(ev)
     if request.method == 'POST':
         accion = request.POST.get('accion')
         if accion == 'activar':
@@ -432,6 +454,25 @@ def configurar(request, eid):
             ev.config = dict(ev.config or {}, inscripcion=c['inscripcion'])
             ev.save(update_fields=['config'])
             messages.success(request, 'Inscripción guardada.')
+        elif accion == 'vigilancia':
+            c = config_de(ev)
+            activa = bool(request.POST.get('activa'))
+            if activa and not request.POST.get('acepto_legal'):
+                messages.warning(request, 'Para exigir cámara y micrófono confirme que tiene la autorización de los acudientes (datos sensibles de menores).')
+            else:
+                try:
+                    dias = max(1, min(365, int(request.POST.get('dias') or c['vigilancia']['dias'])))
+                except ValueError:
+                    dias = c['vigilancia']['dias']
+                c['vigilancia'] = {'activa': activa, 'dias': dias}
+                ev.config = dict(ev.config or {}, vigilancia=c['vigilancia'])
+                ev.save(update_fields=['config'])
+                messages.success(request, f'Vigilancia ACTIVADA: piden cámara y micrófono y las grabaciones se borran a los {dias} días.' if activa
+                                 else 'Vigilancia apagada: ya no se piden cámara ni micrófono.')
+        elif accion == 'borrar_grabaciones' and puede_admin:
+            n = GrabacionEvento.objects.filter(participacion__evento=ev).count()
+            GrabacionEvento.objects.filter(participacion__evento=ev).delete()
+            messages.success(request, f'Se borraron {n} trozo(s) de grabación.')
         elif accion == 'organizadores' and puede_admin:
             from notas.models import Docente
             ids = request.POST.getlist('organizadores')
@@ -476,6 +517,7 @@ def configurar(request, eid):
         'part': c['participantes'], 'dificultades': DIFICULTADES, 'estilos': ESTILOS, 'categorias': CATEGORIAS, 'tabla': tabla,
         'preguntas': list(enumerate(ev.preguntas)), 'juegos_salon': juegos_salon, 'es_admin': puede_admin, 'ins': c['inscripcion'],
         'n_pendientes': ev.participaciones.filter(estado='pendiente').count(),
+        'vig': c['vigilancia'], 'grab': _resumen_grabaciones(ev),
         'docentes': Docente.objects.filter(colegio=ev.colegio).select_related('user').order_by('user__last_name') if ev.colegio_id else [],
         'enlace': request.build_absolute_uri(reverse('aula:evento_inscribirse', args=[ev.codigo])),
         'organizadores': set(ev.organizadores.values_list('pk', flat=True)), 'base': _base(request)})
@@ -526,6 +568,8 @@ def jugar(request, eid):
         'ritmo': {j[0]: JuegoAula.RITMO.get((c['por_juego'].get(j[0]) or {}).get('velocidad', 'normal'), 1) for j in juegos_del_evento(ev)},
         'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito')},
         'usuario': request.user.pk or (p.token[:8] if p else 'anon'),
+        'vigilancia': c['vigilancia'] if c['vigilancia']['activa'] else None,
+        'acepto_vigilancia': bool(p and (p.datos or {}).get('vigilancia', {}).get('acepto')),
     }
     if p is not None or est is not None:
         datos['servidor'] = _estado(p, c) if p else None
@@ -659,7 +703,8 @@ def inscribirse(request, codigo):
                 estado='pendiente' if ins['aprobacion'] else 'aprobada',
                 datos={'documento': documento, 'ciudad': ciudad, 'contacto': contacto, 'acompanante': acompanante, 'clave': clave,
                        # Ley 1581 de 2012: quién autorizó el tratamiento de los datos, cuándo y desde dónde
-                       'autorizacion': {'acudiente': acudiente, 'fecha': timezone.now().isoformat(timespec='seconds'), 'ip': ip}})
+                       'autorizacion': {'acudiente': acudiente, 'fecha': timezone.now().isoformat(timespec='seconds'), 'ip': ip,
+                                        'grabacion': c['vigilancia']['activa']}})
             request.session[clave_sesion(ev)] = p.token
             if p.estado == 'pendiente':
                 return redirect('aula:evento_inscribirse', codigo=ev.codigo)
@@ -676,7 +721,7 @@ def inscribirse(request, codigo):
             pass
     return render(request, 'aula/evento_inscribirse.html', {
         'ev': ev, 'grados': [(x, etiqueta_grado(x)) for x in grados], 'error': error, 'sugerido': sugerido, 'post': request.POST,
-        'ins': ins, 'recibe': recibe, 'niveles': grupos(c),
+        'ins': ins, 'recibe': recibe, 'niveles': grupos(c), 'vigilancia': c['vigilancia'] if c['vigilancia']['activa'] else None,
         'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
 
 
@@ -811,8 +856,12 @@ def resultados(request, eid):
     else:
         tablas = [(g['nombre'], rango_grados(g), filtrar(ranking(ev, g['id']))) for g in grupos(c) if not gsel or g['id'] == gsel]
     nombres = {g['id']: g['nombre'] for g in grupos(c)}
+    from django.db.models import Count
+    grabadas = dict(GrabacionEvento.objects.filter(participacion__evento=ev).values_list('participacion').annotate(n=Count('id')))
     for _, _, filas in tablas:
         for p in filas:
+            p.n_grab = grabadas.get(p.pk, 0)
+            p.cortes = len(((p.datos or {}).get('vigilancia') or {}).get('cortes') or [])
             p.grupo_nombre = nombres.get(p.ciclo, p.ciclo)
             g = grado_de(p)
             p.grado_txt = etiqueta_grado(g) if g is not None else ''
@@ -830,7 +879,8 @@ def resultados(request, eid):
     grados_hay = sorted({g for g in (grado_de(p) for p in ev.participaciones.select_related('estudiante__curso')) if g is not None})
     return render(request, 'aula/evento_resultados.html', {
         'ev': ev, 'tablas': tablas, 'grupos': grupos(c), 'gsel': gsel, 'gr': gr, 'q': request.GET.get('q', ''),
-        'grados': [(g, etiqueta_grado(g)) for g in grados_hay], 'consulta': request.GET.urlencode(), 'base': _base(request)})
+        'grados': [(g, etiqueta_grado(g)) for g in grados_hay], 'consulta': request.GET.urlencode(), 'base': _base(request),
+        'vigilancia': c['vigilancia']['activa'] or GrabacionEvento.objects.filter(participacion__evento=ev).exists()})
 
 
 @login_required
@@ -886,6 +936,83 @@ def diplomas(request, eid):
     return render(request, 'aula/evento_diplomas.html', {
         'ev': ev, 'lista': lista, 'tipo': tipo, 'gsel': gsel, 'primeros': primeros, 'grupos': grupos(c), 'firma': firma,
         'colegio': ev.colegio, 'fecha': timezone.localdate()})
+
+
+# ---------------------------------------------------------------------------
+# Vigilancia con cámara y micrófono
+# ---------------------------------------------------------------------------
+MAX_TROZO = 12 * 1024 * 1024            # un trozo de ~30 s pesa menos de 1 MB en calidad baja
+MAX_PARTICIPANTE = 900 * 1024 * 1024    # tope por participante (unas 10 h): nadie llena el servidor
+
+
+@require_POST
+def grabacion(request, eid):
+    """Llegan los trozos de la grabación (y los avisos: aceptó, se apagó la cámara, la volvió a encender)."""
+    ev = _evento(request, eid)
+    c = config_de(ev)
+    if not c['vigilancia']['activa']:
+        return JsonResponse({'ok': False, 'error': 'Este evento no graba.'}, status=400)
+    p = _participacion(request, ev)
+    if p is None:
+        return JsonResponse({'ok': True, 'prueba': True})
+    archivo = request.FILES.get('trozo')
+    if archivo is None:
+        tipo = request.POST.get('tipo') or ''
+        try:
+            t = round(float(request.POST.get('t') or 0), 1)
+        except ValueError:
+            t = 0
+        if tipo in ('acepto', 'corte', 'reanudo'):
+            v = (p.datos or {}).get('vigilancia') or {}
+            if tipo == 'acepto':
+                v.setdefault('acepto', timezone.now().isoformat(timespec='seconds'))
+            else:
+                v['cortes'] = (v.get('cortes') or [])[-300:] + [{'tipo': tipo, 't': t, 'hora': timezone.localtime().strftime('%H:%M:%S'),
+                                                                  'motivo': (request.POST.get('motivo') or '')[:80]}]
+            p.datos = dict(p.datos or {}, vigilancia=v)
+            p.save(update_fields=['datos'])
+        return JsonResponse({'ok': True})
+    tipo = (archivo.content_type or '').split(';')[0]
+    if not tipo.startswith(('video/', 'audio/')) or archivo.size > MAX_TROZO:
+        return JsonResponse({'ok': False, 'error': 'Trozo no válido.'}, status=400)
+    from django.db.models import Sum
+    usado = p.grabaciones.aggregate(b=Sum('bytes'))['b'] or 0
+    if usado + archivo.size > MAX_PARTICIPANTE:
+        return JsonResponse({'ok': False, 'lleno': True})
+    try:
+        n = int(request.POST.get('n') or 0)
+        seg = float(request.POST.get('t') or 0)
+    except ValueError:
+        n, seg = 0, 0
+    ext = '.mp4' if 'mp4' in tipo else '.webm'
+    archivo.name = f'trozo-{n:05d}{ext}'
+    GrabacionEvento.objects.create(participacion=p, numero=n, archivo=archivo, tipo=tipo[:60], segundos=seg, bytes=archivo.size)
+    return JsonResponse({'ok': True, 'n': n})
+
+
+@login_required
+def grabaciones(request, eid, pid):
+    """El organizador ve la grabación de un participante (trozos en orden) y cuándo se apagó la cámara."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores ven las grabaciones.')
+    limpiar_grabaciones(ev)
+    p = get_object_or_404(ParticipacionEvento, pk=pid, evento=ev)
+    trozos = list(p.grabaciones.all())
+    v = (p.datos or {}).get('vigilancia') or {}
+    return render(request, 'aula/evento_grabaciones.html', {
+        'ev': ev, 'p': p, 'trozos': trozos, 'mb': round(sum(t.bytes for t in trozos) / 1048576, 1), 'vig': v,
+        'dias': config_de(ev)['vigilancia']['dias'], 'base': _base(request)})
+
+
+@login_required
+def grabacion_archivo(request, eid, gid):
+    """Abre un trozo (enlace firmado que vence) solo para los organizadores."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores ven las grabaciones.')
+    g = get_object_or_404(GrabacionEvento, pk=gid, participacion__evento=ev)
+    return redirect(g.archivo.url)
 
 
 # ---------------------------------------------------------------------------

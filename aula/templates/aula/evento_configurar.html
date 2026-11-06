@@ -60,6 +60,27 @@
     </form>{% endif %}
   </div>
 
+  <form method="post" class="au-tarjeta" style="border-left:6px solid {% if vig.activa %}#e03131{% else %}#adb5bd{% endif %}">{% csrf_token %}<input type="hidden" name="accion" value="vigilancia">
+    <h6><i class="fas fa-video me-1"></i>Vigilancia con cámara y micrófono</h6>
+    <p class="small mb-2">Si la activa, cada participante debe <b>encender la cámara y el micrófono</b> para empezar; si los apaga, el juego se detiene
+      hasta que los vuelva a encender. Se graba en trozos de 30 segundos que quedan <b>privados en el servidor</b> (solo los ven los organizadores)
+      y se <b>borran solos</b> a los días que diga abajo. Calidad baja para no gastar datos (alrededor de 1 MB por minuto).</p>
+    <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="activa" id="vig-activa" {% if vig.activa %}checked{% endif %}>
+      <label class="form-check-label fw-bold" for="vig-activa">Exigir cámara y micrófono y grabar</label></div>
+    <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="acepto_legal" id="vig-legal" {% if vig.activa %}checked{% endif %}>
+      <label class="form-check-label" for="vig-legal">Confirmo que la institución tiene la <b>autorización de los acudientes</b> para grabar imagen y voz de los
+        estudiantes (datos sensibles de menores, Ley 1581 de 2012) solo para vigilar este evento.</label></div>
+    <div class="d-flex flex-wrap align-items-center gap-2 small">
+      <label>Borrar las grabaciones a los <input type="number" name="dias" min="1" max="365" value="{{ vig.dias }}" class="form-control form-control-sm d-inline-block" style="width:75px"> días</label>
+      <button class="btn btn-sm au-oro ms-auto">Guardar</button>
+    </div>
+    {% if grab.trozos %}<div class="small text-muted mt-2">Hay {{ grab.trozos }} trozo(s) de {{ grab.participantes }} participante(s), {{ grab.mb }} MB. Se ven en <a href="{% url 'aula:evento_resultados' ev.pk %}">Resultados</a> (botón 🎥).</div>{% endif %}
+  </form>
+  {% if grab.trozos and es_admin %}
+  <form method="post" class="text-end mb-3" onsubmit="return confirm('¿Borrar TODAS las grabaciones de este evento? No se pueden recuperar.')">{% csrf_token %}<input type="hidden" name="accion" value="borrar_grabaciones">
+    <button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash me-1"></i>Borrar ya todas las grabaciones</button></form>
+  {% endif %}
+
   <div class="row g-3">
   <div class="col-12">
     <form method="post" class="au-tarjeta">{% csrf_token %}<input type="hidden" name="accion" value="config">

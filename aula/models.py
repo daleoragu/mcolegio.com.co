@@ -14,6 +14,8 @@ from decimal import Decimal
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from django.utils import timezone
 
 from . import almacen
@@ -737,6 +739,31 @@ class PreguntaBanco(models.Model):
 
     def __str__(self):
         return self.texto[:60]
+
+
+class GrabacionEvento(models.Model):
+    """Un trozo (unos 30 s) de la grabación de cámara y micrófono de un participante, en los eventos donde el
+    organizador la exige. Privada: solo la ven los organizadores. Se borra sola a los días que diga el evento."""
+    participacion = models.ForeignKey('ParticipacionEvento', on_delete=models.CASCADE, related_name='grabaciones')
+    numero = models.PositiveIntegerField(default=0)
+    archivo = models.FileField(upload_to=almacen.ruta_grabacion, storage=almacen.privado)
+    tipo = models.CharField(max_length=60, blank=True)          # video/webm, video/mp4…
+    segundos = models.FloatField(default=0)                     # minuto de la olimpiada en que empieza el trozo
+    bytes = models.PositiveIntegerField(default=0)
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['participacion', 'numero', 'pk']
+
+
+@receiver(post_delete, sender=GrabacionEvento)
+def _borrar_archivo_grabacion(sender, instance, **kwargs):
+    """Al borrar la grabación (o el evento, o la participación) también se borra el archivo."""
+    if instance.archivo:
+        try:
+            instance.archivo.delete(save=False)
+        except Exception:
+            pass
 
 
 class ProgresoLogica(models.Model):

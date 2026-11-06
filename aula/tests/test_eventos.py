@@ -402,3 +402,58 @@ class Olimpiada(ColegioDePrueba):
         r = self.cliente(self.ana.user).get(f'/aula/eventos/{ev.pk}/')
         self.assertContains(r, 'id="ol-actualizar"')
         self.assertContains(r, 'id="ol-atascado"')
+
+    def test_vigilancia_camara_y_microfono(self):
+        """El organizador exige cámara y micrófono: los trozos se guardan privados, solo los ven los organizadores
+        y se borran solos a los días configurados."""
+        import os
+        from datetime import timedelta
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.core.management import call_command
+        from django.utils import timezone
+        from aula.models import GrabacionEvento
+        ev = self.crear('Olimpiada vigilada')
+        url_conf = f'/aula/eventos/{ev.pk}/configurar/'
+        # Sin confirmar la autorización de los acudientes no se activa
+        self.admin.post(url_conf, {'accion': 'vigilancia', 'activa': 'on', 'dias': '15'})
+        ev.refresh_from_db(); self.assertFalse((ev.config.get('vigilancia') or {}).get('activa'))
+        self.admin.post(url_conf, {'accion': 'vigilancia', 'activa': 'on', 'acepto_legal': 'on', 'dias': '15'})
+        self.admin.post(url_conf, {'accion': 'activar'})
+        ev.refresh_from_db(); self.assertEqual(ev.config['vigilancia'], {'activa': True, 'dias': 15})
+        ana = self.cliente(self.ana.user)
+        r = ana.get(f'/aula/eventos/{ev.pk}/')
+        self.assertEqual(r.context['datos']['vigilancia'], {'activa': True, 'dias': 15})
+        self.assertContains(r, '/grabacion/')
+        url = f'/aula/eventos/{ev.pk}/grabacion/'
+        self.assertTrue(ana.post(url, {'tipo': 'acepto'}).json()['ok'])
+        trozo = lambda n: SimpleUploadedFile(f't{n}.webm', b'\x1aE\xdf\xa3' + b'0' * 2000, content_type='video/webm')
+        self.assertTrue(ana.post(url, {'trozo': trozo(1), 'n': 1, 't': 0}).json()['ok'])
+        self.assertTrue(ana.post(url, {'trozo': trozo(2), 'n': 2, 't': 30}).json()['ok'])
+        ana.post(url, {'tipo': 'corte', 't': 45, 'motivo': 'se apagó la cámara'})
+        ana.post(url, {'tipo': 'reanudo', 't': 60})
+        # Lo que no es video no se guarda
+        self.assertEqual(ana.post(url, {'trozo': SimpleUploadedFile('x.txt', b'hola', content_type='text/plain')}).status_code, 400)
+        p = ParticipacionEvento.objects.get(evento=ev, estudiante=self.ana)
+        self.assertEqual(p.grabaciones.count(), 2)
+        self.assertTrue(p.datos['vigilancia']['acepto'])
+        self.assertEqual([c['tipo'] for c in p.datos['vigilancia']['cortes']], ['corte', 'reanudo'])
+        # El organizador la ve; los demás no
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/grabaciones/{p.pk}/')
+        self.assertContains(r, 'se apagó la cámara'); self.assertEqual(len(r.context['trozos']), 2)
+        g = p.grabaciones.first()
+        self.assertEqual(self.admin.get(f'/aula/eventos/{ev.pk}/grabaciones/archivo/{g.pk}/').status_code, 302)
+        self.assertEqual(ana.get(f'/aula/eventos/{ev.pk}/grabaciones/archivo/{g.pk}/').status_code, 403)
+        self.assertEqual(ana.get(f'/aula/eventos/{ev.pk}/grabaciones/{p.pk}/').status_code, 403)
+        self.assertContains(self.admin.get(f'/aula/eventos/{ev.pk}/resultados/'), '🎥 2')
+        # Pasados los días de guarda se borran solas (con su archivo)
+        ruta = g.archivo.path
+        self.assertTrue(os.path.exists(ruta))
+        GrabacionEvento.objects.filter(pk=g.pk).update(creada=timezone.now() - timedelta(days=16))
+        call_command('limpiar_grabaciones_eventos', stdout=open(os.devnull, 'w'))
+        self.assertEqual(p.grabaciones.count(), 1)
+        self.assertFalse(os.path.exists(ruta))
+        # Borrar todas y apagar la vigilancia
+        self.admin.post(url_conf, {'accion': 'borrar_grabaciones'})
+        self.assertEqual(GrabacionEvento.objects.count(), 0)
+        self.admin.post(url_conf, {'accion': 'vigilancia', 'dias': '15'})
+        self.assertEqual(ana.post(url, {'tipo': 'acepto'}).status_code, 400)
