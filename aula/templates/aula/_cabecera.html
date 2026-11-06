@@ -8,6 +8,7 @@
     </div>
     {% if c.es_docente %}
         <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:instrumentos' %}"><i class="fas fa-list-check me-1"></i>Mis rúbricas</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:banco' %}"><i class="fas fa-box-archive me-1"></i>Banco de preguntas</a>
     {% elif c.integrante %}
         <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:salir' aula.pk %}">No soy {{ c.integrante.nombres }}</a>
     {% endif %}

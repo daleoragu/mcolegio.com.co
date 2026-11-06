@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diplomas · {{ ev.titulo }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Great+Vibes&display=swap" rel="stylesheet">
+<style>
+  @page { size:A4 landscape; margin:0; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#e9ecef; font-family:Georgia, 'Times New Roman', serif; color:#1d2433; }
+  .barra { position:sticky; top:0; z-index:5; background:#1f3a68; color:#fff; padding:10px 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-family:system-ui, sans-serif; font-size:.9rem; }
+  .barra input, .barra select { padding:5px 8px; border-radius:6px; border:0; font-size:.85rem; }
+  .barra button, .barra a { background:#f2b632; color:#1d2433; border:0; border-radius:8px; padding:7px 12px; font-weight:700; cursor:pointer; text-decoration:none; }
+  .barra a.claro { background:rgba(255,255,255,.15); color:#fff; }
+  .hoja { width:297mm; height:210mm; margin:12px auto; background:#fff; position:relative; page-break-after:always; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,.15); }
+  .marco { position:absolute; inset:9mm; border:3px solid #1f3a68; outline:1.5px solid #f2b632; outline-offset:-7px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:12mm 24mm; }
+  .esquina { position:absolute; width:26mm; height:26mm; border:6px solid #f2b632; }
+  .e1 { top:5mm; left:5mm; border-right:0; border-bottom:0; } .e2 { top:5mm; right:5mm; border-left:0; border-bottom:0; }
+  .e3 { bottom:5mm; left:5mm; border-right:0; border-top:0; } .e4 { bottom:5mm; right:5mm; border-left:0; border-top:0; }
+  .escudo { height:22mm; margin-bottom:4mm; }
+  .otorga { font-size:13pt; letter-spacing:.2em; text-transform:uppercase; color:#5b6474; }
+  .titulo { font-family:'Cinzel', serif; font-size:40pt; font-weight:900; color:#1f3a68; margin:2mm 0; letter-spacing:.05em; }
+  .puesto { font-family:'Cinzel', serif; font-size:20pt; color:#b7860b; font-weight:700; margin-bottom:2mm; }
+  .a { font-size:13pt; color:#5b6474; }
+  .nombre { font-family:'Great Vibes', cursive; font-size:44pt; color:#1d2433; margin:2mm 0; line-height:1.1; border-bottom:1px solid #ced4da; padding:0 12mm 2mm; }
+  .texto { font-size:13pt; max-width:210mm; line-height:1.5; }
+  .firmas { display:flex; gap:30mm; margin-top:12mm; }
+  .firma { border-top:1.5px solid #1d2433; padding-top:2mm; min-width:70mm; font-size:11pt; }
+  .firma small { display:block; color:#5b6474; }
+  .fecha { position:absolute; bottom:12mm; right:16mm; font-size:10pt; color:#5b6474; }
+  .vacio { text-align:center; padding:60px; font-family:system-ui, sans-serif; }
+  @media print { body { background:#fff; } .barra { display:none; } .hoja { margin:0; box-shadow:none; } }
+</style></head>
+<body>
+<form class="barra" method="get">
+  <b>🎓 Diplomas</b>
+  <select name="tipo"><option value="ganadores" {% if tipo == 'ganadores' %}selected{% endif %}>Primeros puestos</option><option value="todos" {% if tipo == 'todos' %}selected{% endif %}>Participación (todos)</option></select>
+  <label>Puestos <input type="number" name="n" min="1" max="20" value="{{ primeros }}" style="width:60px"></label>
+  <select name="grupo"><option value="">Todos los grupos</option>{% for g in grupos %}<option value="{{ g.id }}" {% if gsel == g.id %}selected{% endif %}>{{ g.nombre }}</option>{% endfor %}</select>
+  <input name="firmante" value="{{ firma.firmante }}" placeholder="Quien firma">
+  <input name="cargo" value="{{ firma.cargo }}" placeholder="Cargo (ej.: Rector)">
+  <input name="lugar" value="{{ firma.lugar }}" placeholder="Ciudad">
+  <button type="submit" style="background:#fff">Aplicar</button>
+  <button type="button" onclick="window.print()">🖨 Imprimir o guardar en PDF</button>
+  <a class="claro" href="{% url 'aula:evento_resultados' ev.pk %}">Volver</a>
+  <span>{{ lista|length }} diploma{{ lista|length|pluralize }}</span>
+</form>
+{% for d in lista %}
+<section class="hoja">
+  <span class="esquina e1"></span><span class="esquina e2"></span><span class="esquina e3"></span><span class="esquina e4"></span>
+  <div class="marco">
+    {% if colegio and colegio.escudo %}<img class="escudo" src="{{ colegio.escudo.url }}" alt="">{% endif %}
+    <div class="otorga">{% if colegio %}{{ colegio.nombre }} otorga el presente{% else %}Se otorga el presente{% endif %}</div>
+    <div class="titulo">{% if tipo == 'ganadores' %}DIPLOMA DE HONOR{% else %}CERTIFICADO DE PARTICIPACIÓN{% endif %}</div>
+    {% if d.puesto %}<div class="puesto">🏆 {{ d.puesto }}</div>{% endif %}
+    <div class="a">a</div>
+    <div class="nombre">{{ d.nombre }}</div>
+    <div class="texto">
+      {% if d.de %}de <b>{{ d.de }}</b>, {% endif %}
+      {% if tipo == 'ganadores' %}por obtener el <b>{{ d.puesto|lower }}</b> en el nivel <b>{{ d.grupo }}</b>{% else %}por su participación en el nivel <b>{{ d.grupo }}</b>{% endif %}
+      del evento <b>«{{ ev.titulo }}»</b>.
+    </div>
+    <div class="firmas"><div class="firma">{{ firma.firmante|default:"&nbsp;" }}<small>{{ firma.cargo|default:"Organizador del evento" }}</small></div></div>
+  </div>
+  <div class="fecha">{% if firma.lugar %}{{ firma.lugar }}, {% endif %}{{ fecha|date:"j \d\e F \d\e Y" }}</div>
+</section>
+{% empty %}
+<div class="vacio">No hay participantes {% if tipo == 'ganadores' %}con puntos {% endif %}para estos diplomas todavía.</div>
+{% endfor %}
+</body></html>

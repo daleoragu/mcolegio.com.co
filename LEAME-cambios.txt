@@ -1,6 +1,7 @@
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
 NUEVO     LEAME-mejoras-pendientes.txt
+NUEVO     LEAME-prueba-celulares.txt
 NUEVO     aula/animaplano.py
 NUEVO     aula/bancos/factorizacion.json
 NUEVO     aula/bancos/olimpiada.json
@@ -32,6 +33,8 @@ NUEVO     aula/migrations/0016_eventos.py
 NUEVO     aula/migrations/0017_eventos_abiertos.py
 NUEVO     aula/migrations/0018_velocidad_juegos.py
 NUEVO     aula/migrations/0019_inscripcion_eventos.py
+NUEVO     aula/migrations/0020_progreso_logica_y_respuestas.py
+NUEVO     aula/migrations/0021_banco_preguntas.py
 CAMBIADO  aula/models.py
 NUEVO     aula/static/aula/eventos/olimpiada.js
 NUEVO     aula/static/aula/invertida_pausas.js
@@ -107,7 +110,10 @@ CAMBIADO  aula/templates/aula/_cabecera.html
 NUEVO     aula/templates/aula/_instrucciones.html
 NUEVO     aula/templates/aula/_invertida_form.html
 NUEVO     aula/templates/aula/_invertida_js.html
+NUEVO     aula/templates/aula/banco.html
 NUEVO     aula/templates/aula/evento_configurar.html
+NUEVO     aula/templates/aula/evento_diplomas.html
+NUEVO     aula/templates/aula/evento_en_vivo.html
 NUEVO     aula/templates/aula/evento_entrar.html
 NUEVO     aula/templates/aula/evento_inscribirse.html
 NUEVO     aula/templates/aula/evento_inscripcion_estado.html
@@ -121,7 +127,9 @@ CAMBIADO  aula/templates/aula/inicio_salon.html
 NUEVO     aula/templates/aula/invertida.html
 NUEVO     aula/templates/aula/invertidas.html
 NUEVO     aula/templates/aula/juego.html
+NUEVO     aula/templates/aula/juego_analisis.html
 NUEVO     aula/templates/aula/juego_tanques.html
+NUEVO     aula/templates/aula/logica_informe.html
 NUEVO     aula/templates/aula/logica_juego.html
 NUEVO     aula/templates/aula/logica_menu.html
 NUEVO     aula/templates/aula/mascota.html
@@ -132,6 +140,7 @@ NUEVO     aula/tests/test_mascota.py
 CAMBIADO  aula/tests/test_para.py
 CAMBIADO  aula/urls.py
 CAMBIADO  aula/views.py
+NUEVO     aula/views_banco.py
 NUEVO     aula/views_eventos.py
 NUEVO     aula/views_gamificacion.py
 NUEVO     aula/views_invertida.py
@@ -259,6 +268,8 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0017_eventos_abiertos.py           (eventos que crea el docente y eventos abiertos con código)
   aula/migrations/0018_velocidad_juegos.py           (velocidad lenta, normal o rápida de los juegos)
   aula/migrations/0019_inscripcion_eventos.py        (inscripción a eventos: aprobación y cupos)
+  aula/migrations/0020_progreso_logica_y_respuestas.py (avance de lógica y respuestas de los juegos)
+  aula/migrations/0021_banco_preguntas.py          (banco de preguntas)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

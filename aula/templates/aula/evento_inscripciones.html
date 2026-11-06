@@ -37,7 +37,7 @@
           <td><b>{{ p.nombre }}</b>{% if p.datos.documento %}<div class="text-muted">Doc. {{ p.datos.documento }}</div>{% endif %}</td>
           <td>{{ p.institucion }}{% if p.datos.ciudad %}<div class="text-muted">{{ p.datos.ciudad }}</div>{% endif %}</td>
           <td>{{ p.grado_txt }}<div class="text-muted">{{ p.grupo_nombre }}</div></td>
-          <td>{{ p.datos.contacto }}{% if p.datos.acompanante %}<div class="text-muted">Docente: {{ p.datos.acompanante }}</div>{% endif %}</td>
+          <td>{{ p.datos.contacto }}{% if p.datos.acompanante %}<div class="text-muted">Docente: {{ p.datos.acompanante }}</div>{% endif %}{% if p.datos.autorizacion %}<div class="text-success" title="Autorizó el tratamiento de datos el {{ p.datos.autorizacion.fecha }}"><i class="fas fa-shield-halved me-1"></i>Datos autorizados{% if p.datos.autorizacion.acudiente %} por {{ p.datos.autorizacion.acudiente }}{% endif %}</div>{% endif %}</td>
           <td>
             {% if p.estado == 'aprobada' %}<span class="badge bg-success">Aprobada</span>
             {% elif p.estado == 'pendiente' %}<span class="badge bg-warning text-dark">Pendiente</span>{% if p.sin_cupo %}<div class="text-danger" style="max-width:220px">{{ p.sin_cupo }}</div>{% endif %}

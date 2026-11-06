@@ -211,13 +211,13 @@ class Olimpiada(ColegioDePrueba):
         self.assertEqual((ev.colegio, ev.alcance, ev.creador), (None, 'codigo', u))
         # Apagado: no se puede inscribir
         anon = Client(HTTP_HOST='testserver')
-        r = anon.post(f'/aula/eventos/c/{ev.codigo}/', {'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'grado': '7'})
+        r = anon.post(f'/aula/eventos/c/{ev.codigo}/', {'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'grado': '7', 'autoriza': 'on'})
         self.assertFalse(ParticipacionEvento.objects.exists())
         docente.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'activar'})
         # Entra con el código, sin cuenta
         r = anon.post('/aula/eventos/entrar/', {'codigo': ev.codigo.lower()})
         self.assertRedirects(r, f'/aula/eventos/c/{ev.codigo}/', fetch_redirect_response=False)
-        r = anon.post(f'/aula/eventos/c/{ev.codigo}/', {'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'grado': '7'})
+        r = anon.post(f'/aula/eventos/c/{ev.codigo}/', {'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'grado': '7', 'autoriza': 'on'})
         self.assertRedirects(r, f'/aula/eventos/{ev.pk}/', fetch_redirect_response=False)
         p = ParticipacionEvento.objects.get(evento=ev)
         self.assertEqual((p.nombre, p.institucion, p.grado, p.ciclo, p.estudiante), ('Pedro Pérez', 'Colegio Otro', 7, 'exploradores', None))
@@ -302,10 +302,17 @@ class Olimpiada(ColegioDePrueba):
         r = uno.post(url, {'nombre': 'Pedro Pérez', 'institucion': 'Colegio San José', 'grado': '7'})
         self.assertContains(r, 'documento')
         datos = {'nombre': 'Pedro Pérez', 'institucion': 'Colegio San José', 'ciudad': 'Ibagué', 'grado': '7', 'documento': '100001', 'contacto': '3001234567'}
+        # Sin la autorización de datos (y del acudiente) no se inscribe; los robots llenan el campo escondido
+        self.assertContains(uno.post(url, datos), 'autorización del tratamiento')
+        self.assertContains(uno.post(url, dict(datos, autoriza='on')), 'acudiente')
+        datos.update(autoriza='on', acudiente='Rosa Pérez')
+        self.assertContains(uno.post(url, dict(datos, sitio_web='http://spam')), 'No se pudo enviar')
+        self.assertFalse(ParticipacionEvento.objects.filter(evento=ev).exists())
         r = uno.post(url, datos)
         self.assertRedirects(r, url, fetch_redirect_response=False)
         p = ParticipacionEvento.objects.get(evento=ev)
         self.assertEqual((p.estado, p.datos['ciudad'], len(p.datos['clave'])), ('pendiente', 'Ibagué', 6))
+        self.assertEqual(p.datos['autorizacion']['acudiente'], 'Rosa Pérez')
         self.assertContains(uno.get(url), 'Inscripción recibida')
         # El cupo por nivel (1 en Exploradores) cuenta las pendientes; la misma institución escrita distinto es la misma
         dos = Client(HTTP_HOST='testserver')
@@ -355,3 +362,35 @@ class Olimpiada(ColegioDePrueba):
         self.assertIn('Colegio San José', r.content.decode())
         # Otro usuario no ve las inscripciones
         self.assertEqual(Client(HTTP_HOST='testserver').get(f'/aula/eventos/{ev.pk}/inscripciones/').status_code, 302)
+
+    def test_ranking_en_vivo_diplomas_y_correo(self):
+        from django.core import mail
+        from django.test import Client
+        ev = self.crear('Olimpiada 2026')
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'activar'})
+        ana = self.cliente(self.ana.user)
+        ana.get(f'/aula/eventos/{ev.pk}/')
+        r = self.post(ana, f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': 9}]})
+        self.assertEqual(r['puntos'], 1)
+        # Ranking en vivo (para proyectar): página y datos que se actualizan solos
+        self.assertContains(self.admin.get(f'/aula/eventos/{ev.pk}/en-vivo/'), 'Olimpiada 2026')
+        j = self.admin.get(f'/aula/eventos/{ev.pk}/en-vivo/?json=1').json()
+        self.assertIn('Ana Prueba', [f['nombre'] for t in j['tablas'] for f in t['filas']])
+        self.assertEqual(ana.get(f'/aula/eventos/{ev.pk}/en-vivo/').status_code, 403)
+        # Diplomas: primeros puestos (con puntos) y de participación
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/diplomas/?firmante=Rosa+Díaz&cargo=Rectora')
+        self.assertContains(r, 'Primer puesto'); self.assertContains(r, 'Ana Prueba'); self.assertContains(r, 'Rectora')
+        self.assertContains(self.admin.get(f'/aula/eventos/{ev.pk}/diplomas/?tipo=todos'), 'CERTIFICADO DE PARTICIPACIÓN')
+        # Correo al aprobar la inscripción de alguien de fuera (si dejó un correo)
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'alcance', 'alcance': 'codigo'})
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripcion', 'abierta': 'on', 'aprobacion': 'on'})
+        ev.refresh_from_db()
+        Client(HTTP_HOST='testserver').post(f'/aula/eventos/c/{ev.codigo}/', {
+            'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'ciudad': 'Neiva', 'grado': '7', 'documento': '100009',
+            'contacto': 'familia@correo.co', 'acudiente': 'Rosa Pérez', 'autoriza': 'on'})
+        p = ParticipacionEvento.objects.get(evento=ev, nombre='Pedro Pérez')
+        mail.outbox = []
+        self.admin.post(f'/aula/eventos/{ev.pk}/inscripciones/', {'accion': 'aprobar', 'pid': p.pk})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('APROBADA', mail.outbox[0].body); self.assertIn(p.datos['clave'], mail.outbox[0].body)
+        self.assertEqual(mail.outbox[0].to, ['familia@correo.co'])

@@ -8,7 +8,7 @@ Logica.registrar('laberinto', {
     titulo: (d, i) => `Tarjeta ${i + 1} · se puede en ${d.retos[i].minimo} movimientos`,
     iniciar(zona, datos, i, api) {
         const reto = datos.retos[i], W = 640, H = 430, L = api.lienzo(W, H), ctx = L.ctx;
-        const COL = {R: '#e03131', A: '#1c7ed6', V: '#2f9e44', Y: '#fcc419'};
+        const COL = {R: '#e03131', A: '#1c7ed6', V: '#2f9e44', Y: '#fcc419'}, SIM = {R: '▲', A: '●', V: '■', Y: '★'};
         let cols = reto.inicio.map(s => s.split('')), espera = null, mano = null, movs = 0;
         const historia = [];
         const meta = reto.meta.map(s => s.split(''));
@@ -17,6 +17,7 @@ Logica.registrar('laberinto', {
             ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(x + 2, y + 4, r, r * .9, 0, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = COL[v]; ctx.beginPath(); ctx.ellipse(x, y, r, r * .9, 0, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(x - r * .3, y - r * .35, r * .3, r * .18, 0, 0, Math.PI * 2); ctx.fill();
+            Logica.simbolo(ctx, SIM[v], x, y, r);
         }
         L.dibujar = function () {
             L.limpiar('#f8f0e3');
@@ -34,7 +35,7 @@ Logica.registrar('laberinto', {
             const KX = 470, KY = 80, K = 28;
             ctx.fillStyle = '#fff'; Logica.redondo(ctx, KX - 16, KY - 40, 4 * K + 34, 4 * K + 64, 12); ctx.fill();
             L.texto('TARJETA', KX + 2 * K, KY - 16, {tam: 13, negrita: true, alinear: 'center', color: '#495057'});
-            meta.forEach((col, c) => col.forEach((v, j) => { ctx.fillStyle = COL[v]; ctx.beginPath(); ctx.arc(KX + c * K + K / 2, KY + (3 - j) * K + K / 2, K * .38, 0, Math.PI * 2); ctx.fill(); }));
+            meta.forEach((col, c) => col.forEach((v, j) => { ctx.fillStyle = COL[v]; ctx.beginPath(); ctx.arc(KX + c * K + K / 2, KY + (3 - j) * K + K / 2, K * .38, 0, Math.PI * 2); ctx.fill(); Logica.simbolo(ctx, SIM[v], KX + c * K + K / 2, KY + (3 - j) * K + K / 2, K * .38); }));
             L.texto('(abajo = fondo de la columna)', KX + 2 * K, KY + 4 * K + 16, {tam: 10, alinear: 'center', color: '#868e96'});
             L.texto(`Movimientos: ${movs}`, KX - 10, KY + 4 * K + 50, {tam: 13, color: '#495057'});
         };

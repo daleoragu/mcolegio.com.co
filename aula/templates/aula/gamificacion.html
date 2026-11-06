@@ -117,6 +117,8 @@
         <span class="form-text m-0">(solo tenis)</span></div>
       {% include 'aula/_para.html' with actual=None prefijo='g' %}
       {% include 'aula/_periodo_componente.html' with obj=None %}
+      <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="al_banco" id="gm-al-banco">
+        <label class="form-check-label" for="gm-al-banco">Guardar estas preguntas en mi <a href="{% url 'aula:banco' %}" target="_blank">banco de preguntas</a> (tema: el título del juego)</label></div>
       <button class="btn au-oro w-100">Publicar el juego</button>
     </form>
   </div>
@@ -127,7 +129,8 @@
 {% if c.es_docente %}
 <script src="{% static 'aula/juegos/editor.js' %}"></script>
 {{ max_opciones|json_script:"gm-max-opciones" }}
-<script>EditorPreguntas.montar({form: document.getElementById('gm-form'), texto: document.getElementById('gm-preguntas'), tipos: JSON.parse(document.getElementById('gm-max-opciones').textContent)});</script>
+<script>EditorPreguntas.montar({form: document.getElementById('gm-form'), texto: document.getElementById('gm-preguntas'), tipos: JSON.parse(document.getElementById('gm-max-opciones').textContent),
+                          banco: '{% url 'aula:banco_json' %}', csrf: '{{ csrf_token }}'});</script>
 {% endif %}
 <script>
 (function () {

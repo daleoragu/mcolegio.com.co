@@ -7,7 +7,7 @@
   {% elif ins.aprobacion %}<div class="alert alert-info small mb-2"><i class="fas fa-user-check me-1"></i>El organizador revisa cada inscripción. Cuando la apruebe, podrá jugar desde este mismo equipo{% if not ev.activo %} el día del evento{% endif %}.
     {% if ins.cupo_colegio or ins.cupo_nivel %}<br>Cupos:{% if ins.cupo_colegio %} hasta <b>{{ ins.cupo_colegio }}</b> por institución{% endif %}{% if ins.cupo_colegio and ins.cupo_nivel %} y{% endif %}{% if ins.cupo_nivel %} hasta <b>{{ ins.cupo_nivel }}</b> por institución en cada nivel{% endif %}.{% endif %}</div>{% endif %}
   {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
-  <form method="post" class="au-tarjeta">{% csrf_token %}
+  <form method="post" class="au-tarjeta" style="position:relative">{% csrf_token %}
     <h6 class="mb-2"><i class="fas fa-clipboard-list me-1"></i>Formulario de inscripción</h6>
     <label class="form-label fw-bold small">Nombre completo</label>
     <input name="nombre" class="form-control mb-2" maxlength="120" required value="{{ sugerido.nombre }}" placeholder="Nombres y apellidos">
@@ -31,7 +31,18 @@
     <input name="contacto" class="form-control mb-2" maxlength="120" required value="{{ sugerido.contacto }}">
     <label class="form-label fw-bold small">Docente que lo acompaña <span class="fw-normal text-muted">(opcional)</span></label>
     <input name="acompanante" class="form-control mb-2" maxlength="120" value="{{ sugerido.acompanante }}">
+    <label class="form-label fw-bold small">Acudiente (o docente responsable) que autoriza los datos</label>
+    <input name="acudiente" class="form-control mb-2" maxlength="120" required value="{{ sugerido.acudiente }}" placeholder="Nombre completo">
     {% endif %}
+    <div style="position:absolute;left:-5000px" aria-hidden="true"><label>No llene este campo <input name="sitio_web" tabindex="-1" autocomplete="off"></label></div>
+    <div class="form-check small border rounded-3 p-2 ps-4 mb-2" style="background:#f8f9fa">
+      <input class="form-check-input" type="checkbox" name="autoriza" id="ins-autoriza" required>
+      <label class="form-check-label" for="ins-autoriza">
+        Autorizo el tratamiento de estos datos personales (Ley 1581 de 2012) solo para la inscripción, la organización y la
+        publicación de los resultados de este evento. Si el participante es menor de edad, autoriza su acudiente o el docente responsable.
+        <a href="/privacidad/" target="_blank" rel="noopener">Política de tratamiento de datos</a>.
+      </label>
+    </div>
     <button class="btn au-oro btn-lg w-100 mt-1" {% if not recibe %}disabled{% endif %}>{% if ins.aprobacion %}Enviar la inscripción{% else %}Inscribirme y empezar{% endif %}</button>
     <p class="small text-muted mt-2 mb-0">Su participación queda guardada en este equipo y navegador: juegue siempre desde el mismo.</p>
   </form>

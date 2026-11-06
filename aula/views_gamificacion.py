@@ -94,6 +94,11 @@ def gamificacion(request, pk):
             return redirect('aula:gamificacion', pk=pk)
         j.save()
         request.session.pop('juego_borrador', None)
+        if request.POST.get('al_banco') and request.user.is_authenticated:
+            from .views_banco import guardar_en_banco
+            n = guardar_en_banco(request.user, aula.colegio if aula.colegio_id else None, j.preguntas, j.titulo)
+            if n:
+                messages.info(request, f'{n} pregunta(s) quedaron en su banco, en el tema «{j.titulo}».')
         logica.avisar_estudiantes(aula, f'{aula.titulo}: nuevo juego «{j.titulo}» 🎮', _url(request, 'aula:juego', aula.pk, j.pk),
                                   j.para or None)
         messages.success(request, f'Juego publicado con {len(j.preguntas)} pregunta(s).')
@@ -251,6 +256,9 @@ def juego_resultado(request, pk, jid):
     except (TypeError, ValueError):
         puntaje = 0
     r, _ = ResultadoJuegoAula.objects.get_or_create(juego=j, **logica.filtro_persona(persona))
+    r.ultimas = {str(i): (k if k is not None else -1) for i, k in elegidas.items()}
+    if not r.primeras:
+        r.primeras = dict(r.ultimas)
     r.intentos += 1
     r.ultima_nota = nota
     if r.nota is None or (nota is not None and nota >= r.nota):
@@ -259,6 +267,72 @@ def juego_resultado(request, pk, jid):
     r.save()
     return JsonResponse({'ok': True, 'aciertos': aciertos, 'total': total, 'nota': str(nota) if nota is not None else '',
                          'mejor': str(r.nota) if r.nota is not None else '', 'intentos': r.intentos})
+
+
+def analizar(j, resultados, personas, cual='primeras'):
+    """Por pregunta: cuántos la respondieron, cuántos bien, la opción equivocada más escogida y quiénes fallaron.
+    Por estudiante: su porcentaje. Usa el primer intento (lo que sabía) o el último."""
+    nombres = {}
+    for per in personas:
+        nombres[('i' if hasattr(per, 'completo') else 'e') + str(per.pk)] = logica.nombre_de(per)
+    preguntas = []
+    for i, q in enumerate(j.preguntas):
+        ops = q.get('opciones', [])
+        cuenta = [0] * len(ops)
+        bien = mal = tiempo = 0
+        fallaron = []
+        for r in resultados:
+            k = (getattr(r, cual) or {}).get(str(i))
+            if k is None:
+                continue
+            quien = nombres.get(f'i{r.integrante_id}' if r.integrante_id else f'e{r.estudiante_id}', '—')
+            if k == -1 or not (0 <= k < len(ops)):
+                tiempo += 1; fallaron.append(quien)
+                continue
+            cuenta[k] += 1
+            if ops[k].get('correcta'):
+                bien += 1
+            else:
+                mal += 1; fallaron.append(quien)
+        n = bien + mal + tiempo
+        errada = max(((c, k) for k, c in enumerate(cuenta) if not ops[k].get('correcta') and c), default=None)
+        preguntas.append({'n': i + 1, 'texto': q.get('texto', ''), 'respondieron': n, 'bien': bien,
+                          'pct': round(100 * bien / n) if n else None, 'tiempo': tiempo,
+                          'correcta': next((o['texto'] for o in ops if o.get('correcta')), ''),
+                          'errada': (ops[errada[1]]['texto'], errada[0]) if errada else None,
+                          'opciones': [{'letra': 'ABCDEFGH'[k], 'texto': o['texto'], 'veces': cuenta[k], 'correcta': bool(o.get('correcta')),
+                                        'pct': round(100 * cuenta[k] / n) if n else 0} for k, o in enumerate(ops)],
+                          'fallaron': sorted(fallaron)})
+    estudiantes = []
+    for r in resultados:
+        resp = getattr(r, cual) or {}
+        bien = sum(1 for i, k in resp.items() if isinstance(k, int) and 0 <= int(i) < len(j.preguntas)
+                   and 0 <= k < len(j.preguntas[int(i)]['opciones']) and j.preguntas[int(i)]['opciones'][k].get('correcta'))
+        if resp:
+            estudiantes.append({'nombre': nombres.get(f'i{r.integrante_id}' if r.integrante_id else f'e{r.estudiante_id}', '—'),
+                                'bien': bien, 'total': len(resp), 'pct': round(100 * bien / len(resp)), 'nota': r.nota, 'intentos': r.intentos})
+    estudiantes.sort(key=lambda e: (e['pct'], e['nombre']))
+    return preguntas, estudiantes
+
+
+@vista_aula
+def juego_analisis(request, pk, jid):
+    """Para el docente: qué preguntas se fallaron más, qué opción equivocada escogieron y quién necesita refuerzo."""
+    c = _ctx(request, pk, docente=True)
+    j = _juego(c, jid)
+    cual = 'ultimas' if request.GET.get('intento') == 'ultimo' else 'primeras'
+    personas = logica.estudiantes(c.aula)
+    resultados = list(j.resultados.all())
+    preguntas, estudiantes = analizar(j, resultados, personas, cual)
+    orden = request.GET.get('orden', 'dificiles')
+    if orden == 'dificiles':
+        preguntas.sort(key=lambda p: (p['pct'] if p['pct'] is not None else 101, p['n']))
+    con_datos = sum(1 for r in resultados if getattr(r, cual))
+    jugaron = {('i' if r.integrante_id else 'e') + str(r.integrante_id or r.estudiante_id) for r in resultados}
+    sin_jugar = sorted(logica.nombre_de(p) for p in personas if logica.clave_de(p) not in jugaron)
+    return _render(request, c, 'aula/juego_analisis.html', {
+        'juego': j, 'preguntas': preguntas, 'estudiantes': estudiantes, 'refuerzo': [e for e in estudiantes if e['pct'] < 60],
+        'cual': cual, 'orden': orden, 'con_datos': con_datos, 'sin_jugar': sin_jugar}, 'gamificacion')
 
 
 @vista_aula

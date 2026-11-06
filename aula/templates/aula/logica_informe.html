@@ -1,0 +1,58 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<style>
+  .lgi td, .lgi th { white-space:nowrap; vertical-align:middle; }
+  .lgi .celda { font-size:.75rem; line-height:1.15; }
+  .lgi .barra { height:6px; background:#e9ecef; border-radius:4px; overflow:hidden; min-width:60px; }
+  .lgi .barra > div { height:100%; background:#40c057; }
+</style>
+<div class="au" style="max-width:1200px;margin:0 auto">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <a href="{% url 'aula:logica' aula.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Juegos de lógica</a>
+    <h5 class="fw-bold mb-0">📊 Avance en los juegos de lógica</h5>
+    <form method="get" class="ms-auto d-flex gap-2 align-items-center">
+      <label class="small fw-bold" for="lgi-juego">Juego</label>
+      <select name="juego" id="lgi-juego" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">Todos (resumen)</option>
+        {% for id, nombre, d, a in todos %}<option value="{{ id }}" {% if sel == id %}selected{% endif %}>{{ nombre }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+  <div class="au-tarjeta small">
+    Cada vez que un estudiante supera un nivel queda guardado aquí (con sus estrellas, movimientos, tiempo y las veces que pidió ayuda).
+    {% if sin_jugar %}<b>{{ sin_jugar }}</b> estudiante{{ sin_jugar|pluralize }} todavía no ha{{ sin_jugar|pluralize:"n" }} superado ningún nivel.{% endif %}
+    ★ = estrellas (3 sin ayudas). Ordenado de más a menos niveles superados.
+  </div>
+  <div class="au-tarjeta p-0" style="overflow-x:auto">
+    <table class="table table-sm mb-0 lgi small">
+      <thead class="table-light">
+        <tr><th>Estudiante</th><th class="text-center">Niveles</th><th class="text-center">★</th><th class="text-center">Tiempo</th><th class="text-center">Ayudas</th>
+          {% if sel %}<th>Avance</th><th>Último nivel</th>{% else %}{% for id, nombre, d, a in juegos %}<th class="text-center" title="{{ nombre }}">{{ nombre|truncatechars:12 }}</th>{% endfor %}{% endif %}</tr>
+      </thead>
+      <tbody>
+      {% for f in filas %}
+        <tr>
+          <td class="fw-semibold">{{ f.nombre }}</td>
+          <td class="text-center">{{ f.superados }}</td>
+          <td class="text-center">{{ f.estrellas }}</td>
+          <td class="text-center">{% widthratio f.segundos 60 1 %} min</td>
+          <td class="text-center">{{ f.ayudas }}</td>
+          {% if sel %}
+            {% with p=f.celdas.0 %}
+            <td>{% if p and p.total %}<div class="d-flex align-items-center gap-2"><div class="barra flex-grow-1"><div style="width:{% widthratio p.superados p.total 100 %}%"></div></div>{{ p.superados }} de {{ p.total }}</div>{% elif p %}{{ p.superados }}{% else %}<span class="text-muted">sin jugar</span>{% endif %}</td>
+            <td>{% if p %}{{ p.actualizado|date:"d/m H:i" }}{% endif %}</td>
+            {% endwith %}
+          {% else %}
+            {% for p in f.celdas %}<td class="text-center celda">{% if p and p.superados %}<b>{{ p.superados }}</b>{% if p.total %}<span class="text-muted">/{{ p.total }}</span>{% endif %}<div class="text-warning">{{ p.estrellas }}★</div>{% else %}<span class="text-muted">·</span>{% endif %}</td>{% endfor %}
+          {% endif %}
+        </tr>
+      {% empty %}
+        <tr><td colspan="20" class="text-center text-muted py-3">La clase no tiene estudiantes.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

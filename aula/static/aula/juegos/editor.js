@@ -129,6 +129,15 @@
               <button type="button" class="btn ep-modo" data-modo="pegar"><i class="fas fa-paste me-1"></i>Pegar varias</button>
             </div>
             <button type="button" class="btn btn-sm btn-outline-dark ep-abrir-calc"><span class="fw-bold">∑√π</span> Calculadora de símbolos</button>
+            ${cfg.banco ? '<button type="button" class="btn btn-sm btn-outline-success ep-abrir-banco"><i class="fas fa-box-archive me-1"></i>Traer del banco</button>' : ''}
+          </div>
+          <div class="ep-banco border rounded-3 p-2 mb-2" hidden>
+            <div class="d-flex flex-wrap gap-1 mb-2">
+              <select class="form-select form-select-sm ep-b-tema" style="max-width:200px"><option value="">Todos los temas</option></select>
+              <input type="search" class="form-control form-control-sm ep-b-q" style="max-width:220px" placeholder="Buscar…">
+              <button type="button" class="btn btn-sm btn-success ep-b-meter ms-auto" disabled>Agregar seleccionadas</button>
+            </div>
+            <div class="ep-b-lista small" style="max-height:300px;overflow:auto"></div>
           </div>
           <div class="ep-calc-sitio"></div>
           <div class="small mb-2 ep-limite text-primary fw-semibold"></div>
@@ -149,6 +158,61 @@
             el.dispatchEvent(new Event('input', {bubbles: true}));
         }
         const calc = calculadora(raiz.querySelector('.ep-calc-sitio'), escribirEn);
+        // Traer del banco de preguntas (las del docente y las compartidas en su colegio)
+        const panelBanco = raiz.querySelector('.ep-banco');
+        let delBanco = [], temasCargados = false, tBusca = null;
+        async function cargarBanco() {
+            const tema = raiz.querySelector('.ep-b-tema').value, q = raiz.querySelector('.ep-b-q').value;
+            const caja = raiz.querySelector('.ep-b-lista');
+            caja.textContent = 'Cargando…';
+            try {
+                const r = await fetch(`${cfg.banco}?tema=${encodeURIComponent(tema)}&q=${encodeURIComponent(q)}`, {credentials: 'same-origin'});
+                const j = await r.json();
+                if (!temasCargados) {
+                    temasCargados = true;
+                    const sel = raiz.querySelector('.ep-b-tema');
+                    j.temas.forEach(t => { const o = document.createElement('option'); o.value = o.textContent = t; sel.appendChild(o); });
+                }
+                delBanco = j.preguntas;
+                const mx = max();
+                caja.innerHTML = delBanco.length ? '' : '<div class="text-muted">No hay preguntas en el banco con ese filtro.</div>';
+                delBanco.forEach((p, k) => {
+                    const fila = document.createElement('label');
+                    fila.className = 'd-flex gap-2 border-bottom py-1 align-items-start';
+                    const muchas = p.opciones.length > mx;
+                    fila.innerHTML = `<input type="checkbox" class="form-check-input mt-1" data-k="${k}"><span><span class="text-muted"></span> <b></b><br><span class="ops"></span>${muchas ? `<br><span class="text-danger">Tiene ${p.opciones.length} opciones: en este juego caben ${mx} (quite algunas después de traerla).</span>` : ''}</span>`;
+                    fila.querySelector('.text-muted').textContent = p.tema + (p.de ? ' · de ' + p.de : '');
+                    fila.querySelector('b').textContent = p.texto;
+                    fila.querySelector('.ops').textContent = p.opciones.map((o, i) => `${LETRAS[i]}) ${o.texto}${o.correcta ? ' ✓' : ''}`).join('   ');
+                    caja.appendChild(fila);
+                });
+                contar();
+            } catch (e) { caja.textContent = 'No se pudo cargar el banco.'; }
+        }
+        function contar() {
+            const n = raiz.querySelectorAll('.ep-b-lista input:checked').length, b = raiz.querySelector('.ep-b-meter');
+            b.disabled = !n; b.textContent = n ? `Agregar ${n} seleccionada${n === 1 ? '' : 's'}` : 'Agregar seleccionadas';
+        }
+        if (cfg.banco) {
+            raiz.querySelector('.ep-abrir-banco').addEventListener('click', () => { panelBanco.hidden = !panelBanco.hidden; if (!panelBanco.hidden) cargarBanco(); });
+            raiz.querySelector('.ep-b-tema').addEventListener('change', cargarBanco);
+            raiz.querySelector('.ep-b-q').addEventListener('input', () => { clearTimeout(tBusca); tBusca = setTimeout(cargarBanco, 300); });
+            raiz.querySelector('.ep-b-lista').addEventListener('change', contar);
+            raiz.querySelector('.ep-b-meter').addEventListener('click', () => {
+                const elegidas = [...raiz.querySelectorAll('.ep-b-lista input:checked')].map(x => delBanco[+x.dataset.k]);
+                if (modo === 'pegar') { area.value = escribir(leer(area.value).concat(elegidas.map(p => ({texto: p.texto, opciones: p.opciones.map(o => ({texto: o.texto, correcta: !!o.correcta}))})))); }
+                else {
+                    preguntas = preguntas.filter(p => p.texto.trim() || p.opciones.some(o => o.texto.trim()));
+                    elegidas.forEach(p => preguntas.push({texto: p.texto, opciones: p.opciones.map(o => ({texto: o.texto, correcta: !!o.correcta}))}));
+                    pintar(); sincronizar();
+                }
+                revisar();
+                const datos = new FormData(); elegidas.forEach(p => datos.append('ids', p.id));
+                fetch(cfg.banco, {method: 'POST', body: datos, credentials: 'same-origin', headers: {'X-CSRFToken': cfg.csrf || ''}}).catch(() => {});
+                raiz.querySelectorAll('.ep-b-lista input:checked').forEach(x => { x.checked = false; }); contar();
+                errores.textContent = errores.textContent || `Se agregaron ${elegidas.length} pregunta(s) del banco.`;
+            });
+        }
         raiz.querySelector('.ep-abrir-calc').addEventListener('click', () => { calc.hidden = !calc.hidden; });
         form.addEventListener('focusin', ev => { if (ev.target.matches('textarea, input[type="text"].ep-op, .ep-enun') && !ev.target.closest('.ep-calc')) ultimo = ev.target; });
 
