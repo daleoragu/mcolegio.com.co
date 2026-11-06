@@ -6,10 +6,22 @@
 {% block content %}
 {% include 'aula/_estilos.html' %}
 <div class="au" style="max-width:1080px;margin:0 auto">
+  {% if veedor %}
+  <div class="alert alert-info d-flex flex-wrap align-items-center gap-2 py-2">
+    <i class="fas fa-eye"></i>
+    <span class="flex-grow-1 small"><b>Vista de veedor{% if veedor.nombre %}: {{ veedor.nombre }}{% endif %}{% if veedor.grupo %} · {{ veedor.grupo }}{% endif %}.</b>
+      Solo lectura: los mismos resultados que ve el organizador, al momento. La página se actualiza sola cada 30 segundos.{% if vent.texto %} {{ vent.texto }}.{% endif %}</span>
+  </div>
+  <script>setTimeout(() => location.reload(), 30000);</script>
+  {% endif %}
   <div class="d-flex flex-wrap gap-2 mb-2">
+    {% if veedor %}
+    <a href="{% url 'aula:evento_veedor_en_vivo' veedor.token %}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="fas fa-tower-broadcast me-1"></i>Ranking en vivo</a>
+    {% else %}
     <a href="{% url 'aula:evento_configurar' ev.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Configuración</a>
     <a href="{% url 'aula:evento_en_vivo' ev.pk %}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="fas fa-tower-broadcast me-1"></i>Ranking en vivo</a>
     <a href="{% url 'aula:evento_diplomas' ev.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-award me-1"></i>Diplomas</a>
+    {% endif %}
     <a href="?{{ consulta }}{% if consulta %}&{% endif %}csv=1" class="btn btn-sm btn-outline-success"><i class="fas fa-file-csv me-1"></i>Descargar lo que se ve (Excel/CSV)</a>
   </div>
   <form method="get" class="au-tarjeta d-flex flex-wrap gap-2 align-items-end">

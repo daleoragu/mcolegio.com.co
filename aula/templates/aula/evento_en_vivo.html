@@ -28,10 +28,10 @@
 </style></head>
 <body>
 <header>
-  <h1>🏅 {{ ev.titulo }}</h1>
+  <h1>🏅 {{ ev.titulo }}{% if veedor %} <small style="font-size:.45em;opacity:.7">· vista de veedor</small>{% endif %}</h1>
   <span class="hora" id="hora"></span>
   <button type="button" onclick="document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()">⛶ Pantalla completa</button>
-  <a href="{% url 'aula:evento_resultados' ev.pk %}">Resultados</a>
+  <a href="{{ volver }}">Resultados</a>
 </header>
 <div class="grupos" id="grupos"></div>
 {{ tablas|json_script:"ev-tablas" }}

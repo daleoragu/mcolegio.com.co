@@ -628,3 +628,79 @@ class Olimpiada(ColegioDePrueba):
         d = ana.get(f'/aula/eventos/{ev.pk}/').context['datos']
         textos_grado = {p['texto'] for p in banco if p['grado'] == grado}
         self.assertTrue(d['arcade_preguntas'] and all(q['texto'] in textos_grado for q in d['arcade_preguntas']))
+
+    def test_fechas_de_inscripcion_y_prueba(self):
+        """Inscripciones hasta una fecha; la prueba solo se presenta entre las fechas del evento."""
+        from datetime import timedelta
+        from django.test import Client
+        from django.utils import timezone
+        ev = self.crear('Olimpiada Zona Norte')
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        self.admin.post(conf, {'accion': 'alcance', 'alcance': 'codigo'})
+        self.admin.post(conf, {'accion': 'activar'})
+        ev.refresh_from_db()
+        f = lambda d: timezone.localtime(timezone.now() + timedelta(days=d)).strftime('%Y-%m-%dT%H:%M')
+        # Inscripciones cerradas (ayer) y prueba que abre mañana
+        self.admin.post(conf, {'accion': 'fechas', 'inscripcion_hasta': f(-1), 'prueba_desde': f(1), 'prueba_hasta': f(3)})
+        url = f'/aula/eventos/c/{ev.codigo}/'
+        datos = {'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'grado': '7', 'autoriza': 'on'}
+        c = Client(HTTP_HOST='testserver')
+        self.assertContains(c.post(url, datos), 'Las inscripciones cerraron')
+        self.assertFalse(ParticipacionEvento.objects.filter(evento=ev).exists())
+        # Se abren las inscripciones: se inscribe, pero la prueba aún no abre
+        self.admin.post(conf, {'accion': 'fechas', 'inscripcion_hasta': f(1), 'prueba_desde': f(1), 'prueba_hasta': f(3)})
+        c.post(url, datos)
+        self.assertTrue(ParticipacionEvento.objects.filter(evento=ev).exists())
+        self.assertContains(c.get(f'/aula/eventos/{ev.pk}/'), 'La prueba abre el')
+        r = c.post(f'/aula/eventos/{ev.pk}/registro/', json.dumps({'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': 9}]}), content_type='application/json').json()
+        self.assertTrue(r.get('prueba'))
+        # Dentro de las fechas: se juega
+        self.admin.post(conf, {'accion': 'fechas', 'inscripcion_hasta': f(-1), 'prueba_desde': f(-1), 'prueba_hasta': f(3)})
+        r = c.post(f'/aula/eventos/{ev.pk}/registro/', json.dumps({'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': 9}]}), content_type='application/json').json()
+        self.assertEqual(r['puntos'], 1)
+        # Ya cerró: aviso
+        self.admin.post(conf, {'accion': 'fechas', 'prueba_desde': f(-5), 'prueba_hasta': f(-2)})
+        self.assertContains(c.get(f'/aula/eventos/{ev.pk}/'), 'La prueba cerró el')
+        # El organizador siempre puede probar
+        self.assertEqual(self.admin.get(f'/aula/eventos/{ev.pk}/').status_code, 200)
+
+    def test_veedores_ven_resultados_en_vivo(self):
+        """Profesores (o grupos) invitados ven resultados y ranking en vivo con su enlace, sin poder cambiar nada."""
+        from django.core import mail
+        from django.test import Client
+        ev = self.crear('Olimpiada Zona Norte')
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        self.admin.post(conf, {'accion': 'activar'})
+        ana = self.cliente(self.ana.user)
+        self.post(ana, f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': 9}]})
+        mail.outbox = []
+        self.admin.post(conf, {'accion': 'veedor', 'nombre': 'Luis Pérez', 'correo': 'luis@colegio.edu.co', 'grupo': 'Jurado', 'enviar': 'on'})
+        self.admin.post(conf, {'accion': 'veedores', 'grupo': 'Rectores', 'lista': 'Ana Ruiz, ana@colegio.edu.co\nMarta Gil; marta@liceo.edu.co\n\n', 'enviar': 'on'})
+        self.admin.post(conf, {'accion': 'veedor_grupo', 'grupo': 'Docentes de matemáticas'})
+        ev.refresh_from_db()
+        vs = ev.config['veedores']
+        self.assertEqual((len(vs), len(mail.outbox)), (4, 3))
+        self.assertIn('/aula/eventos/v/', mail.outbox[0].body)
+        self.assertEqual(sorted({v['grupo'] for v in vs}), ['Docentes de matemáticas', 'Jurado', 'Rectores'])
+        r = self.admin.get(conf)
+        self.assertContains(r, 'Marta Gil'); self.assertContains(r, 'Enlace del grupo')
+        # El veedor (sin cuenta) ve los resultados y el ranking en vivo
+        luis = Client(HTTP_HOST='testserver')
+        tok = vs[0]['token']
+        r = luis.get(f'/aula/eventos/v/{tok}/')
+        self.assertContains(r, 'Vista de veedor'); self.assertContains(r, 'Ana Prueba')
+        self.assertNotContains(r, '/configurar/'); self.assertNotContains(r, '/diplomas/')
+        j = luis.get(f'/aula/eventos/v/{tok}/en-vivo/?json=1').json()
+        self.assertIn('Ana Prueba', [f['nombre'] for t in j['tablas'] for f in t['filas']])
+        self.assertIn('text/csv', luis.get(f'/aula/eventos/v/{tok}/?csv=1')['Content-Type'])
+        # Pero no puede configurar ni ver las grabaciones o las inscripciones
+        self.assertEqual(luis.get(conf).status_code, 302)
+        self.assertEqual(luis.get(f'/aula/eventos/{ev.pk}/inscripciones/').status_code, 302)
+        # Pausar y quitar
+        self.admin.post(conf, {'accion': 'veedor_activo', 'token': tok})
+        self.assertEqual(luis.get(f'/aula/eventos/v/{tok}/').status_code, 404)
+        self.admin.post(conf, {'accion': 'veedor_activo', 'token': tok})
+        self.assertEqual(luis.get(f'/aula/eventos/v/{tok}/').status_code, 200)
+        self.admin.post(conf, {'accion': 'veedor_quitar', 'token': tok})
+        self.assertEqual(luis.get(f'/aula/eventos/v/{tok}/').status_code, 404)
+        self.assertEqual(luis.get('/aula/eventos/v/inventado1234567890/').status_code, 404)

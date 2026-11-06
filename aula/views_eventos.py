@@ -98,7 +98,11 @@ CONFIG = {'juegos': [j[0] for j in JUEGOS] + ['a_' + k for k in ('salto', 'puent
           # Vigilancia: cámara y micrófono encendidos y grabados durante el evento (se borran solos a los `dias`)
           'vigilancia': {'activa': False, 'dias': 30},
           # Retos arcade: 'operaciones' (las arma la plataforma según el grupo) o 'banco' (preguntas del banco 6.º–11.º del grado)
-          'arcade': 'operaciones'}
+          'arcade': 'operaciones',
+          # Fechas (hora de Colombia, 'AAAA-MM-DDTHH:MM'; vacío = sin límite): hasta cuándo se inscriben y cuándo se presenta
+          'fechas': {'inscripcion_hasta': '', 'prueba_desde': '', 'prueba_hasta': ''},
+          # Veedores: profesores (o grupos de profesores) invitados que ven los resultados en vivo con un enlace de solo lectura
+          'veedores': []}
 DIFICULTADES = [('auto', 'Según el grupo'), ('facil', 'Fácil'), ('media', 'Media'), ('dificil', 'Difícil')]
 
 
@@ -168,7 +172,46 @@ def config_de(evento):
     c.update({k: v for k, v in (evento.config or {}).items() if k in CONFIG})
     c['inscripcion'] = dict(CONFIG['inscripcion'], **(c.get('inscripcion') or {}))
     c['vigilancia'] = dict(CONFIG['vigilancia'], **(c.get('vigilancia') or {}))
+    c['fechas'] = dict(CONFIG['fechas'], **(c.get('fechas') or {}))
     return c
+
+
+def _fecha(texto):
+    from datetime import datetime
+    try:
+        return timezone.make_aware(datetime.fromisoformat(texto)) if texto else None
+    except (ValueError, TypeError):
+        return None
+
+
+DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
+MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+
+
+def fecha_bonita(d):
+    """sábado 14 de noviembre, 12:00 a. m."""
+    d = timezone.localtime(d)
+    h = d.hour % 12 or 12
+    return f"{DIAS[d.weekday()]} {d.day} de {MESES[d.month - 1]}, {h}:{d.minute:02d} {'a. m.' if d.hour < 12 else 'p. m.'}"
+
+
+def ventana(c):
+    """(inscripción abierta por fecha, prueba abierta por fecha, texto que lo explica) según las fechas del evento."""
+    ahora, f = timezone.now(), c['fechas']
+    ins_hasta, desde, hasta = _fecha(f['inscripcion_hasta']), _fecha(f['prueba_desde']), _fecha(f['prueba_hasta'])
+    bonito = fecha_bonita
+    ins = ins_hasta is None or ahora <= ins_hasta
+    prueba = (desde is None or ahora >= desde) and (hasta is None or ahora <= hasta)
+    if desde and ahora < desde:
+        texto = f'La prueba abre el {bonito(desde)}'
+    elif hasta and ahora > hasta:
+        texto = f'La prueba cerró el {bonito(hasta)}'
+    elif hasta:
+        texto = f'La prueba está abierta hasta el {bonito(hasta)}'
+    else:
+        texto = ''
+    return {'inscripcion': ins, 'prueba': prueba, 'texto': texto,
+            'ins_hasta': bonito(ins_hasta) if ins_hasta else '', 'desde': bonito(desde) if desde else '', 'hasta': bonito(hasta) if hasta else ''}
 
 
 def _estudiante(request):
@@ -381,6 +424,14 @@ def preguntas_planilla(request, eid):
                         headers={'Content-Disposition': f'attachment; filename="{nombre}.xlsx"'})
 
 
+def _veedores_por_grupo(request, c):
+    grupos_v = {}
+    for v in c['veedores']:
+        x = dict(v, enlace=request.build_absolute_uri(reverse('aula:evento_veedor', args=[v['token']])))
+        grupos_v.setdefault(v.get('grupo') or 'Sin grupo', []).append(x)
+    return sorted(grupos_v.items(), key=lambda kv: (kv[0] == 'Sin grupo', kv[0].lower()))
+
+
 def limpiar_grabaciones(ev, c=None):
     """Borra las grabaciones que ya cumplieron los días que dice el evento (también lo hace el comando
     `python manage.py limpiar_grabaciones_eventos`, para correrlo cada día)."""
@@ -529,6 +580,61 @@ def configurar(request, eid):
             ev.config = dict(ev.config or {}, inscripcion=c['inscripcion'])
             ev.save(update_fields=['config'])
             messages.success(request, 'Inscripción guardada.')
+        elif accion in ('veedor', 'veedores', 'veedor_grupo', 'veedor_quitar', 'veedor_activo', 'veedor_reenviar'):
+            import secrets
+            c = config_de(ev)
+            lista = list(c['veedores'])
+            limpio = lambda k, n: ' '.join((request.POST.get(k) or '').split())[:n]
+            grupo = limpio('grupo', 60)
+            nuevo = lambda nombre, correo, tipo='persona': {'token': secrets.token_urlsafe(18), 'nombre': nombre, 'correo': correo, 'grupo': grupo,
+                                                            'tipo': tipo, 'activo': True, 'creado': timezone.now().isoformat(timespec='minutes')}
+            agregados = []
+            if accion == 'veedor':
+                nombre, correo = limpio('nombre', 80), limpio('correo', 120)
+                if not nombre and not correo:
+                    messages.warning(request, 'Escriba el nombre o el correo del profesor.')
+                else:
+                    agregados.append(nuevo(nombre, correo))
+            elif accion == 'veedores':           # varios: «Nombre, correo» por línea
+                for linea in (request.POST.get('lista') or '').splitlines()[:300]:
+                    partes = [x.strip() for x in linea.replace(';', ',').replace('\t', ',').split(',') if x.strip()]
+                    if not partes:
+                        continue
+                    correo = next((x for x in partes if '@' in x), '')
+                    nombre = ' '.join(x for x in partes if x != correo)[:80]
+                    agregados.append(nuevo(nombre, correo[:120]))
+            elif accion == 'veedor_grupo':
+                if not grupo:
+                    messages.warning(request, 'Escriba el nombre del grupo de profesores.')
+                else:
+                    agregados.append(nuevo(f'Enlace del grupo «{grupo}»', '', 'grupo'))
+            else:
+                v = next((v for v in lista if v['token'] == request.POST.get('token')), None)
+                if v and accion == 'veedor_quitar':
+                    lista.remove(v); messages.success(request, 'Veedor quitado: su enlace ya no funciona.')
+                elif v and accion == 'veedor_activo':
+                    v['activo'] = not v.get('activo', True)
+                    messages.success(request, 'Enlace ' + ('activado.' if v['activo'] else 'pausado: no funciona hasta que lo vuelva a activar.'))
+                elif v and accion == 'veedor_reenviar':
+                    messages.success(request, 'Invitación enviada por correo.' if _invitar_veedor(request, ev, v) else 'No se pudo enviar (¿tiene correo?).')
+            if agregados:
+                lista += agregados
+                enviados = sum(_invitar_veedor(request, ev, v) for v in agregados) if request.POST.get('enviar') else 0
+                messages.success(request, f'{len(agregados)} veedor(es) invitado(s).' + (f' Se envió el enlace por correo a {enviados}.' if enviados else ' Copie y envíe el enlace de cada uno.'))
+            ev.config = dict(ev.config or {}, veedores=lista)
+            ev.save(update_fields=['config'])
+        elif accion == 'fechas':
+            c = config_de(ev)
+            nuevas = {}
+            for k in ('inscripcion_hasta', 'prueba_desde', 'prueba_hasta'):
+                v = (request.POST.get(k) or '').strip()[:16]
+                nuevas[k] = v if _fecha(v) else ''
+            if nuevas['prueba_desde'] and nuevas['prueba_hasta'] and _fecha(nuevas['prueba_desde']) >= _fecha(nuevas['prueba_hasta']):
+                messages.warning(request, 'La prueba debe cerrar después de abrir.')
+            else:
+                ev.config = dict(ev.config or {}, fechas=nuevas)
+                ev.save(update_fields=['config'])
+                messages.success(request, 'Fechas guardadas.')
         elif accion == 'vigilancia':
             c = config_de(ev)
             activa = bool(request.POST.get('activa'))
@@ -592,7 +698,8 @@ def configurar(request, eid):
         'part': c['participantes'], 'dificultades': DIFICULTADES, 'estilos': ESTILOS, 'categorias': CATEGORIAS, 'tabla': tabla,
         'preguntas': list(enumerate(ev.preguntas)), 'juegos_salon': juegos_salon, 'es_admin': puede_admin, 'ins': c['inscripcion'],
         'n_pendientes': ev.participaciones.filter(estado='pendiente').count(),
-        'vig': c['vigilancia'], 'grab': _resumen_grabaciones(ev),
+        'vig': c['vigilancia'], 'grab': _resumen_grabaciones(ev), 'fechas': c['fechas'], 'vent': ventana(c),
+        'veedores': _veedores_por_grupo(request, c),
         'docentes': Docente.objects.filter(colegio=ev.colegio).select_related('user').order_by('user__last_name') if ev.colegio_id else [],
         'enlace': request.build_absolute_uri(reverse('aula:evento_inscribirse', args=[ev.codigo])),
         'organizadores': set(ev.organizadores.values_list('pk', flat=True)), 'base': _base(request)})
@@ -625,6 +732,9 @@ def jugar(request, eid):
     p = participante(request, ev)
     if p is not None and p.estado != 'aprobada' and not organiza:
         return estado_inscripcion(request, ev, p)
+    vent = ventana(c)
+    if not vent['prueba'] and not organiza:
+        return render(request, 'aula/evento_cerrado.html', {'ev': ev, 'vent': vent, 'p': p, 'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
     if ev.alcance == 'codigo':
         est = None
         grupo = (grupo_por_id(c, p.ciclo) or next((g for g in grupos(c) if p.grado in g['grados']), None)) if p else None
@@ -732,7 +842,8 @@ def inscribirse(request, codigo):
         return redirect('aula:evento', eid=ev.pk) if p.estado == 'aprobada' else estado_inscripcion(request, ev, p)
     grados = sorted({x for g in grupos(c) for x in g['grados']})
     # Con aprobación se pueden inscribir antes de que empiece; sin ella, solo con el evento activo
-    recibe = ins['abierta'] and (ev.activo or ins['aprobacion'])
+    vent = ventana(c)
+    recibe = ins['abierta'] and vent['inscripcion'] and (ev.activo or ins['aprobacion'])
     error = ''
     from django.core.cache import cache
     from salon_digital.utils import ip_cliente
@@ -808,7 +919,7 @@ def inscribirse(request, codigo):
             pass
     return render(request, 'aula/evento_inscribirse.html', {
         'ev': ev, 'grados': [(x, etiqueta_grado(x)) for x in grados], 'error': error, 'sugerido': sugerido, 'post': request.POST,
-        'ins': ins, 'recibe': recibe, 'niveles': grupos(c), 'vigilancia': c['vigilancia'] if c['vigilancia']['activa'] else None,
+        'ins': ins, 'recibe': recibe, 'niveles': grupos(c), 'vigilancia': c['vigilancia'] if c['vigilancia']['activa'] else None, 'vent': vent,
         'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
 
 
@@ -962,6 +1073,11 @@ def resultados(request, eid):
     ev = _evento(request, eid)
     if not es_organizador(request, ev):
         return HttpResponseForbidden('Solo los organizadores ven todos los resultados.')
+    return _resultados(request, ev)
+
+
+def _resultados(request, ev, veedor=None):
+    """Los resultados (para los organizadores, o para un veedor con su enlace de solo lectura)."""
     c = config_de(ev)
     gsel, gr, q = request.GET.get('grupo', ''), request.GET.get('grado', ''), (request.GET.get('q') or '').strip().lower()
 
@@ -1005,8 +1121,9 @@ def resultados(request, eid):
     return render(request, 'aula/evento_resultados.html', {
         'ev': ev, 'tablas': tablas, 'grupos': grupos(c), 'gsel': gsel, 'gr': gr, 'q': request.GET.get('q', ''),
         'grados': [(g, etiqueta_grado(g)) for g in grados_hay], 'consulta': request.GET.urlencode(), 'base': _base(request),
-        'vigilancia': c['vigilancia']['activa'] or GrabacionEvento.objects.filter(participacion__evento=ev).exists(),
-        'grab': _resumen_grabaciones(ev), 'nubes': _nubes(), 'cfg_nube': _config_nube(request, ev)})
+        'vigilancia': not veedor and (c['vigilancia']['activa'] or GrabacionEvento.objects.filter(participacion__evento=ev).exists()),
+        'grab': None if veedor else _resumen_grabaciones(ev), 'nubes': _nubes(), 'cfg_nube': _config_nube(request, ev),
+        'veedor': veedor, 'vent': ventana(c), 'hide_cuenta': bool(veedor) and not request.user.is_authenticated})
 
 
 @login_required
@@ -1015,6 +1132,10 @@ def en_vivo(request, eid):
     ev = _evento(request, eid)
     if not es_organizador(request, ev):
         return HttpResponseForbidden('Solo los organizadores proyectan el ranking.')
+    return _en_vivo(request, ev)
+
+
+def _en_vivo(request, ev, veedor=None):
     c = config_de(ev)
     try:
         cuantos = max(3, min(30, int(request.GET.get('n') or 10)))
@@ -1028,7 +1149,50 @@ def en_vivo(request, eid):
                                   'bonos': p.bonos, 'tiempo': round(p.tiempo_efectivo), 'terminada': p.terminada} for p in filas[:cuantos]]})
     if request.GET.get('json'):
         return JsonResponse({'tablas': tablas, 'activo': ev.activo, 'hora': timezone.localtime().strftime('%H:%M:%S')})
-    return render(request, 'aula/evento_en_vivo.html', {'ev': ev, 'tablas': tablas, 'cuantos': cuantos})
+    volver = reverse('aula:evento_veedor', args=[veedor['token']]) if veedor else reverse('aula:evento_resultados', args=[ev.pk])
+    return render(request, 'aula/evento_en_vivo.html', {'ev': ev, 'tablas': tablas, 'cuantos': cuantos, 'volver': volver, 'veedor': veedor})
+
+
+# ---------------------------------------------------------------------------
+# Veedores: profesores o grupos de profesores invitados (solo lectura, con su enlace)
+# ---------------------------------------------------------------------------
+def _veedor(token):
+    """(evento, veedor) del enlace; 404 si no existe o el organizador lo quitó."""
+    token = (token or '')[:60]
+    if len(token) < 16:
+        raise Http404
+    for ev in Evento.objects.filter(config__veedores__icontains=token):
+        v = next((v for v in config_de(ev)['veedores'] if v.get('token') == token and v.get('activo', True)), None)
+        if v:
+            return ev, v
+    raise Http404
+
+
+def veedor_resultados(request, token):
+    """Lo que ve un veedor: los resultados de todos los grupos (con filtros y CSV), sin poder cambiar nada."""
+    ev, v = _veedor(token)
+    return _resultados(request, ev, veedor=v)
+
+
+def veedor_en_vivo(request, token):
+    ev, v = _veedor(token)
+    return _en_vivo(request, ev, veedor=v)
+
+
+def _invitar_veedor(request, ev, v):
+    """Le manda al veedor su enlace por correo (si tiene)."""
+    if '@' not in (v.get('correo') or ''):
+        return 0
+    from notas.mensajeria import enviar_correo
+    enlace = request.build_absolute_uri(reverse('aula:evento_veedor', args=[v['token']]))
+    texto = (f"Hola{(' ' + v['nombre']) if v.get('nombre') else ''},\n\nLo invitamos como veedor del evento «{ev.titulo}»"
+             + (f" (grupo: {v['grupo']})" if v.get('grupo') else '') + '.\n\n'
+             f'Con este enlace puede ver los resultados y el ranking en vivo, con total transparencia (solo lectura):\n{enlace}\n\n'
+             'El enlace es personal: no lo publique.')
+    try:
+        return enviar_correo(ev.colegio, f'{ev.titulo}: invitación como veedor', texto, [v['correo']], fail_silently=True, copia=False) or 0
+    except Exception:
+        return 0
 
 
 @login_required
@@ -1230,6 +1394,12 @@ def _estado(p, c):
 
 def _participacion(request, ev):
     if not ev.activo:
+        return None
+    c = config_de(ev)
+    hasta, desde = _fecha(c['fechas']['prueba_hasta']), _fecha(c['fechas']['prueba_desde'])
+    if desde and timezone.now() < desde:
+        return None
+    if hasta and timezone.now() > hasta + timezone.timedelta(minutes=c['bloques'] * (c['minutos'] + c['descanso']) + 10):
         return None
     p = participante(request, ev, crear=True)
     return p if p is not None and p.estado == 'aprobada' else None
