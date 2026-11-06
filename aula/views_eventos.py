@@ -330,8 +330,9 @@ def limpiar_grabaciones(ev, c=None):
 
 def _resumen_grabaciones(ev):
     from django.db.models import Count, Sum
-    r = GrabacionEvento.objects.filter(participacion__evento=ev).aggregate(n=Count('id'), b=Sum('bytes'), p=Count('participacion', distinct=True))
-    return {'trozos': r['n'] or 0, 'mb': round((r['b'] or 0) / 1048576, 1), 'participantes': r['p'] or 0}
+    qs = GrabacionEvento.objects.filter(participacion__evento=ev)
+    r = qs.aggregate(n=Count('id'), b=Sum('bytes'), p=Count('participacion', distinct=True))
+    return {'trozos': r['n'] or 0, 'mb': round((r['b'] or 0) / 1048576, 1), 'participantes': r['p'] or 0, 'en_nube': qs.exclude(nube='').count()}
 
 
 @login_required
@@ -880,7 +881,8 @@ def resultados(request, eid):
     return render(request, 'aula/evento_resultados.html', {
         'ev': ev, 'tablas': tablas, 'grupos': grupos(c), 'gsel': gsel, 'gr': gr, 'q': request.GET.get('q', ''),
         'grados': [(g, etiqueta_grado(g)) for g in grados_hay], 'consulta': request.GET.urlencode(), 'base': _base(request),
-        'vigilancia': c['vigilancia']['activa'] or GrabacionEvento.objects.filter(participacion__evento=ev).exists()})
+        'vigilancia': c['vigilancia']['activa'] or GrabacionEvento.objects.filter(participacion__evento=ev).exists(),
+        'grab': _resumen_grabaciones(ev), 'nubes': _nubes(), 'cfg_nube': _config_nube(request, ev)})
 
 
 @login_required
@@ -1002,17 +1004,95 @@ def grabaciones(request, eid, pid):
     v = (p.datos or {}).get('vigilancia') or {}
     return render(request, 'aula/evento_grabaciones.html', {
         'ev': ev, 'p': p, 'trozos': trozos, 'mb': round(sum(t.bytes for t in trozos) / 1048576, 1), 'vig': v,
-        'dias': config_de(ev)['vigilancia']['dias'], 'base': _base(request)})
+        'dias': config_de(ev)['vigilancia']['dias'], 'base': _base(request),
+        'nubes': _nubes(), 'cfg_nube': _config_nube(request, ev), 'en_nube': sum(1 for t in trozos if t.nube)})
 
 
 @login_required
 def grabacion_archivo(request, eid, gid):
-    """Abre un trozo (enlace firmado que vence) solo para los organizadores."""
+    """Abre un trozo (enlace firmado que vence) solo para los organizadores. Con ?bytes=1 lo entrega desde
+    este mismo sitio: así el navegador del organizador lo puede copiar a su Google Drive u OneDrive."""
     ev = _evento(request, eid)
     if not es_organizador(request, ev):
         return HttpResponseForbidden('Solo los organizadores ven las grabaciones.')
     g = get_object_or_404(GrabacionEvento, pk=gid, participacion__evento=ev)
+    if request.GET.get('bytes'):
+        from django.http import FileResponse
+        r = FileResponse(g.archivo.open('rb'), content_type=g.tipo or 'video/webm')
+        r['Cache-Control'] = 'no-store'
+        return r
     return redirect(g.archivo.url)
+
+
+def _nubes():
+    from django.conf import settings
+    return {'google': bool(getattr(settings, 'GOOGLE_CLIENT_ID', '')), 'onedrive': bool(getattr(settings, 'MICROSOFT_CLIENT_ID', ''))}
+
+
+def _config_nube(request, ev):
+    from django.middleware.csrf import get_token
+    return {'nube': reverse('aula:evento_grabaciones_nube', args=[ev.pk]), 'ayudante': '/nube/PROV/', 'csrf': get_token(request)}
+
+
+def _nombre_archivo(texto, largo=60):
+    limpio = ''.join(ch if ch.isalnum() or ch in ' -_.' else ' ' for ch in (texto or ''))
+    return ' '.join(limpio.split())[:largo] or 'sin nombre'
+
+
+@login_required
+def grabaciones_nube(request, eid):
+    """Para copiar las grabaciones a la nube del organizador (lo hace su navegador con su permiso de Drive u
+    OneDrive; el permiso no pasa por el servidor).
+    GET: la lista de trozos (de un participante con ?pid= o de todo el evento).
+    POST accion=marcar: ya quedaron en la nube · accion=borrar: quitarlos del servidor (solo los que ya están en la nube)."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores manejan las grabaciones.')
+    qs = GrabacionEvento.objects.filter(participacion__evento=ev).select_related('participacion__estudiante__user')
+    if request.method == 'POST':
+        try:
+            d = json.loads(request.body or b'{}')
+        except ValueError:
+            d = {}
+        ids = [int(x) for x in (d.get('ids') or []) if str(x).isdigit()][:2000]
+        if d.get('accion') == 'marcar' and d.get('nube') in ('google', 'onedrive'):
+            n = qs.filter(pk__in=ids).update(nube=d['nube'])
+        elif d.get('accion') == 'borrar':
+            viejas = qs.filter(pk__in=ids).exclude(nube='')
+            n = viejas.count()
+            viejas.delete()          # una por una (con su archivo)
+        else:
+            n = 0
+        return JsonResponse({'ok': True, 'n': n})
+    if request.GET.get('pid'):
+        qs = qs.filter(participacion_id=request.GET['pid'])
+    personas = {}
+    for g in qs.order_by('participacion_id', 'numero', 'pk'):
+        p = g.participacion
+        x = personas.setdefault(p.pk, {'pid': p.pk, 'nombre': _nombre_archivo(p.nombre_completo), 'de': _nombre_archivo(p.de_donde, 40), 'trozos': []})
+        x['trozos'].append({'id': g.pk, 'n': g.numero, 'nube': g.nube, 'bytes': g.bytes,
+                            'archivo': f"{x['nombre']} - trozo {g.numero:03d} - {timezone.localtime(g.creada):%Hh%Mm%Ss}.{'mp4' if 'mp4' in g.tipo else 'webm'}",
+                            'url': reverse('aula:evento_grabacion_archivo', args=[ev.pk, g.pk]) + '?bytes=1'})
+    return JsonResponse({'evento': _nombre_archivo(ev.titulo), 'personas': list(personas.values())})
+
+
+@login_required
+def grabaciones_zip(request, eid, pid):
+    """Descarga en un .zip todos los trozos de un participante."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores ven las grabaciones.')
+    import tempfile
+    import zipfile
+    from django.http import FileResponse
+    p = get_object_or_404(ParticipacionEvento, pk=pid, evento=ev)
+    tmp = tempfile.TemporaryFile()
+    with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_STORED) as z:       # el video ya viene comprimido
+        for g in p.grabaciones.all():
+            with g.archivo.open('rb') as f:
+                z.writestr(f"trozo-{g.numero:03d}-{timezone.localtime(g.creada):%H%M%S}.{'mp4' if 'mp4' in g.tipo else 'webm'}", f.read())
+    tmp.seek(0)
+    return FileResponse(tmp, as_attachment=True, filename=f'grabacion - {_nombre_archivo(p.nombre_completo)}.zip', content_type='application/zip')
 
 
 # ---------------------------------------------------------------------------

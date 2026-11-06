@@ -29,6 +29,7 @@
     <button class="btn btn-sm btn-primary">Filtrar</button>
     {% if gsel or gr or q %}<a href="?" class="btn btn-sm btn-link">Quitar filtros</a>{% endif %}
   </form>
+  {% if grab.trozos %}{% include 'aula/_nube_grabaciones.html' with pid='' total=grab.trozos en_nube=grab.en_nube %}{% endif %}
   <div class="row g-3">
   {% for nombre, rango, filas in tablas %}
     <div class="{% if tablas|length == 1 %}col-12{% else %}col-lg-4{% endif %}"><div class="au-tarjeta h-100">

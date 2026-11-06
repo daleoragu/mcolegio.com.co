@@ -750,6 +750,7 @@ class GrabacionEvento(models.Model):
     tipo = models.CharField(max_length=60, blank=True)          # video/webm, video/mp4…
     segundos = models.FloatField(default=0)                     # minuto de la olimpiada en que empieza el trozo
     bytes = models.PositiveIntegerField(default=0)
+    nube = models.CharField(max_length=10, blank=True)          # 'google' / 'onedrive' si ya se copió a la nube del organizador
     creada = models.DateTimeField(auto_now_add=True)
 
     class Meta:

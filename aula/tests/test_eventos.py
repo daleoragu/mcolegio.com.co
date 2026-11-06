@@ -457,3 +457,42 @@ class Olimpiada(ColegioDePrueba):
         self.assertEqual(GrabacionEvento.objects.count(), 0)
         self.admin.post(url_conf, {'accion': 'vigilancia', 'dias': '15'})
         self.assertEqual(ana.post(url, {'tipo': 'acepto'}).status_code, 400)
+
+    def test_grabaciones_a_mi_nube(self):
+        """El organizador copia las grabaciones a su Drive u OneDrive (lo hace su navegador) y puede borrarlas del servidor."""
+        import zipfile, io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+        from aula.models import GrabacionEvento
+        ev = self.crear('Olimpiada vigilada')
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'vigilancia', 'activa': 'on', 'acepto_legal': 'on', 'dias': '30'})
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'activar'})
+        ana = self.cliente(self.ana.user)
+        ana.get(f'/aula/eventos/{ev.pk}/')
+        for n in (1, 2):
+            ana.post(f'/aula/eventos/{ev.pk}/grabacion/', {'trozo': SimpleUploadedFile(f't{n}.webm', b'VIDEO%d' % n, content_type='video/webm'), 'n': n})
+        p = ParticipacionEvento.objects.get(evento=ev, estudiante=self.ana)
+        url = f'/aula/eventos/{ev.pk}/grabaciones/nube/'
+        d = self.admin.get(url).json()
+        self.assertEqual(d['evento'], 'Olimpiada vigilada')
+        trozos = d['personas'][0]['trozos']
+        self.assertEqual(len(trozos), 2); self.assertTrue(trozos[0]['archivo'].endswith('.webm'))
+        # Los bytes salen del mismo sitio (para que el navegador los suba a la nube)
+        r = self.admin.get(trozos[0]['url'])
+        self.assertEqual(b''.join(r.streaming_content), b'VIDEO1')
+        # Sin marcar en la nube no se borra nada; marcados sí
+        post = lambda datos: self.admin.post(url, json.dumps(datos), content_type='application/json').json()
+        self.assertEqual(post({'accion': 'borrar', 'ids': [t['id'] for t in trozos]})['n'], 0)
+        self.assertEqual(post({'accion': 'marcar', 'nube': 'google', 'ids': [trozos[0]['id']]})['n'], 1)
+        self.assertEqual(post({'accion': 'borrar', 'ids': [t['id'] for t in trozos]})['n'], 1)
+        self.assertEqual(GrabacionEvento.objects.filter(participacion=p).count(), 1)
+        # ZIP de un participante
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/grabaciones/{p.pk}/zip/')
+        z = zipfile.ZipFile(io.BytesIO(b''.join(r.streaming_content)))
+        self.assertEqual(len(z.namelist()), 1)
+        # Los paneles aparecen (con Drive configurado) y nadie más entra
+        with override_settings(GOOGLE_CLIENT_ID='x'):
+            self.assertContains(self.admin.get(f'/aula/eventos/{ev.pk}/grabaciones/{p.pk}/'), 'data-nube="google"')
+            self.assertContains(self.admin.get(f'/aula/eventos/{ev.pk}/resultados/'), 'Guardar las grabaciones del evento en mi nube')
+        self.assertEqual(ana.get(url).status_code, 403)
+        self.assertEqual(ana.post(url, json.dumps({'accion': 'borrar', 'ids': [1]}), content_type='application/json').status_code, 403)

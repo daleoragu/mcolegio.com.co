@@ -1,0 +1,19 @@
+{% comment %}Panel para copiar grabaciones a la nube del organizador. pid vacío = todo el evento.{% endcomment %}
+{% load static %}
+<div class="au-tarjeta ng-panel">
+  <h6 class="mb-1"><i class="fas fa-cloud-arrow-up me-1"></i>Guardar {% if pid %}esta grabación{% else %}las grabaciones del evento{% endif %} en mi nube</h6>
+  <p class="small text-muted mb-2">Se copian a su Google Drive u OneDrive, en la carpeta «mcolegio · grabaciones / {{ ev.titulo }}», una subcarpeta por participante.
+    Usted da el permiso en una ventanita; la plataforma no guarda su contraseña. Lo que ya quedó en su nube no se vuelve a subir.</p>
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+    {% if nubes.google %}<button type="button" class="btn btn-sm btn-outline-primary" data-nube="google" data-pid="{{ pid|default:'' }}"><i class="fab fa-google-drive me-1"></i>Google Drive</button>{% endif %}
+    {% if nubes.onedrive %}<button type="button" class="btn btn-sm btn-outline-primary" data-nube="onedrive" data-pid="{{ pid|default:'' }}"><i class="fab fa-microsoft me-1"></i>OneDrive</button>{% endif %}
+    {% if pid %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:evento_grabaciones_zip' ev.pk pid %}"><i class="fas fa-file-zipper me-1"></i>Descargar (.zip)</a>{% endif %}
+    {% if not nubes.google and not nubes.onedrive %}<span class="small text-danger">La conexión con Google Drive y OneDrive no está configurada en la plataforma{% if pid %}; use «Descargar»{% endif %}.</span>{% endif %}
+    {% if nubes.google or nubes.onedrive %}<div class="form-check small ms-md-auto"><input class="form-check-input ng-borrar" type="checkbox" id="ng-borrar-{{ pid|default:'todo' }}">
+      <label class="form-check-label" for="ng-borrar-{{ pid|default:'todo' }}">Borrarlas de la plataforma cuando queden en mi nube</label></div>{% endif %}
+  </div>
+  {% if total %}<div class="small text-muted mt-1">{{ en_nube }} de {{ total }} trozo(s) ya están en su nube.</div>{% endif %}
+  <div class="ng-barra progress mt-2" style="height:6px" hidden><div class="progress-bar" style="width:0%"></div></div>
+  <div class="ng-estado small mt-1"></div>
+</div>
+{% if not ng_js %}{{ cfg_nube|json_script:"ng-config" }}<script src="{% static 'aula/eventos/nube_grabaciones.js' %}" defer></script>{% endif %}
