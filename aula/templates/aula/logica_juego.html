@@ -5,7 +5,10 @@
 {% include 'aula/_cabecera.html' %}
 <style>
   #lg-pantalla { max-width:1020px; margin:0 auto; background:#fff; border-radius:18px; padding:12px; }
-  #lg-pantalla:fullscreen { max-width:none; border-radius:0; overflow:auto; }
+  #lg-pantalla:fullscreen { max-width:none; border-radius:0; overflow:auto; padding:6px 10px; }
+  #lg-pantalla:fullscreen #lg-instrucciones, #lg-pantalla:fullscreen #lg-progreso { display:none; }
+  #lg-pantalla:fullscreen .lg-barra { margin-bottom:4px; }
+  @media (max-width: 600px) { #lg-pantalla { padding:8px; } .lg-barra h5 { font-size:1rem; } }
   .lg-barra { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px; }
   #lg-niveles { display:flex; gap:4px; overflow-x:auto; padding:4px 2px; max-width:100%; scrollbar-width:thin; }
   .lg-nivel { min-width:36px; height:32px; border-radius:10px; border:2px solid #dee2e6; background:#f8f9fa; font-weight:700; font-size:.8rem; flex:0 0 auto; }
@@ -19,6 +22,13 @@
   #lg-final[hidden], #lg-aviso[hidden] { display:none; }
   #lg-final .caja { background:#fff; border-radius:18px; padding:22px 26px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.25); }
   #lg-final .caja h4 { color:#2b8a3e; font-weight:800; }
+  /* Pantalla baja y ancha (celular acostado): las flechas o las piezas van al lado del tablero, no debajo */
+  @media (orientation: landscape) and (max-height: 600px) {
+    #lg-zona { flex-direction:row; justify-content:center; align-items:center; gap:14px; }
+    #lg-zona > div { max-width:190px; flex:0 0 auto; }
+    #lg-pantalla:fullscreen #lg-niveles, #lg-pantalla:fullscreen .lg-barra:nth-of-type(2) { display:none; }
+    #lg-pantalla:fullscreen .lg-barra h5 { font-size:.9rem; }
+  }
 </style>
 <div class="au">
 <div id="lg-pantalla" style="position:relative">

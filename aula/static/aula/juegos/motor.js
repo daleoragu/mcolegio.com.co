@@ -81,13 +81,28 @@
         Object.defineProperty(m, 'nivel', {get: () => 1 + Math.floor(m.indice / 3)});
 
         // --- Tamaño: nítido en cualquier pantalla ----------------------------------
+        // El juego cabe entero en la pantalla de cualquier equipo: el ancho que deja su caja y el alto
+        // visible de la pantalla (en el celular, sin la barra del navegador), menos lo que va debajo.
         function ajustar() {
-            const ancho = lienzo.clientWidth || W, ratio = window.devicePixelRatio || 1;
+            const padre = lienzo.parentElement, cs = padre ? getComputedStyle(padre) : null, cl = getComputedStyle(lienzo);
+            const bordes = (parseFloat(cl.borderLeftWidth) || 0) + (parseFloat(cl.borderRightWidth) || 0);
+            const anchoPadre = padre ? padre.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) - bordes : W;
+            const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            const completa = !!(document.fullscreenElement || lienzo.closest('.completa'));
+            const reserva = (op.reservaAbajo ? op.reservaAbajo() : 0) + bordes;
+            const arriba = completa ? Math.max(0, lienzo.getBoundingClientRect().top) : 0;
+            const altoMax = completa ? vh - arriba - reserva - 10 : vh * .86 - reserva;
+            const ancho = Math.max(220, Math.min(anchoPadre || W, altoMax * W / H)), ratio = window.devicePixelRatio || 1;
+            lienzo.style.width = ancho + 'px'; lienzo.style.height = (ancho * H / W) + 'px';
             lienzo.width = Math.round(ancho * ratio); lienzo.height = Math.round(ancho * H / W * ratio);
-            lienzo.style.height = (ancho * H / W) + 'px';
             m.escala = lienzo.width / W;
         }
-        ajustar(); window.addEventListener('resize', ajustar);
+        const reajustar = () => { ajustar(); setTimeout(ajustar, 120); };
+        ajustar(); requestAnimationFrame(ajustar);
+        window.addEventListener('resize', reajustar); window.addEventListener('orientationchange', reajustar);
+        document.addEventListener('fullscreenchange', reajustar); document.addEventListener('webkitfullscreenchange', reajustar);
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', reajustar);
+        m.ajustar = reajustar;
         let vivo = true;
 
         // --- Ayudas de dibujo ------------------------------------------------------------
@@ -194,7 +209,12 @@
         document.addEventListener('keydown', alBajar);
         document.addEventListener('keyup', alSubir);
         // Apagar el juego (las olimpiadas cambian de reto sin recargar la página)
-        m.destruir = () => { vivo = false; document.removeEventListener('keydown', alBajar); document.removeEventListener('keyup', alSubir); window.removeEventListener('resize', ajustar); };
+        m.destruir = () => {
+            vivo = false; document.removeEventListener('keydown', alBajar); document.removeEventListener('keyup', alSubir);
+            window.removeEventListener('resize', reajustar); window.removeEventListener('orientationchange', reajustar);
+            document.removeEventListener('fullscreenchange', reajustar); document.removeEventListener('webkitfullscreenchange', reajustar);
+            if (window.visualViewport) window.visualViewport.removeEventListener('resize', reajustar);
+        };
         function punto(ev) {
             const r = lienzo.getBoundingClientRect();
             return [(ev.clientX - r.left) * W / r.width, (ev.clientY - r.top) * H / r.height];
