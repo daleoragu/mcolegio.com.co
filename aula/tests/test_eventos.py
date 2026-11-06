@@ -394,3 +394,360 @@ class Olimpiada(ColegioDePrueba):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('APROBADA', mail.outbox[0].body); self.assertIn(p.datos['clave'], mail.outbox[0].body)
         self.assertEqual(mail.outbox[0].to, ['familia@correo.co'])
+
+    def test_boton_actualizar(self):
+        """Si a alguien se le queda pegada la olimpiada, «Actualizar» guarda, recarga y sigue donde iba."""
+        ev = self.crear('Olimpiada')
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'activar'})
+        r = self.cliente(self.ana.user).get(f'/aula/eventos/{ev.pk}/')
+        self.assertContains(r, 'id="ol-actualizar"')
+        self.assertContains(r, 'id="ol-atascado"')
+
+    def test_vigilancia_camara_y_microfono(self):
+        """El organizador exige cámara y micrófono: los trozos se guardan privados, solo los ven los organizadores
+        y se borran solos a los días configurados."""
+        import os
+        from datetime import timedelta
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.core.management import call_command
+        from django.utils import timezone
+        from aula.models import GrabacionEvento
+        ev = self.crear('Olimpiada vigilada')
+        url_conf = f'/aula/eventos/{ev.pk}/configurar/'
+        # Sin confirmar la autorización de los acudientes no se activa
+        self.admin.post(url_conf, {'accion': 'vigilancia', 'activa': 'on', 'dias': '15'})
+        ev.refresh_from_db(); self.assertFalse((ev.config.get('vigilancia') or {}).get('activa'))
+        self.admin.post(url_conf, {'accion': 'vigilancia', 'activa': 'on', 'acepto_legal': 'on', 'dias': '15'})
+        self.admin.post(url_conf, {'accion': 'activar'})
+        ev.refresh_from_db(); self.assertEqual(ev.config['vigilancia'], {'activa': True, 'dias': 15})
+        ana = self.cliente(self.ana.user)
+        r = ana.get(f'/aula/eventos/{ev.pk}/')
+        self.assertEqual(r.context['datos']['vigilancia'], {'activa': True, 'dias': 15})
+        self.assertContains(r, '/grabacion/')
+        url = f'/aula/eventos/{ev.pk}/grabacion/'
+        self.assertTrue(ana.post(url, {'tipo': 'acepto'}).json()['ok'])
+        trozo = lambda n: SimpleUploadedFile(f't{n}.webm', b'\x1aE\xdf\xa3' + b'0' * 2000, content_type='video/webm')
+        self.assertTrue(ana.post(url, {'trozo': trozo(1), 'n': 1, 't': 0}).json()['ok'])
+        self.assertTrue(ana.post(url, {'trozo': trozo(2), 'n': 2, 't': 30}).json()['ok'])
+        ana.post(url, {'tipo': 'corte', 't': 45, 'motivo': 'se apagó la cámara'})
+        ana.post(url, {'tipo': 'reanudo', 't': 60})
+        # Lo que no es video no se guarda
+        self.assertEqual(ana.post(url, {'trozo': SimpleUploadedFile('x.txt', b'hola', content_type='text/plain')}).status_code, 400)
+        p = ParticipacionEvento.objects.get(evento=ev, estudiante=self.ana)
+        self.assertEqual(p.grabaciones.count(), 2)
+        self.assertTrue(p.datos['vigilancia']['acepto'])
+        self.assertEqual([c['tipo'] for c in p.datos['vigilancia']['cortes']], ['corte', 'reanudo'])
+        # El organizador la ve; los demás no
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/grabaciones/{p.pk}/')
+        self.assertContains(r, 'se apagó la cámara'); self.assertEqual(len(r.context['trozos']), 2)
+        g = p.grabaciones.first()
+        self.assertEqual(self.admin.get(f'/aula/eventos/{ev.pk}/grabaciones/archivo/{g.pk}/').status_code, 302)
+        self.assertEqual(ana.get(f'/aula/eventos/{ev.pk}/grabaciones/archivo/{g.pk}/').status_code, 403)
+        self.assertEqual(ana.get(f'/aula/eventos/{ev.pk}/grabaciones/{p.pk}/').status_code, 403)
+        self.assertContains(self.admin.get(f'/aula/eventos/{ev.pk}/resultados/'), '🎥 2')
+        # Pasados los días de guarda se borran solas (con su archivo)
+        ruta = g.archivo.path
+        self.assertTrue(os.path.exists(ruta))
+        GrabacionEvento.objects.filter(pk=g.pk).update(creada=timezone.now() - timedelta(days=16))
+        call_command('limpiar_grabaciones_eventos', stdout=open(os.devnull, 'w'))
+        self.assertEqual(p.grabaciones.count(), 1)
+        self.assertFalse(os.path.exists(ruta))
+        # Borrar todas y apagar la vigilancia
+        self.admin.post(url_conf, {'accion': 'borrar_grabaciones'})
+        self.assertEqual(GrabacionEvento.objects.count(), 0)
+        self.admin.post(url_conf, {'accion': 'vigilancia', 'dias': '15'})
+        self.assertEqual(ana.post(url, {'tipo': 'acepto'}).status_code, 400)
+
+    def test_grabaciones_a_mi_nube(self):
+        """El organizador copia las grabaciones a su Drive u OneDrive (lo hace su navegador) y puede borrarlas del servidor."""
+        import zipfile, io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+        from aula.models import GrabacionEvento
+        ev = self.crear('Olimpiada vigilada')
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'vigilancia', 'activa': 'on', 'acepto_legal': 'on', 'dias': '30'})
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'activar'})
+        ana = self.cliente(self.ana.user)
+        ana.get(f'/aula/eventos/{ev.pk}/')
+        for n in (1, 2):
+            ana.post(f'/aula/eventos/{ev.pk}/grabacion/', {'trozo': SimpleUploadedFile(f't{n}.webm', b'VIDEO%d' % n, content_type='video/webm'), 'n': n})
+        p = ParticipacionEvento.objects.get(evento=ev, estudiante=self.ana)
+        url = f'/aula/eventos/{ev.pk}/grabaciones/nube/'
+        d = self.admin.get(url).json()
+        self.assertEqual(d['evento'], 'Olimpiada vigilada')
+        trozos = d['personas'][0]['trozos']
+        self.assertEqual(len(trozos), 2); self.assertTrue(trozos[0]['archivo'].endswith('.webm'))
+        # Los bytes salen del mismo sitio (para que el navegador los suba a la nube)
+        r = self.admin.get(trozos[0]['url'])
+        self.assertEqual(b''.join(r.streaming_content), b'VIDEO1')
+        # Sin marcar en la nube no se borra nada; marcados sí
+        post = lambda datos: self.admin.post(url, json.dumps(datos), content_type='application/json').json()
+        self.assertEqual(post({'accion': 'borrar', 'ids': [t['id'] for t in trozos]})['n'], 0)
+        self.assertEqual(post({'accion': 'marcar', 'nube': 'google', 'ids': [trozos[0]['id']]})['n'], 1)
+        self.assertEqual(post({'accion': 'borrar', 'ids': [t['id'] for t in trozos]})['n'], 1)
+        self.assertEqual(GrabacionEvento.objects.filter(participacion=p).count(), 1)
+        # ZIP de un participante
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/grabaciones/{p.pk}/zip/')
+        z = zipfile.ZipFile(io.BytesIO(b''.join(r.streaming_content)))
+        self.assertEqual(len(z.namelist()), 1)
+        # Los paneles aparecen (con Drive configurado) y nadie más entra
+        with override_settings(GOOGLE_CLIENT_ID='x'):
+            self.assertContains(self.admin.get(f'/aula/eventos/{ev.pk}/grabaciones/{p.pk}/'), 'data-nube="google"')
+            self.assertContains(self.admin.get(f'/aula/eventos/{ev.pk}/resultados/'), 'Guardar las grabaciones del evento en mi nube')
+        self.assertEqual(ana.get(url).status_code, 403)
+        self.assertEqual(ana.post(url, json.dumps({'accion': 'borrar', 'ids': [1]}), content_type='application/json').status_code, 403)
+
+    def test_planilla_de_inscripcion(self):
+        """El organizador descarga la planilla, los colegios la llenan y él la sube: se crean y actualizan inscripciones."""
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import Client
+        from openpyxl import load_workbook
+        from aula.planilla_eventos import leer_grado
+        ev = self.crear('Intercolegial 2026')
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'alcance', 'alcance': 'codigo'})
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripcion', 'abierta': 'on', 'aprobacion': 'on', 'cupo_colegio': '3', 'cupo_nivel': '2'})
+        ev.refresh_from_db()
+        url = f'/aula/eventos/{ev.pk}/planilla/'
+        r = self.admin.get(url + '?vacia=1')
+        self.assertIn('spreadsheetml', r['Content-Type'])
+        libro = load_workbook(io.BytesIO(r.content))
+        hoja = libro['Inscripción']
+        self.assertEqual(hoja['A3'].value, 'Nombre completo')
+        self.assertIn('Instrucciones', libro.sheetnames)
+        self.assertEqual((leer_grado('7.º'), leer_grado('Séptimo'), leer_grado(8), leer_grado('Transición'), leer_grado('x')), (7, 7, 8, 0, None))
+        # Un colegio la llena
+        filas = [
+            ['Pedro Pérez Gómez', '1001001', 'Colegio San José', 'Ibagué', '7.º', 'familia@correo.co', 'Rosa Gómez', 'Prof. Luis', 'SÍ'],
+            ['María Ruiz López', '1001002', 'Colegio San José', 'Ibagué', 'Sexto', '', 'Ana López', '', 'si'],
+            ['Juan Sin Permiso', '1001003', 'Colegio San José', '', '9', '', '', '', 'NO'],          # sin autorización
+            ['Luis Fuera Grado', '1001004', 'Colegio San José', '', 'Transición', '', 'Rosa', '', 'SÍ'],   # grado que no está
+            ['Tercero Exploradores', '1001005', 'colegio san jose', '', '6', '', 'Carlos Ruiz', '', 'SÍ'],  # cupo de nivel (2)
+            ['Pedro Repetido', '1001001', 'Colegio San José', '', '7', '', 'Rosa Gómez', '', 'SÍ'],        # repetido en la planilla
+            [None] * 9,
+        ]
+        for f in filas:
+            hoja.append(f)
+        salida = io.BytesIO(); libro.save(salida)
+        r = self.admin.post(url, {'archivo': SimpleUploadedFile('planilla.xlsx', salida.getvalue())}, follow=True)
+        self.assertContains(r, '2 inscripción(es) nueva(s)')
+        errores = '\n'.join(m for _, m in r.context['errores_planilla'])
+        self.assertIn('autorización', errores); self.assertIn('Transición', errores); self.assertIn('cupo', errores); self.assertIn('repetido', errores)
+        ps = {p.datos['documento']: p for p in ParticipacionEvento.objects.filter(evento=ev)}
+        self.assertEqual(set(ps), {'1001001', '1001002'})
+        pedro = ps['1001001']
+        self.assertEqual((pedro.estado, pedro.grado, pedro.ciclo, pedro.datos['autorizacion']['origen']), ('pendiente', 7, 'exploradores', 'planilla'))
+        # Con «aprobar de una vez», y al subirla de nuevo se actualiza (no se repite)
+        libro = load_workbook(io.BytesIO(self.admin.get(url).content))
+        hoja = libro['Inscripción']
+        fila = next(r for r in range(4, hoja.max_row + 1) if hoja.cell(r, 2).value == '1001001')
+        self.assertEqual(hoja.cell(fila, 11).value, pedro.datos['clave'])          # la clave sale en la planilla
+        hoja.cell(fila, 4).value = 'Espinal'
+        salida = io.BytesIO(); libro.save(salida)
+        r = self.admin.post(url, {'archivo': SimpleUploadedFile('planilla.xlsx', salida.getvalue()), 'aprobar': 'on'}, follow=True)
+        self.assertContains(r, 'actualizada(s)')
+        pedro.refresh_from_db()
+        self.assertEqual((pedro.datos['ciudad'], ParticipacionEvento.objects.filter(evento=ev).count()), ('Espinal', 2))
+        # CSV también sirve
+        csv_txt = 'Nombre completo;Número de documento;Colegio o institución;Grado;Acudiente (o docente) que autoriza los datos;Autoriza datos (SÍ)\nCamila Torres Díaz;2002001;Liceo Nacional;10;Marta Díaz;SÍ\n'
+        self.admin.post(url, {'archivo': SimpleUploadedFile('p.csv', csv_txt.encode('utf-8'), content_type='text/csv'), 'aprobar': 'on'})
+        camila = ParticipacionEvento.objects.get(evento=ev, datos__documento='2002001')
+        self.assertEqual((camila.estado, camila.ciclo), ('aprobada', 'expertos'))
+        # El estudiante entra con su documento y la clave de la planilla
+        c = Client(HTTP_HOST='testserver')
+        r = c.post(f'/aula/eventos/c/{ev.codigo}/', {'accion': 'recuperar', 'documento': '2002001', 'clave': camila.datos['clave']})
+        self.assertRedirects(r, f'/aula/eventos/c/{ev.codigo}/', fetch_redirect_response=False)
+        # Un archivo cualquiera no rompe nada; y nadie más la descarga
+        r = self.admin.post(url, {'archivo': SimpleUploadedFile('x.xlsx', b'basura')}, follow=True)
+        self.assertContains(r, 'No se pudo leer')
+        self.assertEqual(self.cliente(self.ana.user).get(url).status_code, 403)
+
+    def test_preguntas_por_grado_planilla_y_banco_611(self):
+        """Olimpiada 6.º–11.º: banco de 240 preguntas, planilla de Excel de preguntas y preguntas por grado."""
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from openpyxl import load_workbook
+        from aula import planilla_preguntas
+        banco = planilla_preguntas.banco_olimpiada()
+        self.assertEqual(len(banco), 240)
+        for g in range(6, 12):
+            del_grado = [p for p in banco if p['grado'] == g]
+            self.assertEqual(len(del_grado), 40)
+            self.assertEqual({p['categoria'] for p in del_grado}, {'euclides', 'newton', 'bernoulli'})
+        for p in banco:      # cada una: 4 opciones distintas y una sola correcta
+            textos = [o['texto'] for o in p['opciones']]
+            self.assertEqual((len(textos), len(set(textos)), sum(o['correcta'] for o in p['opciones'])), (4, 4, 1), p['texto'])
+        ev = self.crear('Primera Olimpiada Matemática Zona Norte del Tolima')
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        # Cargar el banco: cada pregunta al grupo de su grado
+        self.admin.post(conf, {'accion': 'banco_611'})
+        ev.refresh_from_db()
+        n611 = [x for x in ev.preguntas if x.get('origen') == 'Banco olimpiada 6.º–11.º']
+        ya_estaban = {(x['ciclo'], x['texto']) for x in ev.preguntas if x.get('origen') != 'Banco olimpiada 6.º–11.º'}
+        self.assertEqual(len(n611), 240 - sum(1 for p in banco if (p['ciclo'], p['texto']) in ya_estaban))
+        self.assertGreater(len(n611), 230)
+        self.assertTrue(all(x['ciclo'] == {6: 'exploradores', 7: 'exploradores', 8: 'investigadores', 9: 'investigadores'}.get(x['grado'], 'expertos') for x in n611))
+        self.admin.post(conf, {'accion': 'banco_611'})          # no se repiten
+        ev.refresh_from_db(); self.assertEqual(len([x for x in ev.preguntas if x.get('origen') == 'Banco olimpiada 6.º–11.º']), len(n611))
+        # Planilla: descargar las del evento y subir una propia (nivel por nombre o por grado)
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/preguntas/planilla/')
+        hoja = load_workbook(io.BytesIO(r.content))['Preguntas']
+        self.assertEqual([c.value for c in hoja[1]][:5], ['Grado', 'Nivel', 'Pensamiento', 'Tema', 'Pregunta'])
+        self.assertGreaterEqual(hoja.max_row, len(n611) + 1)
+        libro = load_workbook(io.BytesIO(self.admin.get(f'/aula/eventos/{ev.pk}/preguntas/planilla/?de=vacia').content))
+        h = libro['Preguntas']
+        h.append(['7.º', '', 'Euclides', 'Ángulos', '¿Cuánto suman los ángulos de un cuadrilátero?', '180°', '360°', '270°', '', '', '', '', '', 'B'])
+        h.append(['', 'Expertos', 'Newton', '', '¿Cuánto es 2^10?', '1024', '512', '', '', '', '', '', '', 'A'])
+        h.append(['8', '', '', '', 'Sin respuesta marcada', 'a', 'b', '', '', '', '', '', '', 'Z'])
+        out = io.BytesIO(); libro.save(out)
+        r = self.admin.post(f'/aula/eventos/{ev.pk}/preguntas/planilla/', {'archivo': SimpleUploadedFile('p.xlsx', out.getvalue()), 'ciclo': 'exploradores', 'categoria': 'newton'}, follow=True)
+        self.assertContains(r, 'Se agregaron 2 pregunta(s)'); self.assertContains(r, '1 fila(s) con problemas')
+        ev.refresh_from_db()
+        cuadri = next(x for x in ev.preguntas if 'cuadrilátero' in x['texto'])
+        self.assertEqual((cuadri['ciclo'], cuadri['categoria'], cuadri['grado']), ('exploradores', 'euclides', 7))
+        self.assertEqual(next(x for x in ev.preguntas if '2^10' in x['texto'])['ciclo'], 'expertos')
+        # La pregunta de competencia de Ana (7.º) es de su grado
+        self.admin.post(conf, {'accion': 'activar'})
+        ana = self.cliente(self.ana.user)
+        self.post(ana, f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'inicio'}]})
+        p = ParticipacionEvento.objects.get(evento=ev, estudiante=self.ana)
+        grado = int(self.ana.curso.grado)
+        p.puntos, p.preguntas_hechas = 5, 0
+        p.save()
+        q = ana.get(f'/aula/eventos/{ev.pk}/pregunta/').json()['pregunta']
+        x = next(x for x in ev.preguntas if x['texto'] == q['texto'])
+        self.assertIn(x.get('grado'), (grado, None))
+        # Retos arcade con el banco del grado (sin las preguntas de competencia)
+        d = ana.get(f'/aula/eventos/{ev.pk}/').context['datos']
+        self.assertIsNone(d['arcade_preguntas'])
+        self.admin.post(conf, {'accion': 'arcade', 'arcade': 'banco'})
+        d = ana.get(f'/aula/eventos/{ev.pk}/').context['datos']
+        competencia = {x['texto'] for x in ev.preguntas}
+        self.assertFalse(any(q['texto'] in competencia for q in d['arcade_preguntas']))      # nunca las de competencia
+        ev.refresh_from_db(); ev.preguntas = [x for x in ev.preguntas if x.get('origen') != 'Banco olimpiada 6.º–11.º']; ev.save()
+        d = ana.get(f'/aula/eventos/{ev.pk}/').context['datos']
+        textos_grado = {p['texto'] for p in banco if p['grado'] == grado}
+        self.assertTrue(d['arcade_preguntas'] and all(q['texto'] in textos_grado for q in d['arcade_preguntas']))
+
+    def test_fechas_de_inscripcion_y_prueba(self):
+        """Inscripciones hasta una fecha; la prueba solo se presenta entre las fechas del evento."""
+        from datetime import timedelta
+        from django.test import Client
+        from django.utils import timezone
+        ev = self.crear('Olimpiada Zona Norte')
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        self.admin.post(conf, {'accion': 'alcance', 'alcance': 'codigo'})
+        self.admin.post(conf, {'accion': 'activar'})
+        ev.refresh_from_db()
+        f = lambda d: timezone.localtime(timezone.now() + timedelta(days=d)).strftime('%Y-%m-%dT%H:%M')
+        # Inscripciones cerradas (ayer) y prueba que abre mañana
+        self.admin.post(conf, {'accion': 'fechas', 'inscripcion_hasta': f(-1), 'prueba_desde': f(1), 'prueba_hasta': f(3)})
+        url = f'/aula/eventos/c/{ev.codigo}/'
+        datos = {'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'grado': '7', 'autoriza': 'on'}
+        c = Client(HTTP_HOST='testserver')
+        self.assertContains(c.post(url, datos), 'Las inscripciones cerraron')
+        self.assertFalse(ParticipacionEvento.objects.filter(evento=ev).exists())
+        # Se abren las inscripciones: se inscribe, pero la prueba aún no abre
+        self.admin.post(conf, {'accion': 'fechas', 'inscripcion_hasta': f(1), 'prueba_desde': f(1), 'prueba_hasta': f(3)})
+        c.post(url, datos)
+        self.assertTrue(ParticipacionEvento.objects.filter(evento=ev).exists())
+        self.assertContains(c.get(f'/aula/eventos/{ev.pk}/'), 'La prueba abre el')
+        r = c.post(f'/aula/eventos/{ev.pk}/registro/', json.dumps({'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': 9}]}), content_type='application/json').json()
+        self.assertTrue(r.get('prueba'))
+        # Dentro de las fechas: se juega
+        self.admin.post(conf, {'accion': 'fechas', 'inscripcion_hasta': f(-1), 'prueba_desde': f(-1), 'prueba_hasta': f(3)})
+        r = c.post(f'/aula/eventos/{ev.pk}/registro/', json.dumps({'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': 9}]}), content_type='application/json').json()
+        self.assertEqual(r['puntos'], 1)
+        # Ya cerró: aviso
+        self.admin.post(conf, {'accion': 'fechas', 'prueba_desde': f(-5), 'prueba_hasta': f(-2)})
+        self.assertContains(c.get(f'/aula/eventos/{ev.pk}/'), 'La prueba cerró el')
+        # El organizador siempre puede probar
+        self.assertEqual(self.admin.get(f'/aula/eventos/{ev.pk}/').status_code, 200)
+
+    def test_veedores_ven_resultados_en_vivo(self):
+        """Profesores (o grupos) invitados ven resultados y ranking en vivo con su enlace, sin poder cambiar nada."""
+        from django.core import mail
+        from django.test import Client
+        ev = self.crear('Olimpiada Zona Norte')
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        self.admin.post(conf, {'accion': 'activar'})
+        ana = self.cliente(self.ana.user)
+        self.post(ana, f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': 9}]})
+        mail.outbox = []
+        self.admin.post(conf, {'accion': 'veedor', 'nombre': 'Luis Pérez', 'correo': 'luis@colegio.edu.co', 'grupo': 'Jurado', 'enviar': 'on'})
+        self.admin.post(conf, {'accion': 'veedores', 'grupo': 'Rectores', 'lista': 'Ana Ruiz, ana@colegio.edu.co\nMarta Gil; marta@liceo.edu.co\n\n', 'enviar': 'on'})
+        self.admin.post(conf, {'accion': 'veedor_grupo', 'grupo': 'Docentes de matemáticas'})
+        ev.refresh_from_db()
+        vs = ev.config['veedores']
+        self.assertEqual((len(vs), len(mail.outbox)), (4, 3))
+        self.assertIn('/aula/eventos/v/', mail.outbox[0].body)
+        self.assertEqual(sorted({v['grupo'] for v in vs}), ['Docentes de matemáticas', 'Jurado', 'Rectores'])
+        r = self.admin.get(conf)
+        self.assertContains(r, 'Marta Gil'); self.assertContains(r, 'Enlace del grupo')
+        # El veedor (sin cuenta) ve los resultados y el ranking en vivo
+        luis = Client(HTTP_HOST='testserver')
+        tok = vs[0]['token']
+        r = luis.get(f'/aula/eventos/v/{tok}/')
+        self.assertContains(r, 'Vista de veedor'); self.assertContains(r, 'Ana Prueba')
+        self.assertNotContains(r, '/configurar/'); self.assertNotContains(r, '/diplomas/')
+        j = luis.get(f'/aula/eventos/v/{tok}/en-vivo/?json=1').json()
+        self.assertIn('Ana Prueba', [f['nombre'] for t in j['tablas'] for f in t['filas']])
+        self.assertIn('text/csv', luis.get(f'/aula/eventos/v/{tok}/?csv=1')['Content-Type'])
+        # Pero no puede configurar ni ver las grabaciones o las inscripciones
+        self.assertEqual(luis.get(conf).status_code, 302)
+        self.assertEqual(luis.get(f'/aula/eventos/{ev.pk}/inscripciones/').status_code, 302)
+        # Pausar y quitar
+        self.admin.post(conf, {'accion': 'veedor_activo', 'token': tok})
+        self.assertEqual(luis.get(f'/aula/eventos/v/{tok}/').status_code, 404)
+        self.admin.post(conf, {'accion': 'veedor_activo', 'token': tok})
+        self.assertEqual(luis.get(f'/aula/eventos/v/{tok}/').status_code, 200)
+        self.admin.post(conf, {'accion': 'veedor_quitar', 'token': tok})
+        self.assertEqual(luis.get(f'/aula/eventos/v/{tok}/').status_code, 404)
+        self.assertEqual(luis.get('/aula/eventos/v/inventado1234567890/').status_code, 404)
+
+    def test_podio_de_colegios(self):
+        """De cada colegio cuenta solo su mejor estudiante de cada nivel; el colegio suma esos puntos (con el peso del nivel)."""
+        from django.test import Client
+        ev = self.crear('Olimpiada Zona Norte')
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        self.admin.post(conf, {'accion': 'alcance', 'alcance': 'codigo'})
+        self.admin.post(conf, {'accion': 'activar'})
+        ev.refresh_from_db()
+        def inscrito(nombre, colegio, grado, puntos, seg):
+            return ParticipacionEvento.objects.create(evento=ev, nombre=nombre, institucion=colegio, grado=grado,
+                                                      ciclo={6: 'exploradores', 8: 'investigadores', 10: 'expertos'}[grado],
+                                                      puntos=puntos, segundos_ultimo_punto=seg, token=nombre)
+        # San José: el mejor de Exploradores tiene 10 (el de 9 no cuenta) y el de Expertos 6 → 16
+        inscrito('Ana Uno', 'Colegio San José', 6, 10, 600); inscrito('Beto Dos', 'colegio san jose', 6, 9, 500)
+        inscrito('Caro Tres', 'Colegio San José', 10, 6, 700)
+        # Liceo: un representante por nivel en los tres niveles: 7 + 5 + 4 = 16, pero con menos tiempo → gana el desempate
+        inscrito('Dani Cuatro', 'Liceo Nacional', 6, 7, 300); inscrito('Eva Cinco', 'Liceo Nacional', 8, 5, 300)
+        inscrito('Fede Seis', 'Liceo Nacional', 10, 4, 300)
+        inscrito('Gabi Siete', 'Institución Técnica', 8, 20, 900)
+        from aula.views_eventos import podio_colegios
+        p = podio_colegios(ev)
+        self.assertEqual([(x['colegio'], x['puntaje']) for x in p], [('Institución Técnica', 20), ('Liceo Nacional', 16), ('Colegio San José', 16)])
+        sj = p[2]
+        self.assertEqual(dict(sj['por_nivel'])['Exploradores']['nombre'], 'Ana Uno')        # solo el mejor del nivel
+        self.assertIsNone(dict(sj['por_nivel'])['Investigadores'])
+        # Peso por nivel: Expertos vale el doble
+        self.admin.post(conf, {'accion': 'podio_colegios', 'activo': 'on', 'peso_exploradores': '1', 'peso_investigadores': '1', 'peso_expertos': '2'})
+        ev.refresh_from_db()
+        p = podio_colegios(ev)
+        self.assertEqual([(x['colegio'], x['puntaje']) for x in p][:2], [('Colegio San José', 22), ('Liceo Nacional', 20)])
+        # Se ve en resultados, en el CSV, en vivo y para los veedores
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/resultados/')
+        self.assertContains(r, 'Podio de colegios'); self.assertContains(r, 'Liceo Nacional')
+        self.assertIn('Colegio San José', self.admin.get(f'/aula/eventos/{ev.pk}/resultados/?csv=colegios').content.decode())
+        j = self.admin.get(f'/aula/eventos/{ev.pk}/en-vivo/?json=1').json()
+        self.assertEqual(j['colegios'][0]['colegio'], 'Colegio San José')
+        self.admin.post(conf, {'accion': 'veedor_grupo', 'grupo': 'Rectores'})
+        ev.refresh_from_db()
+        r = Client(HTTP_HOST='testserver').get(f"/aula/eventos/v/{ev.config['veedores'][0]['token']}/")
+        self.assertContains(r, 'Podio de colegios'); self.assertNotContains(r, 'peso_expertos')
+        # Diplomas para los primeros colegios
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/diplomas/?tipo=colegios&n=3')
+        self.assertContains(r, 'podio de colegios'); self.assertContains(r, 'Colegio San José')
+        # Se puede ocultar
+        self.admin.post(conf, {'accion': 'podio_colegios'})
+        self.assertNotContains(self.admin.get(f'/aula/eventos/{ev.pk}/resultados/'), 'Puntaje del colegio')

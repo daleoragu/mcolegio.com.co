@@ -2,9 +2,12 @@ ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro
 
 NUEVO     LEAME-mejoras-pendientes.txt
 NUEVO     LEAME-prueba-celulares.txt
+CAMBIADO  aula/almacen.py
 NUEVO     aula/animaplano.py
 NUEVO     aula/bancos/factorizacion.json
+NUEVO     aula/bancos/generar_olimpiada.py
 NUEVO     aula/bancos/olimpiada.json
+NUEVO     aula/bancos/olimpiada_6_11.json
 NUEVO     aula/bancos_juegos.py
 NUEVO     aula/instrucciones.py
 NUEVO     aula/invertida.py
@@ -20,6 +23,9 @@ NUEVO     aula/logica_generadores/sokoban.py
 NUEVO     aula/logica_generadores/tangram.py
 NUEVO     aula/logica_generadores/tangram_bits.py
 NUEVO     aula/logica_generadores/trancon.py
+NUEVO     aula/management/__init__.py
+NUEVO     aula/management/commands/__init__.py
+NUEVO     aula/management/commands/limpiar_grabaciones_eventos.py
 NUEVO     aula/mascota.py
 NUEVO     aula/migrations/0008_aula_invertida.py
 NUEVO     aula/migrations/0009_invertida_pausas.py
@@ -35,7 +41,12 @@ NUEVO     aula/migrations/0018_velocidad_juegos.py
 NUEVO     aula/migrations/0019_inscripcion_eventos.py
 NUEVO     aula/migrations/0020_progreso_logica_y_respuestas.py
 NUEVO     aula/migrations/0021_banco_preguntas.py
+NUEVO     aula/migrations/0022_grabaciones_eventos.py
+NUEVO     aula/migrations/0023_grabaciones_en_la_nube.py
 CAMBIADO  aula/models.py
+NUEVO     aula/planilla_eventos.py
+NUEVO     aula/planilla_preguntas.py
+NUEVO     aula/static/aula/eventos/nube_grabaciones.js
 NUEVO     aula/static/aula/eventos/olimpiada.js
 NUEVO     aula/static/aula/invertida_pausas.js
 NUEVO     aula/static/aula/juegos/animaplano.js
@@ -110,11 +121,14 @@ CAMBIADO  aula/templates/aula/_cabecera.html
 NUEVO     aula/templates/aula/_instrucciones.html
 NUEVO     aula/templates/aula/_invertida_form.html
 NUEVO     aula/templates/aula/_invertida_js.html
+NUEVO     aula/templates/aula/_nube_grabaciones.html
 NUEVO     aula/templates/aula/banco.html
+NUEVO     aula/templates/aula/evento_cerrado.html
 NUEVO     aula/templates/aula/evento_configurar.html
 NUEVO     aula/templates/aula/evento_diplomas.html
 NUEVO     aula/templates/aula/evento_en_vivo.html
 NUEVO     aula/templates/aula/evento_entrar.html
+NUEVO     aula/templates/aula/evento_grabaciones.html
 NUEVO     aula/templates/aula/evento_inscribirse.html
 NUEVO     aula/templates/aula/evento_inscripcion_estado.html
 NUEVO     aula/templates/aula/evento_inscripciones.html
@@ -270,6 +284,8 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0019_inscripcion_eventos.py        (inscripción a eventos: aprobación y cupos)
   aula/migrations/0020_progreso_logica_y_respuestas.py (avance de lógica y respuestas de los juegos)
   aula/migrations/0021_banco_preguntas.py          (banco de preguntas)
+  aula/migrations/0022_grabaciones_eventos.py      (grabaciones de cámara y micrófono de los eventos)
+  aula/migrations/0023_grabaciones_en_la_nube.py   (marca de las grabaciones ya copiadas a la nube)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

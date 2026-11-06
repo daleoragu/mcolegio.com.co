@@ -9,6 +9,7 @@ from django.db.models import Q
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
+from . import planilla_preguntas
 from .invertida import leer_preguntas
 from .models import PreguntaBanco
 from .views import _colegio_y_base, _puede_crear
@@ -88,6 +89,9 @@ def banco(request):
             else:
                 p.compartida = not p.compartida and colegio is not None
                 p.save(update_fields=['compartida'])
+        elif accion == 'olimpiada':
+            n = _guardar_con_grado(request.user, colegio, [dict(p, tema=f"Olimpiada {p['grado']}.º · {p['tema']}") for p in planilla_preguntas.banco_olimpiada()], 'Olimpiada')
+            messages.success(request, f'Se agregaron {n} pregunta(s) del banco olimpiada 6.º–11.º (tema «Olimpiada 6.º · …»).')
         elif accion == 'borrar_tema':
             n, _ = PreguntaBanco.objects.filter(propietario=request.user, tema=request.POST.get('tema', '')).delete()
             messages.success(request, f'Se borraron {n} pregunta(s).')
@@ -99,6 +103,65 @@ def banco(request):
         'base': base, 'colegio': colegio, 'lista': lista, 'temas': temas, 'total': todas.count(),
         'tema': request.GET.get('tema', ''), 'q': request.GET.get('q', ''), 'de': request.GET.get('de', ''),
         'grados': [(g, f'{g}.º' if g > 0 else ('Transición' if g == 0 else 'Preescolar')) for g in range(-2, 12)]})
+
+
+def _guardar_con_grado(user, colegio, preguntas, tema_defecto, compartida=False):
+    """Como guardar_en_banco, pero cada pregunta trae su tema y su grado (planilla o banco 6.º–11.º)."""
+    ya = set(PreguntaBanco.objects.filter(propietario=user).values_list('tema', 'texto'))
+    nuevas = []
+    for p in preguntas:
+        tema = (p.get('tema') or tema_defecto or 'Sin tema')[:80]
+        if (tema, p['texto']) in ya:
+            continue
+        ya.add((tema, p['texto']))
+        comp = {'euclides': 'Pensamiento geométrico', 'newton': 'Pensamiento numérico', 'bernoulli': 'Pensamiento aleatorio'}.get(p.get('categoria'), '')
+        nuevas.append(PreguntaBanco(propietario=user, colegio=colegio, tema=tema, competencia=comp, grado=p.get('grado'),
+                                    texto=p['texto'][:1000], opciones=p['opciones'][:8], compartida=compartida))
+    PreguntaBanco.objects.bulk_create(nuevas)
+    return len(nuevas)
+
+
+@login_required
+def banco_planilla(request):
+    """Planilla de Excel del banco: descargar (mis preguntas, vacía o el banco 6.º–11.º) y subir.
+    Con ?leer=1 (POST) solo la lee y devuelve las preguntas en el formato de pegar, para el editor de juegos."""
+    from django.http import HttpResponse
+    if not _puede_crear(request):
+        return HttpResponseForbidden('El banco de preguntas es para los docentes.')
+    colegio, _ = _colegio_y_base(request)
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if not archivo or archivo.size > 5 * 1024 * 1024:
+            if request.GET.get('leer'):
+                return JsonResponse({'texto': '', 'errores': [[0, 'Escoja la planilla (máximo 5 MB).']]})
+            messages.warning(request, 'Escoja la planilla (máximo 5 MB).')
+            return redirect('aula:banco')
+        try:
+            maximo = max(2, min(8, int(request.GET.get('max') or 8)))
+        except ValueError:
+            maximo = 8
+        preguntas, errores = planilla_preguntas.importar(archivo, maximo)
+        if request.GET.get('leer'):
+            return JsonResponse({'texto': planilla_preguntas.como_texto(preguntas), 'n': len(preguntas), 'errores': errores[:50]})
+        n = _guardar_con_grado(request.user, colegio, preguntas, ' '.join((request.POST.get('tema') or '').split()),
+                               bool(request.POST.get('compartida')) and colegio is not None)
+        messages.success(request, f'Se guardaron {n} pregunta(s) de la planilla.' + (f' {len(preguntas) - n} ya estaban.' if len(preguntas) > n else ''))
+        if errores:
+            messages.warning(request, f'{len(errores)} fila(s) con problemas: ' + ' · '.join((f'fila {f}: ' if f else '') + m for f, m in errores[:12]))
+        return redirect('aula:banco')
+    de = request.GET.get('de', 'mias')
+    if de == 'olimpiada':
+        lista, nombre = planilla_preguntas.banco_olimpiada(), 'banco olimpiada 6 a 11'
+    elif de == 'vacia':
+        lista, nombre = [], 'planilla de preguntas (vacia)'
+    else:
+        lista = [{'grado': p.grado, 'tema': p.tema, 'texto': p.texto, 'opciones': p.opciones,
+                  'categoria': {'Pensamiento geométrico': 'euclides', 'Pensamiento numérico': 'newton', 'Pensamiento aleatorio': 'bernoulli'}.get(p.competencia, '')}
+                 for p in filtrar(request, visibles(request))]
+        nombre = 'mi banco de preguntas'
+    archivo = planilla_preguntas.descargar(lista, 'Banco de preguntas')
+    return HttpResponse(archivo.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        headers={'Content-Disposition': f'attachment; filename="{nombre}.xlsx"'})
 
 
 @login_required

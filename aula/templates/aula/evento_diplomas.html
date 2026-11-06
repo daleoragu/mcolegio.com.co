@@ -32,7 +32,7 @@
 <body>
 <form class="barra" method="get">
   <b>🎓 Diplomas</b>
-  <select name="tipo"><option value="ganadores" {% if tipo == 'ganadores' %}selected{% endif %}>Primeros puestos</option><option value="todos" {% if tipo == 'todos' %}selected{% endif %}>Participación (todos)</option></select>
+  <select name="tipo"><option value="ganadores" {% if tipo == 'ganadores' %}selected{% endif %}>Primeros puestos</option><option value="todos" {% if tipo == 'todos' %}selected{% endif %}>Participación (todos)</option><option value="colegios" {% if tipo == 'colegios' %}selected{% endif %}>Podio de colegios</option></select>
   <label>Puestos <input type="number" name="n" min="1" max="20" value="{{ primeros }}" style="width:60px"></label>
   <select name="grupo"><option value="">Todos los grupos</option>{% for g in grupos %}<option value="{{ g.id }}" {% if gsel == g.id %}selected{% endif %}>{{ g.nombre }}</option>{% endfor %}</select>
   <input name="firmante" value="{{ firma.firmante }}" placeholder="Quien firma">
@@ -49,13 +49,13 @@
   <div class="marco">
     {% if colegio and colegio.escudo %}<img class="escudo" src="{{ colegio.escudo.url }}" alt="">{% endif %}
     <div class="otorga">{% if colegio %}{{ colegio.nombre }} otorga el presente{% else %}Se otorga el presente{% endif %}</div>
-    <div class="titulo">{% if tipo == 'ganadores' %}DIPLOMA DE HONOR{% else %}CERTIFICADO DE PARTICIPACIÓN{% endif %}</div>
+    <div class="titulo">{% if tipo == 'ganadores' or tipo == 'colegios' %}DIPLOMA DE HONOR{% else %}CERTIFICADO DE PARTICIPACIÓN{% endif %}</div>
     {% if d.puesto %}<div class="puesto">🏆 {{ d.puesto }}</div>{% endif %}
     <div class="a">a</div>
     <div class="nombre">{{ d.nombre }}</div>
     <div class="texto">
       {% if d.de %}de <b>{{ d.de }}</b>, {% endif %}
-      {% if tipo == 'ganadores' %}por obtener el <b>{{ d.puesto|lower }}</b> en el nivel <b>{{ d.grupo }}</b>{% else %}por su participación en el nivel <b>{{ d.grupo }}</b>{% endif %}
+      {% if tipo == 'colegios' %}por obtener el <b>{{ d.puesto|lower }}</b> en el <b>podio de colegios</b>{% elif tipo == 'ganadores' %}por obtener el <b>{{ d.puesto|lower }}</b> en el nivel <b>{{ d.grupo }}</b>{% else %}por su participación en el nivel <b>{{ d.grupo }}</b>{% endif %}
       del evento <b>«{{ ev.titulo }}»</b>.
     </div>
     <div class="firmas"><div class="firma">{{ firma.firmante|default:"&nbsp;" }}<small>{{ firma.cargo|default:"Organizador del evento" }}</small></div></div>

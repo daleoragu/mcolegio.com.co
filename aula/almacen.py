@@ -38,6 +38,11 @@ def _ruta(carpeta, nombre):
     return f'{carpeta}/{uuid.uuid4().hex[:12]}-{base}{ext.lower()[:8]}'
 
 
+def ruta_grabacion(instancia, nombre):
+    """Grabaciones de cámara y micrófono de los eventos con vigilancia (privadas; se borran solas)."""
+    return _ruta(f'eventos/{instancia.participacion.evento_id}/grabaciones/{instancia.participacion_id}', nombre)
+
+
 def ruta_publicacion(instancia, nombre):
     return _ruta(f'aula/{instancia.aula_id}/muro', nombre)
 

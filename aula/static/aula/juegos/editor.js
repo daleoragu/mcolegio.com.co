@@ -130,6 +130,8 @@
             </div>
             <button type="button" class="btn btn-sm btn-outline-dark ep-abrir-calc"><span class="fw-bold">∑√π</span> Calculadora de símbolos</button>
             ${cfg.banco ? '<button type="button" class="btn btn-sm btn-outline-success ep-abrir-banco"><i class="fas fa-box-archive me-1"></i>Traer del banco</button>' : ''}
+            ${cfg.planilla ? `<label class="btn btn-sm btn-outline-success mb-0"><i class="fas fa-file-excel me-1"></i>Subir planilla<input type="file" accept=".xlsx,.csv" class="ep-planilla" hidden></label>
+              <a class="btn btn-sm btn-link px-1" href="${cfg.planilla}?de=vacia">planilla vacía</a>` : ''}
           </div>
           <div class="ep-banco border rounded-3 p-2 mb-2" hidden>
             <div class="d-flex flex-wrap gap-1 mb-2">
@@ -193,6 +195,24 @@
             const n = raiz.querySelectorAll('.ep-b-lista input:checked').length, b = raiz.querySelector('.ep-b-meter');
             b.disabled = !n; b.textContent = n ? `Agregar ${n} seleccionada${n === 1 ? '' : 's'}` : 'Agregar seleccionadas';
         }
+        // Subir una planilla de Excel: se lee en el servidor y las preguntas quedan en el editor (sin publicar todavía)
+        const inPlanilla = raiz.querySelector('.ep-planilla');
+        if (inPlanilla) inPlanilla.addEventListener('change', async () => {
+            const f = inPlanilla.files[0]; if (!f) return;
+            const datos = new FormData(); datos.append('archivo', f);
+            errores.textContent = 'Leyendo la planilla…';
+            try {
+                const r = await fetch(`${cfg.planilla}?leer=1&max=${max()}`, {method: 'POST', body: datos, credentials: 'same-origin', headers: {'X-CSRFToken': cfg.csrf || ''}});
+                const j = await r.json();
+                const nuevas = leer(j.texto || '');
+                if (modo === 'pegar') area.value = escribir(leer(area.value).concat(nuevas));
+                else { preguntas = preguntas.filter(p => p.texto.trim() || p.opciones.some(o => o.texto.trim())).concat(nuevas); pintar(); sincronizar(); }
+                revisar();
+                const malas = (j.errores || []).map(([fila, m]) => (fila ? `fila ${fila}: ` : '') + m);
+                errores.textContent = `Se agregaron ${nuevas.length} pregunta(s) de la planilla.` + (malas.length ? ' No se pudieron leer: ' + malas.slice(0, 8).join(' · ') : '');
+            } catch (e) { errores.textContent = 'No se pudo leer la planilla.'; }
+            inPlanilla.value = '';
+        });
         if (cfg.banco) {
             raiz.querySelector('.ep-abrir-banco').addEventListener('click', () => { panelBanco.hidden = !panelBanco.hidden; if (!panelBanco.hidden) cargarBanco(); });
             raiz.querySelector('.ep-b-tema').addEventListener('change', cargarBanco);

@@ -3,7 +3,8 @@
 {% block content %}
 {% include 'aula/_estilos.html' %}
 <div class="au" style="max-width:560px;margin:0 auto">
-  {% if not recibe %}<div class="alert alert-warning">{% if not ins.abierta %}Las inscripciones de este evento están cerradas.{% else %}El evento todavía no está abierto. Puede inscribirse cuando el organizador lo active.{% endif %}</div>
+  {% if vent.ins_hasta or vent.desde %}<div class="alert alert-info small py-2">{% if vent.ins_hasta %}🗓️ Inscripciones hasta el <b>{{ vent.ins_hasta }}</b>{% endif %}{% if vent.desde %} La prueba se presenta del <b>{{ vent.desde }}</b>{% if vent.hasta %} al <b>{{ vent.hasta }}</b>{% endif %}{% endif %}</div>{% endif %}
+  {% if not recibe %}<div class="alert alert-warning">{% if not vent.inscripcion %}Las inscripciones cerraron el {{ vent.ins_hasta }}{% elif not ins.abierta %}Las inscripciones de este evento están cerradas.{% else %}El evento todavía no está abierto. Puede inscribirse cuando el organizador lo active.{% endif %}</div>
   {% elif ins.aprobacion %}<div class="alert alert-info small mb-2"><i class="fas fa-user-check me-1"></i>El organizador revisa cada inscripción. Cuando la apruebe, podrá jugar desde este mismo equipo{% if not ev.activo %} el día del evento{% endif %}.
     {% if ins.cupo_colegio or ins.cupo_nivel %}<br>Cupos:{% if ins.cupo_colegio %} hasta <b>{{ ins.cupo_colegio }}</b> por institución{% endif %}{% if ins.cupo_colegio and ins.cupo_nivel %} y{% endif %}{% if ins.cupo_nivel %} hasta <b>{{ ins.cupo_nivel }}</b> por institución en cada nivel{% endif %}.{% endif %}</div>{% endif %}
   {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
@@ -39,25 +40,24 @@
       <input class="form-check-input" type="checkbox" name="autoriza" id="ins-autoriza" required>
       <label class="form-check-label" for="ins-autoriza">
         Autorizo el tratamiento de estos datos personales (Ley 1581 de 2012) solo para la inscripción, la organización y la
-        publicación de los resultados de este evento. Si el participante es menor de edad, autoriza su acudiente o el docente responsable.
+        publicación de los resultados de este evento.{% if vigilancia %} <b>Este evento exige cámara y micrófono encendidos y los graba</b> para
+        vigilar la prueba: autorizo esa grabación (imagen y voz), que solo ven los organizadores y se borra a los {{ vigilancia.dias }} días.{% endif %} Si el participante es menor de edad, autoriza su acudiente o el docente responsable.
         <a href="/privacidad/" target="_blank" rel="noopener">Política de tratamiento de datos</a>.
       </label>
     </div>
     <button class="btn au-oro btn-lg w-100 mt-1" {% if not recibe %}disabled{% endif %}>{% if ins.aprobacion %}Enviar la inscripción{% else %}Inscribirme y empezar{% endif %}</button>
     <p class="small text-muted mt-2 mb-0">Su participación queda guardada en este equipo y navegador: juegue siempre desde el mismo.</p>
   </form>
-  {% if ins.aprobacion %}
-  <details class="au-tarjeta">
-    <summary class="fw-bold small">Ya me inscribí (en otro equipo o se borró el navegador)</summary>
+  <details class="au-tarjeta" {% if not recibe %}open{% endif %}>
+    <summary class="fw-bold small">Ya me inscribí (me inscribió mi colegio, o entro desde otro equipo)</summary>
     <form method="post" class="mt-2">{% csrf_token %}<input type="hidden" name="accion" value="recuperar">
       <div class="row g-2">
         <div class="col-7"><input name="documento" class="form-control" placeholder="Número de documento" required></div>
         <div class="col-5"><input name="clave" class="form-control text-uppercase font-monospace" placeholder="Clave" maxlength="6" required></div>
       </div>
       <button class="btn btn-outline-primary w-100 mt-2">Ver mi inscripción</button>
-      <div class="form-text">La clave de 6 letras aparece cuando envía la inscripción.</div>
+      <div class="form-text">La clave de 6 letras aparece cuando envía la inscripción (o se la da su colegio si lo inscribieron con la planilla).</div>
     </form>
   </details>
-  {% endif %}
 </div>
 {% endblock %}

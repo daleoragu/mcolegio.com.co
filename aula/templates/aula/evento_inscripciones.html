@@ -17,6 +17,27 @@
     por institución en cada nivel: <b>{% if ins.cupo_nivel %}{{ ins.cupo_nivel }}{% else %}sin límite{% endif %}</b>.
   </div>
 
+  <div class="au-tarjeta" style="border-left:6px solid #2f9e44">
+    <h6 class="mb-1"><i class="fas fa-file-excel me-1 text-success"></i>Planilla de inscripción (Excel)</h6>
+    <p class="small text-muted mb-2">Descárguela, compártala con los colegios (por ejemplo en su Drive u OneDrive) y cuando se la devuelvan llena, súbala aquí:
+      se crean las inscripciones nuevas y se actualizan las que ya estaban (se reconocen por el documento). Se revisan el grado, la autorización de
+      datos y los cupos. Cada estudiante entra al evento con su documento y la clave que aparece en la planilla («Ya me inscribí»).</p>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <a class="btn btn-sm btn-success" href="{% url 'aula:evento_planilla' ev.pk %}?vacia=1"><i class="fas fa-download me-1"></i>Planilla vacía</a>
+      <a class="btn btn-sm btn-outline-success" href="{% url 'aula:evento_planilla' ev.pk %}"><i class="fas fa-download me-1"></i>Planilla con los inscritos (y sus claves)</a>
+      <form method="post" action="{% url 'aula:evento_planilla' ev.pk %}" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center ms-md-auto">{% csrf_token %}
+        <input type="file" name="archivo" accept=".xlsx,.csv" class="form-control form-control-sm" style="max-width:240px" required>
+        {% if ins.aprobacion %}<div class="form-check small"><input class="form-check-input" type="checkbox" name="aprobar" id="pl-aprobar"><label class="form-check-label" for="pl-aprobar">Aprobarlas de una vez</label></div>{% endif %}
+        <button class="btn btn-sm au-oro"><i class="fas fa-upload me-1"></i>Subir planilla</button>
+      </form>
+    </div>
+    {% if errores_planilla %}
+    <div class="alert alert-warning small mt-2 mb-0"><b>{{ errores_planilla|length }} fila(s) no se pudieron inscribir:</b>
+      <ul class="mb-0 mt-1" style="max-height:220px;overflow:auto">{% for fila, motivo in errores_planilla %}<li>{% if fila %}Fila {{ fila }}: {% endif %}{{ motivo }}</li>{% endfor %}</ul>
+      <div class="mt-1">Corríjalas en la planilla y súbala otra vez: las que ya quedaron no se repiten.</div></div>
+    {% endif %}
+  </div>
+
   <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
     {% for e, n in cuenta.items %}
     <a href="?estado={{ e }}" class="btn btn-sm {% if filtro == e %}btn-primary{% else %}btn-outline-primary{% endif %}">{% if e == 'pendiente' %}Pendientes{% elif e == 'aprobada' %}Aprobadas{% else %}Rechazadas{% endif %} <span class="badge bg-light text-dark">{{ n }}</span></a>

@@ -26,8 +26,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from . import planilla_preguntas
 from .invertida import leer_preguntas
-from .models import Evento, JuegoAula, ParticipacionEvento
+from .models import Evento, GrabacionEvento, JuegoAula, ParticipacionEvento
 
 import copy
 
@@ -93,7 +94,17 @@ CONFIG = {'juegos': [j[0] for j in JUEGOS] + ['a_' + k for k in ('salto', 'puent
           'participantes': {'modo': 'grados', 'cursos': [], 'estudiantes': []},   # modo: grados | cursos | estudiantes
           # Eventos abiertos: inscripción de los de fuera. aprobacion: el organizador aprueba cada una;
           # cupo_colegio: máximo por institución; cupo_nivel: máximo por institución en cada nivel (grupo); 0 = sin límite
-          'inscripcion': {'abierta': True, 'aprobacion': False, 'cupo_colegio': 0, 'cupo_nivel': 0}}
+          'inscripcion': {'abierta': True, 'aprobacion': False, 'cupo_colegio': 0, 'cupo_nivel': 0},
+          # Vigilancia: cámara y micrófono encendidos y grabados durante el evento (se borran solos a los `dias`)
+          'vigilancia': {'activa': False, 'dias': 30},
+          # Retos arcade: 'operaciones' (las arma la plataforma según el grupo) o 'banco' (preguntas del banco 6.º–11.º del grado)
+          'arcade': 'operaciones',
+          # Fechas (hora de Colombia, 'AAAA-MM-DDTHH:MM'; vacío = sin límite): hasta cuándo se inscriben y cuándo se presenta
+          'fechas': {'inscripcion_hasta': '', 'prueba_desde': '', 'prueba_hasta': ''},
+          # Veedores: profesores (o grupos de profesores) invitados que ven los resultados en vivo con un enlace de solo lectura
+          'veedores': [],
+          # Podio de colegios: de cada colegio cuenta su mejor estudiante de cada nivel, con el peso del nivel
+          'podio_colegios': {'activo': True, 'pesos': {}}}
 DIFICULTADES = [('auto', 'Según el grupo'), ('facil', 'Fácil'), ('media', 'Media'), ('dificil', 'Difícil')]
 
 
@@ -162,7 +173,48 @@ def config_de(evento):
     c = copy.deepcopy(CONFIG)
     c.update({k: v for k, v in (evento.config or {}).items() if k in CONFIG})
     c['inscripcion'] = dict(CONFIG['inscripcion'], **(c.get('inscripcion') or {}))
+    c['vigilancia'] = dict(CONFIG['vigilancia'], **(c.get('vigilancia') or {}))
+    c['fechas'] = dict(CONFIG['fechas'], **(c.get('fechas') or {}))
+    c['podio_colegios'] = dict(CONFIG['podio_colegios'], **(c.get('podio_colegios') or {}))
     return c
+
+
+def _fecha(texto):
+    from datetime import datetime
+    try:
+        return timezone.make_aware(datetime.fromisoformat(texto)) if texto else None
+    except (ValueError, TypeError):
+        return None
+
+
+DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
+MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+
+
+def fecha_bonita(d):
+    """sábado 14 de noviembre, 12:00 a. m."""
+    d = timezone.localtime(d)
+    h = d.hour % 12 or 12
+    return f"{DIAS[d.weekday()]} {d.day} de {MESES[d.month - 1]}, {h}:{d.minute:02d} {'a. m.' if d.hour < 12 else 'p. m.'}"
+
+
+def ventana(c):
+    """(inscripción abierta por fecha, prueba abierta por fecha, texto que lo explica) según las fechas del evento."""
+    ahora, f = timezone.now(), c['fechas']
+    ins_hasta, desde, hasta = _fecha(f['inscripcion_hasta']), _fecha(f['prueba_desde']), _fecha(f['prueba_hasta'])
+    bonito = fecha_bonita
+    ins = ins_hasta is None or ahora <= ins_hasta
+    prueba = (desde is None or ahora >= desde) and (hasta is None or ahora <= hasta)
+    if desde and ahora < desde:
+        texto = f'La prueba abre el {bonito(desde)}'
+    elif hasta and ahora > hasta:
+        texto = f'La prueba cerró el {bonito(hasta)}'
+    elif hasta:
+        texto = f'La prueba está abierta hasta el {bonito(hasta)}'
+    else:
+        texto = ''
+    return {'inscripcion': ins, 'prueba': prueba, 'texto': texto,
+            'ins_hasta': bonito(ins_hasta) if ins_hasta else '', 'desde': bonito(desde) if desde else '', 'hasta': bonito(hasta) if hasta else ''}
 
 
 def _estudiante(request):
@@ -249,12 +301,52 @@ def grado_de(p):
 
 
 def ranking(evento, ciclo=None):
-    qs = evento.participaciones.filter(estado='aprobada').select_related('estudiante__user', 'estudiante__curso')
+    qs = evento.participaciones.filter(estado='aprobada').select_related('estudiante__user', 'estudiante__curso', 'estudiante__colegio')
     if ciclo:
         qs = qs.filter(ciclo=ciclo)
     lista = sorted(qs, key=lambda p: (-p.puntos, p.tiempo_efectivo, p.pk))
     for i, p in enumerate(lista, 1):
         p.puesto = i
+    return lista
+
+
+def colegio_de(p):
+    """El colegio con que compite el participante: su institución (inscritos) o el colegio de su cuenta."""
+    if p.estudiante_id:
+        return p.estudiante.colegio.nombre if p.estudiante.colegio_id else ''
+    return p.institucion
+
+
+def podio_colegios(ev, c=None):
+    """Podio de colegios. De cada colegio cuenta SOLO su mejor estudiante de cada nivel (el mejor puesto del nivel).
+    Puntaje = suma de (puntos de ese estudiante × peso del nivel). Desempate: menor suma de tiempos efectivos de sus
+    representantes; luego, más niveles con representante."""
+    c = c or config_de(ev)
+    pesos = c['podio_colegios'].get('pesos') or {}
+    colegios = {}
+    for g in grupos(c):
+        vistos = set()
+        for p in ranking(ev, g['id']):          # ya viene ordenado: el primero de cada colegio es su representante
+            nombre = colegio_de(p)
+            clave = normalizar(nombre)
+            if not clave or clave in vistos:
+                continue
+            vistos.add(clave)
+            try:
+                peso = float(pesos.get(g['id'], 1) or 1)
+            except (TypeError, ValueError):
+                peso = 1.0
+            x = colegios.setdefault(clave, {'colegio': nombre, 'puntaje': 0.0, 'tiempo': 0.0, 'niveles': {}, 'n': 0})
+            x['puntaje'] += p.puntos * peso
+            x['tiempo'] += p.tiempo_efectivo
+            x['n'] += 1
+            x['niveles'][g['id']] = {'nombre': p.nombre_completo, 'puntos': p.puntos, 'puesto': p.puesto, 'tiempo': round(p.tiempo_efectivo)}
+    lista = sorted(colegios.values(), key=lambda x: (-x['puntaje'], x['tiempo'], -x['n'], x['colegio'].lower()))
+    for i, x in enumerate(lista, 1):
+        x['puesto'] = i
+        x['puntaje'] = round(x['puntaje'], 2) if x['puntaje'] != int(x['puntaje']) else int(x['puntaje'])
+        x['tiempo'] = round(x['tiempo'])
+        x['por_nivel'] = [(g['nombre'], x['niveles'].get(g['id'])) for g in grupos(c)]
     return lista
 
 
@@ -313,12 +405,102 @@ def _banco():
         return json.load(f)
 
 
+def grupo_para(c, nivel='', grado=None):
+    """El grupo del evento para una pregunta: por el nombre o id del nivel; si no, el que tiene ese grado."""
+    if nivel:
+        n = normalizar(nivel)
+        g = next((g for g in grupos(c) if normalizar(g['nombre']) == n or g['id'] == n), None)
+        if g:
+            return g
+    if grado is not None:
+        return next((g for g in grupos(c) if grado in g['grados']), None)
+    return None
+
+
+def agregar_preguntas(ev, preguntas, origen, ciclo_defecto=None, cat_defecto='newton'):
+    """Agrega preguntas de competencia al evento (cada una a su grupo por nivel o grado). Devuelve (agregadas, saltadas)."""
+    c = config_de(ev)
+    ya = {(x.get('ciclo'), x.get('texto')) for x in ev.preguntas}
+    nuevas, saltadas = [], 0
+    for p in preguntas:
+        g = grupo_para(c, p.get('nivel', ''), p.get('grado')) or grupo_por_id(c, ciclo_defecto)
+        cat = p.get('categoria') or cat_defecto
+        if g is None or (g['id'], p['texto']) in ya or cat not in {k for k, _, _ in CATEGORIAS}:
+            saltadas += 1
+            continue
+        ya.add((g['id'], p['texto']))
+        nuevas.append({'ciclo': g['id'], 'categoria': cat, 'grado': p.get('grado'), 'tema': p.get('tema', ''), 'texto': p['texto'],
+                       'opciones': p['opciones'], 'origen': origen})
+    if nuevas:
+        ev.preguntas = list(ev.preguntas) + nuevas
+        ev.save(update_fields=['preguntas'])
+    return len(nuevas), saltadas
+
+
+@login_required
+def preguntas_planilla(request, eid):
+    """Planilla de Excel de las preguntas de competencia: descargar (las del evento, vacía o el banco 6.º–11.º) y subir."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores manejan las preguntas.')
+    c = config_de(ev)
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if not archivo or archivo.size > 5 * 1024 * 1024:
+            messages.warning(request, 'Escoja la planilla (máximo 5 MB).')
+            return redirect('aula:evento_configurar', eid=ev.pk)
+        preguntas, errores = planilla_preguntas.importar(archivo)
+        cat = request.POST.get('categoria') if request.POST.get('categoria') in {k for k, _, _ in CATEGORIAS} else 'newton'
+        n, saltadas = agregar_preguntas(ev, preguntas, f'Planilla: {archivo.name[:60]}', request.POST.get('ciclo'), cat)
+        messages.success(request, f'Se agregaron {n} pregunta(s) de la planilla.' + (f' {saltadas} no se agregaron (sin grupo para su grado o repetidas).' if saltadas else ''))
+        if errores:
+            messages.warning(request, f'{len(errores)} fila(s) con problemas: ' + ' · '.join((f'fila {f}: ' if f else '') + m for f, m in errores[:12]) + (' …' if len(errores) > 12 else ''))
+        return redirect('aula:evento_configurar', eid=ev.pk)
+    de = request.GET.get('de', 'evento')
+    nombres = {g['id']: g['nombre'] for g in grupos(c)}
+    lista = [] if de == 'vacia' else planilla_preguntas.banco_olimpiada() if de == 'olimpiada' else ev.preguntas
+    if de == 'olimpiada':
+        lista = [dict(p, ciclo=(grupo_para(c, '', p['grado']) or {}).get('id', p['ciclo'])) for p in lista]
+    archivo = planilla_preguntas.descargar(lista, ev.titulo, nombres)
+    nombre = {'vacia': 'planilla de preguntas (vacia)', 'olimpiada': 'banco olimpiada 6 a 11'}.get(de, f'preguntas {_nombre_archivo(ev.titulo, 50)}')
+    return HttpResponse(archivo.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        headers={'Content-Disposition': f'attachment; filename="{nombre}.xlsx"'})
+
+
+def _veedores_por_grupo(request, c):
+    grupos_v = {}
+    for v in c['veedores']:
+        x = dict(v, enlace=request.build_absolute_uri(reverse('aula:evento_veedor', args=[v['token']])))
+        grupos_v.setdefault(v.get('grupo') or 'Sin grupo', []).append(x)
+    return sorted(grupos_v.items(), key=lambda kv: (kv[0] == 'Sin grupo', kv[0].lower()))
+
+
+def limpiar_grabaciones(ev, c=None):
+    """Borra las grabaciones que ya cumplieron los días que dice el evento (también lo hace el comando
+    `python manage.py limpiar_grabaciones_eventos`, para correrlo cada día)."""
+    c = c or config_de(ev)
+    limite = timezone.now() - timezone.timedelta(days=c['vigilancia']['dias'])
+    viejas = GrabacionEvento.objects.filter(participacion__evento=ev, creada__lt=limite)
+    n = viejas.count()
+    if n:
+        viejas.delete()
+    return n
+
+
+def _resumen_grabaciones(ev):
+    from django.db.models import Count, Sum
+    qs = GrabacionEvento.objects.filter(participacion__evento=ev)
+    r = qs.aggregate(n=Count('id'), b=Sum('bytes'), p=Count('participacion', distinct=True))
+    return {'trozos': r['n'] or 0, 'mb': round((r['b'] or 0) / 1048576, 1), 'participantes': r['p'] or 0, 'en_nube': qs.exclude(nube='').count()}
+
+
 @login_required
 def configurar(request, eid):
     ev = _evento(request, eid)
     if not es_organizador(request, ev):
         return HttpResponseForbidden('Solo los organizadores configuran el evento.')
     puede_admin = es_admin_del_evento(request, ev)
+    limpiar_grabaciones(ev)
     if request.method == 'POST':
         accion = request.POST.get('accion')
         if accion == 'activar':
@@ -416,6 +598,15 @@ def configurar(request, eid):
             ev.preguntas = list(ev.preguntas) + [p for p in _banco() if p not in ev.preguntas]
             ev.save(update_fields=['preguntas'])
             messages.success(request, 'Se agregó el banco inicial de preguntas.')
+        elif accion == 'banco_611':
+            n, sin = agregar_preguntas(ev, [dict(p, nivel='') for p in planilla_preguntas.banco_olimpiada()], 'Banco olimpiada 6.º–11.º')
+            messages.success(request, f'Se agregaron {n} pregunta(s) del banco 6.º–11.º, cada una al grupo de su grado.'
+                             + (f' {sin} no se agregaron (su grado no está en ningún grupo o ya estaban).' if sin else ''))
+        elif accion == 'arcade':
+            c = config_de(ev)
+            ev.config = dict(ev.config or {}, arcade='banco' if request.POST.get('arcade') == 'banco' else 'operaciones')
+            ev.save(update_fields=['config'])
+            messages.success(request, 'Los retos de juegos arcade ahora usan ' + ('las preguntas del banco 6.º–11.º del grado de cada estudiante.' if ev.config['arcade'] == 'banco' else 'operaciones según el grupo.'))
         elif accion == 'alcance' and ev.colegio_id:
             ev.alcance = 'codigo' if request.POST.get('alcance') == 'codigo' else 'colegio'
             ev.save(update_fields=['alcance'])
@@ -432,6 +623,92 @@ def configurar(request, eid):
             ev.config = dict(ev.config or {}, inscripcion=c['inscripcion'])
             ev.save(update_fields=['config'])
             messages.success(request, 'Inscripción guardada.')
+        elif accion in ('veedor', 'veedores', 'veedor_grupo', 'veedor_quitar', 'veedor_activo', 'veedor_reenviar'):
+            import secrets
+            c = config_de(ev)
+            lista = list(c['veedores'])
+            limpio = lambda k, n: ' '.join((request.POST.get(k) or '').split())[:n]
+            grupo = limpio('grupo', 60)
+            nuevo = lambda nombre, correo, tipo='persona': {'token': secrets.token_urlsafe(18), 'nombre': nombre, 'correo': correo, 'grupo': grupo,
+                                                            'tipo': tipo, 'activo': True, 'creado': timezone.now().isoformat(timespec='minutes')}
+            agregados = []
+            if accion == 'veedor':
+                nombre, correo = limpio('nombre', 80), limpio('correo', 120)
+                if not nombre and not correo:
+                    messages.warning(request, 'Escriba el nombre o el correo del profesor.')
+                else:
+                    agregados.append(nuevo(nombre, correo))
+            elif accion == 'veedores':           # varios: «Nombre, correo» por línea
+                for linea in (request.POST.get('lista') or '').splitlines()[:300]:
+                    partes = [x.strip() for x in linea.replace(';', ',').replace('\t', ',').split(',') if x.strip()]
+                    if not partes:
+                        continue
+                    correo = next((x for x in partes if '@' in x), '')
+                    nombre = ' '.join(x for x in partes if x != correo)[:80]
+                    agregados.append(nuevo(nombre, correo[:120]))
+            elif accion == 'veedor_grupo':
+                if not grupo:
+                    messages.warning(request, 'Escriba el nombre del grupo de profesores.')
+                else:
+                    agregados.append(nuevo(f'Enlace del grupo «{grupo}»', '', 'grupo'))
+            else:
+                v = next((v for v in lista if v['token'] == request.POST.get('token')), None)
+                if v and accion == 'veedor_quitar':
+                    lista.remove(v); messages.success(request, 'Veedor quitado: su enlace ya no funciona.')
+                elif v and accion == 'veedor_activo':
+                    v['activo'] = not v.get('activo', True)
+                    messages.success(request, 'Enlace ' + ('activado.' if v['activo'] else 'pausado: no funciona hasta que lo vuelva a activar.'))
+                elif v and accion == 'veedor_reenviar':
+                    messages.success(request, 'Invitación enviada por correo.' if _invitar_veedor(request, ev, v) else 'No se pudo enviar (¿tiene correo?).')
+            if agregados:
+                lista += agregados
+                enviados = sum(_invitar_veedor(request, ev, v) for v in agregados) if request.POST.get('enviar') else 0
+                messages.success(request, f'{len(agregados)} veedor(es) invitado(s).' + (f' Se envió el enlace por correo a {enviados}.' if enviados else ' Copie y envíe el enlace de cada uno.'))
+            ev.config = dict(ev.config or {}, veedores=lista)
+            ev.save(update_fields=['config'])
+        elif accion == 'podio_colegios':
+            c = config_de(ev)
+            pesos = {}
+            for g in grupos(c):
+                try:
+                    pesos[g['id']] = max(0.0, min(10.0, float((request.POST.get('peso_' + g['id']) or '1').replace(',', '.'))))
+                except ValueError:
+                    pesos[g['id']] = 1.0
+            ev.config = dict(ev.config or {}, podio_colegios={'activo': bool(request.POST.get('activo')), 'pesos': pesos})
+            ev.save(update_fields=['config'])
+            messages.success(request, 'Podio de colegios guardado.')
+            return redirect('aula:evento_resultados', eid=ev.pk)
+        elif accion == 'fechas':
+            c = config_de(ev)
+            nuevas = {}
+            for k in ('inscripcion_hasta', 'prueba_desde', 'prueba_hasta'):
+                v = (request.POST.get(k) or '').strip()[:16]
+                nuevas[k] = v if _fecha(v) else ''
+            if nuevas['prueba_desde'] and nuevas['prueba_hasta'] and _fecha(nuevas['prueba_desde']) >= _fecha(nuevas['prueba_hasta']):
+                messages.warning(request, 'La prueba debe cerrar después de abrir.')
+            else:
+                ev.config = dict(ev.config or {}, fechas=nuevas)
+                ev.save(update_fields=['config'])
+                messages.success(request, 'Fechas guardadas.')
+        elif accion == 'vigilancia':
+            c = config_de(ev)
+            activa = bool(request.POST.get('activa'))
+            if activa and not request.POST.get('acepto_legal'):
+                messages.warning(request, 'Para exigir cámara y micrófono confirme que tiene la autorización de los acudientes (datos sensibles de menores).')
+            else:
+                try:
+                    dias = max(1, min(365, int(request.POST.get('dias') or c['vigilancia']['dias'])))
+                except ValueError:
+                    dias = c['vigilancia']['dias']
+                c['vigilancia'] = {'activa': activa, 'dias': dias}
+                ev.config = dict(ev.config or {}, vigilancia=c['vigilancia'])
+                ev.save(update_fields=['config'])
+                messages.success(request, f'Vigilancia ACTIVADA: piden cámara y micrófono y las grabaciones se borran a los {dias} días.' if activa
+                                 else 'Vigilancia apagada: ya no se piden cámara ni micrófono.')
+        elif accion == 'borrar_grabaciones' and puede_admin:
+            n = GrabacionEvento.objects.filter(participacion__evento=ev).count()
+            GrabacionEvento.objects.filter(participacion__evento=ev).delete()
+            messages.success(request, f'Se borraron {n} trozo(s) de grabación.')
         elif accion == 'organizadores' and puede_admin:
             from notas.models import Docente
             ids = request.POST.getlist('organizadores')
@@ -476,9 +753,22 @@ def configurar(request, eid):
         'part': c['participantes'], 'dificultades': DIFICULTADES, 'estilos': ESTILOS, 'categorias': CATEGORIAS, 'tabla': tabla,
         'preguntas': list(enumerate(ev.preguntas)), 'juegos_salon': juegos_salon, 'es_admin': puede_admin, 'ins': c['inscripcion'],
         'n_pendientes': ev.participaciones.filter(estado='pendiente').count(),
+        'vig': c['vigilancia'], 'grab': _resumen_grabaciones(ev), 'fechas': c['fechas'], 'vent': ventana(c),
+        'veedores': _veedores_por_grupo(request, c),
         'docentes': Docente.objects.filter(colegio=ev.colegio).select_related('user').order_by('user__last_name') if ev.colegio_id else [],
         'enlace': request.build_absolute_uri(reverse('aula:evento_inscribirse', args=[ev.codigo])),
         'organizadores': set(ev.organizadores.values_list('pk', flat=True)), 'base': _base(request)})
+
+
+def _preguntas_arcade(ev, c, grado, grupo):
+    """Preguntas del banco 6.º–11.º para los retos arcade del estudiante (su grado; si no, las de los grados de su grupo).
+    Se quitan las que el evento usa como preguntas de competencia, para no revelar sus respuestas."""
+    competencia = {x.get('texto') for x in ev.preguntas}
+    banco = [p for p in planilla_preguntas.banco_olimpiada() if p['texto'] not in competencia]
+    grados = [grado] if grado is not None else (grupo or {}).get('grados', [])
+    lista = [p for p in banco if p['grado'] in grados] or [p for p in banco if p['grado'] in (grupo or {}).get('grados', [])]
+    random.shuffle(lista)
+    return [{'texto': p['texto'], 'opciones': p['opciones']} for p in lista[:60]]
 
 
 def _juegos_salon(ev):
@@ -497,6 +787,9 @@ def jugar(request, eid):
     p = participante(request, ev)
     if p is not None and p.estado != 'aprobada' and not organiza:
         return estado_inscripcion(request, ev, p)
+    vent = ventana(c)
+    if not vent['prueba'] and not organiza:
+        return render(request, 'aula/evento_cerrado.html', {'ev': ev, 'vent': vent, 'p': p, 'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
     if ev.alcance == 'codigo':
         est = None
         grupo = (grupo_por_id(c, p.ciclo) or next((g for g in grupos(c) if p.grado in g['grados']), None)) if p else None
@@ -526,6 +819,9 @@ def jugar(request, eid):
         'ritmo': {j[0]: JuegoAula.RITMO.get((c['por_juego'].get(j[0]) or {}).get('velocidad', 'normal'), 1) for j in juegos_del_evento(ev)},
         'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito')},
         'usuario': request.user.pk or (p.token[:8] if p else 'anon'),
+        'vigilancia': c['vigilancia'] if c['vigilancia']['activa'] else None,
+        'arcade_preguntas': _preguntas_arcade(ev, c, grado, grupo) if c.get('arcade') == 'banco' else None,
+        'acepto_vigilancia': bool(p and (p.datos or {}).get('vigilancia', {}).get('acepto')),
     }
     if p is not None or est is not None:
         datos['servidor'] = _estado(p, c) if p else None
@@ -601,7 +897,8 @@ def inscribirse(request, codigo):
         return redirect('aula:evento', eid=ev.pk) if p.estado == 'aprobada' else estado_inscripcion(request, ev, p)
     grados = sorted({x for g in grupos(c) for x in g['grados']})
     # Con aprobación se pueden inscribir antes de que empiece; sin ella, solo con el evento activo
-    recibe = ins['abierta'] and (ev.activo or ins['aprobacion'])
+    vent = ventana(c)
+    recibe = ins['abierta'] and vent['inscripcion'] and (ev.activo or ins['aprobacion'])
     error = ''
     from django.core.cache import cache
     from salon_digital.utils import ip_cliente
@@ -659,7 +956,8 @@ def inscribirse(request, codigo):
                 estado='pendiente' if ins['aprobacion'] else 'aprobada',
                 datos={'documento': documento, 'ciudad': ciudad, 'contacto': contacto, 'acompanante': acompanante, 'clave': clave,
                        # Ley 1581 de 2012: quién autorizó el tratamiento de los datos, cuándo y desde dónde
-                       'autorizacion': {'acudiente': acudiente, 'fecha': timezone.now().isoformat(timespec='seconds'), 'ip': ip}})
+                       'autorizacion': {'acudiente': acudiente, 'fecha': timezone.now().isoformat(timespec='seconds'), 'ip': ip,
+                                        'grabacion': c['vigilancia']['activa']}})
             request.session[clave_sesion(ev)] = p.token
             if p.estado == 'pendiente':
                 return redirect('aula:evento_inscribirse', codigo=ev.codigo)
@@ -676,7 +974,7 @@ def inscribirse(request, codigo):
             pass
     return render(request, 'aula/evento_inscribirse.html', {
         'ev': ev, 'grados': [(x, etiqueta_grado(x)) for x in grados], 'error': error, 'sugerido': sugerido, 'post': request.POST,
-        'ins': ins, 'recibe': recibe, 'niveles': grupos(c),
+        'ins': ins, 'recibe': recibe, 'niveles': grupos(c), 'vigilancia': c['vigilancia'] if c['vigilancia']['activa'] else None, 'vent': vent,
         'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
 
 
@@ -702,6 +1000,43 @@ def avisar_inscripcion(request, ev, p):
         return enviar_correo(ev.colegio, asunto, texto, [contacto], fail_silently=True, copia=False) or 0
     except Exception:          # sin correo configurado: no se cae la aprobación
         return 0
+
+
+@login_required
+def planilla(request, eid):
+    """Planilla de inscripción en Excel: descargarla (vacía o con los inscritos) y subirla llena."""
+    from . import planilla_eventos
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores manejan la planilla.')
+    c = config_de(ev)
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            messages.warning(request, 'Escoja el archivo de la planilla.')
+            return redirect('aula:evento_inscripciones', eid=ev.pk)
+        if archivo.size > 5 * 1024 * 1024:
+            messages.warning(request, 'El archivo es muy grande (máximo 5 MB).')
+            return redirect('aula:evento_inscripciones', eid=ev.pk)
+        from salon_digital.utils import ip_cliente
+        r = planilla_eventos.importar(ev, archivo, c, request.user, ip_cliente(request) or '', aprobar=bool(request.POST.get('aprobar')))
+        partes = []
+        if r['nuevas']:
+            partes.append(f"{r['nuevas']} inscripción(es) nueva(s)")
+        if r['actualizadas']:
+            partes.append(f"{r['actualizadas']} actualizada(s)")
+        if partes:
+            messages.success(request, 'Planilla subida: ' + ' y '.join(partes) + '.')
+        elif not r['errores']:
+            messages.info(request, 'La planilla no tenía estudiantes.')
+        request.session[f'evento_planilla_{ev.pk}'] = r['errores'][:300]
+        return redirect(f"{reverse('aula:evento_inscripciones', args=[ev.pk])}?estado=todas")
+    inscritos = [] if request.GET.get('vacia') else list(ev.participaciones.filter(estudiante__isnull=True).order_by('institucion', 'grado', 'nombre'))
+    grados = sorted({x for g in grupos(c) for x in g['grados']})
+    archivo = planilla_eventos.descargar(ev, grados, etiqueta_grado, inscritos)
+    nombre = f"planilla {_nombre_archivo(ev.titulo, 50)}{' (vacia)' if request.GET.get('vacia') else ''}.xlsx"
+    return HttpResponse(archivo.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        headers={'Content-Disposition': f'attachment; filename="{nombre}"'})
 
 
 @login_required
@@ -782,6 +1117,7 @@ def inscripciones(request, eid):
         return r
     return render(request, 'aula/evento_inscripciones.html', {
         'ev': ev, 'lista': lista, 'filtro': filtro, 'cuenta': cuenta, 'ins': ins,
+        'errores_planilla': request.session.pop(f'evento_planilla_{ev.pk}', None),
         'resumen': sorted(resumen.values(), key=lambda r: r['nombre'].lower()), 'base': _base(request)})
 
 
@@ -792,6 +1128,11 @@ def resultados(request, eid):
     ev = _evento(request, eid)
     if not es_organizador(request, ev):
         return HttpResponseForbidden('Solo los organizadores ven todos los resultados.')
+    return _resultados(request, ev)
+
+
+def _resultados(request, ev, veedor=None):
+    """Los resultados (para los organizadores, o para un veedor con su enlace de solo lectura)."""
     c = config_de(ev)
     gsel, gr, q = request.GET.get('grupo', ''), request.GET.get('grado', ''), (request.GET.get('q') or '').strip().lower()
 
@@ -811,11 +1152,26 @@ def resultados(request, eid):
     else:
         tablas = [(g['nombre'], rango_grados(g), filtrar(ranking(ev, g['id']))) for g in grupos(c) if not gsel or g['id'] == gsel]
     nombres = {g['id']: g['nombre'] for g in grupos(c)}
+    from django.db.models import Count
+    grabadas = dict(GrabacionEvento.objects.filter(participacion__evento=ev).values_list('participacion').annotate(n=Count('id')))
     for _, _, filas in tablas:
         for p in filas:
+            p.n_grab = grabadas.get(p.pk, 0)
+            p.cortes = len(((p.datos or {}).get('vigilancia') or {}).get('cortes') or [])
             p.grupo_nombre = nombres.get(p.ciclo, p.ciclo)
             g = grado_de(p)
             p.grado_txt = etiqueta_grado(g) if g is not None else ''
+    if request.GET.get('csv') == 'colegios':
+        r = HttpResponse(content_type='text/csv; charset=utf-8')
+        r['Content-Disposition'] = f'attachment; filename="podio-colegios-evento-{ev.pk}.csv"'
+        r.write('\ufeff')
+        w = csv.writer(r)
+        niveles = grupos(c)
+        w.writerow(['Puesto', 'Colegio', 'Puntaje', 'Tiempo efectivo sumado (s)'] + [f'{g["nombre"]}: representante (puntos)' for g in niveles])
+        for x in podio_colegios(ev, c):
+            w.writerow([x['puesto'], x['colegio'], x['puntaje'], x['tiempo']] +
+                       [f"{r_['nombre']} ({r_['puntos']})" if r_ else '—' for _, r_ in x['por_nivel']])
+        return r
     if request.GET.get('csv'):
         r = HttpResponse(content_type='text/csv; charset=utf-8')
         r['Content-Disposition'] = f'attachment; filename="resultados-evento-{ev.pk}.csv"'
@@ -830,7 +1186,12 @@ def resultados(request, eid):
     grados_hay = sorted({g for g in (grado_de(p) for p in ev.participaciones.select_related('estudiante__curso')) if g is not None})
     return render(request, 'aula/evento_resultados.html', {
         'ev': ev, 'tablas': tablas, 'grupos': grupos(c), 'gsel': gsel, 'gr': gr, 'q': request.GET.get('q', ''),
-        'grados': [(g, etiqueta_grado(g)) for g in grados_hay], 'consulta': request.GET.urlencode(), 'base': _base(request)})
+        'grados': [(g, etiqueta_grado(g)) for g in grados_hay], 'consulta': request.GET.urlencode(), 'base': _base(request),
+        'vigilancia': not veedor and (c['vigilancia']['activa'] or GrabacionEvento.objects.filter(participacion__evento=ev).exists()),
+        'grab': None if veedor else _resumen_grabaciones(ev), 'nubes': _nubes(), 'cfg_nube': _config_nube(request, ev),
+        'veedor': veedor, 'vent': ventana(c), 'hide_cuenta': bool(veedor) and not request.user.is_authenticated,
+        'podio': podio_colegios(ev, c) if c['podio_colegios']['activo'] else None,
+        'pesos': [(g['id'], g['nombre'], (c['podio_colegios'].get('pesos') or {}).get(g['id'], 1)) for g in grupos(c)]})
 
 
 @login_required
@@ -839,6 +1200,10 @@ def en_vivo(request, eid):
     ev = _evento(request, eid)
     if not es_organizador(request, ev):
         return HttpResponseForbidden('Solo los organizadores proyectan el ranking.')
+    return _en_vivo(request, ev)
+
+
+def _en_vivo(request, ev, veedor=None):
     c = config_de(ev)
     try:
         cuantos = max(3, min(30, int(request.GET.get('n') or 10)))
@@ -851,8 +1216,58 @@ def en_vivo(request, eid):
                        'filas': [{'puesto': p.puesto, 'nombre': p.nombre_completo, 'de': p.de_donde, 'puntos': p.puntos,
                                   'bonos': p.bonos, 'tiempo': round(p.tiempo_efectivo), 'terminada': p.terminada} for p in filas[:cuantos]]})
     if request.GET.get('json'):
-        return JsonResponse({'tablas': tablas, 'activo': ev.activo, 'hora': timezone.localtime().strftime('%H:%M:%S')})
-    return render(request, 'aula/evento_en_vivo.html', {'ev': ev, 'tablas': tablas, 'cuantos': cuantos})
+        return JsonResponse({'tablas': tablas, 'colegios': _podio_vivo(ev, c), 'activo': ev.activo, 'hora': timezone.localtime().strftime('%H:%M:%S')})
+    volver = reverse('aula:evento_veedor', args=[veedor['token']]) if veedor else reverse('aula:evento_resultados', args=[ev.pk])
+    return render(request, 'aula/evento_en_vivo.html', {'ev': ev, 'tablas': tablas, 'cuantos': cuantos, 'volver': volver, 'veedor': veedor,
+                                                        'colegios': _podio_vivo(ev, c)})
+
+
+def _podio_vivo(ev, c):
+    if not c['podio_colegios']['activo']:
+        return None
+    return [{'puesto': x['puesto'], 'colegio': x['colegio'], 'puntaje': x['puntaje'], 'niveles': x['n']} for x in podio_colegios(ev, c)[:10]]
+
+
+# ---------------------------------------------------------------------------
+# Veedores: profesores o grupos de profesores invitados (solo lectura, con su enlace)
+# ---------------------------------------------------------------------------
+def _veedor(token):
+    """(evento, veedor) del enlace; 404 si no existe o el organizador lo quitó."""
+    token = (token or '')[:60]
+    if len(token) < 16:
+        raise Http404
+    for ev in Evento.objects.filter(config__veedores__icontains=token):
+        v = next((v for v in config_de(ev)['veedores'] if v.get('token') == token and v.get('activo', True)), None)
+        if v:
+            return ev, v
+    raise Http404
+
+
+def veedor_resultados(request, token):
+    """Lo que ve un veedor: los resultados de todos los grupos (con filtros y CSV), sin poder cambiar nada."""
+    ev, v = _veedor(token)
+    return _resultados(request, ev, veedor=v)
+
+
+def veedor_en_vivo(request, token):
+    ev, v = _veedor(token)
+    return _en_vivo(request, ev, veedor=v)
+
+
+def _invitar_veedor(request, ev, v):
+    """Le manda al veedor su enlace por correo (si tiene)."""
+    if '@' not in (v.get('correo') or ''):
+        return 0
+    from notas.mensajeria import enviar_correo
+    enlace = request.build_absolute_uri(reverse('aula:evento_veedor', args=[v['token']]))
+    texto = (f"Hola{(' ' + v['nombre']) if v.get('nombre') else ''},\n\nLo invitamos como veedor del evento «{ev.titulo}»"
+             + (f" (grupo: {v['grupo']})" if v.get('grupo') else '') + '.\n\n'
+             f'Con este enlace puede ver los resultados y el ranking en vivo, con total transparencia (solo lectura):\n{enlace}\n\n'
+             'El enlace es personal: no lo publique.')
+    try:
+        return enviar_correo(ev.colegio, f'{ev.titulo}: invitación como veedor', texto, [v['correo']], fail_silently=True, copia=False) or 0
+    except Exception:
+        return 0
 
 
 @login_required
@@ -871,7 +1286,11 @@ def diplomas(request, eid):
         primeros = 3
     PUESTOS = ['Primer', 'Segundo', 'Tercer', 'Cuarto', 'Quinto', 'Sexto', 'Séptimo', 'Octavo', 'Noveno', 'Décimo']
     lista = []
-    for g in grupos(c):
+    if tipo == 'colegios':           # podio de colegios: diploma para los primeros colegios
+        for x in [x for x in podio_colegios(ev, c) if x['puntaje'] > 0][:primeros]:
+            lista.append({'nombre': x['colegio'], 'de': '', 'grupo': 'Podio de colegios', 'puntos': x['puntaje'],
+                          'puesto': f'{PUESTOS[x["puesto"] - 1]} puesto' if x['puesto'] <= len(PUESTOS) else f'Puesto {x["puesto"]}'})
+    for g in ([] if tipo == 'colegios' else grupos(c)):
         if gsel and g['id'] != gsel:
             continue
         filas = ranking(ev, g['id'])
@@ -889,6 +1308,161 @@ def diplomas(request, eid):
 
 
 # ---------------------------------------------------------------------------
+# Vigilancia con cámara y micrófono
+# ---------------------------------------------------------------------------
+MAX_TROZO = 12 * 1024 * 1024            # un trozo de ~30 s pesa menos de 1 MB en calidad baja
+MAX_PARTICIPANTE = 900 * 1024 * 1024    # tope por participante (unas 10 h): nadie llena el servidor
+
+
+@require_POST
+def grabacion(request, eid):
+    """Llegan los trozos de la grabación (y los avisos: aceptó, se apagó la cámara, la volvió a encender)."""
+    ev = _evento(request, eid)
+    c = config_de(ev)
+    if not c['vigilancia']['activa']:
+        return JsonResponse({'ok': False, 'error': 'Este evento no graba.'}, status=400)
+    p = _participacion(request, ev)
+    if p is None:
+        return JsonResponse({'ok': True, 'prueba': True})
+    archivo = request.FILES.get('trozo')
+    if archivo is None:
+        tipo = request.POST.get('tipo') or ''
+        try:
+            t = round(float(request.POST.get('t') or 0), 1)
+        except ValueError:
+            t = 0
+        if tipo in ('acepto', 'corte', 'reanudo'):
+            v = (p.datos or {}).get('vigilancia') or {}
+            if tipo == 'acepto':
+                v.setdefault('acepto', timezone.now().isoformat(timespec='seconds'))
+            else:
+                v['cortes'] = (v.get('cortes') or [])[-300:] + [{'tipo': tipo, 't': t, 'hora': timezone.localtime().strftime('%H:%M:%S'),
+                                                                  'motivo': (request.POST.get('motivo') or '')[:80]}]
+            p.datos = dict(p.datos or {}, vigilancia=v)
+            p.save(update_fields=['datos'])
+        return JsonResponse({'ok': True})
+    tipo = (archivo.content_type or '').split(';')[0]
+    if not tipo.startswith(('video/', 'audio/')) or archivo.size > MAX_TROZO:
+        return JsonResponse({'ok': False, 'error': 'Trozo no válido.'}, status=400)
+    from django.db.models import Sum
+    usado = p.grabaciones.aggregate(b=Sum('bytes'))['b'] or 0
+    if usado + archivo.size > MAX_PARTICIPANTE:
+        return JsonResponse({'ok': False, 'lleno': True})
+    try:
+        n = int(request.POST.get('n') or 0)
+        seg = float(request.POST.get('t') or 0)
+    except ValueError:
+        n, seg = 0, 0
+    ext = '.mp4' if 'mp4' in tipo else '.webm'
+    archivo.name = f'trozo-{n:05d}{ext}'
+    GrabacionEvento.objects.create(participacion=p, numero=n, archivo=archivo, tipo=tipo[:60], segundos=seg, bytes=archivo.size)
+    return JsonResponse({'ok': True, 'n': n})
+
+
+@login_required
+def grabaciones(request, eid, pid):
+    """El organizador ve la grabación de un participante (trozos en orden) y cuándo se apagó la cámara."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores ven las grabaciones.')
+    limpiar_grabaciones(ev)
+    p = get_object_or_404(ParticipacionEvento, pk=pid, evento=ev)
+    trozos = list(p.grabaciones.all())
+    v = (p.datos or {}).get('vigilancia') or {}
+    return render(request, 'aula/evento_grabaciones.html', {
+        'ev': ev, 'p': p, 'trozos': trozos, 'mb': round(sum(t.bytes for t in trozos) / 1048576, 1), 'vig': v,
+        'dias': config_de(ev)['vigilancia']['dias'], 'base': _base(request),
+        'nubes': _nubes(), 'cfg_nube': _config_nube(request, ev), 'en_nube': sum(1 for t in trozos if t.nube)})
+
+
+@login_required
+def grabacion_archivo(request, eid, gid):
+    """Abre un trozo (enlace firmado que vence) solo para los organizadores. Con ?bytes=1 lo entrega desde
+    este mismo sitio: así el navegador del organizador lo puede copiar a su Google Drive u OneDrive."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores ven las grabaciones.')
+    g = get_object_or_404(GrabacionEvento, pk=gid, participacion__evento=ev)
+    if request.GET.get('bytes'):
+        from django.http import FileResponse
+        r = FileResponse(g.archivo.open('rb'), content_type=g.tipo or 'video/webm')
+        r['Cache-Control'] = 'no-store'
+        return r
+    return redirect(g.archivo.url)
+
+
+def _nubes():
+    from django.conf import settings
+    return {'google': bool(getattr(settings, 'GOOGLE_CLIENT_ID', '')), 'onedrive': bool(getattr(settings, 'MICROSOFT_CLIENT_ID', ''))}
+
+
+def _config_nube(request, ev):
+    from django.middleware.csrf import get_token
+    return {'nube': reverse('aula:evento_grabaciones_nube', args=[ev.pk]), 'ayudante': '/nube/PROV/', 'csrf': get_token(request)}
+
+
+def _nombre_archivo(texto, largo=60):
+    limpio = ''.join(ch if ch.isalnum() or ch in ' -_.' else ' ' for ch in (texto or ''))
+    return ' '.join(limpio.split())[:largo] or 'sin nombre'
+
+
+@login_required
+def grabaciones_nube(request, eid):
+    """Para copiar las grabaciones a la nube del organizador (lo hace su navegador con su permiso de Drive u
+    OneDrive; el permiso no pasa por el servidor).
+    GET: la lista de trozos (de un participante con ?pid= o de todo el evento).
+    POST accion=marcar: ya quedaron en la nube · accion=borrar: quitarlos del servidor (solo los que ya están en la nube)."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores manejan las grabaciones.')
+    qs = GrabacionEvento.objects.filter(participacion__evento=ev).select_related('participacion__estudiante__user')
+    if request.method == 'POST':
+        try:
+            d = json.loads(request.body or b'{}')
+        except ValueError:
+            d = {}
+        ids = [int(x) for x in (d.get('ids') or []) if str(x).isdigit()][:2000]
+        if d.get('accion') == 'marcar' and d.get('nube') in ('google', 'onedrive'):
+            n = qs.filter(pk__in=ids).update(nube=d['nube'])
+        elif d.get('accion') == 'borrar':
+            viejas = qs.filter(pk__in=ids).exclude(nube='')
+            n = viejas.count()
+            viejas.delete()          # una por una (con su archivo)
+        else:
+            n = 0
+        return JsonResponse({'ok': True, 'n': n})
+    if request.GET.get('pid'):
+        qs = qs.filter(participacion_id=request.GET['pid'])
+    personas = {}
+    for g in qs.order_by('participacion_id', 'numero', 'pk'):
+        p = g.participacion
+        x = personas.setdefault(p.pk, {'pid': p.pk, 'nombre': _nombre_archivo(p.nombre_completo), 'de': _nombre_archivo(p.de_donde, 40), 'trozos': []})
+        x['trozos'].append({'id': g.pk, 'n': g.numero, 'nube': g.nube, 'bytes': g.bytes,
+                            'archivo': f"{x['nombre']} - trozo {g.numero:03d} - {timezone.localtime(g.creada):%Hh%Mm%Ss}.{'mp4' if 'mp4' in g.tipo else 'webm'}",
+                            'url': reverse('aula:evento_grabacion_archivo', args=[ev.pk, g.pk]) + '?bytes=1'})
+    return JsonResponse({'evento': _nombre_archivo(ev.titulo), 'personas': list(personas.values())})
+
+
+@login_required
+def grabaciones_zip(request, eid, pid):
+    """Descarga en un .zip todos los trozos de un participante."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores ven las grabaciones.')
+    import tempfile
+    import zipfile
+    from django.http import FileResponse
+    p = get_object_or_404(ParticipacionEvento, pk=pid, evento=ev)
+    tmp = tempfile.TemporaryFile()
+    with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_STORED) as z:       # el video ya viene comprimido
+        for g in p.grabaciones.all():
+            with g.archivo.open('rb') as f:
+                z.writestr(f"trozo-{g.numero:03d}-{timezone.localtime(g.creada):%H%M%S}.{'mp4' if 'mp4' in g.tipo else 'webm'}", f.read())
+    tmp.seek(0)
+    return FileResponse(tmp, as_attachment=True, filename=f'grabacion - {_nombre_archivo(p.nombre_completo)}.zip', content_type='application/zip')
+
+
+# ---------------------------------------------------------------------------
 # Lo que manda el juego (el servidor cuenta y califica)
 # ---------------------------------------------------------------------------
 def _estado(p, c):
@@ -899,6 +1473,12 @@ def _estado(p, c):
 
 def _participacion(request, ev):
     if not ev.activo:
+        return None
+    c = config_de(ev)
+    hasta, desde = _fecha(c['fechas']['prueba_hasta']), _fecha(c['fechas']['prueba_desde'])
+    if desde and timezone.now() < desde:
+        return None
+    if hasta and timezone.now() > hasta + timezone.timedelta(minutes=c['bloques'] * (c['minutos'] + c['descanso']) + 10):
         return None
     p = participante(request, ev, crear=True)
     return p if p is not None and p.estado == 'aprobada' else None
@@ -974,6 +1554,9 @@ def pregunta(request, eid):
         hechas = p.preguntas_hechas if p else random.randint(0, 2)
         cat = CATEGORIAS[hechas % 3][0]
         del_ciclo = [(i, x) for i, x in enumerate(ev.preguntas) if x.get('ciclo') == ciclo]
+        grado = grado_de(p) if p else None
+        if grado is not None and any(x.get('grado') == grado for _, x in del_ciclo):
+            del_ciclo = [(i, x) for i, x in del_ciclo if x.get('grado') in (grado, None)]      # las de su grado (y las generales)
         opciones = [(i, x) for i, x in del_ciclo if x.get('categoria') == cat] or del_ciclo
         if not opciones:
             return JsonResponse({'pregunta': None})
