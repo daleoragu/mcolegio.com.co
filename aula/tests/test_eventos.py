@@ -394,3 +394,11 @@ class Olimpiada(ColegioDePrueba):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('APROBADA', mail.outbox[0].body); self.assertIn(p.datos['clave'], mail.outbox[0].body)
         self.assertEqual(mail.outbox[0].to, ['familia@correo.co'])
+
+    def test_boton_actualizar(self):
+        """Si a alguien se le queda pegada la olimpiada, «Actualizar» guarda, recarga y sigue donde iba."""
+        ev = self.crear('Olimpiada')
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'activar'})
+        r = self.cliente(self.ana.user).get(f'/aula/eventos/{ev.pk}/')
+        self.assertContains(r, 'id="ol-actualizar"')
+        self.assertContains(r, 'id="ol-atascado"')

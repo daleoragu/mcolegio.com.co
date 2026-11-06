@@ -43,6 +43,7 @@
     <div class="ol-dato"><small>Puntos</small><b id="ol-puntos">0</b></div>
     <div class="ol-dato"><small>Preguntas ✓</small><b id="ol-bonos">0</b></div>
     <div class="ol-dato"><small>Tiempo efectivo</small><b id="ol-efectivo">0:00</b></div>
+    <button type="button" class="btn btn-sm btn-warning" id="ol-actualizar" title="Si algo se quedó pegado: guarda lo que lleva, recarga y sigue donde iba"><i class="fas fa-rotate me-1"></i>Actualizar</button>
     <button type="button" class="btn btn-sm btn-light" id="ol-completa" title="Pantalla completa"><i class="fas fa-expand"></i></button>
   </div>
   {% if datos.prueba %}<div class="alert alert-warning py-1 small mb-2">Modo prueba del organizador: no se guarda nada.
@@ -56,6 +57,10 @@
       <button type="button" class="btn btn-sm btn-outline-danger" id="ol-saltar">Saltar reto ⏭</button>
     </span></div>
   <div id="ol-aviso" hidden></div>
+  <div id="ol-atascado" class="alert alert-warning d-flex flex-wrap align-items-center gap-2 py-2 mb-2" hidden>
+    <span class="flex-grow-1 small"><b>¿Se quedó pegado?</b> Toque Actualizar: se guarda lo que lleva (puntos y tiempo) y sigue con otro reto.</span>
+    <button type="button" class="btn btn-sm btn-warning" id="ol-atascado-btn"><i class="fas fa-rotate me-1"></i>Actualizar</button>
+  </div>
   <div id="ol-zona"></div>
   <p class="small text-muted mt-2 mb-0" id="ol-instrucciones"></p>
   <div class="ol-capa" id="ol-capa"><div class="ol-caja" id="ol-caja"></div></div>

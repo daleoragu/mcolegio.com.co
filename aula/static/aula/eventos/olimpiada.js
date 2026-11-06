@@ -24,15 +24,24 @@
         if (D.servidor.terminada) E.fase = 'fin';
     }
     const guardar = () => { try { localStorage.setItem(CLAVE, JSON.stringify(E)); } catch (e) { /* sin almacenamiento */ } };
+    // Al salir, recargar o bloquear el celular, queda guardado el reloj del bloque
+    window.addEventListener('pagehide', guardar);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) guardar(); });
 
     // --- Envío al servidor ------------------------------------------------------------
+    // Toda petición tiene tiempo límite: con internet lento no se queda esperando para siempre.
+    function pedir(url, op, ms) {
+        const ctl = window.AbortController ? new AbortController() : null;
+        const t = setTimeout(() => ctl && ctl.abort(), ms || 10000);
+        return fetch(url, Object.assign({credentials: 'same-origin'}, op || {}, ctl ? {signal: ctl.signal} : {})).finally(() => clearTimeout(t));
+    }
     let enviando = false;
     function encolar(ev) { E.seq += 1; E.cola.push(Object.assign({seq: E.seq}, ev)); guardar(); enviar(); }
     async function enviar() {
         if (D.prueba || enviando || !E.cola.length) return;
         enviando = true;
         try {
-            const r = await fetch(U.registro, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRFToken': U.csrf},
+            const r = await pedir(U.registro, {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': U.csrf},
                                                body: JSON.stringify({eventos: E.cola})});
             const j = await r.json();
             if (j.ok) { E.cola = E.cola.filter(e => e.seq > (j.secuencia || 0)); if (j.puntos !== undefined) { E.puntos = Math.max(E.puntos, j.puntos); E.debe = j.debe; E.tiempoServidor = j.tiempo; } guardar(); }
@@ -86,7 +95,18 @@
         }
         E.reto = {juego, nivel}; guardar();
     }
+    let fallos = 0;
     function montarReto() {
+        try { montarRetoSinCuidar(); fallos = 0; }
+        catch (err) {
+            // Un reto que no carga no deja la olimpiada en blanco: se cambia por otro
+            if (window.console) console.error(err);
+            E.reto = null; guardar(); fallos += 1;
+            if (fallos < 6) { aviso('Ese reto no cargó: va otro.'); setTimeout(siguienteReto, 700); }
+            else atascado();
+        }
+    }
+    function montarRetoSinCuidar() {
         limpiarZona();
         if (!E.reto) escogerReto();
         const {juego, nivel} = E.reto, zona = $('#ol-zona');
@@ -156,8 +176,12 @@
         E.fase = 'pregunta'; guardar(); limpiarZona();
         if (E.debe <= 0) return volverAJugar();
         let q = null;
-        if (!D.prueba) { while (enviando) await new Promise(r => setTimeout(r, 120)); await enviar(); }     // que el servidor ya tenga el último punto
-        try { const r = await fetch(U.pregunta + (D.prueba ? '?ciclo=' + D.ciclo : ''), {credentials: 'same-origin'}); q = (await r.json()).pregunta; } catch (e) { q = null; }
+        if (!D.prueba) {      // que el servidor ya tenga el último punto (máximo 12 s esperando)
+            const hasta = Date.now() + 12000;
+            while (enviando && Date.now() < hasta) await new Promise(r => setTimeout(r, 120));
+            await enviar();
+        }
+        try { const r = await pedir(U.pregunta + (D.prueba ? '?ciclo=' + D.ciclo : ''), {}, 10000); q = (await r.json()).pregunta; } catch (e) { q = null; }
         if (!q) { E.debe = 0; aviso('Sin pregunta por ahora: siga jugando.'); return volverAJugar(); }
         capa(`<div class="mb-2"><span class="ol-cat" style="background:${CAT_COLOR[q.categoria] || '#495057'}">${q.categoria || 'Pregunta'}</span> <b>Pregunta de competencia</b></div>
               <p class="small text-muted mb-2">No da puntos, pero si la responde bien le resta ${C.bono} s a su tiempo.</p>
@@ -174,7 +198,7 @@
         if (D.prueba) { bien = !!q.clave[k]; correcta = q.clave.indexOf(true); }
         else {
             try {
-                const r = await fetch(U.responder, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRFToken': U.csrf}, body: JSON.stringify({k})});
+                const r = await pedir(U.responder, {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': U.csrf}, body: JSON.stringify({k})});
                 const j = await r.json(); bien = !!j.bien; correcta = j.correcta;
             } catch (e) { aviso('Sin conexión: no se pudo enviar la respuesta.'); }
         }
@@ -241,14 +265,34 @@
             volverAJugar();
         });
     }
+    // --- Actualizar: guarda, recarga la página y sigue donde iba (con otro reto) -----------------
+    async function actualizar() {
+        const b = $('#ol-actualizar'); if (b) { b.disabled = true; b.innerHTML = '<i class="fas fa-rotate fa-spin me-1"></i>Actualizando…'; }
+        if (E.fase === 'jugando' || E.fase === 'pregunta') { E.reto = null; if (E.fase === 'pregunta') E.fase = 'jugando'; }
+        guardar();
+        try { await Promise.race([enviar(), new Promise(r => setTimeout(r, 4000))]); } catch (e) { /* sigue */ }
+        try { sessionStorage.setItem(CLAVE + ':seguir', '1'); } catch (e) { /* sin almacenamiento */ }
+        location.reload();
+    }
+    function atascado() {
+        const a = $('#ol-atascado'); if (a) a.hidden = false;
+    }
+    document.querySelectorAll('#ol-actualizar, #ol-atascado-btn').forEach(b => b.addEventListener('click', actualizar));
+    // Si algo falla en un juego, se ofrece actualizar (sin perder lo que lleva)
+    window.addEventListener('error', () => { if (E.fase === 'jugando' || E.fase === 'pregunta') atascado(); });
+    window.addEventListener('unhandledrejection', () => { if (E.fase === 'pregunta') atascado(); });
+
     function capa(html) { const c = $('#ol-capa'); if (html === null) { c.hidden = true; return; } $('#ol-caja').innerHTML = html; c.hidden = false; }
     $('#ol-completa').addEventListener('click', () => { const z = $('#ol'); if (document.fullscreenElement) document.exitFullscreen(); else if (z.requestFullscreen) z.requestFullscreen().catch(() => {}); });
 
     // --- Arranque: retoma donde iba ---------------------------------------------------------
     pintarCab();
+    let vieneDeActualizar = false;
+    try { vieneDeActualizar = sessionStorage.getItem(CLAVE + ':seguir') === '1'; sessionStorage.removeItem(CLAVE + ':seguir'); } catch (e) { /* sin almacenamiento */ }
     if (E.fase === 'fin') mostrarFin();
     else if (E.fase === 'descanso') mostrarDescanso();
     else if (E.fase === 'pregunta') preguntar();
+    else if (vieneDeActualizar && E.fase === 'jugando') { aviso('Listo: siga donde iba.'); volverAJugar(); }
     else mostrarPortada();
     enviar();
     window.olimpiada = {estado: () => E};
