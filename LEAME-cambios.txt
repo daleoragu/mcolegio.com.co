@@ -5,6 +5,7 @@ NUEVO     aula/animaplano.py
 NUEVO     aula/bancos/factorizacion.json
 NUEVO     aula/bancos/olimpiada.json
 NUEVO     aula/bancos_juegos.py
+NUEVO     aula/instrucciones.py
 NUEVO     aula/invertida.py
 CAMBIADO  aula/logica.py
 NUEVO     aula/logica_generadores/LEAME.txt
@@ -103,6 +104,7 @@ NUEVO     aula/static/aula/logica/tangram.js
 NUEVO     aula/static/aula/logica/trancon.js
 NUEVO     aula/static/aula/mascota.js
 CAMBIADO  aula/templates/aula/_cabecera.html
+NUEVO     aula/templates/aula/_instrucciones.html
 NUEVO     aula/templates/aula/_invertida_form.html
 NUEVO     aula/templates/aula/_invertida_js.html
 NUEVO     aula/templates/aula/evento_configurar.html

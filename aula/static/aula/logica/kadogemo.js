@@ -1,5 +1,5 @@
 /* Cuatro cuadrantes (tipo Kadogemo): el tablero tiene 4 cuadros de 3×3 con puntos de colores fijos
- * (algunas casillas están en blanco). Hay 4 piezas de 3×3 con 2 huecos; cada una va en un cuadro,
+ * (algunas casillas están en blanco). Hay 4 piezas de 3×3 como las del juego original (H roja, ∩ azul, Ч rosada y la naranja de 3 huecos); cada una va en un cuadro,
  * girada o volteada, y por sus huecos se ven los puntos. La tarjeta dice cuántos puntos de cada color
  * deben quedar a la vista: la forma y el lugar no importan, solo la cuenta. Todas las tarjetas fueron
  * verificadas con un solucionador (aula/logica_generadores/kadogemo.py). */
@@ -57,13 +57,13 @@ Logica.registrar('kadogemo', {
         L.dibujar = function () {
             L.limpiar('#fbf3e4');
             // tablero de madera con los puntos fijos
-            ctx.fillStyle = '#8a5a2b'; Logica.redondo(ctx, TX - 12, TY - 12, 6 * CEL + SEP + 24, 6 * CEL + SEP + 24, 12); ctx.fill();
+            ctx.fillStyle = '#f5c518'; Logica.redondo(ctx, TX - 12, TY - 12, 6 * CEL + SEP + 24, 6 * CEL + SEP + 24, 12); ctx.fill();
             for (let q = 0; q < 4; q++) {
                 const x = px((q % 2) * 3), y = py(Math.floor(q / 2) * 3);
-                ctx.fillStyle = '#d9a86c'; ctx.fillRect(x - 3, y - 3, 3 * CEL + 6, 3 * CEL + 6);
+                ctx.fillStyle = '#c9a074'; ctx.fillRect(x - 3, y - 3, 3 * CEL + 6, 3 * CEL + 6);
             }
             for (let f = 0; f < 6; f++) for (let c = 0; c < 6; c++) {
-                ctx.fillStyle = (f + c) % 2 ? '#e2b77e' : '#e8c18c'; ctx.fillRect(px(c) + 1, py(f) + 1, CEL - 2, CEL - 2);
+                ctx.fillStyle = '#d8b48a'; ctx.fillRect(px(c) + 1, py(f) + 1, CEL - 2, CEL - 2);
                 if (T[f][c] !== '.') punto(px(c) + CEL / 2, py(f) + CEL / 2, CEL * .27, T[f][c]);
             }
             g.dibujar(ctx);
@@ -93,7 +93,7 @@ Logica.registrar('kadogemo', {
             ayuda() {
                 // Dice en qué cuadro va una pieza que todavía no está en su lugar (según una solución verificada)
                 const sol = reto.solucion || {}, lugares = ['de arriba a la izquierda', 'de arriba a la derecha', 'de abajo a la izquierda', 'de abajo a la derecha'];
-                const colorNombre = {U: 'roja', H: 'amarilla', W: 'verde', S: 'azul'};
+                const colorNombre = {H: 'roja (H)', N: 'azul (∩)', Y: 'rosada (Ч)', L: 'naranja'};
                 for (const p of g.piezas) {
                     const q = sol[p.nombre];
                     if (q === undefined) continue;

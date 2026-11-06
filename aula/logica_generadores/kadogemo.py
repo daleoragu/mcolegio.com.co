@@ -1,5 +1,5 @@
 """Kadogemo (Cuatro cuadrantes): el tablero de 6x6 (4 cuadros de 3x3) tiene puntos de colores fijos
-y algunas casillas en blanco. Las 4 piezas (3x3 con 2 huecos) se ponen una en cada cuadro, giradas o
+y algunas casillas en blanco (copiado del juego original). Las 4 piezas (3x3 con 2 o 3 huecos) se ponen una en cada cuadro, giradas o
 volteadas; por los huecos se ven los puntos. Cada tarjeta dice cuántos puntos de cada color deben
 quedar a la vista (la forma y el lugar no importan). Se calculan todas las jugadas posibles para
 saber qué tarjetas tienen solución y cuántas formas hay de lograrlas (menos formas = más difícil).
@@ -9,8 +9,16 @@ saber qué tarjetas tienen solución y cuántas formas hay de lograrlas (menos f
 import itertools, json, random, collections, os
 
 random.seed(2026)
-PIEZAS = {'U': [[0, 1], [1, 1]], 'H': [[0, 1], [2, 1]], 'W': [[0, 2], [1, 1]], 'S': [[0, 0], [2, 2]]}   # los huecos
-COLORES_PIEZA = {'U': '#e03131', 'H': '#f2c400', 'W': '#2f9e44', 'S': '#1971c2'}
+# Las 4 piezas del juego original (3x3; aquí van sus huecos): H roja, ∩ azul, Ч rosada y la naranja de 3 huecos
+PIEZAS = {'H': [[0, 1], [2, 1]], 'N': [[1, 1], [2, 1]], 'Y': [[0, 1], [2, 0]], 'L': [[0, 0], [0, 1], [2, 2]]}
+COLORES_PIEZA = {'H': '#b3202a', 'N': '#1c4fd1', 'Y': '#e8437f', 'L': '#ef7d16'}
+# El tablero del juego original: 4 cuadros de 3x3 con puntos fijos ('.' = sin punto)
+TABLERO = ['RAVB.Z',
+           'ZB.V.V',
+           '...RAB',
+           'VBZAZB',
+           'AR.RVR',
+           'Z.VZ.A']
 PUNTOS = {'R': '#e03131', 'A': '#fcc419', 'V': '#2f9e44', 'Z': '#1c7ed6', 'B': '#ffffff'}
 NOMBRES = {'R': 'rojo', 'A': 'amarillo', 'V': 'verde', 'Z': 'azul', 'B': 'blanco'}
 
@@ -60,12 +68,8 @@ def puntaje(res):
 
 
 def main():
-    # Se prueban muchos tableros y se queda el que permite más tarjetas de 1 o 2 colores
-    mejor = None
-    for _ in range(400):
-        t = tablero_al_azar(); r = jugadas(t); p = puntaje(r)
-        if not mejor or p > mejor[0]: mejor = (p, t, r)
-    _, t, res = mejor
+    t = TABLERO
+    res = jugadas(t)
     # Tarjetas como las del juego: pocos colores (1 a 3) y de 5 a 8 puntos a la vista
     buenas = [(k, v) for k, v in res.items() if 1 <= len(k) <= 3 and 5 <= sum(n for _, n in k) <= 8]
     for k, v in buenas: random.shuffle(v)

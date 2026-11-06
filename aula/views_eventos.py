@@ -458,6 +458,8 @@ def configurar(request, eid):
     cursos = Curso.objects.filter(colegio=ev.colegio).order_by('grado', 'nombre') if ev.colegio_id else Curso.objects.none()
     estudiantes = Estudiante.objects.filter(colegio=ev.colegio, curso__isnull=False).select_related('user', 'curso').order_by('curso__grado', 'curso__nombre', 'user__last_name') if ev.colegio_id else Estudiante.objects.none()
     juegos_salon = _juegos_salon(ev).select_related('aula').order_by('-pk')[:200]
+    from . import instrucciones
+    tipos_propios = {f'p_{j.pk}': j.tipo for j in juegos_salon}
     filas_juegos = []
     for j in juegos_del_evento(ev):
         pj = c['por_juego'].get(j[0]) or {}
@@ -465,6 +467,7 @@ def configurar(request, eid):
         if j[0] not in c['juegos']:
             grados = []
         filas_juegos.append({'id': j[0], 'nombre': j[1], 'estilo': j[2], 'grados': grados, 'dificultad': pj.get('dificultad', 'auto'),
+                             'instrucciones': instrucciones.de_evento(j[0], tipos_propios),
                              'velocidad': pj.get('velocidad', 'normal'), 'con_velocidad': j[2] in ('arcade', 'propio') or j[0] == 'speedrun'})
     return render(request, 'aula/evento_configurar.html', {
         'ev': ev, 'c': c, 'juegos': JUEGOS, 'filas_juegos': filas_juegos, 'velocidades': JuegoAula.VELOCIDADES, 'grados': [(g, etiqueta_grado(g)) for g in grados_cols],

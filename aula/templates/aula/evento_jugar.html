@@ -2,6 +2,7 @@
 {% load static %}
 {% block page_title %}{% endblock %}
 {% block content %}
+{% include 'aula/_instrucciones.html' %}
 <style>
   #ol { max-width:1080px; margin:0 auto; background:#fff; border-radius:18px; padding:14px; position:relative; }
   #ol:fullscreen { max-width:none; border-radius:0; overflow:auto; padding:6px 10px; }
@@ -51,6 +52,7 @@
       <button type="button" class="btn btn-sm btn-outline-primary" id="ol-girar" hidden>Girar</button>
       <button type="button" class="btn btn-sm btn-outline-primary" id="ol-voltear" hidden>Voltear</button>
       <button type="button" class="btn btn-sm btn-outline-secondary" id="ol-deshacer" hidden>Deshacer</button>
+      <button type="button" class="btn btn-sm btn-info text-white" id="ol-instr" data-instr-de="#ol-instrucciones" data-titulo-de="#ol-reto-nombre"><i class="fas fa-book-open me-1"></i>Instrucciones</button>
       <button type="button" class="btn btn-sm btn-outline-danger" id="ol-saltar">Saltar reto ⏭</button>
     </span></div>
   <div id="ol-aviso" hidden></div>

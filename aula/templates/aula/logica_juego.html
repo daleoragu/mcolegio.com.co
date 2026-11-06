@@ -3,6 +3,7 @@
 {% block page_title %}{% endblock %}
 {% block content %}
 {% include 'aula/_cabecera.html' %}
+{% include 'aula/_instrucciones.html' %}
 <style>
   #lg-pantalla { max-width:1020px; margin:0 auto; background:#fff; border-radius:18px; padding:12px; }
   #lg-pantalla:fullscreen { max-width:none; border-radius:0; overflow:auto; padding:6px 10px; }
@@ -48,6 +49,7 @@
       <button type="button" class="btn btn-sm btn-outline-primary" id="lg-voltear" hidden><i class="fas fa-arrows-left-right me-1"></i>Voltear</button>
       <button type="button" class="btn btn-sm btn-outline-secondary" id="lg-deshacer" hidden><i class="fas fa-rotate-left me-1"></i>Deshacer</button>
       <button type="button" class="btn btn-sm btn-outline-warning" id="lg-ayuda" hidden><i class="fas fa-lightbulb me-1"></i>Ayuda</button>
+      <button type="button" class="btn btn-sm btn-info text-white ins-boton" id="lg-instr" data-instr-de="#lg-instrucciones" data-titulo="{{ nombre }}"><i class="fas fa-book-open me-1"></i>Instrucciones</button>
       <button type="button" class="btn btn-sm btn-outline-danger" id="lg-reiniciar"><i class="fas fa-arrows-rotate me-1"></i>Reiniciar</button>
       <button type="button" class="btn btn-sm btn-outline-dark" id="lg-completa" title="Pantalla completa"><i class="fas fa-expand"></i></button>
     </span>
@@ -68,5 +70,10 @@
 <script src="{% static 'aula/logica/'|add:archivo|add:'.js' %}"></script>
 <script>
 Logica.pagina({id: '{{ juego|escapejs }}', datos: JSON.parse(document.getElementById('lg-datos').textContent), clave: '{{ clave|escapejs }}'});
+// La primera vez que se abre cada juego, las instrucciones salen solas
+try {
+  const k = 'mc-ins-visto:{{ juego|escapejs }}';
+  if (!localStorage.getItem(k)) { localStorage.setItem(k, '1'); setTimeout(() => Instrucciones.mostrar('{{ nombre|escapejs }}', document.getElementById('lg-instrucciones').textContent), 300); }
+} catch (e) { /* sin almacenamiento */ }
 </script>
 {% endblock %}

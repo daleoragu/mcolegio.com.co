@@ -2,6 +2,7 @@
 {% load static %}
 {% block page_title %}{% endblock %}
 {% block content %}
+{% include 'aula/_instrucciones.html' %}
 {% include 'aula/_cabecera.html' %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -27,6 +28,10 @@
   .jg-consola { position:relative; }
   .jg-completa-btn { position:absolute; top:4px; right:6px; z-index:3; border:0; border-radius:8px; background:rgba(255,255,255,.12); color:#fff; padding:2px 8px; font-size:.8rem; }
   .jg-completa-btn:hover { background:rgba(255,255,255,.25); }
+  .jg-instr-btn { right:auto; left:6px; background:#1c7ed6; }
+  .jg-instr-btn:hover { background:#1971c2; }
+  .jg-consola { padding-top:30px; }
+  .jg-zona.completa .jg-consola { padding-top:30px; }
   .jg-zona.completa { position:fixed; inset:0; z-index:3000; max-width:none; margin:0; padding:10px; background:#0b0b0b; gap:10px;
                       align-items:center; justify-content:center; overflow:auto; }
   /* En pantalla completa el juego toma todo el alto que hay (lo calcula el motor) */
@@ -72,6 +77,7 @@
 <div class="jg-zona">
 <div class="jg-consola">
   <button type="button" class="jg-completa-btn" id="jg-completa" title="Pantalla completa (se activa sola al empezar)"><i class="fas fa-expand"></i></button>
+  <button type="button" class="jg-completa-btn jg-instr-btn" id="jg-instr" data-titulo="{{ nombre_juego }}" data-instr="{{ instrucciones_juego }}" data-extra="{{ instrucciones_comun }}" title="Instrucciones"><i class="fas fa-book-open me-1"></i>Instrucciones</button>
   <canvas id="jg-lienzo" aria-label="{{ nombre_juego }}" tabindex="0"></canvas>
   <div class="jg-mandos" id="jg-mandos">
     <div class="jg-cruz">

@@ -45,7 +45,9 @@ def niveles(juego):
 @vista_aula
 def logica_menu(request, pk):
     c = _ctx(request, pk)
-    return _render(request, c, 'aula/logica_menu.html', {'juegos': JUEGOS}, 'gamificacion')
+    from . import instrucciones
+    juegos = [(i, n, d, a, instrucciones.logica(i, a)) for i, n, d, a in JUEGOS]
+    return _render(request, c, 'aula/logica_menu.html', {'juegos': juegos}, 'gamificacion')
 
 
 @vista_aula
