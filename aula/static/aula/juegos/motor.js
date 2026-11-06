@@ -232,7 +232,7 @@
         document.addEventListener('keyup', alSubir);
         // Apagar el juego (las olimpiadas cambian de reto sin recargar la página)
         m.destruir = () => {
-            vivo = false; quitarPalanca(); if (enunciado) enunciado.remove(); document.removeEventListener('keydown', alBajar); document.removeEventListener('keyup', alSubir);
+            vivo = false; soltarPalanca(); quitarPalanca(); quitarZona(); if (enunciado) enunciado.remove(); document.removeEventListener('keydown', alBajar); document.removeEventListener('keyup', alSubir);
             window.removeEventListener('resize', reajustar); window.removeEventListener('orientationchange', reajustar);
             document.removeEventListener('fullscreenchange', reajustar); document.removeEventListener('webkitfullscreenchange', reajustar);
             if (window.visualViewport) window.visualViewport.removeEventListener('resize', reajustar);
@@ -281,19 +281,33 @@
             p.dirs = nuevas;
         }
         function soltarPalanca() { if (!palanca) return; palanca.dirs.forEach(t => m.soltar(t)); palanca = null; quitarPalanca(); }
+        // La palanca también sale tocando fuera del lienzo (el borde negro, la pantalla completa). Solo mientras
+        // este juego esté vivo: al cambiar de juego (olimpiada) se quita, para no robarles los toques a los
+        // juegos de escoger fichas (conejos, ranas, piezas...). Nunca sobre otro lienzo ni sobre botones.
+        const vivoYMio = () => vivo && lienzo.isConnected;
+        const zonaAbajo = ev => {
+            if (!vivoYMio() || ev.pointerType === 'mouse' || ev.target === lienzo || ev.target.closest('button, a, input, select, textarea, label, canvas, .ins-velo')) return;
+            ev.preventDefault();
+            if (m.estado === 'inicio') return empezar();
+            if (palanca) return;
+            palanca = {id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, dirs: new Set(), arrastro: true};
+            try { zonaDedo.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
+            verPalanca(ev.clientX, ev.clientY, ev.clientX, ev.clientY);
+        };
+        const zonaMueve = ev => { if (palanca && palanca.id === ev.pointerId && ev.target !== lienzo) moverPalanca(ev); };
+        const zonaArriba = ev => { if (palanca && palanca.id === ev.pointerId) soltarPalanca(); };
+        const tactilAntes = zonaDedo.style.touchAction;
+        function quitarZona() {
+            if (!conPalanca || zonaDedo === lienzo) return;
+            zonaDedo.removeEventListener('pointerdown', zonaAbajo); zonaDedo.removeEventListener('pointermove', zonaMueve);
+            zonaDedo.removeEventListener('pointerup', zonaArriba); zonaDedo.removeEventListener('pointercancel', zonaArriba);
+            zonaDedo.style.touchAction = tactilAntes;
+        }
         if (conPalanca && zonaDedo !== lienzo) {
             zonaDedo.style.touchAction = 'none';
-            zonaDedo.addEventListener('pointerdown', ev => {
-                if (ev.pointerType === 'mouse' || ev.target === lienzo || ev.target.closest('button, a, input, select, textarea, label')) return;
-                ev.preventDefault();
-                if (m.estado === 'inicio') return empezar();
-                if (palanca) return;
-                palanca = {id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, dirs: new Set(), arrastro: true};
-                try { zonaDedo.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
-                verPalanca(ev.clientX, ev.clientY, ev.clientX, ev.clientY);
-            });
-            zonaDedo.addEventListener('pointermove', ev => { if (palanca && palanca.id === ev.pointerId && ev.target !== lienzo) moverPalanca(ev); });
-            ['pointerup', 'pointercancel'].forEach(e => zonaDedo.addEventListener(e, ev => { if (palanca && palanca.id === ev.pointerId) soltarPalanca(); }));
+            zonaDedo.addEventListener('pointerdown', zonaAbajo);
+            zonaDedo.addEventListener('pointermove', zonaMueve);
+            zonaDedo.addEventListener('pointerup', zonaArriba); zonaDedo.addEventListener('pointercancel', zonaArriba);
         }
         lienzo.addEventListener('pointerdown', ev => {
             ev.preventDefault();
