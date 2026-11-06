@@ -1,0 +1,46 @@
+{% comment %}Botón «Instrucciones» de los juegos. Cualquier botón con data-instr="texto" (o data-instr-de="#selector") y
+data-titulo abre una ventana con la explicación; también funciona en pantalla completa (se abre dentro de ella).
+Instrucciones.mostrar(titulo, texto) la abre desde JavaScript.{% endcomment %}
+<style>
+  .ins-velo { position:fixed; inset:0; z-index:2147483600; background:rgba(15,20,35,.55); display:flex; align-items:center; justify-content:center; padding:16px; }
+  .ins-caja { background:#fff; color:#212529; border-radius:16px; max-width:520px; width:100%; max-height:85vh; overflow:auto; padding:18px 20px; box-shadow:0 12px 40px rgba(0,0,0,.35); font-family:system-ui, sans-serif; }
+  .ins-caja h5 { font-weight:800; color:#1f3a68; margin:0 0 8px; font-size:1.1rem; }
+  .ins-caja p { font-size:1rem; line-height:1.45; margin:0 0 8px; white-space:pre-line; }
+  .ins-caja .ins-extra { font-size:.88rem; color:#5b6474; }
+  .ins-boton { white-space:nowrap; }
+  details.ins-linea { font-size:.8rem; margin-top:6px; }
+  details.ins-linea summary { cursor:pointer; color:#1f6feb; font-weight:600; list-style:none; }
+  details.ins-linea summary::-webkit-details-marker { display:none; }
+  details.ins-linea summary::before { content:'ⓘ '; }
+  details.ins-linea p { margin:4px 0 0; color:#495057; line-height:1.35; }
+</style>
+<script>
+(function () {
+  if (window.Instrucciones) return;
+  function mostrar(titulo, texto, extra) {
+    cerrar();
+    const velo = document.createElement('div');
+    velo.className = 'ins-velo'; velo.setAttribute('role', 'dialog'); velo.setAttribute('aria-modal', 'true');
+    velo.innerHTML = '<div class="ins-caja"><h5></h5><p class="ins-texto"></p><p class="ins-extra"></p><button type="button" class="btn btn-primary w-100 mt-1">Entendido</button></div>';
+    velo.querySelector('h5').textContent = '📘 Instrucciones' + (titulo ? ': ' + titulo : '');
+    velo.querySelector('.ins-texto').textContent = texto || 'Este juego no tiene instrucciones escritas.';
+    const ex = velo.querySelector('.ins-extra'); if (extra) ex.textContent = extra; else ex.remove();
+    velo.addEventListener('click', ev => { if (ev.target === velo || ev.target.tagName === 'BUTTON') cerrar(); });
+    (document.fullscreenElement || document.webkitFullscreenElement || document.body).appendChild(velo);
+    velo.querySelector('button').focus();
+  }
+  function cerrar() { document.querySelectorAll('.ins-velo').forEach(v => v.remove()); }
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && document.querySelector('.ins-velo')) { ev.stopPropagation(); cerrar(); } }, true);
+  // Mientras está abierta, las teclas no mueven el juego
+  document.addEventListener('keydown', ev => { if (document.querySelector('.ins-velo') && ev.key !== 'Tab') { if (ev.key === 'Enter') cerrar(); ev.stopPropagation(); ev.preventDefault(); } }, true);
+  document.addEventListener('click', ev => {
+    const b = ev.target.closest('[data-instr], [data-instr-de]');
+    if (!b) return;
+    ev.preventDefault(); ev.stopPropagation();
+    const de = b.dataset.instrDe && document.querySelector(b.dataset.instrDe);
+    const tde = b.dataset.tituloDe && document.querySelector(b.dataset.tituloDe);
+    mostrar(b.dataset.titulo || (tde ? tde.textContent : ''), b.dataset.instr || (de ? de.textContent : ''), b.dataset.extra || '');
+  }, true);
+  window.Instrucciones = {mostrar, cerrar};
+})();
+</script>

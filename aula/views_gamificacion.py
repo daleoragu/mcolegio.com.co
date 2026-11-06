@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import animaplano, bancos_juegos, logica
+from . import animaplano, bancos_juegos, instrucciones, logica
 from .invertida import leer_preguntas
 from .juegos import nota as nota_de
 from .models import JuegoAula, ResultadoJuegoAula
@@ -72,6 +72,13 @@ def _para_jugar(preguntas, tipo=None):
     return lista
 
 
+def _con_instrucciones(datos):
+    """Las instrucciones del juego para el botón «Instrucciones» de la pantalla del juego."""
+    datos['instrucciones_juego'] = instrucciones.arcade(datos.get('tipo') or '')
+    datos['instrucciones_comun'] = instrucciones.COMUN_ARCADE
+    return datos
+
+
 @vista_aula
 def gamificacion(request, pk):
     c = _ctx(request, pk)
@@ -92,6 +99,8 @@ def gamificacion(request, pk):
         messages.success(request, f'Juego publicado con {len(j.preguntas)} pregunta(s).')
         return redirect('aula:gamificacion', pk=pk)
     juegos = [j for j in aula.juegos.all() if c.es_docente or (j.publicado and logica.para_c(j, c))]
+    for j in juegos:
+        j.instrucciones = instrucciones.arcade(j.tipo)
     if not c.es_docente:
         mios = {r.juego_id: r for r in ResultadoJuegoAula.objects.filter(juego__in=juegos, **logica.filtro_persona(_persona(c)))}
         for j in juegos:
@@ -99,7 +108,7 @@ def gamificacion(request, pk):
     else:
         for j in juegos:
             j.n_resultados = j.resultados.count()
-    datos = {'juegos': juegos, 'tipos': [(k, n, DESCRIPCIONES[k]) for k, n in JuegoAula.TIPOS], 'bancos': bancos_juegos.BANCOS,
+    datos = {'juegos': juegos, 'tipos': [(k, n, DESCRIPCIONES[k], instrucciones.arcade(k)) for k, n in JuegoAula.TIPOS], 'bancos': bancos_juegos.BANCOS,
              'figuras': [(k, n) for k, (n, _) in animaplano.FIGURAS.items()], 'operaciones': animaplano.OPERACIONES,
              'max_opciones': {k: JuegoAula.MAX_OPCIONES.get(k, 4) for k, _ in JuegoAula.TIPOS}}
     if c.es_docente:
@@ -208,7 +217,7 @@ def juego(request, pk, jid):
         datos.update(_datos_planilla(c.aula))
     else:
         datos['mio'] = ResultadoJuegoAula.objects.filter(juego=j, **logica.filtro_persona(_persona(c))).first()
-    return _render(request, c, 'aula/juego.html', datos, 'gamificacion')
+    return _render(request, c, 'aula/juego.html', _con_instrucciones(datos), 'gamificacion')
 
 
 @require_POST
@@ -260,10 +269,10 @@ def practica(request, pk, tipo, banco):
         raise Http404
     if tipo == 'animaplano':          # una figura al azar con operaciones de las cuatro
         preguntas = leer_preguntas(animaplano.generar(random.choice(list(animaplano.FIGURAS)), 'mixtas'), MAX_PREGUNTAS)
-        return _render(request, c, 'aula/juego.html', {
+        return _render(request, c, 'aula/juego.html', _con_instrucciones({
             'juego': None, 'tipo': tipo, 'nombre_juego': 'Animaplano', 'segundos': 30, 'minutos': 3,
             'preguntas': [dict(p, i=i) for i, p in enumerate(preguntas)], 'guarda': False, 'jugadores': 1,
-            'banco': 'operaciones básicas', 'tema': ''}, 'gamificacion')
+            'banco': 'operaciones básicas', 'tema': ''}), 'gamificacion')
     if tipo == 'tanques':
         if banco == 'factorizacion':        # los 6 temas del juego original, cada uno su nivel
             return _tanques(request, c, [], False, 'Factorización', None, banco_propio=True)
@@ -271,13 +280,13 @@ def practica(request, pk, tipo, banco):
         return _tanques(request, c, preguntas, False, bancos_juegos.BANCOS[banco], None)
     cuantas = {'escape': 8, 'penaltis': 30, 'tenis': 40, 'unir': 10, 'dibujo': 16, 'boxeo': 40}.get(tipo, 12)
     preguntas = bancos_juegos.preguntas(banco, cuantas)
-    return _render(request, c, 'aula/juego.html', {
+    return _render(request, c, 'aula/juego.html', _con_instrucciones({
         'juego': None, 'tipo': tipo, 'nombre_juego': dict(JuegoAula.TIPOS)[tipo], 'segundos': 20 if tipo != 'escape' else 12,
         'minutos': 3, 'preguntas': [dict(p, i=i) for i, p in enumerate(preguntas)], 'guarda': False,
         'jugadores': _jugadores(request, tipo), 'dos_jugadores': tipo in JuegoAula.DOS_JUGADORES,
         'banco': bancos_juegos.BANCOS[banco], 'tema': f'{banco} {_tema(c.aula)}',
         'ritmo': JuegoAula.RITMO.get(request.GET.get('velocidad'), 1), 'velocidad': request.GET.get('velocidad') if request.GET.get('velocidad') in JuegoAula.RITMO else 'normal',
-        'elegir_velocidad': True, 'velocidades': JuegoAula.VELOCIDADES}, 'gamificacion')
+        'elegir_velocidad': True, 'velocidades': JuegoAula.VELOCIDADES}), 'gamificacion')
 
 
 @require_POST

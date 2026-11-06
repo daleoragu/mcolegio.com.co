@@ -5,6 +5,7 @@
 {% endblock %}
 {% block content %}
 {% include 'aula/_estilos.html' %}
+{% include 'aula/_instrucciones.html' %}
 <div class="au" style="max-width:1080px;margin:0 auto">
   <div class="d-flex flex-wrap gap-2 mb-3">
     <a href="{% url 'aula:eventos' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Eventos</a>
@@ -80,7 +81,7 @@
         {% for est, nombre_est in estilos %}
           <tr class="table-light"><td colspan="{{ grados|length|add:3 }}" class="fw-bold">{{ nombre_est }}</td></tr>
           {% for f in filas_juegos %}{% if f.estilo == est %}
-          <tr><td>{{ f.nombre }}</td>
+          <tr><td>{{ f.nombre }}{% if f.instrucciones %}<details class="ins-linea"><summary>Instrucciones</summary><p>{{ f.instrucciones }}</p></details>{% endif %}</td>
             {% for g, et in grados %}<td class="text-center"><input type="checkbox" class="form-check-input" name="g_{{ f.id }}" value="{{ g }}" data-g="{{ g }}" {% if g in f.grados %}checked{% endif %}></td>{% endfor %}
             <td><select name="d_{{ f.id }}" class="form-select form-select-sm" style="min-width:120px">{% for k, n in dificultades %}<option value="{{ k }}" {% if f.dificultad == k %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></td>
             <td>{% if f.con_velocidad %}<select name="v_{{ f.id }}" class="form-select form-select-sm" style="min-width:95px">{% for k, n in velocidades %}<option value="{{ k }}" {% if f.velocidad == k %}selected{% endif %}>{{ n }}</option>{% endfor %}</select>{% else %}<span class="text-muted">—</span>{% endif %}</td></tr>

@@ -257,3 +257,20 @@ class Gamificacion(ColegioDePrueba):
         r = self.cliente(self.ana.user).get(f'{self.base}/practica/tiro/matematicas/?velocidad=rapida')
         self.assertContains(r, 'ritmo: 1.3')
         self.assertContains(r, 'Velocidad:')
+
+    def test_boton_instrucciones(self):
+        """Cada juego tiene su botón «Instrucciones» y en los menús la explicación va al lado de cada juego."""
+        from aula import instrucciones
+        from aula.views_logica import JUEGOS as LOGICA
+        self.assertTrue(all(len(instrucciones.logica(i, a)) > 40 for i, _, _, a in LOGICA))
+        self.assertTrue(all(len(instrucciones.arcade(k)) > 40 for k, _ in JuegoAula.TIPOS))
+        c = self.cliente(self.ana.user)
+        r = c.get(f'{self.base}/')
+        self.assertContains(r, 'gm-ins')
+        self.assertContains(r, instrucciones.arcade('boxeo')[:30])
+        r = c.get(f'/aula/{self.aula.pk}/logica/')
+        self.assertContains(r, 'Saque el jeep')                 # Safari, distinto del Trancón
+        self.assertContains(c.get(f'/aula/{self.aula.pk}/logica/kadogemo/'), 'id="lg-instr"')
+        r = c.get(f'{self.base}/practica/bandera/matematicas/')
+        self.assertContains(r, 'id="jg-instr"')
+        self.assertContains(r, 'ponga el dedo en cualquier parte')

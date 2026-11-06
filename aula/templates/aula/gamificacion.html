@@ -3,6 +3,7 @@
 {% block page_title %}{% endblock %}
 {% block content %}
 {% include 'aula/_cabecera.html' %}
+{% include 'aula/_instrucciones.html' %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
@@ -20,6 +21,9 @@
   .gm-item.activo .cursor, .gm-item:hover .cursor, .gm-item:focus-visible .cursor { visibility:visible; }
   .gm-item .tipo { color:#868e96; font-size:7px; display:block; }
   .gm-item .marca { margin-left:auto; color:#69db7c; font-size:8px; white-space:nowrap; }
+  .gm-item .gm-ins { margin-left:auto; flex:0 0 auto; width:22px; height:22px; border-radius:50%; background:#1c7ed6; color:#fff; display:grid; place-items:center; font-size:10px; cursor:pointer; }
+  .gm-item .marca + .gm-ins { margin-left:8px; }
+  .gm-item .gm-ins:hover { background:#4dabf7; }
   .gm-tema { display:flex; align-items:center; justify-content:center; gap:10px; font-size:8px; color:#adb5bd; margin-bottom:6px; }
   .gm-tema button { background:none; border:0; color:#ffd43b; font-family:inherit; font-size:10px; cursor:pointer; padding:4px 8px; }
   .gm-pie { text-align:center; font-size:7px; color:#5c5f66; margin-top:16px; }
@@ -43,6 +47,7 @@
           <span class="cursor">►</span>
           <span>{{ j.titulo|upper }}<span class="tipo">{{ j.get_tipo_display }} · {{ j.preguntas|length }} preg.{% if c.es_docente and not j.publicado %} · OCULTO{% endif %}</span></span>
           {% if c.es_docente %}<span class="marca">{{ j.n_resultados }} jug.</span>{% elif j.mio and j.mio.nota is not None %}<span class="marca">★ {{ j.mio.nota }}</span>{% endif %}
+          <span class="gm-ins" role="button" title="Instrucciones" data-instr="{{ j.instrucciones }}" data-titulo="{{ j.get_tipo_display }}">?</span>
         </a>
         {% endfor %}
 
@@ -58,9 +63,10 @@
 
         <div class="gm-seccion">▸ PRÁCTICA LIBRE (SIN NOTA)</div>
         <div class="gm-tema">TEMA: <button type="button" id="gm-tema-ant" aria-label="Tema anterior">◄</button><span id="gm-tema">{{ bancos.matematicas|upper }}</span><button type="button" id="gm-tema-sig" aria-label="Tema siguiente">►</button></div>
-        {% for k, nombre, desc in tipos %}
+        {% for k, nombre, desc, ins in tipos %}
         <a class="gm-item gm-practica" data-tipo="{{ k }}" href="{% url 'aula:juego_practica' aula.pk k 'matematicas' %}">
           <span class="cursor">►</span><span>{{ nombre|upper }}<span class="tipo">{{ desc }}</span></span>
+          <span class="gm-ins" role="button" title="Instrucciones" data-instr="{{ ins }}" data-titulo="{{ nombre }}">?</span>
         </a>
         {% endfor %}
         <div class="gm-pie">↑ ↓ ESCOGER · ENTER JUGAR · ◄ ► TEMA</div>
@@ -75,10 +81,11 @@
       <h6><i class="fas fa-plus me-1"></i>Nuevo juego con sus preguntas</h6>
       <label class="form-label small fw-bold mb-1">Juego</label>
       <div class="row g-2 mb-2">
-        {% for k, nombre, desc in tipos %}
+        {% for k, nombre, desc, ins in tipos %}
         <div class="col-6"><label class="border rounded-3 p-2 d-block h-100 small" style="cursor:pointer">
           <input type="radio" name="tipo" value="{{ k }}" class="form-check-input me-1" {% if borrador.tipo == k or not borrador.tipo and forloop.first %}checked{% endif %}>
-          <b>{{ nombre }}</b><span class="d-block text-muted" style="font-size:.75rem">{{ desc }}</span></label></div>
+          <b>{{ nombre }}</b><span class="d-block text-muted" style="font-size:.75rem">{{ desc }}</span>
+          <details class="ins-linea" onclick="event.stopPropagation()"><summary>Instrucciones</summary><p>{{ ins }}</p></details></label></div>
         {% endfor %}
       </div>
       <input name="titulo" class="form-control mb-2" maxlength="60" required placeholder="Título (ej.: Fracciones, Unidad 2)" value="{{ borrador.titulo }}">
