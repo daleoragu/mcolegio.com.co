@@ -33,4 +33,7 @@ urlpatterns = [
     path('colegas/avisos/', colegas.avisos, name='colegas_avisos'),
     path('colegas/avisos/leidos/', colegas.avisos_leidos, name='colegas_avisos_leidos'),
     path('colegas/aviso/<int:nid>/', colegas.aviso, name='colegas_aviso'),
+    path('colegas/mini/', colegas.mini, name='colegas_mini'),
+    path('colegas/mini/abrir/', colegas.mini_abrir, name='colegas_mini_abrir'),
+    path('colegas/mini/c/<int:pk>/', colegas.mini_conv, name='colegas_mini_conv'),
 ]

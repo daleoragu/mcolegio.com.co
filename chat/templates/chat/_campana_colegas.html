@@ -20,6 +20,7 @@
   function cargar() {
     fetch('/chat/colegas/avisos/', {credentials: 'same-origin'}).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
       if (!j) return;
+      if (j.csrf) caja.dataset.token = j.csrf;
       contar(j.n);
       lista.innerHTML = j.avisos.length ? j.avisos.map(function (a) {
         return '<a href="' + a.url + '" class="d-flex gap-2 align-items-start px-3 py-2 text-decoration-none border-bottom' + (a.leido ? '' : ' bg-light') + '" style="color:#1d2939">' +
@@ -31,7 +32,7 @@
   caja.addEventListener('show.bs.dropdown', cargar);
   caja.querySelector('.cg-campana-todas').addEventListener('click', function () {
     var t = document.cookie.match(/csrftoken=([^;]+)/);
-    fetch('/chat/colegas/avisos/leidos/', {method: 'POST', credentials: 'same-origin', headers: {'X-CSRFToken': t ? t[1] : ''}}).then(cargar);
+    fetch('/chat/colegas/avisos/leidos/', {method: 'POST', credentials: 'same-origin', headers: {'X-CSRFToken': t ? t[1] : (caja.dataset.token || '')}}).then(cargar);
   });
   cargar(); setInterval(function () { if (!document.hidden) cargar(); }, 60000);
 })();

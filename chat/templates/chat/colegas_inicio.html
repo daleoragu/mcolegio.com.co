@@ -3,7 +3,7 @@
 {% block volver %}{{ volver }}{% endblock %}
 {% block barra %}
 {% include 'chat/_av.html' with foto=mi_foto nombre=request.user.get_full_name|default:request.user.username clase='chico' %}
-<span class="ch-titulo"><b>Mis colegas</b><small>Docentes de toda la plataforma · solo docentes</small></span>
+<span class="ch-titulo"><b>Mis colegas</b><small>Docentes de Mi Salón Virtual</small></span>
 {% include 'chat/_campana_colegas.html' with clase='d-lg-none' %}
 <a class="ch-icono" href="/chat/colegas/grupo/nuevo/" title="Crear un grupo de docentes" aria-label="Crear un grupo de docentes"><i class="fas fa-users"></i></a>
 {% endblock %}
@@ -38,9 +38,9 @@
   {% elif t == 'buscar' or q %}
   <div class="cg-caja">
     <form method="get" class="d-flex gap-2 mb-2"><input type="hidden" name="tab" value="buscar">
-      <input name="q" value="{{ q }}" class="form-control" placeholder="Nombre, correo, colegio, institución o área" autofocus aria-label="Buscar docentes">
+      <input name="q" value="{{ q }}" class="form-control" placeholder="Nombre, correo, institución, área o municipio" autofocus aria-label="Buscar docentes">
       <button class="btn btn-primary">Buscar</button></form>
-    <div class="small text-muted mb-2">Aparecen los docentes y directivos de los colegios y de Mi Salón Virtual que permiten ser encontrados. Nunca estudiantes.</div>
+    <div class="small text-muted mb-2">Aparecen los docentes de Mi Salón Virtual (plan individual) que permiten ser encontrados. Nunca estudiantes.</div>
     {% for e in encontrados %}
     <div class="cg-persona">
       <a href="/chat/colegas/u/{{ e.u.pk }}/" class="text-decoration-none">{% include 'chat/_av.html' with foto=e.foto nombre=e.nombre clase='' %}</a>

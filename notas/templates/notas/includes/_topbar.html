@@ -19,7 +19,6 @@
                 {% if 'correo' in mods or 'chat' in mods %}<li><h6 class="dropdown-header">Comunicaciones</h6></li>{% endif %}
                 {% if 'chat' in mods %}<li><a class="dropdown-item {% if '/chat/' in request.path %}active{% endif %}" href="{% url 'chat:inicio' %}"><i class="fas fa-comments fa-fw me-2 text-muted"></i>Chat del colegio</a></li>{% endif %}
                 {% if 'correo' in mods %}<li><a class="dropdown-item {% if 'mensajes' in request.path %}active{% endif %}" href="{% url 'notas:bandeja_entrada' %}"><i class="fas fa-envelope fa-fw me-2 text-muted"></i>{{ colegio.nombre_correo|default:"Correo interno" }}</a></li>{% endif %}
-                {% if user.docente or user.administraciones.exists %}<li><a class="dropdown-item {% if '/chat/colegas/' in request.path %}active{% endif %}" href="{% url 'chat:colegas' %}"><i class="fas fa-user-group fa-fw me-2 text-muted"></i>Mis colegas (docentes de otros colegios)</a></li>{% endif %}
                 
                 {# --- 2. PANEL DEL ESTUDIANTE --- #}
                 {% if user|has_group:"Estudiantes" or user.estudiante %}

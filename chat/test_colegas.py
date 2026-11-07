@@ -1,4 +1,4 @@
-"""Mis colegas: docentes de distintos colegios y de Mi Salón Virtual se agregan, se escriben y arman grupos."""
+"""Mis colegas (plan individual): los docentes de Mi Salón Virtual se agregan, se escriben y arman grupos."""
 import json
 
 from django.contrib.auth.models import User
@@ -21,6 +21,11 @@ class Colegas(ColegioDePrueba):
         Cuenta.objects.create(usuario=cls.libre, slug='lucho', nombre_publico='Luis Libre', estado='verificada',
                               institucion='IE Fátima', municipio='Líbano', departamento='Tolima')   # Salón Digital
         cls.ana = cls.estudiantes[0]
+        # Pedro y Beatriz también tienen plan individual; Olga es docente SOLO de un colegio (no entra a Mis colegas)
+        Cuenta.objects.create(usuario=cls.u_docente, slug='pedro', nombre_publico='Pedro Profe', estado='verificada', institucion='Colegio A')
+        Cuenta.objects.create(usuario=cls.de_b, slug='bea', nombre_publico='Beatriz Bonilla', estado='verificada', institucion='Colegio B')
+        cls.solo_colegio = User.objects.create_user('olga', password='x', first_name='Olga', last_name='Ortiz')
+        Docente.objects.create(colegio=cls.a, user=cls.solo_colegio)
 
     def _post(self, c, url, datos):
         return c.post(url, datos, HTTP_HOST='a.localhost')
@@ -149,3 +154,30 @@ class Colegas(ColegioDePrueba):
         p.visible = False; p.save()
         self.assertEqual(self.cliente(self.de_b).get(f'/chat/colegas/u/{self.libre.pk}/').status_code, 404)
         self.assertEqual(profe.get(f'/chat/colegas/u/{self.libre.pk}/').status_code, 200)
+
+    def test_solo_plan_individual(self):
+        """Los docentes que solo están en un colegio no entran ni aparecen; tampoco hay enlace en el menú del colegio."""
+        self.assertEqual(self.cliente(self.solo_colegio).get('/chat/colegas/').status_code, 403)
+        self.assertEqual(self.cliente(self.u_docente).get('/chat/colegas/?q=Ortiz').context['encontrados'], [])
+        self.assertNotContains(self.cliente(self.solo_colegio).get('/chat/'), '/chat/colegas/')
+
+    def test_chat_flotante(self):
+        """El botón de chat (como Facebook) sale en las páginas del Salón Digital y sus rutas responden."""
+        lucho, profe = self.cliente(self.libre), self.cliente(self.u_docente)
+        Colega.objects.create(de=self.u_docente, para=self.libre, estado='aceptada')
+        self.assertContains(lucho.get('/salon_digital/panel/'), 'chat/flotante.js')
+        j = lucho.get('/chat/colegas/mini/').json()
+        self.assertEqual(j['convs'], []); self.assertEqual([c['nombre'] for c in j['colegas']], ['Pedro Profe'])
+        # Abrir un chat nuevo desde el panel y escribir
+        r = lucho.post('/chat/colegas/mini/abrir/', {'usuario': self.u_docente.pk}).json()
+        self.assertTrue(r['ok'])
+        lucho.post(f'/chat/colegas/c/{r["id"]}/enviar/', json.dumps({'texto': 'Hola desde la ventanita'}), content_type='application/json')
+        j = profe.get('/chat/colegas/mini/').json()
+        self.assertEqual(j['n'], 1); self.assertEqual(j['convs'][0]['titulo'], 'Luis Libre'); self.assertEqual(j['colegas'][0]['conv'], r['id'])
+        c = profe.get(f'/chat/colegas/mini/c/{r["id"]}/').json()
+        self.assertEqual(c['mensajes'][-1]['texto'], 'Hola desde la ventanita'); self.assertTrue(c['puede_escribir'])
+        self.assertEqual(profe.get('/chat/colegas/mini/').json()['n'], 0)          # quedó leído
+        # Con quien no es colega no se abre
+        self.assertEqual(lucho.post('/chat/colegas/mini/abrir/', {'usuario': self.de_b.pk}).status_code, 403)
+        # Ajenos no ven la conversación
+        self.assertEqual(self.cliente(self.de_b).get(f'/chat/colegas/mini/c/{r["id"]}/').status_code, 404)

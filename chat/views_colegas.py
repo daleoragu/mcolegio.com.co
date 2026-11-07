@@ -1,5 +1,5 @@
-"""Mis colegas: los docentes de toda la plataforma (de los colegios y de Mi Salón Virtual) se agregan como
-colegas, se escriben uno a uno y arman grupos de docentes. Solo docentes y directivos: nunca estudiantes.
+"""Mis colegas (solo plan individual, Mi Salón Virtual): los docentes con cuenta del Salón se agregan como
+colegas, se escriben uno a uno y arman grupos de docentes. Nunca estudiantes ni cuentas de los colegios.
 
   · Para escribirle a alguien uno a uno, los dos deben ser colegas (uno envía la solicitud y el otro la acepta).
   · Los grupos de docentes los arma cualquiera con sus colegas; quien lo crea es moderador y puede agregar o quitar.
@@ -34,9 +34,8 @@ BASE = '/chat/colegas'
 # Quién es docente y cómo se presenta
 # ---------------------------------------------------------------------------
 def docentes():
-    """Todos los docentes y directivos activos de la plataforma."""
-    return User.objects.filter(is_active=True).filter(
-        Q(cuenta_salon__isnull=False) | Q(docente__isnull=False) | Q(administraciones__activo=True)).distinct()
+    """Los docentes del plan individual (con cuenta de Mi Salón Virtual), activos."""
+    return User.objects.filter(is_active=True, cuenta_salon__isnull=False)
 
 
 def es_docente(user):
@@ -149,15 +148,17 @@ def vista(fn):
     @wraps(fn)
     def envoltura(request, *args, **kwargs):
         if not es_docente(request.user):
-            return HttpResponseForbidden('Mis colegas es solo para docentes y directivos.')
+            return HttpResponseForbidden('Mis colegas es para los docentes del plan individual (Mi Salón Virtual).')
         return fn(request, *args, **kwargs)
     return envoltura
 
 
 def _no_leidos(user):
-    filas = (Mensaje.objects.filter(conversacion__colegio__isnull=True, conversacion__tipo__in=TIPOS,
-                                    conversacion__participantes__usuario=user, conversacion__participantes__activo=True)
-             .filter(Q(conversacion__participantes__ultimo_leido__isnull=True) | Q(creado__gt=F('conversacion__participantes__ultimo_leido')))
+    # todo en un solo filter(): así «ultimo_leido» es el de esta persona y no el de otro participante
+    filas = (Mensaje.objects.filter(Q(conversacion__colegio__isnull=True) & Q(conversacion__tipo__in=TIPOS)
+                                    & Q(conversacion__participantes__usuario=user) & Q(conversacion__participantes__activo=True)
+                                    & (Q(conversacion__participantes__ultimo_leido__isnull=True)
+                                       | Q(creado__gt=F('conversacion__participantes__ultimo_leido'))))
              .exclude(autor=user).exclude(eliminado=True).values('conversacion').annotate(n=Count('id')))
     return {f['conversacion']: f['n'] for f in filas}
 
@@ -171,7 +172,7 @@ def _titulo(conv, user):
 
 def _volver(user):
     """A dónde regresa la flecha: el panel del colegio o Mis aulas (Salón Digital)."""
-    return '/aula/' if _tiene(user, 'cuenta_salon') and not Docente.objects.filter(user=user).exists() else '/'
+    return '/aula/'
 
 
 def _lista(request, activa=None):
@@ -189,8 +190,7 @@ def _lista(request, activa=None):
               'previa': vista_previa(x.u_nombre if x.u_tipo == 'doc' else x.u_texto, x.u_tipo, x.u_borrado) if x.u_tipo
               else ('Grupo de docentes' if x.tipo == 'colegas_g' else 'Escríbale a su colega')} for x in convs]
     return {'filas': filas, 'activa': activa, 'lista_tpl': 'chat/colegas_lista.html', 'riel_tpl': 'chat/_riel_colegas.html',
-            'volver': _volver(user), 'es_del_colegio': Docente.objects.filter(user=user).exists()
-            or AdministradorColegio.objects.filter(user=user, activo=True).exists(),
+            'volver': _volver(user), 'es_del_colegio': False,
             'n_solicitudes': Colega.objects.filter(para=user, estado='pendiente').count(),
             'n_avisos': Notificacion.objects.filter(destinatario=user, leido=False).count(), 'mi_foto': foto_de(user)}
 
@@ -206,7 +206,7 @@ def inicio(request):
         for palabra in q.split()[:3]:
             qs = qs.filter(Q(first_name__icontains=palabra) | Q(last_name__icontains=palabra) | Q(email__iexact=palabra)
                            | Q(cuenta_salon__nombre_publico__icontains=palabra) | Q(cuenta_salon__institucion__icontains=palabra)
-                           | Q(docente__colegio__nombre__icontains=palabra) | Q(perfil_colega__area__icontains=palabra))
+                           | Q(perfil_colega__area__icontains=palabra) | Q(perfil_colega__municipio__icontains=palabra))
         for u in qs.distinct().order_by('first_name', 'last_name')[:40]:
             r = relacion(user, u)
             estado = 'ninguna' if r is None else ('enviada' if r.estado == 'pendiente' and r.de_id == user.pk else
@@ -582,7 +582,8 @@ def avisos(request):
     from django.utils.timesince import timesince
     qs = Notificacion.objects.filter(destinatario=request.user).order_by('-fecha_creacion')
     lista = list(qs[:15])
-    return JsonResponse({'n': qs.filter(leido=False).count(), 'avisos': [
+    from django.middleware.csrf import get_token
+    return JsonResponse({'n': qs.filter(leido=False).count(), 'csrf': get_token(request), 'avisos': [
         {'id': x.pk, 'mensaje': x.mensaje, 'url': f'{BASE}/aviso/{x.pk}/', 'leido': x.leido, 'icono': _icono(x),
          'hace': 'hace ' + timesince(x.fecha_creacion).split(',')[0]} for x in lista]})
 
@@ -603,3 +604,51 @@ def aviso(request, nid):
 def avisos_leidos(request):
     Notificacion.objects.filter(destinatario=request.user, leido=False).update(leido=True)
     return JsonResponse({'ok': True})
+
+
+# ---------------------------------------------------------------------------
+# Chat flotante (como el de Facebook) en las páginas del Salón Digital, en el computador
+# ---------------------------------------------------------------------------
+@vista
+def mini(request):
+    """Lo que muestra el panel del botón de chat: conversaciones y colegas (para abrir un chat nuevo)."""
+    datos = _lista(request)
+    convs = [{'id': f['c'].pk, 'titulo': f['titulo'], 'foto': f['foto'], 'grupo': f['grupo'], 'sin_leer': f['sin_leer'],
+              'previa': f['previa'], 'cuando': f['cuando']} for f in datos['filas']]
+    con_chat = {}
+    for c in Conversacion.objects.filter(colegio__isnull=True, tipo='colegas', participantes__usuario=request.user,
+                                         participantes__activo=True).prefetch_related('participantes'):
+        for x in c.participantes.all():
+            if x.usuario_id != request.user.pk:
+                con_chat[x.usuario_id] = c.pk
+    colegas = sorted(({'id': u.pk, 'nombre': nombre_de(u), 'foto': foto_de(u), 'conv': con_chat.get(u.pk)} for u in mis_colegas(request.user)),
+                     key=lambda x: x['nombre'].lower())
+    from django.middleware.csrf import get_token
+    return JsonResponse({'n': sum(c['sin_leer'] for c in convs), 'solicitudes': datos['n_solicitudes'], 'convs': convs, 'colegas': colegas,
+                         'csrf': get_token(request)})       # las páginas sin formularios no traen la cookie: aquí va el token
+
+
+@vista
+def mini_conv(request, pk):
+    """Los últimos mensajes de una conversación para la ventanita del chat flotante (y quedan leídos)."""
+    conv, p = _conversacion(request, pk)
+    user = request.user
+    ultimos = list(conv.mensajes.select_related('autor').order_by('-creado', '-id')[:40])[::-1]
+    p.ultimo_leido = timezone.now()
+    p.save(update_fields=['ultimo_leido'])
+    Notificacion.objects.filter(destinatario=user, url=f'{BASE}/c/{conv.pk}/', leido=False).update(leido=True)
+    otro = _otro(conv, user) if conv.tipo == 'colegas' else None
+    return JsonResponse({'id': conv.pk, 'titulo': _titulo(conv, user), 'grupo': conv.tipo == 'colegas_g',
+                         'foto': foto_de(otro) if otro else '', 'url': f'{BASE}/c/{conv.pk}/',
+                         'puede_escribir': puede_escribir(conv, p, user),
+                         'mensajes': [_json_m(m, user, p.moderador) for m in ultimos]})
+
+
+@require_POST
+@vista
+def mini_abrir(request):
+    """Abrir (o crear) el chat uno a uno con un colega desde el panel flotante."""
+    otro = get_object_or_404(User, pk=request.POST.get('usuario') or 0)
+    if not son_colegas(request.user, otro):
+        return JsonResponse({'ok': False, 'error': 'Primero deben ser colegas.'}, status=403)
+    return JsonResponse({'ok': True, 'id': directa(request.user, otro).pk})
