@@ -61,6 +61,25 @@ def ver_grupo(request, pk):
     form = GrupoForm(instance=grupo)
     lista = ListaIntegrantesForm()
 
+    if request.method == 'POST' and 'uno' in request.POST:
+        apellidos = ' '.join((request.POST.get('apellidos') or '').split())[:120]
+        nombres = ' '.join((request.POST.get('nombres') or '').split())[:120]
+        if not apellidos and not nombres:
+            messages.warning(request, 'Escriba los apellidos y los nombres del estudiante.')
+        else:
+            completo = f'{apellidos} {nombres}'.strip().lower()
+            ya = grupo.integrantes.filter(completo__iexact=completo).first()
+            if ya and ya.activo:
+                messages.info(request, f'{ya.completo} ya está en el grupo.')
+            elif ya:
+                ya.activo = True
+                ya.save(update_fields=['activo'])
+                messages.success(request, f'{ya.completo} volvió al grupo.')
+            else:
+                nuevo = Integrante.objects.create(grupo=grupo, apellidos=apellidos, nombres=nombres)
+                messages.success(request, f'{nuevo.completo} agregado. Su PIN es {nuevo.pin_chat}.')
+        return redirect('salon_digital:ver_grupo', pk=grupo.pk)
+
     if request.method == 'POST' and 'pegar' in request.POST:
         lista = ListaIntegrantesForm(request.POST)
         if lista.is_valid():
@@ -85,12 +104,79 @@ def ver_grupo(request, pk):
             )
             return redirect('salon_digital:ver_grupo', pk=grupo.pk)
 
+    aula = getattr(grupo, 'aula', None)
     return render(request, 'salon_digital/ver_grupo.html', {
         'grupo': grupo,
         'form': form,
         'lista': lista,
-        'integrantes': grupo.integrantes.all(),
+        'integrantes': grupo.integrantes.filter(activo=True),
+        'retirados': grupo.integrantes.filter(activo=False),
+        'aula': aula,
+        'enlace': _enlace_entrada(request, grupo),
     })
+
+
+def _enlace_entrada(request, grupo):
+    """El enlace con que entran los estudiantes a la clase (con el código ya escrito), si el grupo tiene aula."""
+    from django.urls import reverse
+    aula = getattr(grupo, 'aula', None)
+    if aula is None:
+        return ''
+    return request.build_absolute_uri(reverse('aula:entrar', args=[aula.pk])) + f'?codigo={grupo.codigo}'
+
+
+@cuenta_requerida
+@require_POST
+def editar_integrante(request, pk, integrante_pk):
+    """Corregir el nombre de un estudiante (lo que ya entregó sigue siendo suyo)."""
+    grupo = get_object_or_404(Grupo, pk=pk, propietario=request.cuenta)
+    integrante = get_object_or_404(Integrante, pk=integrante_pk, grupo=grupo)
+    apellidos = ' '.join((request.POST.get('apellidos') or '').split())[:120]
+    nombres = ' '.join((request.POST.get('nombres') or '').split())[:120]
+    if not apellidos and not nombres:
+        messages.warning(request, 'El nombre no puede quedar vacío.')
+    else:
+        integrante.apellidos, integrante.nombres = apellidos, nombres
+        integrante.save()
+        messages.success(request, f'Nombre actualizado: {integrante.completo}.')
+    return redirect('salon_digital:ver_grupo', pk=pk)
+
+
+@cuenta_requerida
+@require_POST
+def nuevo_pin(request, pk, integrante_pk):
+    """Un PIN nuevo para el estudiante (si lo olvidó o alguien más lo conoce)."""
+    from .models import pin_chat
+    grupo = get_object_or_404(Grupo, pk=pk, propietario=request.cuenta)
+    integrante = get_object_or_404(Integrante, pk=integrante_pk, grupo=grupo)
+    integrante.pin_chat = pin_chat()
+    integrante.save(update_fields=['pin_chat'])
+    messages.success(request, f'Nuevo PIN de {integrante.completo}: {integrante.pin_chat}')
+    return redirect('salon_digital:ver_grupo', pk=pk)
+
+
+@cuenta_requerida
+@require_POST
+def reactivar_integrante(request, pk, integrante_pk):
+    grupo = get_object_or_404(Grupo, pk=pk, propietario=request.cuenta)
+    integrante = get_object_or_404(Integrante, pk=integrante_pk, grupo=grupo)
+    integrante.activo = True
+    integrante.save(update_fields=['activo'])
+    messages.success(request, f'{integrante.completo} volvió al grupo.')
+    return redirect('salon_digital:ver_grupo', pk=pk)
+
+
+@cuenta_requerida
+def tarjetas(request, pk):
+    """Tarjetas de acceso para imprimir y recortar: enlace (con QR), código del grupo, nombre y PIN de cada estudiante."""
+    import base64
+    from .utils import generar_qr
+    grupo = get_object_or_404(Grupo, pk=pk, propietario=request.cuenta)
+    enlace = _enlace_entrada(request, grupo)
+    qr = base64.b64encode(generar_qr(enlace, 6)).decode() if enlace else ''
+    return render(request, 'salon_digital/tarjetas_grupo.html', {
+        'grupo': grupo, 'enlace': enlace, 'qr': qr, 'integrantes': grupo.integrantes.filter(activo=True),
+        'cuenta': request.cuenta})
 
 
 @cuenta_requerida

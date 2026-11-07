@@ -258,7 +258,7 @@ class ClaveForm(forms.Form):
 class GrupoForm(forms.ModelForm):
     class Meta:
         model = Grupo
-        fields = ['nombre', 'descripcion', 'activo']
+        fields = ['nombre', 'descripcion', 'activo', 'pedir_pin']
         widgets = {
             'nombre': forms.TextInput(attrs={**CAJA, 'placeholder': '7-01'}),
             'descripcion': forms.TextInput(

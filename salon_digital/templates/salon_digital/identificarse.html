@@ -56,9 +56,13 @@ button:hover{background:var(--os)}
     <select id="integrante" name="integrante" required autofocus>
       <option value="">Selecciona tu nombre</option>
       {% for i in grupo.integrantes.all %}
-        {% if i.activo %}<option value="{{ i.pk }}">{{ i.completo }}</option>{% endif %}
+        {% if i.activo %}<option value="{{ i.pk }}" {% if elegido == i.pk|stringformat:"s" %}selected{% endif %}>{{ i.completo }}</option>{% endif %}
       {% endfor %}
     </select>
+    {% if grupo.pedir_pin %}
+    <label for="pin">Tu PIN</label>
+    <input id="pin" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required placeholder="4 cifras" style="letter-spacing:.4em;text-align:center">
+    {% endif %}
     <button type="submit">Entrar a la actividad</button>
   {% endif %}
 

@@ -36,6 +36,10 @@ urlpatterns = [
     path('grupos/<int:pk>/', views_grupos.ver_grupo, name='ver_grupo'),
     path('grupos/<int:pk>/editar/', views_grupos.editar_grupo, name='editar_grupo'),
     path('grupos/<int:pk>/eliminar/', views_grupos.eliminar_grupo, name='eliminar_grupo'),
+    path('grupos/<int:pk>/tarjetas/', views_grupos.tarjetas, name='tarjetas_grupo'),
+    path('grupos/<int:pk>/estudiante/<int:integrante_pk>/editar/', views_grupos.editar_integrante, name='editar_integrante'),
+    path('grupos/<int:pk>/estudiante/<int:integrante_pk>/pin/', views_grupos.nuevo_pin, name='nuevo_pin'),
+    path('grupos/<int:pk>/estudiante/<int:integrante_pk>/volver/', views_grupos.reactivar_integrante, name='reactivar_integrante'),
     path('grupos/<int:pk>/quitar/<int:integrante_pk>/', views_grupos.quitar_integrante,
          name='quitar_integrante'),
 

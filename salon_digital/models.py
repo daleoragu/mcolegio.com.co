@@ -220,6 +220,10 @@ class Grupo(models.Model):
         help_text='El que les dictas a los estudiantes la primera vez.',
     )
     activo = models.BooleanField(default=True)
+    pedir_pin = models.BooleanField(
+        default=False, verbose_name='Pedir el PIN al entrar',
+        help_text='Además del código del grupo y su nombre, cada estudiante escribe su PIN de 4 cifras: '
+                  'así nadie entra con el nombre de otro.')
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -243,8 +247,8 @@ class Integrante(models.Model):
     apellidos = models.CharField(max_length=120)
     nombres = models.CharField(max_length=120)
     completo = models.CharField(max_length=240, blank=True, editable=False)
-    pin_chat = models.CharField(max_length=4, default=pin_chat, verbose_name='PIN del chat',
-                                help_text='Lo necesita el estudiante para escribir en el chat y ver sus mensajes.')
+    pin_chat = models.CharField(max_length=4, default=pin_chat, verbose_name='PIN',
+                                help_text='Lo necesita el estudiante para el chat y, si el grupo lo pide, para entrar.')
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
 
