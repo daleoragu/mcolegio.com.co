@@ -11,7 +11,7 @@ _RE = re.compile(r"instrucciones:\s*'((?:[^'\\]|\\.)*)'")
 # Lo común a los juegos con preguntas (motor arcade)
 COMUN_ARCADE = ('Cada pregunta sale arriba y sus opciones abajo (A, B, C…). Responder bien suma puntos; responder mal '
                 'o dejar que se acabe el tiempo quita una vida. Cada 3 preguntas el juego sube de nivel. '
-                'Teclado: flechas para moverse y las letras para escoger. Con el botón «Pausa 30 s» (o la tecla P) el juego se congela 30 segundos y muestra la pregunta en grande para resolverla en papel. En el celular se toca la pantalla '
+                'Teclado: flechas para moverse y las letras para escoger. Con el botón «Pausa» (o la tecla P) el juego se congela y muestra la pregunta en grande para resolverla en papel; sigue cuando usted toque la pantalla. En el celular se toca la pantalla '
                 '(en los juegos que se mueven, se pone el dedo en cualquier parte y se arrastra).')
 
 

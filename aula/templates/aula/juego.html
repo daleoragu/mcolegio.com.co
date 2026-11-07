@@ -79,7 +79,7 @@
 <div class="jg-zona">
 <div class="jg-consola">
   <button type="button" class="jg-completa-btn" id="jg-completa" title="Pantalla completa (se activa sola al empezar)"><i class="fas fa-expand"></i></button>
-  <button type="button" class="jg-completa-btn jg-pausa-btn" id="jg-pausa" title="Pausa de 30 segundos para resolver en papel (también la tecla P)">⏸ Pausa 30 s</button>
+  <button type="button" class="jg-completa-btn jg-pausa-btn" id="jg-pausa" title="Congela el juego para resolver la pregunta en papel (también la tecla P)">⏸ Pausa</button>
   <button type="button" class="jg-completa-btn jg-instr-btn" id="jg-instr" data-titulo="{{ nombre_juego }}" data-instr="{{ instrucciones_juego }}" data-extra="{{ instrucciones_comun }}" title="Instrucciones"><i class="fas fa-book-open me-1"></i>Instrucciones</button>
   <canvas id="jg-lienzo" aria-label="{{ nombre_juego }}" tabindex="0"></canvas>
   <div class="jg-mandos" id="jg-mandos">
@@ -141,7 +141,7 @@
   const URL_RESULTADO = {% if juego %}"{% url 'aula:juego_resultado' aula.pk juego.pk %}"{% else %}null{% endif %};
   let textoFinal = '';
   const m = Gamificacion.iniciar({
-    alPausar: pausado => { const b = document.getElementById('jg-pausa'); if (b) b.textContent = pausado ? '▶ Seguir' : '⏸ Pausa 30 s'; },
+    alPausar: pausado => { const b = document.getElementById('jg-pausa'); if (b) b.textContent = pausado ? '▶ Seguir' : '⏸ Pausa'; },
     lienzo, tipo: '{{ tipo|escapejs }}', segundos: {{ segundos|default:20 }}, minutos: {{ minutos|default:3 }},
     jugadores: {{ jugadores|default:1 }},
     // lo que va debajo del juego (las flechas en el celular), salvo en pantalla completa, donde quedan encima

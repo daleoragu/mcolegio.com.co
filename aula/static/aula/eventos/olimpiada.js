@@ -129,10 +129,10 @@
             $('#ol-instrucciones').textContent = def.instrucciones || '';
             const cv = document.createElement('canvas'); cv.className = 'ol-motor'; zona.appendChild(cv);
             const bPausa = $('#ol-pausa');
-            bPausa.hidden = false; bPausa.textContent = '⏸ Pausa 30 s';
+            bPausa.hidden = false; bPausa.textContent = '⏸ Pausa';
             bPausa.onclick = () => { if (!motor) return; if (motor.enPausa) motor.seguir(); else if (!motor.pausar()) aviso('La pausa es mientras se responde una pregunta.'); };
             motor = Gamificacion.iniciar({lienzo: cv, tipo, preguntas, segundos: 20, minutos: 2, jugadores: 1,
-                alPausar: pausado => { bPausa.textContent = pausado ? '▶ Seguir' : '⏸ Pausa 30 s'; if (pausado) aviso('Pausa: 30 s para resolver en papel. El reloj de la olimpiada sigue.'); }, ritmo: (D.ritmo || {})[juego] || 1, tema: propio ? propio.titulo : '',
+                alPausar: pausado => { bPausa.textContent = pausado ? '▶ Seguir' : '⏸ Pausa'; if (pausado) aviso('Pausa: resuelva en papel. El reloj de la olimpiada sigue corriendo.'); }, ritmo: (D.ritmo || {})[juego] || 1, tema: propio ? propio.titulo : '',
                 alTerminar: r => { if (actual !== api) return; const meta = Math.min(2, preguntas.length); if (r.aciertos >= meta) setTimeout(superado, 600); else { aviso(`${r.aciertos} de ${preguntas.length}: va otro reto.`); setTimeout(siguienteReto, 1500); } }});
             // En el celular los que se mueven usan la palanca que aparece donde se pone el dedo (motor.js)
             ['#ol-girar', '#ol-voltear', '#ol-deshacer'].forEach(s => { $(s).hidden = true; });
