@@ -32,6 +32,15 @@ def banco_olimpiada():
         return json.load(f)
 
 
+BANCO_CALCULO = os.path.join(os.path.dirname(__file__), 'bancos', 'calculo_10_11.json')
+
+
+def banco_calculo():
+    """10.º y 11.º: funciones, trigonometría, límites, derivadas y conceptos, sin integrales (verificado con SymPy)."""
+    with open(BANCO_CALCULO, encoding='utf-8') as f:
+        return json.load(f)
+
+
 def _grado_texto(g):
     return {-2: 'Prejardín', -1: 'Jardín', 0: 'Transición'}.get(g, f'{g}.º') if g is not None else ''
 

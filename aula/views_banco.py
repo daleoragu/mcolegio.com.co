@@ -92,6 +92,9 @@ def banco(request):
         elif accion == 'olimpiada':
             n = _guardar_con_grado(request.user, colegio, [dict(p, tema=f"Olimpiada {p['grado']}.º · {p['tema']}") for p in planilla_preguntas.banco_olimpiada()], 'Olimpiada')
             messages.success(request, f'Se agregaron {n} pregunta(s) del banco olimpiada 6.º–11.º (tema «Olimpiada 6.º · …»).')
+        elif accion == 'calculo':
+            n = _guardar_con_grado(request.user, colegio, [dict(p, tema=f"Cálculo {p['grado']}.º · {p['tema']}") for p in planilla_preguntas.banco_calculo()], 'Cálculo')
+            messages.success(request, f'Se agregaron {n} pregunta(s) del banco de 10.º y 11.º (tema «Cálculo 11.º · Derivadas»…).')
         elif accion == 'borrar_tema':
             n, _ = PreguntaBanco.objects.filter(propietario=request.user, tema=request.POST.get('tema', '')).delete()
             messages.success(request, f'Se borraron {n} pregunta(s).')
@@ -152,6 +155,8 @@ def banco_planilla(request):
     de = request.GET.get('de', 'mias')
     if de == 'olimpiada':
         lista, nombre = planilla_preguntas.banco_olimpiada(), 'banco olimpiada 6 a 11'
+    elif de == 'calculo':
+        lista, nombre = planilla_preguntas.banco_calculo(), 'banco 10 y 11 - funciones limites y derivadas'
     elif de == 'vacia':
         lista, nombre = [], 'planilla de preguntas (vacia)'
     else:

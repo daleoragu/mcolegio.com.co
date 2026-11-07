@@ -6,7 +6,9 @@ NUEVO     apps/misalon/LEEME.md
 NUEVO     apps/misalon/twa-manifest.json
 CAMBIADO  aula/almacen.py
 NUEVO     aula/animaplano.py
+NUEVO     aula/bancos/calculo_10_11.json
 NUEVO     aula/bancos/factorizacion.json
+NUEVO     aula/bancos/generar_calculo.py
 NUEVO     aula/bancos/generar_olimpiada.py
 NUEVO     aula/bancos/olimpiada.json
 NUEVO     aula/bancos/olimpiada_6_11.json

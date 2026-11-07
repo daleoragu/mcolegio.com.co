@@ -918,3 +918,33 @@ class Olimpiada(ColegioDePrueba):
         # Solo organizadores
         self.assertEqual(self.cliente(self.ana.user).get(url).status_code, 403)
         self.assertContains(self.admin.get(conf), 'Ver y administrar todas')
+
+
+def _test_banco_calculo(self):
+        """Banco de 10.º y 11.º (funciones, límites, derivadas; sin integrales) en juegos, banco del docente y eventos."""
+        from aula import bancos_juegos, planilla_preguntas
+        from aula.models import PreguntaBanco
+        todas = planilla_preguntas.banco_calculo()
+        self.assertGreaterEqual(len(todas), 120)
+        self.assertFalse([p for p in todas if 'integral' in p['texto'].lower() or '∫' in p['texto']])
+        self.assertTrue(all(sum(o['correcta'] for o in p['opciones']) == 1 and len(p['opciones']) == 4 for p in todas))
+        once = bancos_juegos.preguntas('calculo11', 10)
+        self.assertEqual(len(once), 10)
+        textos11 = {p['texto'] for p in todas if p['grado'] == 11}
+        self.assertTrue(all(p['texto'] in textos11 for p in once))
+        self.assertIn('calculo10', bancos_juegos.BANCOS)
+        # Al banco del docente, con su grado y tema
+        self.admin.post('/aula/banco/', {'accion': 'calculo'})
+        self.assertEqual(PreguntaBanco.objects.filter(tema__startswith='Cálculo 11.º').count(), len(textos11))
+        self.assertTrue(PreguntaBanco.objects.filter(tema='Cálculo 11.º · Derivadas', grado=11).exists())
+        # Planilla de Excel
+        r = self.admin.get('/aula/banco/planilla/?de=calculo')
+        self.assertEqual(r.status_code, 200); self.assertIn('banco 10 y 11', r['Content-Disposition'])
+        # A un evento
+        ev = self.crear('Olimpiada de cálculo')
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'banco_calculo', 'uso': 'competencia'})
+        ev.refresh_from_db()
+        self.assertTrue(any('lím (x→2)' in p['texto'] for p in ev.preguntas))
+
+
+Olimpiada.test_banco_calculo = _test_banco_calculo
