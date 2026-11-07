@@ -2,6 +2,7 @@
   <div class="ch-marca">
     <a class="ch-volver-lista" href="{{ volver }}" aria-label="Regresar"><i class="fas fa-arrow-left"></i></a>
     <b>Colegas</b>
+    {% include 'chat/_campana_colegas.html' with boton='ch-mini border-0' clase='d-none d-lg-block' %}
     <a class="ch-mini position-relative" href="/chat/colegas/?tab=solicitudes" title="Solicitudes de colegas" aria-label="Solicitudes de colegas"><i class="fas fa-user-clock"></i>{% if n_solicitudes %}<span class="position-absolute top-0 end-0 badge rounded-pill text-bg-danger" style="font-size:.6rem">{{ n_solicitudes }}</span>{% endif %}</a>
     <a class="ch-mini" href="/chat/colegas/grupo/nuevo/" title="Crear un grupo de docentes" aria-label="Crear un grupo de docentes"><i class="fas fa-users"></i></a>
   </div>
@@ -15,7 +16,7 @@
   <div class="ch-lista">
   {% for f in filas %}
     <a class="ch-fila{% if f.c.pk == activa %} activa{% endif %}" href="{{ f.url }}" data-tipo="{% if f.grupo %}grupo{% else %}persona{% endif %}">
-      <span class="ch-avatar{% if f.grupo %} grupo{% endif %}">{% if f.grupo %}<i class="fas fa-users"></i>{% else %}{{ f.titulo|slice:":1"|upper }}{% endif %}</span>
+      {% if f.grupo %}<span class="ch-avatar grupo"><i class="fas fa-users"></i></span>{% else %}{% include 'chat/_av.html' with foto=f.foto nombre=f.titulo clase='' %}{% endif %}
       <span class="flex-grow-1" style="min-width:0">
         <span class="d-flex align-items-baseline"><span class="ch-nombre flex-grow-1 text-truncate">{{ f.titulo }}</span><span class="small ms-2 {% if f.sin_leer %}fw-bold{% endif %}" style="color:{% if f.sin_leer %}var(--mc-oro-2){% else %}#98a2b3{% endif %}">{{ f.cuando }}</span></span>
         <span class="d-flex align-items-center"><span class="ch-previa-txt flex-grow-1 text-truncate">{{ f.previa }}</span>{% if f.sin_leer %}<span class="ch-badge ms-2">{{ f.sin_leer }}</span>{% endif %}</span>

@@ -1,0 +1,1 @@
+<span class="ch-avatar{% if clase %} {{ clase }}{% endif %}"{% if foto %} style="padding:0;overflow:hidden"{% endif %}>{% if foto %}<img src="{{ foto }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block">{% else %}{{ nombre|slice:":1"|upper }}{% endif %}</span>

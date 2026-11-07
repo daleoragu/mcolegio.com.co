@@ -3,9 +3,9 @@
 {% block title %}{{ titulo }} · Colegas{% endblock %}
 {% block volver %}/chat/colegas/?tab=chats{% endblock %}
 {% block barra %}
-<span class="ch-avatar chico{% if conv.tipo == 'colegas_g' %} grupo{% endif %}">{% if conv.tipo == 'colegas' %}{{ titulo|slice:":1"|upper }}{% else %}<i class="fas fa-users"></i>{% endif %}</span>
+{% if conv.tipo == 'colegas' %}{% if otro %}<a href="/chat/colegas/u/{{ otro.pk }}/" class="text-decoration-none">{% include 'chat/_av.html' with foto=foto_otro nombre=titulo clase='chico' %}</a>{% endif %}{% else %}<span class="ch-avatar chico grupo"><i class="fas fa-users"></i></span>{% endif %}
 <button type="button" class="ch-titulo text-start border-0 bg-transparent p-0" data-bs-toggle="offcanvas" data-bs-target="#ch-info" aria-controls="ch-info">
-  <b>{{ titulo }}</b><small>{% if conv.tipo == 'colegas' %}{% for u, n, d, mod in participantes %}{% if u.pk != request.user.pk %}{{ d }}{% endif %}{% endfor %}{% else %}Grupo de docentes · {{ participantes|length }} participante{{ participantes|length|pluralize }}{% if conv.solo_lectura %} · solo moderadores escriben{% endif %}{% endif %}</small>
+  <b>{{ titulo }}</b><small>{% if conv.tipo == 'colegas' %}{% for u, n, d, mod, f in participantes %}{% if u.pk != request.user.pk %}{{ d }}{% endif %}{% endfor %}{% else %}Grupo de docentes · {{ participantes|length }} participante{{ participantes|length|pluralize }}{% if conv.solo_lectura %} · solo moderadores escriben{% endif %}{% endif %}</small>
 </button>
 <form method="post" action="/chat/colegas/c/{{ conv.pk }}/accion/" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="silenciar">
   <button class="ch-icono" title="{% if p.silenciada %}Volver a recibir avisos{% else %}Silenciar este chat{% endif %}" aria-label="Avisos de este chat"><i class="fas {% if p.silenciada %}fa-bell-slash{% else %}fa-bell{% endif %}"></i></button></form>
@@ -36,10 +36,10 @@
     {% endif %}
     {% endif %}
     <h6 class="fw-bold small mt-3">{{ participantes|length }} participante{{ participantes|length|pluralize }}</h6>
-    {% for u, n, d, mod in participantes %}
+    {% for u, n, d, mod, f in participantes %}
       <div class="d-flex align-items-center gap-2 small border-top py-2">
-        <span class="ch-avatar chico">{{ n|slice:":1"|upper }}</span>
-        <span class="flex-grow-1"><b>{{ n }}</b>{% if mod %} <span class="badge text-bg-light">moderador</span>{% endif %}<span class="d-block text-muted">{{ d }}</span></span>
+        {% include 'chat/_av.html' with foto=f nombre=n clase='chico' %}
+        <span class="flex-grow-1"><a href="/chat/colegas/u/{{ u.pk }}/" class="text-reset"><b>{{ n }}</b></a>{% if mod %} <span class="badge text-bg-light">moderador</span>{% endif %}<span class="d-block text-muted">{{ d }}</span></span>
         {% if moderador and conv.tipo == 'colegas_g' and not mod %}
           <form method="post" action="/chat/colegas/c/{{ conv.pk }}/accion/">{% csrf_token %}<input type="hidden" name="accion" value="moderador"><input type="hidden" name="usuario" value="{{ u.pk }}"><button class="btn btn-sm btn-link p-0" title="Hacer moderador"><i class="fas fa-user-shield"></i></button></form>
           <form method="post" action="/chat/colegas/c/{{ conv.pk }}/accion/">{% csrf_token %}<input type="hidden" name="accion" value="quitar"><input type="hidden" name="usuario" value="{{ u.pk }}"><button class="btn btn-sm btn-link text-danger p-0" title="Quitar del grupo">&times;</button></form>

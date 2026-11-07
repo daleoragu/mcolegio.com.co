@@ -56,6 +56,7 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
         <li class="nav-item"><a class="nav-link {% if request.resolver_match.app_name == 'puntoexacto' %}activo{% endif %}" href="{% url 'puntoexacto:lista' %}">Exámenes</a></li>
         <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'instrumentos' or request.resolver_match.url_name == 'instrumento' %}activo{% endif %}" href="{% url 'aula:instrumentos' %}">Rúbricas</a></li>
         <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'escala' %}activo{% endif %}" href="{% url 'aula:escala' %}">Mi escala</a></li>
+        <li class="nav-item">{% include 'chat/_campana_colegas.html' with boton='nav-link border-0 bg-transparent px-2' %}</li>
         <li class="nav-item"><a class="nav-link position-relative" href="{% url 'chat:colegas' %}" id="nav-colegas"><i class="fas fa-user-group me-1"></i>Colegas<span class="badge rounded-pill text-bg-danger ms-1 d-none" id="nav-colegas-n"></span></a></li>
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">{{ request.user.cuenta_salon.nombre_publico|default:"Mi cuenta" }}</a>

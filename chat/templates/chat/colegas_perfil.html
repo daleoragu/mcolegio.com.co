@@ -1,0 +1,46 @@
+{% extends 'chat/_app.html' %}
+{% block title %}{{ o.nombre }} · Colegas{% endblock %}
+{% block volver %}/chat/colegas/{% endblock %}
+{% block barra %}
+{% include 'chat/_av.html' with foto=o.foto nombre=o.nombre clase='chico' %}
+<span class="ch-titulo"><b>{{ o.nombre }}</b><small>Perfil de docente</small></span>
+{% include 'chat/_campana_colegas.html' with clase='d-lg-none' %}
+{% endblock %}
+{% block content %}
+<div class="ch-cuerpo">
+  <div class="m-3 p-4 bg-white border rounded-4 text-center" style="max-width:640px;margin-left:auto!important;margin-right:auto!important">
+    <div style="width:132px;height:132px;margin:0 auto 12px;border-radius:50%;overflow:hidden;background:#e4e9f2;display:flex;align-items:center;justify-content:center;font:700 3rem Poppins,system-ui;color:#1f3a68;box-shadow:0 0 0 5px #f2b33d">
+      {% if o.foto %}<img src="{{ o.foto }}" alt="Foto de {{ o.nombre }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ o.nombre|slice:":1"|upper }}{% endif %}</div>
+    <h4 class="fw-bold mb-1" style="color:#1f3a68">{{ o.nombre }}</h4>
+    <div class="text-muted mb-2">{{ o.desc }}</div>
+    {% if perfil.grados %}<span class="badge text-bg-light border me-1"><i class="fas fa-school me-1"></i>{{ perfil.grados }}</span>{% endif %}
+    {% if perfil.area %}<span class="badge text-bg-light border"><i class="fas fa-book me-1"></i>{{ perfil.area }}</span>{% endif %}
+    {% if perfil.presentacion %}<p class="mt-3 mb-2 fst-italic">«{{ perfil.presentacion }}»</p>{% endif %}
+    {% if desde %}<div class="small text-success mt-2"><i class="fas fa-user-check me-1"></i>Son colegas desde el {{ desde|date:"d/m/Y" }}</div>{% endif %}
+    <div class="d-flex flex-wrap gap-2 justify-content-center mt-3">
+      {% if estado == 'yo' %}<a href="/chat/colegas/?tab=perfil" class="btn btn-outline-primary"><i class="fas fa-pen me-1"></i>Editar mi perfil</a>
+      {% elif estado == 'colegas' %}
+        <form method="post" action="/chat/colegas/escribir/">{% csrf_token %}<input type="hidden" name="usuario" value="{{ o.u.pk }}"><button class="btn btn-success"><i class="fas fa-comment-dots me-1"></i>Escribir</button></form>
+      {% elif estado == 'enviada' %}<span class="btn btn-light disabled">Solicitud enviada</span>
+      {% elif estado == 'recibida' %}
+        <form method="post" action="/chat/colegas/solicitud/">{% csrf_token %}<input type="hidden" name="usuario" value="{{ o.u.pk }}"><input type="hidden" name="accion" value="aceptar"><input type="hidden" name="volver" value="/chat/colegas/u/{{ o.u.pk }}/"><button class="btn btn-primary">Aceptar su solicitud</button></form>
+      {% elif estado == 'bloqueado' %}
+        <form method="post" action="/chat/colegas/solicitud/">{% csrf_token %}<input type="hidden" name="usuario" value="{{ o.u.pk }}"><input type="hidden" name="accion" value="desbloquear"><input type="hidden" name="volver" value="/chat/colegas/u/{{ o.u.pk }}/"><button class="btn btn-outline-secondary">Desbloquear</button></form>
+      {% else %}
+        <form method="post" action="/chat/colegas/solicitud/" class="d-flex gap-2">{% csrf_token %}<input type="hidden" name="usuario" value="{{ o.u.pk }}"><input type="hidden" name="accion" value="enviar"><input type="hidden" name="volver" value="/chat/colegas/u/{{ o.u.pk }}/">
+          <input name="mensaje" maxlength="200" class="form-control" placeholder="Mensaje (opcional): ¿por qué quiere agregarle?" aria-label="Mensaje de la solicitud">
+          <button class="btn btn-primary text-nowrap"><i class="fas fa-user-plus me-1"></i>Agregar como colega</button></form>
+      {% endif %}
+    </div>
+  </div>
+  {% if en_comun or grupos %}
+  <div class="m-3 p-3 bg-white border rounded-4" style="max-width:640px;margin-left:auto!important;margin-right:auto!important">
+    {% if en_comun %}<h6 class="fw-bold small">Colegas en común ({{ en_comun|length }})</h6>
+    <div class="d-flex flex-wrap gap-3 mb-2">{% for c in en_comun %}<a href="/chat/colegas/u/{{ c.u.pk }}/" class="text-decoration-none text-center small" style="width:72px;color:#1d2939">
+      <span class="d-flex justify-content-center mb-1">{% include 'chat/_av.html' with foto=c.foto nombre=c.nombre clase='' %}</span><span class="d-block text-truncate">{{ c.nombre }}</span></a>{% endfor %}</div>{% endif %}
+    {% if grupos %}<h6 class="fw-bold small mt-2">Grupos en común</h6>
+    {% for g in grupos %}<a href="/chat/colegas/c/{{ g.pk }}/" class="d-block small"><i class="fas fa-users me-1"></i>{{ g.nombre }}</a>{% endfor %}{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

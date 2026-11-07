@@ -1,0 +1,38 @@
+{% comment %}Campana de avisos de Mis colegas (solicitudes, aceptadas, grupos, mensajes). Se usa en el chat de colegas y en el Salón Digital.{% endcomment %}
+<div class="dropdown cg-campana {{ clase }}">
+  <button type="button" class="{{ boton|default:'ch-icono' }} position-relative" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Avisos" title="Avisos">
+    <i class="fas fa-bell"></i><span class="cg-campana-n badge rounded-pill text-bg-danger position-absolute{% if not n_avisos %} d-none{% endif %}" style="top:2px;right:0;font-size:.6rem">{{ n_avisos|default:'' }}</span>
+  </button>
+  <div class="dropdown-menu dropdown-menu-end p-0 shadow" style="width:min(92vw,360px)">
+    <div class="d-flex align-items-center px-3 py-2 border-bottom"><b class="flex-grow-1" style="color:#1f3a68">Avisos</b>
+      <button type="button" class="btn btn-sm btn-link p-0 cg-campana-todas">Marcar todo como leído</button></div>
+    <div class="cg-campana-lista" style="max-height:60vh;overflow-y:auto"><div class="text-center text-muted small py-3">Cargando…</div></div>
+  </div>
+</div>
+<script>
+(function () {
+  var cajas = document.querySelectorAll('.cg-campana');
+  var caja = cajas[cajas.length - 1];
+  if (!caja || caja.dataset.listo) return; caja.dataset.listo = '1';
+  var lista = caja.querySelector('.cg-campana-lista'), n = caja.querySelector('.cg-campana-n');
+  function esc(t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+  function contar(x) { n.textContent = x || ''; n.classList.toggle('d-none', !x); }
+  function cargar() {
+    fetch('/chat/colegas/avisos/', {credentials: 'same-origin'}).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (!j) return;
+      contar(j.n);
+      lista.innerHTML = j.avisos.length ? j.avisos.map(function (a) {
+        return '<a href="' + a.url + '" class="d-flex gap-2 align-items-start px-3 py-2 text-decoration-none border-bottom' + (a.leido ? '' : ' bg-light') + '" style="color:#1d2939">' +
+          '<span class="rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width:34px;height:34px;background:' + (a.leido ? '#eef1f6' : '#f2b33d') + ';color:#1f3a68"><i class="fas ' + a.icono + '"></i></span>' +
+          '<span style="min-width:0"><span class="d-block small' + (a.leido ? '' : ' fw-semibold') + '">' + esc(a.mensaje) + '</span><span class="d-block text-muted" style="font-size:.75rem">' + esc(a.hace) + '</span></span></a>';
+      }).join('') : '<div class="text-center text-muted small py-4"><i class="fas fa-bell-slash d-block mb-1 opacity-50"></i>No tiene avisos.</div>';
+    }).catch(function () {});
+  }
+  caja.addEventListener('show.bs.dropdown', cargar);
+  caja.querySelector('.cg-campana-todas').addEventListener('click', function () {
+    var t = document.cookie.match(/csrftoken=([^;]+)/);
+    fetch('/chat/colegas/avisos/leidos/', {method: 'POST', credentials: 'same-origin', headers: {'X-CSRFToken': t ? t[1] : ''}}).then(cargar);
+  });
+  cargar(); setInterval(function () { if (!document.hidden) cargar(); }, 60000);
+})();
+</script>

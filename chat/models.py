@@ -71,6 +71,9 @@ class PerfilColega(models.Model):
     visible = models.BooleanField(default=True, help_text='Aparece cuando otros docentes buscan colegas.')
     area = models.CharField(max_length=80, blank=True, verbose_name='Área o asignatura')
     presentacion = models.CharField(max_length=200, blank=True, verbose_name='Presentación corta')
+    foto = models.ImageField(upload_to='colegas/', blank=True, verbose_name='Foto de perfil')
+    grados = models.CharField(max_length=60, blank=True, verbose_name='Grados que enseña')
+    municipio = models.CharField(max_length=100, blank=True, verbose_name='Municipio')
 
 
 class Colega(models.Model):

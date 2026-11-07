@@ -71,6 +71,8 @@ def descripcion(u):
         if not partes:
             partes.append('Docente' + (f' · {c.institucion}' if c.institucion else ' independiente') + (f' · {lugar}' if lugar else ''))
     perfil = PerfilColega.objects.filter(usuario=u).first()
+    if perfil and perfil.municipio and not any(perfil.municipio in x for x in partes):
+        partes.append(perfil.municipio)
     if perfil and perfil.area:
         partes.append(perfil.area)
     return ' · '.join(partes) or 'Docente'
@@ -78,6 +80,23 @@ def descripcion(u):
 
 def perfil_de(u):
     return PerfilColega.objects.get_or_create(usuario=u)[0]
+
+
+def foto_de(u):
+    """La foto de perfil: la de Mis colegas o, si no subió, la de su ficha de docente del colegio."""
+    perfil = PerfilColega.objects.filter(usuario=u).exclude(foto='').first()
+    if perfil:
+        return perfil.foto.url
+    d = Docente.objects.filter(user=u).select_related('ficha').first()
+    try:
+        return d.ficha.foto.url if d and d.ficha.foto else ''
+    except Exception:
+        return ''
+
+
+def tarjeta(u):
+    """Lo que se muestra de un colega en listas y búsquedas."""
+    return {'u': u, 'nombre': nombre_de(u), 'desc': descripcion(u), 'foto': foto_de(u)}
 
 
 # ---------------------------------------------------------------------------
@@ -165,13 +184,15 @@ def _lista(request, activa=None):
                            u_borrado=Subquery(ultimo.values('eliminado')[:1]), u_nombre=Subquery(ultimo.values('nombre_archivo')[:1]))
                  .prefetch_related('participantes__usuario').distinct()[:150])
     filas = [{'c': x, 'titulo': _titulo(x, user), 'sin_leer': pendientes.get(x.pk, 0), 'url': f'{BASE}/c/{x.pk}/',
+              'foto': '' if x.tipo == 'colegas_g' else foto_de(next((p.usuario for p in x.participantes.all() if p.usuario_id != user.pk), user)),
               'grupo': x.tipo == 'colegas_g', 'cuando': fecha_corta(x.ultimo_mensaje),
               'previa': vista_previa(x.u_nombre if x.u_tipo == 'doc' else x.u_texto, x.u_tipo, x.u_borrado) if x.u_tipo
               else ('Grupo de docentes' if x.tipo == 'colegas_g' else 'Escríbale a su colega')} for x in convs]
     return {'filas': filas, 'activa': activa, 'lista_tpl': 'chat/colegas_lista.html', 'riel_tpl': 'chat/_riel_colegas.html',
             'volver': _volver(user), 'es_del_colegio': Docente.objects.filter(user=user).exists()
             or AdministradorColegio.objects.filter(user=user, activo=True).exists(),
-            'n_solicitudes': Colega.objects.filter(para=user, estado='pendiente').count()}
+            'n_solicitudes': Colega.objects.filter(para=user, estado='pendiente').count(),
+            'n_avisos': Notificacion.objects.filter(destinatario=user, leido=False).count(), 'mi_foto': foto_de(user)}
 
 
 @vista
@@ -191,12 +212,16 @@ def inicio(request):
             estado = 'ninguna' if r is None else ('enviada' if r.estado == 'pendiente' and r.de_id == user.pk else
                                                   'recibida' if r.estado == 'pendiente' else
                                                   'bloqueado' if r.estado == 'bloqueada' else 'colegas')
-            encontrados.append({'u': u, 'nombre': nombre_de(u), 'desc': descripcion(u), 'estado': estado})
-    recibidas = [{'s': s, 'nombre': nombre_de(s.de), 'desc': descripcion(s.de)}
-                 for s in Colega.objects.filter(para=user, estado='pendiente').select_related('de')]
-    enviadas = [{'s': s, 'nombre': nombre_de(s.para)} for s in Colega.objects.filter(de=user, estado='pendiente').select_related('para')]
-    colegas = sorted(({'u': u, 'nombre': nombre_de(u), 'desc': descripcion(u)} for u in mis_colegas(user)), key=lambda x: x['nombre'].lower())
+            encontrados.append(dict(tarjeta(u), estado=estado))
+    recibidas = [dict(tarjeta(s.de), s=s) for s in Colega.objects.filter(para=user, estado='pendiente').select_related('de')]
+    enviadas = [dict(tarjeta(s.para), s=s) for s in Colega.objects.filter(de=user, estado='pendiente').select_related('para')]
+    colegas = sorted((tarjeta(u) for u in mis_colegas(user)), key=lambda x: x['nombre'].lower())
     bloqueados = [{'s': s, 'nombre': nombre_de(s.para)} for s in Colega.objects.filter(de=user, estado='bloqueada').select_related('para')]
+    # Lo que ya está viendo deja de salir como aviso nuevo
+    tab = request.GET.get('tab') or ''
+    vistas = [f'{BASE}/?tab=solicitudes'] if (tab == 'solicitudes' or (not tab and not q and recibidas)) else [f'{BASE}/'] if not q and tab in ('', 'colegas') else []
+    if vistas:
+        Notificacion.objects.filter(destinatario=user, url__in=vistas, leido=False).update(leido=True)
     return render(request, 'chat/colegas_inicio.html', dict(
         _lista(request), q=q, encontrados=encontrados, recibidas=recibidas, enviadas=enviadas, colegas=colegas,
         bloqueados=bloqueados, perfil=perfil_de(user), mi_desc=descripcion(user), tab=request.GET.get('tab') or ''))
@@ -270,6 +295,27 @@ def ajustes(request):
     p.visible = request.POST.get('visible') == 'on'
     p.area = ' '.join((request.POST.get('area') or '').split())[:80]
     p.presentacion = ' '.join((request.POST.get('presentacion') or '').split())[:200]
+    p.grados = ' '.join((request.POST.get('grados') or '').split())[:60]
+    p.municipio = ' '.join((request.POST.get('municipio') or '').split())[:100]
+    if request.POST.get('quitar_foto') == 'on' and p.foto:
+        p.foto.delete(save=False)
+        p.foto = ''
+    f = request.FILES.get('foto')
+    if f is not None:
+        from django.core.files.base import ContentFile
+        from PIL import Image, ImageOps
+        import io
+        try:
+            from materiales.views import preparar_imagen
+            datos, ext, _, _ = preparar_imagen(f)
+            im = ImageOps.fit(Image.open(io.BytesIO(datos)).convert('RGB'), (400, 400))     # cuadrada, 400 × 400
+            salida = io.BytesIO(); im.save(salida, 'JPEG', quality=85, optimize=True)
+            if p.foto:
+                p.foto.delete(save=False)
+            p.foto.save(f'colega-{request.user.pk}.jpg', ContentFile(salida.getvalue()), save=False)
+        except ValueError as error:
+            messages.error(request, str(error))
+            return redirect(f'{BASE}/?tab=perfil')
     p.save()
     messages.success(request, 'Perfil de colega guardado.')
     return redirect(f'{BASE}/?tab=perfil')
@@ -315,7 +361,7 @@ def grupo_nuevo(request):
             for u in elegidos:
                 avisar(u, f'{nombre_de(user)} lo agregó al grupo de docentes «{nombre}».', f'{BASE}/c/{conv.pk}/')
             return redirect(f'{BASE}/c/{conv.pk}/')
-    personas = sorted(({'u': u, 'nombre': nombre_de(u), 'desc': descripcion(u)} for u in colegas), key=lambda x: x['nombre'].lower())
+    personas = sorted((tarjeta(u) for u in colegas), key=lambda x: x['nombre'].lower())
     return render(request, 'chat/colegas_grupo_nuevo.html', dict(_lista(request), personas=personas))
 
 
@@ -355,7 +401,7 @@ def conversacion(request, pk):
     p.ultimo_leido = timezone.now()
     p.save(update_fields=['ultimo_leido'])
     Notificacion.objects.filter(destinatario=user, url=f'{BASE}/c/{conv.pk}/', leido=False).update(leido=True)
-    participantes = [(x.usuario, nombre_de(x.usuario), descripcion(x.usuario), x.moderador)
+    participantes = [(x.usuario, nombre_de(x.usuario), descripcion(x.usuario), x.moderador, foto_de(x.usuario))
                      for x in conv.participantes.filter(activo=True).select_related('usuario')
                      .order_by('-moderador', 'usuario__first_name', 'usuario__last_name')]
     dentro = {x[0].pk for x in participantes}
@@ -363,7 +409,8 @@ def conversacion(request, pk):
         if conv.tipo == 'colegas_g' and p.moderador else []
     escribir_ok = puede_escribir(conv, p, user)
     return render(request, 'chat/colegas_conversacion.html', dict(
-        _lista(request, conv.pk), conv=conv, p=p, titulo=_titulo(conv, user), moderador=p.moderador, participantes=participantes,
+        _lista(request, conv.pk), conv=conv, p=p, titulo=_titulo(conv, user),
+        foto_otro='' if conv.tipo == 'colegas_g' else foto_de(_otro(conv, user) or user), otro=_otro(conv, user) if conv.tipo == 'colegas' else None, moderador=p.moderador, participantes=participantes,
         agregables=agregables, puede_escribir=escribir_ok,
         aviso_escribir='' if escribir_ok else ('Ya no son colegas: no se pueden escribir.' if conv.tipo == 'colegas' else 'En este grupo solo escriben los moderadores.'),
         mensajes=[_json_m(m, user, p.moderador) for m in ultimos], hay_mas=qs.count() > POR_PAGINA,
@@ -492,3 +539,67 @@ def archivo(request, mid):
 def no_leidos(request):
     return JsonResponse({'n': sum(_no_leidos(request.user).values()),
                          'solicitudes': Colega.objects.filter(para=request.user, estado='pendiente').count()})
+
+
+@vista
+def ver(request, uid):
+    """El perfil de un docente: foto, colegio o institución, área, grados y presentación."""
+    user = request.user
+    otro = get_object_or_404(docentes(), pk=uid)
+    if Colega.objects.filter(de=otro, para=user, estado='bloqueada').exists():
+        raise Http404
+    perfil = PerfilColega.objects.filter(usuario=otro).first()
+    r = relacion(user, otro)
+    if otro.pk != user.pk and perfil and not perfil.visible and not (r and r.estado == 'aceptada'):
+        raise Http404
+    estado = 'yo' if otro.pk == user.pk else 'ninguna' if r is None else (
+        'enviada' if r.estado == 'pendiente' and r.de_id == user.pk else 'recibida' if r.estado == 'pendiente'
+        else 'bloqueado' if r.estado == 'bloqueada' else 'colegas')
+    mios, suyos = set(mis_colegas(user).values_list('pk', flat=True)), set(mis_colegas(otro).values_list('pk', flat=True))
+    grupos = Conversacion.objects.filter(colegio__isnull=True, tipo='colegas_g', participantes__usuario=user, participantes__activo=True) \
+        .filter(pk__in=Participante.objects.filter(usuario=otro, activo=True).values('conversacion')).distinct()
+    return render(request, 'chat/colegas_perfil.html', dict(
+        _lista(request), o=tarjeta(otro), perfil=perfil, estado=estado, en_comun=[tarjeta(u) for u in User.objects.filter(pk__in=(mios & suyos) - {user.pk, otro.pk})[:12]],
+        grupos=grupos, desde=r.respondida if r and r.estado == 'aceptada' else None))
+
+
+def _icono(n):
+    u = n.url or ''
+    if 'tab=solicitudes' in u:
+        return 'fa-user-plus'
+    if 'grupo de docentes' in (n.mensaje or ''):
+        return 'fa-users'
+    if '/c/' in u:
+        return 'fa-comment-dots'
+    if u.startswith(f'{BASE}/'):
+        return 'fa-user-check'
+    return 'fa-bell'
+
+
+@login_required
+def avisos(request):
+    """La campana: los avisos del docente (solicitudes de colegas, aceptadas, grupos, mensajes…)."""
+    from django.utils.timesince import timesince
+    qs = Notificacion.objects.filter(destinatario=request.user).order_by('-fecha_creacion')
+    lista = list(qs[:15])
+    return JsonResponse({'n': qs.filter(leido=False).count(), 'avisos': [
+        {'id': x.pk, 'mensaje': x.mensaje, 'url': f'{BASE}/aviso/{x.pk}/', 'leido': x.leido, 'icono': _icono(x),
+         'hace': 'hace ' + timesince(x.fecha_creacion).split(',')[0]} for x in lista]})
+
+
+@login_required
+def aviso(request, nid):
+    """Abrir un aviso: queda leído y lleva a donde corresponde."""
+    n = get_object_or_404(Notificacion, pk=nid, destinatario=request.user)
+    if not n.leido:
+        n.leido = True
+        n.save(update_fields=['leido'])
+    destino = n.url or f'{BASE}/'
+    return redirect(destino if destino.startswith('/') else f'{BASE}/')
+
+
+@require_POST
+@login_required
+def avisos_leidos(request):
+    Notificacion.objects.filter(destinatario=request.user, leido=False).update(leido=True)
+    return JsonResponse({'ok': True})

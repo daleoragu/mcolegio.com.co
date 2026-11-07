@@ -12,7 +12,7 @@
   <input type="search" class="form-control form-control-sm mb-2" placeholder="Filtrar colegas" aria-label="Filtrar colegas" oninput="var q=this.value.toLowerCase();document.querySelectorAll('.gn-fila').forEach(function(f){f.classList.toggle('d-none',f.textContent.toLowerCase().indexOf(q)<0);})">
   <div style="max-height:50vh;overflow-y:auto" class="border rounded p-2 mb-2">
   {% for x in personas %}
-    <label class="gn-fila d-flex align-items-center gap-2 small py-1 border-bottom"><input type="checkbox" class="form-check-input gn-m" name="miembros" value="{{ x.u.pk }}">
+    <label class="gn-fila d-flex align-items-center gap-2 small py-1 border-bottom"><input type="checkbox" class="form-check-input gn-m" name="miembros" value="{{ x.u.pk }}">{% include 'chat/_av.html' with foto=x.foto nombre=x.nombre clase='chico' %}
       <span><b>{{ x.nombre }}</b> <span class="text-muted">{{ x.desc }}</span></span></label>
   {% empty %}<div class="small text-muted">Todavía no tiene colegas. <a href="/chat/colegas/?tab=buscar">Busque docentes</a> y envíeles una solicitud; cuando la acepten, podrá agregarlos aquí.</div>{% endfor %}
   </div>

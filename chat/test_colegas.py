@@ -103,3 +103,49 @@ class Colegas(ColegioDePrueba):
         r = self.cliente(self.u_docente).get('/chat/colegas/?q=Matemáticas')
         self.assertContains(r, 'Luis Libre'); self.assertContains(r, 'Matemáticas')
         self.assertContains(lucho.get('/chat/colegas/?tab=perfil'), 'Cómo me ven los demás docentes')
+
+    def test_foto_perfil_y_avisos(self):
+        """Foto de perfil (cuadrada), página de perfil y la campana con los avisos de colegas."""
+        import io
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        lucho, profe = self.cliente(self.libre), self.cliente(self.u_docente)
+        b = io.BytesIO(); Image.new('RGB', (800, 500), '#3366cc').save(b, 'JPEG')
+        lucho.post('/chat/colegas/ajustes/', {'visible': 'on', 'area': 'Matemáticas', 'grados': '6.º a 9.º', 'municipio': 'Líbano',
+                                              'presentacion': 'Organizo olimpiadas', 'foto': SimpleUploadedFile('yo.jpg', b.getvalue(), content_type='image/jpeg')})
+        p = PerfilColega.objects.get(usuario=self.libre)
+        self.assertTrue(p.foto); self.assertEqual(Image.open(p.foto.path).size, (400, 400))
+        # Lo que no es imagen no se guarda
+        r = lucho.post('/chat/colegas/ajustes/', {'visible': 'on', 'foto': SimpleUploadedFile('x.jpg', b'hola', content_type='image/jpeg')})
+        p.refresh_from_db(); self.assertTrue(p.foto)
+        # La foto sale en la búsqueda y en el perfil
+        r = profe.get('/chat/colegas/?q=Libre')
+        self.assertContains(r, p.foto.url)
+        r = profe.get(f'/chat/colegas/u/{self.libre.pk}/')
+        self.assertContains(r, 'Organizo olimpiadas'); self.assertContains(r, '6.º a 9.º'); self.assertContains(r, 'Agregar como colega')
+        # Solicitud con mensaje → la campana de Lucho la muestra; al abrir el aviso queda leído y lleva a las solicitudes
+        profe.post('/chat/colegas/solicitud/', {'usuario': self.libre.pk, 'accion': 'enviar', 'mensaje': 'Hola, hagamos la olimpiada'})
+        j = lucho.get('/chat/colegas/avisos/').json()
+        self.assertEqual(j['n'], 1); self.assertIn('quiere ser su colega', j['avisos'][0]['mensaje']); self.assertEqual(j['avisos'][0]['icono'], 'fa-user-plus')
+        r = lucho.get(j['avisos'][0]['url'])
+        self.assertRedirects(r, '/chat/colegas/?tab=solicitudes', fetch_redirect_response=False)
+        self.assertEqual(lucho.get('/chat/colegas/avisos/').json()['n'], 0)
+        self.assertContains(lucho.get('/chat/colegas/?tab=solicitudes'), 'Hola, hagamos la olimpiada')
+        # Aceptar → aviso para Pedro; al ver Mis colegas queda leído solo
+        lucho.post('/chat/colegas/solicitud/', {'usuario': self.u_docente.pk, 'accion': 'aceptar'})
+        acepto = Notificacion.objects.get(destinatario=self.u_docente, mensaje__contains='aceptó su solicitud')
+        self.assertFalse(acepto.leido)
+        self.assertIn('aceptó su solicitud', profe.get('/chat/colegas/avisos/').json()['avisos'][0]['mensaje'])
+        profe.get('/chat/colegas/')
+        acepto.refresh_from_db(); self.assertTrue(acepto.leido)
+        # Marcar todo como leído
+        Notificacion.objects.create(destinatario=self.libre, mensaje='otro', url='/chat/colegas/')
+        lucho.post('/chat/colegas/avisos/leidos/')
+        self.assertEqual(lucho.get('/chat/colegas/avisos/').json()['n'], 0)
+        # Nadie abre avisos ajenos
+        n = Notificacion.objects.filter(destinatario=self.u_docente).first()
+        self.assertEqual(lucho.get(f'/chat/colegas/aviso/{n.pk}/').status_code, 404)
+        # Perfil oculto: solo lo ven sus colegas
+        p.visible = False; p.save()
+        self.assertEqual(self.cliente(self.de_b).get(f'/chat/colegas/u/{self.libre.pk}/').status_code, 404)
+        self.assertEqual(profe.get(f'/chat/colegas/u/{self.libre.pk}/').status_code, 200)
