@@ -417,12 +417,17 @@ class Olimpiada(ColegioDePrueba):
         # Sin confirmar la autorización de los acudientes no se activa
         self.admin.post(url_conf, {'accion': 'vigilancia', 'activa': 'on', 'dias': '15'})
         ev.refresh_from_db(); self.assertFalse((ev.config.get('vigilancia') or {}).get('activa'))
+        # Sin ninguna forma de supervisar tampoco
         self.admin.post(url_conf, {'accion': 'vigilancia', 'activa': 'on', 'acepto_legal': 'on', 'dias': '15'})
+        ev.refresh_from_db(); self.assertFalse((ev.config.get('vigilancia') or {}).get('activa'))
+        self.admin.post(url_conf, {'accion': 'vigilancia', 'activa': 'on', 'acepto_legal': 'on', 'dias': '15', 'camara': 'on'})
         self.admin.post(url_conf, {'accion': 'activar'})
-        ev.refresh_from_db(); self.assertEqual(ev.config['vigilancia'], {'activa': True, 'dias': 15})
+        ev.refresh_from_db()
+        self.assertEqual(ev.config['vigilancia'], {'activa': True, 'dias': 15, 'camara': True, 'juego': False, 'pantalla': False, 'salidas': False})
         ana = self.cliente(self.ana.user)
         r = ana.get(f'/aula/eventos/{ev.pk}/')
-        self.assertEqual(r.context['datos']['vigilancia'], {'activa': True, 'dias': 15})
+        d = r.context['datos']['vigilancia']
+        self.assertTrue(d['graba']); self.assertIn('cámara y el micrófono', d['texto']); self.assertNotIn('pantalla', d['texto'])
         self.assertContains(r, '/grabacion/')
         url = f'/aula/eventos/{ev.pk}/grabacion/'
         self.assertTrue(ana.post(url, {'tipo': 'acepto'}).json()['ok'])
@@ -458,6 +463,50 @@ class Olimpiada(ColegioDePrueba):
         self.admin.post(url_conf, {'accion': 'vigilancia', 'dias': '15'})
         self.assertEqual(ana.post(url, {'tipo': 'acepto'}).status_code, 400)
 
+    def test_supervision_pantalla_y_registro_de_salidas(self):
+        """Pantalla + juego + registro de salidas: las condiciones lo dicen, las salidas se anotan con su duración
+        y las ven el organizador y los veedores (en la tabla y en el CSV)."""
+        ev = self.crear('Olimpiada supervisada')
+        url_conf = f'/aula/eventos/{ev.pk}/configurar/'
+        self.admin.post(url_conf, {'accion': 'vigilancia', 'activa': 'on', 'acepto_legal': 'on', 'dias': '20',
+                                   'camara': 'on', 'juego': 'on', 'pantalla': 'on', 'salidas': 'on'})
+        self.admin.post(url_conf, {'accion': 'activar'})
+        r = self.admin.get(url_conf)
+        self.assertContains(r, 'Supervisión de la prueba'); self.assertContains(r, 'Recomendado')
+        self.assertContains(r, 'se graba la pantalla'); self.assertContains(r, 'sale de la prueba')
+        ana = self.cliente(self.ana.user)
+        d = ana.get(f'/aula/eventos/{ev.pk}/').context['datos']['vigilancia']
+        self.assertTrue(d['pantalla'] and d['salidas'] and d['graba'])
+        self.assertIn('no se salga de la prueba', d['texto']); self.assertIn('registro de cada vez que el estudiante sale', d['texto'])
+        self.post(ana, f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': 9}]})
+        url = f'/aula/eventos/{ev.pk}/grabacion/'
+        ana.post(url, {'tipo': 'sale', 't': 100, 'motivo': 'cambió de pestaña o de aplicación'})
+        ana.post(url, {'tipo': 'vuelve', 't': 100, 'seg': '12.4'})
+        ana.post(url, {'tipo': 'sale', 't': 300, 'motivo': 'cambió de ventana'})
+        ana.post(url, {'tipo': 'vuelve', 't': 300, 'seg': '30'})
+        p = ParticipacionEvento.objects.get(evento=ev, estudiante=self.ana)
+        sal = p.datos['vigilancia']['salidas']
+        self.assertEqual([x['seg'] for x in sal], [12.4, 30.0]); self.assertEqual(sal[1]['motivo'], 'cambió de ventana')
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/resultados/')
+        self.assertContains(r, 'salió 2 veces'); self.assertContains(r, '42 s fuera')
+        self.assertIn('Salidas de la prueba', self.admin.get(f'/aula/eventos/{ev.pk}/resultados/?csv=1').content.decode())
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/grabaciones/{p.pk}/')
+        self.assertContains(r, 'Salió de la prueba 2 veces'); self.assertContains(r, '1:40')
+        # Los veedores también ven las salidas (sin enlace a los videos)
+        self.admin.post(url_conf, {'accion': 'veedor', 'nombre': 'Prof. Veedor', 'correo': 'veedor@ejemplo.com'})
+        ev.refresh_from_db()
+        vs = ev.config.get('veedores') or []
+        self.assertTrue(vs)
+        r = self.client.get(f'/aula/eventos/v/{vs[0]["token"]}/')
+        self.assertContains(r, 'salió 2 veces'); self.assertNotContains(r, '/grabaciones/')
+        # Solo registro de salidas: no se aceptan videos
+        self.admin.post(url_conf, {'accion': 'vigilancia', 'activa': 'on', 'acepto_legal': 'on', 'dias': '20', 'salidas': 'on'})
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        trozo = SimpleUploadedFile('t.webm', b'\x1aE\xdf\xa3' + b'0' * 2000, content_type='video/webm')
+        self.assertEqual(ana.post(url, {'trozo': trozo, 'n': 1, 't': 0}).status_code, 400)
+        self.assertTrue(ana.post(url, {'tipo': 'sale', 't': 400}).json()['ok'])
+        self.assertFalse(ana.get(f'/aula/eventos/{ev.pk}/').context['datos']['vigilancia']['graba'])
+
     def test_grabaciones_a_mi_nube(self):
         """El organizador copia las grabaciones a su Drive u OneDrive (lo hace su navegador) y puede borrarlas del servidor."""
         import zipfile, io
@@ -465,7 +514,7 @@ class Olimpiada(ColegioDePrueba):
         from django.test import override_settings
         from aula.models import GrabacionEvento
         ev = self.crear('Olimpiada vigilada')
-        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'vigilancia', 'activa': 'on', 'acepto_legal': 'on', 'dias': '30'})
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'vigilancia', 'activa': 'on', 'acepto_legal': 'on', 'dias': '30', 'camara': 'on'})
         self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'activar'})
         ana = self.cliente(self.ana.user)
         ana.get(f'/aula/eventos/{ev.pk}/')

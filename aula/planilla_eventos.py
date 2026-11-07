@@ -89,6 +89,7 @@ def descargar(ev, grados, etiqueta, inscritos=()):
         for col in (10, 11):
             hoja.cell(row=fila, column=col).fill = gris
 
+    from .views_eventos import config_de, texto_supervision
     ins = libro.create_sheet('Instrucciones')
     filas = [
         ['Cómo llenar la planilla'],
@@ -97,7 +98,7 @@ def descargar(ev, grados, etiqueta, inscritos=()):
         ['2. Número de documento: el del estudiante (tarjeta de identidad o registro civil). Con él se reconoce la inscripción si la planilla se sube otra vez.'],
         ['3. Grado: escójalo de la lista. Grados de este evento: ' + ', '.join(etiqueta(g) for g in grados) + '.'],
         ['4. Autoriza datos: escriba SÍ solo si el acudiente autorizó el tratamiento de los datos (Ley 1581 de 2012)'
-         + (' y la grabación de cámara y micrófono durante el evento' if (ev.config or {}).get('vigilancia', {}).get('activa') else '') + '.'],
+         + (' y la supervisión de la prueba. ' + texto_supervision(config_de(ev)['vigilancia']) if config_de(ev)['vigilancia']['activa'] else '.')],
         ['5. No llene «Estado» ni «Clave»: los pone la plataforma. Con el documento y la clave cada estudiante entra al evento'
          ' (en el enlace del evento, «Ya me inscribí»).'],
         ['6. Devuelva la planilla al organizador del evento sin cambiar los títulos de las columnas.'],

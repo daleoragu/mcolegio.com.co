@@ -95,8 +95,11 @@ CONFIG = {'juegos': [j[0] for j in JUEGOS] + ['a_' + k for k in ('salto', 'puent
           # Eventos abiertos: inscripción de los de fuera. aprobacion: el organizador aprueba cada una;
           # cupo_colegio: máximo por institución; cupo_nivel: máximo por institución en cada nivel (grupo); 0 = sin límite
           'inscripcion': {'abierta': True, 'aprobacion': False, 'cupo_colegio': 0, 'cupo_nivel': 0},
-          # Vigilancia: cámara y micrófono encendidos y grabados durante el evento (se borran solos a los `dias`)
-          'vigilancia': {'activa': False, 'dias': 30},
+          # Supervisión de la prueba (las grabaciones se borran solas a los `dias`):
+          #   camara: cámara y micrófono encendidos y grabados · juego: se graba lo que hace en la prueba (celular y
+          #   computador) · pantalla: en computador se graba la pantalla completa · salidas: registro de cada vez que
+          #   sale de la prueba (otra pestaña, ventana o aplicación), con la hora y el tiempo fuera
+          'vigilancia': {'activa': False, 'dias': 30, 'camara': True, 'juego': True, 'pantalla': False, 'salidas': True},
           # Retos arcade: 'preguntas' (las cargadas para los juegos y, si faltan, el banco 6.º–11.º del grado),
           # 'propias' (solo las cargadas para los juegos), 'banco' (solo el banco 6.º–11.º) u 'operaciones'
           'arcade': 'preguntas',
@@ -168,6 +171,37 @@ def juegos_para(c, grados, lista=None):
 def dificultad(c, juego):
     return (c['por_juego'].get(juego) or {}).get('dificultad', 'auto')
 BANCO = os.path.join(os.path.dirname(__file__), 'bancos', 'olimpiada.json')
+
+
+def graba(v):
+    """¿La supervisión de este evento graba video (cámara, juego o pantalla)?"""
+    return bool(v.get('activa') and (v.get('camara') or v.get('juego') or v.get('pantalla')))
+
+
+def texto_supervision(v):
+    """Las condiciones de supervisión, en palabras, para la inscripción, la planilla y la portada."""
+    if not v.get('activa'):
+        return ''
+    partes = []
+    if v.get('camara'):
+        partes.append('se graban la cámara y el micrófono (imagen y voz)')
+    if v.get('pantalla') or v.get('juego'):
+        if v.get('pantalla'):
+            partes.append('se graba la pantalla (en computador, la pantalla completa; en celular o tableta, lo que hace dentro de la prueba)'
+                          ' para supervisar que no se salga de la prueba')
+        else:
+            partes.append('se graba la pantalla de la prueba (lo que hace mientras juega) para supervisar que no se salga de ella')
+    if v.get('salidas'):
+        partes.append('se lleva un registro de cada vez que el estudiante sale de la prueba (cambia de pestaña, ventana o aplicación),'
+                      ' con la hora y el tiempo que estuvo fuera')
+    if not partes:
+        return ''
+    t = 'Para supervisar la prueba ' + (', '.join(partes[:-1]) + ' y ' + partes[-1] if len(partes) > 1 else partes[0]) + '.'
+    if graba(v):
+        t += f' Las grabaciones solo las ven los organizadores y se borran a los {v.get("dias", 30)} días.'
+    if v.get('salidas'):
+        t += ' El registro de salidas lo ven los organizadores y los veedores del evento.'
+    return t
 
 
 def config_de(evento):
@@ -829,17 +863,25 @@ def configurar(request, eid):
             c = config_de(ev)
             activa = bool(request.POST.get('activa'))
             if activa and not request.POST.get('acepto_legal'):
-                messages.warning(request, 'Para exigir cámara y micrófono confirme que tiene la autorización de los acudientes (datos sensibles de menores).')
+                messages.warning(request, 'Para supervisar la prueba confirme que tiene la autorización de los acudientes (datos sensibles de menores).')
             else:
                 try:
                     dias = max(1, min(365, int(request.POST.get('dias') or c['vigilancia']['dias'])))
                 except ValueError:
                     dias = c['vigilancia']['dias']
-                c['vigilancia'] = {'activa': activa, 'dias': dias}
-                ev.config = dict(ev.config or {}, vigilancia=c['vigilancia'])
-                ev.save(update_fields=['config'])
-                messages.success(request, f'Vigilancia ACTIVADA: piden cámara y micrófono y las grabaciones se borran a los {dias} días.' if activa
-                                 else 'Vigilancia apagada: ya no se piden cámara ni micrófono.')
+                op = {k: bool(request.POST.get(k)) for k in ('camara', 'juego', 'pantalla', 'salidas')}
+                if activa and not any(op.values()):
+                    messages.warning(request, 'Escoja al menos una forma de supervisar (cámara, juego, pantalla o registro de salidas).')
+                else:
+                    c['vigilancia'] = dict({'activa': activa, 'dias': dias}, **op)
+                    ev.config = dict(ev.config or {}, vigilancia=c['vigilancia'])
+                    ev.save(update_fields=['config'])
+                    if activa:
+                        que = [n for k, n in (('camara', 'cámara y micrófono'), ('juego', 'juego'), ('pantalla', 'pantalla completa en computador'),
+                                              ('salidas', 'registro de salidas')) if op[k]]
+                        messages.success(request, 'Supervisión ACTIVADA: ' + ', '.join(que) + (f'. Las grabaciones se borran a los {dias} días.' if graba(c['vigilancia']) else '.'))
+                    else:
+                        messages.success(request, 'Supervisión apagada: no se graba ni se registran salidas.')
         elif accion == 'borrar_grabaciones' and puede_admin:
             n = GrabacionEvento.objects.filter(participacion__evento=ev).count()
             GrabacionEvento.objects.filter(participacion__evento=ev).delete()
@@ -891,7 +933,13 @@ def configurar(request, eid):
         'part': c['participantes'], 'dificultades': DIFICULTADES, 'estilos': ESTILOS, 'categorias': CATEGORIAS, 'tabla': tabla,
         'preguntas': list(enumerate(ev.preguntas)), 'juegos_salon': juegos_salon, 'es_admin': puede_admin, 'ins': c['inscripcion'],
         'n_pendientes': ev.participaciones.filter(estado='pendiente').count(),
-        'vig': c['vigilancia'], 'grab': _resumen_grabaciones(ev), 'fechas': c['fechas'], 'vent': ventana(c),
+        'vig': c['vigilancia'], 'vig_texto': texto_supervision(c['vigilancia']),
+        'vig_opciones': [(k, t, d, x, r, bool(c['vigilancia'].get(k))) for k, t, d, x, r in (
+            ('camara', 'Cámara y micrófono', 'celular y computador', 'Se graban la imagen y la voz. Si los apaga, el juego se detiene hasta encenderlos.', True),
+            ('juego', 'Grabar el juego', 'celular y computador', 'Se graba lo que hace en la prueba (retos y preguntas) con la cámara en un recuadro.', True),
+            ('pantalla', 'Grabar la pantalla completa', 'solo computador', 'Al empezar debe compartir la pantalla completa; si deja de compartirla, el juego se detiene. En celular se graba el juego.', False),
+            ('salidas', 'Registrar salidas de la prueba', 'celular y computador', 'Anota cada vez que cambia de pestaña, ventana o aplicación: la hora y cuánto tiempo estuvo fuera.', True))],
+        'grab': _resumen_grabaciones(ev), 'fechas': c['fechas'], 'vent': ventana(c),
         'veedores': _veedores_por_grupo(request, c),
         'docentes': Docente.objects.filter(colegio=ev.colegio).select_related('user').order_by('user__last_name') if ev.colegio_id else [],
         'enlace': request.build_absolute_uri(reverse('aula:evento_inscribirse', args=[ev.codigo])),
@@ -967,7 +1015,7 @@ def jugar(request, eid):
         'ritmo': {j[0]: JuegoAula.RITMO.get((c['por_juego'].get(j[0]) or {}).get('velocidad', 'normal'), 1) for j in juegos_del_evento(ev)},
         'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito')},
         'usuario': request.user.pk or (p.token[:8] if p else 'anon'),
-        'vigilancia': c['vigilancia'] if c['vigilancia']['activa'] else None,
+        'vigilancia': dict(c['vigilancia'], graba=graba(c['vigilancia']), texto=texto_supervision(c['vigilancia'])) if c['vigilancia']['activa'] else None,
         'arcade_preguntas': _preguntas_arcade(ev, c, grado, grupo) if c.get('arcade', 'preguntas') != 'operaciones' else None,
         'acepto_vigilancia': bool(p and (p.datos or {}).get('vigilancia', {}).get('acepto')),
     }
@@ -1105,7 +1153,8 @@ def inscribirse(request, codigo):
                 datos={'documento': documento, 'ciudad': ciudad, 'contacto': contacto, 'acompanante': acompanante, 'clave': clave,
                        # Ley 1581 de 2012: quién autorizó el tratamiento de los datos, cuándo y desde dónde
                        'autorizacion': {'acudiente': acudiente, 'fecha': timezone.now().isoformat(timespec='seconds'), 'ip': ip,
-                                        'grabacion': c['vigilancia']['activa']}})
+                                        'grabacion': graba(c['vigilancia']),
+                                        'supervision': texto_supervision(c['vigilancia'])}})
             request.session[clave_sesion(ev)] = p.token
             if p.estado == 'pendiente':
                 return redirect('aula:evento_inscribirse', codigo=ev.codigo)
@@ -1122,7 +1171,7 @@ def inscribirse(request, codigo):
             pass
     return render(request, 'aula/evento_inscribirse.html', {
         'ev': ev, 'grados': [(x, etiqueta_grado(x)) for x in grados], 'error': error, 'sugerido': sugerido, 'post': request.POST,
-        'ins': ins, 'recibe': recibe, 'niveles': grupos(c), 'vigilancia': c['vigilancia'] if c['vigilancia']['activa'] else None, 'vent': vent,
+        'ins': ins, 'recibe': recibe, 'niveles': grupos(c), 'vigilancia': c['vigilancia'] if c['vigilancia']['activa'] else None, 'supervision': texto_supervision(c['vigilancia']), 'vent': vent,
         'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
 
 
@@ -1305,10 +1354,14 @@ def _resultados(request, ev, veedor=None):
     for _, _, filas in tablas:
         for p in filas:
             p.n_grab = grabadas.get(p.pk, 0)
-            p.cortes = len(((p.datos or {}).get('vigilancia') or {}).get('cortes') or [])
+            vg = (p.datos or {}).get('vigilancia') or {}
+            p.cortes = len(vg.get('cortes') or [])
+            p.salidas = len(vg.get('salidas') or [])
+            p.fuera = round(sum((x.get('seg') or 0) for x in (vg.get('salidas') or [])))
             p.grupo_nombre = nombres.get(p.ciclo, p.ciclo)
             g = grado_de(p)
             p.grado_txt = etiqueta_grado(g) if g is not None else ''
+    salidas_on = bool(c['vigilancia']['activa'] and c['vigilancia'].get('salidas')) or any(p.salidas for _, _, f in tablas for p in f)
     if request.GET.get('csv') == 'colegios':
         r = HttpResponse(content_type='text/csv; charset=utf-8')
         r['Content-Disposition'] = f'attachment; filename="podio-colegios-evento-{ev.pk}.csv"'
@@ -1325,17 +1378,21 @@ def _resultados(request, ev, veedor=None):
         r['Content-Disposition'] = f'attachment; filename="resultados-evento-{ev.pk}.csv"'
         r.write('\ufeff')
         w = csv.writer(r)
-        w.writerow(['Grupo', 'Puesto', 'Participante', 'Grado', 'Curso o institución', 'Puntos', 'Preguntas bien', 'Tiempo efectivo (s)', 'Terminó'])
+        con_sal = salidas_on
+        w.writerow(['Grupo', 'Puesto', 'Participante', 'Grado', 'Curso o institución', 'Puntos', 'Preguntas bien', 'Tiempo efectivo (s)', 'Terminó']
+                   + (['Salidas de la prueba', 'Segundos fuera'] if con_sal else []))
         for n, _, filas in tablas:
             for p in filas:
                 w.writerow([p.grupo_nombre, p.puesto, p.nombre_completo, p.grado_txt, p.de_donde,
-                            p.puntos, p.bonos, round(p.tiempo_efectivo, 1), 'sí' if p.terminada else 'no'])
+                            p.puntos, p.bonos, round(p.tiempo_efectivo, 1), 'sí' if p.terminada else 'no']
+                           + ([p.salidas, p.fuera] if con_sal else []))
         return r
     grados_hay = sorted({g for g in (grado_de(p) for p in ev.participaciones.select_related('estudiante__curso')) if g is not None})
     return render(request, 'aula/evento_resultados.html', {
         'ev': ev, 'tablas': tablas, 'grupos': grupos(c), 'gsel': gsel, 'gr': gr, 'q': request.GET.get('q', ''),
         'grados': [(g, etiqueta_grado(g)) for g in grados_hay], 'consulta': request.GET.urlencode(), 'base': _base(request),
-        'vigilancia': not veedor and (c['vigilancia']['activa'] or GrabacionEvento.objects.filter(participacion__evento=ev).exists()),
+        'vigilancia': not veedor and (graba(c['vigilancia']) or GrabacionEvento.objects.filter(participacion__evento=ev).exists()),
+        'salidas_on': salidas_on,
         'grab': None if veedor else _resumen_grabaciones(ev), 'nubes': _nubes(), 'cfg_nube': _config_nube(request, ev),
         'veedor': veedor, 'vent': ventana(c), 'hide_cuenta': bool(veedor) and not request.user.is_authenticated,
         'podio': podio_colegios(ev, c) if c['podio_colegios']['activo'] else None,
@@ -1468,7 +1525,7 @@ def grabacion(request, eid):
     ev = _evento(request, eid)
     c = config_de(ev)
     if not c['vigilancia']['activa']:
-        return JsonResponse({'ok': False, 'error': 'Este evento no graba.'}, status=400)
+        return JsonResponse({'ok': False, 'error': 'Este evento no tiene supervisión.'}, status=400)
     p = _participacion(request, ev)
     if p is None:
         return JsonResponse({'ok': True, 'prueba': True})
@@ -1479,6 +1536,28 @@ def grabacion(request, eid):
             t = round(float(request.POST.get('t') or 0), 1)
         except ValueError:
             t = 0
+        if tipo in ('sale', 'vuelve'):
+            # Registro de salidas: «sale» llega al irse (aunque cierre o bloquee el celular); «vuelve» trae cuánto estuvo fuera
+            if not c['vigilancia'].get('salidas'):
+                return JsonResponse({'ok': True})
+            v = (p.datos or {}).get('vigilancia') or {}
+            sal = v.get('salidas') or []
+            try:
+                seg = max(0.0, min(86400.0, float(request.POST.get('seg') or 0)))
+            except ValueError:
+                seg = 0.0
+            if tipo == 'sale':
+                sal = sal[-500:] + [{'hora': timezone.localtime().strftime('%H:%M:%S'), 'dia': timezone.localdate().isoformat(), 't': t,
+                                     'motivo': (request.POST.get('motivo') or '')[:60], 'seg': None}]
+            elif sal and sal[-1].get('seg') is None:
+                sal[-1]['seg'] = round(seg, 1)
+            else:     # no llegó el aviso de salida (sin internet): se anota igual
+                sal = sal[-500:] + [{'hora': timezone.localtime().strftime('%H:%M:%S'), 'dia': timezone.localdate().isoformat(), 't': t,
+                                     'motivo': (request.POST.get('motivo') or '')[:60], 'seg': round(seg, 1)}]
+            v['salidas'] = sal
+            p.datos = dict(p.datos or {}, vigilancia=v)
+            p.save(update_fields=['datos'])
+            return JsonResponse({'ok': True})
         if tipo in ('acepto', 'corte', 'reanudo'):
             v = (p.datos or {}).get('vigilancia') or {}
             if tipo == 'acepto':
@@ -1489,6 +1568,8 @@ def grabacion(request, eid):
             p.datos = dict(p.datos or {}, vigilancia=v)
             p.save(update_fields=['datos'])
         return JsonResponse({'ok': True})
+    if not graba(c['vigilancia']):
+        return JsonResponse({'ok': False, 'error': 'Este evento no graba.'}, status=400)
     tipo = (archivo.content_type or '').split(';')[0]
     if not tipo.startswith(('video/', 'audio/')) or archivo.size > MAX_TROZO:
         return JsonResponse({'ok': False, 'error': 'Trozo no válido.'}, status=400)
@@ -1516,8 +1597,10 @@ def grabaciones(request, eid, pid):
     limpiar_grabaciones(ev)
     p = get_object_or_404(ParticipacionEvento, pk=pid, evento=ev)
     trozos = list(p.grabaciones.all())
-    v = (p.datos or {}).get('vigilancia') or {}
+    v = dict((p.datos or {}).get('vigilancia') or {})
+    v['salidas'] = [dict(x, min=f"{int((x.get('t') or 0) // 60)}:{int((x.get('t') or 0) % 60):02d}") for x in (v.get('salidas') or [])]
     return render(request, 'aula/evento_grabaciones.html', {
+        'salidas_on': bool(config_de(ev)['vigilancia'].get('salidas')),
         'ev': ev, 'p': p, 'trozos': trozos, 'mb': round(sum(t.bytes for t in trozos) / 1048576, 1), 'vig': v,
         'dias': config_de(ev)['vigilancia']['dias'], 'base': _base(request),
         'nubes': _nubes(), 'cfg_nube': _config_nube(request, ev), 'en_nube': sum(1 for t in trozos if t.nube)})
