@@ -1,5 +1,5 @@
 {% extends base %}
-{% block page_title %}<h4 class="mb-0"><i class="fas fa-video me-2"></i>{{ p.nombre_completo }}</h4><p class="text-muted small mb-0">{{ ev.titulo }} · grabación de cámara y micrófono (privada, se borra a los {{ dias }} días)</p>{% endblock %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-video me-2"></i>{{ p.nombre_completo }}</h4><p class="text-muted small mb-0">{{ ev.titulo }} · supervisión de la prueba (grabación privada, se borra a los {{ dias }} días)</p>{% endblock %}
 {% block content %}
 {% include 'aula/_estilos.html' %}
 <div class="au" style="max-width:1100px;margin:0 auto">
@@ -13,6 +13,11 @@
     {% if vig.cortes %}<div class="mt-1"><b class="text-danger">⚠ Cámara o micrófono apagados {{ vig.cortes|length }} vez/veces:</b>
       {% for x in vig.cortes %}<span class="badge {% if x.tipo == 'corte' %}bg-danger{% else %}bg-success{% endif %} me-1">{% if x.tipo == 'corte' %}se apagó{% else %}volvió{% endif %} {{ x.hora }}{% if x.motivo %} ({{ x.motivo }}){% endif %}</span>{% endfor %}</div>
     {% else %}<div class="mt-1 text-success">No apagó la cámara ni el micrófono.</div>{% endif %}
+    {% if vig.salidas %}<div class="mt-2"><b class="text-danger">↗ Salió de la prueba {{ vig.salidas|length }} {% if vig.salidas|length == 1 %}vez{% else %}veces{% endif %}</b> (otra pestaña, ventana o aplicación):
+      <table class="table table-sm small mb-0 mt-1" style="max-width:520px"><thead><tr><th>Hora</th><th>Minuto de la prueba</th><th>Tiempo fuera</th><th>Cómo</th></tr></thead><tbody>
+      {% for x in vig.salidas %}<tr><td>{{ x.hora }}</td><td>{{ x.min }}</td><td>{% if x.seg is None %}<span class="text-danger">no volvió</span>{% else %}{{ x.seg|floatformat:0 }} s{% endif %}</td><td>{{ x.motivo }}</td></tr>{% endfor %}
+      </tbody></table><div class="text-muted">En el video, los momentos fuera aparecen marcados con una franja roja «FUERA DE LA PRUEBA».</div></div>
+    {% elif salidas_on %}<div class="mt-1 text-success">No salió de la prueba.</div>{% endif %}
   </div>
   {% if trozos %}
   {% include 'aula/_nube_grabaciones.html' with pid=p.pk total=trozos|length %}

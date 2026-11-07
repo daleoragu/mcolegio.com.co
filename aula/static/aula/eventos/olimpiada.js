@@ -223,7 +223,7 @@
     // --- Bloques, descanso y final -----------------------------------------------------------
     function finDeBloque() {
         limpiarZona(); E.restante = 0;
-        if (E.bloque >= C.bloques) { E.fase = 'fin'; encolar({tipo: 'fin'}); guardar(); if (VIG) terminarGrabacion(); return mostrarFin(); }
+        if (E.bloque >= C.bloques) { E.fase = 'fin'; encolar({tipo: 'fin'}); guardar(); if (VIG) terminarGrabacion(); Sal.fin = true; return mostrarFin(); }
         E.fase = 'descanso'; E.descansoHasta = Date.now() + C.descanso * 60000; guardar(); mostrarDescanso();
     }
     function mostrarDescanso() {
@@ -267,43 +267,64 @@
                 <li>Gana quien tenga <b>más puntos</b>; si hay empate, el <b>menor tiempo efectivo</b>.</li>
               </ul>
               ${VIG ? `<div class="border rounded-3 p-2 mb-2" style="background:#fff5f5">
-                <b>📷🎤 Este evento exige cámara y micrófono encendidos.</b>
-                <div class="small">Se graba su imagen y su voz mientras juega, solo para vigilar la prueba. Lo ven únicamente los organizadores y se borra a los ${VIG.dias} días.
-                  Si apaga la cámara o el micrófono, el juego se detiene hasta que los vuelva a encender (el reloj sigue).</div>
+                <b>🛡️ Esta prueba es supervisada.</b>
+                <div class="small">${VIG.texto}
+                  ${VIG.camara ? ' Si apaga la cámara o el micrófono, el juego se detiene hasta que los vuelva a encender (el reloj sigue).' : ''}
+                  ${PANT ? ' Al empezar debe <b>compartir la pantalla completa</b>; si deja de compartirla, el juego se detiene hasta que la comparta de nuevo.' : ''}
+                  ${VIG.salidas ? ' <b>No se salga de la prueba:</b> cada salida queda anotada.' : ''}</div>
                 <div class="form-check small mt-1"><input class="form-check-input" type="checkbox" id="ol-acepto" ${D.acepto_vigilancia ? 'checked' : ''}>
-                  <label class="form-check-label" for="ol-acepto">Acepto que me graben durante el evento (mi acudiente lo autorizó).</label></div>
-                <div class="d-flex align-items-center gap-2 mt-1"><button type="button" class="btn btn-sm btn-danger" id="ol-encender">Encender cámara y micrófono</button>
+                  <label class="form-check-label" for="ol-acepto">Acepto estas condiciones de supervisión (mi acudiente lo autorizó).</label></div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                  ${VIG.camara ? '<button type="button" class="btn btn-sm btn-danger" id="ol-encender">📷🎤 Encender cámara y micrófono</button>' : ''}
+                  ${PANT ? '<button type="button" class="btn btn-sm btn-dark" id="ol-compartir">🖥️ Compartir pantalla completa</button>' : ''}
                   <span class="small fw-semibold" id="ol-cam-estado"></span></div></div>` : ''}
               <div class="text-center"><button class="btn au-oro btn-lg" id="ol-empezar" ${VIG ? 'disabled' : ''}>${seguir ? 'Seguir' : '¡Empezar!'}</button></div>`);
         if (VIG) {
-            const listo = () => { $('#ol-empezar').disabled = !(Vig.stream && Vig.stream.active && $('#ol-acepto').checked); };
+            const listo = () => { $('#ol-empezar').disabled = !(requisitos() && $('#ol-acepto').checked); };
             $('#ol-acepto').addEventListener('change', listo);
-            $('#ol-encender').addEventListener('click', async () => {
-                const est = $('#ol-cam-estado');
-                try { await encender(); est.textContent = '✅ Encendidos'; est.style.color = '#2f9e44'; $('#ol-encender').hidden = true; }
+            const est = $('#ol-cam-estado');
+            const boton = (id, fn, ok) => { const b = $(id); if (!b) return; b.addEventListener('click', async () => {
+                try { await fn(); b.hidden = true; est.textContent = ok; est.style.color = '#2f9e44'; }
                 catch (e) { est.textContent = permisoTexto(e); est.style.color = '#e03131'; }
                 listo();
-            });
-            if (!puedeGrabar()) { $('#ol-cam-estado').textContent = 'Este navegador no puede grabar: use Chrome, Edge o Firefox actualizados (o Safari 14.5 o más nuevo).'; $('#ol-cam-estado').style.color = '#e03131'; $('#ol-encender').disabled = true; }
+            }); };
+            boton('#ol-encender', encender, '✅ Cámara y micrófono encendidos');
+            boton('#ol-compartir', compartirPantalla, '✅ Pantalla compartida');
+            if (VIG.graba && !puedeGrabar()) {
+                est.textContent = 'Este navegador no puede grabar: use Chrome, Edge o Firefox actualizados (o Safari 14.5 o más nuevo).'; est.style.color = '#e03131';
+                document.querySelectorAll('#ol-encender, #ol-compartir').forEach(b => { b.disabled = true; });
+            }
+            listo();
         }
         $('#ol-empezar').addEventListener('click', () => {
-            if (VIG) { if (!(Vig.stream && Vig.stream.active)) return; avisoVig('acepto'); empezarGrabacion(); }
+            if (VIG) { if (!requisitos()) return; avisoVig('acepto'); empezarGrabacion(); }
             if (!seguir) encolar({tipo: 'inicio'});
             const z = $('#ol'); if (z.requestFullscreen && !document.fullscreenElement) z.requestFullscreen().catch(() => {});
             volverAJugar();
         });
     }
-    // --- Vigilancia: cámara y micrófono encendidos y grabados (solo si el evento lo exige) ---------
+    // --- Supervisión: lo que el organizador escogió en el menú del evento ---------------------------
+    //   camara: cámara y micrófono · juego: se graba lo que hace en la prueba (con la cámara en un recuadro)
+    //   pantalla: en computador se graba la pantalla completa (los celulares no lo permiten: allí se graba el juego)
+    //   salidas: se anota cada vez que sale de la prueba (otra pestaña, ventana o aplicación) y cuánto tiempo
     // Se graba en trozos independientes de ~30 s (se puede ver cada uno solo) y se suben al servidor.
-    // Si la cámara o el micrófono se apagan, el juego se tapa hasta que se vuelvan a encender (el reloj sigue).
     const VIG = D.vigilancia;
-    const Vig = {stream: null, rec: null, n: 0, cola: [], subiendo: false, apagada: false, parar: false};
-    function avisoVig(tipo, motivo) {
+    const esCelular = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+    const PANT = !!(VIG && VIG.pantalla && !esCelular && navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+    // El video se arma en un lienzo (juego o pantalla, con la cámara en un recuadro); en celular «pantalla» = juego
+    const COMPUESTO = !!(VIG && VIG.graba && (VIG.juego || VIG.pantalla) && HTMLCanvasElement.prototype.captureStream);
+    const Vig = {stream: null, pantalla: null, comp: null, rec: null, n: 0, cola: [], subiendo: false, apagada: false, parar: false};
+    function avisoVig(tipo, motivo, extra) {
         if (D.prueba || !U.grabacion) return;
         const f = new FormData(); f.append('tipo', tipo); f.append('t', Math.round(E.activo)); if (motivo) f.append('motivo', motivo);
+        Object.entries(extra || {}).forEach(([k, v]) => f.append(k, v));
+        // sendBeacon llega aunque cierre la pestaña o bloquee el celular
+        if (tipo === 'sale' && navigator.sendBeacon) { f.append('csrfmiddlewaretoken', U.csrf); if (navigator.sendBeacon(U.grabacion, f)) return; }
         pedir(U.grabacion, {method: 'POST', headers: {'X-CSRFToken': U.csrf}, body: f}, 10000).catch(() => {});
     }
-    const puedeGrabar = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+    const puedeGrabar = () => !!(navigator.mediaDevices && window.MediaRecorder && (!VIG.camara || navigator.mediaDevices.getUserMedia));
+    const vivo = s => !!(s && s.active && s.getTracks().every(t => t.readyState !== 'ended'));
+    const requisitos = () => (!VIG.camara || vivo(Vig.stream)) && (!PANT || vivo(Vig.pantalla));
     function tipoVideo() {
         for (const t of ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4;codecs=avc1,mp4a', 'video/mp4']) {
             try { if (MediaRecorder.isTypeSupported(t)) return t; } catch (e) { /* sigue */ }
@@ -311,12 +332,35 @@
         return '';
     }
     async function encender() {
+        if (!VIG.camara) return null;
         if (!puedeGrabar()) throw new Error('Este navegador no puede grabar. Use Chrome, Edge o Firefox actualizados (o Safari 14.5 o más nuevo).');
-        if (Vig.stream && Vig.stream.active) return Vig.stream;
-        Vig.stream = await navigator.mediaDevices.getUserMedia({video: {width: {ideal: 320}, height: {ideal: 240}, frameRate: {ideal: 10, max: 15}, facingMode: 'user'}, audio: true});
-        Vig.stream.getTracks().forEach(t => t.addEventListener('ended', () => apagada('se apagó ' + (t.kind === 'video' ? 'la cámara' : 'el micrófono'))));
-        espejo();
+        if (vivo(Vig.stream)) return Vig.stream;
+        Sal.ignorar = true;
+        try {
+            Vig.stream = await navigator.mediaDevices.getUserMedia({video: {width: {ideal: 320}, height: {ideal: 240}, frameRate: {ideal: 10, max: 15}, facingMode: 'user'}, audio: true});
+        } finally { setTimeout(() => { Sal.ignorar = false; }, 1500); }
+        Vig.stream.getTracks().forEach(t => t.addEventListener('ended', () => apagada('camara', 'se apagó ' + (t.kind === 'video' ? 'la cámara' : 'el micrófono'))));
+        espejo(); rehacerComp();
         return Vig.stream;
+    }
+    async function compartirPantalla() {
+        if (!PANT) return null;
+        if (vivo(Vig.pantalla)) return Vig.pantalla;
+        Sal.ignorar = true;
+        let s;
+        try {
+            s = await navigator.mediaDevices.getDisplayMedia({video: {displaySurface: 'monitor', frameRate: {ideal: 5, max: 10}}, audio: false,
+                                                              monitorTypeSurfaces: 'include', selfBrowserSurface: 'include', surfaceSwitching: 'exclude'});
+        } finally { setTimeout(() => { Sal.ignorar = false; }, 1500); }
+        const v = s.getVideoTracks()[0], sup = v && v.getSettings ? v.getSettings().displaySurface : '';
+        if (sup && sup !== 'monitor') {
+            s.getTracks().forEach(t => t.stop());
+            throw new Error('Debe compartir la PANTALLA COMPLETA (no una ventana ni una pestaña). Vuelva a intentar y escoja «Pantalla completa».');
+        }
+        Vig.pantalla = s;
+        v.addEventListener('ended', () => apagada('pantalla', 'dejó de compartir la pantalla'));
+        rehacerComp();
+        return s;
     }
     function espejo() {
         let caja = document.getElementById('ol-espejo');
@@ -328,12 +372,80 @@
         }
         caja.querySelector('video').srcObject = Vig.stream;
     }
+    // --- El video armado: arriba los datos de la prueba, en el centro el juego (o la pantalla), la cámara en un recuadro
+    //     y una franja roja si el estudiante está fuera de la prueba.
+    function videoOculto(stream) {
+        const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.autoplay = true; v.srcObject = stream;
+        v.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+        document.body.appendChild(v); v.play().catch(() => {});
+        return v;
+    }
+    function rehacerComp() {
+        if (!Vig.comp) return;
+        clearInterval(Vig.comp.id); [Vig.comp.vCam, Vig.comp.vPan].forEach(v => v && v.remove()); Vig.comp = null;
+    }
+    function encajar(cx, fuente, fw, fh, x, y, w, h) {
+        if (!fw || !fh) return false;
+        const k = Math.min(w / fw, h / fh), dw = fw * k, dh = fh * k;
+        try { cx.drawImage(fuente, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh); return true; } catch (e) { return false; }
+    }
+    function lienzoDelJuego() {
+        let mejor = null, area = 0;
+        document.querySelectorAll('#ol-zona canvas').forEach(c => { const a = c.offsetWidth * c.offsetHeight; if (a > area) { area = a; mejor = c; } });
+        return mejor;
+    }
+    function flujoGrabacion() {
+        if (!COMPUESTO) return Vig.stream;
+        if (Vig.comp) return Vig.comp.stream;
+        const W = 640, H = 400, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+        const cx = cv.getContext('2d');
+        const vCam = vivo(Vig.stream) ? videoOculto(Vig.stream) : null, vPan = vivo(Vig.pantalla) ? videoOculto(Vig.pantalla) : null;
+        const partir = (t, ancho) => { const out = []; let l = ''; t.split(/\s+/).forEach(p => { const pr = l ? l + ' ' + p : p; if (cx.measureText(pr).width > ancho && l) { out.push(l); l = p; } else l = pr; }); if (l) out.push(l); return out; };
+        function pintar() {
+            cx.fillStyle = '#10131c'; cx.fillRect(0, 0, W, H);
+            // datos de la prueba
+            cx.fillStyle = '#1f3a68'; cx.fillRect(0, 0, W, 22);
+            cx.fillStyle = '#fff'; cx.font = '600 11px system-ui, sans-serif'; cx.textBaseline = 'middle';
+            const reto = ($('#ol-reto-nombre') || {}).textContent || '';
+            cx.fillText(`${GR.nombre} · Bloque ${E.bloque}/${C.bloques} · ⏱ ${mmss(E.restante)} · ${E.puntos} pts · ${E.fase === 'pregunta' ? 'PREGUNTA' : reto}`.slice(0, 95), 6, 11);
+            cx.textAlign = 'right'; cx.fillText(new Date().toLocaleTimeString('es-CO', {hour12: false}), W - 6, 11); cx.textAlign = 'left';
+            // lo que ve el estudiante
+            let ok = false;
+            if (vPan && vPan.readyState >= 2) ok = encajar(cx, vPan, vPan.videoWidth, vPan.videoHeight, 0, 22, W, H - 22);
+            if (!ok && $('#ol-capa').hidden) { const c = lienzoDelJuego(); if (c) ok = encajar(cx, c, c.width, c.height, 0, 22, W, H - 22); }
+            if (!ok) {         // pregunta, descanso o un juego sin lienzo: el texto que tiene en pantalla
+                const el = $('#ol-capa').hidden ? $('#ol-zona') : $('#ol-caja');
+                const t = ((el && el.innerText) || '').replace(/\s+/g, ' ').trim().slice(0, 600);
+                cx.fillStyle = '#e9ecef'; cx.font = '15px system-ui, sans-serif'; cx.textBaseline = 'top';
+                partir(t, W - 40).slice(0, 18).forEach((l, i) => cx.fillText(l, 20, 36 + i * 20));
+            }
+            // la cámara en un recuadro
+            if (vCam && vCam.readyState >= 2) {
+                const w = 150, h = vCam.videoHeight ? w * vCam.videoHeight / vCam.videoWidth : 112, x = W - w - 8, y = H - h - 8;
+                cx.save(); cx.translate(x + w, y); cx.scale(-1, 1); try { cx.drawImage(vCam, 0, 0, w, h); } catch (e) { /* sigue */ } cx.restore();
+                cx.strokeStyle = '#fff'; cx.lineWidth = 2; cx.strokeRect(x, y, w, h);
+            }
+            // fuera de la prueba
+            if (Sal.fuera || document.hidden) {
+                cx.fillStyle = 'rgba(201,42,42,.88)'; cx.fillRect(0, H / 2 - 30, W, 60);
+                cx.fillStyle = '#fff'; cx.font = '700 22px system-ui, sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+                cx.fillText(`FUERA DE LA PRUEBA ${Sal.fuera ? mmss((Date.now() - Sal.desde) / 1000) : ''}`, W / 2, H / 2); cx.textAlign = 'left';
+            }
+        }
+        pintar();
+        const stream = cv.captureStream(5);
+        if (vivo(Vig.stream)) Vig.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+        Vig.comp = {stream, vCam, vPan, cv, id: setInterval(pintar, 200)};
+        return stream;
+    }
     function grabarTrozo() {
-        if (Vig.parar || !Vig.stream || !Vig.stream.active) return;
+        if (Vig.parar || !VIG.graba) return;
+        const flujo = flujoGrabacion();
+        if (!vivo(flujo)) return;
         const tipo = tipoVideo(), partes = [], inicio = E.activo;
         let rec;
-        try { rec = new MediaRecorder(Vig.stream, Object.assign({videoBitsPerSecond: 120000, audioBitsPerSecond: 32000}, tipo ? {mimeType: tipo} : {})); }
-        catch (e) { rec = new MediaRecorder(Vig.stream); }
+        try { rec = new MediaRecorder(flujo, Object.assign({videoBitsPerSecond: COMPUESTO ? 200000 : 120000, audioBitsPerSecond: 32000}, tipo ? {mimeType: tipo} : {})); }
+        catch (e) { rec = new MediaRecorder(flujo); }
         Vig.rec = rec;
         rec.ondataavailable = ev => { if (ev.data && ev.data.size) partes.push(ev.data); };
         rec.onstop = () => {
@@ -359,10 +471,20 @@
         Vig.subiendo = false;
     }
     setInterval(subirTrozos, 15000); window.addEventListener('online', subirTrozos);
-    function empezarGrabacion() { if (VIG && !Vig.rec) { Vig.parar = false; grabarTrozo(); } }
-    function terminarGrabacion() { Vig.parar = true; if (Vig.rec && Vig.rec.state !== 'inactive') Vig.rec.stop(); setTimeout(() => { if (Vig.stream) Vig.stream.getTracks().forEach(t => t.stop()); const e = document.getElementById('ol-espejo'); if (e) e.remove(); }, 800); }
-    function apagada(motivo) {
-        if (!VIG || Vig.apagada || E.fase === 'fin' || E.fase === 'portada') return;
+    function empezarGrabacion() { if (VIG && VIG.graba && !Vig.rec) { Vig.parar = false; grabarTrozo(); } }
+    function reiniciarGrabacion() {      // cambió la cámara o la pantalla: se cierra el trozo y el siguiente sale con lo nuevo
+        if (!VIG.graba) return;
+        if (Vig.rec && Vig.rec.state !== 'inactive') { try { Vig.rec.stop(); } catch (e) { /* sigue */ } } else { Vig.rec = null; empezarGrabacion(); }
+    }
+    function terminarGrabacion() {
+        Vig.parar = true; if (Vig.rec && Vig.rec.state !== 'inactive') Vig.rec.stop();
+        setTimeout(() => {
+            [Vig.stream, Vig.pantalla].forEach(s => s && s.getTracks().forEach(t => t.stop()));
+            rehacerComp(); const e = document.getElementById('ol-espejo'); if (e) e.remove();
+        }, 800);
+    }
+    function apagada(que, motivo) {
+        if (!VIG || !VIG.graba || Vig.apagada || E.fase === 'fin' || E.fase === 'portada') return;
         Vig.apagada = true; avisoVig('corte', motivo);
         let capa2 = document.getElementById('ol-camara');
         if (!capa2) {
@@ -370,33 +492,82 @@
             capa2.style.cssText = 'position:absolute;inset:0;z-index:50;background:rgba(15,20,35,.92);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;border-radius:18px';
             $('#ol').style.position = 'relative'; $('#ol').appendChild(capa2);
         }
-        capa2.innerHTML = '<div style="font-size:2.5rem">📷🎤</div><h5 class="fw-bold">Se apagó la cámara o el micrófono</h5><p class="small mb-3">Este evento exige tenerlos encendidos. El reloj sigue corriendo: enciéndalos para seguir jugando.</p><button type="button" class="btn btn-warning btn-lg">Encender de nuevo</button><div class="small mt-2 text-warning ol-cam-error"></div>';
+        const pan = que === 'pantalla';
+        capa2.innerHTML = pan
+            ? '<div style="font-size:2.5rem">🖥️</div><h5 class="fw-bold">Debe compartir la pantalla completa</h5><p class="small mb-3">Esta prueba graba la pantalla para supervisar que no se salga de ella. El reloj sigue corriendo: compártala para seguir jugando.</p><button type="button" class="btn btn-warning btn-lg">Compartir pantalla completa</button><div class="small mt-2 text-warning ol-cam-error"></div>'
+            : '<div style="font-size:2.5rem">📷🎤</div><h5 class="fw-bold">Se apagó la cámara o el micrófono</h5><p class="small mb-3">Este evento exige tenerlos encendidos. El reloj sigue corriendo: enciéndalos para seguir jugando.</p><button type="button" class="btn btn-warning btn-lg">Encender de nuevo</button><div class="small mt-2 text-warning ol-cam-error"></div>';
         capa2.hidden = false;
         capa2.querySelector('button').addEventListener('click', async () => {
             try {
-                Vig.stream = null; await encender(); Vig.apagada = false; capa2.hidden = true; avisoVig('reanudo');
-                if (Vig.rec && Vig.rec.state !== 'inactive') { try { Vig.rec.stop(); } catch (e) { /* sigue */ } } else { Vig.rec = null; empezarGrabacion(); }
+                if (pan) { Vig.pantalla = null; await compartirPantalla(); } else { Vig.stream = null; await encender(); }
+                Vig.apagada = false; capa2.hidden = true; avisoVig('reanudo');
+                if (!requisitos()) return apagada(vivo(Vig.stream) || !VIG.camara ? 'pantalla' : 'camara', 'falta encender');
+                reiniciarGrabacion();
             } catch (e) { capa2.querySelector('.ol-cam-error').textContent = permisoTexto(e); }
         });
     }
     function permisoTexto(e) {
-        if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) return 'El navegador no dio permiso. Toque el candado 🔒 junto a la dirección, permita cámara y micrófono, y vuelva a intentar.';
+        if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) return 'No se dio el permiso. Toque el candado 🔒 junto a la dirección, permita cámara y micrófono (o vuelva a escoger «Pantalla completa») e intente de nuevo.';
         if (e && e.name === 'NotFoundError') return 'No se encontró cámara o micrófono en este equipo.';
         if (e && e.name === 'NotReadableError') return 'Otra aplicación está usando la cámara. Ciérrela y vuelva a intentar.';
-        return (e && e.message) || 'No se pudo encender la cámara y el micrófono.';
+        return (e && e.message) || 'No se pudo encender.';
     }
     // Revisa cada 2 s que sigan encendidos (si el sistema la apaga, el evento «ended» no siempre llega)
     setInterval(() => {
-        if (!VIG || !Vig.stream || Vig.apagada || !['jugando', 'pregunta', 'descanso'].includes(E.fase)) return;
-        if (!Vig.stream.active || Vig.stream.getTracks().some(t => t.readyState === 'ended')) apagada('se desconectó');
+        if (!VIG || !VIG.graba || Vig.apagada || !['jugando', 'pregunta', 'descanso'].includes(E.fase)) return;
+        if (VIG.camara && Vig.stream && !vivo(Vig.stream)) apagada('camara', 'se desconectó');
+        else if (PANT && Vig.pantalla && !vivo(Vig.pantalla)) apagada('pantalla', 'dejó de compartir la pantalla');
     }, 2000);
+
+    // --- Registro de salidas: cada vez que cambia de pestaña, ventana o aplicación durante la prueba -----------
+    const Sal = {fuera: false, desde: 0, n: 0, total: 0, ignorar: false, fin: false, espera: null};
+    const enPrueba = () => VIG && VIG.salidas && !Sal.fin && ['jugando', 'pregunta'].includes(E.fase);
+    function salir(motivo) {
+        if (!enPrueba() || Sal.fuera || Sal.ignorar) return;
+        Sal.fuera = true; Sal.desde = Date.now();
+        try { localStorage.setItem(CLAVE + ':fuera', String(Sal.desde)); } catch (e) { /* sin almacenamiento */ }
+        avisoVig('sale', motivo);
+    }
+    function volver() {
+        clearTimeout(Sal.espera);
+        if (!Sal.fuera || document.hidden || !document.hasFocus()) return;
+        Sal.fuera = false;
+        try { localStorage.removeItem(CLAVE + ':fuera'); } catch (e) { /* sin almacenamiento */ }
+        const seg = (Date.now() - Sal.desde) / 1000;
+        Sal.n += 1; Sal.total += seg;
+        avisoVig('vuelve', '', {seg: seg.toFixed(1)});
+        aviso(`Salió de la prueba ${Math.round(seg)} s: quedó registrado (${Sal.n} vez${Sal.n === 1 ? '' : 'es'}).`);
+    }
+    if (VIG && VIG.salidas) {
+        document.addEventListener('visibilitychange', () => { if (document.hidden) salir('cambió de pestaña o de aplicación'); else volver(); });
+        // En computador: otra ventana encima (sin cambiar de pestaña). Se espera un poco para no contar parpadeos.
+        window.addEventListener('blur', () => { clearTimeout(Sal.espera); Sal.espera = setTimeout(() => { if (!document.hasFocus() && !document.hidden) salir('cambió de ventana'); }, 2000); });
+        window.addEventListener('focus', volver);
+        window.addEventListener('pagehide', () => salir('cerró o recargó la página'));
+        // Si cerró la página estando fuera, al volver se completa cuánto tiempo estuvo fuera
+        let antes = 0;
+        try { antes = +localStorage.getItem(CLAVE + ':fuera') || 0; } catch (e) { /* sin almacenamiento */ }
+        if (antes) {
+            Sal.fuera = true; Sal.desde = antes;
+            setTimeout(() => { if (!document.hidden) { if (!document.hasFocus()) window.focus(); Sal.fuera = true; volverForzado(); } }, 600);
+        }
+    }
+    function volverForzado() {
+        if (!Sal.fuera) return;
+        Sal.fuera = false;
+        try { localStorage.removeItem(CLAVE + ':fuera'); } catch (e) { /* sin almacenamiento */ }
+        const seg = (Date.now() - Sal.desde) / 1000;
+        Sal.n += 1; Sal.total += seg;
+        avisoVig('vuelve', '', {seg: seg.toFixed(1)});
+    }
 
     // --- Actualizar: guarda, recarga la página y sigue donde iba (con otro reto) -----------------
     async function actualizar() {
         const b = $('#ol-actualizar'); if (b) { b.disabled = true; b.innerHTML = '<i class="fas fa-rotate fa-spin me-1"></i>Actualizando…'; }
         if (E.fase === 'jugando' || E.fase === 'pregunta') { E.reto = null; if (E.fase === 'pregunta') E.fase = 'jugando'; }
         guardar();
-        if (VIG) {        // el trozo que se estaba grabando también se sube antes de recargar
+        Sal.ignorar = true;            // recargar con el botón Actualizar no cuenta como salida
+        if (VIG && VIG.graba) {        // el trozo que se estaba grabando también se sube antes de recargar
             Vig.parar = true;
             if (Vig.rec && Vig.rec.state !== 'inactive') { try { Vig.rec.stop(); } catch (e) { /* sigue */ } }
             await new Promise(r => setTimeout(r, 400));
@@ -423,9 +594,12 @@
     try { vieneDeActualizar = sessionStorage.getItem(CLAVE + ':seguir') === '1'; sessionStorage.removeItem(CLAVE + ':seguir'); } catch (e) { /* sin almacenamiento */ }
     // Con vigilancia, a mitad del evento (después de Actualizar) se vuelve a encender la cámara antes de seguir
     const conCamara = fn => {
-        if (!VIG) return fn();
-        encender().then(() => { empezarGrabacion(); avisoVig('reanudo'); fn(); })
-                  .catch(() => { E.fase = E.fase === 'portada' ? 'jugando' : E.fase; fn(); Vig.apagada = false; apagada('no se pudo encender al volver'); });
+        if (!VIG || !VIG.graba) return fn();
+        // la cámara se enciende sola (ya tenía permiso); la pantalla necesita que el estudiante toque «Compartir»
+        encender().then(() => {
+            empezarGrabacion(); avisoVig('reanudo'); fn();
+            if (PANT && !vivo(Vig.pantalla)) { Vig.apagada = false; apagada('pantalla', 'debe volver a compartir la pantalla'); }
+        }).catch(() => { E.fase = E.fase === 'portada' ? 'jugando' : E.fase; fn(); Vig.apagada = false; apagada('camara', 'no se pudo encender al volver'); });
     };
     if (E.fase === 'fin') mostrarFin();
     else if (E.fase === 'descanso') conCamara(mostrarDescanso);

@@ -126,15 +126,38 @@
   </div>
 
   <form method="post" class="au-tarjeta" style="border-left:6px solid {% if vig.activa %}#e03131{% else %}#adb5bd{% endif %}">{% csrf_token %}<input type="hidden" name="accion" value="vigilancia">
-    <h6><i class="fas fa-video me-1"></i>Vigilancia con cámara y micrófono</h6>
-    <p class="small mb-2">Si la activa, cada participante debe <b>encender la cámara y el micrófono</b> para empezar; si los apaga, el juego se detiene
-      hasta que los vuelva a encender. Se graba en trozos de 30 segundos que quedan <b>privados en el servidor</b> (solo los ven los organizadores)
-      y se <b>borran solos</b> a los días que diga abajo. Calidad baja para no gastar datos (alrededor de 1 MB por minuto).</p>
-    <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="activa" id="vig-activa" {% if vig.activa %}checked{% endif %}>
-      <label class="form-check-label fw-bold" for="vig-activa">Exigir cámara y micrófono y grabar</label></div>
+    <h6><i class="fas fa-video me-1"></i>Supervisión de la prueba</h6>
+    <p class="small mb-2">Escoja cómo se supervisa a los participantes. Lo que se graba se sube en trozos de 30 segundos que quedan <b>privados en el servidor</b>
+      (solo los ven los organizadores) y se <b>borran solos</b> a los días que diga abajo. Las condiciones que escoja aparecen solas en la inscripción y en la portada de la prueba.</p>
+    <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="activa" id="vig-activa" {% if vig.activa %}checked{% endif %}>
+      <label class="form-check-label fw-bold" for="vig-activa">Supervisar la prueba</label></div>
+    <div class="row g-2 mb-2" id="vig-opciones">
+      {% for clave, titulo, donde, detalle, reco, marcado in vig_opciones %}
+      <div class="col-md-6"><label class="d-flex gap-2 border rounded-3 p-2 h-100" style="cursor:pointer;background:#fff">
+        <input class="form-check-input mt-1 flex-shrink-0" type="checkbox" name="{{ clave }}" {% if marcado %}checked{% endif %}>
+        <span><b>{{ titulo }}</b> {% if reco %}<span class="badge bg-success">Recomendado</span>{% endif %}
+          <span class="badge bg-light text-dark border">{{ donde }}</span>
+          <span class="d-block small text-muted">{{ detalle }}</span></span></label></div>
+      {% endfor %}
+    </div>
+    <details class="small mb-2"><summary class="fw-semibold">¿Qué conviene para la olimpiada?</summary>
+      <table class="table table-sm small mt-1 mb-1">
+        <thead><tr><th>Opción</th><th>Celular</th><th>Computador</th><th>Datos por minuto</th><th>Qué muestra</th></tr></thead>
+        <tbody>
+          <tr><td>Cámara y micrófono</td><td>✅</td><td>✅</td><td>≈ 1 MB</td><td>La cara y la voz: si alguien le ayuda o le dicta.</td></tr>
+          <tr><td>Juego (lo que hace en la prueba)</td><td>✅</td><td>✅</td><td>≈ 1,5 MB</td><td>Los retos y preguntas tal como los ve, con la cámara en un recuadro. Si se sale, el video lo marca en rojo.</td></tr>
+          <tr><td>Pantalla completa</td><td>❌ (los celulares no lo permiten: allí se graba el juego)</td><td>✅</td><td>≈ 1,5 MB</td><td>Todo lo que hay en la pantalla: otras ventanas, buscadores, calculadoras.</td></tr>
+          <tr><td>Registro de salidas</td><td>✅</td><td>✅</td><td>casi nada</td><td>Cuántas veces salió de la prueba, a qué hora y cuánto tiempo. Lo ven también los veedores.</td></tr>
+        </tbody>
+      </table>
+      <b>Recomendación:</b> cámara y micrófono + juego + registro de salidas para todos (funciona igual en celular y computador). Agregue
+      <b>pantalla completa</b> si la mayoría presenta desde computador: les pedirá compartir la pantalla al empezar. Si el internet de los colegios es lento,
+      deje solo cámara + registro de salidas.
+    </details>
     <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="acepto_legal" id="vig-legal" {% if vig.activa %}checked{% endif %}>
-      <label class="form-check-label" for="vig-legal">Confirmo que la institución tiene la <b>autorización de los acudientes</b> para grabar imagen y voz de los
-        estudiantes (datos sensibles de menores, Ley 1581 de 2012) solo para vigilar este evento.</label></div>
+      <label class="form-check-label" for="vig-legal">Confirmo que la institución tiene la <b>autorización de los acudientes</b> para grabar imagen, voz y pantalla de los
+        estudiantes y registrar sus salidas (datos sensibles de menores, Ley 1581 de 2012) solo para supervisar este evento.</label></div>
+    {% if vig_texto %}<div class="small border rounded-3 p-2 mb-2" style="background:#fff5f5"><b>Así lo leen los participantes:</b> {{ vig_texto }}</div>{% endif %}
     <div class="d-flex flex-wrap align-items-center gap-2 small">
       <label>Borrar las grabaciones a los <input type="number" name="dias" min="1" max="365" value="{{ vig.dias }}" class="form-control form-control-sm d-inline-block" style="width:75px"> días</label>
       <button class="btn btn-sm au-oro ms-auto">Guardar</button>
