@@ -134,6 +134,7 @@ NUEVO     aula/templates/aula/evento_inscribirse.html
 NUEVO     aula/templates/aula/evento_inscripcion_estado.html
 NUEVO     aula/templates/aula/evento_inscripciones.html
 NUEVO     aula/templates/aula/evento_jugar.html
+NUEVO     aula/templates/aula/evento_preguntas.html
 NUEVO     aula/templates/aula/evento_resultados.html
 NUEVO     aula/templates/aula/eventos.html
 NUEVO     aula/templates/aula/gamificacion.html

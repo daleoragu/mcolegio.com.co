@@ -448,6 +448,123 @@ def agregar_preguntas(ev, preguntas, origen, ciclo_defecto=None, cat_defecto='ne
     return len(nuevas), saltadas
 
 
+def _huella(x):
+    """Una marca corta de la pregunta, para no tocar otra si la lista cambió mientras el organizador la tenía abierta."""
+    import hashlib
+    return hashlib.sha1(f"{x.get('ciclo')}|{x.get('texto')}".encode()).hexdigest()[:10]
+
+
+def _reindexar(ev, nuevo):
+    """Las participaciones guardan las preguntas por su posición (la pendiente y las ya vistas): al quitar preguntas
+    se corren las posiciones. nuevo: {posición vieja: posición nueva} (las quitadas no están)."""
+    for p in ev.participaciones.exclude(pendiente={}, vistas=[]):
+        cambios = []
+        if p.pendiente and 'i' in p.pendiente:
+            if p.pendiente['i'] in nuevo:
+                p.pendiente = dict(p.pendiente, i=nuevo[p.pendiente['i']])
+            else:
+                p.pendiente = {}            # le sale otra
+            cambios.append('pendiente')
+        if p.vistas:
+            p.vistas = [nuevo[i] for i in p.vistas if i in nuevo]
+            cambios.append('vistas')
+        if cambios:
+            p.save(update_fields=cambios)
+
+
+def quitar_preguntas(ev, indices):
+    """Quita preguntas del evento sin dañar lo que llevan los participantes."""
+    indices = set(indices)
+    quedan, nuevo = [], {}
+    for i, x in enumerate(ev.preguntas):
+        if i in indices:
+            continue
+        nuevo[i] = len(quedan)
+        quedan.append(x)
+    n = len(ev.preguntas) - len(quedan)
+    if n:
+        ev.preguntas = quedan
+        ev.save(update_fields=['preguntas'])
+        _reindexar(ev, nuevo)
+    return n
+
+
+def mover_preguntas(ev, indices, uso):
+    """Pasa preguntas a la competencia o a los retos arcade. Si una estaba pendiente para alguien y pasa al arcade,
+    a esa persona le sale otra (las del arcade se ven en el navegador)."""
+    n = 0
+    lista = list(ev.preguntas)
+    for i in indices:
+        if 0 <= i < len(lista):
+            x = dict(lista[i])
+            if uso == 'juegos' and not es_de_juego(x):
+                x['uso'] = 'juegos'; n += 1
+            elif uso == 'competencia' and es_de_juego(x):
+                x.pop('uso', None); n += 1
+            lista[i] = x
+    if n:
+        ev.preguntas = lista
+        ev.save(update_fields=['preguntas'])
+        if uso == 'juegos':
+            movidas = set(indices)
+            for p in ev.participaciones.exclude(pendiente={}):
+                if p.pendiente.get('i') in movidas:
+                    p.pendiente = {}
+                    p.save(update_fields=['pendiente'])
+    return n
+
+
+@login_required
+def preguntas_evento(request, eid):
+    """Todas las preguntas del evento: filtros, menú por pregunta (eliminar, pasar a la competencia o al arcade)
+    y las mismas acciones para varias seleccionadas."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores manejan las preguntas.')
+    c = config_de(ev)
+    if request.method == 'POST':
+        accion = request.POST.get('accion')
+        elegidas = []
+        for v in request.POST.getlist('sel'):
+            i, _, huella = v.partition(':')
+            if i.isdigit() and int(i) < len(ev.preguntas) and _huella(ev.preguntas[int(i)]) == huella:
+                elegidas.append(int(i))
+        if not elegidas:
+            messages.warning(request, 'Escoja al menos una pregunta (o la lista cambió: vuelva a intentarlo).')
+        elif accion == 'eliminar':
+            messages.success(request, f'Se eliminaron {quitar_preguntas(ev, elegidas)} pregunta(s).')
+        elif accion in ('competencia', 'juegos'):
+            n = mover_preguntas(ev, elegidas, accion)
+            messages.success(request, f'{n} pregunta(s) pasaron ' + ('a la competencia.' if accion == 'competencia' else 'al arcade (retos de juego).')
+                             + (f' {len(elegidas) - n} ya estaban ahí.' if len(elegidas) > n else ''))
+        else:
+            messages.warning(request, 'Escoja qué hacer con las preguntas seleccionadas.')
+        return redirect(f"{reverse('aula:evento_preguntas', args=[ev.pk])}?{request.GET.urlencode()}")
+    f_uso, f_grupo, f_cat = request.GET.get('uso', ''), request.GET.get('grupo', ''), request.GET.get('cat', '')
+    f_grado, q = request.GET.get('grado', ''), (request.GET.get('q') or '').strip().lower()
+    nombres = {g['id']: g['nombre'] for g in grupos(c)}
+    cats = {k: n for k, n, _ in CATEGORIAS}
+    filas = []
+    for i, x in enumerate(ev.preguntas):
+        if f_uso == 'juegos' and not es_de_juego(x) or f_uso == 'competencia' and es_de_juego(x):
+            continue
+        if f_grupo and x.get('ciclo') != f_grupo or f_cat and x.get('categoria') != f_cat:
+            continue
+        if f_grado.lstrip('-').isdigit() and x.get('grado') != int(f_grado):
+            continue
+        if q and q not in (x.get('texto', '') + ' ' + x.get('tema', '')).lower():
+            continue
+        filas.append({'i': i, 'valor': f'{i}:{_huella(x)}', 'x': x, 'juego': es_de_juego(x), 'grupo': nombres.get(x.get('ciclo'), x.get('ciclo')),
+                      'cat': cats.get(x.get('categoria'), ''), 'grado': etiqueta_grado(x['grado']) if x.get('grado') is not None else ''})
+    total_j = sum(1 for x in ev.preguntas if es_de_juego(x))
+    grados_hay = sorted({x['grado'] for x in ev.preguntas if x.get('grado') is not None})
+    return render(request, 'aula/evento_preguntas.html', {
+        'ev': ev, 'filas': filas, 'total': len(ev.preguntas), 'total_j': total_j, 'total_c': len(ev.preguntas) - total_j,
+        'grupos': grupos(c), 'categorias': CATEGORIAS, 'grados': [(g, etiqueta_grado(g)) for g in grados_hay],
+        'f': {'uso': f_uso, 'grupo': f_grupo, 'cat': f_cat, 'grado': f_grado, 'q': request.GET.get('q', '')},
+        'consulta': request.GET.urlencode(), 'base': _base(request)})
+
+
 @login_required
 def preguntas_planilla(request, eid):
     """Planilla de Excel de las preguntas de competencia: descargar (las del evento, vacía o el banco 6.º–11.º) y subir."""
@@ -604,9 +721,7 @@ def configurar(request, eid):
                              + (f' {malas} se saltaron (sin opciones o sin una sola correcta).' if malas else '') + (f' {repetidas} ya estaban.' if repetidas else ''))
         elif accion == 'quitar':
             try:
-                k = int(request.POST.get('i'))
-                ev.preguntas = [p for i, p in enumerate(ev.preguntas) if i != k]
-                ev.save(update_fields=['preguntas'])
+                quitar_preguntas(ev, [int(request.POST.get('i'))])
             except (TypeError, ValueError):
                 pass
         elif accion == 'banco':
@@ -790,7 +905,7 @@ def _preguntas_arcade(ev, c, grado, grupo):
     modo = c.get('arcade', 'preguntas')
     competencia = {x.get('texto') for x in de_competencia(ev)}
     gid = (grupo or {}).get('id')
-    propias = [x for x in ev.preguntas if es_de_juego(x) and x.get('ciclo') == gid]
+    propias = [x for x in ev.preguntas if es_de_juego(x) and x.get('ciclo') == gid and x.get('texto') not in competencia]
     if grado is not None and any(x.get('grado') == grado for x in propias):
         propias = [x for x in propias if x.get('grado') in (grado, None)]
     random.shuffle(propias)

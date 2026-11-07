@@ -150,19 +150,19 @@
         }
 
         // --- Reglas ------------------------------------------------------------------
-        let enPausa = false, terminado = false, esperaHasta = 0, pausaHasta = 0;
-        // Pausa para pensar: el juego se congela hasta 30 s (con la pregunta en grande, para resolverla en papel).
-        // El reloj de la pregunta también se detiene; el reloj general de la olimpiada sigue corriendo.
-        const PAUSA_SEG = Math.max(5, Math.min(120, op.pausaSegundos || 30));
+        let enPausa = false, terminado = false, esperaHasta = 0, pausaHasta = 0, pausaDesde = 0;
+        // Pausa para pensar: el juego se congela (con la pregunta en grande, para resolverla en papel) hasta que el
+        // estudiante decida seguir. El reloj de la pregunta se detiene; el reloj general de la olimpiada sigue corriendo.
+        // m.pausar(seg) con segundos la termina sola (no se usa en la plataforma: la pausa es indefinida).
         m.pausar = (seg) => {
             if (m.estado !== 'jugando' || enPausa) return false;
-            enPausa = true; pausaHasta = performance.now() + (seg || PAUSA_SEG) * 1000;
+            enPausa = true; pausaDesde = performance.now(); pausaHasta = seg ? pausaDesde + seg * 1000 : 0;
             if (op.alPausar) op.alPausar(true);
             return true;
         };
         m.seguir = () => {
             if (!enPausa) return;
-            enPausa = false; pausaHasta = 0; antes = performance.now();
+            enPausa = false; pausaHasta = 0; pausaDesde = 0; antes = performance.now();
             if (op.alPausar) op.alPausar(false);
         };
         Object.defineProperty(m, 'enPausa', {get: () => enPausa});
@@ -396,14 +396,16 @@
 
         function pantallaPausa() {
             ctx.fillStyle = 'rgba(5,8,20,.97)'; ctx.fillRect(0, 0, W, H);
-            const queda = pausaHasta ? Math.max(0, Math.ceil((pausaHasta - performance.now()) / 1000)) : 0;
             m.texto('PAUSA PARA PENSAR', 14, 12, {tam: 10, color: '#ffd43b'});
             if (pausaHasta) {
+                const queda = Math.max(0, Math.ceil((pausaHasta - performance.now()) / 1000));
                 m.texto(String(queda), W - 14, 8, {tam: 20, alinear: 'right', color: queda <= 5 ? '#ff6b6b' : '#69db7c'});
-                const frac = Math.max(0, (pausaHasta - performance.now()) / (PAUSA_SEG * 1000));
-                ctx.fillStyle = '#343a40'; ctx.fillRect(14, 34, W - 28, 4);
-                ctx.fillStyle = queda <= 5 ? '#ff6b6b' : '#69db7c'; ctx.fillRect(14, 34, (W - 28) * frac, 4);
+            } else if (pausaDesde) {
+                // cuánto lleva en pausa (el reloj de la olimpiada sigue corriendo)
+                const s = Math.floor((performance.now() - pausaDesde) / 1000);
+                m.texto(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`, W - 14, 10, {tam: 14, alinear: 'right', color: s >= 60 ? '#ff922b' : '#adb5bd'});
             }
+            ctx.fillStyle = '#ffd43b'; ctx.fillRect(14, 34, W - 28, 2);
             // La pregunta y sus opciones con letra clara, para copiarla al papel
             const p = m.pregunta, LETRA = '"Segoe UI", system-ui, Arial, sans-serif';
             let y = 50;
@@ -420,7 +422,7 @@
                 });
             }
             ctx.font = `12px ${'"Segoe UI", system-ui, Arial, sans-serif'}`; ctx.fillStyle = '#adb5bd'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-            ctx.fillText('Resuélvala en papel. Toque la pantalla (o P) para seguir.', W / 2, H - 26);
+            ctx.fillText('Resuélvala en papel. Cuando esté listo, toque la pantalla (o P) para seguir.', W / 2, H - 26);
             ctx.fillText('El reloj de la pregunta está detenido; el reloj general sigue corriendo.', W / 2, H - 10);
         }
 
