@@ -323,5 +323,7 @@ def push_probar(request):
     if not SuscripcionPush.objects.filter(usuario=request.user).exists():
         return JsonResponse({'ok': False, 'enviados': 0})
     prueba = Notificacion(colegio=getattr(request, 'colegio', None), destinatario=request.user, tipo='GENERAL',
-                          mensaje='Listo: así le llegarán los avisos del colegio a este celular.', url='/app/')
+                          mensaje=('Listo: así le llegarán los avisos del colegio a este celular.' if getattr(request, 'colegio', None)
+                                   else 'Listo: así le llegarán los avisos de Mi Salón a este equipo.'),
+                          url='/app/' if getattr(request, 'colegio', None) else '/salon_digital/app/')
     return JsonResponse({'ok': True, 'enviados': push.enviar([prueba])})

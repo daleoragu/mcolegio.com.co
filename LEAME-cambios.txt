@@ -2,6 +2,8 @@ ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro
 
 NUEVO     LEAME-mejoras-pendientes.txt
 NUEVO     LEAME-prueba-celulares.txt
+NUEVO     apps/misalon/LEEME.md
+NUEVO     apps/misalon/twa-manifest.json
 CAMBIADO  aula/almacen.py
 NUEVO     aula/animaplano.py
 NUEVO     aula/bancos/factorizacion.json
@@ -208,6 +210,7 @@ NUEVO     chat/templates/chat/colegas_perfil.html
 NUEVO     chat/test_colegas.py
 CAMBIADO  chat/urls.py
 NUEVO     chat/views_colegas.py
+CAMBIADO  config/urls.py
 CAMBIADO  notas/boletin/logic.py
 NUEVO     notas/colores.py
 CAMBIADO  notas/context_processors.py
@@ -283,6 +286,7 @@ CAMBIADO  notas/tests/test_planillas.py
 CAMBIADO  notas/tests/test_sabana_reporte_parcial.py
 NUEVO     notas/tests/test_solicitudes_ficha.py
 CAMBIADO  notas/urls.py
+CAMBIADO  notas/views/app_views.py
 CAMBIADO  notas/views/asistencia_views.py
 CAMBIADO  notas/views/carnet_views.py
 CAMBIADO  notas/views/consulta_views.py
@@ -297,12 +301,21 @@ CAMBIADO  salon_digital/forms.py
 CAMBIADO  salon_digital/identidad.py
 NUEVO     salon_digital/migrations/0004_grupo_pedir_pin.py
 CAMBIADO  salon_digital/models.py
+NUEVO     salon_digital/static/salon_digital/app/apple-touch-icon.png
+NUEVO     salon_digital/static/salon_digital/app/icono-192.png
+NUEVO     salon_digital/static/salon_digital/app/icono-512-maskable.png
+NUEVO     salon_digital/static/salon_digital/app/icono-512.png
+NUEVO     salon_digital/static/salon_digital/app/icono-96.png
+NUEVO     salon_digital/templates/salon_digital/_app.html
 CAMBIADO  salon_digital/templates/salon_digital/base_salon.html
 CAMBIADO  salon_digital/templates/salon_digital/identificarse.html
+NUEVO     salon_digital/templates/salon_digital/instalar_app.html
 NUEVO     salon_digital/templates/salon_digital/tarjetas_grupo.html
 CAMBIADO  salon_digital/templates/salon_digital/ver_grupo.html
+NUEVO     salon_digital/test_app.py
 CAMBIADO  salon_digital/urls.py
 CAMBIADO  salon_digital/views.py
+NUEVO     salon_digital/views_app.py
 CAMBIADO  salon_digital/views_grupos.py
 NUEVO     votaciones/cabinas.py
 NUEVO     votaciones/migrations/0002_cabinas.py

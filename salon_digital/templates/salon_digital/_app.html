@@ -1,0 +1,49 @@
+{% load static %}{# App propia de Mi Salón Virtual: manifiesto, ícono, color y el botón «Instalar». Va en el <head>. #}
+<link rel="manifest" href="{% url 'salon_digital:app_manifiesto' %}">
+<meta name="theme-color" content="#1f3a68">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mi Salón">
+<meta name="application-name" content="Mi Salón">
+<link rel="apple-touch-icon" href="{% static 'salon_digital/app/apple-touch-icon.png' %}">
+<link rel="icon" type="image/png" sizes="192x192" href="{% static 'salon_digital/app/icono-192.png' %}">
+{% if request.user.cuenta_salon or request.resolver_match.app_name == 'salon_digital' and not request.user.is_authenticated %}
+<style>
+  .ms-instalar { position:fixed; left:16px; bottom:16px; z-index:1070; display:flex; align-items:center; gap:8px; background:#fff; color:#1d2433;
+                 border-radius:999px; box-shadow:0 6px 22px rgba(0,0,0,.18); padding:6px 6px 6px 8px; font:600 .88rem/1 'Segoe UI',system-ui,sans-serif; }
+  .ms-instalar img { width:30px; height:30px; border-radius:8px; }
+  .ms-instalar a, .ms-instalar button { border:0; border-radius:999px; padding:8px 14px; font-weight:700; cursor:pointer; text-decoration:none; }
+  .ms-instalar .si { background:#1f3a68; color:#fff; }
+  .ms-instalar .no { background:transparent; color:#6b7280; padding:8px 10px; }
+  @media print { .ms-instalar { display:none !important; } }
+</style>
+<script>
+(function () {
+  if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); });
+  var instalada = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (instalada || /\/salon_digital\/app\/instalar\//.test(location.pathname)) return;
+  var LLAVE = 'ms-instalar-oculto', pedido = null;
+  function oculto() { try { return Number(localStorage.getItem(LLAVE) || 0) > Date.now(); } catch (e) { return false; } }
+  window.msPedidoInstalar = function () { return pedido; };
+  function boton() {
+    if (oculto() || document.getElementById('ms-instalar')) return;
+    var b = document.createElement('div'); b.id = 'ms-instalar'; b.className = 'ms-instalar';
+    b.innerHTML = '<img src="{% static "salon_digital/app/icono-96.png" %}" alt=""><span>App Mi Salón</span>' +
+      '<button type="button" class="si">Instalar</button><button type="button" class="no" aria-label="Ahora no">✕</button>';
+    document.body.appendChild(b);
+    b.querySelector('.no').onclick = function () { try { localStorage.setItem(LLAVE, String(Date.now() + 30 * 864e5)); } catch (e) {} b.remove(); };
+    b.querySelector('.si').onclick = function () {
+      if (pedido) { pedido.prompt(); pedido.userChoice.then(function () { pedido = null; b.remove(); }); }
+      else location.href = '{% url "salon_digital:app_instalar" %}';
+    };
+  }
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); pedido = e; if (document.body) boton(); else document.addEventListener('DOMContentLoaded', boton); });
+  window.addEventListener('appinstalled', function () { var b = document.getElementById('ms-instalar'); if (b) b.remove(); });
+  // En el celular sale siempre (iPhone y algunos navegadores no avisan): lleva a la página con los pasos
+  if (/iphone|ipad|ipod|android|mobile/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boton); else boton();
+  }
+})();
+</script>
+{% endif %}
