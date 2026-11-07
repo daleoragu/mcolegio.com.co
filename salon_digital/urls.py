@@ -1,13 +1,17 @@
 # salon_digital/urls.py
 from django.urls import path, re_path
 
-from . import views, views_cuentas, views_grupos
+from . import views, views_app, views_cuentas, views_grupos
 
 app_name = 'salon_digital'
 
 urlpatterns = [
     # --- Entrada ---
     path('', views.landing, name='landing'),
+    # --- La app propia de Mi Salón Virtual (instalable, APK e iPhone) ---
+    path('manifest.webmanifest', views_app.manifiesto, name='app_manifiesto'),
+    path('app/', views_app.inicio, name='app_inicio'),
+    path('app/instalar/', views_app.instalar, name='app_instalar'),
     path('registro/', views_cuentas.registro, name='registro'),
     path('entrar/', views_cuentas.Entrar.as_view(), name='entrar'),
     path('salir/', views_cuentas.salir, name='salir'),

@@ -11,6 +11,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 from notas.views import app_views
+from salon_digital import views_app as salon_app
 
 urlpatterns = [
     # 1. RUTA PARA EL PANEL DE ADMINISTRACIÓN NATIVO DE DJANGO
@@ -57,6 +58,8 @@ urlpatterns = [
     #    Esta línea incluye todas las URLs de tu archivo 'notas/urls.py'.
     # App instalable (PWA): en la raíz, porque el service worker solo controla lo que está debajo de su dirección.
     path('manifest.webmanifest', app_views.manifiesto, name='app_manifiesto'),
+    # APK de Mi Salón Virtual: Android confirma que la app y el dominio son del mismo dueño
+    path('.well-known/assetlinks.json', salon_app.assetlinks, name='assetlinks'),
     path('sw.js', app_views.service_worker, name='app_service_worker'),
     path('app/icono-<int:tam>.png', app_views.icono, name='app_icono'),
     path('sin-conexion/', app_views.sin_conexion, name='app_sin_conexion'),

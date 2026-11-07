@@ -1,0 +1,137 @@
+{% extends "salon_digital/base_salon.html" %}
+{% load static %}
+{% block titulo %}Instalar la app · Mi Salón Virtual{% endblock %}
+{% block contenido %}
+<style>
+  .ia-cab { background:linear-gradient(135deg,#2b4f8a,#1f3a68); color:#fff; border-radius:22px; padding:26px; display:flex; gap:22px; align-items:center; flex-wrap:wrap; }
+  .ia-cab img.icono { width:104px; height:104px; border-radius:24px; box-shadow:0 8px 24px rgba(0,0,0,.3); }
+  .ia-cab h1 { font-weight:800; margin:0; font-size:1.9rem; color:#fff; }
+  .ia-cab p { margin:.3rem 0 0; opacity:.9; }
+  .ia-qr { background:#fff; border-radius:14px; padding:8px; width:150px; margin-left:auto; text-align:center; color:#1d2433; font-size:.72rem; }
+  .ia-qr svg { width:134px; height:134px; display:block; }
+  @media (max-width: 767px) { .ia-qr { display:none; } }
+  .ia-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:18px 0 12px; }
+  .ia-tabs button { border:2px solid #dde3ec; background:#fff; border-radius:999px; padding:8px 18px; font-weight:700; color:#1f3a68; }
+  .ia-tabs button.activo { background:#1f3a68; border-color:#1f3a68; color:#fff; }
+  .ia-caja { background:#fff; border:1px solid #dde3ec; border-radius:18px; padding:22px; }
+  .ia-paso { display:flex; gap:14px; margin:14px 0; align-items:flex-start; }
+  .ia-paso .n { flex:0 0 34px; height:34px; border-radius:50%; background:#f2b632; color:#1f3a68; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .ia-boton { display:inline-flex; align-items:center; gap:10px; background:#1f3a68; color:#fff; border:0; border-radius:14px; padding:12px 20px; font-weight:700; text-decoration:none; }
+  .ia-boton:hover { color:#fff; background:#2b4f8a; }
+  .ia-boton.claro { background:#eaf0f9; color:#1f3a68; }
+  .ia-ok { color:#2b8a3e; font-weight:700; }
+  .ia-ventajas { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-top:16px; }
+  .ia-ventajas div { background:#fff; border:1px solid #dde3ec; border-radius:14px; padding:14px; font-size:.92rem; }
+  .ia-ventajas b { display:block; color:#1f3a68; }
+</style>
+<div class="ia-cab">
+  <img class="icono" src="{% static 'salon_digital/app/icono-192.png' %}" alt="Ícono de Mi Salón Virtual">
+  <div style="flex:1 1 260px">
+    <h1>App {{ nombre }}</h1>
+    <p>Sus aulas, grupos, juegos, eventos y colegas docentes en el celular y en el computador, con su propio ícono y avisos.</p>
+    <div class="mt-3 d-flex flex-wrap gap-2">
+      <button type="button" class="ia-boton" style="background:#f2b632;color:#1f3a68" id="ia-instalar" hidden>📲 Instalar ahora</button>
+      <span class="ia-ok" id="ia-instalada" hidden>✅ Ya está usando la app instalada</span>
+    </div>
+  </div>
+  <div class="ia-qr">{{ qr|safe }}Escanee con el celular</div>
+</div>
+
+<div class="ia-tabs" role="tablist">
+  <button type="button" data-tab="android">🤖 Android</button>
+  <button type="button" data-tab="ios"> iPhone / iPad</button>
+  <button type="button" data-tab="pc">💻 Computador</button>
+</div>
+
+<div class="ia-caja" data-panel="android">
+  <h5 class="fw-bold">En Android</h5>
+  {% if play_url %}<p><a class="ia-boton" href="{{ play_url }}" target="_blank" rel="noopener">▶ Descargar en Google Play</a></p>{% endif %}
+  <div class="ia-paso"><span class="n">1</span><div>Abra esta página en <b>Chrome</b> (o Samsung Internet).</div></div>
+  <div class="ia-paso"><span class="n">2</span><div>Toque <b>«Instalar ahora»</b> arriba. Si no aparece: menú <b>⋮</b> → <b>«Instalar app»</b> o «Agregar a la pantalla principal».</div></div>
+  <div class="ia-paso"><span class="n">3</span><div>El ícono <b>Mi Salón</b> queda con sus demás aplicaciones y abre a pantalla completa.</div></div>
+  {% if apk_url %}
+  <hr>
+  <p class="mb-2"><b>¿Prefiere el instalador (APK)?</b> Descárguelo y ábralo. Android le pedirá permitir «instalar apps de origen desconocido» la primera vez.</p>
+  <a class="ia-boton claro" href="{{ apk_url }}" download>⬇ Descargar la APK</a>
+  {% endif %}
+</div>
+
+<div class="ia-caja" data-panel="ios" hidden>
+  <h5 class="fw-bold">En iPhone o iPad</h5>
+  {% if ios_url %}<p><a class="ia-boton" href="{{ ios_url }}" target="_blank" rel="noopener"> Descargar en el App Store</a></p><p class="small text-muted">O instálela desde Safari:</p>{% endif %}
+  <div class="ia-paso"><span class="n">1</span><div>Abra esta página en <b>Safari</b> (en otros navegadores de iPhone no se puede).</div></div>
+  <div class="ia-paso"><span class="n">2</span><div>Toque el botón <b>Compartir</b> <span style="font-size:1.2rem">⬆️</span> (abajo en el iPhone, arriba en el iPad).</div></div>
+  <div class="ia-paso"><span class="n">3</span><div>Baje y toque <b>«Agregar a inicio»</b> y luego <b>Agregar</b>.</div></div>
+  <div class="ia-paso"><span class="n">4</span><div>Abra <b>Mi Salón</b> desde el ícono y active los avisos abajo (iOS 16.4 o más nuevo).</div></div>
+</div>
+
+<div class="ia-caja" data-panel="pc" hidden>
+  <h5 class="fw-bold">En el computador (Windows, Mac o Chromebook)</h5>
+  <div class="ia-paso"><span class="n">1</span><div>Abra esta página en <b>Chrome</b> o <b>Edge</b>.</div></div>
+  <div class="ia-paso"><span class="n">2</span><div>Toque <b>«Instalar ahora»</b> arriba, o el ícono de instalar <b>⊕</b> al final de la barra de direcciones.</div></div>
+  <div class="ia-paso"><span class="n">3</span><div>Mi Salón queda en el menú de inicio (o en el Dock) y abre en su propia ventana, con el chat de colegas.</div></div>
+</div>
+
+{% if request.user.cuenta_salon %}
+<div class="ia-caja mt-3">
+  <h5 class="fw-bold">🔔 Avisos en este equipo</h5>
+  <p class="mb-2">Le avisamos de solicitudes de colegas, mensajes y grupos aunque tenga la app cerrada.</p>
+  <button type="button" class="ia-boton" id="ia-avisos">Activar avisos en este equipo</button>
+  <span class="ms-2 small" id="ia-avisos-estado"></span>
+</div>
+{% endif %}
+
+<div class="ia-ventajas">
+  <div><b>📲 Su propio ícono</b>Separada de la app de los colegios: solo su salón.</div>
+  <div><b>⚡ Más rápida</b>Abre a pantalla completa, sin barras del navegador.</div>
+  <div><b>🔔 Avisos</b>Mensajes y solicitudes de colegas al instante.</div>
+  <div><b>🔒 Sus datos en el servidor</b>No se guardan notas ni listas en el celular.</div>
+</div>
+
+<script>
+(function () {
+  var ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var tab = ios ? 'ios' : /android/i.test(ua) ? 'android' : 'pc';
+  function ver(t) {
+    document.querySelectorAll('.ia-tabs button').forEach(function (b) { b.classList.toggle('activo', b.dataset.tab === t); });
+    document.querySelectorAll('[data-panel]').forEach(function (p) { p.hidden = p.dataset.panel !== t; });
+  }
+  document.querySelectorAll('.ia-tabs button').forEach(function (b) { b.onclick = function () { ver(b.dataset.tab); }; });
+  ver(tab);
+  var instalada = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (instalada) document.getElementById('ia-instalada').hidden = false;
+  var pedido = null, bi = document.getElementById('ia-instalar');
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function () {});
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); pedido = e; if (!instalada) bi.hidden = false; });
+  bi.onclick = function () { if (!pedido) return; pedido.prompt(); pedido.userChoice.then(function (r) { if (r.outcome === 'accepted') { bi.hidden = true; document.getElementById('ia-instalada').hidden = false; } pedido = null; }); };
+  window.addEventListener('appinstalled', function () { bi.hidden = true; document.getElementById('ia-instalada').hidden = false; });
+
+  // Avisos al equipo (Web Push, gratis): las mismas rutas de la plataforma
+  var ba = document.getElementById('ia-avisos'), est = document.getElementById('ia-avisos-estado');
+  if (!ba) return;
+  var CSRF = '{{ csrf_token }}';
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    ba.disabled = true; est.textContent = ios ? 'En iPhone primero agregue la app a inicio y ábrala desde el ícono.' : 'Este navegador no permite avisos.'; return;
+  }
+  if (Notification.permission === 'granted') est.textContent = '✅ Activados';
+  function bytes(b64) { var s = (b64 + '='.repeat((4 - b64.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/'); var c = atob(s), o = new Uint8Array(c.length); for (var i = 0; i < c.length; i++) o[i] = c.charCodeAt(i); return o; }
+  ba.onclick = function () {
+    est.textContent = 'Activando…';
+    Notification.requestPermission().then(function (p) {
+      if (p !== 'granted') throw new Error('Sin permiso: actívelo en los ajustes del navegador.');
+      return navigator.serviceWorker.register('/sw.js').then(function () { return navigator.serviceWorker.ready; });
+    }).then(function (reg) {
+      return fetch('/app/push/clave/', {credentials: 'same-origin'}).then(function (r) { return r.json(); }).then(function (d) {
+        if (!d.clave) throw new Error('Los avisos no están configurados en el servidor.');
+        return reg.pushManager.getSubscription().then(function (s) { return s || reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: bytes(d.clave)}); });
+      });
+    }).then(function (s) {
+      return fetch('/app/push/suscribir/', {method: 'POST', credentials: 'same-origin', body: JSON.stringify(s.toJSON()), headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF}});
+    }).then(function () {
+      est.textContent = '✅ Activados. Le mandamos un aviso de prueba.';
+      fetch('/app/push/probar/', {method: 'POST', credentials: 'same-origin', headers: {'X-CSRFToken': CSRF}});
+    }).catch(function (e) { est.textContent = '⚠ ' + (e.message || 'No se pudo activar.'); });
+  };
+})();
+</script>
+{% endblock %}
