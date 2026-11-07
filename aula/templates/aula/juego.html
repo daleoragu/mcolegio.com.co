@@ -160,19 +160,19 @@
           const fila = document.createElement('div'); fila.className = 'jg-op'; fila.style.borderLeftColor = f.color;
           if (f.hecho) fila.style.opacity = '.45';
           const b = document.createElement('b'); b.textContent = f.letra; b.style.cssText = `flex:0 0 28px;height:28px;border-radius:50%;background:${f.color};color:#111;display:flex;align-items:center;justify-content:center`;
-          const t = document.createElement('span'); t.textContent = f.texto;
+          const t = document.createElement('span'); t.textContent = f.texto; if (window.Mate) Mate.render(t);
           fila.appendChild(b); fila.appendChild(t); caja.appendChild(fila);
         });
         return;
       }
       const p = mm.pregunta; if (!p) return;
-      document.getElementById('jg-ley-preg').textContent = p.texto;
+      const lp = document.getElementById('jg-ley-preg'); lp.textContent = p.texto; delete lp.dataset.mateTexto; if (window.Mate) Mate.render(lp);
       const caja = document.getElementById('jg-ley-ops'); caja.innerHTML = '';
       p.opciones.forEach((o, k) => {
         const fila = document.createElement('div'); fila.className = 'jg-op'; fila.style.borderLeftColor = Gamificacion.COLORES[k];
         const c = document.createElement('canvas'); c.width = 72; c.height = 72;
         Gamificacion.icono('{{ tipo|escapejs }}', c.getContext('2d'), k, 72);
-        const t = document.createElement('span'); t.textContent = o.texto;
+        const t = document.createElement('span'); t.textContent = o.texto; if (window.Mate) Mate.render(t);
         fila.appendChild(c); fila.appendChild(t); caja.appendChild(fila);
       });
     },

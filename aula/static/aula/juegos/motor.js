@@ -37,6 +37,8 @@
     };
 
     function registrar(tipo, def) { JUEGOS[tipo] = def; }
+    // ¿Este texto trae fórmulas? Entonces se dibuja con formato matemático (fracciones apiladas, potencias, raíces…)
+    const conMate = t => !!(window.Mate && Mate.dibujarLienzo && Mate.tieneFormula(t));
 
     function partir(ctx, texto, ancho) {
         const palabras = String(texto || '').split(/\s+/), lineas = [];
@@ -62,8 +64,12 @@
         const def = JUEGOS[op.tipo];
         const lienzo = op.lienzo, ctx = lienzo.getContext('2d');
         const m = {
-            W, H, ARRIBA, ABAJO, LETRAS, COLORES, FUENTE, ctx, sonidos: SONIDOS, partir: (t, a) => partir(ctx, t, a),
-            preguntas: op.preguntas.filter(p => (p.opciones || []).length >= 2).map(p => Object.assign({}, p, {opciones: recortar(p.opciones, def.maxOpciones || 4)})),
+            W, H, ARRIBA, ABAJO, LETRAS, COLORES, FUENTE, ctx, sonidos: SONIDOS, conMate, partir: (t, a, o) => (o && o.mate && conMate(t) ? Mate.partirLienzo(t, a, {tam: o.tam || 8, fuente: FUENTE}) : partir(ctx, t, a)),
+            // el LaTeX escrito a mano ($\frac{a}{b}$) se pasa a texto legible para dibujarlo en el lienzo
+            preguntas: op.preguntas.filter(p => (p.opciones || []).length >= 2).map(p => {
+                const plano = t => (window.Mate ? Mate.plano(t) : String(t));
+                return Object.assign({}, p, {texto: plano(p.texto), opciones: recortar(p.opciones, def.maxOpciones || 4).map(o => Object.assign({}, o, {texto: plano(o.texto)}))});
+            }),
             indice: 0, vidas: 3, puntaje: 0, aciertos: 0, respuestas: [], estado: 'inicio',
             // Dos jugadores en el mismo equipo: se turnan las preguntas y cada uno lleva su marcador.
             jugadores: op.jugadores === 2 ? 2 : 1, turno: 0, marcador: [0, 0],
@@ -117,6 +123,7 @@
             const nuevo = mostrar ? t : '';
             if (nuevo === textoEnunciado) return;
             textoEnunciado = nuevo; enunciado.textContent = nuevo; enunciado.style.display = nuevo ? '' : 'none';
+            delete enunciado.dataset.mateTexto; if (nuevo && window.Mate) Mate.render(enunciado);
             ajustar();
         }
         const reajustar = () => { ajustar(); setTimeout(ajustar, 120); };
@@ -130,6 +137,12 @@
         // --- Ayudas de dibujo ------------------------------------------------------------
         m.texto = function (t, x, y, o) {
             o = o || {};
+            // {mate: true}: el texto es de una pregunta u opción; sus fórmulas salen con formato matemático.
+            // {ancho}: si la fórmula no cabe, se achica hasta ese ancho.
+            if (o.mate && conMate(t)) {
+                return Mate.dibujarLienzo(ctx, t, x, y, {tam: o.tam || 10, fuente: FUENTE, color: o.color, sombra: o.sombra !== false,
+                    alinear: o.alinear, base: o.base, ancho: o.ancho});
+            }
             ctx.font = `${o.tam || 10}px ${FUENTE}`; ctx.fillStyle = o.color || '#fff';
             ctx.textAlign = o.alinear || 'left'; ctx.textBaseline = o.base || 'top';
             if (o.sombra !== false) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText(t, x + 1, y + 1); ctx.fillStyle = o.color || '#fff'; }
@@ -157,14 +170,40 @@
         m.pausar = (seg) => {
             if (m.estado !== 'jugando' || enPausa) return false;
             enPausa = true; pausaDesde = performance.now(); pausaHasta = seg ? pausaDesde + seg * 1000 : 0;
+            pausaDom(true);
             if (op.alPausar) op.alPausar(true);
             return true;
         };
         m.seguir = () => {
             if (!enPausa) return;
             enPausa = false; pausaHasta = 0; pausaDesde = 0; antes = performance.now();
+            pausaDom(false);
             if (op.alPausar) op.alPausar(false);
         };
+        // Con fórmulas (KaTeX) la pregunta de la pausa se muestra encima del lienzo: fracciones, potencias y raíces bien hechas.
+        let capaPausa = null;
+        function pausaDom(ver) {
+            if (!ver) { if (capaPausa) { capaPausa.remove(); capaPausa = null; } return; }
+            if (!window.Mate || !lienzo.parentElement) return;
+            const padre = lienzo.parentElement;
+            if (getComputedStyle(padre).position === 'static') padre.style.position = 'relative';
+            const p = m.pregunta;
+            capaPausa = document.createElement('div');
+            capaPausa.className = 'motor-pausa';
+            capaPausa.style.cssText = `position:absolute;left:${lienzo.offsetLeft}px;top:${lienzo.offsetTop}px;width:${lienzo.offsetWidth}px;height:${lienzo.offsetHeight}px;` +
+                'z-index:6;box-sizing:border-box;background:rgba(5,8,20,.97);color:#fff;border-radius:6px;padding:14px 18px;overflow:auto;cursor:pointer;font-family:"Segoe UI",system-ui,Arial,sans-serif;display:flex;flex-direction:column';
+            const ops = (p && p.opciones || []).map((o, k) => `<div style="display:flex;align-items:center;gap:10px;margin:6px 0">
+                <span style="flex:none;width:28px;height:28px;border-radius:50%;background:${COLORES[k]};color:#111;font-weight:800;display:flex;align-items:center;justify-content:center">${LETRAS[k]}</span>
+                <span style="font-size:1.15rem">${Mate.html(o.texto)}</span></div>`).join('');
+            capaPausa.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ffd43b;padding-bottom:6px;margin-bottom:10px">
+                <b style="color:#ffd43b;letter-spacing:.08em">PAUSA PARA PENSAR</b><span class="motor-pausa-t" style="font-family:ui-monospace,monospace;color:#adb5bd">0:00</span></div>
+              <div style="font-size:1.3rem;font-weight:700;margin-bottom:8px">${p ? Mate.html(def.textoArriba ? def.textoArriba(m) : p.texto) : ''}</div>
+              <div style="columns:${(p && p.opciones.length > 4) ? 2 : 1};column-gap:24px">${ops}</div>
+              <div style="margin-top:auto;text-align:center;color:#adb5bd;font-size:.9rem;padding-top:10px">Resuélvala en papel. Cuando esté listo, toque aquí (o P) para seguir.<br>
+                El reloj de la pregunta está detenido; el reloj general sigue corriendo.</div>`;
+            capaPausa.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); m.seguir(); });
+            padre.appendChild(capaPausa);
+        }
         Object.defineProperty(m, 'enPausa', {get: () => enPausa});
         function siguiente() {
             const nivelAntes = m.nivel;
@@ -247,7 +286,7 @@
         document.addEventListener('keyup', alSubir);
         // Apagar el juego (las olimpiadas cambian de reto sin recargar la página)
         m.destruir = () => {
-            vivo = false; soltarPalanca(); quitarPalanca(); quitarZona(); if (enunciado) enunciado.remove(); document.removeEventListener('keydown', alBajar); document.removeEventListener('keyup', alSubir);
+            vivo = false; soltarPalanca(); quitarPalanca(); quitarZona(); pausaDom(false); if (enunciado) enunciado.remove(); document.removeEventListener('keydown', alBajar); document.removeEventListener('keyup', alSubir);
             window.removeEventListener('resize', reajustar); window.removeEventListener('orientationchange', reajustar);
             document.removeEventListener('fullscreenchange', reajustar); document.removeEventListener('webkitfullscreenchange', reajustar);
             if (window.visualViewport) window.visualViewport.removeEventListener('resize', reajustar);
@@ -396,6 +435,15 @@
 
         function pantallaPausa() {
             ctx.fillStyle = 'rgba(5,8,20,.97)'; ctx.fillRect(0, 0, W, H);
+            if (capaPausa) {
+                if (!capaPausa.isConnected) { capaPausa = null; } else {
+                    const s = Math.floor((performance.now() - pausaDesde) / 1000), t = capaPausa.querySelector('.motor-pausa-t');
+                    if (t) { t.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; t.style.color = s >= 60 ? '#ff922b' : '#adb5bd'; }
+                    // si cambió el tamaño del juego (girar el celular, pantalla completa), la capa lo sigue
+                    Object.assign(capaPausa.style, {left: lienzo.offsetLeft + 'px', top: lienzo.offsetTop + 'px', width: lienzo.offsetWidth + 'px', height: lienzo.offsetHeight + 'px'});
+                    return;
+                }
+            }
             m.texto('PAUSA PARA PENSAR', 14, 12, {tam: 10, color: '#ffd43b'});
             if (pausaHasta) {
                 const queda = Math.max(0, Math.ceil((pausaHasta - performance.now()) / 1000));
@@ -431,7 +479,24 @@
             ctx.fillStyle = '#ffd43b'; ctx.fillRect(0, ARRIBA - 2, W, 2); ctx.fillRect(0, ABAJO, W, 2);
             const p = m.pregunta;
             const arriba = def.textoArriba ? def.textoArriba(m) : (p && p.texto);
-            if (arriba) {
+            if (arriba && conMate(arriba)) {
+                // Enunciado con fórmulas: renglones de alto variable (una fracción ocupa más), se achica hasta que quepa
+                let tam = 9, lineas = [], altos = [];
+                for (tam = 9; tam >= 6; tam--) {
+                    lineas = Mate.partirLienzo(arriba, W - 130, {tam, fuente: FUENTE});
+                    altos = lineas.map(l => { const r = Mate.medirLienzo(l, {tam, fuente: FUENTE}); return r.a + r.d + 3; });
+                    if (altos.reduce((x, y) => x + y, 0) <= 46) break;
+                }
+                tam = Math.max(6, tam);
+                let y = 4, n = 0;
+                while (n < lineas.length && y + altos[n] <= 50) { y += altos[n]; n++; }
+                n = Math.max(1, n); y = 4;
+                lineas.slice(0, n).forEach((l, i) => {
+                    const t = i === n - 1 && n < lineas.length ? l + ' …' : l;
+                    m.texto(t, 8, y, {tam, mate: true, ancho: W - 130}); y += altos[i];
+                });
+                m.enunciadoCortado = n < lineas.length;
+            } else if (arriba) {
                 // La letra se achica hasta que quepa todo el enunciado (de 9 a 6 puntos); si aun así no cabe,
                 // el enunciado completo también se ve encima del juego (ver «enunciado» abajo).
                 let tam = 9, lineas = [];
@@ -458,6 +523,7 @@
             ops.forEach((o, k) => {
                 const x = 8 + (k % col) * (W / col), y = ABAJO + 8 + Math.floor(k / col) * 22;
                 m.etiqueta(k, x + 8, y + 7, 8);
+                if (conMate(o.texto)) { m.texto(o.texto, x + 20, y + 7, {tam, mate: true, base: 'middle', ancho: W / col - 30}); return; }
                 ctx.font = `${tam}px ${FUENTE}`;
                 let t = o.texto; while (ctx.measureText(t).width > W / col - 30 && t.length > 3) t = t.slice(0, -2);
                 if (t !== o.texto) t = t.slice(0, -1) + '…';

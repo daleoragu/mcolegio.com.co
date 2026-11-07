@@ -1,0 +1,6 @@
+{% load static %}{% comment %}Fórmulas con formato profesional (KaTeX, guardado en la plataforma: funciona sin internet externo).
+Los elementos con class="mate" se dibujan solos; desde JavaScript: Mate.render(elemento).{% endcomment %}
+<link rel="stylesheet" href="{% static 'aula/vendor/katex/katex.min.css' %}">
+<style>.mate .katex { font-size: 1.08em; } .mate .katex-display { margin: .3em 0; }</style>
+<script src="{% static 'aula/vendor/katex/katex.min.js' %}"></script>
+<script src="{% static 'aula/mate.js' %}"></script>

@@ -80,7 +80,7 @@
       var p = d.pregunta;
       if (p.id !== preguntaId || d.estado !== ultimoEstado) {
         preguntaId = p.id;
-        $('v-pregunta').textContent = p.texto;
+        $('v-pregunta').textContent = p.texto; delete $('v-pregunta').dataset.mateTexto; if (window.Mate) Mate.render($('v-pregunta'));
         var ops = $('v-ops'); ops.innerHTML = '';
         p.opciones.forEach(function (o, k) {
           var b = document.createElement('button');

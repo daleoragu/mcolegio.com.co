@@ -24,6 +24,10 @@
         ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x + (o.derecha ? w - 12 : 12), item.y + item.h / 2, 9, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#111'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(etiqueta, x + (o.derecha ? w - 12 : 12), item.y + item.h / 2 + 1);
+        if (m.conMate(texto)) {
+            m.texto(texto, x + (o.derecha ? 14 : 26), item.y + item.h / 2, {tam: 7, mate: true, base: 'middle', color: o.apagada ? '#adb5bd' : '#212529', sombra: false, ancho: w - 34});
+            return;
+        }
         ctx.font = `6px ${m.FUENTE}`;
         const cabe = Math.max(1, Math.floor((item.h - 6) / 9)), lineas = m.partir(texto, w - 34);
         const ver = lineas.slice(0, cabe);

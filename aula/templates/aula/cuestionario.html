@@ -42,8 +42,8 @@
       <div class="au-tarjeta">
         <h6>Preguntas</h6>
         {% for p in preguntas %}
-          <div class="border-bottom py-2"><div class="fw-semibold" style="white-space:pre-line">{{ forloop.counter }}. {{ p.texto }}</div>
-            <div class="small">{% for o in p.opciones.all %}<span class="me-3 {% if o.correcta %}text-success fw-bold{% else %}text-muted{% endif %}">{% if o.correcta %}✔{% else %}○{% endif %} {{ o.texto }}</span>{% endfor %}</div></div>
+          <div class="border-bottom py-2"><div class="fw-semibold" style="white-space:pre-line">{{ forloop.counter }}. <span class="mate">{{ p.texto }}</span></div>
+            <div class="small">{% for o in p.opciones.all %}<span class="me-3 {% if o.correcta %}text-success fw-bold{% else %}text-muted{% endif %}">{% if o.correcta %}✔{% else %}○{% endif %} <span class="mate">{{ o.texto }}</span></span>{% endfor %}</div></div>
         {% empty %}<div class="text-muted small">Sin preguntas. <a href="{% url 'aula:cuestionario_editar' aula.pk q.pk %}">Agregue la primera</a>.</div>{% endfor %}
       </div>
     {% else %}
