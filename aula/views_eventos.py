@@ -97,8 +97,9 @@ CONFIG = {'juegos': [j[0] for j in JUEGOS] + ['a_' + k for k in ('salto', 'puent
           'inscripcion': {'abierta': True, 'aprobacion': False, 'cupo_colegio': 0, 'cupo_nivel': 0},
           # Vigilancia: cámara y micrófono encendidos y grabados durante el evento (se borran solos a los `dias`)
           'vigilancia': {'activa': False, 'dias': 30},
-          # Retos arcade: 'operaciones' (las arma la plataforma según el grupo) o 'banco' (preguntas del banco 6.º–11.º del grado)
-          'arcade': 'operaciones',
+          # Retos arcade: 'preguntas' (las cargadas para los juegos y, si faltan, el banco 6.º–11.º del grado),
+          # 'propias' (solo las cargadas para los juegos), 'banco' (solo el banco 6.º–11.º) u 'operaciones'
+          'arcade': 'preguntas',
           # Fechas (hora de Colombia, 'AAAA-MM-DDTHH:MM'; vacío = sin límite): hasta cuándo se inscriben y cuándo se presenta
           'fechas': {'inscripcion_hasta': '', 'prueba_desde': '', 'prueba_hasta': ''},
           # Veedores: profesores (o grupos de profesores) invitados que ven los resultados en vivo con un enlace de solo lectura
@@ -417,8 +418,18 @@ def grupo_para(c, nivel='', grado=None):
     return None
 
 
-def agregar_preguntas(ev, preguntas, origen, ciclo_defecto=None, cat_defecto='newton'):
-    """Agrega preguntas de competencia al evento (cada una a su grupo por nivel o grado). Devuelve (agregadas, saltadas)."""
+def es_de_juego(x):
+    """Pregunta para los retos de juego (arcade). Las demás son de competencia."""
+    return x.get('uso') == 'juegos'
+
+
+def de_competencia(ev):
+    return [x for x in ev.preguntas if not es_de_juego(x)]
+
+
+def agregar_preguntas(ev, preguntas, origen, ciclo_defecto=None, cat_defecto='newton', uso='competencia'):
+    """Agrega preguntas al evento (cada una a su grupo por nivel o grado), para la competencia o para los retos de
+    juego. Una pregunta no puede estar en las dos (las de juego se ven en el navegador). Devuelve (agregadas, saltadas)."""
     c = config_de(ev)
     ya = {(x.get('ciclo'), x.get('texto')) for x in ev.preguntas}
     nuevas, saltadas = [], 0
@@ -430,7 +441,7 @@ def agregar_preguntas(ev, preguntas, origen, ciclo_defecto=None, cat_defecto='ne
             continue
         ya.add((g['id'], p['texto']))
         nuevas.append({'ciclo': g['id'], 'categoria': cat, 'grado': p.get('grado'), 'tema': p.get('tema', ''), 'texto': p['texto'],
-                       'opciones': p['opciones'], 'origen': origen})
+                       'opciones': p['opciones'], 'origen': origen, **({'uso': 'juegos'} if uso == 'juegos' else {})})
     if nuevas:
         ev.preguntas = list(ev.preguntas) + nuevas
         ev.save(update_fields=['preguntas'])
@@ -451,18 +462,21 @@ def preguntas_planilla(request, eid):
             return redirect('aula:evento_configurar', eid=ev.pk)
         preguntas, errores = planilla_preguntas.importar(archivo)
         cat = request.POST.get('categoria') if request.POST.get('categoria') in {k for k, _, _ in CATEGORIAS} else 'newton'
-        n, saltadas = agregar_preguntas(ev, preguntas, f'Planilla: {archivo.name[:60]}', request.POST.get('ciclo'), cat)
-        messages.success(request, f'Se agregaron {n} pregunta(s) de la planilla.' + (f' {saltadas} no se agregaron (sin grupo para su grado o repetidas).' if saltadas else ''))
+        uso = 'juegos' if request.POST.get('uso') == 'juegos' else 'competencia'
+        n, saltadas = agregar_preguntas(ev, preguntas, f'Planilla: {archivo.name[:60]}', request.POST.get('ciclo'), cat, uso)
+        messages.success(request, f'Se agregaron {n} pregunta(s) de la planilla ' + ('para los retos de juego.' if uso == 'juegos' else 'para la competencia.') + (f' {saltadas} no se agregaron (sin grupo para su grado o repetidas).' if saltadas else ''))
         if errores:
             messages.warning(request, f'{len(errores)} fila(s) con problemas: ' + ' · '.join((f'fila {f}: ' if f else '') + m for f, m in errores[:12]) + (' …' if len(errores) > 12 else ''))
         return redirect('aula:evento_configurar', eid=ev.pk)
     de = request.GET.get('de', 'evento')
     nombres = {g['id']: g['nombre'] for g in grupos(c)}
-    lista = [] if de == 'vacia' else planilla_preguntas.banco_olimpiada() if de == 'olimpiada' else ev.preguntas
+    lista = ([] if de == 'vacia' else planilla_preguntas.banco_olimpiada() if de == 'olimpiada'
+             else [x for x in ev.preguntas if es_de_juego(x)] if de == 'juegos' else de_competencia(ev))
     if de == 'olimpiada':
         lista = [dict(p, ciclo=(grupo_para(c, '', p['grado']) or {}).get('id', p['ciclo'])) for p in lista]
     archivo = planilla_preguntas.descargar(lista, ev.titulo, nombres)
-    nombre = {'vacia': 'planilla de preguntas (vacia)', 'olimpiada': 'banco olimpiada 6 a 11'}.get(de, f'preguntas {_nombre_archivo(ev.titulo, 50)}')
+    nombre = {'vacia': 'planilla de preguntas (vacia)', 'olimpiada': 'banco olimpiada 6 a 11',
+              'juegos': f'preguntas de juego {_nombre_archivo(ev.titulo, 40)}'}.get(de, f'preguntas de competencia {_nombre_archivo(ev.titulo, 40)}')
     return HttpResponse(archivo.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                         headers={'Content-Disposition': f'attachment; filename="{nombre}.xlsx"'})
 
@@ -583,10 +597,11 @@ def configurar(request, eid):
                     return redirect('aula:evento_configurar', eid=ev.pk)
                 preguntas, origen = j.preguntas, f'Salón virtual: {j.titulo}'
             buenas = [p for p in preguntas if 2 <= len(p.get('opciones', [])) <= 8 and sum(1 for o in p['opciones'] if o.get('correcta')) == 1]
-            ev.preguntas = list(ev.preguntas) + [{'ciclo': ciclo, 'categoria': cat, 'texto': p['texto'], 'opciones': p['opciones'], 'origen': origen} for p in buenas]
-            ev.save(update_fields=['preguntas'])
+            uso = 'juegos' if request.POST.get('uso') == 'juegos' else 'competencia'
+            n, repetidas = agregar_preguntas(ev, [dict(p, nivel='', grado=None) for p in buenas], origen, ciclo, cat, uso)
             malas = len(preguntas) - len(buenas)
-            messages.success(request, f'Se agregaron {len(buenas)} pregunta(s).' + (f' {malas} se saltaron (sin opciones o sin una sola correcta).' if malas else ''))
+            messages.success(request, f'Se agregaron {n} pregunta(s) ' + ('para los retos de juego.' if uso == 'juegos' else 'para la competencia.')
+                             + (f' {malas} se saltaron (sin opciones o sin una sola correcta).' if malas else '') + (f' {repetidas} ya estaban.' if repetidas else ''))
         elif accion == 'quitar':
             try:
                 k = int(request.POST.get('i'))
@@ -599,14 +614,19 @@ def configurar(request, eid):
             ev.save(update_fields=['preguntas'])
             messages.success(request, 'Se agregó el banco inicial de preguntas.')
         elif accion == 'banco_611':
-            n, sin = agregar_preguntas(ev, [dict(p, nivel='') for p in planilla_preguntas.banco_olimpiada()], 'Banco olimpiada 6.º–11.º')
-            messages.success(request, f'Se agregaron {n} pregunta(s) del banco 6.º–11.º, cada una al grupo de su grado.'
+            uso = 'juegos' if request.POST.get('uso') == 'juegos' else 'competencia'
+            n, sin = agregar_preguntas(ev, [dict(p, nivel='') for p in planilla_preguntas.banco_olimpiada()], 'Banco olimpiada 6.º–11.º', uso=uso)
+            messages.success(request, f'Se agregaron {n} pregunta(s) del banco 6.º–11.º ' + ('para los retos de juego' if uso == 'juegos' else 'para la competencia') + ', cada una al grupo de su grado.'
                              + (f' {sin} no se agregaron (su grado no está en ningún grupo o ya estaban).' if sin else ''))
         elif accion == 'arcade':
             c = config_de(ev)
-            ev.config = dict(ev.config or {}, arcade='banco' if request.POST.get('arcade') == 'banco' else 'operaciones')
+            elegido = request.POST.get('arcade') if request.POST.get('arcade') in ('preguntas', 'propias', 'banco', 'operaciones') else 'preguntas'
+            ev.config = dict(ev.config or {}, arcade=elegido)
             ev.save(update_fields=['config'])
-            messages.success(request, 'Los retos de juegos arcade ahora usan ' + ('las preguntas del banco 6.º–11.º del grado de cada estudiante.' if ev.config['arcade'] == 'banco' else 'operaciones según el grupo.'))
+            messages.success(request, 'Los retos arcade ahora usan ' + {'preguntas': 'las preguntas para juegos del grado de cada estudiante (y el banco 6.º–11.º si faltan).',
+                                                                         'propias': 'solo las preguntas cargadas para los juegos.',
+                                                                         'banco': 'las preguntas del banco 6.º–11.º del grado de cada estudiante.',
+                                                                         'operaciones': 'operaciones según el grupo.'}[elegido])
         elif accion == 'alcance' and ev.colegio_id:
             ev.alcance = 'codigo' if request.POST.get('alcance') == 'codigo' else 'colegio'
             ev.save(update_fields=['alcance'])
@@ -726,10 +746,13 @@ def configurar(request, eid):
         return redirect('aula:evento_configurar', eid=ev.pk)
     from notas.models import Curso, Docente, Estudiante
     c = config_de(ev)
-    conteo = {}
+    conteo, de_juego = {}, {}
     for p in ev.preguntas:
-        conteo[(p.get('ciclo'), p.get('categoria'))] = conteo.get((p.get('ciclo'), p.get('categoria')), 0) + 1
-    tabla = [{'ciclo': g['nombre'], 'cifras': [conteo.get((g['id'], ca), 0) for ca, _, _ in CATEGORIAS]} for g in grupos(c)]
+        if es_de_juego(p):
+            de_juego[p.get('ciclo')] = de_juego.get(p.get('ciclo'), 0) + 1
+        else:
+            conteo[(p.get('ciclo'), p.get('categoria'))] = conteo.get((p.get('ciclo'), p.get('categoria')), 0) + 1
+    tabla = [{'ciclo': g['nombre'], 'cifras': [conteo.get((g['id'], ca), 0) for ca, _, _ in CATEGORIAS], 'juegos': de_juego.get(g['id'], 0)} for g in grupos(c)]
     base_grados = grados_del_colegio(ev.colegio) if ev.colegio_id and ev.alcance == 'colegio' else todos_los_grados()
     grados_cols = sorted(set(base_grados) | {x for g in grupos(c) for x in g['grados']})
     cursos = Curso.objects.filter(colegio=ev.colegio).order_by('grado', 'nombre') if ev.colegio_id else Curso.objects.none()
@@ -761,14 +784,24 @@ def configurar(request, eid):
 
 
 def _preguntas_arcade(ev, c, grado, grupo):
-    """Preguntas del banco 6.º–11.º para los retos arcade del estudiante (su grado; si no, las de los grados de su grupo).
-    Se quitan las que el evento usa como preguntas de competencia, para no revelar sus respuestas."""
-    competencia = {x.get('texto') for x in ev.preguntas}
-    banco = [p for p in planilla_preguntas.banco_olimpiada() if p['texto'] not in competencia]
-    grados = [grado] if grado is not None else (grupo or {}).get('grados', [])
-    lista = [p for p in banco if p['grado'] in grados] or [p for p in banco if p['grado'] in (grupo or {}).get('grados', [])]
-    random.shuffle(lista)
-    return [{'texto': p['texto'], 'opciones': p['opciones']} for p in lista[:60]]
+    """Las preguntas de selección múltiple de los retos arcade del estudiante: primero las que el organizador cargó
+    para los juegos (de su grado; si no hay, de su grupo) y, si faltan, las del banco 6.º–11.º de su grado.
+    Nunca las de competencia: las de juego se ven en el navegador."""
+    modo = c.get('arcade', 'preguntas')
+    competencia = {x.get('texto') for x in de_competencia(ev)}
+    gid = (grupo or {}).get('id')
+    propias = [x for x in ev.preguntas if es_de_juego(x) and x.get('ciclo') == gid]
+    if grado is not None and any(x.get('grado') == grado for x in propias):
+        propias = [x for x in propias if x.get('grado') in (grado, None)]
+    random.shuffle(propias)
+    lista = list(propias) if modo in ('preguntas', 'propias') else []
+    if modo == 'banco' or (modo == 'preguntas' and len(lista) < 30):
+        banco = [p for p in planilla_preguntas.banco_olimpiada() if p['texto'] not in competencia and p['texto'] not in {x['texto'] for x in lista}]
+        grados = [grado] if grado is not None else (grupo or {}).get('grados', [])
+        del_banco = [p for p in banco if p['grado'] in grados] or [p for p in banco if p['grado'] in (grupo or {}).get('grados', [])]
+        random.shuffle(del_banco)
+        lista += del_banco
+    return [{'texto': p['texto'], 'opciones': p['opciones']} for p in lista[:80]]
 
 
 def _juegos_salon(ev):
@@ -820,7 +853,7 @@ def jugar(request, eid):
         'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito')},
         'usuario': request.user.pk or (p.token[:8] if p else 'anon'),
         'vigilancia': c['vigilancia'] if c['vigilancia']['activa'] else None,
-        'arcade_preguntas': _preguntas_arcade(ev, c, grado, grupo) if c.get('arcade') == 'banco' else None,
+        'arcade_preguntas': _preguntas_arcade(ev, c, grado, grupo) if c.get('arcade', 'preguntas') != 'operaciones' else None,
         'acepto_vigilancia': bool(p and (p.datos or {}).get('vigilancia', {}).get('acepto')),
     }
     if p is not None or est is not None:
@@ -1553,7 +1586,7 @@ def pregunta(request, eid):
     else:
         hechas = p.preguntas_hechas if p else random.randint(0, 2)
         cat = CATEGORIAS[hechas % 3][0]
-        del_ciclo = [(i, x) for i, x in enumerate(ev.preguntas) if x.get('ciclo') == ciclo]
+        del_ciclo = [(i, x) for i, x in enumerate(ev.preguntas) if x.get('ciclo') == ciclo and not es_de_juego(x)]
         grado = grado_de(p) if p else None
         if grado is not None and any(x.get('grado') == grado for _, x in del_ciclo):
             del_ciclo = [(i, x) for i, x in del_ciclo if x.get('grado') in (grado, None)]      # las de su grado (y las generales)

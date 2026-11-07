@@ -29,6 +29,8 @@
   .jg-completa-btn { position:absolute; top:4px; right:6px; z-index:3; border:0; border-radius:8px; background:rgba(255,255,255,.12); color:#fff; padding:2px 8px; font-size:.8rem; }
   .jg-completa-btn:hover { background:rgba(255,255,255,.25); }
   .jg-instr-btn { right:auto; left:6px; background:#1c7ed6; }
+  .jg-pausa-btn { right:44px; background:#e8590c; }
+  .jg-pausa-btn:hover { background:#d9480f; }
   .jg-instr-btn:hover { background:#1971c2; }
   .jg-consola { padding-top:30px; }
   .jg-zona.completa .jg-consola { padding-top:30px; }
@@ -77,6 +79,7 @@
 <div class="jg-zona">
 <div class="jg-consola">
   <button type="button" class="jg-completa-btn" id="jg-completa" title="Pantalla completa (se activa sola al empezar)"><i class="fas fa-expand"></i></button>
+  <button type="button" class="jg-completa-btn jg-pausa-btn" id="jg-pausa" title="Pausa de 30 segundos para resolver en papel (también la tecla P)">⏸ Pausa 30 s</button>
   <button type="button" class="jg-completa-btn jg-instr-btn" id="jg-instr" data-titulo="{{ nombre_juego }}" data-instr="{{ instrucciones_juego }}" data-extra="{{ instrucciones_comun }}" title="Instrucciones"><i class="fas fa-book-open me-1"></i>Instrucciones</button>
   <canvas id="jg-lienzo" aria-label="{{ nombre_juego }}" tabindex="0"></canvas>
   <div class="jg-mandos" id="jg-mandos">
@@ -138,6 +141,7 @@
   const URL_RESULTADO = {% if juego %}"{% url 'aula:juego_resultado' aula.pk juego.pk %}"{% else %}null{% endif %};
   let textoFinal = '';
   const m = Gamificacion.iniciar({
+    alPausar: pausado => { const b = document.getElementById('jg-pausa'); if (b) b.textContent = pausado ? '▶ Seguir' : '⏸ Pausa 30 s'; },
     lienzo, tipo: '{{ tipo|escapejs }}', segundos: {{ segundos|default:20 }}, minutos: {{ minutos|default:3 }},
     jugadores: {{ jugadores|default:1 }},
     // lo que va debajo del juego (las flechas en el celular), salvo en pantalla completa, donde quedan encima
@@ -237,6 +241,7 @@
   lienzo.addEventListener('pointerdown', alEmpezar, true);
   document.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') alEmpezar(); }, true);
 
+  document.getElementById('jg-pausa').addEventListener('click', ev => { ev.stopPropagation(); if (m.enPausa) m.seguir(); else if (!m.pausar()) { /* solo mientras se juega */ } lienzo.focus(); });
   window.juegoActual = m;      // para las pruebas automáticas
   lienzo.focus();
 })();

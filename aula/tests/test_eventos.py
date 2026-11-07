@@ -618,6 +618,7 @@ class Olimpiada(ColegioDePrueba):
         x = next(x for x in ev.preguntas if x['texto'] == q['texto'])
         self.assertIn(x.get('grado'), (grado, None))
         # Retos arcade con el banco del grado (sin las preguntas de competencia)
+        self.admin.post(conf, {'accion': 'arcade', 'arcade': 'operaciones'})
         d = ana.get(f'/aula/eventos/{ev.pk}/').context['datos']
         self.assertIsNone(d['arcade_preguntas'])
         self.admin.post(conf, {'accion': 'arcade', 'arcade': 'banco'})
@@ -751,3 +752,47 @@ class Olimpiada(ColegioDePrueba):
         # Se puede ocultar
         self.admin.post(conf, {'accion': 'podio_colegios'})
         self.assertNotContains(self.admin.get(f'/aula/eventos/{ev.pk}/resultados/'), 'Puntaje del colegio')
+
+    def test_preguntas_para_los_retos_de_juego(self):
+        """Las preguntas se cargan para la competencia o para los retos arcade; los arcade usan las de juego del grado
+        (y el banco si faltan), nunca las de competencia; y hay pausa de 30 s."""
+        ev = self.crear('Olimpiada Zona Norte')
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        self.admin.post(conf, {'accion': 'activar'})
+        texto = '\n\n'.join(f'{k}. ¿Capital número {k}?\nA) Uno\n*B) Dos\nC) Tres' for k in range(1, 6))
+        self.admin.post(conf, {'accion': 'pegar', 'ciclo': 'exploradores', 'categoria': 'newton', 'texto': texto, 'uso': 'juegos'})
+        self.admin.post(conf, {'accion': 'pegar', 'ciclo': 'exploradores', 'categoria': 'euclides', 'texto': '1. ¿Pregunta de competencia?\nA) x\n*B) y', 'uso': 'competencia'})
+        # La misma pregunta no puede estar en las dos
+        self.admin.post(conf, {'accion': 'pegar', 'ciclo': 'exploradores', 'categoria': 'newton', 'texto': '1. ¿Pregunta de competencia?\nA) x\n*B) y', 'uso': 'juegos'})
+        ev.refresh_from_db()
+        juego = [x for x in ev.preguntas if x.get('uso') == 'juegos']
+        self.assertEqual(len(juego), 5)
+        self.assertEqual(sum(1 for x in ev.preguntas if x['texto'] == '¿Pregunta de competencia?'), 1)
+        self.assertContains(self.admin.get(conf), 'Retos de juego')
+        # Por defecto los arcade usan preguntas: primero las de juego del grupo, luego el banco de su grado
+        ana = self.cliente(self.ana.user)
+        d = ana.get(f'/aula/eventos/{ev.pk}/').context['datos']
+        textos = [q['texto'] for q in d['arcade_preguntas']]
+        self.assertTrue(set(x['texto'] for x in juego) <= set(textos[:5]))
+        competencia = {x['texto'] for x in ev.preguntas if x.get('uso') != 'juegos'}
+        self.assertFalse(competencia & set(textos))
+        self.assertGreater(len(textos), 5)                     # se completan con el banco 6.º–11.º
+        # «Solo las cargadas para los juegos» y «operaciones»
+        self.admin.post(conf, {'accion': 'arcade', 'arcade': 'propias'})
+        d = ana.get(f'/aula/eventos/{ev.pk}/').context['datos']
+        self.assertEqual(sorted(q['texto'] for q in d['arcade_preguntas']), sorted(x['texto'] for x in juego))
+        self.admin.post(conf, {'accion': 'arcade', 'arcade': 'operaciones'})
+        self.assertIsNone(ana.get(f'/aula/eventos/{ev.pk}/').context['datos']['arcade_preguntas'])
+        # Las preguntas de juego nunca salen como pregunta de competencia
+        self.post(ana, f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'inicio'}]})
+        p = ParticipacionEvento.objects.get(evento=ev, estudiante=self.ana)
+        p.puntos = 5; p.save()
+        for _ in range(4):
+            q = ana.get(f'/aula/eventos/{ev.pk}/pregunta/').json()['pregunta']
+            self.assertNotIn(q['texto'], {x['texto'] for x in juego})
+        # El banco 6.º–11.º también se puede cargar para los retos de juego
+        self.admin.post(conf, {'accion': 'banco_611', 'uso': 'juegos'})
+        ev.refresh_from_db()
+        self.assertGreater(sum(1 for x in ev.preguntas if x.get('uso') == 'juegos'), 200)
+        # Botón de pausa en la olimpiada
+        self.assertContains(ana.get(f'/aula/eventos/{ev.pk}/'), 'id="ol-pausa"')
