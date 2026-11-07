@@ -796,3 +796,49 @@ class Olimpiada(ColegioDePrueba):
         self.assertGreater(sum(1 for x in ev.preguntas if x.get('uso') == 'juegos'), 200)
         # Botón de pausa en la olimpiada
         self.assertContains(ana.get(f'/aula/eventos/{ev.pk}/'), 'id="ol-pausa"')
+
+    def test_administrar_preguntas(self):
+        """Ver todas las preguntas; eliminar, pasar a la competencia o al arcade, una por una o varias a la vez,
+        sin dañar lo que llevan los participantes."""
+        ev = self.crear('Olimpiada Zona Norte')
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        self.admin.post(conf, {'accion': 'activar'})
+        texto = '\n\n'.join(f'{k}. ¿Pregunta {k}?\nA) no\n*B) sí' for k in range(1, 7))
+        ev.refresh_from_db(); ev.preguntas = []; ev.save()
+        self.admin.post(conf, {'accion': 'pegar', 'ciclo': 'exploradores', 'categoria': 'newton', 'texto': texto, 'uso': 'competencia'})
+        ev.refresh_from_db()
+        url = f'/aula/eventos/{ev.pk}/preguntas/'
+        r = self.admin.get(url)
+        self.assertContains(r, '¿Pregunta 6?'); self.assertContains(r, 'Seleccionar todas (6)')
+        sel = {f['x']['texto']: f['valor'] for f in r.context['filas']}
+        # Ana tiene pendiente la pregunta 5 y ya vio la 6
+        self.post(self.cliente(self.ana.user), f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'inicio'}]})
+        p = ParticipacionEvento.objects.get(evento=ev, estudiante=self.ana)
+        p.pendiente, p.vistas = {'i': 4, 'orden': [0, 1], 'categoria': 'newton'}, [5]
+        p.save()
+        # Una sola (menú ⋮): pasar la 1 al arcade
+        self.admin.post(url, {'accion': 'juegos', 'sel': [sel['¿Pregunta 1?']]})
+        ev.refresh_from_db()
+        self.assertEqual(ev.preguntas[0].get('uso'), 'juegos')
+        # Varias: eliminar la 2 y la 3 → la pendiente (5) y la vista (6) se corren de lugar
+        self.admin.post(url, {'accion': 'eliminar', 'sel': [sel['¿Pregunta 2?'], sel['¿Pregunta 3?']]})
+        ev.refresh_from_db(); p.refresh_from_db()
+        self.assertEqual([x['texto'] for x in ev.preguntas], ['¿Pregunta 1?', '¿Pregunta 4?', '¿Pregunta 5?', '¿Pregunta 6?'])
+        self.assertEqual(ev.preguntas[p.pendiente['i']]['texto'], '¿Pregunta 5?')
+        self.assertEqual([ev.preguntas[i]['texto'] for i in p.vistas], ['¿Pregunta 6?'])
+        # Pasar al arcade la que Ana tiene pendiente: se le quita (le saldrá otra)
+        sel = {f['x']['texto']: f['valor'] for f in self.admin.get(url).context['filas']}
+        self.admin.post(url, {'accion': 'juegos', 'sel': [sel['¿Pregunta 5?'], sel['¿Pregunta 4?']]})
+        p.refresh_from_db(); self.assertEqual(p.pendiente, {})
+        # Volver a la competencia varias; filtros
+        self.admin.post(url, {'accion': 'competencia', 'sel': [sel['¿Pregunta 4?']]})
+        ev.refresh_from_db()
+        self.assertEqual(sorted(x['texto'] for x in ev.preguntas if x.get('uso') == 'juegos'), ['¿Pregunta 1?', '¿Pregunta 5?'])
+        self.assertEqual(len(self.admin.get(url + '?uso=juegos').context['filas']), 2)
+        self.assertEqual(len(self.admin.get(url + '?q=pregunta 6').context['filas']), 1)
+        # Si la lista cambió (marca vieja), no toca otra pregunta
+        self.admin.post(url, {'accion': 'eliminar', 'sel': ['0:marcavieja']})
+        ev.refresh_from_db(); self.assertEqual(len(ev.preguntas), 4)
+        # Solo organizadores
+        self.assertEqual(self.cliente(self.ana.user).get(url).status_code, 403)
+        self.assertContains(self.admin.get(conf), 'Ver y administrar todas')

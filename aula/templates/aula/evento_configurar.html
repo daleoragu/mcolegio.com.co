@@ -252,7 +252,8 @@
 
   <div class="col-lg-6">
     <div class="au-tarjeta">
-      <h6><i class="fas fa-circle-question me-1"></i>Preguntas ({{ preguntas|length }})</h6>
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-1"><h6 class="mb-0"><i class="fas fa-circle-question me-1"></i>Preguntas ({{ preguntas|length }})</h6>
+        <a href="{% url 'aula:evento_preguntas' ev.pk %}" class="btn btn-sm btn-primary ms-auto"><i class="fas fa-list-check me-1"></i>Ver y administrar todas</a></div>
       <table class="table table-sm text-center small mb-2">
         <thead><tr><th class="text-start">Grupo</th>{% for k, n, d in categorias %}<th title="{{ d }}">{{ n }}<div class="fw-normal text-muted" style="font-size:.7rem">competencia</div></th>{% endfor %}<th title="Para los retos arcade">Retos de juego</th></tr></thead>
         <tbody>{% for f in tabla %}<tr><td class="text-start">{{ f.ciclo }}</td>{% for x in f.cifras %}<td class="{% if not x %}text-danger fw-bold{% endif %}">{{ x }}</td>{% endfor %}<td class="fw-bold text-primary">{{ f.juegos }}</td></tr>{% endfor %}</tbody>

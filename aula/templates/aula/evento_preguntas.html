@@ -1,0 +1,123 @@
+{% extends base %}
+{% block page_title %}
+<h4 class="mb-0"><i class="fas fa-list-check me-2"></i>{{ ev.titulo }}: preguntas</h4>
+<p class="text-muted small mb-0">Todas las preguntas del evento. <b>Competencia</b>: salen cada pocos puntos y las califica el servidor.
+  <b>Arcade</b>: las preguntan los juegos (retos de juego).</p>
+{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<style>
+  .pq-tabla td { vertical-align:top; }
+  .pq-ops { font-size:.78rem; color:#5b6474; }
+  .pq-ops .ok { color:#2b8a3e; font-weight:700; }
+  .pq-menu { position:relative; display:inline-block; }
+  .pq-menu > summary { list-style:none; cursor:pointer; border:1px solid #ced4da; border-radius:8px; padding:2px 10px; font-weight:700; background:#fff; }
+  .pq-menu > summary::-webkit-details-marker { display:none; }
+  .pq-menu[open] > summary { background:#e7f5ff; border-color:#74c0fc; }
+  .pq-menu .caja { position:absolute; right:0; top:calc(100% + 4px); z-index:20; background:#fff; border:1px solid #dee2e6; border-radius:10px;
+                   box-shadow:0 8px 24px rgba(0,0,0,.15); min-width:220px; padding:4px; }
+  .pq-menu .caja button { display:block; width:100%; text-align:left; border:0; background:none; padding:7px 10px; border-radius:7px; font-size:.88rem; }
+  .pq-menu .caja button:hover { background:#f1f3f5; }
+  .pq-menu .caja button.rojo { color:#c92a2a; }
+  .pq-barra { position:sticky; top:0; z-index:15; background:#fff; border:1px solid #dee2e6; border-radius:12px; padding:8px 12px; margin-bottom:10px;
+              box-shadow:0 2px 8px rgba(0,0,0,.05); }
+  tr.marcada td { background:#fff9db !important; }
+</style>
+<div class="au" style="max-width:1150px;margin:0 auto">
+  <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+    <a href="{% url 'aula:evento_configurar' ev.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Configuración</a>
+    <span class="small">Total <b>{{ total }}</b> · competencia <b>{{ total_c }}</b> · arcade <b class="text-primary">{{ total_j }}</b></span>
+    <a href="{% url 'aula:evento_preguntas_planilla' ev.pk %}" class="btn btn-sm btn-outline-success ms-auto"><i class="fas fa-file-excel me-1"></i>Descargar las de competencia</a>
+    <a href="{% url 'aula:evento_preguntas_planilla' ev.pk %}?de=juegos" class="btn btn-sm btn-outline-success"><i class="fas fa-file-excel me-1"></i>Descargar las del arcade</a>
+  </div>
+
+  <form method="get" class="au-tarjeta d-flex flex-wrap gap-2 align-items-end py-2">
+    <div><label class="small fw-bold d-block">Uso</label>
+      <select name="uso" class="form-select form-select-sm"><option value="">Todas</option>
+        <option value="competencia" {% if f.uso == 'competencia' %}selected{% endif %}>Competencia</option>
+        <option value="juegos" {% if f.uso == 'juegos' %}selected{% endif %}>Arcade (retos de juego)</option></select></div>
+    <div><label class="small fw-bold d-block">Nivel</label>
+      <select name="grupo" class="form-select form-select-sm"><option value="">Todos</option>
+        {% for g in grupos %}<option value="{{ g.id }}" {% if f.grupo == g.id %}selected{% endif %}>{{ g.nombre }}</option>{% endfor %}</select></div>
+    <div><label class="small fw-bold d-block">Pensamiento</label>
+      <select name="cat" class="form-select form-select-sm"><option value="">Todos</option>
+        {% for k, n, d in categorias %}<option value="{{ k }}" {% if f.cat == k %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+    {% if grados %}<div><label class="small fw-bold d-block">Grado</label>
+      <select name="grado" class="form-select form-select-sm"><option value="">Todos</option>
+        {% for g, n in grados %}<option value="{{ g }}" {% if f.grado == g|stringformat:"s" %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>{% endif %}
+    <div class="flex-grow-1"><label class="small fw-bold d-block">Buscar</label>
+      <input type="search" name="q" value="{{ f.q }}" class="form-control form-control-sm" placeholder="Palabra de la pregunta o tema"></div>
+    <button class="btn btn-sm btn-primary">Filtrar</button>
+    {% if consulta %}<a href="?" class="btn btn-sm btn-link">Quitar filtros</a>{% endif %}
+  </form>
+
+  <form method="post" id="pq-form">{% csrf_token %}
+    <div class="pq-barra d-flex flex-wrap gap-2 align-items-center">
+      <div class="form-check m-0"><input class="form-check-input" type="checkbox" id="pq-todas">
+        <label class="form-check-label fw-bold" for="pq-todas">Seleccionar todas ({{ filas|length }})</label></div>
+      <span class="small text-muted" id="pq-cuenta">Ninguna seleccionada</span>
+      <select name="accion" class="form-select form-select-sm ms-md-auto" style="max-width:260px" id="pq-accion">
+        <option value="">¿Qué hacer con las seleccionadas?</option>
+        <option value="competencia">Pasarlas a la competencia</option>
+        <option value="juegos">Pasarlas al arcade (retos de juego)</option>
+        <option value="eliminar">Eliminarlas</option>
+      </select>
+      <button class="btn btn-sm au-oro" id="pq-aplicar" disabled>Aplicar</button>
+    </div>
+
+    <div class="au-tarjeta p-0" style="overflow:visible">
+      <table class="table table-sm mb-0 small pq-tabla">
+        <thead class="table-light"><tr><th style="width:34px"></th><th style="width:110px">Uso</th><th style="width:150px">Nivel · pensamiento</th><th>Pregunta</th><th class="text-end" style="width:70px"></th></tr></thead>
+        <tbody>
+        {% for r in filas %}
+          <tr>
+            <td><input class="form-check-input pq-sel" type="checkbox" name="sel" value="{{ r.valor }}" aria-label="Seleccionar"></td>
+            <td>{% if r.juego %}<span class="badge bg-primary">Arcade</span>{% else %}<span class="badge bg-warning text-dark">Competencia</span>{% endif %}</td>
+            <td>{{ r.grupo }}<div class="text-muted">{{ r.cat }}{% if r.grado %} · {{ r.grado }}{% endif %}</div></td>
+            <td><div class="fw-semibold">{{ r.x.texto }}</div>
+              <div class="pq-ops">{% for o in r.x.opciones %}<span class="me-2 {% if o.correcta %}ok{% endif %}">{% cycle 'A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' %}) {{ o.texto }}{% if o.correcta %} ✓{% endif %}</span>{% endfor %}{% resetcycle %}</div>
+              {% if r.x.tema or r.x.origen %}<div class="text-muted" style="font-size:.72rem">{{ r.x.tema }}{% if r.x.tema and r.x.origen %} · {% endif %}{{ r.x.origen }}</div>{% endif %}</td>
+            <td class="text-end">
+              <details class="pq-menu"><summary title="Acciones">⋮</summary>
+                <div class="caja">
+                  {% if r.juego %}<button type="submit" name="accion" value="competencia" form="pq-una-{{ r.i }}">Enviar a la competencia</button>
+                  {% else %}<button type="submit" name="accion" value="juegos" form="pq-una-{{ r.i }}">Enviar al arcade (retos de juego)</button>{% endif %}
+                  <button type="submit" name="accion" value="eliminar" form="pq-una-{{ r.i }}" class="rojo" onclick="return confirm('¿Eliminar esta pregunta?')">Eliminar</button>
+                </div>
+              </details>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-center text-muted py-4">No hay preguntas{% if consulta %} con esos filtros{% endif %}.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </form>
+  {# un formulario por pregunta para el menú ⋮ (fuera del formulario de las seleccionadas) #}
+  {% for r in filas %}<form method="post" id="pq-una-{{ r.i }}" hidden>{% csrf_token %}<input type="hidden" name="sel" value="{{ r.valor }}"></form>{% endfor %}
+</div>
+<script>
+(function () {
+  const todas = document.getElementById('pq-todas'), cajas = [...document.querySelectorAll('.pq-sel')];
+  const cuenta = document.getElementById('pq-cuenta'), accion = document.getElementById('pq-accion'), aplicar = document.getElementById('pq-aplicar');
+  function pintar() {
+    const n = cajas.filter(c => c.checked).length;
+    cuenta.textContent = n ? `${n} seleccionada${n === 1 ? '' : 's'}` : 'Ninguna seleccionada';
+    todas.checked = n && n === cajas.length; todas.indeterminate = n > 0 && n < cajas.length;
+    cajas.forEach(c => c.closest('tr').classList.toggle('marcada', c.checked));
+    aplicar.disabled = !n || !accion.value;
+  }
+  todas.addEventListener('change', () => { cajas.forEach(c => { c.checked = todas.checked; }); pintar(); });
+  cajas.forEach(c => c.addEventListener('change', pintar));
+  accion.addEventListener('change', pintar);
+  document.getElementById('pq-form').addEventListener('submit', ev => {
+    const n = cajas.filter(c => c.checked).length;
+    if (accion.value === 'eliminar' && !confirm(`¿Eliminar ${n} pregunta${n === 1 ? '' : 's'}? No se puede deshacer.`)) ev.preventDefault();
+  });
+  // Cerrar el menú ⋮ al tocar fuera
+  document.addEventListener('click', ev => { document.querySelectorAll('.pq-menu[open]').forEach(d => { if (!d.contains(ev.target)) d.removeAttribute('open'); }); });
+  pintar();
+})();
+</script>
+{% endblock %}
