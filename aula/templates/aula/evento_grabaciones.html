@@ -5,7 +5,7 @@
 <div class="au" style="max-width:1100px;margin:0 auto">
   <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
     <a href="{% url 'aula:evento_resultados' ev.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Resultados</a>
-    <span class="small text-muted">{{ trozos|length }} trozo(s) de unos 30 s · {{ mb }} MB · {{ p.de_donde }} · {{ p.puntos }} punto(s)</span>
+    <span class="small text-muted">{% if trozos %}{{ trozos|length }} trozo(s) de unos 30 s · {% endif %}{% if fotos %}{{ fotos|length }} pantallazo(s) · {% endif %}{{ mb }} MB · {{ p.de_donde }} · {{ p.puntos }} punto(s)</span>
     {% if trozos %}<button type="button" class="btn btn-sm btn-primary ms-auto" id="gr-todo"><i class="fas fa-play me-1"></i>Ver todo seguido</button>{% endif %}
   </div>
   <div class="au-tarjeta small">
@@ -19,8 +19,20 @@
       </tbody></table><div class="text-muted">En el video, los momentos fuera aparecen marcados con una franja roja «FUERA DE LA PRUEBA».</div></div>
     {% elif salidas_on %}<div class="mt-1 text-success">No salió de la prueba.</div>{% endif %}
   </div>
+  {% if total %}{% include 'aula/_nube_grabaciones.html' with pid=p.pk total=total %}{% endif %}
+  {% if fotos %}
+  <div class="au-tarjeta">
+    <h6 class="mb-2"><i class="fas fa-images me-1"></i>Pantallazos ({{ fotos|length }}) <span class="small text-muted fw-normal">uno en cada reto y en cada pregunta; toque uno para verlo grande</span></h6>
+    <div class="d-grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))">
+      {% for f in fotos %}<a href="{% url 'aula:evento_grabacion_archivo' ev.pk f.g.pk %}" target="_blank" rel="noopener" class="text-decoration-none gr-foto"
+        style="border:1px solid #dee2e6;border-radius:10px;overflow:hidden;background:#10131c;display:block">
+        <img src="{% url 'aula:evento_grabacion_archivo' ev.pk f.g.pk %}" alt="Pantallazo {{ forloop.counter }}" loading="lazy" style="width:100%;display:block;aspect-ratio:16/10;object-fit:contain">
+        <span class="d-block small px-2 py-1 {% if f.momento == 'salió de la prueba' or f.momento == 'volvió a la prueba' %}bg-danger text-white{% else %}bg-light text-dark{% endif %}">
+          {{ f.g.creada|date:"H:i:s" }} · min {{ f.min }} · {{ f.momento }}{% if f.g.nube %} ☁{% endif %}</span></a>{% endfor %}
+    </div>
+  </div>
+  {% endif %}
   {% if trozos %}
-  {% include 'aula/_nube_grabaciones.html' with pid=p.pk total=trozos|length %}
   <div class="au-tarjeta">
     <video id="gr-video" controls playsinline style="width:100%;max-height:60vh;background:#000;border-radius:10px"></video>
     <div class="small text-muted mt-1" id="gr-cual"></div>
@@ -40,7 +52,7 @@
     ver(0); v.pause();
   })();
   </script>
-  {% else %}
+  {% elif not fotos %}
   <div class="au-tarjeta text-center text-muted">No hay grabaciones de este participante{% if dias %} (o ya se borraron: se guardan {{ dias }} días){% endif %}.</div>
   {% endif %}
 </div>

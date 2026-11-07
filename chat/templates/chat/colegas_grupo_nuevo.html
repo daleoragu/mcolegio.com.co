@@ -1,0 +1,22 @@
+{% extends 'chat/_app.html' %}
+{% block title %}Crear un grupo de docentes{% endblock %}
+{% block volver %}/chat/colegas/{% endblock %}
+{% block barra %}<span class="ch-avatar chico grupo"><i class="fas fa-users"></i></span><span class="ch-titulo"><b>Crear un grupo de docentes</b><small>Con sus colegas · usted queda de moderador</small></span>{% endblock %}
+{% block content %}
+<div class="ch-cuerpo">
+<form method="post" class="m-3 p-3 bg-white border rounded-4">{% csrf_token %}
+  <label class="fw-bold small mb-1" for="gn-nombre">Nombre del grupo</label>
+  <input id="gn-nombre" name="nombre" maxlength="80" class="form-control mb-2" placeholder="Ej.: Docentes de matemáticas Zona Norte, Jurado de la olimpiada" required>
+  <div class="form-check small mb-1"><input class="form-check-input" type="checkbox" name="solo_lectura" id="gn-solo"><label class="form-check-label" for="gn-solo">Solo yo escribo (grupo de avisos)</label></div>
+  <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="todos" id="gn-todos" onchange="document.querySelectorAll('.gn-m').forEach(function(c){c.checked=this.checked;c.disabled=this.checked;}.bind(this))"><label class="form-check-label fw-semibold" for="gn-todos">Agregar a todos mis colegas ({{ personas|length }})</label></div>
+  <input type="search" class="form-control form-control-sm mb-2" placeholder="Filtrar colegas" aria-label="Filtrar colegas" oninput="var q=this.value.toLowerCase();document.querySelectorAll('.gn-fila').forEach(function(f){f.classList.toggle('d-none',f.textContent.toLowerCase().indexOf(q)<0);})">
+  <div style="max-height:50vh;overflow-y:auto" class="border rounded p-2 mb-2">
+  {% for x in personas %}
+    <label class="gn-fila d-flex align-items-center gap-2 small py-1 border-bottom"><input type="checkbox" class="form-check-input gn-m" name="miembros" value="{{ x.u.pk }}">
+      <span><b>{{ x.nombre }}</b> <span class="text-muted">{{ x.desc }}</span></span></label>
+  {% empty %}<div class="small text-muted">Todavía no tiene colegas. <a href="/chat/colegas/?tab=buscar">Busque docentes</a> y envíeles una solicitud; cuando la acepten, podrá agregarlos aquí.</div>{% endfor %}
+  </div>
+  <button class="btn btn-primary" {% if not personas %}disabled{% endif %}>Crear el grupo</button>
+</form>
+</div>
+{% endblock %}

@@ -37,8 +37,11 @@ class AjustesChat(models.Model):
 
 class Conversacion(models.Model):
     TIPOS = [('directa', 'Uno a uno'), ('curso', 'Grupo del curso'), ('asignatura', 'Grupo de la asignatura'),
-             ('profesores', 'Sala de profesores'), ('grupo', 'Grupo')]
-    colegio = models.ForeignKey('notas.Colegio', on_delete=models.CASCADE, related_name='conversaciones_chat')
+             ('profesores', 'Sala de profesores'), ('grupo', 'Grupo'),
+             ('colegas', 'Colegas: uno a uno'), ('colegas_g', 'Grupo de docentes')]
+    # Sin colegio: conversaciones entre colegas docentes de toda la plataforma (ver views_colegas.py)
+    colegio = models.ForeignKey('notas.Colegio', on_delete=models.CASCADE, related_name='conversaciones_chat',
+                                null=True, blank=True)
     tipo = models.CharField(max_length=10, choices=TIPOS)
     nombre = models.CharField(max_length=80, blank=True)
     # Identifica las conversaciones únicas: «d:3-8» (uno a uno), «c:12» (curso), «a:40» (asignatura), «p» (profesores).
@@ -54,10 +57,36 @@ class Conversacion(models.Model):
     class Meta:
         ordering = ['-ultimo_mensaje', '-creada']
         constraints = [models.UniqueConstraint(fields=['colegio', 'clave'], condition=~models.Q(clave=''),
-                                               name='chat_una_conversacion_por_clave')]
+                                               name='chat_una_conversacion_por_clave'),
+                       models.UniqueConstraint(fields=['clave'], condition=models.Q(colegio__isnull=True) & ~models.Q(clave=''),
+                                               name='chat_colegas_una_por_clave')]
 
     def __str__(self):
         return self.nombre or f'Conversación {self.pk}'
+
+
+class PerfilColega(models.Model):
+    """Cómo se muestra un docente a los demás docentes de la plataforma (Mis colegas)."""
+    usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil_colega')
+    visible = models.BooleanField(default=True, help_text='Aparece cuando otros docentes buscan colegas.')
+    area = models.CharField(max_length=80, blank=True, verbose_name='Área o asignatura')
+    presentacion = models.CharField(max_length=200, blank=True, verbose_name='Presentación corta')
+
+
+class Colega(models.Model):
+    """Solicitud de amistad entre dos docentes (solo docentes; nunca estudiantes).
+    pendiente: «de» la envió y «para» no ha respondido · aceptada: son colegas · bloqueada: «de» bloqueó a «para»."""
+    ESTADOS = [('pendiente', 'Pendiente'), ('aceptada', 'Aceptada'), ('bloqueada', 'Bloqueada')]
+    de = models.ForeignKey(User, on_delete=models.CASCADE, related_name='colegas_enviadas')
+    para = models.ForeignKey(User, on_delete=models.CASCADE, related_name='colegas_recibidas')
+    estado = models.CharField(max_length=10, choices=ESTADOS, default='pendiente')
+    mensaje = models.CharField(max_length=200, blank=True)
+    creada = models.DateTimeField(auto_now_add=True)
+    respondida = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-creada']
+        constraints = [models.UniqueConstraint(fields=['de', 'para'], name='chat_una_solicitud_colega')]
 
 
 class Participante(models.Model):

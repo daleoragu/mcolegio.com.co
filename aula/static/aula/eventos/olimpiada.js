@@ -108,6 +108,7 @@
     }
     function montarRetoSinCuidar() {
         limpiarZona();
+        pantallazo('reto', 1800);
         if (!E.reto) escogerReto();
         const {juego, nivel} = E.reto, zona = $('#ol-zona');
         $('#ol-reto-nombre').textContent = 'Reto: ' + (NOMBRE[juego] || juego);
@@ -131,7 +132,7 @@
             const bPausa = $('#ol-pausa');
             bPausa.hidden = false; bPausa.textContent = '⏸ Pausa';
             bPausa.onclick = () => { if (!motor) return; if (motor.enPausa) motor.seguir(); else if (!motor.pausar()) aviso('La pausa es mientras se responde una pregunta.'); };
-            motor = Gamificacion.iniciar({lienzo: cv, tipo, preguntas, segundos: 20, minutos: 2, jugadores: 1,
+            motor = Gamificacion.iniciar({lienzo: cv, tipo, preguntas, segundos: 20, minutos: 2, jugadores: 1, alCambiarPregunta: () => pantallazo('pregunta'),
                 alPausar: pausado => { bPausa.textContent = pausado ? '▶ Seguir' : '⏸ Pausa'; if (pausado) aviso('Pausa: resuelva en papel. El reloj de la olimpiada sigue corriendo.'); }, ritmo: (D.ritmo || {})[juego] || 1, tema: propio ? propio.titulo : '',
                 alTerminar: r => { if (actual !== api) return; const meta = Math.min(2, preguntas.length); if (r.aciertos >= meta) setTimeout(superado, 600); else { aviso(`${r.aciertos} de ${preguntas.length}: va otro reto.`); setTimeout(siguienteReto, 1500); } }});
             // En el celular los que se mueven usan la palanca que aparece donde se pone el dedo (motor.js)
@@ -194,6 +195,7 @@
               <p class="small text-muted mb-2">No da puntos, pero si la responde bien le resta ${C.bono} s a su tiempo.</p>
               <div class="fs-5 fw-semibold mb-3" id="ol-q"></div><div id="ol-ops"></div><div id="ol-res" class="fw-bold mt-2"></div>`);
         $('#ol-q').textContent = q.texto; if (window.Mate) Mate.render($('#ol-q'));
+        pantallazo('competencia', 800);
         q.opciones.forEach((t, k) => {
             const b = document.createElement('button'); b.type = 'button'; b.className = 'ol-op';
             b.textContent = 'ABCDEFGH'[k] + ') '; const s = document.createElement('span'); s.textContent = t; b.appendChild(s); if (window.Mate) Mate.render(s);
@@ -312,7 +314,9 @@
     const esCelular = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
     const PANT = !!(VIG && VIG.pantalla && !esCelular && navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
     // El video se arma en un lienzo (juego o pantalla, con la cámara en un recuadro); en celular «pantalla» = juego
-    const COMPUESTO = !!(VIG && VIG.graba && (VIG.juego || VIG.pantalla) && HTMLCanvasElement.prototype.captureStream);
+    // Pantallazos: en vez de video, una imagen en cada reto, cada pregunta y cada salida (gasta muy pocos datos)
+    const FOTOS = !!(VIG && VIG.graba && VIG.guardar === 'pantallazos');
+    const COMPUESTO = !!(VIG && VIG.graba && (FOTOS || ((VIG.juego || VIG.pantalla) && HTMLCanvasElement.prototype.captureStream)));
     const Vig = {stream: null, pantalla: null, comp: null, rec: null, n: 0, cola: [], subiendo: false, apagada: false, parar: false};
     function avisoVig(tipo, motivo, extra) {
         if (D.prueba || !U.grabacion) return;
@@ -337,7 +341,7 @@
         if (vivo(Vig.stream)) return Vig.stream;
         Sal.ignorar = true;
         try {
-            Vig.stream = await navigator.mediaDevices.getUserMedia({video: {width: {ideal: 320}, height: {ideal: 240}, frameRate: {ideal: 10, max: 15}, facingMode: 'user'}, audio: true});
+            Vig.stream = await navigator.mediaDevices.getUserMedia({video: {width: {ideal: 320}, height: {ideal: 240}, frameRate: {ideal: 10, max: 15}, facingMode: 'user'}, audio: !FOTOS});
         } finally { setTimeout(() => { Sal.ignorar = false; }, 1500); }
         Vig.stream.getTracks().forEach(t => t.addEventListener('ended', () => apagada('camara', 'se apagó ' + (t.kind === 'video' ? 'la cámara' : 'el micrófono'))));
         espejo(); rehacerComp();
@@ -433,13 +437,43 @@
             }
         }
         pintar();
-        const stream = cv.captureStream(5);
-        if (vivo(Vig.stream)) Vig.stream.getAudioTracks().forEach(t => stream.addTrack(t));
-        Vig.comp = {stream, vCam, vPan, cv, id: setInterval(pintar, 200)};
+        let stream = null;
+        if (!FOTOS) {
+            stream = cv.captureStream(5);
+            if (vivo(Vig.stream)) Vig.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+        }
+        Vig.comp = {stream, vCam, vPan, cv, pintar, id: setInterval(pintar, FOTOS ? 1000 : 200)};
         return stream;
+    }
+    // --- Pantallazos -----------------------------------------------------------------------
+    const Foto = {ultimo: {}, cada: null};
+    function pantallazo(momento, espera) {
+        if (!FOTOS || Vig.parar) return;
+        const ahora = Date.now();
+        if (Foto.ultimo[momento] && ahora - Foto.ultimo[momento] < 3000) return;       // no dos iguales seguidos
+        Foto.ultimo[momento] = ahora;
+        setTimeout(() => {
+            if (Vig.parar || E.fase === 'portada') return;
+            flujoGrabacion();
+            if (!Vig.comp) return;
+            Vig.comp.pintar();
+            const t = E.activo;
+            Vig.comp.cv.toBlob(blob => {
+                if (!blob) return;
+                Vig.n += 1; Vig.cola.push({n: Vig.n, t, blob, momento});
+                if (Vig.cola.length > 120) Vig.cola.shift();
+                subirTrozos();
+            }, 'image/jpeg', 0.6);
+        }, espera === undefined ? 1200 : espera);
     }
     function grabarTrozo() {
         if (Vig.parar || !VIG.graba) return;
+        if (FOTOS) {          // sin video: pantallazo al empezar y uno de control cada 90 s
+            Vig.rec = {state: 'fotos', stop() { Vig.rec = null; }};
+            pantallazo('inicio', 1500);
+            clearInterval(Foto.cada); Foto.cada = setInterval(() => pantallazo('cada', 0), 90000);
+            return;
+        }
         const flujo = flujoGrabacion();
         if (!vivo(flujo)) return;
         const tipo = tipoVideo(), partes = [], inicio = E.activo;
@@ -460,8 +494,9 @@
         if (Vig.subiendo || !Vig.cola.length) return;
         Vig.subiendo = true;
         while (Vig.cola.length) {
-            const t = Vig.cola[0], f = new FormData(), ext = (t.blob.type || '').includes('mp4') ? 'mp4' : 'webm';
-            f.append('trozo', t.blob, `trozo-${t.n}.${ext}`); f.append('n', t.n); f.append('t', Math.round(t.t));
+            const t = Vig.cola[0], f = new FormData(), ext = t.momento ? 'jpg' : (t.blob.type || '').includes('mp4') ? 'mp4' : 'webm';
+            f.append('trozo', t.blob, `${t.momento ? 'pantallazo' : 'trozo'}-${t.n}.${ext}`); f.append('n', t.n); f.append('t', Math.round(t.t));
+            if (t.momento) f.append('momento', t.momento);
             try {
                 const r = await pedir(U.grabacion, {method: 'POST', headers: {'X-CSRFToken': U.csrf}, body: f}, 60000);
                 if (!r.ok && r.status !== 400) throw new Error('reintentar');
@@ -477,6 +512,7 @@
         if (Vig.rec && Vig.rec.state !== 'inactive') { try { Vig.rec.stop(); } catch (e) { /* sigue */ } } else { Vig.rec = null; empezarGrabacion(); }
     }
     function terminarGrabacion() {
+        if (FOTOS) { pantallazo('cada', 0); clearInterval(Foto.cada); }
         Vig.parar = true; if (Vig.rec && Vig.rec.state !== 'inactive') Vig.rec.stop();
         setTimeout(() => {
             [Vig.stream, Vig.pantalla].forEach(s => s && s.getTracks().forEach(t => t.stop()));
@@ -502,7 +538,7 @@
                 if (pan) { Vig.pantalla = null; await compartirPantalla(); } else { Vig.stream = null; await encender(); }
                 Vig.apagada = false; capa2.hidden = true; avisoVig('reanudo');
                 if (!requisitos()) return apagada(vivo(Vig.stream) || !VIG.camara ? 'pantalla' : 'camara', 'falta encender');
-                reiniciarGrabacion();
+                if (FOTOS) { rehacerComp(); pantallazo('volvio', 1500); } else reiniciarGrabacion();
             } catch (e) { capa2.querySelector('.ol-cam-error').textContent = permisoTexto(e); }
         });
     }
@@ -527,6 +563,7 @@
         Sal.fuera = true; Sal.desde = Date.now();
         try { localStorage.setItem(CLAVE + ':fuera', String(Sal.desde)); } catch (e) { /* sin almacenamiento */ }
         avisoVig('sale', motivo);
+        pantallazo('salio', 0);
     }
     function volver() {
         clearTimeout(Sal.espera);
@@ -536,6 +573,7 @@
         const seg = (Date.now() - Sal.desde) / 1000;
         Sal.n += 1; Sal.total += seg;
         avisoVig('vuelve', '', {seg: seg.toFixed(1)});
+        pantallazo('volvio', 300);
         aviso(`Salió de la prueba ${Math.round(seg)} s: quedó registrado (${Sal.n} vez${Sal.n === 1 ? '' : 'es'}).`);
     }
     if (VIG && VIG.salidas) {

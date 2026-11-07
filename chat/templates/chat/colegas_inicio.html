@@ -1,0 +1,123 @@
+{% extends 'chat/_app.html' %}
+{% block title %}Mis colegas · mcolegio{% endblock %}
+{% block volver %}{{ volver }}{% endblock %}
+{% block barra %}
+<span class="ch-avatar chico grupo"><i class="fas fa-user-group"></i></span>
+<span class="ch-titulo"><b>Mis colegas</b><small>Docentes de toda la plataforma · solo docentes</small></span>
+<a class="ch-icono" href="/chat/colegas/grupo/nuevo/" title="Crear un grupo de docentes" aria-label="Crear un grupo de docentes"><i class="fas fa-users"></i></a>
+{% endblock %}
+{% block extra_css %}
+<style>
+  .cg-tabs { display:flex; gap:6px; flex-wrap:wrap; padding:10px 12px 0; }
+  .cg-tabs a { border-radius:999px; padding:6px 14px; background:#fff; border:1px solid var(--mc-linea); color:var(--mc-azul); text-decoration:none; font-weight:600; font-size:.88rem; }
+  .cg-tabs a.activo { background:var(--mc-azul); color:#fff; border-color:var(--mc-azul); }
+  .cg-caja { background:#fff; border:1px solid var(--mc-linea); border-radius:14px; padding:12px; margin:10px 12px; }
+  .cg-persona { display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--mc-linea); }
+  .cg-persona:first-child { border-top:0; }
+  .cg-persona .info { flex:1 1 auto; min-width:0; }
+  .cg-persona .info b { display:block; }
+  .cg-persona .info span { display:block; color:var(--mc-gris); font-size:.82rem; }
+  .cg-persona form { margin:0; }
+</style>
+{% endblock %}
+{% block content %}
+{% with t=tab|default:'' %}
+<div class="ch-cuerpo">
+  <div class="cg-tabs">
+    <a href="?tab=colegas" class="{% if t == 'colegas' or not t and not q and not recibidas %}activo{% endif %}">Mis colegas ({{ colegas|length }})</a>
+    <a href="?tab=buscar" class="{% if t == 'buscar' or q %}activo{% endif %}">Buscar docentes</a>
+    <a href="?tab=solicitudes" class="{% if t == 'solicitudes' or not t and not q and recibidas %}activo{% endif %}">Solicitudes{% if recibidas %} <span class="badge text-bg-danger">{{ recibidas|length }}</span>{% endif %}</a>
+    <a href="?tab=perfil" class="{% if t == 'perfil' %}activo{% endif %}">Mi perfil</a>
+    <a href="?tab=chats" class="d-lg-none {% if t == 'chats' %}activo{% endif %}">Conversaciones</a>
+  </div>
+
+  {% if t == 'chats' %}
+  <div class="cg-caja p-0 overflow-hidden">{% include 'chat/colegas_lista.html' %}</div>
+
+  {% elif t == 'buscar' or q %}
+  <div class="cg-caja">
+    <form method="get" class="d-flex gap-2 mb-2"><input type="hidden" name="tab" value="buscar">
+      <input name="q" value="{{ q }}" class="form-control" placeholder="Nombre, correo, colegio, institución o área" autofocus aria-label="Buscar docentes">
+      <button class="btn btn-primary">Buscar</button></form>
+    <div class="small text-muted mb-2">Aparecen los docentes y directivos de los colegios y de Mi Salón Virtual que permiten ser encontrados. Nunca estudiantes.</div>
+    {% for e in encontrados %}
+    <div class="cg-persona">
+      <span class="ch-avatar">{{ e.nombre|slice:":1"|upper }}</span>
+      <div class="info"><b>{{ e.nombre }}</b><span>{{ e.desc }}</span></div>
+      {% if e.estado == 'colegas' %}
+        <form method="post" action="/chat/colegas/escribir/">{% csrf_token %}<input type="hidden" name="usuario" value="{{ e.u.pk }}"><button class="btn btn-sm btn-success"><i class="fas fa-comment-dots me-1"></i>Escribir</button></form>
+      {% elif e.estado == 'enviada' %}<span class="badge text-bg-light">Solicitud enviada</span>
+      {% elif e.estado == 'recibida' %}
+        <form method="post" action="/chat/colegas/solicitud/">{% csrf_token %}<input type="hidden" name="usuario" value="{{ e.u.pk }}"><input type="hidden" name="accion" value="aceptar"><input type="hidden" name="volver" value="/chat/colegas/?tab=colegas"><button class="btn btn-sm btn-primary">Aceptar solicitud</button></form>
+      {% elif e.estado == 'bloqueado' %}<span class="badge text-bg-secondary">Bloqueado</span>
+      {% else %}
+        <form method="post" action="/chat/colegas/solicitud/">{% csrf_token %}<input type="hidden" name="usuario" value="{{ e.u.pk }}"><input type="hidden" name="accion" value="enviar"><input type="hidden" name="volver" value="/chat/colegas/?q={{ q|urlencode }}"><button class="btn btn-sm btn-outline-primary"><i class="fas fa-user-plus me-1"></i>Agregar</button></form>
+      {% endif %}
+    </div>
+    {% empty %}{% if q %}<div class="small text-muted">Nadie con «{{ q }}». Pruebe con otra parte del nombre o con el correo completo.</div>{% endif %}{% endfor %}
+  </div>
+
+  {% elif t == 'solicitudes' or not t and recibidas %}
+  <div class="cg-caja">
+    <h6 class="fw-bold">Le quieren agregar</h6>
+    {% for r in recibidas %}
+    <div class="cg-persona">
+      <span class="ch-avatar">{{ r.nombre|slice:":1"|upper }}</span>
+      <div class="info"><b>{{ r.nombre }}</b><span>{{ r.desc }}</span>{% if r.s.mensaje %}<span class="fst-italic">«{{ r.s.mensaje }}»</span>{% endif %}</div>
+      <form method="post" action="/chat/colegas/solicitud/">{% csrf_token %}<input type="hidden" name="usuario" value="{{ r.s.de_id }}"><input type="hidden" name="accion" value="aceptar"><input type="hidden" name="volver" value="/chat/colegas/?tab=solicitudes"><button class="btn btn-sm btn-primary">Aceptar</button></form>
+      <form method="post" action="/chat/colegas/solicitud/">{% csrf_token %}<input type="hidden" name="usuario" value="{{ r.s.de_id }}"><input type="hidden" name="accion" value="rechazar"><input type="hidden" name="volver" value="/chat/colegas/?tab=solicitudes"><button class="btn btn-sm btn-outline-secondary">Rechazar</button></form>
+      <form method="post" action="/chat/colegas/solicitud/" onsubmit="return confirm('¿Bloquear? No le podrá volver a enviar solicitudes ni escribirle.')">{% csrf_token %}<input type="hidden" name="usuario" value="{{ r.s.de_id }}"><input type="hidden" name="accion" value="bloquear"><input type="hidden" name="volver" value="/chat/colegas/?tab=solicitudes"><button class="btn btn-sm btn-link text-danger p-0" title="Bloquear"><i class="fas fa-ban"></i></button></form>
+    </div>
+    {% empty %}<div class="small text-muted">No tiene solicitudes nuevas.</div>{% endfor %}
+  </div>
+  {% if enviadas %}<div class="cg-caja">
+    <h6 class="fw-bold">Enviadas (esperando respuesta)</h6>
+    {% for r in enviadas %}<div class="cg-persona"><span class="ch-avatar">{{ r.nombre|slice:":1"|upper }}</span><div class="info"><b>{{ r.nombre }}</b><span>Enviada el {{ r.s.creada|date:"d/m/Y" }}</span></div>
+      <form method="post" action="/chat/colegas/solicitud/">{% csrf_token %}<input type="hidden" name="usuario" value="{{ r.s.para_id }}"><input type="hidden" name="accion" value="cancelar"><input type="hidden" name="volver" value="/chat/colegas/?tab=solicitudes"><button class="btn btn-sm btn-outline-secondary">Cancelar</button></form></div>{% endfor %}
+  </div>{% endif %}
+
+  {% elif t == 'perfil' %}
+  <form method="post" action="/chat/colegas/ajustes/" class="cg-caja">{% csrf_token %}
+    <h6 class="fw-bold">Cómo me ven los demás docentes</h6>
+    <div class="small text-muted mb-2">{{ request.user.get_full_name|default:request.user.username }} · {{ mi_desc }}</div>
+    <label class="small fw-bold" for="cg-area">Área o asignatura</label>
+    <input id="cg-area" name="area" value="{{ perfil.area }}" maxlength="80" class="form-control mb-2" placeholder="Ej.: Matemáticas, Ciencias naturales">
+    <label class="small fw-bold" for="cg-pres">Presentación corta (opcional)</label>
+    <input id="cg-pres" name="presentacion" value="{{ perfil.presentacion }}" maxlength="200" class="form-control mb-2" placeholder="Ej.: Docente de 6.º a 9.º, me gusta el aprendizaje con juegos">
+    <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="visible" id="cg-visible" {% if perfil.visible %}checked{% endif %}>
+      <label class="form-check-label" for="cg-visible">Aparecer cuando otros docentes buscan colegas</label></div>
+    <div class="small text-muted mb-2"><i class="fas fa-lock me-1"></i>Los demás solo ven su nombre, su colegio o institución y lo que escriba aquí. Nunca sus estudiantes, notas ni grupos.</div>
+    <button class="btn btn-primary">Guardar</button>
+  </form>
+  {% if bloqueados %}<div class="cg-caja"><h6 class="fw-bold">Bloqueados</h6>
+    {% for b in bloqueados %}<div class="cg-persona"><span class="ch-avatar">{{ b.nombre|slice:":1"|upper }}</span><div class="info"><b>{{ b.nombre }}</b></div>
+      <form method="post" action="/chat/colegas/solicitud/">{% csrf_token %}<input type="hidden" name="usuario" value="{{ b.s.para_id }}"><input type="hidden" name="accion" value="desbloquear"><input type="hidden" name="volver" value="/chat/colegas/?tab=perfil"><button class="btn btn-sm btn-outline-secondary">Desbloquear</button></form></div>{% endfor %}
+  </div>{% endif %}
+
+  {% else %}
+  <div class="cg-caja">
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
+      <h6 class="fw-bold mb-0 flex-grow-1">Mis colegas</h6>
+      <a href="?tab=buscar" class="btn btn-sm btn-outline-primary"><i class="fas fa-user-plus me-1"></i>Agregar colegas</a>
+      <a href="/chat/colegas/grupo/nuevo/" class="btn btn-sm btn-primary"><i class="fas fa-users me-1"></i>Crear grupo de docentes</a>
+    </div>
+    {% for c in colegas %}
+    <div class="cg-persona">
+      <span class="ch-avatar">{{ c.nombre|slice:":1"|upper }}</span>
+      <div class="info"><b>{{ c.nombre }}</b><span>{{ c.desc }}</span></div>
+      <form method="post" action="/chat/colegas/escribir/">{% csrf_token %}<input type="hidden" name="usuario" value="{{ c.u.pk }}"><button class="btn btn-sm btn-success" title="Escribir"><i class="fas fa-comment-dots"></i><span class="d-none d-sm-inline ms-1">Escribir</span></button></form>
+      <div class="dropdown"><button class="btn btn-sm btn-link text-muted" data-bs-toggle="dropdown" aria-label="Más"><i class="fas fa-ellipsis-vertical"></i></button>
+        <div class="dropdown-menu dropdown-menu-end p-1">
+          <form method="post" action="/chat/colegas/solicitud/" onsubmit="return confirm('¿Quitar de sus colegas?')">{% csrf_token %}<input type="hidden" name="usuario" value="{{ c.u.pk }}"><input type="hidden" name="accion" value="quitar"><button class="dropdown-item">Quitar de mis colegas</button></form>
+          <form method="post" action="/chat/colegas/solicitud/" onsubmit="return confirm('¿Bloquear? No le podrá escribir ni enviarle solicitudes.')">{% csrf_token %}<input type="hidden" name="usuario" value="{{ c.u.pk }}"><input type="hidden" name="accion" value="bloquear"><button class="dropdown-item text-danger">Bloquear</button></form>
+        </div></div>
+    </div>
+    {% empty %}
+    <div class="text-center text-muted py-4"><i class="fas fa-user-group fa-2x d-block mb-2 opacity-50"></i>Aún no tiene colegas.<br>
+      <a href="?tab=buscar">Busque docentes</a> por nombre, colegio o área y envíeles una solicitud. Cuando la acepten, se pueden escribir y armar grupos de docentes.</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endwith %}
+{% endblock %}

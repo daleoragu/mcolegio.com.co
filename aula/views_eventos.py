@@ -99,7 +99,8 @@ CONFIG = {'juegos': [j[0] for j in JUEGOS] + ['a_' + k for k in ('salto', 'puent
           #   camara: cámara y micrófono encendidos y grabados · juego: se graba lo que hace en la prueba (celular y
           #   computador) · pantalla: en computador se graba la pantalla completa · salidas: registro de cada vez que
           #   sale de la prueba (otra pestaña, ventana o aplicación), con la hora y el tiempo fuera
-          'vigilancia': {'activa': False, 'dias': 30, 'camara': True, 'juego': True, 'pantalla': False, 'salidas': True},
+          #   guardar: 'video' (trozos de 30 s) o 'pantallazos' (una imagen con cada reto y cada pregunta: gasta muy pocos datos)
+          'vigilancia': {'activa': False, 'dias': 30, 'camara': True, 'juego': True, 'pantalla': False, 'salidas': True, 'guardar': 'video'},
           # Retos arcade: 'preguntas' (las cargadas para los juegos y, si faltan, el banco 6.º–11.º del grado),
           # 'propias' (solo las cargadas para los juegos), 'banco' (solo el banco 6.º–11.º) u 'operaciones'
           'arcade': 'preguntas',
@@ -178,15 +179,32 @@ def graba(v):
     return bool(v.get('activa') and (v.get('camara') or v.get('juego') or v.get('pantalla')))
 
 
+MOMENTOS = {'reto': 'reto nuevo', 'pregunta': 'pregunta', 'competencia': 'pregunta de competencia', 'volvio': 'volvió a la prueba',
+            'salio': 'salió de la prueba', 'cada': 'control', 'inicio': 'inicio'}
+
+
+def ext_de(tipo):
+    """Extensión del archivo según su tipo (los pantallazos guardan el momento después de «;»)."""
+    t = (tipo or '').split(';')[0]
+    return {'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp'}.get(t, 'mp4' if 'mp4' in t else 'webm')
+
+
 def texto_supervision(v):
     """Las condiciones de supervisión, en palabras, para la inscripción, la planilla y la portada."""
     if not v.get('activa'):
         return ''
     partes = []
     if v.get('camara'):
-        partes.append('se graban la cámara y el micrófono (imagen y voz)')
+        partes.append('se toma la imagen de la cámara en cada pantallazo' if v.get('guardar') == 'pantallazos' and (v.get('juego') or v.get('pantalla'))
+                      else ('se toman fotos con la cámara en cada reto y en cada pregunta' if v.get('guardar') == 'pantallazos'
+                            else 'se graban la cámara y el micrófono (imagen y voz)'))
+    foto = v.get('guardar') == 'pantallazos'
     if v.get('pantalla') or v.get('juego'):
-        if v.get('pantalla'):
+        if foto:
+            partes.append('se toman pantallazos de la pantalla de la prueba en cada reto y en cada pregunta'
+                          + (' (en computador, de la pantalla completa)' if v.get('pantalla') else '')
+                          + ' para supervisar que no se salga de ella')
+        elif v.get('pantalla'):
             partes.append('se graba la pantalla (en computador, la pantalla completa; en celular o tableta, lo que hace dentro de la prueba)'
                           ' para supervisar que no se salga de la prueba')
         else:
@@ -198,7 +216,7 @@ def texto_supervision(v):
         return ''
     t = 'Para supervisar la prueba ' + (', '.join(partes[:-1]) + ' y ' + partes[-1] if len(partes) > 1 else partes[0]) + '.'
     if graba(v):
-        t += f' Las grabaciones solo las ven los organizadores y se borran a los {v.get("dias", 30)} días.'
+        t += f' {"Los pantallazos" if v.get("guardar") == "pantallazos" else "Las grabaciones"} solo los ven los organizadores y se borran a los {v.get("dias", 30)} días.'
     if v.get('salidas'):
         t += ' El registro de salidas lo ven los organizadores y los veedores del evento.'
     return t
@@ -873,13 +891,15 @@ def configurar(request, eid):
                 if activa and not any(op.values()):
                     messages.warning(request, 'Escoja al menos una forma de supervisar (cámara, juego, pantalla o registro de salidas).')
                 else:
-                    c['vigilancia'] = dict({'activa': activa, 'dias': dias}, **op)
+                    guardar = 'pantallazos' if request.POST.get('guardar') == 'pantallazos' else 'video'
+                    c['vigilancia'] = dict({'activa': activa, 'dias': dias, 'guardar': guardar}, **op)
                     ev.config = dict(ev.config or {}, vigilancia=c['vigilancia'])
                     ev.save(update_fields=['config'])
                     if activa:
                         que = [n for k, n in (('camara', 'cámara y micrófono'), ('juego', 'juego'), ('pantalla', 'pantalla completa en computador'),
                                               ('salidas', 'registro de salidas')) if op[k]]
-                        messages.success(request, 'Supervisión ACTIVADA: ' + ', '.join(que) + (f'. Las grabaciones se borran a los {dias} días.' if graba(c['vigilancia']) else '.'))
+                        messages.success(request, 'Supervisión ACTIVADA: ' + ', '.join(que) + (
+                            f'. Se guardan {"pantallazos" if guardar == "pantallazos" else "videos"} y se borran a los {dias} días.' if graba(c['vigilancia']) else '.'))
                     else:
                         messages.success(request, 'Supervisión apagada: no se graba ni se registran salidas.')
         elif accion == 'borrar_grabaciones' and puede_admin:
@@ -1571,7 +1591,7 @@ def grabacion(request, eid):
     if not graba(c['vigilancia']):
         return JsonResponse({'ok': False, 'error': 'Este evento no graba.'}, status=400)
     tipo = (archivo.content_type or '').split(';')[0]
-    if not tipo.startswith(('video/', 'audio/')) or archivo.size > MAX_TROZO:
+    if not tipo.startswith(('video/', 'audio/', 'image/')) or archivo.size > MAX_TROZO:
         return JsonResponse({'ok': False, 'error': 'Trozo no válido.'}, status=400)
     from django.db.models import Sum
     usado = p.grabaciones.aggregate(b=Sum('bytes'))['b'] or 0
@@ -1582,8 +1602,12 @@ def grabacion(request, eid):
         seg = float(request.POST.get('t') or 0)
     except ValueError:
         n, seg = 0, 0
-    ext = '.mp4' if 'mp4' in tipo else '.webm'
-    archivo.name = f'trozo-{n:05d}{ext}'
+    momento = request.POST.get('momento') or ''
+    if tipo.startswith('image/'):
+        if tipo not in ('image/jpeg', 'image/png', 'image/webp'):
+            return JsonResponse({'ok': False, 'error': 'Imagen no válida.'}, status=400)
+        tipo = f'{tipo};{momento}' if momento in MOMENTOS else tipo
+    archivo.name = f"{'pantallazo' if tipo.startswith('image/') else 'trozo'}-{n:05d}.{ext_de(tipo)}"
     GrabacionEvento.objects.create(participacion=p, numero=n, archivo=archivo, tipo=tipo[:60], segundos=seg, bytes=archivo.size)
     return JsonResponse({'ok': True, 'n': n})
 
@@ -1596,14 +1620,17 @@ def grabaciones(request, eid, pid):
         return HttpResponseForbidden('Solo los organizadores ven las grabaciones.')
     limpiar_grabaciones(ev)
     p = get_object_or_404(ParticipacionEvento, pk=pid, evento=ev)
-    trozos = list(p.grabaciones.all())
+    todos = list(p.grabaciones.all())
+    trozos = [t for t in todos if not t.tipo.startswith('image/')]
+    fotos = [dict(g=t, momento=MOMENTOS.get(t.tipo.partition(';')[2], 'pantallazo'), min=f'{int(t.segundos // 60)}:{int(t.segundos % 60):02d}')
+             for t in todos if t.tipo.startswith('image/')]
     v = dict((p.datos or {}).get('vigilancia') or {})
     v['salidas'] = [dict(x, min=f"{int((x.get('t') or 0) // 60)}:{int((x.get('t') or 0) % 60):02d}") for x in (v.get('salidas') or [])]
     return render(request, 'aula/evento_grabaciones.html', {
         'salidas_on': bool(config_de(ev)['vigilancia'].get('salidas')),
-        'ev': ev, 'p': p, 'trozos': trozos, 'mb': round(sum(t.bytes for t in trozos) / 1048576, 1), 'vig': v,
+        'ev': ev, 'p': p, 'trozos': trozos, 'fotos': fotos, 'mb': round(sum(t.bytes for t in todos) / 1048576, 1), 'vig': v,
         'dias': config_de(ev)['vigilancia']['dias'], 'base': _base(request),
-        'nubes': _nubes(), 'cfg_nube': _config_nube(request, ev), 'en_nube': sum(1 for t in trozos if t.nube)})
+        'nubes': _nubes(), 'cfg_nube': _config_nube(request, ev), 'en_nube': sum(1 for t in todos if t.nube), 'total': len(todos)})
 
 
 @login_required
@@ -1616,7 +1643,7 @@ def grabacion_archivo(request, eid, gid):
     g = get_object_or_404(GrabacionEvento, pk=gid, participacion__evento=ev)
     if request.GET.get('bytes'):
         from django.http import FileResponse
-        r = FileResponse(g.archivo.open('rb'), content_type=g.tipo or 'video/webm')
+        r = FileResponse(g.archivo.open('rb'), content_type=(g.tipo or 'video/webm').split(';')[0])
         r['Cache-Control'] = 'no-store'
         return r
     return redirect(g.archivo.url)
@@ -1669,7 +1696,7 @@ def grabaciones_nube(request, eid):
         p = g.participacion
         x = personas.setdefault(p.pk, {'pid': p.pk, 'nombre': _nombre_archivo(p.nombre_completo), 'de': _nombre_archivo(p.de_donde, 40), 'trozos': []})
         x['trozos'].append({'id': g.pk, 'n': g.numero, 'nube': g.nube, 'bytes': g.bytes,
-                            'archivo': f"{x['nombre']} - trozo {g.numero:03d} - {timezone.localtime(g.creada):%Hh%Mm%Ss}.{'mp4' if 'mp4' in g.tipo else 'webm'}",
+                            'archivo': f"{x['nombre']} - trozo {g.numero:03d} - {timezone.localtime(g.creada):%Hh%Mm%Ss}.{ext_de(g.tipo)}",
                             'url': reverse('aula:evento_grabacion_archivo', args=[ev.pk, g.pk]) + '?bytes=1'})
     return JsonResponse({'evento': _nombre_archivo(ev.titulo), 'personas': list(personas.values())})
 
@@ -1688,7 +1715,7 @@ def grabaciones_zip(request, eid, pid):
     with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_STORED) as z:       # el video ya viene comprimido
         for g in p.grabaciones.all():
             with g.archivo.open('rb') as f:
-                z.writestr(f"trozo-{g.numero:03d}-{timezone.localtime(g.creada):%H%M%S}.{'mp4' if 'mp4' in g.tipo else 'webm'}", f.read())
+                z.writestr(f"trozo-{g.numero:03d}-{timezone.localtime(g.creada):%H%M%S}.{ext_de(g.tipo)}", f.read())
     tmp.seek(0)
     return FileResponse(tmp, as_attachment=True, filename=f'grabacion - {_nombre_archivo(p.nombre_completo)}.zip', content_type='application/zip')
 

@@ -4,6 +4,7 @@
     <b>Mensajes</b>
     {% if rol == 'admin' %}<a class="ch-mini" href="{% url 'chat:administrar' %}" title="Administrar el chat" aria-label="Administrar el chat"><i class="fas fa-shield-halved"></i>{% if reportes_abiertos %}<span class="position-absolute top-0 end-0 badge rounded-pill text-bg-danger" style="font-size:.6rem">{{ reportes_abiertos }}</span>{% endif %}</a>{% endif %}
     {% if grupos %}<a class="ch-mini" href="{% url 'chat:grupo_nuevo' %}" title="Crear un grupo" aria-label="Crear un grupo"><i class="fas fa-user-plus"></i></a>{% endif %}
+    {% if rol == 'admin' or rol == 'docente' %}<a class="ch-mini" href="{% url 'chat:colegas' %}" title="Mis colegas: docentes de otros colegios" aria-label="Mis colegas"><i class="fas fa-user-group"></i></a>{% endif %}
   </div>
   <form method="get" action="{% url 'chat:inicio' %}" class="ch-buscar">
     <input name="q" value="{{ q }}" placeholder="Buscar persona para escribirle…" aria-label="Buscar persona" autocomplete="off">

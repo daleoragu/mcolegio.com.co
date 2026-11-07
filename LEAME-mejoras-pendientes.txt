@@ -22,4 +22,9 @@ MEJORAS PENDIENTES (ideas acordadas para hacer más adelante)
    - Modelos sugeridos (app salon_digital): Amistad(de, para, estado, creada),
      ProyectoColegas(titulo, miembros, creado), y una relación para compartir objetos.
 
-   Estado: anotado; no se ha empezado.
+   Estado: HECHO (primera parte) — «Mis colegas» en /chat/colegas/:
+     · buscar docentes de toda la plataforma (colegios y Salón Digital), solicitud, aceptar, rechazar,
+       quitar y bloquear; perfil de colega (área, presentación, aparecer o no en las búsquedas);
+     · mensajes directos entre colegas y grupos de docentes (con fotos, notas de voz y documentos);
+       moderadores, «solo moderadores escriben», agregar todos mis colegas de una vez.
+   Falta: compartir materiales/juegos, coorganizar eventos y proyectos cooperativos.
