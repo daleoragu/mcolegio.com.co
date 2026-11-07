@@ -307,8 +307,8 @@
       <details class="mt-2"><summary class="small fw-bold">Ver las preguntas</summary>
         <div style="max-height:360px;overflow:auto" class="mt-1">
         {% for i, p in preguntas %}
-          <div class="border-bottom py-1 small d-flex gap-2"><div class="flex-grow-1"><span class="badge {% if p.uso == 'juegos' %}bg-primary{% else %}bg-light text-dark{% endif %}">{% if p.uso == 'juegos' %}juego · {% endif %}{{ p.ciclo }} · {{ p.categoria }}{% if p.grado is not None %} · {{ p.grado }}.º{% endif %}</span> {{ p.texto }}
-            <span class="text-muted">({% for o in p.opciones %}{% if o.correcta %}<b>{{ o.texto }}</b>{% else %}{{ o.texto }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %})</span></div>
+          <div class="border-bottom py-1 small d-flex gap-2"><div class="flex-grow-1"><span class="badge {% if p.uso == 'juegos' %}bg-primary{% else %}bg-light text-dark{% endif %}">{% if p.uso == 'juegos' %}juego · {% endif %}{{ p.ciclo }} · {{ p.categoria }}{% if p.grado is not None %} · {{ p.grado }}.º{% endif %}</span> <span class="mate">{{ p.texto }}</span>
+            <span class="text-muted">({% for o in p.opciones %}{% if o.correcta %}<b class="mate">{{ o.texto }}</b>{% else %}<span class="mate">{{ o.texto }}</span>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %})</span></div>
             <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="quitar"><input type="hidden" name="i" value="{{ i }}"><button class="btn btn-sm btn-link text-danger p-0" title="Quitar">✕</button></form></div>
         {% empty %}<div class="small text-muted">No hay preguntas.</div>{% endfor %}
         </div>

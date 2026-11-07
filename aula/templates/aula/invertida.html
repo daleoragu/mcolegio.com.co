@@ -60,11 +60,11 @@
       </div>
       {% for p in detalle %}
       <div class="inv-pregunta">
-        <div class="fw-semibold mb-1">{{ p.n }}. {{ p.texto }}</div>
+        <div class="fw-semibold mb-1">{{ p.n }}. <span class="mate">{{ p.texto }}</span></div>
         {% if p.abierta %}<div class="small" style="white-space:pre-line">{{ p.valor }}</div>
         {% else %}{% for o in p.opciones %}
           <div class="inv-op {% if p.calificable and o.correcta %}correcta{% elif o.elegida and p.calificable %}errada{% endif %}" style="cursor:default">
-            {% if o.elegida %}<i class="fas fa-circle-dot"></i>{% else %}<i class="far fa-circle"></i>{% endif %}<span>{{ o.texto }}</span>
+            {% if o.elegida %}<i class="fas fa-circle-dot"></i>{% else %}<i class="far fa-circle"></i>{% endif %}<span class="mate">{{ o.texto }}</span>
           </div>
         {% endfor %}{% endif %}
       </div>
@@ -76,11 +76,11 @@
         {% for p in detalle %}
         {% if pausas and p.segundo is not None %}<div class="inv-espera" id="inv-espera-{{ p.i }}"><i class="fas fa-clock me-1"></i>Pregunta {{ p.n }}: aparece en el video en el minuto {{ p.minuto }}.</div>{% endif %}
         <div class="inv-pregunta {% if p.n in faltan %}falta{% endif %}{% if pausas and p.segundo is not None %} d-none{% endif %}" id="inv-p-{{ p.i }}" data-i="{{ p.i }}">
-          <div class="fw-semibold mb-1">{{ p.n }}. {{ p.texto }}{% if pausas and p.segundo is not None %} <span class="au-chip gris">{{ p.minuto }}</span>{% endif %}</div>
+          <div class="fw-semibold mb-1">{{ p.n }}. <span class="mate">{{ p.texto }}</span>{% if pausas and p.segundo is not None %} <span class="au-chip gris">{{ p.minuto }}</span>{% endif %}</div>
           {% if p.abierta %}
             <textarea name="p{{ p.i }}" class="form-control" rows="3" maxlength="3000" required aria-label="Respuesta a la pregunta {{ p.n }}">{{ p.previo }}</textarea>
           {% else %}{% for o in p.opciones %}
-            <label class="inv-op"><input type="radio" class="form-check-input mt-0" name="p{{ p.i }}" value="{{ o.k }}" required {% if o.marcada %}checked{% endif %}><span>{{ o.texto }}</span></label>
+            <label class="inv-op"><input type="radio" class="form-check-input mt-0" name="p{{ p.i }}" value="{{ o.k }}" required {% if o.marcada %}checked{% endif %}><span class="mate">{{ o.texto }}</span></label>
           {% endfor %}{% endif %}
         </div>
         {% endfor %}
@@ -163,7 +163,7 @@
     {% if f.r %}
     <tr class="collapse" id="inv-r-{{ f.clave }}"><td colspan="5" class="bg-light">
       {% for p in f.detalle %}
-      <div class="small mb-2"><b>{{ p.n }}. {{ p.texto }}</b><br>
+      <div class="small mb-2"><b>{{ p.n }}. <span class="mate">{{ p.texto }}</span></b><br>
         {% if p.abierta %}<span style="white-space:pre-line">{{ p.valor }}</span>
         {% else %}{% for o in p.opciones %}{% if o.elegida %}{{ o.texto }} {% if p.calificable %}{% if p.acierto %}<span class="au-chip ok">✔</span>{% else %}<span class="au-chip mal">✘</span>{% endif %}{% endif %}{% endif %}{% endfor %}{% endif %}
       </div>

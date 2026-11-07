@@ -35,13 +35,13 @@
     actual = d; bloqueado = false;
     $('j-num').textContent = d.numero + ' / ' + d.total;
     $('j-puntos').textContent = d.puntos;
-    $('j-pregunta').textContent = d.texto;
+    $('j-pregunta').textContent = d.texto; delete $('j-pregunta').dataset.mateTexto; if (window.Mate) Mate.render($('j-pregunta'));
     var ops = $('j-ops'); ops.innerHTML = '';
     d.opciones.forEach(function (o, k) {
       var b = document.createElement('button');
       b.className = 'au-op c' + k; b.dataset.id = o.id;
       b.innerHTML = '<span class="forma">' + formas[k] + '</span><span></span>';
-      b.lastChild.textContent = o.texto;
+      b.lastChild.textContent = o.texto; if (window.Mate) Mate.render(b.lastChild);
       b.onclick = function () { responder(o.id); };
       ops.appendChild(b);
     });

@@ -74,8 +74,8 @@
             <td><input class="form-check-input pq-sel" type="checkbox" name="sel" value="{{ r.valor }}" aria-label="Seleccionar"></td>
             <td>{% if r.juego %}<span class="badge bg-primary">Arcade</span>{% else %}<span class="badge bg-warning text-dark">Competencia</span>{% endif %}</td>
             <td>{{ r.grupo }}<div class="text-muted">{{ r.cat }}{% if r.grado %} · {{ r.grado }}{% endif %}</div></td>
-            <td><div class="fw-semibold">{{ r.x.texto }}</div>
-              <div class="pq-ops">{% for o in r.x.opciones %}<span class="me-2 {% if o.correcta %}ok{% endif %}">{% cycle 'A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' %}) {{ o.texto }}{% if o.correcta %} ✓{% endif %}</span>{% endfor %}{% resetcycle %}</div>
+            <td><div class="fw-semibold mate">{{ r.x.texto }}</div>
+              <div class="pq-ops">{% for o in r.x.opciones %}<span class="me-2 {% if o.correcta %}ok{% endif %}">{% cycle 'A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' %}) <span class="mate">{{ o.texto }}</span>{% if o.correcta %} ✓{% endif %}</span>{% endfor %}{% resetcycle %}</div>
               {% if r.x.tema or r.x.origen %}<div class="text-muted" style="font-size:.72rem">{{ r.x.tema }}{% if r.x.tema and r.x.origen %} · {% endif %}{{ r.x.origen }}</div>{% endif %}</td>
             <td class="text-end">
               <details class="pq-menu"><summary title="Acciones">⋮</summary>

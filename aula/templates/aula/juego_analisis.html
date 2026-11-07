@@ -32,7 +32,7 @@
       <div class="au-tarjeta ana-preg {% if p.pct is None %}{% elif p.pct < 50 %}roja{% elif p.pct < 75 %}amarilla{% else %}verde{% endif %}">
         <div class="d-flex gap-2 align-items-start">
           <b class="text-muted">{{ p.n }}.</b>
-          <div class="flex-grow-1"><div class="fw-semibold">{{ p.texto }}</div>
+          <div class="flex-grow-1"><div class="fw-semibold mate">{{ p.texto }}</div>
             {% if p.respondieron %}
             <div class="small text-muted">{{ p.bien }} de {{ p.respondieron }} la respondieron bien{% if p.tiempo %} · a {{ p.tiempo }} se le{{ p.tiempo|pluralize:"s" }} acabó el tiempo{% endif %}</div>
             {% else %}<div class="small text-muted">Nadie la ha respondido todavía.</div>{% endif %}
@@ -42,7 +42,7 @@
         {% if p.respondieron %}
         <div class="mt-2">
           {% for o in p.opciones %}
-          <div class="ana-op {% if o.correcta %}ok{% endif %}"><span>{{ o.letra }})</span><span>{{ o.texto }}{% if o.correcta %} ✓{% endif %}</span><span class="text-end">{{ o.veces }}</span>
+          <div class="ana-op {% if o.correcta %}ok{% endif %}"><span>{{ o.letra }})</span><span><span class="mate">{{ o.texto }}</span>{% if o.correcta %} ✓{% endif %}</span><span class="text-end">{{ o.veces }}</span>
             <div class="ana-barra"><div style="width:{{ o.pct }}%;background:{% if o.correcta %}#40c057{% else %}#fa5252{% endif %}"></div></div></div>
           {% endfor %}
         </div>

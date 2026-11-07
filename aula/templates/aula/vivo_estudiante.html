@@ -41,7 +41,7 @@
     var nueva = d.estado + d.pregunta.id + (d.respondio ? 'r' : '');
     if (nueva === clave) return;
     clave = nueva;
-    preg.classList.remove('d-none'); preg.textContent = d.pregunta.texto;
+    preg.classList.remove('d-none'); preg.textContent = d.pregunta.texto; delete preg.dataset.mateTexto; if (window.Mate) Mate.render(preg);
     ops.innerHTML = '';
     if (d.estado === 'pregunta' && !d.respondio) {
       msg.classList.add('d-none'); reloj.classList.remove('d-none');
@@ -50,7 +50,7 @@
         var b = document.createElement('button');
         b.className = 'au-op c' + k;
         b.innerHTML = '<span class="forma">' + formas[k] + '</span><span></span>';
-        b.lastChild.textContent = o.texto;
+        b.lastChild.textContent = o.texto; if (window.Mate) Mate.render(b.lastChild);
         b.onclick = function () { responder(o.id); };
         ops.appendChild(b);
       });

@@ -57,8 +57,8 @@
             <div class="small text-muted">{{ p.tema }}{% if p.competencia %} · {{ p.competencia }}{% endif %}{% if p.grado is not None %} · grado {{ p.grado }}{% endif %}
               {% if p.propietario_id != request.user.pk %} · de {{ p.propietario.get_full_name|default:p.propietario.username }}{% elif p.compartida %} · <span class="text-success">compartida</span>{% endif %}
               {% if p.usos %} · usada {{ p.usos }} vez/veces{% endif %}</div>
-            <div class="fw-semibold">{{ p.texto }}</div>
-            <div class="small">{% for o in p.opciones %}<span class="me-2 {% if o.correcta %}text-success fw-bold{% endif %}">{% cycle 'A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' %}) {{ o.texto }}</span>{% endfor %}{% resetcycle %}</div>
+            <div class="fw-semibold mate">{{ p.texto }}</div>
+            <div class="small">{% for o in p.opciones %}<span class="me-2 {% if o.correcta %}text-success fw-bold{% endif %}">{% cycle 'A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' %}) <span class="mate">{{ o.texto }}</span></span>{% endfor %}{% resetcycle %}</div>
           </div>
           {% if p.propietario_id == request.user.pk %}
           <div class="d-flex flex-column gap-1">

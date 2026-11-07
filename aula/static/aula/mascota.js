@@ -167,8 +167,9 @@
                 estado = j.estado; pintarEstado();
                 if (!j.ok) { avisar(j.mensaje, 'info'); return; }
                 const p = j.pregunta;
-                caja.innerHTML = `<div class="ms-q">${esc(p.texto)}</div>` + p.opciones.map((o, k) =>
-                    `<button type="button" class="ms-op" data-k="${k}"><b>${'ABCD'[k]}</b> ${esc(o)}</button>`).join('');
+                const m = t => (window.Mate ? Mate.html(t) : esc(t));          // fórmulas con formato
+                caja.innerHTML = `<div class="ms-q">${m(p.texto)}</div>` + p.opciones.map((o, k) =>
+                    `<button type="button" class="ms-op" data-k="${k}"><b>${'ABCD'[k]}</b> ${m(o)}</button>`).join('');
                 caja.dataset.accion = p.accion; caja.hidden = false; avisar('');
                 caja.querySelector('.ms-op').focus();
             } finally { ocupado = false; }

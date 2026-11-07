@@ -193,9 +193,10 @@
         capa(`<div class="mb-2"><span class="ol-cat" style="background:${CAT_COLOR[q.categoria] || '#495057'}">${q.categoria || 'Pregunta'}</span> <b>Pregunta de competencia</b></div>
               <p class="small text-muted mb-2">No da puntos, pero si la responde bien le resta ${C.bono} s a su tiempo.</p>
               <div class="fs-5 fw-semibold mb-3" id="ol-q"></div><div id="ol-ops"></div><div id="ol-res" class="fw-bold mt-2"></div>`);
-        $('#ol-q').textContent = q.texto;
+        $('#ol-q').textContent = q.texto; if (window.Mate) Mate.render($('#ol-q'));
         q.opciones.forEach((t, k) => {
-            const b = document.createElement('button'); b.type = 'button'; b.className = 'ol-op'; b.textContent = 'ABCDEFGH'[k] + ') ' + t;
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'ol-op';
+            b.textContent = 'ABCDEFGH'[k] + ') '; const s = document.createElement('span'); s.textContent = t; b.appendChild(s); if (window.Mate) Mate.render(s);
             b.addEventListener('click', () => responder(k, q)); $('#ol-ops').appendChild(b);
         });
     }

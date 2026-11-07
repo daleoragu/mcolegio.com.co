@@ -269,11 +269,22 @@
                     <button type="button" class="btn btn-sm btn-link p-0 px-1 ep-baja" title="Bajar">▼</button>
                     <button type="button" class="btn btn-sm btn-link text-danger p-0 px-1 ep-quita" title="Quitar la pregunta"><i class="fas fa-trash"></i></button></div>
                   <textarea class="form-control form-control-sm mb-1 ep-enun" rows="2" placeholder="Escriba la pregunta (o pegue aquí varias con sus opciones)"></textarea>
+                  <div class="ep-vista small border rounded px-2 py-1 mb-1 bg-white" hidden title="Así se ve la pregunta con las fórmulas"></div>
                   <div class="ep-ops"></div>
                   <button type="button" class="btn btn-sm btn-link p-0 ep-mas-op"></button>`;
-                const enun = c.querySelector('.ep-enun');
+                const enun = c.querySelector('.ep-enun'), vista = c.querySelector('.ep-vista');
                 enun.value = p.texto;
-                enun.addEventListener('input', () => { p.texto = enun.value; sincronizar(); });
+                // Vista previa con las fórmulas (solo si la pregunta o sus opciones tienen alguna)
+                const verVista = () => {
+                    if (!window.Mate) return;
+                    const textos = [p.texto].concat(p.opciones.map(o => o.texto)).filter(t => t && t.trim());
+                    const conFormula = textos.some(t => Mate.tramos(t).some(z => z.m !== undefined || z.latex !== undefined));
+                    vista.hidden = !conFormula;
+                    if (conFormula) vista.innerHTML = '<span class="text-muted">Vista previa: </span>' + Mate.html(p.texto) +
+                        '<div>' + p.opciones.filter(o => o.texto.trim()).map((o, k) => `<span class="me-3${o.correcta ? ' fw-bold text-success' : ''}">${LETRAS[k]}) ${Mate.html(o.texto)}</span>`).join('') + '</div>';
+                };
+                c._verVista = verVista;
+                enun.addEventListener('input', () => { p.texto = enun.value; sincronizar(); verVista(); });
                 enun.addEventListener('paste', ev => {
                     // Si pegan un bloque con varias preguntas y opciones, se reparten en tarjetas
                     const t = (ev.clipboardData || window.clipboardData).getData('text');
@@ -296,7 +307,7 @@
                     const radio = fila.querySelector('input[type="radio"]'), txt = fila.querySelector('.ep-op');
                     radio.checked = !!o.correcta; txt.value = o.texto;
                     radio.addEventListener('change', () => { p.opciones.forEach(x => { x.correcta = x === o; }); sincronizar(); });
-                    txt.addEventListener('input', () => { o.texto = txt.value; sincronizar(); });
+                    txt.addEventListener('input', () => { o.texto = txt.value; sincronizar(); if (c._verVista) c._verVista(); });
                     fila.querySelector('button').addEventListener('click', () => {
                         p.opciones.splice(k, 1);
                         if (o.correcta && p.opciones[0]) p.opciones[0].correcta = true;
@@ -312,6 +323,7 @@
                 c.querySelector('.ep-baja').addEventListener('click', () => { if (i < preguntas.length - 1) { [preguntas[i + 1], preguntas[i]] = [preguntas[i], preguntas[i + 1]]; pintar(); sincronizar(); } });
                 c.querySelector('.ep-quita').addEventListener('click', () => { preguntas.splice(i, 1); if (!preguntas.length) preguntas.push(vacia()); pintar(); sincronizar(); });
                 lista.appendChild(c);
+                if (c._verVista) c._verVista();
             });
         }
 
