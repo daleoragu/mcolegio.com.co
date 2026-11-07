@@ -193,6 +193,21 @@ NUEVO     aula/views_gamificacion.py
 NUEVO     aula/views_invertida.py
 NUEVO     aula/views_logica.py
 NUEVO     aula/views_mascota.py
+NUEVO     chat/migrations/0005_colegas.py
+NUEVO     chat/migrations/0006_perfil_colega_foto.py
+CAMBIADO  chat/models.py
+NUEVO     chat/static/chat/flotante.js
+NUEVO     chat/templates/chat/_av.html
+NUEVO     chat/templates/chat/_campana_colegas.html
+NUEVO     chat/templates/chat/_riel_colegas.html
+NUEVO     chat/templates/chat/colegas_conversacion.html
+NUEVO     chat/templates/chat/colegas_grupo_nuevo.html
+NUEVO     chat/templates/chat/colegas_inicio.html
+NUEVO     chat/templates/chat/colegas_lista.html
+NUEVO     chat/templates/chat/colegas_perfil.html
+NUEVO     chat/test_colegas.py
+CAMBIADO  chat/urls.py
+NUEVO     chat/views_colegas.py
 CAMBIADO  notas/boletin/logic.py
 NUEVO     notas/colores.py
 CAMBIADO  notas/context_processors.py
@@ -282,6 +297,7 @@ CAMBIADO  salon_digital/forms.py
 CAMBIADO  salon_digital/identidad.py
 NUEVO     salon_digital/migrations/0004_grupo_pedir_pin.py
 CAMBIADO  salon_digital/models.py
+CAMBIADO  salon_digital/templates/salon_digital/base_salon.html
 CAMBIADO  salon_digital/templates/salon_digital/identificarse.html
 NUEVO     salon_digital/templates/salon_digital/tarjetas_grupo.html
 CAMBIADO  salon_digital/templates/salon_digital/ver_grupo.html
@@ -330,6 +346,8 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0022_grabaciones_eventos.py      (grabaciones de cámara y micrófono de los eventos)
   aula/migrations/0023_grabaciones_en_la_nube.py   (marca de las grabaciones ya copiadas a la nube)
   salon_digital/migrations/0004_grupo_pedir_pin.py  (Salón Digital: pedir el PIN al entrar)
+  chat/migrations/0005_colegas.py                 (Mis colegas: amistad y grupos entre docentes)
+  chat/migrations/0006_perfil_colega_foto.py       (Mis colegas: foto, grados y municipio del perfil)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

@@ -423,7 +423,7 @@ class Olimpiada(ColegioDePrueba):
         self.admin.post(url_conf, {'accion': 'vigilancia', 'activa': 'on', 'acepto_legal': 'on', 'dias': '15', 'camara': 'on'})
         self.admin.post(url_conf, {'accion': 'activar'})
         ev.refresh_from_db()
-        self.assertEqual(ev.config['vigilancia'], {'activa': True, 'dias': 15, 'camara': True, 'juego': False, 'pantalla': False, 'salidas': False})
+        self.assertEqual(ev.config['vigilancia'], {'activa': True, 'dias': 15, 'guardar': 'video', 'camara': True, 'juego': False, 'pantalla': False, 'salidas': False})
         ana = self.cliente(self.ana.user)
         r = ana.get(f'/aula/eventos/{ev.pk}/')
         d = r.context['datos']['vigilancia']
@@ -506,6 +506,33 @@ class Olimpiada(ColegioDePrueba):
         self.assertEqual(ana.post(url, {'trozo': trozo, 'n': 1, 't': 0}).status_code, 400)
         self.assertTrue(ana.post(url, {'tipo': 'sale', 't': 400}).json()['ok'])
         self.assertFalse(ana.get(f'/aula/eventos/{ev.pk}/').context['datos']['vigilancia']['graba'])
+
+    def test_supervision_con_pantallazos(self):
+        """Con «pantallazos» llegan imágenes (una por reto, pregunta o salida) y se ven en galería con su momento."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        ev = self.crear('Olimpiada con pantallazos')
+        url_conf = f'/aula/eventos/{ev.pk}/configurar/'
+        self.admin.post(url_conf, {'accion': 'vigilancia', 'activa': 'on', 'acepto_legal': 'on', 'dias': '20',
+                                   'camara': 'on', 'juego': 'on', 'salidas': 'on', 'guardar': 'pantallazos'})
+        self.admin.post(url_conf, {'accion': 'activar'})
+        ev.refresh_from_db(); self.assertEqual(ev.config['vigilancia']['guardar'], 'pantallazos')
+        self.assertContains(self.admin.get(url_conf), 'id="vig-fotos" checked')
+        ana = self.cliente(self.ana.user)
+        d = ana.get(f'/aula/eventos/{ev.pk}/').context['datos']['vigilancia']
+        self.assertIn('pantallazos', d['texto']); self.assertNotIn('micrófono', d['texto'])
+        self.post(ana, f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': 9}]})
+        url = f'/aula/eventos/{ev.pk}/grabacion/'
+        jpg = lambda: SimpleUploadedFile('p.jpg', b'\xff\xd8\xff\xe0' + b'0' * 3000, content_type='image/jpeg')
+        for n, (t, momento) in enumerate([(5, 'reto'), (40, 'pregunta'), (95, 'salio')], 1):
+            self.assertTrue(ana.post(url, {'trozo': jpg(), 'n': n, 't': t, 'momento': momento}).json()['ok'])
+        self.assertEqual(ana.post(url, {'trozo': SimpleUploadedFile('x.svg', b'<svg/>', content_type='image/svg+xml'), 'n': 9}).status_code, 400)
+        p = ParticipacionEvento.objects.get(evento=ev, estudiante=self.ana)
+        self.assertEqual(p.grabaciones.count(), 3)
+        g = p.grabaciones.get(numero=2)
+        self.assertTrue(g.archivo.name.endswith('.jpg')); self.assertEqual(g.tipo, 'image/jpeg;pregunta')
+        r = self.admin.get(f'/aula/eventos/{ev.pk}/grabaciones/{p.pk}/')
+        self.assertContains(r, 'Pantallazos (3)'); self.assertContains(r, 'salió de la prueba'); self.assertContains(r, 'min 1:35')
+        self.assertNotContains(r, 'id="gr-video"')
 
     def test_grabaciones_a_mi_nube(self):
         """El organizador copia las grabaciones a su Drive u OneDrive (lo hace su navegador) y puede borrarlas del servidor."""
