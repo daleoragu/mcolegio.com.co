@@ -718,9 +718,12 @@ def identificarse(request, usuario, slug):
             pk=request.POST['integrante'], activo=True, grupo__in=grupos,
         ).select_related('grupo').first()
         if elegido:
-            identidad.guardar(request, elegido)
-            return redirect(pagina.ruta)
-        error = 'No encontramos a esa persona en el grupo.'
+            ok, error = identidad.pin_valido(request, elegido, request.POST.get('pin'))
+            if ok:
+                identidad.guardar(request, elegido)
+                return redirect(pagina.ruta)
+        else:
+            error = 'No encontramos a esa persona en el grupo.'
 
     return render(request, 'salon_digital/identificarse.html', {
         'pagina': pagina,
@@ -729,6 +732,7 @@ def identificarse(request, usuario, slug):
         'error': error,
         'actual': identidad.leer(request),
         'permite_libre': pagina.identificacion == 'opcional',
+        'elegido': request.POST.get('integrante', ''),
     })
 
 

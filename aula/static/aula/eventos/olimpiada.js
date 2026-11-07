@@ -73,7 +73,7 @@
 
     // --- Retos ------------------------------------------------------------------------------
     let actual = null, motor = null;
-    function limpiarZona() { if (motor && motor.destruir) motor.destruir(); motor = null; actual = null; $('#ol-zona').innerHTML = ''; }
+    function limpiarZona() { if (motor && motor.destruir) motor.destruir(); motor = null; actual = null; $('#ol-zona').innerHTML = ''; const bp = $('#ol-pausa'); if (bp) bp.hidden = true; }
     function rango(id) {
         // dificultad escogida por el organizador para ese juego; si no, la del ciclo del estudiante
         const ci = {facil: 0, media: 1, dificil: 2}[(D.dificultad || {})[id]] ?? CI;
@@ -128,7 +128,11 @@
             $('#ol-reto-detalle').textContent = `Responda bien ${Math.min(2, preguntas.length)} de ${preguntas.length}.`;
             $('#ol-instrucciones').textContent = def.instrucciones || '';
             const cv = document.createElement('canvas'); cv.className = 'ol-motor'; zona.appendChild(cv);
-            motor = Gamificacion.iniciar({lienzo: cv, tipo, preguntas, segundos: 20, minutos: 2, jugadores: 1, ritmo: (D.ritmo || {})[juego] || 1, tema: propio ? propio.titulo : '',
+            const bPausa = $('#ol-pausa');
+            bPausa.hidden = false; bPausa.textContent = '⏸ Pausa 30 s';
+            bPausa.onclick = () => { if (!motor) return; if (motor.enPausa) motor.seguir(); else if (!motor.pausar()) aviso('La pausa es mientras se responde una pregunta.'); };
+            motor = Gamificacion.iniciar({lienzo: cv, tipo, preguntas, segundos: 20, minutos: 2, jugadores: 1,
+                alPausar: pausado => { bPausa.textContent = pausado ? '▶ Seguir' : '⏸ Pausa 30 s'; if (pausado) aviso('Pausa: 30 s para resolver en papel. El reloj de la olimpiada sigue.'); }, ritmo: (D.ritmo || {})[juego] || 1, tema: propio ? propio.titulo : '',
                 alTerminar: r => { if (actual !== api) return; const meta = Math.min(2, preguntas.length); if (r.aciertos >= meta) setTimeout(superado, 600); else { aviso(`${r.aciertos} de ${preguntas.length}: va otro reto.`); setTimeout(siguienteReto, 1500); } }});
             // En el celular los que se mueven usan la palanca que aparece donde se pone el dedo (motor.js)
             ['#ol-girar', '#ol-voltear', '#ol-deshacer'].forEach(s => { $(s).hidden = true; });

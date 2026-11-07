@@ -150,7 +150,22 @@
         }
 
         // --- Reglas ------------------------------------------------------------------
-        let enPausa = false, terminado = false, esperaHasta = 0;
+        let enPausa = false, terminado = false, esperaHasta = 0, pausaHasta = 0;
+        // Pausa para pensar: el juego se congela hasta 30 s (con la pregunta en grande, para resolverla en papel).
+        // El reloj de la pregunta también se detiene; el reloj general de la olimpiada sigue corriendo.
+        const PAUSA_SEG = Math.max(5, Math.min(120, op.pausaSegundos || 30));
+        m.pausar = (seg) => {
+            if (m.estado !== 'jugando' || enPausa) return false;
+            enPausa = true; pausaHasta = performance.now() + (seg || PAUSA_SEG) * 1000;
+            if (op.alPausar) op.alPausar(true);
+            return true;
+        };
+        m.seguir = () => {
+            if (!enPausa) return;
+            enPausa = false; pausaHasta = 0; antes = performance.now();
+            if (op.alPausar) op.alPausar(false);
+        };
+        Object.defineProperty(m, 'enPausa', {get: () => enPausa});
         function siguiente() {
             const nivelAntes = m.nivel;
             m.indice += 1;
@@ -217,7 +232,7 @@
             if (abajo) {
                 m.teclas.add(nombre);
                 if (m.estado === 'inicio' && (nombre === 'aceptar' || nombre === 'disparo')) return empezar();
-                if (nombre === 'p' || nombre === 'P' || nombre === 'Escape') { enPausa = !enPausa; return; }
+                if (nombre === 'p' || nombre === 'P' || nombre === 'Escape') { if (enPausa) m.seguir(); else m.pausar(); return; }
                 if (m.estado === 'jugando' && def.alTecla) def.alTecla(m, nombre, t);
             } else { m.teclas.delete(nombre); }
         }
@@ -289,7 +304,7 @@
             if (!vivoYMio() || ev.pointerType === 'mouse' || ev.target === lienzo || ev.target.closest('button, a, input, select, textarea, label, canvas, .ins-velo')) return;
             ev.preventDefault();
             if (m.estado === 'inicio') return empezar();
-            if (palanca) return;
+            if (enPausa || palanca) return;
             palanca = {id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, dirs: new Set(), arrastro: true};
             try { zonaDedo.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
             verPalanca(ev.clientX, ev.clientY, ev.clientX, ev.clientY);
@@ -312,6 +327,7 @@
         lienzo.addEventListener('pointerdown', ev => {
             ev.preventDefault();
             if (m.estado === 'inicio') return empezar();
+            if (enPausa) { m.seguir(); return; }
             const [x, y] = punto(ev);
             try { lienzo.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
             m.puntero = {x, y};
@@ -344,6 +360,7 @@
         let antes = performance.now();
         function cuadro(ahora) {
             const dt = Math.min(0.05, (ahora - antes) / 1000); antes = ahora;
+            if (enPausa && pausaHasta && ahora >= pausaHasta) m.seguir();
             if (!enPausa) {
                 m.t += dt;
                 if (m.estado === 'jugando') {
@@ -374,11 +391,37 @@
                 ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 160, W, 40);
                 m.texto(m.avisoTexto, W / 2, 173, {tam: 14, color: m.avisoColor, alinear: 'center'});
             }
-            if (enPausa) {
-                ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
-                m.texto('PAUSA', W / 2, 160, {tam: 18, alinear: 'center'});
-                m.texto('Presione P para seguir', W / 2, 195, {tam: 8, alinear: 'center', color: '#ccc'});
+            if (enPausa) pantallaPausa();
+        }
+
+        function pantallaPausa() {
+            ctx.fillStyle = 'rgba(5,8,20,.97)'; ctx.fillRect(0, 0, W, H);
+            const queda = pausaHasta ? Math.max(0, Math.ceil((pausaHasta - performance.now()) / 1000)) : 0;
+            m.texto('PAUSA PARA PENSAR', 14, 12, {tam: 10, color: '#ffd43b'});
+            if (pausaHasta) {
+                m.texto(String(queda), W - 14, 8, {tam: 20, alinear: 'right', color: queda <= 5 ? '#ff6b6b' : '#69db7c'});
+                const frac = Math.max(0, (pausaHasta - performance.now()) / (PAUSA_SEG * 1000));
+                ctx.fillStyle = '#343a40'; ctx.fillRect(14, 34, W - 28, 4);
+                ctx.fillStyle = queda <= 5 ? '#ff6b6b' : '#69db7c'; ctx.fillRect(14, 34, (W - 28) * frac, 4);
             }
+            // La pregunta y sus opciones con letra clara, para copiarla al papel
+            const p = m.pregunta, LETRA = '"Segoe UI", system-ui, Arial, sans-serif';
+            let y = 50;
+            if (p) {
+                ctx.font = `bold 14px ${LETRA}`; ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+                partir(ctx, String((def.textoArriba ? def.textoArriba(m) : p.texto) || ''), W - 28).slice(0, 5).forEach(l => { ctx.fillText(l, 14, y); y += 18; });
+                y += 6;
+                const ops = p.opciones || [], dos = ops.length > 4, ancho = dos ? (W - 40) / 2 : W - 28;
+                ops.forEach((o, k) => {
+                    const x = dos ? 14 + (k % 2) * (ancho + 12) : 14, yy = dos ? y + Math.floor(k / 2) * 24 : y + k * 24;
+                    m.etiqueta(k, x + 9, yy + 9, 9);
+                    ctx.font = `13px ${LETRA}`; ctx.fillStyle = '#e9ecef'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+                    ctx.fillText((partir(ctx, String(o.texto || ''), ancho - 28)[0] || ''), x + 24, yy + 2);
+                });
+            }
+            ctx.font = `12px ${'"Segoe UI", system-ui, Arial, sans-serif'}`; ctx.fillStyle = '#adb5bd'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+            ctx.fillText('Resuélvala en papel. Toque la pantalla (o P) para seguir.', W / 2, H - 26);
+            ctx.fillText('El reloj de la pregunta está detenido; el reloj general sigue corriendo.', W / 2, H - 10);
         }
 
         function hud() {

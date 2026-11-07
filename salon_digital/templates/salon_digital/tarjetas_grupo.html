@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarjetas de acceso · {{ grupo.nombre }}</title>
+<style>
+  @page { size: letter; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, 'Segoe UI', Arial, sans-serif; color: #1d2433; background: #eef1f5; }
+  .barra { position: sticky; top: 0; background: #1f3a68; color: #fff; padding: 10px 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .barra button { background: #f2b632; border: 0; border-radius: 8px; padding: 7px 14px; font-weight: 700; cursor: pointer; }
+  .hoja { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6mm; padding: 8mm; max-width: 216mm; margin: 0 auto; background: #fff; }
+  .tarjeta { border: 1.5px dashed #9aa5b8; border-radius: 4mm; padding: 4mm 5mm; display: flex; gap: 4mm; align-items: center; break-inside: avoid; min-height: 46mm; }
+  .tarjeta img { width: 30mm; height: 30mm; flex: none; }
+  .tarjeta .clase { font-size: 9pt; color: #5b6474; }
+  .tarjeta .nombre { font-size: 12.5pt; font-weight: 800; margin: 1mm 0 2mm; line-height: 1.15; }
+  .dato { display: flex; gap: 3mm; margin-top: 1mm; font-size: 9.5pt; }
+  .dato b { font-family: ui-monospace, Consolas, monospace; font-size: 13pt; letter-spacing: 2px; color: #1f3a68; }
+  .pasos { font-size: 7.5pt; color: #5b6474; margin-top: 2mm; line-height: 1.3; }
+  @media print { body { background: #fff; } .barra { display: none; } .hoja { padding: 0; } }
+</style></head>
+<body>
+<div class="barra"><b>Tarjetas de acceso · {{ grupo.nombre }}</b> <span>{{ integrantes|length }} estudiante{{ integrantes|length|pluralize }}</span>
+  <button type="button" onclick="window.print()">Imprimir</button> <span style="opacity:.8;font-size:.85rem">Recórtelas y entregue a cada estudiante la suya.</span></div>
+<div class="hoja">
+  {% for i in integrantes %}
+  <div class="tarjeta">
+    {% if qr %}<img src="data:image/png;base64,{{ qr }}" alt="QR de la clase">{% endif %}
+    <div>
+      <div class="clase">{{ grupo.nombre }}{% if grupo.descripcion %} · {{ grupo.descripcion }}{% endif %}</div>
+      <div class="nombre">{{ i.completo }}</div>
+      <div class="dato">Código del grupo: <b>{{ grupo.codigo }}</b></div>
+      <div class="dato">Mi PIN: <b>{{ i.pin_chat }}</b></div>
+      <div class="pasos">{% if qr %}Escanee el código QR (o abra el enlace de la clase), {% else %}Abra el enlace que le dio su docente, {% endif %}
+        escriba el código del grupo, toque su nombre{% if grupo.pedir_pin %} y escriba su PIN{% endif %}. No le preste su PIN a nadie.</div>
+    </div>
+  </div>
+  {% empty %}
+  <p>El grupo no tiene estudiantes.</p>
+  {% endfor %}
+</div>
+</body></html>

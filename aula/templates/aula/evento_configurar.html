@@ -184,8 +184,10 @@
     <form method="post" class="au-tarjeta d-flex flex-wrap gap-2 align-items-center">{% csrf_token %}<input type="hidden" name="accion" value="arcade">
       <b class="small"><i class="fas fa-gamepad me-1"></i>Preguntas de los retos arcade:</b>
       <select name="arcade" class="form-select form-select-sm" style="max-width:420px">
-        <option value="operaciones" {% if c.arcade != 'banco' %}selected{% endif %}>Operaciones que arma la plataforma según el grupo</option>
-        <option value="banco" {% if c.arcade == 'banco' %}selected{% endif %}>Preguntas del banco 6.º–11.º del grado de cada estudiante</option>
+        <option value="preguntas" {% if c.arcade == 'preguntas' %}selected{% endif %}>Preguntas para juegos del grado (y el banco 6.º–11.º si faltan)</option>
+        <option value="propias" {% if c.arcade == 'propias' %}selected{% endif %}>Solo las preguntas cargadas para los juegos</option>
+        <option value="banco" {% if c.arcade == 'banco' %}selected{% endif %}>Solo el banco 6.º–11.º del grado</option>
+        <option value="operaciones" {% if c.arcade == 'operaciones' %}selected{% endif %}>Operaciones que arma la plataforma según el grupo</option>
       </select>
       <button class="btn btn-sm btn-outline-primary">Guardar</button>
       <span class="form-text m-0">(nunca usa las preguntas de competencia, para no revelar sus respuestas)</span>
@@ -250,34 +252,39 @@
 
   <div class="col-lg-6">
     <div class="au-tarjeta">
-      <h6><i class="fas fa-circle-question me-1"></i>Preguntas de competencia ({{ preguntas|length }})</h6>
+      <h6><i class="fas fa-circle-question me-1"></i>Preguntas ({{ preguntas|length }})</h6>
       <table class="table table-sm text-center small mb-2">
-        <thead><tr><th class="text-start">Grupo</th>{% for k, n, d in categorias %}<th title="{{ d }}">{{ n }}</th>{% endfor %}</tr></thead>
-        <tbody>{% for f in tabla %}<tr><td class="text-start">{{ f.ciclo }}</td>{% for x in f.cifras %}<td class="{% if not x %}text-danger fw-bold{% endif %}">{{ x }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+        <thead><tr><th class="text-start">Grupo</th>{% for k, n, d in categorias %}<th title="{{ d }}">{{ n }}<div class="fw-normal text-muted" style="font-size:.7rem">competencia</div></th>{% endfor %}<th title="Para los retos arcade">Retos de juego</th></tr></thead>
+        <tbody>{% for f in tabla %}<tr><td class="text-start">{{ f.ciclo }}</td>{% for x in f.cifras %}<td class="{% if not x %}text-danger fw-bold{% endif %}">{{ x }}</td>{% endfor %}<td class="fw-bold text-primary">{{ f.juegos }}</td></tr>{% endfor %}</tbody>
       </table>
+      <p class="small mb-2"><b>Competencia:</b> salen cada {{ c.cada }} puntos y las califica el servidor. <b>Retos de juego:</b> son las que preguntan los
+        juegos arcade (selección múltiple). Una pregunta va a una u otra, nunca a las dos: las de juego se ven en el navegador.</p>
       <p class="small text-muted">Euclides: geométrico y espacial · Newton: numérico y algebraico · Bernoulli: aleatorio, estadístico y combinatorio. Las preguntas salen rotando los tres pensamientos; si tienen grado, a cada estudiante le salen las de su grado.</p>
       <div class="border rounded-3 p-2 mb-3" style="background:#f4fbf6">
         <b class="small"><i class="fas fa-file-excel text-success me-1"></i>Planilla de preguntas (Excel)</b>
         <div class="d-flex flex-wrap gap-1 my-1">
           <a class="btn btn-sm btn-outline-success" href="{% url 'aula:evento_preguntas_planilla' ev.pk %}?de=vacia">Planilla vacía</a>
-          <a class="btn btn-sm btn-outline-success" href="{% url 'aula:evento_preguntas_planilla' ev.pk %}">Las preguntas del evento</a>
+          <a class="btn btn-sm btn-outline-success" href="{% url 'aula:evento_preguntas_planilla' ev.pk %}">Las de competencia</a>
+          <a class="btn btn-sm btn-outline-success" href="{% url 'aula:evento_preguntas_planilla' ev.pk %}?de=juegos">Las de retos de juego</a>
           <a class="btn btn-sm btn-outline-success" href="{% url 'aula:evento_preguntas_planilla' ev.pk %}?de=olimpiada">Banco 6.º–11.º (240 preguntas)</a>
         </div>
         <form method="post" action="{% url 'aula:evento_preguntas_planilla' ev.pk %}" enctype="multipart/form-data" class="d-flex flex-wrap gap-1 align-items-center">{% csrf_token %}
           <input type="file" name="archivo" accept=".xlsx,.csv" class="form-control form-control-sm" style="max-width:220px" required>
           <select name="ciclo" class="form-select form-select-sm" style="max-width:170px" title="Si una fila no trae nivel ni grado">{% for g in grupos %}<option value="{{ g.id }}">{{ g.nombre }}</option>{% endfor %}</select>
           <select name="categoria" class="form-select form-select-sm" style="max-width:130px" title="Si una fila no trae pensamiento">{% for k, n, d in categorias %}<option value="{{ k }}" {% if k == 'newton' %}selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+          <select name="uso" class="form-select form-select-sm" style="max-width:190px" title="Para qué son estas preguntas"><option value="competencia">Para la competencia</option><option value="juegos">Para los retos de juego (arcade)</option></select>
           <button class="btn btn-sm au-oro">Subir</button>
         </form>
         <div class="form-text">Cada pregunta va al grupo de su «Nivel» o de su «Grado». Las de arriba (grupo y pensamiento) se usan solo si la fila no los trae.</div>
-        <form method="post" class="mt-2">{% csrf_token %}<input type="hidden" name="accion" value="banco_611">
-          <button class="btn btn-sm btn-success"><i class="fas fa-bolt me-1"></i>Cargar el banco 6.º–11.º (40 por grado, cada una a su grupo)</button></form>
+        <form method="post" class="mt-2 d-flex flex-wrap gap-1 align-items-center">{% csrf_token %}<input type="hidden" name="accion" value="banco_611">
+          <button class="btn btn-sm btn-success"><i class="fas fa-bolt me-1"></i>Cargar el banco 6.º–11.º (40 por grado)</button> <select name="uso" class="form-select form-select-sm" style="max-width:190px" title="Para qué son estas preguntas"><option value="competencia">Para la competencia</option><option value="juegos">Para los retos de juego (arcade)</option></select></form>
       </div>
       <form method="post" class="mb-3">{% csrf_token %}<input type="hidden" name="accion" value="pegar">
         <label class="small fw-bold">Pegar preguntas (formato Saber: opciones A) B) … y la correcta con *)</label>
         <div class="d-flex gap-2 my-1">
           <select name="ciclo" class="form-select form-select-sm">{% for g in grupos %}<option value="{{ g.id }}">{{ g.nombre }} ({{ g.rango }})</option>{% endfor %}</select>
           <select name="categoria" class="form-select form-select-sm">{% for k, n, d in categorias %}<option value="{{ k }}">{{ n }}</option>{% endfor %}</select>
+          <select name="uso" class="form-select form-select-sm" style="max-width:190px" title="Para qué son estas preguntas"><option value="competencia">Para la competencia</option><option value="juegos">Para los retos de juego (arcade)</option></select>
         </div>
         <textarea name="texto" rows="5" class="form-control form-control-sm" style="font-family:ui-monospace,monospace" placeholder="1. ¿Cuánto es 2³?&#10;A) 6&#10;*B) 8&#10;C) 9"></textarea>
         <button class="btn btn-sm btn-outline-primary mt-1">Agregar</button>
@@ -291,6 +298,7 @@
         <div class="d-flex gap-2 mb-1">
           <select name="ciclo" class="form-select form-select-sm">{% for g in grupos %}<option value="{{ g.id }}">{{ g.nombre }} ({{ g.rango }})</option>{% endfor %}</select>
           <select name="categoria" class="form-select form-select-sm">{% for k, n, d in categorias %}<option value="{{ k }}">{{ n }}</option>{% endfor %}</select>
+          <select name="uso" class="form-select form-select-sm" style="max-width:190px" title="Para qué son estas preguntas"><option value="competencia">Para la competencia</option><option value="juegos">Para los retos de juego (arcade)</option></select>
         </div>
         <button class="btn btn-sm btn-outline-primary">Importar</button>
       </form>
@@ -298,7 +306,7 @@
       <details class="mt-2"><summary class="small fw-bold">Ver las preguntas</summary>
         <div style="max-height:360px;overflow:auto" class="mt-1">
         {% for i, p in preguntas %}
-          <div class="border-bottom py-1 small d-flex gap-2"><div class="flex-grow-1"><span class="badge bg-light text-dark">{{ p.ciclo }} · {{ p.categoria }}{% if p.grado is not None %} · {{ p.grado }}.º{% endif %}</span> {{ p.texto }}
+          <div class="border-bottom py-1 small d-flex gap-2"><div class="flex-grow-1"><span class="badge {% if p.uso == 'juegos' %}bg-primary{% else %}bg-light text-dark{% endif %}">{% if p.uso == 'juegos' %}juego · {% endif %}{{ p.ciclo }} · {{ p.categoria }}{% if p.grado is not None %} · {{ p.grado }}.º{% endif %}</span> {{ p.texto }}
             <span class="text-muted">({% for o in p.opciones %}{% if o.correcta %}<b>{{ o.texto }}</b>{% else %}{{ o.texto }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %})</span></div>
             <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="quitar"><input type="hidden" name="i" value="{{ i }}"><button class="btn btn-sm btn-link text-danger p-0" title="Quitar">✕</button></form></div>
         {% empty %}<div class="small text-muted">No hay preguntas.</div>{% endfor %}

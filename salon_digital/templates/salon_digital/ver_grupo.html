@@ -2,8 +2,9 @@
 {% block titulo %}{{ grupo.nombre }} · Mi Salón Virtual{% endblock %}
 
 {% block contenido %}
-<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
   <div>
+    <a href="{% url 'salon_digital:grupos' %}" class="small text-decoration-none">&larr; Grupos</a>
     <h1 class="h3 mb-1">{{ grupo.nombre }}</h1>
     <p class="text-muted mb-0">{{ grupo.descripcion }}</p>
   </div>
@@ -13,47 +14,104 @@
   </div>
 </div>
 
+<div class="card mb-4" style="border-left:5px solid #f2b632">
+  <div class="card-body">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+      <h2 class="h6 mb-0 fw-bold">Cómo entran sus estudiantes</h2>
+      <a href="{% url 'salon_digital:tarjetas_grupo' grupo.pk %}" target="_blank" class="btn btn-sm btn-primary ms-auto">Imprimir tarjetas de acceso</a>
+    </div>
+    <ol class="small mb-2">
+      {% if enlace %}<li>Abren el enlace de la clase (o escanean el QR de su tarjeta):
+        <div class="input-group input-group-sm my-1" style="max-width:560px">
+          <input class="form-control" readonly value="{{ enlace }}" onclick="this.select()">
+          <button type="button" class="btn btn-outline-secondary" onclick="navigator.clipboard && navigator.clipboard.writeText('{{ enlace }}'); this.textContent='¡Copiado!'">Copiar</button>
+        </div></li>
+      {% else %}<li>Abren el enlace de la actividad o de la clase que usted les comparte.</li>{% endif %}
+      <li>Escriben el código del grupo <b>{{ grupo.codigo }}</b> (con el enlace de arriba ya va escrito).</li>
+      <li>Tocan <b>su nombre</b> en la lista.</li>
+      {% if grupo.pedir_pin %}<li>Escriben <b>su PIN</b> de 4 cifras (columna PIN de abajo).</li>{% endif %}
+    </ol>
+    <p class="small text-muted mb-0">
+      {% if grupo.pedir_pin %}Este grupo <b>pide el PIN al entrar</b>: nadie puede entrar con el nombre de otro.
+      {% else %}Hoy basta el código y el nombre. Para que nadie entre con el nombre de otro, active <b>«Pedir el PIN al entrar»</b> en Datos del grupo.{% endif %}
+      El PIN también sirve para el chat con usted.</p>
+  </div>
+</div>
+
 <div class="row g-4">
   <div class="col-lg-7">
     <div class="card">
-      <div class="card-header">
-        Estudiantes ({{ grupo.total_integrantes }})
-      </div>
+      <div class="card-header d-flex align-items-center">Estudiantes ({{ grupo.total_integrantes }})
+        <span class="ms-auto small text-muted">«Editar» corrige el nombre</span></div>
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
+          <thead class="small"><tr><th>Estudiante</th><th class="text-center">PIN</th><th class="text-end">Acciones</th></tr></thead>
           <tbody>
           {% for i in integrantes %}
-            {% if i.activo %}
             <tr>
-              <td>{{ i.completo }}</td>
-              <td class="text-end">
-                <form method="post" action="{% url 'salon_digital:quitar_integrante' grupo.pk i.pk %}"
-                      onsubmit="return confirm('¿Sacar a {{ i.completo|escapejs }} del grupo?');">
+              <td>
+                <span id="nom-{{ i.pk }}">{{ i.completo }}</span>
+                <form method="post" action="{% url 'salon_digital:editar_integrante' grupo.pk i.pk %}" class="d-none gap-1 mt-1" id="ed-{{ i.pk }}">
                   {% csrf_token %}
-                  <button class="btn btn-sm btn-outline-danger">Quitar</button>
+                  <input name="apellidos" class="form-control form-control-sm" value="{{ i.apellidos }}" placeholder="Apellidos" maxlength="120">
+                  <input name="nombres" class="form-control form-control-sm" value="{{ i.nombres }}" placeholder="Nombres" maxlength="120">
+                  <button class="btn btn-sm btn-primary">Guardar</button>
                 </form>
               </td>
+              <td class="text-center"><code style="font-size:1rem;letter-spacing:2px">{{ i.pin_chat }}</code></td>
+              <td class="text-end text-nowrap">
+                <button type="button" class="btn btn-sm btn-outline-secondary" title="Editar el nombre"
+                        onclick="const f=document.getElementById('ed-{{ i.pk }}'); f.classList.toggle('d-none'); f.classList.toggle('d-flex');">Editar</button>
+                <form method="post" action="{% url 'salon_digital:nuevo_pin' grupo.pk i.pk %}" class="d-inline"
+                      onsubmit="return confirm('¿Darle un PIN nuevo a {{ i.completo|escapejs }}? El anterior deja de servir.');">
+                  {% csrf_token %}<button class="btn btn-sm btn-outline-secondary" title="Darle un PIN nuevo">PIN nuevo</button></form>
+                <form method="post" action="{% url 'salon_digital:quitar_integrante' grupo.pk i.pk %}" class="d-inline"
+                      onsubmit="return confirm('¿Sacar a {{ i.completo|escapejs }} del grupo? Lo que ya entregó se conserva y puede volver a agregarlo.');">
+                  {% csrf_token %}<button class="btn btn-sm btn-outline-danger" title="Quitar del grupo">Quitar</button></form>
+              </td>
             </tr>
-            {% endif %}
           {% empty %}
-            <tr><td class="text-center text-muted py-4">
-              La lista está vacía. Pégala desde tu planilla con el formulario de al lado.
+            <tr><td colspan="3" class="text-center text-muted py-4">
+              La lista está vacía. Agregue a sus estudiantes con los formularios de al lado.
             </td></tr>
           {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
+    {% if retirados %}
+    <div class="card mt-3">
+      <div class="card-header small">Retirados del grupo ({{ retirados|length }})</div>
+      <ul class="list-group list-group-flush small">
+        {% for i in retirados %}
+        <li class="list-group-item d-flex align-items-center"><span class="text-muted">{{ i.completo }}</span>
+          <form method="post" action="{% url 'salon_digital:reactivar_integrante' grupo.pk i.pk %}" class="ms-auto">{% csrf_token %}
+            <button class="btn btn-sm btn-outline-primary">Volver a agregar</button></form></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
   </div>
 
   <div class="col-lg-5">
+    <div class="card mb-3">
+      <div class="card-header">Agregar un estudiante</div>
+      <div class="card-body">
+        <form method="post" class="row g-2">
+          {% csrf_token %}
+          <div class="col-6"><input name="apellidos" class="form-control" placeholder="Apellidos" maxlength="120" required></div>
+          <div class="col-6"><input name="nombres" class="form-control" placeholder="Nombres" maxlength="120"></div>
+          <div class="col-12"><button name="uno" value="1" class="btn btn-primary w-100">Agregar</button></div>
+        </form>
+      </div>
+    </div>
     <div class="card mb-4">
-      <div class="card-header">Agregar estudiantes</div>
+      <div class="card-header">Agregar varios (pegar la lista)</div>
       <div class="card-body">
         <form method="post" novalidate>
           {% csrf_token %}
           {% with form=lista %}{% include "salon_digital/_campos.html" %}{% endwith %}
-          <button name="pegar" value="1" class="btn btn-primary">Agregar a la lista</button>
+          <button name="pegar" value="1" class="btn btn-outline-primary">Agregar a la lista</button>
         </form>
       </div>
     </div>

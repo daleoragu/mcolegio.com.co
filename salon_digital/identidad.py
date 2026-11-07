@@ -14,6 +14,23 @@ def guardar(request, integrante):
     request.session.modified = True
 
 
+def pin_valido(request, integrante, pin):
+    """¿Escribió bien su PIN? (solo si el grupo lo pide). Máximo 8 intentos cada 15 minutos por estudiante y equipo."""
+    if not integrante.grupo.pedir_pin:
+        return True, ''
+    from django.core.cache import cache
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR', '')
+    llave = f'salon-pin:{integrante.pk}:{ip}'
+    intentos = cache.get(llave) or 0
+    if intentos >= 8:
+        return False, 'Demasiados intentos. Espere 15 minutos o pídale a su docente un PIN nuevo.'
+    if (pin or '').strip() == integrante.pin_chat:
+        cache.delete(llave)
+        return True, ''
+    cache.set(llave, intentos + 1, 15 * 60)
+    return False, 'Ese PIN no es el suyo. Revise su tarjeta o pídaselo a su docente.'
+
+
 def leer(request):
     return request.session.get(CLAVE_SESION) or None
 

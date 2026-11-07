@@ -268,3 +268,78 @@ class AulaSalonDigital(ColegioDePrueba):
         # Rangos cruzados: no se guarda
         r = profe.post('/aula/escala/', {'nombre': ['A', 'B'], 'min': ['1', '3'], 'max': ['4', '5']})
         self.assertContains(r, 'se cruzan')
+
+
+class GrupoSalonEditable(ColegioDePrueba):
+    """El docente edita su grupo ya creado: agrega estudiantes, corrige nombres, cambia PIN, ve cómo entran
+    e imprime tarjetas; con «Pedir el PIN al entrar» nadie entra con el nombre de otro."""
+
+    def test_editar_grupo_y_entrar_con_pin(self):
+        from django.core.cache import cache
+        from salon_digital.models import Cuenta, Grupo, Integrante
+        cache.clear()
+        u = User.objects.create_user('libre2', password=CLAVE, first_name='Lina')
+        cuenta = Cuenta.objects.create(usuario=u, slug='lina2', nombre_publico='Lina', estado='verificada')
+        grupo = Grupo.objects.create(propietario=cuenta, nombre='8-02')
+        profe = Client(HTTP_HOST='localhost'); profe.force_login(u)
+        profe.get(f'/aula/grupo/{grupo.pk}/')                 # crea el aula del grupo
+        aula = Aula.objects.get(grupo=grupo)
+        g = f'/salon_digital/grupos/{grupo.pk}/'
+        # Agregar uno por uno (y el repetido no se duplica)
+        r = profe.post(g, {'uno': '1', 'apellidos': 'Pérez Ruiz', 'nombres': 'Luis'}, follow=True)
+        luis = Integrante.objects.get(grupo=grupo, nombres='Luis')
+        self.assertContains(r, f'Su PIN es {luis.pin_chat}')
+        profe.post(g, {'uno': '1', 'apellidos': 'pérez ruiz', 'nombres': 'luis'})
+        self.assertEqual(grupo.integrantes.count(), 1)
+        profe.post(g, {'pegar': '1', 'lista': 'Gómez, Sara\nTorres Díaz, Ana María'})
+        self.assertEqual(grupo.integrantes.filter(activo=True).count(), 3)
+        # La página muestra cómo entran: enlace con el código, PIN de cada uno
+        r = profe.get(g)
+        self.assertContains(r, 'Cómo entran sus estudiantes')
+        self.assertContains(r, f'/aula/{aula.pk}/entrar/?codigo={grupo.codigo}')
+        self.assertContains(r, luis.pin_chat)
+        # Editar el nombre, PIN nuevo, quitar y volver a agregar
+        profe.post(f'{g}estudiante/{luis.pk}/editar/', {'apellidos': 'Pérez Ruiz', 'nombres': 'Luis Felipe'})
+        luis.refresh_from_db(); self.assertEqual(luis.completo, 'Pérez Ruiz Luis Felipe')
+        viejo = luis.pin_chat
+        for _ in range(5):          # un PIN nuevo (al azar: puede repetir; se intenta unas veces)
+            profe.post(f'{g}estudiante/{luis.pk}/pin/')
+            luis.refresh_from_db()
+            if luis.pin_chat != viejo:
+                break
+        self.assertNotEqual(luis.pin_chat, viejo)
+        sara = Integrante.objects.get(grupo=grupo, apellidos='Gómez')
+        profe.post(f'{g}quitar/{sara.pk}/')
+        self.assertContains(profe.get(g), 'Retirados del grupo')
+        profe.post(f'{g}estudiante/{sara.pk}/volver/')
+        sara.refresh_from_db(); self.assertTrue(sara.activo)
+        # Tarjetas para imprimir (con QR, código y PIN)
+        r = profe.get(f'{g}tarjetas/')
+        self.assertContains(r, 'data:image/png;base64,'); self.assertContains(r, grupo.codigo); self.assertContains(r, luis.pin_chat)
+        # Otro docente no puede tocar el grupo
+        otro = User.objects.create_user('otro', password=CLAVE)
+        Cuenta.objects.create(usuario=otro, slug='otro', nombre_publico='Otro', estado='verificada')
+        intruso = Client(HTTP_HOST='localhost'); intruso.force_login(otro)
+        self.assertEqual(intruso.post(f'{g}estudiante/{luis.pk}/editar/', {'apellidos': 'X'}).status_code, 404)
+        # Sin «pedir PIN»: entra con código y nombre
+        est = Client(HTTP_HOST='localhost')
+        est.post(f'/aula/{aula.pk}/entrar/', {'codigo': grupo.codigo, 'integrante': sara.pk})
+        self.assertEqual(est.get(f'/aula/{aula.pk}/').status_code, 200)
+        # Con «pedir PIN»: el PIN equivocado no deja entrar; el suyo sí
+        profe.post(f'{g}editar/', {'nombre': '8-02', 'descripcion': '', 'activo': 'on', 'pedir_pin': 'on'})
+        grupo.refresh_from_db(); self.assertTrue(grupo.pedir_pin)
+        est2 = Client(HTTP_HOST='localhost')
+        r = est2.get(f'/aula/{aula.pk}/entrar/', {'codigo': grupo.codigo})
+        self.assertContains(r, 'name="pin"')
+        malo = '0000' if luis.pin_chat != '0000' else '1111'
+        r = est2.post(f'/aula/{aula.pk}/entrar/', {'codigo': grupo.codigo, 'integrante': luis.pk, 'pin': malo})
+        self.assertContains(r, 'Ese PIN no es el suyo')
+        self.assertEqual(est2.get(f'/aula/{aula.pk}/').status_code, 302)
+        est2.post(f'/aula/{aula.pk}/entrar/', {'codigo': grupo.codigo, 'integrante': luis.pk, 'pin': luis.pin_chat})
+        self.assertEqual(est2.get(f'/aula/{aula.pk}/').status_code, 200)
+        # Demasiados intentos: se bloquea un rato
+        est3 = Client(HTTP_HOST='localhost')
+        for _ in range(8):
+            est3.post(f'/aula/{aula.pk}/entrar/', {'codigo': grupo.codigo, 'integrante': sara.pk, 'pin': '9999' if sara.pin_chat != '9999' else '8888'})
+        r = est3.post(f'/aula/{aula.pk}/entrar/', {'codigo': grupo.codigo, 'integrante': sara.pk, 'pin': sara.pin_chat})
+        self.assertContains(r, 'Demasiados intentos')

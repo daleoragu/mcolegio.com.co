@@ -193,13 +193,17 @@ def entrar(request, pk):
         integrante = grupo.integrantes.filter(pk=request.POST['integrante'], activo=True).first()
         if integrante:
             from salon_digital import identidad
-            identidad.guardar(request, integrante)
-            return redirect('aula:muro', pk=aula.pk)
-        error = 'No encontramos ese nombre en la clase.'
+            ok, error = identidad.pin_valido(request, integrante, request.POST.get('pin'))
+            if ok:
+                identidad.guardar(request, integrante)
+                return redirect('aula:muro', pk=aula.pk)
+        else:
+            error = 'No encontramos ese nombre en la clase.'
     return render(request, 'aula/entrar.html', {
         'aula': aula, 'codigo': codigo, 'valido': valido, 'error': error, 'base': 'aula/base_salon.html',
         'hide_cuenta': True,
         'integrantes': grupo.integrantes.filter(activo=True) if valido else [],
+        'pedir_pin': grupo.pedir_pin, 'elegido': request.POST.get('integrante', ''),
     })
 
 

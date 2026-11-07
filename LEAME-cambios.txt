@@ -123,6 +123,7 @@ NUEVO     aula/templates/aula/_invertida_form.html
 NUEVO     aula/templates/aula/_invertida_js.html
 NUEVO     aula/templates/aula/_nube_grabaciones.html
 NUEVO     aula/templates/aula/banco.html
+CAMBIADO  aula/templates/aula/entrar.html
 NUEVO     aula/templates/aula/evento_cerrado.html
 NUEVO     aula/templates/aula/evento_configurar.html
 NUEVO     aula/templates/aula/evento_diplomas.html
@@ -147,6 +148,7 @@ NUEVO     aula/templates/aula/logica_informe.html
 NUEVO     aula/templates/aula/logica_juego.html
 NUEVO     aula/templates/aula/logica_menu.html
 NUEVO     aula/templates/aula/mascota.html
+CAMBIADO  aula/tests/test_aula.py
 NUEVO     aula/tests/test_eventos.py
 NUEVO     aula/tests/test_gamificacion.py
 NUEVO     aula/tests/test_invertida.py
@@ -245,6 +247,16 @@ CAMBIADO  notas/views/observador_views.py
 NUEVO     notas/views/permisos_views.py
 CAMBIADO  notas/views/reporte_parcial_views.py
 CAMBIADO  piar/logica.py
+CAMBIADO  salon_digital/forms.py
+CAMBIADO  salon_digital/identidad.py
+NUEVO     salon_digital/migrations/0004_grupo_pedir_pin.py
+CAMBIADO  salon_digital/models.py
+CAMBIADO  salon_digital/templates/salon_digital/identificarse.html
+NUEVO     salon_digital/templates/salon_digital/tarjetas_grupo.html
+CAMBIADO  salon_digital/templates/salon_digital/ver_grupo.html
+CAMBIADO  salon_digital/urls.py
+CAMBIADO  salon_digital/views.py
+CAMBIADO  salon_digital/views_grupos.py
 NUEVO     votaciones/cabinas.py
 NUEVO     votaciones/migrations/0002_cabinas.py
 CAMBIADO  votaciones/models.py
@@ -286,6 +298,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0021_banco_preguntas.py          (banco de preguntas)
   aula/migrations/0022_grabaciones_eventos.py      (grabaciones de cámara y micrófono de los eventos)
   aula/migrations/0023_grabaciones_en_la_nube.py   (marca de las grabaciones ya copiadas a la nube)
+  salon_digital/migrations/0004_grupo_pedir_pin.py  (Salón Digital: pedir el PIN al entrar)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.
