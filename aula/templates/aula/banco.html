@@ -27,6 +27,7 @@
           <a class="btn btn-sm btn-outline-success" href="{% url 'aula:banco_planilla' %}?de=vacia">Vacía</a>
           <a class="btn btn-sm btn-outline-success" href="{% url 'aula:banco_planilla' %}?de=mias&tema={{ tema|urlencode }}&q={{ q|urlencode }}">Mis preguntas{% if tema %} de «{{ tema }}»{% endif %}</a>
           <a class="btn btn-sm btn-outline-success" href="{% url 'aula:banco_planilla' %}?de=olimpiada">Banco 6.º–11.º</a>
+          <a class="btn btn-sm btn-outline-success" href="{% url 'aula:banco_planilla' %}?de=calculo">Banco 10.º y 11.º (cálculo)</a>
         </div>
         <form method="post" action="{% url 'aula:banco_planilla' %}" enctype="multipart/form-data">{% csrf_token %}
           <input type="file" name="archivo" accept=".xlsx,.csv" class="form-control form-control-sm mb-1" required>
@@ -38,6 +39,12 @@
       <form method="post" class="au-tarjeta">{% csrf_token %}<input type="hidden" name="accion" value="olimpiada">
         <h6 class="mb-1">🏅 Banco olimpiada 6.º–11.º</h6>
         <p class="small text-muted mb-2">240 preguntas de matemáticas (40 por grado) en los pensamientos numérico, geométrico y aleatorio, con su grado y su tema.</p>
+        <button class="btn btn-sm btn-success w-100">Agregarlas a mi banco</button>
+      </form>
+      <form method="post" class="au-tarjeta">{% csrf_token %}<input type="hidden" name="accion" value="calculo">
+        <h6 class="mb-1">📈 Banco 10.º y 11.º: funciones, límites y derivadas</h6>
+        <p class="small text-muted mb-2">123 preguntas sin integrales: funciones, lineal y cuadrática, logaritmos, trigonometría, geometría analítica (10.º);
+          límites, continuidad, derivadas y sus aplicaciones (11.º), y preguntas de conceptos. Respuestas verificadas con un sistema de álgebra.</p>
         <button class="btn btn-sm btn-success w-100">Agregarlas a mi banco</button>
       </form>
       <div class="au-tarjeta small text-muted">También puede guardar las preguntas de un juego al publicarlo (casilla «Guardar estas preguntas en mi banco»).</div>

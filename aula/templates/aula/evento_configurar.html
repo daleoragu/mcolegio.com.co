@@ -299,6 +299,7 @@
           <a class="btn btn-sm btn-outline-success" href="{% url 'aula:evento_preguntas_planilla' ev.pk %}">Las de competencia</a>
           <a class="btn btn-sm btn-outline-success" href="{% url 'aula:evento_preguntas_planilla' ev.pk %}?de=juegos">Las de retos de juego</a>
           <a class="btn btn-sm btn-outline-success" href="{% url 'aula:evento_preguntas_planilla' ev.pk %}?de=olimpiada">Banco 6.º–11.º (240 preguntas)</a>
+          <a class="btn btn-sm btn-outline-success" href="{% url 'aula:evento_preguntas_planilla' ev.pk %}?de=calculo">Banco 10.º y 11.º (cálculo)</a>
         </div>
         <form method="post" action="{% url 'aula:evento_preguntas_planilla' ev.pk %}" enctype="multipart/form-data" class="d-flex flex-wrap gap-1 align-items-center">{% csrf_token %}
           <input type="file" name="archivo" accept=".xlsx,.csv" class="form-control form-control-sm" style="max-width:220px" required>
@@ -310,6 +311,8 @@
         <div class="form-text">Cada pregunta va al grupo de su «Nivel» o de su «Grado». Las de arriba (grupo y pensamiento) se usan solo si la fila no los trae.</div>
         <form method="post" class="mt-2 d-flex flex-wrap gap-1 align-items-center">{% csrf_token %}<input type="hidden" name="accion" value="banco_611">
           <button class="btn btn-sm btn-success"><i class="fas fa-bolt me-1"></i>Cargar el banco 6.º–11.º (40 por grado)</button> <select name="uso" class="form-select form-select-sm" style="max-width:190px" title="Para qué son estas preguntas"><option value="competencia">Para la competencia</option><option value="juegos">Para los retos de juego (arcade)</option></select></form>
+        <form method="post" class="mt-1 d-flex flex-wrap gap-1 align-items-center">{% csrf_token %}<input type="hidden" name="accion" value="banco_calculo">
+          <button class="btn btn-sm btn-outline-success"><i class="fas fa-chart-line me-1"></i>Cargar el banco 10.º y 11.º (funciones, límites, derivadas)</button> <select name="uso" class="form-select form-select-sm" style="max-width:190px" title="Para qué son estas preguntas"><option value="competencia">Para la competencia</option><option value="juegos">Para los retos de juego (arcade)</option></select></form>
       </div>
       <form method="post" class="mb-3">{% csrf_token %}<input type="hidden" name="accion" value="pegar">
         <label class="small fw-bold">Pegar preguntas (formato Saber: opciones A) B) … y la correcta con *)</label>

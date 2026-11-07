@@ -12,6 +12,9 @@ BANCOS = {
     'ingles': 'Inglés básico',
     # Banco de la olimpiada de matemáticas (40 preguntas por grado; aula/bancos/olimpiada_6_11.json)
     **{f'olimpiada{g}': f'Olimpiada de matemáticas {g}.º' for g in range(6, 12)},
+    # 10.º y 11.º sin integrales: funciones, trigonometría, límites y derivadas (aula/bancos/calculo_10_11.json)
+    'calculo10': 'Funciones y trigonometría 10.º',
+    'calculo11': 'Límites, derivadas y funciones 11.º',
 }
 
 
@@ -94,8 +97,13 @@ def _olimpiada(grado):
 def preguntas(banco, n=10):
     if banco == 'matematicas':
         return _matematicas(n)
-    if banco.startswith('olimpiada') and banco[9:].isdigit():
-        todas = _olimpiada(int(banco[9:]))
+    if (banco.startswith('olimpiada') and banco[9:].isdigit()) or banco in ('calculo10', 'calculo11'):
+        if banco.startswith('calculo'):
+            from .planilla_preguntas import banco_calculo
+            todas = [{'texto': p['texto'], 'opciones': [dict(o) for o in p['opciones']], 'tema': p['tema']}
+                     for p in banco_calculo() if p['grado'] == int(banco[7:])]
+        else:
+            todas = _olimpiada(int(banco[9:]))
         random.shuffle(todas)
         for p in todas:
             random.shuffle(p['opciones'])

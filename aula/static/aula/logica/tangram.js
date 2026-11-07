@@ -42,26 +42,48 @@
                 const a = p.ang * Math.PI / 4, cs = Math.cos(a), sn = Math.sin(a);
                 return p.forma.map(([x, y]) => { if (p.esp) x = -x; return [p.x + x * cs - y * sn, p.y + x * sn + y * cs]; });
             }
-            // Acomodar: si un vértice queda cerca de un punto de la cuadrícula de la figura, se pega
-            function acomodar(p) {
-                let mejor = null;
-                vertices(p).forEach(([x, y]) => {
-                    const dx = Math.round(x) - x, dy = Math.round(y) - y, d = Math.hypot(dx, dy);
-                    if (!mejor || d < mejor.d) mejor = {dx, dy, d};
-                });
-                if (mejor && mejor.d < .35) { p.x += mejor.dx; p.y += mejor.dy; }
+            // Acomodar (imán):
+            //  1) si la pieza tiene el giro de un sitio de la figura donde cabe (mismo tipo de pieza) y quedó cerca,
+            //     se pega exacto a ese sitio (prefiere los sitios libres);
+            //  2) si no, su esquina más cercana se pega al punto de la cuadrícula más próximo.
+            const cent = vs => [vs.reduce((s, v) => s + v[0], 0) / vs.length, vs.reduce((s, v) => s + v[1], 0) / vs.length];
+            function mismoGiro(vs, objetivo, dx, dy) {
+                return vs.length === objetivo.length && vs.every(([x, y]) => objetivo.some(([a, b]) => Math.hypot(x + dx - a, y + dy - b) < .2));
             }
-            // ¿Está cubierta la sombra? Puntos de muestra cada 1/4 de unidad
+            function ocupado(k, menos) {
+                return piezas.some(q => q !== menos && q.k[0] === k[0] && mismoGiro(vertices(q), fig.piezas[k], 0, 0));
+            }
+            function acomodar(p) {
+                const vs = vertices(p), c = cent(vs);
+                let mejor = null;
+                Object.keys(fig.piezas).forEach(k => {
+                    if (k[0] !== p.k[0]) return;                          // G con G, P con P (son iguales entre sí)
+                    const t = cent(fig.piezas[k]), dx = t[0] - c[0], dy = t[1] - c[1], d = Math.hypot(dx, dy);
+                    if (d > 1.1 || !mismoGiro(vs, fig.piezas[k], dx, dy)) return;
+                    const libre = !ocupado(k, p), puntaje = d + (libre ? 0 : 5);
+                    if (!mejor || puntaje < mejor.puntaje) mejor = {dx, dy, puntaje};
+                });
+                if (mejor) { p.x += mejor.dx; p.y += mejor.dy; return; }
+                let cerca = null;
+                vs.forEach(([x, y]) => {
+                    const dx = Math.round(x) - x, dy = Math.round(y) - y, d = Math.hypot(dx, dy);
+                    if (!cerca || d < cerca.d) cerca = {dx, dy, d};
+                });
+                if (cerca && cerca.d < .5) { p.x += cerca.dx; p.y += cerca.dy; }
+            }
+            // ¿Está cubierta la sombra? Puntos de muestra cada 1/4 de unidad. Corridos (0,09 y 0,17) para que ninguno
+            // caiga justo sobre un borde: los bordes del tangram son horizontales, verticales o diagonales por puntos
+            // enteros, y un punto encima de un borde a veces contaba «afuera» por los decimales del giro.
             function revisar() {
                 let falta = 0, total = 0, fuera = 0;
                 const polys = piezas.map(vertices), sombra = Object.values(fig.piezas);
-                for (let y = .125; y < fh; y += .25) for (let x = .125; x < fw; x += .25) {
+                for (let y = .17; y < fh; y += .25) for (let x = .09; x < fw; x += .25) {
                     const enSombra = sombra.some(s => dentro(x, y, s)), cubierto = polys.some(s => dentro(x, y, s));
                     if (enSombra) { total += 1; if (!cubierto) falta += 1; } else if (cubierto) fuera += 1;
                 }
                 // fuera de la caja de la figura también cuenta
                 const afuera = polys.flat().some(([x, y]) => x < -.2 || y < -.2 || x > fw + .2 || y > fh + .2);
-                if (falta <= total * .015 && fuera <= total * .015 && !afuera) {
+                if (falta <= total * .02 && fuera <= total * .02 && !afuera) {
                     api.gano({estrellas: ayudas === 0 ? 3 : ayudas === 1 ? 2 : 1, detalle: ayudas ? `${ayudas} ayuda(s)` : 'sin ayudas'});
                 }
             }

@@ -640,11 +640,12 @@ def preguntas_planilla(request, eid):
     de = request.GET.get('de', 'evento')
     nombres = {g['id']: g['nombre'] for g in grupos(c)}
     lista = ([] if de == 'vacia' else planilla_preguntas.banco_olimpiada() if de == 'olimpiada'
+             else planilla_preguntas.banco_calculo() if de == 'calculo'
              else [x for x in ev.preguntas if es_de_juego(x)] if de == 'juegos' else de_competencia(ev))
-    if de == 'olimpiada':
+    if de in ('olimpiada', 'calculo'):
         lista = [dict(p, ciclo=(grupo_para(c, '', p['grado']) or {}).get('id', p['ciclo'])) for p in lista]
     archivo = planilla_preguntas.descargar(lista, ev.titulo, nombres)
-    nombre = {'vacia': 'planilla de preguntas (vacia)', 'olimpiada': 'banco olimpiada 6 a 11',
+    nombre = {'vacia': 'planilla de preguntas (vacia)', 'olimpiada': 'banco olimpiada 6 a 11', 'calculo': 'banco 10 y 11 - funciones limites y derivadas',
               'juegos': f'preguntas de juego {_nombre_archivo(ev.titulo, 40)}'}.get(de, f'preguntas de competencia {_nombre_archivo(ev.titulo, 40)}')
     return HttpResponse(archivo.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                         headers={'Content-Disposition': f'attachment; filename="{nombre}.xlsx"'})
@@ -780,10 +781,12 @@ def configurar(request, eid):
             ev.preguntas = list(ev.preguntas) + [p for p in _banco() if p not in ev.preguntas]
             ev.save(update_fields=['preguntas'])
             messages.success(request, 'Se agregó el banco inicial de preguntas.')
-        elif accion == 'banco_611':
+        elif accion in ('banco_611', 'banco_calculo'):
             uso = 'juegos' if request.POST.get('uso') == 'juegos' else 'competencia'
-            n, sin = agregar_preguntas(ev, [dict(p, nivel='') for p in planilla_preguntas.banco_olimpiada()], 'Banco olimpiada 6.º–11.º', uso=uso)
-            messages.success(request, f'Se agregaron {n} pregunta(s) del banco 6.º–11.º ' + ('para los retos de juego' if uso == 'juegos' else 'para la competencia') + ', cada una al grupo de su grado.'
+            fuente = planilla_preguntas.banco_calculo() if accion == 'banco_calculo' else planilla_preguntas.banco_olimpiada()
+            n, sin = agregar_preguntas(ev, [dict(p, nivel='') for p in fuente],
+                                       'Banco 10.º y 11.º (cálculo)' if accion == 'banco_calculo' else 'Banco olimpiada 6.º–11.º', uso=uso)
+            messages.success(request, f'Se agregaron {n} pregunta(s) del banco ' + ('10.º y 11.º ' if accion == 'banco_calculo' else '6.º–11.º ') + ('para los retos de juego' if uso == 'juegos' else 'para la competencia') + ', cada una al grupo de su grado.'
                              + (f' {sin} no se agregaron (su grado no está en ningún grupo o ya estaban).' if sin else ''))
         elif accion == 'arcade':
             c = config_de(ev)

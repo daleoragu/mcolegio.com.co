@@ -13,7 +13,7 @@
     'use strict';
     if (window.Mate) return;
     const SUP = {'⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁺': '+', '⁻': '-', 'ⁿ': 'n'};
-    const FUNCIONES = ['sen', 'cos', 'tan', 'log', 'ln', 'lím', 'lim', 'mcm', 'mcd', 'máx', 'mín'];
+    const FUNCIONES = ['sen', 'cos', 'tan', 'sec', 'cot', 'csc', 'log', 'ln', 'lím', 'lim', 'mcm', 'mcd', 'máx', 'mín'];
     // Lo que puede ir dentro de una fórmula
     const CARACTER = /[0-9a-zA-Z()\[\]+\-−×÷·=^/√∛π.,<>≤≥≠≈∞°′″%²³¹⁰⁴⁵⁶⁷⁸⁹⁺⁻ⁿ |∠△∈∉∪∩⊂⊆∅ℕℤℚℝ±]/;
     const OPERADOR = /[+\-−×÷·=^/√∛≤≥<>≠≈²³⁴ⁿ±]/;
@@ -82,7 +82,7 @@
         if (/\d{1,2}\/\d{1,2}\/\d{2,4}/.test(s)) return false;           // fecha
         if (/^[0-9.,]+$/.test(s)) return false;                         // un número solo se queda como texto
         // una letra sola («A», «x») se queda como texto: puede ser una palabra («¿A qué…?»); 2x, 3a sí son fórmula
-        return OPERADOR.test(s) || /[πℝℕℤℚ∞√]/.test(s) || /\b(sen|cos|tan|log|ln)\b/i.test(s) || /[a-zA-Z]\(/.test(s) || /^-?[0-9.,]+[a-zA-Z]$/.test(s);
+        return OPERADOR.test(s) || /[πℝℕℤℚ∞√]/.test(s) || /\b(sen|cos|tan|sec|cot|csc|log|ln)\b/i.test(s) || /[a-zA-Z]\(/.test(s) || /^-?[0-9.,]+[a-zA-Z]$/.test(s);
     }
 
     /* Texto plano → LaTeX */
@@ -96,7 +96,8 @@
         // potencias: a^b, a^(b), a^-1
         t = t.replace(/\^\(([^()]*)\)/g, '^{$1}').replace(/\^(-?[0-9a-zA-Z.,]+)/g, '^{$1}');
         // fracciones: a/b con a y b números, letras, potencias o grupos entre paréntesis
-        const OPER = '(\\([^()]*\\)|\\\\sqrt\\{[^{}]*\\}|-?[0-9]+(?:[.,][0-9]+)?(?:[a-zA-Z](?![a-zA-Z]))?(?:\\^\\{[^{}]*\\})?|[a-zA-Z](?![a-zA-Z])(?:\\^\\{[^{}]*\\})?)';
+        // una función f(…) o un paréntesis, con su potencia si la tiene: x/(x + 1)² es x sobre (x + 1)², no (x/(x + 1))²
+        const OPER = '([a-zA-Z]?\\([^()]*\\)(?:\\^\\{[^{}]*\\})?|\\\\sqrt\\{[^{}]*\\}|-?[0-9]+(?:[.,][0-9]+)?(?:[a-zA-Z](?![a-zA-Z]))?(?:\\^\\{[^{}]*\\})?|[a-zA-Z](?![a-zA-Z])(?:\\^\\{[^{}]*\\})?)';
         const reFr = new RegExp(OPER + '\\s*/\\s*' + OPER, 'g');
         let antes;
         do { antes = t; t = t.replace(reFr, (m, a, b) => `\\dfrac{${quitarParen(a)}}{${quitarParen(b)}}`); } while (t !== antes);
@@ -106,7 +107,7 @@
              .replace(/∈/g, '\\in ').replace(/∉/g, '\\notin ').replace(/∪/g, '\\cup ').replace(/∩/g, '\\cap ').replace(/⊂/g, '\\subset ')
              .replace(/⊆/g, '\\subseteq ').replace(/∅/g, '\\emptyset ').replace(/ℝ/g, '\\mathbb{R}').replace(/ℕ/g, '\\mathbb{N}')
              .replace(/ℤ/g, '\\mathbb{Z}').replace(/ℚ/g, '\\mathbb{Q}').replace(/′/g, "'");
-        t = t.replace(/\b(sen|cos|tan|log|ln|lím|lim|mcm|mcd)\b/g, m => ({sen: '\\operatorname{sen}', cos: '\\cos', tan: '\\tan', log: '\\log', ln: '\\ln',
+        t = t.replace(/\b(sen|cos|tan|sec|cot|csc|log|ln|lím|lim|mcm|mcd)\b/g, m => ({sen: '\\operatorname{sen}', cos: '\\cos', tan: '\\tan', sec: '\\sec', cot: '\\cot', csc: '\\csc', log: '\\log', ln: '\\ln',
             'lím': '\\lim', lim: '\\lim', mcm: '\\operatorname{mcm}', mcd: '\\operatorname{mcd}'}[m]));
         t = t.replace(/(\d),(\d)/g, '$1{,}$2');       // coma decimal sin espacio
         // unidades en letra recta (no son variables): 18 m², 3 km

@@ -1,0 +1,3200 @@
+[
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Cuánto vale f(4) si f(x) = 3x − 5?",
+"opciones": [
+{
+"texto": "12",
+"correcta": false
+},
+{
+"texto": "7",
+"correcta": true
+},
+{
+"texto": "17",
+"correcta": false
+},
+{
+"texto": "−7",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "Si f(x) = x² − 2x + 1, ¿cuánto vale f(−1)?",
+"opciones": [
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "4",
+"correcta": true
+},
+{
+"texto": "−2",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Cuál es el dominio de f(x) = √(x − 3)?",
+"opciones": [
+{
+"texto": "x ≥ 3",
+"correcta": true
+},
+{
+"texto": "x > 3",
+"correcta": false
+},
+{
+"texto": "x ≤ 3",
+"correcta": false
+},
+{
+"texto": "Todos los números reales",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Cuál es el dominio de f(x) = 1/(x − 2)?",
+"opciones": [
+{
+"texto": "Todos los reales excepto −2",
+"correcta": false
+},
+{
+"texto": "Todos los números reales",
+"correcta": false
+},
+{
+"texto": "Todos los reales excepto 2",
+"correcta": true
+},
+{
+"texto": "x > 2",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Cuál es el rango de f(x) = x²?",
+"opciones": [
+{
+"texto": "y ≥ 0",
+"correcta": true
+},
+{
+"texto": "Todos los números reales",
+"correcta": false
+},
+{
+"texto": "y > 0",
+"correcta": false
+},
+{
+"texto": "y ≤ 0",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "Una gráfica es función si toda recta vertical la corta en…",
+"opciones": [
+{
+"texto": "Exactamente dos puntos",
+"correcta": false
+},
+{
+"texto": "A lo sumo un punto",
+"correcta": true
+},
+{
+"texto": "Ningún punto",
+"correcta": false
+},
+{
+"texto": "Infinitos puntos",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Qué significa que una relación sea una función?",
+"opciones": [
+{
+"texto": "A cada y le corresponden dos valores de x",
+"correcta": false
+},
+{
+"texto": "Tiene que pasar por el origen",
+"correcta": false
+},
+{
+"texto": "A cada valor de x le corresponde exactamente un valor de y",
+"correcta": true
+},
+{
+"texto": "Su gráfica es siempre una recta",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Cuál de estas funciones es par?",
+"opciones": [
+{
+"texto": "f(x) = x² + 1",
+"correcta": true
+},
+{
+"texto": "f(x) = x³",
+"correcta": false
+},
+{
+"texto": "f(x) = x + 1",
+"correcta": false
+},
+{
+"texto": "f(x) = 2x",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "Si f(x) = 2x y g(x) = x + 3, ¿cuánto vale f(g(1))?",
+"opciones": [
+{
+"texto": "4",
+"correcta": false
+},
+{
+"texto": "5",
+"correcta": false
+},
+{
+"texto": "8",
+"correcta": true
+},
+{
+"texto": "7",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Cuál es la función inversa de f(x) = 2x + 4?",
+"opciones": [
+{
+"texto": "x/2 + 4",
+"correcta": false
+},
+{
+"texto": "(x − 4)/2",
+"correcta": true
+},
+{
+"texto": "2x − 4",
+"correcta": false
+},
+{
+"texto": "(x + 4)/2",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Cuál es la asíntota vertical de f(x) = 1/(x + 4)?",
+"opciones": [
+{
+"texto": "x = 4",
+"correcta": false
+},
+{
+"texto": "x = −4",
+"correcta": true
+},
+{
+"texto": "x = 0",
+"correcta": false
+},
+{
+"texto": "y = 0",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "Si f(x) = 5 para todo x, ¿cuánto vale f(100)?",
+"opciones": [
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "100",
+"correcta": false
+},
+{
+"texto": "500",
+"correcta": false
+},
+{
+"texto": "5",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Función lineal",
+"texto": "¿Cuál es la pendiente de la recta que pasa por (1, 2) y (3, 8)?",
+"opciones": [
+{
+"texto": "3",
+"correcta": true
+},
+{
+"texto": "6",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "1/3",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Función lineal",
+"texto": "¿Cuál es la ecuación de la recta de pendiente 2 que corta al eje y en −3?",
+"opciones": [
+{
+"texto": "y = 2x + 3",
+"correcta": false
+},
+{
+"texto": "y = 2x − 3",
+"correcta": true
+},
+{
+"texto": "y = −2x − 3",
+"correcta": false
+},
+{
+"texto": "y = −3x + 2",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Función lineal",
+"texto": "¿Qué pendiente tiene una recta paralela a y = 4x + 1?",
+"opciones": [
+{
+"texto": "−1/4",
+"correcta": false
+},
+{
+"texto": "4",
+"correcta": true
+},
+{
+"texto": "1/4",
+"correcta": false
+},
+{
+"texto": "−4",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Función lineal",
+"texto": "¿Qué pendiente tiene una recta perpendicular a y = 2x + 5?",
+"opciones": [
+{
+"texto": "1/2",
+"correcta": false
+},
+{
+"texto": "−1/2",
+"correcta": true
+},
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "−2",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Función lineal",
+"texto": "Una función lineal es creciente cuando…",
+"opciones": [
+{
+"texto": "Corta al eje y en un número positivo",
+"correcta": false
+},
+{
+"texto": "Su pendiente es negativa",
+"correcta": false
+},
+{
+"texto": "Su pendiente es cero",
+"correcta": false
+},
+{
+"texto": "Su pendiente es positiva",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Función lineal",
+"texto": "¿Cuál es la pendiente de la recta 2x + y = 6?",
+"opciones": [
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": false
+},
+{
+"texto": "−2",
+"correcta": true
+},
+{
+"texto": "1/2",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Función lineal",
+"texto": "¿En qué punto corta al eje x la recta y = 2x − 8?",
+"opciones": [
+{
+"texto": "(−4, 0)",
+"correcta": false
+},
+{
+"texto": "(4, 0)",
+"correcta": true
+},
+{
+"texto": "(8, 0)",
+"correcta": false
+},
+{
+"texto": "(0, −8)",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Función cuadrática",
+"texto": "¿Cuál es el vértice de f(x) = x² − 6x + 5?",
+"opciones": [
+{
+"texto": "(3, 4)",
+"correcta": false
+},
+{
+"texto": "(6, 5)",
+"correcta": false
+},
+{
+"texto": "(3, −4)",
+"correcta": true
+},
+{
+"texto": "(−3, 32)",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Función cuadrática",
+"texto": "¿Cuáles son las soluciones de x² − 5x + 6 = 0?",
+"opciones": [
+{
+"texto": "x = −1 y x = 6",
+"correcta": false
+},
+{
+"texto": "x = 1 y x = 6",
+"correcta": false
+},
+{
+"texto": "x = 2 y x = 3",
+"correcta": true
+},
+{
+"texto": "x = −2 y x = −3",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Función cuadrática",
+"texto": "¿Cuántas soluciones reales tiene x² + 2x + 5 = 0?",
+"opciones": [
+{
+"texto": "Ninguna",
+"correcta": true
+},
+{
+"texto": "Una",
+"correcta": false
+},
+{
+"texto": "Infinitas",
+"correcta": false
+},
+{
+"texto": "Dos",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Función cuadrática",
+"texto": "¿Hacia dónde abre la parábola f(x) = −2x² + 3?",
+"opciones": [
+{
+"texto": "Hacia la derecha",
+"correcta": false
+},
+{
+"texto": "Hacia abajo",
+"correcta": true
+},
+{
+"texto": "No es una parábola",
+"correcta": false
+},
+{
+"texto": "Hacia arriba",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Álgebra",
+"texto": "¿A qué es igual (x² − 9)/(x − 3) para x ≠ 3?",
+"opciones": [
+{
+"texto": "3",
+"correcta": false
+},
+{
+"texto": "x + 3",
+"correcta": true
+},
+{
+"texto": "x − 3",
+"correcta": false
+},
+{
+"texto": "x² − 3",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Álgebra",
+"texto": "¿Cuál es la solución de 2x − 3 > 7?",
+"opciones": [
+{
+"texto": "x > 2",
+"correcta": false
+},
+{
+"texto": "x > 10",
+"correcta": false
+},
+{
+"texto": "x > 5",
+"correcta": true
+},
+{
+"texto": "x < 5",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Álgebra",
+"texto": "¿Qué valores de x cumplen |x − 1| = 4?",
+"opciones": [
+{
+"texto": "Solo x = 5",
+"correcta": false
+},
+{
+"texto": "x = −5 o x = 3",
+"correcta": false
+},
+{
+"texto": "x = 5 o x = −3",
+"correcta": true
+},
+{
+"texto": "x = 5 o x = 3",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Álgebra",
+"texto": "¿Cuánto es |−7| + |3|?",
+"opciones": [
+{
+"texto": "10",
+"correcta": true
+},
+{
+"texto": "4",
+"correcta": false
+},
+{
+"texto": "−4",
+"correcta": false
+},
+{
+"texto": "−10",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Álgebra",
+"texto": "¿A qué es igual 1/√2 sin raíz en el denominador?",
+"opciones": [
+{
+"texto": "2√2",
+"correcta": false
+},
+{
+"texto": "√2/2",
+"correcta": true
+},
+{
+"texto": "1/2",
+"correcta": false
+},
+{
+"texto": "√2/4",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Potencias y logaritmos",
+"texto": "¿Cuánto es (2³)²?",
+"opciones": [
+{
+"texto": "12",
+"correcta": false
+},
+{
+"texto": "64",
+"correcta": true
+},
+{
+"texto": "32",
+"correcta": false
+},
+{
+"texto": "36",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Potencias y logaritmos",
+"texto": "Si f(x) = 3^x, ¿cuánto vale f(−2)?",
+"opciones": [
+{
+"texto": "−9",
+"correcta": false
+},
+{
+"texto": "−6",
+"correcta": false
+},
+{
+"texto": "1/9",
+"correcta": true
+},
+{
+"texto": "9",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Potencias y logaritmos",
+"texto": "¿Cuánto es el logaritmo en base 2 de 8?",
+"opciones": [
+{
+"texto": "4",
+"correcta": false
+},
+{
+"texto": "16",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Potencias y logaritmos",
+"texto": "¿Cuánto es log 1000 (logaritmo en base 10)?",
+"opciones": [
+{
+"texto": "100",
+"correcta": false
+},
+{
+"texto": "4",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": true
+},
+{
+"texto": "30",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Potencias y logaritmos",
+"texto": "¿Cuánto es ln e?",
+"opciones": [
+{
+"texto": "e",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": true
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "10",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Potencias y logaritmos",
+"texto": "¿Qué valor de x cumple 2^x = 16?",
+"opciones": [
+{
+"texto": "3",
+"correcta": false
+},
+{
+"texto": "32",
+"correcta": false
+},
+{
+"texto": "4",
+"correcta": true
+},
+{
+"texto": "8",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Potencias y logaritmos",
+"texto": "¿Qué propiedad de los logaritmos es correcta?",
+"opciones": [
+{
+"texto": "log(a/b) = log a / log b",
+"correcta": false
+},
+{
+"texto": "log(a·b) = log a + log b",
+"correcta": true
+},
+{
+"texto": "log(a·b) = log a · log b",
+"correcta": false
+},
+{
+"texto": "log(a + b) = log a + log b",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Potencias y logaritmos",
+"texto": "¿Cómo se escribe 0,00045 en notación científica?",
+"opciones": [
+{
+"texto": "4,5 × 10⁴",
+"correcta": false
+},
+{
+"texto": "4,5 × 10⁻⁴",
+"correcta": true
+},
+{
+"texto": "4,5 × 10⁻³",
+"correcta": false
+},
+{
+"texto": "45 × 10⁻²",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Sucesiones",
+"texto": "¿Cuál es el término 10 de la progresión 3, 7, 11, 15, …?",
+"opciones": [
+{
+"texto": "40",
+"correcta": false
+},
+{
+"texto": "39",
+"correcta": true
+},
+{
+"texto": "43",
+"correcta": false
+},
+{
+"texto": "35",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Sucesiones",
+"texto": "¿Cuánto es 1 + 2 + 3 + … + 100?",
+"opciones": [
+{
+"texto": "10100",
+"correcta": false
+},
+{
+"texto": "5000",
+"correcta": false
+},
+{
+"texto": "4950",
+"correcta": false
+},
+{
+"texto": "5050",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Sucesiones",
+"texto": "¿Cuál es la razón de la progresión geométrica 5, 15, 45, …?",
+"opciones": [
+{
+"texto": "5",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": true
+},
+{
+"texto": "1/3",
+"correcta": false
+},
+{
+"texto": "10",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "¿Cuánto vale sen 30°?",
+"opciones": [
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "√2/2",
+"correcta": false
+},
+{
+"texto": "√3/2",
+"correcta": false
+},
+{
+"texto": "1/2",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "¿Cuánto vale cos 60°?",
+"opciones": [
+{
+"texto": "√3/2",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "1/2",
+"correcta": true
+},
+{
+"texto": "0",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "¿Cuánto vale tan 45°?",
+"opciones": [
+{
+"texto": "1",
+"correcta": true
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "√2",
+"correcta": false
+},
+{
+"texto": "√3",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "¿A cuántos radianes equivalen 180°?",
+"opciones": [
+{
+"texto": "2π",
+"correcta": false
+},
+{
+"texto": "π/2",
+"correcta": false
+},
+{
+"texto": "180π",
+"correcta": false
+},
+{
+"texto": "π",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "¿A cuántos radianes equivalen 90°?",
+"opciones": [
+{
+"texto": "2π",
+"correcta": false
+},
+{
+"texto": "π/2",
+"correcta": true
+},
+{
+"texto": "π",
+"correcta": false
+},
+{
+"texto": "π/4",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "¿A cuántos grados equivalen 2π/3 radianes?",
+"opciones": [
+{
+"texto": "240°",
+"correcta": false
+},
+{
+"texto": "60°",
+"correcta": false
+},
+{
+"texto": "120°",
+"correcta": true
+},
+{
+"texto": "150°",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "¿A qué es igual sen² x + cos² x?",
+"opciones": [
+{
+"texto": "tan x",
+"correcta": false
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "En un triángulo rectángulo el cateto opuesto a θ mide 3 y la hipotenusa 5. ¿Cuánto vale sen θ?",
+"opciones": [
+{
+"texto": "4/5",
+"correcta": false
+},
+{
+"texto": "5/3",
+"correcta": false
+},
+{
+"texto": "3/4",
+"correcta": false
+},
+{
+"texto": "3/5",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "En un triángulo rectángulo el cateto opuesto a θ mide 3 y el adyacente 4. ¿Cuánto vale tan θ?",
+"opciones": [
+{
+"texto": "3/4",
+"correcta": true
+},
+{
+"texto": "5/4",
+"correcta": false
+},
+{
+"texto": "4/3",
+"correcta": false
+},
+{
+"texto": "3/5",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "¿Cuál es el periodo de y = sen x?",
+"opciones": [
+{
+"texto": "2π",
+"correcta": true
+},
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "π/2",
+"correcta": false
+},
+{
+"texto": "π",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "¿Cuál es la amplitud de y = 3 sen x?",
+"opciones": [
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": true
+},
+{
+"texto": "3π",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "¿Qué signo tiene el coseno de un ángulo del segundo cuadrante?",
+"opciones": [
+{
+"texto": "Negativo",
+"correcta": true
+},
+{
+"texto": "Depende del ángulo",
+"correcta": false
+},
+{
+"texto": "Es cero",
+"correcta": false
+},
+{
+"texto": "Positivo",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "Conoce dos lados de un triángulo y el ángulo entre ellos. ¿Qué usa para hallar el tercer lado?",
+"opciones": [
+{
+"texto": "La ley del seno",
+"correcta": false
+},
+{
+"texto": "La suma de los ángulos",
+"correcta": false
+},
+{
+"texto": "El teorema de Tales",
+"correcta": false
+},
+{
+"texto": "La ley del coseno",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "Los catetos de un triángulo rectángulo miden 6 y 8. ¿Cuánto mide la hipotenusa?",
+"opciones": [
+{
+"texto": "10",
+"correcta": true
+},
+{
+"texto": "12",
+"correcta": false
+},
+{
+"texto": "48",
+"correcta": false
+},
+{
+"texto": "14",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es la distancia entre (0, 0) y (3, 4)?",
+"opciones": [
+{
+"texto": "5",
+"correcta": true
+},
+{
+"texto": "7",
+"correcta": false
+},
+{
+"texto": "25",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es el punto medio entre (2, 4) y (6, 8)?",
+"opciones": [
+{
+"texto": "(8, 12)",
+"correcta": false
+},
+{
+"texto": "(3, 4)",
+"correcta": false
+},
+{
+"texto": "(4, 6)",
+"correcta": true
+},
+{
+"texto": "(2, 2)",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es el radio de la circunferencia x² + y² = 25?",
+"opciones": [
+{
+"texto": "5",
+"correcta": true
+},
+{
+"texto": "625",
+"correcta": false
+},
+{
+"texto": "25",
+"correcta": false
+},
+{
+"texto": "10",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿Cuál es el centro de la circunferencia (x − 2)² + (y + 1)² = 9?",
+"opciones": [
+{
+"texto": "(2, −1)",
+"correcta": true
+},
+{
+"texto": "(−2, −1)",
+"correcta": false
+},
+{
+"texto": "(−2, 1)",
+"correcta": false
+},
+{
+"texto": "(2, 1)",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Geometría analítica",
+"texto": "¿En qué punto corta al eje y la recta y = 3x − 7?",
+"opciones": [
+{
+"texto": "(0, 3)",
+"correcta": false
+},
+{
+"texto": "(0, −7)",
+"correcta": true
+},
+{
+"texto": "(7/3, 0)",
+"correcta": false
+},
+{
+"texto": "(7, 0)",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "Al lanzar un dado, ¿cuál es la probabilidad de sacar un número par?",
+"opciones": [
+{
+"texto": "1/3",
+"correcta": false
+},
+{
+"texto": "1/6",
+"correcta": false
+},
+{
+"texto": "2/3",
+"correcta": false
+},
+{
+"texto": "1/2",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Conteo",
+"texto": "¿De cuántas formas se pueden ordenar 4 libros en un estante?",
+"opciones": [
+{
+"texto": "16",
+"correcta": false
+},
+{
+"texto": "10",
+"correcta": false
+},
+{
+"texto": "24",
+"correcta": true
+},
+{
+"texto": "4",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 10,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Estadística",
+"texto": "¿Cuál es el promedio de 4, 6, 8 y 10?",
+"opciones": [
+{
+"texto": "28",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": false
+},
+{
+"texto": "7",
+"correcta": true
+},
+{
+"texto": "8",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 10.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es lím (x→3) de (2x + 1)?",
+"opciones": [
+{
+"texto": "No existe",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": false
+},
+{
+"texto": "7",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es lím (x→2) de (x² − 4)/(x − 2)?",
+"opciones": [
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "4",
+"correcta": true
+},
+{
+"texto": "No existe",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es lím (x→1) de (x² − 1)/(x − 1)?",
+"opciones": [
+{
+"texto": "∞",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es lím (x→0) de (x² + 3x)/x?",
+"opciones": [
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": true
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "∞",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es lím (x→−1) de (x³ + 1)/(x + 1)?",
+"opciones": [
+{
+"texto": "3",
+"correcta": true
+},
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "−3",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es lím (x→0) de (√(x + 9) − 3)/x?",
+"opciones": [
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "1/6",
+"correcta": true
+},
+{
+"texto": "1/3",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es lím (x→4) de √x?",
+"opciones": [
+{
+"texto": "16",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": true
+},
+{
+"texto": "4",
+"correcta": false
+},
+{
+"texto": "−2",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es lím (x→2) de 5?",
+"opciones": [
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "5",
+"correcta": true
+},
+{
+"texto": "10",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es lím (x→∞) de 1/x?",
+"opciones": [
+{
+"texto": "∞",
+"correcta": false
+},
+{
+"texto": "No existe",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "0",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es lím (x→∞) de (3x² + 1)/(x² − 5)?",
+"opciones": [
+{
+"texto": "3",
+"correcta": true
+},
+{
+"texto": "∞",
+"correcta": false
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "−1/5",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es lím (x→∞) de (2x + 1)/x²?",
+"opciones": [
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "0",
+"correcta": true
+},
+{
+"texto": "∞",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Qué pasa con 5x³/(2x²) cuando x → ∞?",
+"opciones": [
+{
+"texto": "Tiende a 5/2",
+"correcta": false
+},
+{
+"texto": "Tiende a 0",
+"correcta": false
+},
+{
+"texto": "Crece sin límite (∞)",
+"correcta": true
+},
+{
+"texto": "Tiende a 1",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuánto es lím (x→0) de sen x / x?",
+"opciones": [
+{
+"texto": "∞",
+"correcta": false
+},
+{
+"texto": "No existe",
+"correcta": false
+},
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "Si el límite por la izquierda es 2 y por la derecha es 5, el límite…",
+"opciones": [
+{
+"texto": "Es 5",
+"correcta": false
+},
+{
+"texto": "Es 3,5",
+"correcta": false
+},
+{
+"texto": "Es 2",
+"correcta": false
+},
+{
+"texto": "No existe",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "Al reemplazar en un límite da 0/0. ¿Qué significa?",
+"opciones": [
+{
+"texto": "El límite es 0",
+"correcta": false
+},
+{
+"texto": "El límite es 1",
+"correcta": false
+},
+{
+"texto": "Es una indeterminación: hay que simplificar antes",
+"correcta": true
+},
+{
+"texto": "El límite nunca existe",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "¿Cuál es la asíntota horizontal de f(x) = (2x + 3)/(x − 1)?",
+"opciones": [
+{
+"texto": "y = −3",
+"correcta": false
+},
+{
+"texto": "y = 3",
+"correcta": false
+},
+{
+"texto": "x = 1",
+"correcta": false
+},
+{
+"texto": "y = 2",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Límites",
+"texto": "Cuando n → ∞, ¿a qué tiende la sucesión aₙ = (n + 1)/n?",
+"opciones": [
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": true
+},
+{
+"texto": "∞",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Continuidad",
+"texto": "Una función f es continua en x = a cuando…",
+"opciones": [
+{
+"texto": "Su derivada en a es cero",
+"correcta": false
+},
+{
+"texto": "Su gráfica es una recta",
+"correcta": false
+},
+{
+"texto": "Existen f(a) y el límite en a, y son iguales",
+"correcta": true
+},
+{
+"texto": "f(a) es un número positivo",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Continuidad",
+"texto": "f(x) = x + k si x < 1 y f(x) = 2x si x ≥ 1. ¿Qué valor de k la hace continua?",
+"opciones": [
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "1",
+"correcta": true
+},
+{
+"texto": "−1",
+"correcta": false
+},
+{
+"texto": "2",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Qué representa la derivada f′(a)?",
+"opciones": [
+{
+"texto": "La pendiente de la recta tangente a la curva en x = a",
+"correcta": true
+},
+{
+"texto": "El área bajo la curva hasta a",
+"correcta": false
+},
+{
+"texto": "El valor de la función en a",
+"correcta": false
+},
+{
+"texto": "El punto donde la curva corta al eje x",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la definición de la derivada de f?",
+"opciones": [
+{
+"texto": "f′(x) = lím (h→0) de f(x + h)/h",
+"correcta": false
+},
+{
+"texto": "f′(x) = f(x + 1) − f(x)",
+"correcta": false
+},
+{
+"texto": "f′(x) = lím (h→0) de [f(x + h) − f(x)]/h",
+"correcta": true
+},
+{
+"texto": "f′(x) = lím (h→∞) de [f(x + h) − f(x)]/h",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = x⁵?",
+"opciones": [
+{
+"texto": "5x⁵",
+"correcta": false
+},
+{
+"texto": "5x⁴",
+"correcta": true
+},
+{
+"texto": "x⁴",
+"correcta": false
+},
+{
+"texto": "4x⁵",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = 7?",
+"opciones": [
+{
+"texto": "7",
+"correcta": false
+},
+{
+"texto": "0",
+"correcta": true
+},
+{
+"texto": "1",
+"correcta": false
+},
+{
+"texto": "7x",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = 3x² − 4x + 1?",
+"opciones": [
+{
+"texto": "6x + 1",
+"correcta": false
+},
+{
+"texto": "3x − 4",
+"correcta": false
+},
+{
+"texto": "6x² − 4",
+"correcta": false
+},
+{
+"texto": "6x − 4",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = √x?",
+"opciones": [
+{
+"texto": "1/(2√x)",
+"correcta": true
+},
+{
+"texto": "2√x",
+"correcta": false
+},
+{
+"texto": "√x/2",
+"correcta": false
+},
+{
+"texto": "1/√x",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = 1/x?",
+"opciones": [
+{
+"texto": "−1/x²",
+"correcta": true
+},
+{
+"texto": "−1/x",
+"correcta": false
+},
+{
+"texto": "ln x",
+"correcta": false
+},
+{
+"texto": "1/x²",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = 2/x³?",
+"opciones": [
+{
+"texto": "−6/x²",
+"correcta": false
+},
+{
+"texto": "6/x⁴",
+"correcta": false
+},
+{
+"texto": "−6/x⁴",
+"correcta": true
+},
+{
+"texto": "−2/(3x⁴)",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = e^x?",
+"opciones": [
+{
+"texto": "x·e^(x − 1)",
+"correcta": false
+},
+{
+"texto": "e^x",
+"correcta": true
+},
+{
+"texto": "e",
+"correcta": false
+},
+{
+"texto": "ln x",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = ln x?",
+"opciones": [
+{
+"texto": "e^x",
+"correcta": false
+},
+{
+"texto": "1/x",
+"correcta": true
+},
+{
+"texto": "x",
+"correcta": false
+},
+{
+"texto": "1/ln x",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = sen x?",
+"opciones": [
+{
+"texto": "sen x",
+"correcta": false
+},
+{
+"texto": "−cos x",
+"correcta": false
+},
+{
+"texto": "cos x",
+"correcta": true
+},
+{
+"texto": "−sen x",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = cos x?",
+"opciones": [
+{
+"texto": "cos x",
+"correcta": false
+},
+{
+"texto": "−cos x",
+"correcta": false
+},
+{
+"texto": "sen x",
+"correcta": false
+},
+{
+"texto": "−sen x",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = tan x?",
+"opciones": [
+{
+"texto": "sec² x",
+"correcta": true
+},
+{
+"texto": "sen² x",
+"correcta": false
+},
+{
+"texto": "−sec² x",
+"correcta": false
+},
+{
+"texto": "cot x",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = x · e^x? (regla del producto)",
+"opciones": [
+{
+"texto": "2e^x",
+"correcta": false
+},
+{
+"texto": "e^x",
+"correcta": false
+},
+{
+"texto": "x·e^x",
+"correcta": false
+},
+{
+"texto": "e^x + x·e^x",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = x/(x + 1)? (regla del cociente)",
+"opciones": [
+{
+"texto": "x/(x + 1)²",
+"correcta": false
+},
+{
+"texto": "1/(x + 1)²",
+"correcta": true
+},
+{
+"texto": "1/(x + 1)",
+"correcta": false
+},
+{
+"texto": "−1/(x + 1)²",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = (2x + 1)³? (regla de la cadena)",
+"opciones": [
+{
+"texto": "3(2x + 1)²",
+"correcta": false
+},
+{
+"texto": "6(2x + 1)²",
+"correcta": true
+},
+{
+"texto": "2(2x + 1)³",
+"correcta": false
+},
+{
+"texto": "6(2x + 1)",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = sen(3x)?",
+"opciones": [
+{
+"texto": "cos(3x)",
+"correcta": false
+},
+{
+"texto": "−3 cos(3x)",
+"correcta": false
+},
+{
+"texto": "3 sen(3x)",
+"correcta": false
+},
+{
+"texto": "3 cos(3x)",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = e^(2x)?",
+"opciones": [
+{
+"texto": "2x·e^(2x − 1)",
+"correcta": false
+},
+{
+"texto": "e^(2x)",
+"correcta": false
+},
+{
+"texto": "e²",
+"correcta": false
+},
+{
+"texto": "2e^(2x)",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la derivada de f(x) = ln(x² + 1)?",
+"opciones": [
+{
+"texto": "1/(x² + 1)",
+"correcta": false
+},
+{
+"texto": "2x",
+"correcta": false
+},
+{
+"texto": "2x/(x² + 1)",
+"correcta": true
+},
+{
+"texto": "2/x",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "Si f(x) = x³, ¿cuánto vale f′(2)?",
+"opciones": [
+{
+"texto": "12",
+"correcta": true
+},
+{
+"texto": "8",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Derivadas",
+"texto": "¿Cuál es la segunda derivada de f(x) = x⁴?",
+"opciones": [
+{
+"texto": "24x",
+"correcta": false
+},
+{
+"texto": "12x³",
+"correcta": false
+},
+{
+"texto": "12x²",
+"correcta": true
+},
+{
+"texto": "4x³",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Aplicaciones de la derivada",
+"texto": "¿Cuál es la pendiente de la recta tangente a y = x² en x = 3?",
+"opciones": [
+{
+"texto": "2",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": true
+},
+{
+"texto": "9",
+"correcta": false
+},
+{
+"texto": "3",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Aplicaciones de la derivada",
+"texto": "¿Cuál es la recta tangente a y = x² en el punto (1, 1)?",
+"opciones": [
+{
+"texto": "y = 2x − 1",
+"correcta": true
+},
+{
+"texto": "y = 2x + 1",
+"correcta": false
+},
+{
+"texto": "y = 2x",
+"correcta": false
+},
+{
+"texto": "y = x",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Aplicaciones de la derivada",
+"texto": "Un objeto recorre s(t) = 5t² metros. ¿Cuál es su velocidad en t = 2 s?",
+"opciones": [
+{
+"texto": "10 m/s",
+"correcta": false
+},
+{
+"texto": "5 m/s",
+"correcta": false
+},
+{
+"texto": "20 m/s",
+"correcta": true
+},
+{
+"texto": "40 m/s",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Aplicaciones de la derivada",
+"texto": "¿En qué x tiene f(x) = x² − 4x un punto crítico?",
+"opciones": [
+{
+"texto": "x = 4",
+"correcta": false
+},
+{
+"texto": "x = 0",
+"correcta": false
+},
+{
+"texto": "x = −2",
+"correcta": false
+},
+{
+"texto": "x = 2",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Aplicaciones de la derivada",
+"texto": "¿Dónde tiene f(x) = x³ − 3x un máximo local?",
+"opciones": [
+{
+"texto": "En x = 0",
+"correcta": false
+},
+{
+"texto": "En x = 1",
+"correcta": false
+},
+{
+"texto": "En x = 3",
+"correcta": false
+},
+{
+"texto": "En x = −1",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Aplicaciones de la derivada",
+"texto": "Si f′(x) > 0 en un intervalo, entonces f en ese intervalo es…",
+"opciones": [
+{
+"texto": "Constante",
+"correcta": false
+},
+{
+"texto": "Cóncava hacia abajo",
+"correcta": false
+},
+{
+"texto": "Decreciente",
+"correcta": false
+},
+{
+"texto": "Creciente",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Aplicaciones de la derivada",
+"texto": "Si f′′(x) > 0 en un intervalo, la gráfica de f es…",
+"opciones": [
+{
+"texto": "Una recta",
+"correcta": false
+},
+{
+"texto": "Decreciente",
+"correcta": false
+},
+{
+"texto": "Cóncava hacia abajo",
+"correcta": false
+},
+{
+"texto": "Cóncava hacia arriba",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Aplicaciones de la derivada",
+"texto": "Dos números positivos suman 20 y su producto es el mayor posible. ¿Cuáles son?",
+"opciones": [
+{
+"texto": "2 y 18",
+"correcta": false
+},
+{
+"texto": "10 y 10",
+"correcta": true
+},
+{
+"texto": "5 y 15",
+"correcta": false
+},
+{
+"texto": "1 y 19",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Aplicaciones de la derivada",
+"texto": "El área de un cuadrado es A = l². ¿A qué ritmo cambia A respecto al lado cuando l = 3?",
+"opciones": [
+{
+"texto": "12",
+"correcta": false
+},
+{
+"texto": "9",
+"correcta": false
+},
+{
+"texto": "6",
+"correcta": true
+},
+{
+"texto": "3",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Aplicaciones de la derivada",
+"texto": "¿En qué punto NO es derivable f(x) = |x|?",
+"opciones": [
+{
+"texto": "En ningún punto",
+"correcta": false
+},
+{
+"texto": "En x = 1",
+"correcta": false
+},
+{
+"texto": "En x = 0",
+"correcta": true
+},
+{
+"texto": "En todos los puntos",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Cuál es el dominio de f(x) = ln(x − 1)?",
+"opciones": [
+{
+"texto": "x > 0",
+"correcta": false
+},
+{
+"texto": "Todos los números reales",
+"correcta": false
+},
+{
+"texto": "x > 1",
+"correcta": true
+},
+{
+"texto": "x ≥ 1",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "Si f(x) = x² y g(x) = x + 1, ¿cuál es g(f(x))?",
+"opciones": [
+{
+"texto": "(x + 1)²",
+"correcta": false
+},
+{
+"texto": "2x + 1",
+"correcta": false
+},
+{
+"texto": "x² + 1",
+"correcta": true
+},
+{
+"texto": "x² + x",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Cuál es la función inversa de f(x) = e^x?",
+"opciones": [
+{
+"texto": "1/e^x",
+"correcta": false
+},
+{
+"texto": "e^(−x)",
+"correcta": false
+},
+{
+"texto": "log en base 10 de x",
+"correcta": false
+},
+{
+"texto": "ln x",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "La función f(x) = x³ es…",
+"opciones": [
+{
+"texto": "Par",
+"correcta": false
+},
+{
+"texto": "Impar",
+"correcta": true
+},
+{
+"texto": "Constante",
+"correcta": false
+},
+{
+"texto": "Ni par ni impar",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "Una función es inyectiva (uno a uno) cuando…",
+"opciones": [
+{
+"texto": "Es creciente y decreciente a la vez",
+"correcta": false
+},
+{
+"texto": "Valores distintos de x dan valores distintos de y",
+"correcta": true
+},
+{
+"texto": "Toda recta vertical la corta una vez",
+"correcta": false
+},
+{
+"texto": "Pasa por el origen",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Qué valor de x cumple ln x = 0?",
+"opciones": [
+{
+"texto": "x = −1",
+"correcta": false
+},
+{
+"texto": "x = e",
+"correcta": false
+},
+{
+"texto": "x = 0",
+"correcta": false
+},
+{
+"texto": "x = 1",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "newton",
+"tema": "Funciones",
+"texto": "¿Qué valor de x cumple e^x = 1?",
+"opciones": [
+{
+"texto": "No tiene solución",
+"correcta": false
+},
+{
+"texto": "x = 0",
+"correcta": true
+},
+{
+"texto": "x = e",
+"correcta": false
+},
+{
+"texto": "x = 1",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "euclides",
+"tema": "Trigonometría",
+"texto": "¿Qué valores de x en [0, 2π) cumplen sen x = 0?",
+"opciones": [
+{
+"texto": "Solo x = π",
+"correcta": false
+},
+{
+"texto": "x = 0 y x = π",
+"correcta": true
+},
+{
+"texto": "x = 0, π/2 y π",
+"correcta": false
+},
+{
+"texto": "x = π/2 y x = 3π/2",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Probabilidad",
+"texto": "Si P(A) = 0,3, ¿cuánto vale la probabilidad de que NO ocurra A?",
+"opciones": [
+{
+"texto": "0",
+"correcta": false
+},
+{
+"texto": "0,7",
+"correcta": true
+},
+{
+"texto": "1,3",
+"correcta": false
+},
+{
+"texto": "0,3",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Conteo",
+"texto": "¿De cuántas formas se escogen 2 estudiantes de un grupo de 5? (sin importar el orden)",
+"opciones": [
+{
+"texto": "7",
+"correcta": false
+},
+{
+"texto": "25",
+"correcta": false
+},
+{
+"texto": "20",
+"correcta": false
+},
+{
+"texto": "10",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Estadística",
+"texto": "¿Cuál es la mediana de 3, 9, 1, 7 y 5?",
+"opciones": [
+{
+"texto": "7",
+"correcta": false
+},
+{
+"texto": "25",
+"correcta": false
+},
+{
+"texto": "9",
+"correcta": false
+},
+{
+"texto": "5",
+"correcta": true
+}
+],
+"origen": "Banco cálculo 11.º"
+},
+{
+"grado": 11,
+"ciclo": "expertos",
+"categoria": "bernoulli",
+"tema": "Sumatorias",
+"texto": "¿Cuánto es 1² + 2² + 3² + 4²?",
+"opciones": [
+{
+"texto": "16",
+"correcta": false
+},
+{
+"texto": "30",
+"correcta": true
+},
+{
+"texto": "20",
+"correcta": false
+},
+{
+"texto": "100",
+"correcta": false
+}
+],
+"origen": "Banco cálculo 11.º"
+}
+]
