@@ -41,6 +41,9 @@
     table.tabla { border-collapse: collapse; width: 100%; break-inside: avoid; }
     table.tabla td, table.tabla th { border: 0.6px solid #555; padding: 2px 5px; font-size: 0.95em; vertical-align: top; }
     table.tabla th { background: #e8eef9; }
+    /* Tablas para llenar (ABP, retos, rúbricas): columnas parejas y renglón de escritura en las celdas vacías */
+    table.tabla.llenar { table-layout: fixed; }
+    table.tabla td:empty { height: 7mm; }
     .recuadro { border: 1px solid #999; border-left-width: 5px; border-radius: 4px; padding: 4px 8px; break-inside: avoid; }
     .recuadro .rt { font-weight: bold; margin-bottom: 2px; }
     .recuadro.recuerda { border-color: #c9a227; background: #fff8e4; }
@@ -140,7 +143,7 @@
     {% elif b.tipo == 'imagen' %}
         {% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="b img"><img src="{{ ruta }}" style="width:{{ b.ancho }}%">{% if b.pie %}<div class="pie">{{ b.pie }}</div>{% endif %}</div>{% endif %}{% endwith %}
     {% elif b.tipo == 'tabla' %}
-        <table class="b tabla">{% for fila in b.filas %}<tr>{% for c in fila %}{% if forloop.parentloop.first and b.encabezado %}<th>{{ c }}</th>{% else %}<td>{{ c }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</table>
+        <table class="b tabla{% if '' in b.filas.0 or '' in b.filas.1 %} llenar{% endif %}">{% for fila in b.filas %}<tr>{% for c in fila %}{% if forloop.parentloop.first and b.encabezado %}<th>{{ c }}</th>{% else %}<td>{{ c }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</table>
     {% elif b.tipo == 'recuadro' %}
         <div class="b recuadro {{ b.estilo }}"><div class="rt">{{ b.titulo }}</div>{{ b.html|safe }}</div>
     {% elif b.tipo == 'lineas' %}

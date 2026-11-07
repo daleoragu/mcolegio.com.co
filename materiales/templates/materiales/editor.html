@@ -3,11 +3,34 @@
 {% block page_title %}{% endblock %}
 {% block content %}
 {% include 'materiales/_estilos.html' %}
+<style>.mm-solo-ver { pointer-events:none; } #mm-conflicto[hidden] { display:none !important; }</style>
 <div class="mm">
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
     <a href="{% url 'materiales:lista' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Mis materiales</a>
     <span class="badge text-bg-light">{{ doc.get_tipo_display }}</span>
-    <span class="mm-estado ms-auto" id="mm-estado">Todo guardado</span>
+    {% if rol != 'dueno' %}<span class="badge text-bg-info" title="Material de {{ dueno_nombre }}"><i class="fas fa-user-group me-1"></i>De {{ dueno_nombre }} · {% if solo_ver %}solo ver{% else %}puede editar{% endif %}</span>{% endif %}
+    <span class="small text-success" id="mm-presentes"></span>
+    <button type="button" class="btn btn-sm btn-outline-primary" id="mm-equipo-abrir"><i class="fas fa-user-plus me-1"></i>Equipo <span class="badge text-bg-primary" id="mm-equipo-n">{{ doc.colaboradores.count|default:'' }}</span></button>
+    <span class="mm-estado ms-auto" id="mm-estado">{% if solo_ver %}Solo lectura{% else %}Todo guardado{% endif %}</span>
+</div>
+<div class="alert alert-warning py-2 small d-flex align-items-center gap-2" id="mm-conflicto" hidden><i class="fas fa-triangle-exclamation"></i>
+  <span class="flex-grow-1" id="mm-conflicto-texto"></span><button type="button" class="btn btn-sm btn-warning" onclick="location.reload()">Recargar</button></div>
+{% if solo_ver %}<div class="alert alert-info py-2 small"><i class="fas fa-eye me-1"></i>{{ dueno_nombre }} le compartió este material para verlo. Puede descargarlo, duplicarlo para tener su propia copia o publicarlo en sus aulas.</div>{% endif %}
+<div class="mm-tarjeta" id="mm-equipo" hidden>
+  <div class="d-flex align-items-center mb-2"><h6 class="mb-0 flex-grow-1"><i class="fas fa-user-group me-1"></i>Construir en equipo</h6>
+    <button type="button" class="btn-close" id="mm-equipo-cerrar" aria-label="Cerrar"></button></div>
+  <div class="small text-muted mb-2">{% if acceso.es_individual %}Invite a sus colegas de <a href="/chat/colegas/">Mis colegas</a>.{% else %}Invite a sus compañeros del colegio.{% endif %}
+    Quien puede editar trabaja en el mismo material; quien solo puede ver lo descarga, lo duplica o lo publica en sus aulas.</div>
+  <div id="mm-equipo-lista" class="mb-2"></div>
+  <div id="mm-equipo-buscar" {% if rol != 'dueno' %}hidden{% endif %}>
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      <input type="search" class="form-control form-control-sm" id="mm-eq-q" placeholder="Buscar docente por nombre o correo" style="max-width:280px">
+      <select class="form-select form-select-sm" id="mm-eq-area" style="max-width:220px"><option value="">Todas las áreas</option></select>
+      <select class="form-select form-select-sm" id="mm-eq-permiso" style="max-width:170px"><option value="editar">Puede editar</option><option value="ver">Solo puede ver</option></select>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="mm-eq-todos">Ver todos</button>
+    </div>
+    <div id="mm-equipo-resultados" class="small"></div>
+  </div>
 </div>
 <div class="mb-2">{% include 'materiales/_medidor.html' with med=med %}</div>
 
@@ -286,8 +309,14 @@ window.MM = {
     ia: "{% url 'materiales:ia' accion='ACCION' %}",
     pesosCredito: {{ pesos_credito }},
     banco: { buscar: "{% url 'materiales:banco' %}", guardar: "{% url 'materiales:banco_guardar' %}", usar: "{% url 'materiales:banco_usar' %}" },
-    csrf: "{{ csrf_token }}"
+    csrf: "{{ csrf_token }}",
+    version: {{ doc.version }},
+    soloVer: {% if solo_ver %}true{% else %}false{% endif %},
+    rol: "{{ rol }}",
+    equipo: "{% url 'materiales:equipo' doc.pk %}",
+    estado: "{% url 'materiales:estado' doc.pk %}"
 };
 </script>
 <script src="{% static 'materiales/editor.js' %}"></script>
+<script src="{% static 'materiales/equipo.js' %}"></script>
 {% endblock %}

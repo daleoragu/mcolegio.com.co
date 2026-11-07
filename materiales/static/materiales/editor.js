@@ -357,22 +357,29 @@
     // -------------------------------------------------------------------
     var temporizador = null, guardando = false, pendiente = false;
     function cambio() {
+        if (CFG.soloVer || CFG.bloqueado) return;
         estado('Cambios sin guardar…');
         clearTimeout(temporizador);
         temporizador = setTimeout(guardar, 1200);
     }
     function guardar() {
+        if (CFG.soloVer || CFG.bloqueado) return Promise.resolve();
         if (guardando) { pendiente = true; return Promise.resolve(); }
         guardando = true;
         estado('Guardando…');
         var cuerpo = {
             titulo: $('#mm-titulo').value, area: $('#mm-area').value, grado: $('#mm-grado').value,
-            periodo: $('#mm-periodo').value, contenido: datos
+            periodo: $('#mm-periodo').value, contenido: datos, version: CFG.version
         };
         return fetch(CFG.guardar, {
             method: 'POST', credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CFG.csrf }, body: JSON.stringify(cuerpo)
         }).then(function (r) { return r.json(); }).then(function (j) {
+            if (j.ok && j.version !== undefined) CFG.version = j.version;
+            if (j.conflicto) {      // otro docente del equipo guardó primero: no se le pisa su trabajo
+                CFG.bloqueado = true;
+                window.dispatchEvent(new CustomEvent('mm-conflicto', { detail: j }));
+            }
             estado(j.ok ? (j.aviso ? 'Todo guardado · ' + j.aviso : 'Todo guardado') : (j.error || 'No se pudo guardar'), !j.ok || !!j.aviso);
         }).catch(function () { estado('Sin conexión: se guardará al volver', true); pendiente = true; })
             .then(function () {
@@ -382,6 +389,7 @@
     }
     ['#mm-titulo', '#mm-area', '#mm-grado', '#mm-periodo'].forEach(function (s) { $(s).addEventListener('input', cambio); });
     window.addEventListener('beforeunload', function (e) {
+        if (CFG.soloVer || CFG.bloqueado) return;
         if ($('#mm-estado').textContent.indexOf('Todo guardado') !== 0) { e.preventDefault(); e.returnValue = ''; }
     });
 

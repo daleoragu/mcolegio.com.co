@@ -1,11 +1,12 @@
 """Mis materiales: lista, editor, imágenes, exportar a PDF y Word, y publicar en el aula."""
 import io
 import json
+import os
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.clickjacking import xframe_options_sameorigin
@@ -124,12 +125,23 @@ def _nube(a):
 # ---------------------------------------------------------------------------
 # Lista y creación
 # ---------------------------------------------------------------------------
+MODELOS = ('abp', 'retos', 'caso', 'invertida', 'cooperativo')
+
+
 @vista
 def lista(request, a):
+    from .models import Colaborador
+    from .views_equipo import nombre
+    invitaciones = [(c, nombre(c.documento.propietario)) for c in Colaborador.objects.filter(
+        usuario=request.user, estado='pendiente', documento__colegio=a.colegio).select_related('documento__propietario')]
+    conmigo = [(c, nombre(c.documento.propietario)) for c in Colaborador.objects.filter(
+        usuario=request.user, estado='aceptada', documento__colegio=a.colegio).select_related('documento__propietario')
+        .order_by('-documento__actualizado')]
     return render(request, 'materiales/lista.html', {
-        'base': a.base, 'acceso': a, 'documentos': a.documentos(), 'nube': _nube(a),
-        'formatos': a.plantillas_formato().select_related('propietario'), 'tipos': Documento.TIPOS,
-        **_contexto_ia(request, a)})
+        'base': a.base, 'acceso': a, 'documentos': a.documentos().prefetch_related('colaboradores'), 'nube': _nube(a),
+        'formatos': a.plantillas_formato().select_related('propietario'),
+        'tipos': [t for t in Documento.TIPOS if t[0] not in MODELOS], 'modelos': [t for t in Documento.TIPOS if t[0] in MODELOS],
+        'invitaciones': invitaciones, 'conmigo': conmigo, **_contexto_ia(request, a)})
 
 
 @require_POST
@@ -155,16 +167,24 @@ def nuevo(request, a):
 @require_POST
 @vista
 def accion(request, a, pk):
-    doc = _doc(a, pk)
+    from .views_equipo import doc_equipo
+    doc, rol = doc_equipo(a, pk)
     que = request.POST.get('accion')
+    # Los colaboradores pueden duplicar (copia propia) y publicar en sus propias aulas; lo demás es del dueño.
+    if rol != 'dueno' and que not in ('duplicar', 'publicar', 'ficha'):
+        messages.warning(request, 'Esa acción es solo del dueño del material.')
+        return redirect('materiales:editor', pk=pk)
     if que == 'eliminar':
         doc.delete()
         messages.info(request, f'«{doc.titulo}» eliminado.')
         return redirect('materiales:lista')
     if que == 'duplicar':
+        contenido = doc.contenido
+        if rol != 'dueno':
+            contenido = _copiar_imagenes(request.user, doc)
         copia = Documento.objects.create(propietario=request.user, colegio=a.colegio, titulo=f'{doc.titulo[:140]} (copia)',
                                          tipo=doc.tipo, area=doc.area, grado=doc.grado, periodo=doc.periodo,
-                                         contenido=doc.contenido)
+                                         contenido=contenido)
         return redirect('materiales:editor', pk=copia.pk)
     if que == 'formato':
         if a.colegio is not None and not a.admin:
@@ -181,6 +201,28 @@ def accion(request, a, pk):
     if que == 'ficha':
         return _asignar_ficha(request, a, doc)
     return redirect('materiales:editor', pk=pk)
+
+
+def _copiar_imagenes(usuario, doc):
+    """Copia propia de las imágenes de otros docentes (para que la copia de un colaborador no dependa de ellas)."""
+    import copy
+    contenido = copy.deepcopy(doc.contenido)
+    ajenas = {i.pk: i for i in Imagen.objects.filter(pk__in=B.imagenes_usadas(contenido)).exclude(propietario=usuario)}
+    nuevas = {}
+    for pk, img in ajenas.items():
+        try:
+            with img.archivo.open('rb') as fh:
+                datos = fh.read()
+        except Exception:
+            continue
+        n = Imagen(propietario=usuario, ancho=img.ancho, alto=img.alto, peso=img.peso)
+        n.archivo.save('imagen' + (os.path.splitext(img.archivo.name)[1] or '.jpg'), ContentFile(datos), save=False)
+        n.save()
+        nuevas[pk] = n.pk
+    for b in contenido.get('bloques', []):
+        if b.get('imagen') in nuevas:
+            b['imagen'] = nuevas[b['imagen']]
+    return contenido
 
 
 def _asignar_ficha(request, a, doc):
@@ -274,10 +316,12 @@ def _publicar(request, a, doc):
 # ---------------------------------------------------------------------------
 @vista
 def editor(request, a, pk):
-    doc = _doc(a, pk)
+    from .views_equipo import doc_equipo, nombre
+    doc, rol = doc_equipo(a, pk)
     imagenes = {i.pk: request.build_absolute_uri(f'/materiales/imagen/{i.pk}/')
-                for i in Imagen.objects.filter(propietario=request.user, pk__in=B.imagenes_usadas(doc.contenido))}
+                for i in Imagen.objects.filter(propietario_id__in=doc.equipo_ids(), pk__in=B.imagenes_usadas(doc.contenido))}
     return render(request, 'materiales/editor.html', {
+        'rol': rol, 'solo_ver': rol == 'ver', 'dueno_nombre': nombre(doc.propietario),
         'base': a.base, 'acceso': a, 'doc': doc, 'contenido': doc.contenido, 'imagenes': imagenes,
         'aulas': a.aulas(), 'nube': _nube(a), 'tipos': Documento.TIPOS, 'nube_docente': _nube_docente(request),
         'destinos': _destinos_examen(a), 'modos_pregunta': B.MODOS_PREGUNTA,
@@ -299,21 +343,36 @@ def _contexto_ia(request, a, doc=None):
 @require_POST
 @vista
 def guardar(request, a, pk):
-    doc = _doc(a, pk)
+    from .views_equipo import doc_equipo, nombre
+    doc, rol = doc_equipo(a, pk)
+    if rol == 'ver':
+        return JsonResponse({'ok': False, 'error': 'Puede ver este material, pero no editarlo.'}, status=403)
     try:
         datos = json.loads(request.body or '{}')
     except ValueError:
         return JsonResponse({'ok': False, 'error': 'Datos dañados.'}, status=400)
-    validas = set(Imagen.objects.filter(propietario=request.user).values_list('pk', flat=True))
+    # Otro docente del equipo guardó después de que este abrió su copia: no se le borra lo suyo.
+    try:
+        base = int(datos.get('version'))
+    except (TypeError, ValueError):
+        base = None
+    if base is not None and base != doc.version and doc.editado_por_id not in (None, request.user.pk):
+        return JsonResponse({'ok': False, 'conflicto': True, 'version': doc.version, 'por': nombre(doc.editado_por),
+                             'error': f'{nombre(doc.editado_por)} guardó cambios en este material. Recargue para verlos '
+                                      'antes de seguir (lo que usted escribió después de la última vez que se guardó '
+                                      'podría perderse: cópielo si es largo).'}, status=409)
+    validas = set(Imagen.objects.filter(propietario_id__in=doc.equipo_ids()).values_list('pk', flat=True))
     doc.contenido = B.limpiar(datos.get('contenido'), validas)
     doc.titulo = B.texto_plano(datos.get('titulo'), 150) or doc.titulo
     doc.area = B.texto_plano(datos.get('area'), 80)
     doc.grado = B.texto_plano(datos.get('grado'), 40)
     doc.periodo = B.texto_plano(datos.get('periodo'), 40)
+    doc.version += 1
+    doc.editado_por = request.user
     doc.save()
     fuera = [p for b in doc.contenido['bloques'] if b.get('modo') in ('sopa', 'crucigrama') for p in b.get('fuera') or []]
     aviso = f'No cupieron en la cuadrícula: {", ".join(fuera[:8])}' if fuera else ''
-    return JsonResponse({'ok': True, 'guardado': doc.actualizado.isoformat(), 'aviso': aviso})
+    return JsonResponse({'ok': True, 'guardado': doc.actualizado.isoformat(), 'aviso': aviso, 'version': doc.version})
 
 
 # ---------------------------------------------------------------------------
@@ -369,7 +428,13 @@ def imagen_subir(request, a):
 
 @vista
 def imagen_ver(request, a, pk):
-    img = get_object_or_404(Imagen, pk=pk, propietario=request.user)
+    img = get_object_or_404(Imagen, pk=pk)
+    if img.propietario_id != request.user.pk:
+        # una imagen de otro docente del equipo, puesta en un material que este docente construye con él
+        from .views_equipo import accesibles
+        if not any(pk in B.imagenes_usadas(d.contenido) for d in accesibles(a).exclude(propietario=request.user)
+                   .filter(Q(propietario=img.propietario) | Q(colaboradores__usuario=img.propietario)).distinct()[:200]):
+            raise Http404
     return redirect(img.archivo.url)
 
 
@@ -379,7 +444,8 @@ def imagen_ver(request, a, pk):
 @xframe_options_sameorigin
 @vista
 def pdf(request, a, pk):
-    doc = _doc(a, pk)
+    from .views_equipo import doc_equipo
+    doc, _ = doc_equipo(a, pk)
     respuestas = request.GET.get('respuestas') == '1'
     datos = exportar.pdf(request, doc, colegio=a.colegio, encabezado=a.encabezado(), docente=a.docente(),
                          modo=request.GET.get('modo'), respuestas=respuestas)
@@ -391,7 +457,8 @@ def pdf(request, a, pk):
 
 @vista
 def word(request, a, pk):
-    doc = _doc(a, pk)
+    from .views_equipo import doc_equipo
+    doc, _ = doc_equipo(a, pk)
     datos = exportar.docx(doc, colegio=a.colegio, encabezado=a.encabezado(), docente=a.docente(),
                           modo=request.GET.get('modo'), respuestas=request.GET.get('respuestas') == '1')
     r = HttpResponse(datos, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
@@ -401,7 +468,8 @@ def word(request, a, pk):
 
 @vista
 def paginas(request, a, pk):
-    doc = _doc(a, pk)
+    from .views_equipo import doc_equipo
+    doc, _ = doc_equipo(a, pk)
     return JsonResponse(exportar.paginas(request, doc, colegio=a.colegio, encabezado=a.encabezado(),
                                          docente=a.docente()))
 
