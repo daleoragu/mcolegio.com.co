@@ -227,6 +227,7 @@
                 ctx.fillStyle = m.s.elegido === t.k ? '#fff3bf' : '#fff'; ctx.fillRect(t.x, t.y, t.w, t.h);
                 ctx.strokeStyle = Gamificacion.COLORES[t.k]; ctx.lineWidth = 2; ctx.strokeRect(t.x, t.y, t.w, t.h);
                 tarro(ctx, t.k, t.x, t.y, t.w, t.h);
+                if (m.conMate(m.opciones[t.k].texto)) { m.texto(m.opciones[t.k].texto, t.x + 40, t.y + t.h / 2, {tam: 7, mate: true, base: 'middle', color: '#212529', sombra: false, ancho: t.w - 44}); return; }
                 ctx.font = `6px ${m.FUENTE}`;
                 const lineas = m.partir(m.opciones[t.k].texto, t.w - 44).slice(0, Math.max(1, Math.floor((t.h - 6) / 9)));
                 lineas.forEach((l, i) => m.texto(l, t.x + 40, t.y + 6 + i * 9, {tam: 6, color: '#212529', sombra: false}));

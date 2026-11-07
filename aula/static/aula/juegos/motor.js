@@ -37,6 +37,8 @@
     };
 
     function registrar(tipo, def) { JUEGOS[tipo] = def; }
+    // ¿Este texto trae fórmulas? Entonces se dibuja con formato matemático (fracciones apiladas, potencias, raíces…)
+    const conMate = t => !!(window.Mate && Mate.dibujarLienzo && Mate.tieneFormula(t));
 
     function partir(ctx, texto, ancho) {
         const palabras = String(texto || '').split(/\s+/), lineas = [];
@@ -62,7 +64,7 @@
         const def = JUEGOS[op.tipo];
         const lienzo = op.lienzo, ctx = lienzo.getContext('2d');
         const m = {
-            W, H, ARRIBA, ABAJO, LETRAS, COLORES, FUENTE, ctx, sonidos: SONIDOS, partir: (t, a) => partir(ctx, t, a),
+            W, H, ARRIBA, ABAJO, LETRAS, COLORES, FUENTE, ctx, sonidos: SONIDOS, conMate, partir: (t, a, o) => (o && o.mate && conMate(t) ? Mate.partirLienzo(t, a, {tam: o.tam || 8, fuente: FUENTE}) : partir(ctx, t, a)),
             // el LaTeX escrito a mano ($\frac{a}{b}$) se pasa a texto legible para dibujarlo en el lienzo
             preguntas: op.preguntas.filter(p => (p.opciones || []).length >= 2).map(p => {
                 const plano = t => (window.Mate ? Mate.plano(t) : String(t));
@@ -135,6 +137,12 @@
         // --- Ayudas de dibujo ------------------------------------------------------------
         m.texto = function (t, x, y, o) {
             o = o || {};
+            // {mate: true}: el texto es de una pregunta u opción; sus fórmulas salen con formato matemático.
+            // {ancho}: si la fórmula no cabe, se achica hasta ese ancho.
+            if (o.mate && conMate(t)) {
+                return Mate.dibujarLienzo(ctx, t, x, y, {tam: o.tam || 10, fuente: FUENTE, color: o.color, sombra: o.sombra !== false,
+                    alinear: o.alinear, base: o.base, ancho: o.ancho});
+            }
             ctx.font = `${o.tam || 10}px ${FUENTE}`; ctx.fillStyle = o.color || '#fff';
             ctx.textAlign = o.alinear || 'left'; ctx.textBaseline = o.base || 'top';
             if (o.sombra !== false) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText(t, x + 1, y + 1); ctx.fillStyle = o.color || '#fff'; }
@@ -471,7 +479,24 @@
             ctx.fillStyle = '#ffd43b'; ctx.fillRect(0, ARRIBA - 2, W, 2); ctx.fillRect(0, ABAJO, W, 2);
             const p = m.pregunta;
             const arriba = def.textoArriba ? def.textoArriba(m) : (p && p.texto);
-            if (arriba) {
+            if (arriba && conMate(arriba)) {
+                // Enunciado con fórmulas: renglones de alto variable (una fracción ocupa más), se achica hasta que quepa
+                let tam = 9, lineas = [], altos = [];
+                for (tam = 9; tam >= 6; tam--) {
+                    lineas = Mate.partirLienzo(arriba, W - 130, {tam, fuente: FUENTE});
+                    altos = lineas.map(l => { const r = Mate.medirLienzo(l, {tam, fuente: FUENTE}); return r.a + r.d + 3; });
+                    if (altos.reduce((x, y) => x + y, 0) <= 46) break;
+                }
+                tam = Math.max(6, tam);
+                let y = 4, n = 0;
+                while (n < lineas.length && y + altos[n] <= 50) { y += altos[n]; n++; }
+                n = Math.max(1, n); y = 4;
+                lineas.slice(0, n).forEach((l, i) => {
+                    const t = i === n - 1 && n < lineas.length ? l + ' …' : l;
+                    m.texto(t, 8, y, {tam, mate: true, ancho: W - 130}); y += altos[i];
+                });
+                m.enunciadoCortado = n < lineas.length;
+            } else if (arriba) {
                 // La letra se achica hasta que quepa todo el enunciado (de 9 a 6 puntos); si aun así no cabe,
                 // el enunciado completo también se ve encima del juego (ver «enunciado» abajo).
                 let tam = 9, lineas = [];
@@ -498,6 +523,7 @@
             ops.forEach((o, k) => {
                 const x = 8 + (k % col) * (W / col), y = ABAJO + 8 + Math.floor(k / col) * 22;
                 m.etiqueta(k, x + 8, y + 7, 8);
+                if (conMate(o.texto)) { m.texto(o.texto, x + 20, y + 7, {tam, mate: true, base: 'middle', ancho: W / col - 30}); return; }
                 ctx.font = `${tam}px ${FUENTE}`;
                 let t = o.texto; while (ctx.measureText(t).width > W / col - 30 && t.length > 3) t = t.slice(0, -2);
                 if (t !== o.texto) t = t.slice(0, -1) + '…';

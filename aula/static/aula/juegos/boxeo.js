@@ -194,10 +194,14 @@
                 ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(caja.x, caja.y, caja.w, caja.h);
                 ctx.strokeStyle = Gamificacion.COLORES[k]; ctx.lineWidth = 2; ctx.strokeRect(caja.x, caja.y, caja.w, caja.h);
                 // El texto de la opción, grande y centrado (más chico si es largo)
-                let tam = 10, lineas;
-                do { ctx.font = `${tam}px ${m.FUENTE}`; lineas = m.partir(op.texto, caja.w - 12); } while (lineas.length * (tam + 3) > caja.h - 6 && --tam > 5);
-                lineas = lineas.slice(0, Math.floor((caja.h - 6) / (tam + 3)));
-                lineas.forEach((l, i) => m.texto(l, caja.x + caja.w / 2, caja.y + caja.h / 2 - lineas.length * (tam + 3) / 2 + i * (tam + 3), {tam, alinear: 'center'}));
+                if (m.conMate(op.texto)) {
+                    m.texto(op.texto, caja.x + caja.w / 2, caja.y + caja.h / 2, {tam: 10, mate: true, alinear: 'center', base: 'middle', ancho: caja.w - 12});
+                } else {
+                    let tam = 10, lineas;
+                    do { ctx.font = `${tam}px ${m.FUENTE}`; lineas = m.partir(op.texto, caja.w - 12); } while (lineas.length * (tam + 3) > caja.h - 6 && --tam > 5);
+                    lineas = lineas.slice(0, Math.floor((caja.h - 6) / (tam + 3)));
+                    lineas.forEach((l, i) => m.texto(l, caja.x + caja.w / 2, caja.y + caja.h / 2 - lineas.length * (tam + 3) / 2 + i * (tam + 3), {tam, alinear: 'center'}));
+                }
                 guante(ctx, gx, gy, 38 * (1 - empuja * .3), dos ? (m.turno ? '#1971c2' : '#e8590c') : Gamificacion.COLORES[k], k, lado);
             });
             if (dos && !b.caido) m.texto(`ATACA ${JUGADORES[m.turno].nombre}`, CX, Y0 + 40, {tam: 8, alinear: 'center', color: m.turno ? '#4dabf7' : '#ff922b'});

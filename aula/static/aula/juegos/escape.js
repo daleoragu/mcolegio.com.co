@@ -82,6 +82,7 @@
                 m.etiqueta(b.k, b.x + 16, b.y + b.h / 2, 9);
                 ctx.font = `7px ${m.FUENTE}`;
                 let t = m.opciones[b.k] ? m.opciones[b.k].texto : '';
+                if (m.conMate(t)) { m.texto(t, b.x + 30, b.y + b.h / 2, {tam: 7, mate: true, base: 'middle', ancho: b.w - 36}); return; }
                 while (ctx.measureText(t).width > b.w - 36 && t.length > 3) t = t.slice(0, -2);
                 m.texto(t, b.x + 30, b.y + b.h / 2 - 3, {tam: 7});
             });
