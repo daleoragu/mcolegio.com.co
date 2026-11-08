@@ -17,9 +17,15 @@ import secrets
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Cuenta, Pago
+from .models import PLANES, PRECIOS, Cuenta, Pago
 
-PRECIOS = {'mensual': 10000, 'anual': 80000}
+
+def plan_de_concepto(concepto):
+    """'premium_anio' → ('premium', 'anio', precio, días); None si no es un plan."""
+    plan, _, periodo = (concepto or '').partition('_')
+    if (plan, periodo) in PRECIOS:
+        return (plan, periodo) + PRECIOS[(plan, periodo)]
+    return None
 
 
 def recargas():
@@ -40,8 +46,9 @@ def en_linea():
 
 def valor(concepto, monto=None):
     """(monto, bono) del concepto, o None si no es válido."""
-    if concepto in PRECIOS:
-        return PRECIOS[concepto], 0
+    p = plan_de_concepto(concepto)
+    if p:
+        return p[2], 0
     if concepto == 'recarga' and monto in recargas():
         return monto, recargas()[monto]
     return None
@@ -53,10 +60,11 @@ def nuevo(usuario, concepto, monto, bono, forma):
 
 
 def _activar(pago):
-    if pago.concepto in PRECIOS:
+    p = plan_de_concepto(pago.concepto)
+    if p:
         cuenta = Cuenta.objects.filter(usuario=pago.usuario).first()
         if cuenta is not None:
-            cuenta.extender(pago.concepto)
+            cuenta.extender(p[0], p[3])
     else:
         from materiales import creditos
         creditos.abonar(pago.usuario, pago.monto + pago.bono, 'recarga',
@@ -69,10 +77,11 @@ def _avisar(usuario, texto, url='/salon_digital/pagos/'):
 
 
 def describir(pago):
-    if pago.concepto in PRECIOS:
+    p = plan_de_concepto(pago.concepto)
+    if p:
         c = Cuenta.objects.filter(usuario=pago.usuario).first()
-        hasta = f', vence el {c.vence_en:%d/%m/%Y}' if c and c.vence_en else ''
-        return f'{pago.get_concepto_display()} activo{hasta}.'
+        hasta = f' hasta el {c.vence_en:%d/%m/%Y}' if c and c.vence_en else ''
+        return f'Plan {PLANES[p[0]]["nombre"]} activo{hasta}.'
     return f'Recarga aprobada: ${pago.monto + pago.bono:,} en su saldo.'.replace(',', '.')
 
 

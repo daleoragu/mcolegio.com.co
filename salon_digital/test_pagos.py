@@ -37,29 +37,29 @@ class Pagos(TestCase):
 
     def test_pagina_y_accesos(self):
         r = self.c.get('/salon_digital/pagos/')
-        for t in ('Planes y pagos', 'Plan mensual', 'Plan anual', 'Recarga de saldo', 'PSE', 'Llave Bre-B', 'Tarjeta crédito'):
+        for t in ('Planes y pagos', 'Plan Estándar', 'Plan Premium', 'Recarga de saldo', 'PSE', 'Llave Bre-B', 'Tarjeta crédito', 'Gratis'):
             self.assertContains(r, t)
         self.assertContains(self.c.get('/salon_digital/panel/cuenta/'), '/salon_digital/pagos/')
         # Aviso cuando la prueba está por terminar
-        self.assertContains(self.c.get('/salon_digital/panel/cuenta/'), 'Su prueba gratuita termina')
+        self.assertContains(self.c.get('/salon_digital/panel/cuenta/'), 'Está probando')
 
     @mock.patch.dict(os.environ, WOMPI)
     def test_pago_en_linea_con_wompi(self):
-        r = self.c.post('/salon_digital/pagos/', {'concepto': 'anual', 'forma': 'linea'})
+        r = self.c.post('/salon_digital/pagos/', {'concepto': 'premium', 'periodo': 'anio', 'forma': 'linea'})
         self.assertTrue(r['Location'].startswith('https://checkout.wompi.co/p/'))
         p = Pago.objects.get()
-        self.assertEqual((p.monto, p.forma, p.estado), (80000, 'linea', 'pendiente'))
-        self.assertIn('amount-in-cents=8000000', r['Location'])
+        self.assertEqual((p.monto, p.forma, p.estado, p.concepto), (130000, 'linea', 'pendiente', 'premium_anio'))
+        self.assertIn('amount-in-cents=13000000', r['Location'])
         # El aviso firmado de Wompi lo aprueba y activa el plan anual
-        datos = {'transaction': {'id': 'T1', 'reference': p.referencia, 'status': 'APPROVED', 'amount_in_cents': 8000000,
+        datos = {'transaction': {'id': 'T1', 'reference': p.referencia, 'status': 'APPROVED', 'amount_in_cents': 13000000,
                                  'payment_method_type': 'PSE'}}
         props = ['transaction.id', 'transaction.status', 'transaction.amount_in_cents']
         ts = 1700000000
-        firma = hashlib.sha256(('T1APPROVED8000000' + str(ts) + 'ev').encode()).hexdigest()
+        firma = hashlib.sha256(('T1APPROVED13000000' + str(ts) + 'ev').encode()).hexdigest()
         cuerpo = {'event': 'transaction.updated', 'data': datos, 'timestamp': ts, 'signature': {'properties': props, 'checksum': firma}}
         self.assertEqual(Client().post('/materiales/pagos/wompi/eventos/', json.dumps(cuerpo), content_type='application/json').status_code, 200)
         p.refresh_from_db(); self.cuenta.refresh_from_db()
-        self.assertEqual((p.estado, p.medio, self.cuenta.plan), ('aprobado', 'PSE', 'anual'))
+        self.assertEqual((p.estado, p.medio, self.cuenta.plan, self.cuenta.nivel), ('aprobado', 'PSE', 'premium', 'premium'))
         self.assertTrue(Notificacion.objects.filter(destinatario=self.u, mensaje__contains='Pago aprobado').exists())
         # Repetir el aviso no activa dos veces
         vence = self.cuenta.vence_en
@@ -68,14 +68,14 @@ class Pagos(TestCase):
 
     @mock.patch.dict(os.environ, WOMPI)
     def test_monto_alterado_no_activa(self):
-        self.c.post('/salon_digital/pagos/', {'concepto': 'mensual', 'forma': 'linea'})
+        self.c.post('/salon_digital/pagos/', {'concepto': 'estandar', 'forma': 'linea'})
         from salon_digital import pagos as P
         p = P.aplicar_wompi(Pago.objects.get().referencia, 'APPROVED', 'T2', 100, 'CARD')
         self.assertEqual(p.estado, 'pendiente'); self.cuenta.refresh_from_db(); self.assertEqual(self.cuenta.plan, 'prueba')
 
     @mock.patch.dict(os.environ, WOMPI)
     def test_comprobante_llave_bre_b(self):
-        r = self.c.post('/salon_digital/pagos/', {'concepto': 'mensual', 'forma': 'comprobante'})
+        r = self.c.post('/salon_digital/pagos/', {'concepto': 'estandar', 'forma': 'comprobante'})
         p = Pago.objects.get()
         self.assertRedirects(r, f'/salon_digital/pagos/{p.referencia}/', fetch_redirect_response=False)
         pagina = self.c.get(r['Location'])
@@ -93,7 +93,7 @@ class Pagos(TestCase):
         self.assertContains(self.a.get('/salon_digital/pagos/revisar/'), 'Profe Pérez')
         self.a.post('/salon_digital/pagos/revisar/', {'pago': p.pk, 'decision': 'aprobar'})
         p.refresh_from_db(); self.cuenta.refresh_from_db()
-        self.assertEqual((p.estado, self.cuenta.plan), ('aprobado', 'mensual'))
+        self.assertEqual((p.estado, self.cuenta.plan, p.monto), ('aprobado', 'estandar', 10000))
 
     def test_recarga_con_comprobante_y_rechazo(self):
         self.c.post('/salon_digital/pagos/', {'concepto': 'recarga', 'monto': 20000, 'forma': 'comprobante'})
@@ -107,7 +107,7 @@ class Pagos(TestCase):
         self.a.post('/salon_digital/pagos/revisar/', {'pago': p.pk, 'decision': 'aprobar'})
         self.assertEqual(CuentaIA.objects.get(usuario=self.u).saldo, 21000)
         # Un archivo que no es foto ni PDF no se acepta
-        self.c.post('/salon_digital/pagos/', {'concepto': 'mensual', 'forma': 'comprobante'})
+        self.c.post('/salon_digital/pagos/', {'concepto': 'estandar', 'forma': 'comprobante'})
         q = Pago.objects.filter(estado='pendiente').get()
         self.c.post(f'/salon_digital/pagos/{q.referencia}/', {'comprobante': SimpleUploadedFile('v.exe', b'MZ', content_type='application/octet-stream')})
         q.refresh_from_db(); self.assertEqual(q.estado, 'pendiente')

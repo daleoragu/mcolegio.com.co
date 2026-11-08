@@ -87,11 +87,11 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
 
 <main class="container pb-4">
   {% with cs=request.user.cuenta_salon %}{% if cs and request.resolver_match.url_name != 'planes' and request.resolver_match.url_name != 'pago' %}
-    {% if cs.vencida or cs.plan == 'prueba' or cs.dias_restantes is not None and cs.dias_restantes <= 5 %}
-    <div class="alert {% if cs.vencida %}alert-danger{% elif cs.dias_restantes is not None and cs.dias_restantes <= 5 %}alert-warning{% else %}alert-info{% endif %} d-flex flex-wrap align-items-center gap-2 py-2 mt-3 mb-3">
-      <i class="fas fa-credit-card"></i>
-      <span class="flex-grow-1">{% if cs.vencida %}Su plan venció. Sus actividades y resultados siguen guardados; renueve para seguir creando.{% elif cs.plan == 'prueba' %}Su prueba gratuita termina {% if cs.dias_restantes == 0 %}hoy{% else %}en {{ cs.dias_restantes }} día{{ cs.dias_restantes|pluralize }}{% endif %}.{% else %}Su plan vence {% if cs.dias_restantes == 0 %}hoy{% else %}en {{ cs.dias_restantes }} día{{ cs.dias_restantes|pluralize }}{% endif %}.{% endif %}</span>
-      <a class="btn btn-sm btn-primary" href="{% url 'salon_digital:planes' %}">{% if cs.plan == 'prueba' and not cs.vencida %}Ver planes{% else %}Pagar ahora{% endif %}</a>
+    {% if cs.en_prueba or cs.plan != 'gratis' and cs.plan != 'ilimitado' and cs.vence_en and cs.dias_restantes <= 5 and cs.dias_restantes >= -7 %}
+    <div class="alert {% if cs.vencida %}alert-danger{% elif cs.dias_restantes <= 5 %}alert-warning{% else %}alert-info{% endif %} d-flex flex-wrap align-items-center gap-2 py-2 mt-3 mb-3">
+      <i class="fas fa-star"></i>
+      <span class="flex-grow-1">{% if cs.vencida %}Su plan {{ cs.get_plan_display }} venció: ahora está en Gratis. No perdió nada; renueve para volver a tener todo.{% elif cs.en_prueba %}Está probando <b>Premium</b> gratis: le quedan {% if cs.dias_restantes == 0 %}horas{% else %}{{ cs.dias_restantes }} día{{ cs.dias_restantes|pluralize }}{% endif %}. Después pasa a Gratis sin perder nada.{% else %}Su plan {{ cs.nombre_nivel }} vence {% if cs.dias_restantes == 0 %}hoy{% else %}en {{ cs.dias_restantes }} día{{ cs.dias_restantes|pluralize }}{% endif %}.{% endif %}</span>
+      <a class="btn btn-sm btn-primary" href="{% url 'salon_digital:planes' %}">{% if cs.en_prueba %}Ver planes{% else %}Renovar{% endif %}</a>
     </div>{% endif %}
   {% endif %}{% endwith %}
   {% if messages %}

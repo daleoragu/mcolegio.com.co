@@ -99,6 +99,9 @@ def accion(request, a, accion):
         return error
     salida = {'ok': True, 'medidor': _medidor(K.estado(request.user, a.colegio))}
     if accion == 'piar':
+        from salon_digital.limites import TEXTOS, cupo_materiales
+        if not cupo_materiales(request.user, a.colegio):
+            return JsonResponse({'ok': False, 'error': TEXTOS['materiales']}, status=403)
         nuevo = Documento.objects.create(
             propietario=request.user, colegio=a.colegio, titulo=f'{doc.titulo[:130]} (adaptado)', tipo=doc.tipo,
             area=doc.area, grado=doc.grado, periodo=doc.periodo,

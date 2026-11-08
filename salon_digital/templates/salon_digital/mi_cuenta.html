@@ -63,8 +63,10 @@
     <div class="card mb-4">
       <div class="card-header">Tu plan</div>
       <div class="card-body">
-        <p class="h5 mb-1">{{ cuenta.get_plan_display }}</p>
-        {% if cuenta.vence_en %}
+        <p class="h5 mb-1">{{ cuenta.nombre_nivel }}</p>
+        {% if cuenta.nivel == 'gratis' %}
+          <p class="text-muted small">{% if cuenta.vencida and cuenta.plan != 'gratis' %}Su plan anterior venció el {{ cuenta.vence_en|date:"d/m/Y" }}; volvió a Gratis sin perder nada.{% else %}Gratis para siempre.{% endif %}</p>
+        {% elif cuenta.vence_en %}
           {% if cuenta.vencida %}
             <p class="text-danger small">Venció el {{ cuenta.vence_en|date:"d/m/Y" }}</p>
           {% else %}
@@ -93,10 +95,10 @@
     </div>
 
     <div class="cinta">
-      <h3 class="h6">Renovar</h3>
+      <h3 class="h6">Planes</h3>
       <p class="small text-muted mb-2">
-        Mensual $10.000 · Anual $80.000 (pagas 8 meses, usas 12). Paga en línea con tarjeta, PSE o Nequi,
-        o con llave Bre-B, Nequi o transferencia subiendo el comprobante.
+        <b>Gratis</b> para siempre · <b>Estándar</b> $10.000 al mes o $80.000 al año · <b>⭐ Premium</b> $16.000 al mes
+        o $130.000 al año (todo ilimitado, eventos y olimpiadas, IA y 5 GB). Paga en línea o con llave Bre-B o Nequi.
       </p>
       <a class="btn btn-primary btn-sm" href="{% url 'salon_digital:planes' %}"><i class="fas fa-credit-card me-1"></i>Planes y pagos</a>
     </div>

@@ -97,7 +97,9 @@ def _tarjeta_pub(p, user, mias):
     ic, color = ICONOS.get(p.tipo, ('fa-note-sticky', '#495057'))
     from django.utils.timesince import timesince
     hace = 'hace un momento' if (timezone.now() - p.creada).total_seconds() < 60 else 'hace ' + timesince(p.creada).split(',')[0]
-    return {'p': p, 'icono': ic, 'color': color, 'hace': hace, 'nombre': nombre_de(p.autor), 'foto': foto_de(p.autor),
+    from salon_digital.limites import cuenta_de
+    c = cuenta_de(p.autor)
+    return {'p': p, 'icono': ic, 'color': color, 'hace': hace, 'premium': bool(c and c.nivel in ('premium', 'ilimitado') and not c.en_prueba), 'nombre': nombre_de(p.autor), 'foto': foto_de(p.autor),
             'desc': descripcion(p.autor), 'util': p.n_util, 'usare': p.n_usare, 'n_com': p.n_com,
             'mias': mias.get(p.pk, set()), 'mia': p.autor_id == user.pk,
             'host': re.sub(r'^https?://(www\.)?', '', p.enlace).split('/')[0] if p.enlace else ''}
@@ -462,6 +464,9 @@ def copiar(request, pk):
     if doc is None:
         messages.error(request, 'Este recurso ya no está disponible para copiar.')
         return redirect(f'{MURO}/{p.pk}/')
+    from salon_digital.limites import a_planes, cupo_materiales
+    if not cupo_materiales(request.user):
+        return a_planes(request, 'materiales', 'estandar')
     contenido = _copiar_imagenes(request.user, doc) if doc.propietario_id != request.user.pk else doc.contenido
     copia = Documento.objects.create(propietario=request.user, colegio=None, titulo=f'{doc.titulo[:120]} (de {nombre_de(p.autor)[:25]})',
                                      tipo=doc.tipo, area=doc.area, grado=doc.grado, periodo=doc.periodo, contenido=contenido)

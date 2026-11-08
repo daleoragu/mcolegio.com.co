@@ -188,7 +188,8 @@ def contexto(doc, modo=None, docente='', respuestas=False):
 
 def _html(request, doc, modo, docente, colegio, encabezado, rutas, respuestas=False):
     ctx = contexto(doc, modo, docente, respuestas)
-    ctx.update({'colegio': colegio, 'encabezado': encabezado,
+    from salon_digital.limites import marca_pdf
+    ctx.update({'colegio': colegio, 'encabezado': encabezado, 'marca': marca_pdf(doc),
                 'rutas': {k: v.as_uri() for k, v in rutas.items()}})
     return render_to_string('materiales/documento_pdf.html', ctx, request=request)
 

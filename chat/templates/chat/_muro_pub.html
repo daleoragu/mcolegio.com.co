@@ -4,7 +4,7 @@
   <header class="d-flex align-items-start gap-2 mb-2">
     <a href="/chat/colegas/u/{{ p.autor_id }}/" class="text-decoration-none">{% include 'chat/_av.html' with foto=t.foto nombre=t.nombre clase='' %}</a>
     <div class="flex-grow-1 lh-sm" style="min-width:0">
-      <a href="/chat/colegas/u/{{ p.autor_id }}/" class="fw-bold text-reset text-decoration-none">{{ t.nombre }}</a>
+      <a href="/chat/colegas/u/{{ p.autor_id }}/" class="fw-bold text-reset text-decoration-none">{{ t.nombre }}</a>{% if t.premium %} <span title="Docente Premium" style="color:#e0a520">⭐</span>{% endif %}
       <div class="small text-muted text-truncate">{{ t.desc }}</div>
       <div class="small text-muted">{{ t.hace }} · {% if p.visibilidad == 'colegas' %}<i class="fas fa-user-group" title="Solo sus colegas"></i>{% else %}<i class="fas fa-earth-americas" title="Toda la comunidad docente"></i>{% endif %}</div>
     </div>

@@ -6,7 +6,8 @@
             {% if cuadernillo %}@top-left { content: "{{ css_izquierda|safe }}"; font-size: 7.5pt; font-weight: bold; color: #1f3a68; border-bottom: 1px solid #1f3a68; vertical-align: bottom; padding-bottom: 2mm; }
             @top-right { content: "{{ css_derecha|safe }}"; font-size: 7.5pt; font-style: italic; color: #333; border-bottom: 1px solid #1f3a68; vertical-align: bottom; padding-bottom: 2mm; }
             @bottom-left { content: "Material de uso institucional · No escribas en este cuadernillo"; font-size: 7pt; font-style: italic; color: #555; }{% endif %}
-            @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 7.5pt; color: #777; } }
+            @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 7.5pt; color: #777; }
+            {% if marca %}@bottom-center { content: "Hecho con mcolegio · mcolegio.com.co"; font-size: 7pt; color: #1f3a68; }{% endif %} }
     {% if cuadernillo and opciones.portada %}@page portada { @top-left { content: none; border: 0; } @top-right { content: none; border: 0; } @bottom-left { content: none; } }
     .portada { page: portada; break-after: page; text-align: center; border: 3px double #1f3a68; padding: 10mm 8mm; min-height: 215mm; }{% endif %}
     body { font-family: Arial, Helvetica, sans-serif; font-size: {{ letra }}pt; color: #111; line-height: {{ interlineado }}; margin: 0; }

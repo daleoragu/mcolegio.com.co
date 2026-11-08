@@ -44,6 +44,9 @@ def grupos(request):
 
 @cuenta_requerida
 def nuevo_grupo(request):
+    from .limites import a_planes, cupo_grupos
+    if not cupo_grupos(request.cuenta):
+        return a_planes(request, 'grupos', 'estandar')
     form = GrupoForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         grupo = form.save(commit=False)

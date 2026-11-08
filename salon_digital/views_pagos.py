@@ -7,7 +7,7 @@ from django.views.decorators.http import require_POST
 
 from . import pagos as P
 from .decoradores import cuenta_requerida, staff_requerido
-from .models import LIMITES, Pago
+from .models import Pago
 
 TIPOS_COMPROBANTE = ('image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf')
 MAX_COMPROBANTE = 6 * 1024 * 1024
@@ -25,6 +25,8 @@ def planes(request):
     cuenta = request.cuenta
     if request.method == 'POST':
         concepto = request.POST.get('concepto')
+        if concepto in ('estandar', 'premium'):
+            concepto = f'{concepto}_{"anio" if request.POST.get("periodo") == "anio" else "mes"}'
         forma = request.POST.get('forma')
         v = P.valor(concepto, _entero(request.POST.get('monto')))
         if v is None or forma not in ('linea', 'comprobante'):
@@ -40,11 +42,15 @@ def planes(request):
             return redirect(wompi.url_checkout(pago, regreso, request.user.email or ''))
         return redirect('salon_digital:pago', referencia=pago.referencia)
     from materiales.creditos import cuenta as cuenta_ia
+    from .planes_tabla import precios, tabla
+    escogido = request.GET.get('plan') if request.GET.get('plan') in ('estandar', 'premium', 'recarga') else ''
+    if not escogido:
+        escogido = 'premium' if cuenta.nivel in ('premium', 'ilimitado') or cuenta.en_prueba else 'estandar'
     return render(request, 'salon_digital/planes.html', {
-        'cuenta': cuenta, 'limites': LIMITES, 'precios': P.PRECIOS, 'recargas': sorted(P.recargas().items()),
+        'cuenta': cuenta, 'precios': precios(), 'tabla': tabla(), 'recargas': sorted(P.recargas().items()),
         'en_linea': P.en_linea(), 'datos': P.datos_cuenta(), 'saldo': cuenta_ia(request.user).saldo,
-        'mis_pagos': Pago.objects.filter(usuario=request.user)[:15],
-        'escogido': request.GET.get('plan') if request.GET.get('plan') in P.PRECIOS else '',
+        'mis_pagos': Pago.objects.filter(usuario=request.user)[:15], 'escogido': escogido,
+        'periodo': 'anio' if request.GET.get('periodo') == 'anio' else 'mes', 'motivo': request.GET.get('para', '')[:40],
     })
 
 

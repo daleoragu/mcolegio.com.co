@@ -475,12 +475,8 @@ def panel(request):
 def nueva_pagina(request):
     cuenta = request.cuenta
     if not cuenta.puede_publicar_otra():
-        messages.error(
-            request,
-            f'Tu plan permite {cuenta.limite("paginas")} páginas y ya las tienes todas. '
-            f'Borra una o amplía tu plan.',
-        )
-        return redirect('salon_digital:panel')
+        from .limites import a_planes
+        return a_planes(request, 'paginas', 'estandar' if cuenta.nivel == 'gratis' else 'premium')
 
     form = PaginaForm(request.POST or None, request.FILES or None, cuenta=cuenta)
     if request.method == 'POST' and form.is_valid():

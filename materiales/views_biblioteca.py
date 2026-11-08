@@ -151,6 +151,9 @@ def usar(request, a, pk):
         if b.get('imagen'):
             b['imagen'] = mapa.get(b['imagen'])
     validas = set(mapa.values())
+    from salon_digital.limites import a_planes, cupo_materiales
+    if not cupo_materiales(request.user, a.colegio):
+        return a_planes(request, 'materiales', 'estandar')
     doc = Documento.objects.create(propietario=request.user, colegio=a.colegio, titulo=m.titulo, tipo=m.tipo,
                                    area=m.area, grado=m.grado, contenido=B.limpiar(contenido, validas))
     MaterialCompartido.objects.filter(pk=m.pk).update(usos=F('usos') + 1)

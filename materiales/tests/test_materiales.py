@@ -200,10 +200,10 @@ class PlanIndividual(ColegioDePrueba):
         from docx import Document
         self.assertIn('Prof. Lina Libre', '\n'.join(cell.text for t in Document(io.BytesIO(r.content)).tables
                                                    for row in t.rows for cell in row.cells))
-        # Prueba gratis: 200 MB; si se llena, no deja subir más
-        cuenta.plan = 'prueba'
+        # Plan Gratis: 300 MB; si se llena, no deja subir más
+        cuenta.plan = 'gratis'
         cuenta.save(update_fields=['plan'])
-        Imagen.objects.create(propietario=u, archivo='lleno.jpg', peso=200 * 1024 * 1024)
+        Imagen.objects.create(propietario=u, archivo='lleno.jpg', peso=300 * 1024 * 1024)
         r = c.post('/materiales/imagen/', {'imagen': png()})
         self.assertEqual(r.status_code, 400)
         self.assertIn('nube está llena', r.json()['error'])

@@ -64,10 +64,11 @@ class Acceso:
 
     def cuota(self):
         from .creditos import nube_extra_bytes, plan_de
-        if self.cuenta is not None and getattr(self.cuenta, 'plan', '') == 'prueba':
-            base = 200 * MB
-        elif self.colegio is None and plan_de(self.request.user, None) == 'individual_ia':
-            base = 5 * 1024 * MB
+        if self.colegio is None and self.cuenta is not None:
+            from salon_digital.models import PLANES
+            base = PLANES[self.cuenta.nivel]['nube_mb'] * MB
+            if plan_de(self.request.user, None) == 'individual_ia':          # compró el plan con IA con su saldo
+                base = max(base, 5 * 1024 * MB)
         else:
             base = 2048 * MB
         return base + nube_extra_bytes(self.request.user)
@@ -156,6 +157,9 @@ def nuevo(request, a):
         if base is None:
             messages.warning(request, 'Todavía no hay un formato guardado. Arme una guía y márquela como formato.')
             return redirect('materiales:lista')
+    from salon_digital.limites import a_planes, cupo_materiales
+    if not cupo_materiales(request.user, a.colegio):
+        return a_planes(request, 'materiales', 'estandar')
     titulo = (request.POST.get('titulo') or '').strip()[:150] or dict(Documento.TIPOS)[tipo]
     doc = Documento.objects.create(propietario=request.user, colegio=a.colegio, titulo=titulo, tipo=tipo,
                                    area=(request.POST.get('area') or (base.area if base else ''))[:80],
@@ -179,6 +183,9 @@ def accion(request, a, pk):
         messages.info(request, f'«{doc.titulo}» eliminado.')
         return redirect('materiales:lista')
     if que == 'duplicar':
+        from salon_digital.limites import a_planes, cupo_materiales
+        if not cupo_materiales(request.user, a.colegio):
+            return a_planes(request, 'materiales', 'estandar')
         contenido = doc.contenido
         if rol != 'dueno':
             contenido = _copiar_imagenes(request.user, doc)

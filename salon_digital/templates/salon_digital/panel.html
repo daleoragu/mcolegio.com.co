@@ -22,10 +22,10 @@
     Mientras tanto no puedes publicar, pero tus páginas y resultados siguen aquí.
     <a href="{% url 'salon_digital:mi_cuenta' %}" class="alert-link">Ir a mi cuenta</a>
   </div>
-{% elif cuenta.plan == 'prueba' and cuenta.dias_restantes <= 5 %}
+{% elif not cuenta.puede_publicar_otra %}
   <div class="alert alert-info">
-    A tu prueba gratuita le quedan {{ cuenta.dias_restantes }} días.
-    <a href="{% url 'salon_digital:mi_cuenta' %}" class="alert-link">Ver cómo renovar</a>
+    Ya usa las {{ cuenta.limite_paginas }} actividades de su plan {{ cuenta.nombre_nivel }}. Puede borrar una o
+    <a href="{% url 'salon_digital:planes' %}?para=paginas" class="alert-link">pasar a un plan con más actividades</a>.
   </div>
 {% endif %}
 

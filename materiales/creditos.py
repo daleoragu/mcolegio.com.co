@@ -19,7 +19,8 @@ from .models import CuentaIA, MovimientoIA
 PESOS_POR_CREDITO = 20
 # (créditos diarios, créditos del mes)
 CUPOS = {
-    'prueba': (0, 30),           # 30 en total durante la prueba
+    'prueba': (0, 30),           # 30 en total durante la prueba Premium
+    'gratis': (0, 30),           # plan Gratis: 30 al mes
     'individual': (3, 0),        # planes de hoy: 3 diarios para probarla
     'individual_ia': (8, 200),
     'premium': (5, 150),         # colegio Premium, por docente
@@ -54,10 +55,16 @@ def plan_de(usuario, colegio):
     c = CuentaIA.objects.filter(usuario=usuario).first()
     if c and c.ia_hasta and c.ia_hasta >= hoy:
         return 'individual_ia'
-    cuenta_salon = getattr(usuario, 'cuenta_salon', None)
-    if cuenta_salon is not None and cuenta_salon.plan == 'prueba':
+    try:
+        cuenta_salon = usuario.cuenta_salon
+    except Exception:
+        cuenta_salon = None
+    if cuenta_salon is None:
+        return 'individual'
+    if cuenta_salon.en_prueba:
         return 'prueba'
-    return 'individual'
+    from salon_digital.models import PLANES
+    return PLANES[cuenta_salon.nivel]['ia']          # gratis, individual (Estándar) o individual_ia (Premium)
 
 
 def _inicio_dia():
