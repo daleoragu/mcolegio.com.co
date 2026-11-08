@@ -18,7 +18,7 @@
                 {% endif %}
             </div>
             {% if m.youtube_id %}
-                <div class="ratio ratio-16x9 mt-2" style="max-width:560px"><iframe src="https://www.youtube-nocookie.com/embed/{{ m.youtube_id }}" title="{{ m.titulo }}" allowfullscreen loading="lazy"></iframe></div>
+                <div class="ratio ratio-16x9 mt-2" style="max-width:560px"><iframe src="https://www.youtube-nocookie.com/embed/{{ m.youtube_id }}" title="{{ m.titulo }}" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen loading="lazy"></iframe></div>
             {% elif m.enlace %}
                 <a class="au-adjunto" href="{{ m.enlace }}" target="_blank" rel="noopener"><i class="fas fa-link"></i><span class="text-truncate">{{ m.enlace }}</span></a>
             {% endif %}

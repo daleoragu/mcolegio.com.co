@@ -52,6 +52,11 @@ INSTALLED_APPS = [
     'aula',            # <--- Aula virtual (mcolegio por asignación y Salón Digital por grupo)
 ]
 
+# YouTube exige saber desde qué sitio se reproduce un video insertado (si no, muestra «Error 153»).
+# Django, por defecto, no manda esa información a otros sitios ('same-origin'); así se manda solo el dominio
+# (https://colegio.mcolegio.com.co), nunca la ruta ni los datos de la página.
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',

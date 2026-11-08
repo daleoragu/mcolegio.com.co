@@ -178,11 +178,9 @@ def landing(request):
     if cuenta:
         return redirect('aula:inicio')
     from . import social
-    from .planes_tabla import precios
     return render(request, 'salon_digital/landing.html', {
         'total_docentes': Cuenta.objects.filter(estado='verificada').count(),
         'proveedores': social.disponibles(),
-        'precios': precios(),   # la misma fuente que «Planes y pagos»
     })
 
 

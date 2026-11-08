@@ -145,7 +145,7 @@
             host: 'https://www.youtube-nocookie.com',
             videoId: cfg.video,
             // Sin pantalla completa: la pregunta tiene que poder salir encima.
-            playerVars: {rel: 0, fs: 0, playsinline: 1, modestbranding: 1, start: Math.max(0, Math.floor(Math.min(visto, limite())) - 2)},
+            playerVars: {rel: 0, fs: 0, playsinline: 1, modestbranding: 1, origin: location.origin, widget_referrer: location.origin, start: Math.max(0, Math.floor(Math.min(visto, limite())) - 2)},
             events: {
                 onReady: () => setInterval(vigilar, 250),
                 onStateChange: ev => {

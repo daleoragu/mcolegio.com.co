@@ -45,7 +45,7 @@
     <div class="small text-muted mb-2" id="inv-estado-video"><i class="fas fa-pause-circle me-1"></i>El video se detiene en cada pregunta: respóndala y sigue. No se puede adelantar más allá de la siguiente pregunta.</div>
     {% elif clase.youtube_id %}
     <div class="inv-video mb-2">
-      <iframe src="https://www.youtube-nocookie.com/embed/{{ clase.youtube_id }}?rel=0" title="{{ clase.titulo }}"
+      <iframe src="https://www.youtube-nocookie.com/embed/{{ clase.youtube_id }}?rel=0" title="{{ clase.titulo }}" referrerpolicy="strict-origin-when-cross-origin"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe>
     </div>
     {% else %}

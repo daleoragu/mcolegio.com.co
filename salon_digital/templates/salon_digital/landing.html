@@ -1,4 +1,4 @@
-{% load static humanize %}<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
@@ -120,43 +120,20 @@ footer a { color:var(--azul); text-decoration:none; }
       display:flex; align-items:center; gap:8px; box-shadow:0 6px 18px rgba(0,0,0,.22); }
 .wa svg { width:22px; height:22px; }
 
-/* Evita que la imagen del hero ensanche la página en el celular (scroll lateral) */
-.hero .contenedor > *, .dos > *, .destacado > * { min-width:0; }
-html, body { overflow-x:hidden; }
-/* El botón Entrar siempre a la vista, también con el celular acostado */
-.barra .acciones { margin-left:auto; flex-shrink:0; }
-.menu + .acciones { margin-left:0; }
-.barra .entrar { white-space:nowrap; padding:8px 12px; border:2px solid var(--azul); border-radius:10px; font-size:.92rem; }
-.barra .boton { white-space:nowrap; }
-.barra .contenedor { padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
-
 @media (max-width: 960px) {
   .menu { display:none; }
-  .menu + .acciones { margin-left:auto; }
   .hero .contenedor, .dos, .destacado { grid-template-columns:1fr; }
   .hero .contenedor { padding:44px 0 96px; }
   .modulos, .mas { grid-template-columns:1fr 1fr; }
   .planes { grid-template-columns:1fr; max-width:460px; }
   .destacado { padding:28px; }
 }
-/* Celular acostado (pantalla baja): barra más delgada, sin perder Entrar */
-@media (max-height: 500px) and (orientation: landscape) {
-  .barra .contenedor { height:56px; }
-  .marca img { height:28px; }
-  .hero .contenedor { padding:28px 0 90px; }
-}
 @media (max-width: 560px) {
-  .barra .contenedor { gap:10px; }
-  .barra .entrar { padding:7px 10px; font-size:.88rem; }
-  .barra .boton { padding:8px 12px; font-size:.86rem; }
-  .marca img { height:28px; }
+  .barra .entrar { display:none; }
   .marca span { display:none; }
   .modulos, .mas { grid-template-columns:1fr; }
   section.bloque { padding:52px 0; }
   .wa span { display:none; } .wa { padding:13px; }
-}
-@media (max-width: 380px) {
-  .solo-ancho { display:none; }
 }
 </style>
 </head>
@@ -179,7 +156,7 @@ html, body { overflow-x:hidden; }
         <a class="boton boton-azul" href="{% url 'salon_digital:crear_cuenta' %}">Activar mi salón</a>
       {% else %}
         <a class="entrar" href="{% url 'salon_digital:entrar' %}">Entrar</a>
-        <a class="boton boton-oro" href="{% url 'salon_digital:registro' %}">Crear cuenta<span class="solo-ancho">gratis</span></a>
+        <a class="boton boton-oro" href="{% url 'salon_digital:registro' %}">Crear cuenta gratis</a>
       {% endif %}
     </div>
   </div>
@@ -285,13 +262,13 @@ html, body { overflow-x:hidden; }
         <a class="boton boton-azul" href="{% if request.user.cuenta_salon %}{% url 'salon_digital:planes' %}{% else %}{% url 'salon_digital:registro' %}{% endif %}">Empezar gratis</a>
       </div>
       <div class="plan">
-        <h3>Estándar</h3><div class="precio">${{ precios.estandar.mes|intcomma }}</div><div class="periodo">al mes · o ${{ precios.estandar.anio|intcomma }} al año</div>
+        <h3>Estándar</h3><div class="precio">$10.000</div><div class="periodo">al mes · o $80.000 al año</div>
         <ul><li>Grupos y materiales ilimitados</li><li>30 actividades · 5.000 resultados al mes</li><li>Exámenes con hoja de respuestas</li><li>PDF sin marca</li><li>IA: 3 créditos al día · 2 GB de nube</li></ul>
         {% if request.user.cuenta_salon %}<a class="boton boton-azul" href="{% url 'salon_digital:planes' %}?plan=estandar">Pasar a Estándar</a>{% else %}<a class="boton boton-azul" href="{% url 'salon_digital:registro' %}">Crear cuenta</a>{% endif %}
       </div>
       <div class="plan top">
         <span class="sello">15 días gratis al registrarte</span>
-        <h3>⭐ Premium</h3><div class="precio">${{ precios.premium.mes|intcomma }}</div><div class="periodo">al mes · o ${{ precios.premium.anio|intcomma }} al año</div>
+        <h3>⭐ Premium</h3><div class="precio">$16.000</div><div class="periodo">al mes · o $130.000 al año</div>
         <ul><li>Todo ilimitado</li><li>Eventos y olimpiadas con ranking, diplomas y supervisión</li><li>IA: 200 al mes + 8 al día</li><li>5 GB de nube</li><li>Insignia Premium en la comunidad</li></ul>
         {% if request.user.cuenta_salon %}<a class="boton boton-oro" href="{% url 'salon_digital:planes' %}?plan=premium">Pasar a Premium</a>{% else %}<a class="boton boton-oro" href="{% url 'salon_digital:registro' %}">Probar Premium gratis</a>{% endif %}
       </div>

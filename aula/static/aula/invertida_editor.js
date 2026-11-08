@@ -61,7 +61,7 @@
             if (reproductor && reproductor.loadVideoById) { reproductor.cueVideoById(id); return; }
             reproductor = new YT.Player('ie-yt-' + pref, {
                 host: 'https://www.youtube-nocookie.com', videoId: id,
-                playerVars: {rel: 0, playsinline: 1, modestbranding: 1},
+                playerVars: {rel: 0, playsinline: 1, modestbranding: 1, origin: location.origin, widget_referrer: location.origin},
                 events: {onReady: () => setInterval(tic, 300)},
             });
         }

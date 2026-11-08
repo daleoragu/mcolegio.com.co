@@ -1,4 +1,4 @@
-Versión 0004 · 2026-11-08 19:19
+Versión 0005 · 2026-11-08 20:26
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -247,6 +247,7 @@ NUEVO     chat/test_muro.py
 CAMBIADO  chat/urls.py
 NUEVO     chat/views_colegas.py
 NUEVO     chat/views_muro.py
+CAMBIADO  config/settings.py
 CAMBIADO  config/urls.py
 CAMBIADO  elecciones/templates/elecciones/index.html
 CAMBIADO  materiales/creditos.py
