@@ -626,8 +626,8 @@ def examenes_de(aula):
 
 
 def columnas_calificaciones(aula):
-    """Todo lo que da nota en el aula: tareas, actividades, cuestionarios, exámenes PuntoExacto
-    y (en el plan individual) las columnas escritas a mano.
+    """Todo lo que da nota en el aula: tareas, actividades, cuestionarios, exámenes PuntoExacto, clases
+    invertidas y (en el plan individual) las columnas escritas a mano.
 
     [{'clave', 'titulo', 'tipo', 'url', 'notas': {persona_id: nota}, 'peso', 'manual'}]
     """
@@ -661,6 +661,9 @@ def columnas_calificaciones(aula):
         notas = {getattr(h, clave): h.nota for h in ex.hojas.filter(estado='calificada', nota__isnull=False)
                  if getattr(h, clave)}
         agregar(f'examen:{ex.pk}', ex.titulo, 'Examen', reverse('aula:examen', args=[aula.pk, ex.pk]), notas)
+    for inv in aula.invertidas.filter(publicada=True).order_by('creada'):
+        agregar(f'inv:{inv.pk}', inv.titulo, 'Aula invertida', reverse('aula:invertida', args=[aula.pk, inv.pk]),
+                {getattr(r, clave): r.nota for r in inv.respuestas.filter(terminada=True, nota__isnull=False)})
     if aula.es_salon:
         for col in aula.columnas_manuales.prefetch_related('notas'):
             agregar(f'manual:{col.pk}', col.titulo, 'A mano', '', {getattr(n, clave): n.nota for n in col.notas.all()},

@@ -31,13 +31,16 @@ def _leer_formulario(request, clase, aula):
         return 'Escriba el título.'
     if not clase.video.startswith(('http://', 'https://')):
         return 'Pegue el enlace del video (por ejemplo https://www.youtube.com/watch?v=…).'
-    preguntas = INV.leer_preguntas(texto)
+    # Lo que armó en el editor sobre el video (como Edpuzzle) manda; si no, lo que pegó como texto.
+    del_editor = INV.leer_json(request.POST.get('preguntas_json'))
+    preguntas = del_editor or INV.leer_preguntas(texto)
     if not preguntas:
-        return 'Pegue al menos una pregunta.'
-    if clase.pk and clase.respuestas.exists() and preguntas != clase.preguntas:
-        return ('Ya hay estudiantes que respondieron: no se pueden cambiar las preguntas. '
+        return 'Agregue al menos una pregunta: pause el video y pulse «Agregar pregunta aquí», o péguelas como texto.'
+    sin_puntos = lambda lista: [{k: v for k, v in p.items() if k not in ('puntos', 'tipo')} for p in lista]
+    if clase.pk and clase.respuestas.exists() and sin_puntos(preguntas) != sin_puntos(clase.preguntas):
+        return ('Ya hay estudiantes que respondieron: no se pueden cambiar las preguntas (sí los puntos). '
                 'Cree otra clase invertida o borre las respuestas primero.')
-    clase.texto_preguntas, clase.preguntas = texto[:20000], preguntas
+    clase.texto_preguntas, clase.preguntas = ('' if del_editor else texto[:20000]), preguntas
     para, error = logica.leer_para(request, aula)
     if error:
         return error
@@ -109,7 +112,7 @@ def invertida(request, pk, iid):
         if faltan:
             error = 'Le falta responder: ' + ', '.join(str(n) for n in faltan) + '.'
         else:
-            aciertos, nota = INV.calificar(clase, respuestas)
+            aciertos, nota = INV.calificar(clase, respuestas, avance.puntos_docente if avance else None)
             if avance is not None:
                 avance.respuestas, avance.aciertos, avance.nota = respuestas, aciertos, nota
                 avance.terminada, avance.enviada = True, timezone.now()
@@ -207,8 +210,12 @@ def _vista_docente(request, c, clase):
     for p in personas:
         clave = logica.clave_de(p)
         r = respuestas.get(clave)
-        filas.append({'clave': clave, 'nombre': logica.nombre_de(p), 'r': r,
-                      'detalle': INV.detalle(clase, r) if r else []})
+        fila = {'clave': clave, 'nombre': logica.nombre_de(p), 'r': r, 'detalle': INV.detalle(clase, r) if r else []}
+        if r and r.terminada:
+            ganados, posibles, _ = INV.puntaje(clase, r.respuestas, r.puntos_docente)
+            fila['puntaje'] = (ganados.normalize(), posibles.normalize())
+            fila['sin_calificar'] = sum(1 for d in fila['detalle'] if d['abierta'] and d['valor'] and d['dados'] is None)
+        filas.append(fila)
     # Cuántos acertaron cada pregunta de selección, para ver qué no se entendió del video.
     resumen = []
     enviadas = [f['r'] for f in filas if f['r'] and f['r'].terminada]
@@ -265,7 +272,7 @@ def invertida_accion(request, pk, iid):
                 messages.error(request, f'La nota va de {minima} a {maxima}.')
             else:
                 if valor is None:      # vacía: vuelve a la nota automática
-                    _, valor = INV.calificar(clase, r.respuestas)
+                    _, valor = INV.calificar(clase, r.respuestas, r.puntos_docente)
                     r.nota_manual = False
                 else:
                     r.nota_manual = True
@@ -273,6 +280,40 @@ def invertida_accion(request, pk, iid):
                 r.comentario = (request.POST.get('comentario') or '').strip()[:2000]
                 r.save(update_fields=['nota', 'nota_manual', 'comentario'])
                 messages.success(request, 'Nota guardada.')
+    elif accion == 'puntos':
+        # Puntos de las preguntas abiertas de un estudiante; la nota se recalcula (salvo que la haya puesto a mano)
+        clave = request.POST.get('clave') or ''
+        r = next((x for x in clase.respuestas.select_related('estudiante', 'integrante')
+                  if logica.clave_de(x.estudiante or x.integrante) == clave and x.terminada), None)
+        if r is None:
+            messages.warning(request, 'Ese estudiante no ha enviado sus respuestas.')
+        else:
+            dados = dict(r.puntos_docente or {})
+            for i, p in enumerate(clase.preguntas):
+                if p.get('opciones') or f'puntos-{i}' not in request.POST:
+                    continue
+                texto = (request.POST.get(f'puntos-{i}') or '').strip().replace(',', '.')
+                if not texto:
+                    dados.pop(str(i), None)
+                    continue
+                try:
+                    valor = Decimal(texto)
+                except InvalidOperation:
+                    messages.error(request, f'Pregunta {i + 1}: «{texto}» no es un número.')
+                    continue
+                vale = INV.puntos_de(p)
+                if valor < 0 or valor > vale:
+                    messages.error(request, f'Pregunta {i + 1}: los puntos van de 0 a {vale.normalize()}.')
+                    continue
+                dados[str(i)] = float(valor)
+            r.puntos_docente = dados
+            r.comentario = (request.POST.get('comentario') or r.comentario or '').strip()[:2000]
+            campos = ['puntos_docente', 'comentario']
+            if not r.nota_manual:
+                r.aciertos, r.nota = INV.calificar(clase, r.respuestas, dados)
+                campos += ['aciertos', 'nota']
+            r.save(update_fields=campos)
+            messages.success(request, 'Puntos guardados.' + ('' if r.nota_manual else f' Nota: {r.nota}.'))
     elif accion == 'planilla':
         pares = [(r.estudiante, r.nota) for r in clase.respuestas.filter(terminada=True).select_related('estudiante')
                  if r.estudiante_id]

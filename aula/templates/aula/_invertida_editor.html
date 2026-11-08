@@ -1,0 +1,43 @@
+{% comment %}Editor de preguntas sobre el video (como Edpuzzle). Espera: prefijo, datos_id y clase (o None).{% endcomment %}
+<style>
+  .ie-video{position:relative;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden}
+  .ie-video iframe,.ie-video>div{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .ie-pista{position:relative;height:22px;margin-top:8px;background:#e9edf3;border-radius:99px;cursor:pointer}
+  .ie-cabeza{position:absolute;top:-3px;bottom:-3px;width:3px;background:#1f3a68;border-radius:2px;pointer-events:none}
+  .ie-marca{position:absolute;top:2px;width:18px;height:18px;margin-left:-9px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);padding:0;cursor:pointer}
+  .ie-t-multiple,.ie-b-multiple{background:#1971c2;color:#fff}.ie-t-vf,.ie-b-vf{background:#7048e8;color:#fff}.ie-t-abierta,.ie-b-abierta{background:#e8590c;color:#fff}
+  .ie-item{display:flex;align-items:center;gap:8px;border:1px solid var(--au-linea,#dde3ec);border-radius:10px;padding:6px 8px;margin-bottom:6px;background:#fff}
+  .ie-ir{font-family:ui-monospace,monospace;background:#eef2f8;min-width:58px}
+</style>
+<div class="ie mb-2" data-prefijo="{{ prefijo }}">
+  <input type="hidden" name="preguntas_json" value="">
+  <div class="ie-sin small text-muted border rounded-3 p-2 mb-2" style="background:#f8fafc"><i class="fab fa-youtube text-danger me-1"></i>Pegue arriba el enlace de YouTube: el video aparece aquí para poner las preguntas en el minuto exacto. Con otros videos, escriba el minuto a mano.</div>
+  <div class="ie-con d-none">
+    <div class="ie-video"><div id="ie-yt-{{ prefijo }}"></div></div>
+    <div class="ie-pista" title="Clic para ir a ese momento"><div class="ie-marcas"></div><div class="ie-cabeza"></div></div>
+  </div>
+  <div class="d-flex flex-wrap align-items-center gap-2 my-2">
+    <span class="ie-tiempo small font-monospace text-muted">0:00</span>
+    <button type="button" class="btn btn-sm au-oro ie-agregar"><i class="fas fa-plus me-1"></i>Agregar pregunta aquí (<span>0:00</span>)</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary ie-final">Pregunta al final</button>
+    <span class="ie-resumen small fw-semibold text-primary ms-auto"></span>
+  </div>
+  <div class="ie-form d-none border rounded-3 p-2 mb-2" style="background:#fffdf5">
+    <div class="row g-2 mb-2">
+      <div class="col-sm-5"><label class="small fw-bold">Tipo</label>
+        <select class="form-select form-select-sm ie-tipo"><option value="multiple">Opción múltiple</option><option value="vf">Verdadero o falso</option><option value="abierta">Abierta</option></select></div>
+      <div class="col-sm-3"><label class="small fw-bold">Minuto</label><input class="form-control form-control-sm ie-min" placeholder="Al final"></div>
+      <div class="col-sm-4"><label class="small fw-bold">Puntos</label><input class="form-control form-control-sm ie-puntos" inputmode="decimal" value="1"></div>
+    </div>
+    <textarea class="form-control form-control-sm mb-2 ie-texto" rows="2" maxlength="1000" placeholder="Escriba la pregunta"></textarea>
+    <div class="ie-bloque-op"><div class="small text-muted mb-1">Marque la correcta con el círculo.</div><div class="ie-opciones"></div>
+      <button type="button" class="btn btn-sm btn-link px-0 ie-mas-op"><i class="fas fa-plus me-1"></i>Otra opción</button></div>
+    <div class="ie-bloque-vf d-none small mb-1">La respuesta correcta es:
+      <label class="ms-2"><input type="radio" class="form-check-input me-1 ie-vf" name="ie-vf-{{ prefijo }}" value="0" checked>Verdadero</label>
+      <label class="ms-2"><input type="radio" class="form-check-input me-1 ie-vf" name="ie-vf-{{ prefijo }}" value="1">Falso</label></div>
+    <div class="ie-error small text-danger fw-semibold mb-1"></div>
+    <div class="d-flex gap-2"><button type="button" class="btn btn-sm btn-primary ie-guardar">Guardar pregunta</button><button type="button" class="btn btn-sm btn-link ie-cancelar">Cancelar</button></div>
+  </div>
+  <ol class="ie-lista list-unstyled mb-0"></ol>
+</div>
+{% if clase %}{{ clase.preguntas|json_script:datos_id }}{% else %}{{ ""|json_script:datos_id }}{% endif %}

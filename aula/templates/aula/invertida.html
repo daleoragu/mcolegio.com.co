@@ -22,6 +22,13 @@
   .inv-espera { border:1px dashed var(--au-linea); border-radius:12px; padding:10px 14px; margin-bottom:10px; color:var(--au-tenue); font-size:.9rem; }
   @keyframes inv-sacudir { 0%,100% { transform:none } 25% { transform:translateX(-6px) } 75% { transform:translateX(6px) } }
   .inv-sacudir { animation:inv-sacudir .3s 2; }
+  .inv-mapa { display:flex; flex-wrap:wrap; gap:6px; }
+  .inv-m { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--au-linea); border-radius:99px; padding:3px 10px 3px 4px; font-size:.82rem; background:#fff; cursor:pointer; }
+  .inv-m b { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; color:#fff; font-size:.75rem; }
+  .inv-rojo b, .inv-dot.inv-rojo { background:#e03131; } .inv-amarillo b, .inv-dot.inv-amarillo { background:#f59f00; } .inv-verde b, .inv-dot.inv-verde { background:#2f9e44; }
+  .inv-linea { position:relative; height:16px; background:#e9edf3; border-radius:99px; margin:6px 0 10px; }
+  .inv-linea .avance { position:absolute; left:0; top:0; bottom:0; background:#cfd8e6; border-radius:99px; }
+  .inv-dot { position:absolute; top:1px; width:14px; height:14px; margin-left:-7px; border-radius:50%; border:2px solid #fff; box-shadow:0 1px 2px rgba(0,0,0,.3); }
 </style>
 <div class="au">
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
@@ -34,6 +41,7 @@
   <div class="col-lg-7">
     {% if pausas %}
     <div class="inv-video mb-2"><div id="inv-reproductor"></div></div>
+    <div class="inv-linea" id="inv-linea" aria-hidden="true"><div class="avance"></div></div>
     <div class="small text-muted mb-2" id="inv-estado-video"><i class="fas fa-pause-circle me-1"></i>El video se detiene en cada pregunta: respóndala y sigue. No se puede adelantar más allá de la siguiente pregunta.</div>
     {% elif clase.youtube_id %}
     <div class="inv-video mb-2">
@@ -70,13 +78,18 @@
       </div>
       {% endfor %}
     {% else %}
+      <div class="au-tarjeta">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-2"><h6 class="mb-0"><i class="fas fa-list-check me-1"></i>Sus preguntas</h6>
+          <div class="small text-muted"><span class="inv-dot inv-rojo position-static d-inline-block align-middle"></span> No vista · <span class="inv-dot inv-amarillo position-static d-inline-block align-middle"></span> Vista sin responder · <span class="inv-dot inv-verde position-static d-inline-block align-middle"></span> Respondida</div></div>
+        <div class="inv-mapa" id="inv-mapa">{% for p in detalle %}<span class="inv-m inv-rojo" data-i="{{ p.i }}" data-segundo="{% if pausas and p.segundo is not None %}{{ p.segundo }}{% endif %}" title="{{ p.tipo_nombre }} · {{ p.puntos.normalize }} punto(s)"><b>{{ p.n }}</b>{% if pausas and p.segundo is not None %}{{ p.minuto }}{% else %}{{ p.tipo_nombre }}{% endif %}</span>{% endfor %}</div>
+      </div>
       <form method="post" class="au-tarjeta" id="inv-form">{% csrf_token %}
         <h6><i class="fas fa-pen me-1"></i>{% if pausas %}Responda mientras ve el video{% else %}Después de ver el video, responda{% endif %}</h6>
         {% if error %}<div class="alert alert-danger py-2 small">{{ error }}</div>{% endif %}
         {% for p in detalle %}
         {% if pausas and p.segundo is not None %}<div class="inv-espera" id="inv-espera-{{ p.i }}"><i class="fas fa-clock me-1"></i>Pregunta {{ p.n }}: aparece en el video en el minuto {{ p.minuto }}.</div>{% endif %}
         <div class="inv-pregunta {% if p.n in faltan %}falta{% endif %}{% if pausas and p.segundo is not None %} d-none{% endif %}" id="inv-p-{{ p.i }}" data-i="{{ p.i }}">
-          <div class="fw-semibold mb-1">{{ p.n }}. <span class="mate">{{ p.texto }}</span>{% if pausas and p.segundo is not None %} <span class="au-chip gris">{{ p.minuto }}</span>{% endif %}</div>
+          <div class="fw-semibold mb-1">{{ p.n }}. <span class="mate">{{ p.texto }}</span>{% if pausas and p.segundo is not None %} <span class="au-chip gris">{{ p.minuto }}</span>{% endif %} <span class="au-chip gris">{{ p.puntos.normalize }} pt</span></div>
           {% if p.abierta %}
             <textarea name="p{{ p.i }}" class="form-control" rows="3" maxlength="3000" required aria-label="Respuesta a la pregunta {{ p.n }}">{{ p.previo }}</textarea>
           {% else %}{% for o in p.opciones %}
@@ -102,7 +115,7 @@
       <h6 class="mb-2"><i class="fas fa-chart-simple me-1"></i>{{ enviadas }} de {{ filas|length }} respondieron</h6>
       {% for p in resumen %}
       <div class="mb-2 small">
-        <div><b>{{ p.n }}.</b> {% if p.minuto and clase.youtube_id %}<span class="au-chip gris"><i class="fas fa-pause"></i> {{ p.minuto }}</span> {% endif %}{{ p.texto|truncatechars:110 }}</div>
+        <div><b>{{ p.n }}.</b> {% if p.minuto and clase.youtube_id %}<span class="au-chip gris"><i class="fas fa-pause"></i> {{ p.minuto }}</span> {% endif %}<span class="au-chip gris">{{ p.tipo_nombre }} · {{ p.puntos.normalize }} pt</span> {{ p.texto|truncatechars:110 }}</div>
         {% if p.calificable %}
           {% if p.pct is not None %}<div class="d-flex align-items-center gap-2"><div class="inv-barra flex-grow-1"><span style="width:{{ p.pct }}%"></span></div><span class="fw-semibold">{{ p.pct }} % acertó</span></div>{% endif %}
         {% elif p.abierta %}<span class="au-chip gris">Abierta</span>{% else %}<span class="au-chip gris">Selección sin respuesta correcta</span>{% endif %}
@@ -117,6 +130,8 @@
         {% if puede_planilla %}
         <form method="post" action="{% url 'aula:invertida_accion' aula.pk clase.pk %}" class="m-0" onsubmit="return confirm('¿Pasar las notas a la planilla, columna «{{ clase.titulo|escapejs }}»?')">{% csrf_token %}<input type="hidden" name="accion" value="planilla">
           <button class="btn btn-sm au-oro" {% if not enviadas %}disabled{% endif %}><i class="fas fa-table me-1"></i>Pasar a la planilla</button></form>
+        {% elif aula.es_salon %}
+        <a class="btn btn-sm btn-outline-success" href="{% url 'aula:calificaciones' aula.pk %}" title="Las notas entran solas a la planilla del grupo"><i class="fas fa-table me-1"></i>Está en la planilla</a>
         {% endif %}
         <form method="post" action="{% url 'aula:invertida_accion' aula.pk clase.pk %}" class="m-0 ms-auto" onsubmit="return confirm('¿Eliminar la clase invertida y sus respuestas?')">{% csrf_token %}<input type="hidden" name="accion" value="eliminar">
           <button class="btn btn-sm btn-link text-danger">Eliminar</button></form>
@@ -137,13 +152,13 @@
   <h6><i class="fas fa-users me-1"></i>Respuestas de los estudiantes</h6>
   <div class="table-responsive">
   <table class="table table-sm align-middle mb-0">
-    <thead><tr><th>Estudiante</th><th>Estado</th>{% if clase.calificables %}<th class="text-center">Selección</th>{% endif %}<th>Nota ({{ rango.0 }} a {{ rango.1 }})</th><th></th></tr></thead>
+    <thead><tr><th>Estudiante</th><th>Estado</th><th class="text-center">Puntos</th><th>Nota ({{ rango.0 }} a {{ rango.1 }})</th><th></th></tr></thead>
     <tbody>
     {% for f in filas %}
     <tr>
       <td>{{ f.nombre }}</td>
       <td>{% if f.r and f.r.terminada %}<span class="au-chip ok">Respondió</span> <span class="small text-muted">{{ f.r.enviada|date:"d M h:i a" }}</span>{% elif f.r %}<span class="au-chip pend">Viendo el video</span>{% else %}<span class="au-chip gris">Pendiente</span>{% endif %}{% if f.r.pct_visto is not None %}<div class="small text-muted">Vio el {{ f.r.pct_visto }} % del video</div>{% endif %}</td>
-      {% if clase.calificables %}<td class="text-center">{% if f.r.terminada %}{{ f.r.aciertos }} / {{ clase.calificables }}{% endif %}</td>{% endif %}
+      <td class="text-center">{% if f.puntaje %}{{ f.puntaje.0 }} / {{ f.puntaje.1 }}{% if f.sin_calificar %}<div><span class="au-chip pend" title="Preguntas abiertas por calificar">{{ f.sin_calificar }} por calificar</span></div>{% endif %}{% endif %}</td>
       <td style="min-width:260px">{% if f.r.terminada %}
         <form method="post" action="{% url 'aula:invertida_accion' aula.pk clase.pk %}" class="d-flex gap-1 m-0">{% csrf_token %}
           <input type="hidden" name="accion" value="nota"><input type="hidden" name="clave" value="{{ f.clave }}">
@@ -161,13 +176,19 @@
       {% endif %}</td>
     </tr>
     {% if f.r %}
-    <tr class="collapse" id="inv-r-{{ f.clave }}"><td colspan="5" class="bg-light">
+    <tr class="collapse{% if f.sin_calificar %} show{% endif %}" id="inv-r-{{ f.clave }}"><td colspan="5" class="bg-light">
+      <form method="post" action="{% url 'aula:invertida_accion' aula.pk clase.pk %}" class="m-0">{% csrf_token %}
+      <input type="hidden" name="accion" value="puntos"><input type="hidden" name="clave" value="{{ f.clave }}">
       {% for p in f.detalle %}
-      <div class="small mb-2"><b>{{ p.n }}. <span class="mate">{{ p.texto }}</span></b><br>
-        {% if p.abierta %}<span style="white-space:pre-line">{{ p.valor }}</span>
-        {% else %}{% for o in p.opciones %}{% if o.elegida %}{{ o.texto }} {% if p.calificable %}{% if p.acierto %}<span class="au-chip ok">✔</span>{% else %}<span class="au-chip mal">✘</span>{% endif %}{% endif %}{% endif %}{% endfor %}{% endif %}
+      <div class="small mb-2"><b>{{ p.n }}. <span class="mate">{{ p.texto }}</span></b> <span class="text-muted">({{ p.puntos.normalize }} pt)</span><br>
+        {% if p.abierta %}<span style="white-space:pre-line">{{ p.valor|default:"(sin responder)" }}</span>
+          {% if f.r.terminada %}<div class="d-flex align-items-center gap-1 mt-1"><span>Puntos:</span>
+            <input name="puntos-{{ p.i }}" class="form-control form-control-sm" style="width:70px" inputmode="decimal" value="{{ p.dados|default_if_none:'' }}" placeholder="—" aria-label="Puntos de la pregunta {{ p.n }}"><span class="text-muted">de {{ p.puntos.normalize }}</span></div>{% endif %}
+        {% else %}{% for o in p.opciones %}{% if o.elegida %}{{ o.texto }} {% if p.calificable %}{% if p.acierto %}<span class="au-chip ok">✔ {{ p.puntos.normalize }} pt</span>{% else %}<span class="au-chip mal">✘ 0 pt</span>{% endif %}{% endif %}{% endif %}{% endfor %}{% endif %}
       </div>
       {% endfor %}
+      {% if f.r.terminada and clase.abiertas %}<button class="btn btn-sm au-oro">Guardar puntos{% if not f.r.nota_manual %} y recalcular la nota{% endif %}</button>{% endif %}
+      </form>
     </td></tr>
     {% endif %}
     {% empty %}
@@ -179,9 +200,47 @@
 </div>
 {% endif %}
 </div>
-{% if c.es_docente %}{% include 'aula/_invertida_js.html' %}{% endif %}
+{% if c.es_docente %}{% include 'aula/_invertida_js.html' %}<script src="{% static 'aula/invertida_editor.js' %}"></script>{% endif %}
 {% if pausas %}
 {{ inv_config|json_script:"inv-config" }}
 <script src="{% static 'aula/invertida_pausas.js' %}"></script>
+{% endif %}
+{% if not c.es_docente and not mia %}
+<script>
+// Mapa de preguntas en colores (como Edpuzzle): rojo = todavía no la ha visto, amarillo = ya la vio pero no ha
+// respondido, verde = respondida. Con el video que se pausa, «vista» es haber llegado a su minuto.
+(function () {
+  var mapa = document.getElementById('inv-mapa'); if (!mapa) return;
+  var linea = document.getElementById('inv-linea');
+  function respondida(i) {
+    var b = document.getElementById('inv-p-' + i); if (!b) return false;
+    if (b.querySelector('input[type=radio]:checked')) return true;
+    var t = b.querySelector('textarea'); return !!(t && t.value.trim());
+  }
+  function pintar() {
+    var est = window.InvPausas ? window.InvPausas.estado() : null;
+    mapa.querySelectorAll('.inv-m').forEach(function (m) {
+      var i = +m.dataset.i, seg = m.dataset.segundo === '' ? null : +m.dataset.segundo;
+      // Las preguntas sin minuto (o sin video que se pausa) están a la vista desde el comienzo.
+      var vista = seg === null || (est && (est.visto >= seg - 0.5 || est.abierta === i));
+      var color = respondida(i) ? 'inv-verde' : (vista ? 'inv-amarillo' : 'inv-rojo');
+      m.className = 'inv-m ' + color;
+      if (linea && est && est.duracion && seg !== null) {
+        var d = linea.querySelector('[data-i="' + i + '"]');
+        if (!d) { d = document.createElement('span'); d.dataset.i = i; linea.appendChild(d); }
+        d.className = 'inv-dot ' + color; d.style.left = Math.min(100, seg * 100 / est.duracion) + '%';
+      }
+    });
+    if (linea && est && est.duracion) linea.querySelector('.avance').style.width = Math.min(100, est.visto * 100 / est.duracion) + '%';
+  }
+  mapa.addEventListener('click', function (e) {
+    var m = e.target.closest('.inv-m'); if (!m) return;
+    if (m.dataset.segundo !== '' && window.InvPausas) window.InvPausas.ir(+m.dataset.segundo);
+    else { var b = document.getElementById('inv-p-' + m.dataset.i); if (b && !b.classList.contains('d-none')) b.scrollIntoView({behavior: 'smooth', block: 'center'}); }
+  });
+  document.addEventListener('input', pintar); document.addEventListener('change', pintar);
+  setInterval(pintar, 500); pintar();
+})();
+</script>
 {% endif %}
 {% endblock %}

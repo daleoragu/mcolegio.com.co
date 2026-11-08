@@ -49,4 +49,5 @@
 </div>
 </div>
 {% include 'aula/_invertida_js.html' %}
+{% if c.es_docente %}{% load static %}<script src="{% static 'aula/invertida_editor.js' %}"></script>{% endif %}
 {% endblock %}

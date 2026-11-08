@@ -558,10 +558,11 @@ class ArchivoFicha(models.Model):
 # Aula invertida: el estudiante ve el video en casa y responde las preguntas
 # ---------------------------------------------------------------------------
 class ClaseInvertida(models.Model):
-    """Un video (YouTube u otro enlace) con las preguntas que el docente pegó.
+    """Un video (YouTube u otro enlace) con preguntas en minutos del video (como Edpuzzle).
 
-    preguntas = [{'texto': '…', 'opciones': [{'texto': '…', 'correcta': bool}]}]
-    Con opciones y una correcta, se califica sola; sin opciones es abierta y la lee el docente.
+    preguntas = [{'texto', 'tipo': 'multiple'|'vf'|'abierta', 'opciones': [{'texto', 'correcta'}], 'segundo', 'puntos'}]
+    Las de selección con una correcta se califican solas; las abiertas las califica el docente con puntos.
+    La nota sale de los puntos: lo ganado sobre lo calificado, en la escala del aula.
     """
     aula = models.ForeignKey(Aula, on_delete=models.CASCADE, related_name='invertidas')
     titulo = models.CharField(max_length=60, help_text='Es también el nombre de la columna en la planilla.')
@@ -594,6 +595,12 @@ class ClaseInvertida(models.Model):
         return sum(1 for p in self.preguntas if any(o.get('correcta') for o in p.get('opciones', [])))
 
     @property
+    def total_puntos(self):
+        from .invertida import puntos_de
+        return sum(puntos_de(p) for p in self.preguntas if p.get('opciones') and any(o.get('correcta') for o in p['opciones'])
+                   or not p.get('opciones'))
+
+    @property
     def abiertas(self):
         return sum(1 for p in self.preguntas if not p.get('opciones'))
 
@@ -618,6 +625,8 @@ class RespuestaInvertida(models.Model):
     nota = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     nota_manual = models.BooleanField(default=False)
     comentario = models.TextField(blank=True, verbose_name='Comentario para el estudiante')
+    # Puntos que el docente le dio a cada pregunta abierta: {'3': 1.5}
+    puntos_docente = models.JSONField(default=dict, blank=True)
     enviada = models.DateTimeField(auto_now_add=True)
     # Mientras ve el video se guardan las respuestas que va dando (terminada=False).
     terminada = models.BooleanField(default=True)
