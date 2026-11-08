@@ -5,7 +5,8 @@ from collections import deque
 
 def resolver(N, piezas, salida_fila, limite=400000):
     # piezas: lista de (fila, col, alto, ancho, tipo) tipo: 'h','v','4' (se mueve en 4 dir), 'fija'
-    # la 0 es el carro rojo (horizontal), sale por la derecha en salida_fila
+    # la 0 es el carro rojo (horizontal), sale por la derecha en salida_fila;
+    # si el rojo es el jeep grande (2x2, se mueve a los 4 lados) tiene que llegar al borde justo en salida_fila
     fijas = [p for p in piezas if p[4] == 'fija']
     movil = [p for p in piezas if p[4] != 'fija']
     dims = [(p[2], p[3], p[4]) for p in movil]
@@ -27,7 +28,7 @@ def resolver(N, piezas, salida_fila, limite=400000):
     while cola:
         e = cola.popleft()
         d = visto[e]
-        if e[0][1] + dims[0][1] == N:  # el rojo llegó al borde derecho
+        if e[0][1] + dims[0][1] == N and (dims[0][2] != '4' or e[0][0] == salida_fila):  # el rojo llegó a la salida
             return d
         if len(visto) > limite:
             return None
@@ -69,7 +70,8 @@ def piezas_de(filas):
             continue
         f0, c0 = min(f for f, _ in cs), min(c for _, c in cs)
         alto, ancho = max(f for f, _ in cs) - f0 + 1, max(c for _, c in cs) - c0 + 1
-        tipo = '4' if letra == 'H' else 'h' if alto == 1 else 'v'
+        # P y Q: charcos de lodo fijos; las demás piezas 2x2 (hipopótamo, oso, jeep grande, lodo L y M) van a los 4 lados
+        tipo = 'fija' if letra in 'PQ' else '4' if alto > 1 and ancho > 1 else 'h' if alto == 1 else 'v'
         piezas.append((f0, c0, alto, ancho, tipo))
         if letra == 'x':
             piezas.insert(0, piezas.pop())
@@ -113,6 +115,43 @@ def aleatorio(N, fila_rojo, safari):
             poner(f, c, a, w, t, letras[k]); k += 1
     return piezas, [''.join(r) for r in g]
 
+SALIDA_JEEP = 3  # el jeep grande sale por las filas 4 y 5 (índices 3 y 4)
+
+
+def aleatorio_jeep(lodo_fijo):
+    """«Escape de la selva» con el jeep grande: jeep 2x2 (x), hasta 2 charcos de lodo 2x2 (L, M móviles o P, Q fijos),
+    hasta 11 animales de 1x2 (a…k) y hasta 5 de 1x3 (n…r) en el tablero de 7x7."""
+    N = 7
+    g = [['.'] * N for _ in range(N)]
+    piezas = []
+    def libre(f, c, a, w):
+        return f + a <= N and c + w <= N and all(g[f + i][c + j] == '.' for i in range(a) for j in range(w))
+    def poner(f, c, a, w, t, letra):
+        for i in range(a):
+            for j in range(w):
+                g[f + i][c + j] = letra
+        piezas.append((f, c, a, w, t))
+    while True:
+        f, c = random.randint(0, N - 2), random.randint(0, 3)
+        if not (f == SALIDA_JEEP and c >= 3):
+            break
+    poner(f, c, 2, 2, '4', 'x')
+    for letra in ('PQ' if lodo_fijo else 'LM')[:random.choice((1, 2, 2))]:
+        for _ in range(60):
+            f, c = random.randint(0, N - 2), random.randint(0, N - 2)
+            if libre(f, c, 2, 2):
+                poner(f, c, 2, 2, 'fija' if lodo_fijo else '4', letra); break
+    for letras, largo, n in (('nopqr', 3, random.randint(1, 4)), ('abcdefghijk', 2, random.randint(4, 10))):
+        k = 0
+        for _ in range(400):
+            if k >= n: break
+            a, w, t = (1, largo, 'h') if random.random() < .5 else (largo, 1, 'v')
+            f, c = random.randint(0, N - 1), random.randint(0, N - 1)
+            if libre(f, c, a, w):
+                poner(f, c, a, w, t, letras[k]); k += 1
+    return piezas, [''.join(r) for r in g]
+
+
 def generar(N, fila, safari, segundos, cubetas):
     mejores = {b: [] for b in cubetas}
     fin = time.time() + segundos
@@ -135,6 +174,16 @@ if __name__ == '__main__':
     if modo == 'trancon':
         cub = [(3, 5), (6, 9), (10, 14), (15, 20), (21, 60)]
         m = generar(6, 2, False, int(sys.argv[2]), cub)
+    elif modo in ('selva_fijo', 'selva_movil'):
+        # Jeep grande (2x2) con lodo fijo o móvil: python trancon.py selva_fijo SEGUNDOS [SEMILLA] > selva_fijo.json
+        fin, hallados = time.time() + int(sys.argv[2]), {}
+        while time.time() < fin:
+            piezas, g = aleatorio_jeep(modo == 'selva_fijo')
+            d = resolver(7, piezas, SALIDA_JEEP, limite=250000)
+            if d and d >= 3:
+                hallados['/'.join(g)] = d
+        json.dump(sorted([d, k.split('/')] for k, d in hallados.items()), sys.stdout)
+        sys.exit(0)
     elif modo == 'selva':
         # «Escape de la selva»: las mismas reglas del safari (7x7), retos nuevos y distintos de los del safari.
         cub = [(3, 6), (7, 11), (12, 17), (18, 25), (26, 80)]

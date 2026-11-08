@@ -39,6 +39,9 @@
     <span class="lg-datos" id="lg-nivel-titulo"></span>
     <span class="ms-auto lg-datos">Movimientos: <b id="lg-movs">0</b> · Tiempo: <b id="lg-tiempo">0:00</b></span>
   </div>
+  {% if modos %}<div class="lg-barra" aria-label="Modo de juego"><span class="small fw-bold me-1">Modo:</span>
+    {% for m, etiqueta in modos %}<a href="{% url 'aula:logica_juego' aula.pk m %}" class="btn btn-sm {% if m == juego %}btn-success{% else %}btn-outline-success{% endif %}">{{ etiqueta }}</a>{% endfor %}
+  </div>{% endif %}
   <div class="lg-barra">
     <div id="lg-niveles" aria-label="Niveles"></div>
   </div>

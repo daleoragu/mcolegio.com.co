@@ -18,6 +18,8 @@ JUEGOS = [
     ('trancon', 'Trancón', 'Mueva los carros para sacar el rojo por la salida.', 'trancon'),
     ('safari', 'Safari', 'Como el trancón, más grande: animales, rocas y un hipopótamo que va a los 4 lados.', 'trancon'),
     ('selva', 'Escape de la selva', 'Saque el jeep de los guardaparques entre jaguares, anacondas, caimanes y más fauna de Colombia.', 'trancon'),
+    ('selva_fijo', 'Escape de la selva · lodo fijo', 'Modo jeep grande (2×2): 16 especies de Latinoamérica y dos charcos de lodo que no se mueven.', 'trancon'),
+    ('selva_movil', 'Escape de la selva · lodo móvil', 'Modo jeep grande (2×2): 16 especies de Latinoamérica y dos charcos de lodo que también se mueven.', 'trancon'),
     ('cerditos', 'Los tres cerditos', 'Retos de día (al jardín) y de noche (a la casita), con el lobo afuera.', 'cerditos'),
     ('ranas', 'Ranas saltarinas', 'Salte ranas hasta que solo quede la roja.', 'ranas'),
     ('bango', 'Tablero 36', 'Cubra el tablero con 7 piezas dejando destapado solo el número del reto.', 'bango'),
@@ -39,6 +41,9 @@ JUEGOS = [
     ('fijas', 'Picas y fijas con figuras', 'Adivine el orden secreto: solo sabrá cuántas están exactas y cuántas en otro sitio. Solo o entre dos.', 'fijas'),
 ]
 DATOS = {j[0]: j for j in JUEGOS}
+# Juegos con varios modos: en el menú sale una sola tarjeta y en el juego se cambia de modo (cada modo guarda su avance)
+MODOS = {'selva': [('selva', 'Clásico'), ('selva_fijo', 'Jeep grande · lodo fijo'), ('selva_movil', 'Jeep grande · lodo móvil')]}
+MODO_DE = {m: grupo for grupo, lista in MODOS.items() for m, _ in lista}
 NIVELES = os.path.join(os.path.dirname(__file__), 'static', 'aula', 'logica', 'niveles')
 
 
@@ -51,8 +56,8 @@ def niveles(juego):
 def logica_menu(request, pk):
     c = _ctx(request, pk)
     from . import instrucciones
-    juegos = [(i, n, d, a, instrucciones.logica(i, a)) for i, n, d, a in JUEGOS]
-    return _render(request, c, 'aula/logica_menu.html', {'juegos': juegos}, 'gamificacion')
+    juegos = [(i, n, d, a, instrucciones.logica(i, a)) for i, n, d, a in JUEGOS if MODO_DE.get(i, i) == i]
+    return _render(request, c, 'aula/logica_menu.html', {'juegos': juegos, 'modos': MODOS}, 'gamificacion')
 
 
 @vista_aula
@@ -64,7 +69,8 @@ def logica_juego(request, pk, juego):
     p = _progreso(c, juego)
     return _render(request, c, 'aula/logica_juego.html', {
         'juego': juego, 'nombre': nombre, 'desc': desc, 'archivo': archivo, 'niveles': niveles(juego),
-        'clave': f'mc-logica:{request.user.pk}:{juego}', 'servidor': p.niveles if p else {}, 'guarda': p is not None or _persona(c) is not None},
+        'clave': f'mc-logica:{request.user.pk}:{juego}', 'servidor': p.niveles if p else {}, 'guarda': p is not None or _persona(c) is not None,
+        'modos': MODOS.get(MODO_DE.get(juego), [])},
         'gamificacion')
 
 
