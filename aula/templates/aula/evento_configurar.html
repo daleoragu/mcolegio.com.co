@@ -40,6 +40,19 @@
   </div>
   {% endif %}
 
+  {% if ev.alcance == 'codigo' %}
+  <form method="post" class="au-tarjeta d-flex flex-wrap align-items-center gap-3" style="border-left:6px solid {% if ins.abierta %}#2f9e44{% else %}#868e96{% endif %}">{% csrf_token %}
+    <input type="hidden" name="accion" value="inscripciones_abrir"><input type="hidden" name="abrir" value="{% if ins.abierta %}0{% else %}1{% endif %}">
+    <div class="flex-grow-1">
+      {% if ins.abierta %}<b class="text-success fs-5"><i class="fas fa-clipboard-check me-1"></i>INSCRIPCIONES ABIERTAS</b>
+        <div class="small">Con el código <b class="font-monospace">{{ ev.codigo }}</b> o el enlace, cada participante se inscribe con su documento y recibe su código de seguridad.{% if vent.ins_hasta %} Se cierran solas el {{ vent.ins_hasta }}.{% endif %}</div>
+      {% else %}<b class="text-secondary fs-5"><i class="fas fa-clipboard me-1"></i>INSCRIPCIONES CERRADAS</b>
+        <div class="small">Nadie se puede inscribir todavía. Habilítelas cuando quiera recibir participantes (el evento puede seguir apagado). Los que ya están inscritos siempre pueden entrar con su documento y su código.</div>{% endif %}
+    </div>
+    <button class="btn {% if ins.abierta %}btn-outline-secondary{% else %}btn-success{% endif %}">{% if ins.abierta %}Cerrar inscripciones{% else %}<i class="fas fa-clipboard-check me-1"></i>Habilitar inscripciones{% endif %}</button>
+  </form>
+  {% endif %}
+
   <div class="au-tarjeta">
     <h6><i class="fas fa-door-open me-1"></i>¿Cómo entran los participantes?</h6>
     {% if ev.alcance == 'codigo' %}
@@ -56,10 +69,8 @@
           <a href="{% url 'aula:evento_planilla' ev.pk %}?vacia=1" class="btn btn-sm btn-outline-success ms-auto"><i class="fas fa-file-excel me-1"></i>Planilla de inscripción</a>
           <a href="{% url 'aula:evento_inscripciones' ev.pk %}" class="btn btn-sm btn-outline-primary">Ver inscripciones{% if n_pendientes %} <span class="badge bg-danger">{{ n_pendientes }} pendiente{{ n_pendientes|pluralize }}</span>{% endif %}</a>
         </div>
-        <div class="form-check small"><input class="form-check-input" type="checkbox" name="abierta" id="ins-abierta" {% if ins.abierta %}checked{% endif %}>
-          <label class="form-check-label" for="ins-abierta">Recibir inscripciones</label></div>
         <div class="form-check small"><input class="form-check-input" type="checkbox" name="aprobacion" id="ins-aprob" {% if ins.aprobacion %}checked{% endif %}>
-          <label class="form-check-label" for="ins-aprob"><b>Las inscripciones las aprueba el organizador</b> (piden documento y contacto; se pueden inscribir antes de activar el evento y solo juegan las aprobadas)</label></div>
+          <label class="form-check-label" for="ins-aprob"><b>Las inscripciones las aprueba el organizador</b> (además del documento piden un contacto y la autorización del acudiente; solo juegan las aprobadas)</label></div>
         <div class="d-flex flex-wrap gap-3 align-items-center small mt-1">
           <label>Cupo por institución <input type="number" name="cupo_colegio" min="0" max="9999" value="{{ ins.cupo_colegio }}" class="form-control form-control-sm d-inline-block" style="width:80px"></label>
           <label>Cupo por institución en cada nivel <input type="number" name="cupo_nivel" min="0" max="9999" value="{{ ins.cupo_nivel }}" class="form-control form-control-sm d-inline-block" style="width:80px"></label>

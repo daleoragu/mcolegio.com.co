@@ -214,6 +214,7 @@ NUEVO     chat/test_colegas.py
 CAMBIADO  chat/urls.py
 NUEVO     chat/views_colegas.py
 CAMBIADO  config/urls.py
+CAMBIADO  elecciones/templates/elecciones/index.html
 CAMBIADO  materiales/exportar.py
 NUEVO     materiales/migrations/0005_colaboradores_y_modelos.py
 CAMBIADO  materiales/models.py
@@ -259,11 +260,14 @@ CAMBIADO  notas/reporte_sabana.py
 CAMBIADO  notas/static/notas/js/ingresar_notas.js
 NUEVO     notas/static/notas/js/lector_qr.js
 NUEVO     notas/static/notas/vendor/jsQR.js
+NUEVO     notas/static/notas/ver_clave.js
 CAMBIADO  notas/templates/notas/admin_crud/formulario_estudiante.html
 CAMBIADO  notas/templates/notas/admin_portal/personalizacion_portal.html
 CAMBIADO  notas/templates/notas/admin_tools/admin_dashboard.html
 CAMBIADO  notas/templates/notas/admin_tools/impresion_masiva_carnets.html
 NUEVO     notas/templates/notas/admin_tools/pines_carnet.html
+CAMBIADO  notas/templates/notas/base.html
+CAMBIADO  notas/templates/notas/base_portal.html
 CAMBIADO  notas/templates/notas/boletin/boletin_pdf.html
 CAMBIADO  notas/templates/notas/boletin/boletin_prescolar_pdf.html
 CAMBIADO  notas/templates/notas/docente/_panel_docente_content.html
@@ -287,6 +291,7 @@ NUEVO     notas/templates/notas/fichas/solicitud.html
 NUEVO     notas/templates/notas/fichas/solicitudes.html
 CAMBIADO  notas/templates/notas/includes/_head.html
 CAMBIADO  notas/templates/notas/includes/_topbar.html
+CAMBIADO  notas/templates/notas/login.html
 CAMBIADO  notas/templates/notas/observador/detalle_observador.html
 CAMBIADO  notas/templates/notas/partials/_tabla_notas.html
 NUEVO     notas/templates/notas/permisos/_aviso_estudiante.html
@@ -317,6 +322,7 @@ CAMBIADO  notas/views/observador_views.py
 NUEVO     notas/views/permisos_views.py
 CAMBIADO  notas/views/reporte_parcial_views.py
 CAMBIADO  piar/logica.py
+CAMBIADO  prematricula/templates/prematricula/_base_publica.html
 CAMBIADO  salon_digital/forms.py
 CAMBIADO  salon_digital/identidad.py
 NUEVO     salon_digital/migrations/0004_grupo_pedir_pin.py
@@ -337,6 +343,7 @@ CAMBIADO  salon_digital/urls.py
 CAMBIADO  salon_digital/views.py
 NUEVO     salon_digital/views_app.py
 CAMBIADO  salon_digital/views_grupos.py
+CAMBIADO  templates/base.html
 NUEVO     votaciones/cabinas.py
 NUEVO     votaciones/migrations/0002_cabinas.py
 CAMBIADO  votaciones/models.py

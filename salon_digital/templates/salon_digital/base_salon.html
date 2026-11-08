@@ -115,5 +115,6 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
 })();
 </script>{% endif %}
 {% if request.user.is_authenticated and request.user.cuenta_salon %}<script src="{% static 'chat/flotante.js' %}" defer></script>{% endif %}
+<script src="{% static 'notas/ver_clave.js' %}" defer></script>
 </body>
 </html>

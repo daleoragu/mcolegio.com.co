@@ -94,7 +94,7 @@ CONFIG = {'juegos': [j[0] for j in JUEGOS] + ['a_' + k for k in ('salto', 'puent
           'participantes': {'modo': 'grados', 'cursos': [], 'estudiantes': []},   # modo: grados | cursos | estudiantes
           # Eventos abiertos: inscripción de los de fuera. aprobacion: el organizador aprueba cada una;
           # cupo_colegio: máximo por institución; cupo_nivel: máximo por institución en cada nivel (grupo); 0 = sin límite
-          'inscripcion': {'abierta': True, 'aprobacion': False, 'cupo_colegio': 0, 'cupo_nivel': 0},
+          'inscripcion': {'abierta': False, 'aprobacion': False, 'cupo_colegio': 0, 'cupo_nivel': 0},
           # Supervisión de la prueba (las grabaciones se borran solas a los `dias`):
           #   camara: cámara y micrófono encendidos y grabados · juego: se graba lo que hace en la prueba (celular y
           #   computador) · pantalla: en computador se graba la pantalla completa · salidas: registro de cada vez que
@@ -835,7 +835,7 @@ def configurar(request, eid):
                     return max(0, min(9999, int(request.POST.get(k) or 0)))
                 except ValueError:
                     return 0
-            c['inscripcion'] = {'abierta': bool(request.POST.get('abierta')), 'aprobacion': bool(request.POST.get('aprobacion')),
+            c['inscripcion'] = {'abierta': c['inscripcion']['abierta'], 'aprobacion': bool(request.POST.get('aprobacion')),
                                 'cupo_colegio': cupo('cupo_colegio'), 'cupo_nivel': cupo('cupo_nivel')}
             ev.config = dict(ev.config or {}, inscripcion=c['inscripcion'])
             ev.save(update_fields=['config'])
@@ -895,6 +895,13 @@ def configurar(request, eid):
             ev.save(update_fields=['config'])
             messages.success(request, 'Podio de colegios guardado.')
             return redirect('aula:evento_resultados', eid=ev.pk)
+        elif accion == 'inscripciones_abrir':
+            c = config_de(ev)
+            abrir = request.POST.get('abrir') == '1'
+            ev.config = dict(ev.config or {}, inscripcion=dict(c['inscripcion'], abierta=abrir))
+            ev.save(update_fields=['config'])
+            messages.success(request, 'Inscripciones HABILITADAS: los participantes ya se pueden inscribir con el código o el enlace.'
+                             if abrir else 'Inscripciones cerradas: nadie más se puede inscribir. Los inscritos siguen entrando con su documento y su código.')
         elif accion == 'programar':
             cuando = (request.POST.get('activar_en') or '').strip()[:16]
             f = _fecha(cuando)
@@ -1047,6 +1054,8 @@ def jugar(request, eid):
     ev = _evento(request, eid)
     organiza = es_organizador(request, ev)
     if not ev.activo and not organiza:
+        if ev.alcance == 'codigo':          # el inscrito ve su inscripción y cuándo empieza
+            return redirect('aula:evento_inscribirse', codigo=ev.codigo)
         raise Http404
     c = config_de(ev)
     p = participante(request, ev)
@@ -1142,11 +1151,24 @@ def sin_cupo(ev, c, institucion, ciclo, estados=('aprobada', 'pendiente')):
     return ''
 
 
-def estado_inscripcion(request, ev, p):
+def documento_limpio(texto):
+    """«1.023.456.789 » → «1023456789»: así se compara siempre igual."""
+    import re
+    return re.sub(r'[^0-9A-Za-z]', '', texto or '').upper()[:20]
+
+
+def inscrito_con(ev, documento, excluir_rechazadas=True):
+    qs = ev.participaciones.filter(estudiante__isnull=True)
+    if excluir_rechazadas:
+        qs = qs.exclude(estado='rechazada')
+    return next((x for x in qs if documento and documento_limpio(x.datos.get('documento')) == documento), None)
+
+
+def estado_inscripcion(request, ev, p, recien=False):
     c = config_de(ev)
     g = grupo_por_id(c, p.ciclo)
     return render(request, 'aula/evento_inscripcion_estado.html', {
-        'ev': ev, 'p': p, 'grupo': g['nombre'] if g else p.ciclo, 'grado': etiqueta_grado(p.grado) if p.grado is not None else '',
+        'ev': ev, 'p': p, 'recien': recien, 'vent': ventana(c), 'grupo': g['nombre'] if g else p.ciclo, 'grado': etiqueta_grado(p.grado) if p.grado is not None else '',
         'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
 
 
@@ -1159,11 +1181,14 @@ def inscribirse(request, codigo):
     ins = c['inscripcion']
     p = participante(request, ev)
     if p:
-        return redirect('aula:evento', eid=ev.pk) if p.estado == 'aprobada' else estado_inscripcion(request, ev, p)
+        recien = request.session.pop(f'evento_{ev.pk}_recien', False)
+        if p.estado == 'aprobada' and ev.activo and not recien:
+            return redirect('aula:evento', eid=ev.pk)
+        return estado_inscripcion(request, ev, p, recien)
     grados = sorted({x for g in grupos(c) for x in g['grados']})
-    # Con aprobación se pueden inscribir antes de que empiece; sin ella, solo con el evento activo
+    # Se inscriben cuando el organizador habilita las inscripciones (aunque el evento todavía esté apagado)
     vent = ventana(c)
-    recibe = ins['abierta'] and vent['inscripcion'] and (ev.activo or ins['aprobacion'])
+    recibe = ins['abierta'] and vent['inscripcion']
     error = ''
     from django.core.cache import cache
     from salon_digital.utils import ip_cliente
@@ -1176,17 +1201,24 @@ def inscribirse(request, codigo):
                 'ev': ev, 'grados': [(x, etiqueta_grado(x)) for x in grados], 'error': 'Demasiados intentos. Espere 15 minutos.',
                 'sugerido': {}, 'ins': ins, 'recibe': recibe, 'niveles': grupos(c), 'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
         cache.set(llave, (cache.get(llave) or 0) + 1, 15 * 60)
-        doc, clave = ''.join((request.POST.get('documento') or '').split()), (request.POST.get('clave') or '').strip().upper()
-        q = next((x for x in ev.participaciones.filter(estudiante__isnull=True)
-                  if doc and x.datos.get('documento') == doc and x.datos.get('clave') == clave), None)
-        if q:
+        import secrets
+        doc, clave = documento_limpio(request.POST.get('documento')), ''.join((request.POST.get('clave') or '').split()).upper()
+        q = inscrito_con(ev, doc, excluir_rechazadas=False)
+        if q and clave and secrets.compare_digest(str(q.datos.get('clave', '')), clave):
+            # Un solo equipo a la vez: al entrar aquí, la sesión que tuviera abierta en otro equipo se cierra.
+            # Su avance (puntos, bloque, tiempo) está en el servidor y sigue igual.
+            q.token = secrets.token_urlsafe(24)
+            q.save(update_fields=['token'])
             request.session[clave_sesion(ev)] = q.token
+            cache.delete(llave)
+            if q.estado == 'aprobada' and ev.activo:
+                messages.success(request, f'Bienvenido(a) de nuevo, {q.nombre}. Su avance sigue guardado.')
             return redirect('aula:evento_inscribirse', codigo=ev.codigo)
-        error = 'No encontramos una inscripción con ese documento y esa clave.'
+        error = 'No encontramos una inscripción con ese documento y ese código de seguridad.'
     elif request.method == 'POST':
         limpio = lambda k, n: ' '.join((request.POST.get(k) or '').split())[:n]
         nombre, institucion, ciudad = limpio('nombre', 120), limpio('institucion', 120), limpio('ciudad', 80)
-        documento, contacto, acompanante = ''.join((request.POST.get('documento') or '').split())[:20], limpio('contacto', 120), limpio('acompanante', 120)
+        documento, contacto, acompanante = documento_limpio(request.POST.get('documento')), limpio('contacto', 120), limpio('acompanante', 120)
         try:
             grado = int(request.POST.get('grado'))
         except (TypeError, ValueError):
@@ -1206,10 +1238,12 @@ def inscribirse(request, codigo):
             error = 'Las inscripciones de este evento no están abiertas.'
         elif len(nombre) < 5 or not institucion or g is None:
             error = 'Escriba su nombre completo, su institución y escoja su grado.'
-        elif ins['aprobacion'] and (len(documento) < 5 or len(contacto) < 7):
-            error = 'Escriba su número de documento y un correo o celular de contacto.'
-        elif documento and any(x.datos.get('documento') == documento for x in ev.participaciones.filter(estudiante__isnull=True).exclude(estado='rechazada')):
-            error = 'Ya hay una inscripción con ese documento. Si ya se inscribió, use «Ya me inscribí».'
+        elif len(documento) < 5:
+            error = 'Escriba su número de documento (tarjeta de identidad o registro civil).'
+        elif ins['aprobacion'] and len(contacto) < 7:
+            error = 'Escriba un correo o celular de contacto.'
+        elif inscrito_con(ev, documento):
+            error = 'Ese documento ya está inscrito: cada documento se inscribe una sola vez. Entre con su documento y su código de seguridad en «Ya me inscribí».'
         else:
             error = sin_cupo(ev, c, institucion, g['id'])
         if not error:
@@ -1225,9 +1259,8 @@ def inscribirse(request, codigo):
                                         'grabacion': graba(c['vigilancia']),
                                         'supervision': texto_supervision(c['vigilancia'])}})
             request.session[clave_sesion(ev)] = p.token
-            if p.estado == 'pendiente':
-                return redirect('aula:evento_inscribirse', codigo=ev.codigo)
-            return redirect('aula:evento', eid=ev.pk)
+            request.session[f'evento_{ev.pk}_recien'] = True      # para mostrarle su código de seguridad
+            return redirect('aula:evento_inscribirse', codigo=ev.codigo)
     sugerido = {'nombre': '', 'institucion': '', 'grado': None, 'ciudad': '', 'documento': '', 'contacto': '', 'acompanante': '', 'acudiente': ''}
     est = _estudiante(request)
     if est is not None:
@@ -1255,7 +1288,7 @@ def avisar_inscripcion(request, ev, p):
         asunto = f'{ev.titulo}: inscripción aprobada'
         texto = (f'Hola,\n\nLa inscripción de {p.nombre} ({p.institucion}) en «{ev.titulo}» fue APROBADA.\n\n'
                  f'Para participar entre a este enlace{" el día del evento" if not ev.activo else ""}: {enlace}\n'
-                 f'Si entra desde otro equipo, use «Ya me inscribí» con el documento y la clave {p.datos.get("clave", "")}.\n\n'
+                 f'Para entrar use «Ya me inscribí» con el documento y el código de seguridad {p.datos.get("clave", "")}.\n\n'
                  '¡Muchos éxitos!')
     else:
         motivo = p.datos.get('motivo') or ''

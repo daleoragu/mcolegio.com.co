@@ -3,8 +3,13 @@
 {% block content %}
 {% include 'aula/_estilos.html' %}
 <div class="au" style="max-width:560px;margin:0 auto">
-  <div class="au-tarjeta text-center" style="border-top:6px solid {% if p.estado == 'rechazada' %}#e03131{% else %}#fab005{% endif %}">
-    {% if p.estado == 'pendiente' %}
+  <div class="au-tarjeta text-center" style="border-top:6px solid {% if p.estado == 'rechazada' %}#e03131{% elif p.estado == 'aprobada' %}#2f9e44{% else %}#fab005{% endif %}">
+    {% if p.estado == 'aprobada' %}
+      <div class="fs-1">✅</div>
+      <h5 class="mb-1">{% if recien %}¡Quedó inscrito(a)!{% else %}Su inscripción está activa{% endif %}</h5>
+      {% if ev.activo %}<p class="mb-2">Ya puede presentar la prueba.</p>
+      {% else %}<p class="mb-2">El evento todavía no empieza{% if vent.desde %}: la prueba abre el <b>{{ vent.desde }}</b>{% endif %}. Ese día entre a este mismo enlace; si cambia de equipo, entre con su documento y su código.</p>{% endif %}
+    {% elif p.estado == 'pendiente' %}
       <div class="fs-1">⏳</div>
       <h5 class="mb-1">Inscripción recibida</h5>
       <p class="mb-2">El organizador la está revisando. Cuando la apruebe, entre otra vez a este mismo enlace{% if not ev.activo %} el día del evento{% endif %} para jugar.</p>
@@ -15,7 +20,7 @@
       <p class="small text-muted">Si cree que es un error, comuníquese con el organizador del evento.</p>
     {% endif %}
     <div class="border rounded-3 p-2 my-2 d-inline-block">
-      <div class="small text-muted">Su clave de inscripción (guárdela)</div>
+      <div class="small text-muted">Su código de seguridad · <b>anótelo o tómele foto</b></div>
       <div class="fs-3 fw-bold font-monospace" style="letter-spacing:.2em">{{ p.datos.clave }}</div>
     </div>
     <table class="table table-sm small text-start mb-0 mt-2">
@@ -25,6 +30,7 @@
       <tr><th>Grado</th><td>{{ grado }} · nivel {{ grupo }}</td></tr>
     </table>
   </div>
-  <p class="small text-muted text-center">Con su documento y la clave puede ver su inscripción desde otro equipo, en «Ya me inscribí».</p>
+  {% if p.estado == 'aprobada' and ev.activo %}<a class="btn au-oro btn-lg w-100 mb-2" href="{% url 'aula:evento' ev.pk %}"><i class="fas fa-play me-1"></i>Entrar a la prueba</a>{% endif %}
+  <p class="small text-muted text-center">Para volver a entrar (desde este u otro equipo) use «Ya me inscribí» con su <b>documento</b> y este <b>código</b>. Su avance queda guardado. La sesión se mantiene en un solo equipo a la vez: si entra desde otro, el anterior se cierra.</p>
 </div>
 {% endblock %}
