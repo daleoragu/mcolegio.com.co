@@ -32,7 +32,7 @@ MURO = f'{BASE}/muro'
 REPORTES_PARA_OCULTAR = 3
 POR_PAGINA = 15
 PUBLICACIONES_DIA = 20
-ICONOS = {'recurso': ('fa-file-lines', '#1971c2'), 'consulta': ('fa-circle-question', '#e8590c'),
+ICONOS = {'recurso': ('fa-file-lines', '#1971c2'), 'actividad': ('fa-gamepad', '#0c8599'), 'consulta': ('fa-circle-question', '#e8590c'),
           'experiencia': ('fa-chalkboard-user', '#2b8a3e'), 'convocatoria': ('fa-bullhorn', '#c2255c'),
           'lectura': ('fa-book-open', '#6741d9')}
 MODELOS = ['ABP (proyectos)', 'Aprendizaje basado en retos', 'Estudio de caso', 'Aula invertida', 'Aprendizaje cooperativo',
@@ -106,7 +106,7 @@ def _tarjeta_pub(p, user, mias):
 
 
 def _con_conteos(qs):
-    return qs.select_related('autor', 'documento').annotate(
+    return qs.select_related('autor', 'documento', 'pagina__propietario').annotate(
         n_util=Count('reacciones', filter=Q(reacciones__tipo='util'), distinct=True),
         n_usare=Count('reacciones', filter=Q(reacciones__tipo='usare'), distinct=True),
         n_com=Count('comentarios', distinct=True))
@@ -222,6 +222,11 @@ def insignias(u):
 # ---------------------------------------------------------------------------
 # Muro
 # ---------------------------------------------------------------------------
+def _mis_paginas(user):
+    from salon_digital.models import PaginaPublicada
+    return PaginaPublicada.objects.filter(propietario__usuario=user, visible=True).order_by('-actualizada_en')[:100]
+
+
 def _mis_documentos(user):
     from materiales.models import Documento
     return Documento.objects.filter(propietario=user, colegio__isnull=True).order_by('-actualizado')[:100]
@@ -251,6 +256,14 @@ def _publicar(request):
     if tipo == 'recurso' and request.POST.get('documento'):
         documento = _mis_documentos(user).model.objects.filter(pk=request.POST.get('documento'), propietario=user,
                                                                colegio__isnull=True).first()
+    pagina = None
+    if tipo == 'actividad':
+        pagina = _mis_paginas(user).model.objects.filter(pk=request.POST.get('pagina') or 0, propietario__usuario=user).first()
+        if pagina is None:
+            messages.error(request, 'Escoja una de sus actividades interactivas (las que publicó en «Actividades y pruebas»).')
+            return None
+        titulo = titulo or pagina.titulo[:150]
+        texto = texto or pagina.descripcion[:5000]
     if len(titulo) < 4:
         messages.error(request, 'Escriba un título (mínimo 4 letras).')
         return None
@@ -280,7 +293,7 @@ def _publicar(request):
             fecha = date.fromisoformat(request.POST.get('fecha_limite'))
         except ValueError:
             fecha = None
-    p = Publicacion(autor=user, tipo=tipo, titulo=titulo, texto=texto, enlace=enlace, documento=documento,
+    p = Publicacion(autor=user, tipo=tipo, titulo=titulo, texto=texto, enlace=enlace, documento=documento, pagina=pagina,
                     area=limpio('area', 80) or (documento.area if documento else '') or perfil.area,
                     grados=limpio('grados', 40) or (documento.grado if documento else ''),
                     modelo=limpio('modelo', 40), fecha_limite=fecha,
@@ -349,8 +362,8 @@ def muro(request):
         'sugerencias': sugerencias(user, 5), 'destacados': destacados, 'convocatorias': convocatorias,
         'perfil': perfil, 'yo': {'nombre': nombre_de(user), 'foto': foto_de(user), 'desc': descripcion(user)},
         'n_colegas': mis_colegas(user).count(), 'n_solicitudes': Colega.objects.filter(para=user, estado='pendiente').count(),
-        'documentos': _mis_documentos(user), 'modelos': MODELOS, 'normas': NORMAS,
-        'escribir': request.GET.get('escribir') == '1', 'grados_lista': range(0, 12), 'hoy': hoy,
+        'documentos': _mis_documentos(user), 'paginas': _mis_paginas(user), 'modelos': MODELOS, 'normas': NORMAS,
+        'escribir': request.GET.get('escribir') == '1', 'compartir': request.GET.get('compartir', ''), 'grados_lista': range(0, 12), 'hoy': hoy,
         'pendientes_mod': ReporteMuro.objects.filter(revisado=False, publicacion__oculta=True).values('publicacion').distinct().count() if user.is_staff else 0,
     })
 
@@ -475,6 +488,42 @@ def copiar(request, pk):
         avisar(p.autor, f'{nombre_de(request.user)} copió su recurso «{p.titulo[:60]}» a sus materiales.', f'{MURO}/{p.pk}/')
     messages.success(request, 'Copiado a Mis materiales. Ajústelo a su grupo.')
     return redirect('materiales:editor', pk=copia.pk)
+
+
+@require_POST
+@vista
+def copiar_actividad(request, pk):
+    """Copia la actividad HTML (de un solo archivo) a «Actividades y pruebas» del docente, para usarla con sus grupos."""
+    from django.core.files.storage import default_storage
+    from salon_digital.models import PaginaPublicada
+    p = _pub(request, pk)
+    orig = p.pagina
+    cuenta = getattr(request.user, 'cuenta_salon', None)
+    if orig is None or cuenta is None:
+        messages.error(request, 'Esta actividad ya no está disponible para copiar.')
+        return redirect(f'{MURO}/{p.pk}/')
+    if orig.tipo != 'html':
+        messages.info(request, 'Esta actividad es un sitio completo: se puede jugar desde el muro, pero no copiar. '
+                               'Pídale el archivo a su autor por mensaje.')
+        return redirect(f'{MURO}/{p.pk}/')
+    if not cuenta.puede_publicar_otra():
+        from salon_digital.limites import a_planes
+        return a_planes(request, 'paginas', 'estandar' if cuenta.nivel == 'gratis' else 'premium')
+    try:
+        with default_storage.open(orig.ruta_contenido, 'rb') as fh:
+            datos = fh.read()
+    except Exception:
+        messages.error(request, 'No se pudo leer el archivo de la actividad.')
+        return redirect(f'{MURO}/{p.pk}/')
+    copia = PaginaPublicada(propietario=cuenta, titulo=f'{orig.titulo[:170]} (de {nombre_de(p.autor)[:25]})',
+                            descripcion=orig.descripcion, area=orig.area, grado=orig.grado, revisada=orig.revisada,
+                            alertas=orig.alertas, visible=False)
+    copia.archivo.save('actividad.html', ContentFile(datos), save=False)
+    copia.save()
+    Publicacion.objects.filter(pk=p.pk).update(copias=p.copias + 1)
+    avisar(p.autor, f'{nombre_de(request.user)} copió su actividad «{p.titulo[:60]}» para usarla con sus estudiantes.', f'{MURO}/{p.pk}/')
+    messages.success(request, 'Copiada a «Actividades y pruebas», sin publicar todavía: revísela, ajuste quién entra y publíquela.')
+    return redirect('salon_digital:editar_pagina', slug=copia.slug)
 
 
 @vista

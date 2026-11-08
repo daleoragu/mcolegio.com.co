@@ -4,6 +4,7 @@ import shutil
 import tempfile
 
 from django.contrib.auth.models import User
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from PIL import Image
@@ -171,3 +172,44 @@ class Muro(TestCase):
         r = self.cb.get('/chat/colegas/muro/')
         self.assertNotContains(r, 'Congreso viejo'); self.assertContains(r, 'Olimpiada 2027'); self.assertContains(r, 'Convocatorias abiertas')
         self.assertContains(self.cl.get('/chat/colegas/muro/?ver=mias'), 'Congreso viejo')
+
+
+@override_settings(MEDIA_ROOT=MEDIA)
+class ActividadesEnElMuro(TestCase):
+
+    def setUp(self):
+        from salon_digital.models import PaginaPublicada
+        self.luis, self.cl = Muro.docente(self, 'Luis', 'Libre', 'Matemáticas')
+        self.bea, self.cb = Muro.docente(self, 'Beatriz', 'Bonilla', 'Matemáticas')
+        for c in (self.cl, self.cb):
+            c.post('/chat/colegas/muro/normas/')
+        self.pagina = PaginaPublicada(propietario=self.luis.cuenta_salon, titulo='Juego de fracciones', descripcion='Para 6.º',
+                                      identificacion='grupo')
+        html = b"<html><body><script>const ENDPOINT = 'https://otra.cosa/api';</script>Juego</body></html>"
+        self.pagina.archivo.save('juego.html', ContentFile(html), save=False)
+        self.pagina.save()
+
+    def test_publicar_jugar_en_practica_y_copiar(self):
+        from salon_digital.models import PaginaPublicada
+        self.cl.post('/chat/colegas/muro/', {'tipo': 'actividad', 'titulo': '', 'pagina': self.pagina.pk})
+        p = Publicacion.objects.get()
+        self.assertEqual((p.pagina, p.titulo), (self.pagina, 'Juego de fracciones'))
+        r = self.cb.get('/chat/colegas/muro/')
+        self.assertContains(r, 'Jugar aquí'); self.assertContains(r, 'Pantalla completa'); self.assertContains(r, 'sandbox=')
+        # En modo muro: no pide grupo y los intentos van a la práctica (no a los resultados del autor)
+        r = self.cb.get(f'{self.pagina.ruta}?muro=1')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'/salon_digital/api/practica/', r.content)
+        self.assertEqual(r['X-Frame-Options'], 'SAMEORIGIN')
+        self.assertEqual(Client(HTTP_HOST='localhost').post('/salon_digital/api/practica/', '{}', content_type='application/json').json()['practica'], True)
+        # Sin estar en el muro (o sin ser docente) sigue pidiendo identificarse
+        self.assertEqual(Client(HTTP_HOST='localhost').get(f'{self.pagina.ruta}?muro=1').status_code, 302)
+        # Copiar a mis actividades: queda sin publicar para que la revise
+        r = self.cb.post(f'/chat/colegas/muro/{p.pk}/copiar-actividad/')
+        copia = PaginaPublicada.objects.get(propietario=self.bea.cuenta_salon)
+        self.assertFalse(copia.visible); self.assertIn('Luis Libre', copia.titulo)
+        self.assertRedirects(r, f'/salon_digital/panel/{copia.slug}/editar/', fetch_redirect_response=False)
+        p.refresh_from_db(); self.assertEqual(p.copias, 1)
+        # Una actividad ajena no se puede publicar como propia
+        self.cb.post('/chat/colegas/muro/', {'tipo': 'actividad', 'titulo': 'Robada', 'pagina': self.pagina.pk})
+        self.assertFalse(Publicacion.objects.filter(titulo='Robada').exists())

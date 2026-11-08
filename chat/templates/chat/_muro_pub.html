@@ -31,6 +31,19 @@
     <a class="btn btn-sm btn-outline-secondary" href="/chat/colegas/muro/{{ p.pk }}/material/" target="_blank"><i class="far fa-eye me-1"></i>Ver</a>
     {% if not t.mia %}<form method="post" action="/chat/colegas/muro/{{ p.pk }}/copiar/" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-primary"><i class="far fa-copy me-1"></i>Copiar a mis materiales</button></form>{% endif %}
   </div>{% endif %}
+  {% if p.tipo == 'actividad' and p.pagina %}
+  <div class="mu-actividad">
+    <div class="cab">
+      <i class="fas fa-gamepad fa-2x" style="color:#0c8599"></i>
+      <div class="flex-grow-1" style="min-width:0"><b class="d-block text-truncate">{{ p.pagina.titulo }}</b>
+        <span class="small text-muted">{% if p.pagina.tipo == 'sitio' %}Sitio interactivo{% else %}Actividad HTML{% endif %}{% if p.pagina.grado %} · Grado {{ p.pagina.grado }}{% endif %}{% if p.copias %} · la usan {{ p.copias }} docente{{ p.copias|pluralize }}{% endif %}</span></div>
+      <button type="button" class="btn btn-sm btn-primary mu-jugar{% if detalle %} d-none{% endif %}" data-pub="{{ p.pk }}" data-src="{{ p.pagina.ruta }}?muro=1" data-sandbox="allow-scripts allow-forms allow-popups allow-modals"><i class="fas fa-play me-1"></i>Jugar aquí</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary mu-completa" data-pub="{{ p.pk }}" title="Pantalla completa"><i class="fas fa-expand me-1"></i>Pantalla completa</button>
+      {% if not t.mia and p.pagina.tipo == 'html' %}<form method="post" action="/chat/colegas/muro/{{ p.pk }}/copiar-actividad/" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-outline-primary"><i class="far fa-copy me-1"></i>Copiar a mis actividades</button></form>{% endif %}
+    </div>
+    <div class="{% if not detalle %}d-none{% endif %}" id="jugar-{{ p.pk }}"><div class="mu-pantalla">{% if detalle %}<iframe src="{{ p.pagina.ruta }}?muro=1" sandbox="allow-scripts allow-forms allow-popups allow-modals" title="Actividad" allow="fullscreen; autoplay" allowfullscreen></iframe>{% endif %}</div>
+      <div class="small text-muted px-2 py-1">Modo práctica: lo que haga aquí no llega a los resultados del autor.</div></div>
+  </div>{% endif %}
   {% if p.enlace %}<a class="mu-enlace" href="{{ p.enlace }}" target="_blank" rel="noopener nofollow"><i class="fas fa-link me-2"></i><span class="text-truncate">{{ t.host }}</span><i class="fas fa-arrow-up-right-from-square ms-auto small"></i></a>{% endif %}
   {% if p.fecha_limite %}<div class="small mt-2 {% if p.fecha_limite < hoy %}text-muted{% else %}text-danger fw-semibold{% endif %}"><i class="far fa-calendar me-1"></i>{% if p.fecha_limite < hoy %}Cerró{% else %}Hasta{% endif %} el {{ p.fecha_limite|date:"j \d\e F"|lower }}</div>{% endif %}
   {% if p.area or p.grados or p.modelo %}<div class="mt-2">{% if p.area %}<a class="mu-etq" href="/chat/colegas/muro/?area={{ p.area|urlencode }}">{{ p.area }}</a>{% endif %}{% if p.grados %}<span class="mu-etq">{{ p.grados }}</span>{% endif %}{% if p.modelo %}<span class="mu-etq">{{ p.modelo }}</span>{% endif %}</div>{% endif %}

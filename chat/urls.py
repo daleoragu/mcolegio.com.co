@@ -41,6 +41,7 @@ urlpatterns = [
     path('colegas/muro/<int:pk>/reaccion/', muro.reaccion, name='muro_reaccion'),
     path('colegas/muro/<int:pk>/accion/', muro.accion, name='muro_accion'),
     path('colegas/muro/<int:pk>/copiar/', muro.copiar, name='muro_copiar'),
+    path('colegas/muro/<int:pk>/copiar-actividad/', muro.copiar_actividad, name='muro_copiar_actividad'),
     path('colegas/muro/<int:pk>/material/', muro.material, name='muro_material'),
     path('colegas/mini/', colegas.mini, name='colegas_mini'),
     path('colegas/mini/abrir/', colegas.mini_abrir, name='colegas_mini_abrir'),

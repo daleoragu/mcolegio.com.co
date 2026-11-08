@@ -207,8 +207,8 @@ class LecturaSalon(models.Model):
 # ---------------------------------------------------------------------------
 class Publicacion(models.Model):
     """Lo que un docente comparte con la comunidad. Cada publicación tiene un tipo, para que el muro sea académico."""
-    TIPOS = [('recurso', 'Recurso'), ('consulta', 'Consulta'), ('experiencia', 'Experiencia de aula'),
-             ('convocatoria', 'Convocatoria'), ('lectura', 'Lectura recomendada')]
+    TIPOS = [('recurso', 'Recurso'), ('actividad', 'Actividad interactiva'), ('consulta', 'Consulta'),
+             ('experiencia', 'Experiencia de aula'), ('convocatoria', 'Convocatoria'), ('lectura', 'Lectura recomendada')]
     VISIBILIDAD = [('todos', 'Toda la comunidad docente'), ('colegas', 'Solo mis colegas')]
     autor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='publicaciones_muro')
     tipo = models.CharField(max_length=14, choices=TIPOS, default='experiencia')
@@ -218,6 +218,8 @@ class Publicacion(models.Model):
     imagen = models.ImageField(upload_to='muro/', blank=True)
     documento = models.ForeignKey('materiales.Documento', on_delete=models.SET_NULL, null=True, blank=True,
                                   related_name='en_muro', help_text='Recurso compartido desde Mis materiales.')
+    pagina = models.ForeignKey('salon_digital.PaginaPublicada', on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='en_muro', help_text='Actividad interactiva (HTML) para jugar desde el muro.')
     area = models.CharField(max_length=80, blank=True)
     grados = models.CharField(max_length=40, blank=True)
     modelo = models.CharField(max_length=40, blank=True, help_text='Modelo pedagógico: ABP, Escuela Nueva, aula invertida…')

@@ -65,6 +65,7 @@ urlpatterns = [
     path('resultados/<slug:usuario>/<slug:slug>/excel/', views.exportar_resultados, name='exportar_resultados'),
 
     # --- Endpoint que reciben las páginas publicadas ---
+    path('api/practica/', views.api_practica, name='api_practica'),
     path('api/<slug:usuario>/<slug:slug>/', views.api_resultados, name='api_resultados'),
 
     # --- Banco de preguntas ---

@@ -78,6 +78,8 @@
                  class="btn btn-sm btn-outline-secondary" title="Comentarios">
                 Comentarios</a>
             {% endif %}
+            {% if p.visible %}<a href="/chat/colegas/muro/?escribir=1&compartir={{ p.pk }}" class="btn btn-sm btn-outline-primary"
+               title="Que otros docentes la jueguen desde el muro de la comunidad"><i class="fas fa-share-nodes me-1"></i>Compartir en el muro</a>{% endif %}
             <a href="{% url 'salon_digital:editar_pagina' p.slug %}"
                class="btn btn-sm btn-outline-secondary">Editar</a>
             <form method="post" action="{% url 'salon_digital:eliminar_pagina' p.slug %}" class="d-inline"
