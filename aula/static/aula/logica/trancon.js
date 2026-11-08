@@ -1,10 +1,28 @@
-/* Trancón (6×6) y Safari (7×7): saque el carro rojo (o el jeep) por la salida de la derecha.
+/* Trancón (6×6), Safari (7×7) y Escape de la selva (7×7, fauna de Colombia y Latinoamérica):
+ * saque el carro rojo (o el jeep) por la salida de la derecha.
  * Cada vehículo o animal se arrastra solo a lo largo de su dirección; el hipopótamo (2×2) se mueve
  * en las cuatro direcciones y las rocas no se mueven. Un movimiento = mover una pieza cualquier distancia. */
 (function () {
     'use strict';
     const AUTOS = ['#4dabf7', '#69db7c', '#ffd43b', '#da77f2', '#ff922b', '#20c997', '#f783ac', '#748ffc', '#a9e34b', '#ffa94d', '#63e6be', '#e599f7'];
     const ANIM2 = ['🦓', '🦁', '🐆', '🐗', '🦌'], ANIM3 = ['🦒', '🐘', '🐊'];
+    // Escape de la selva: jaguares en vez de leones, anacondas en vez de cebras y otras especies de Latinoamérica.
+    const SELVA2 = ['🐆', '🐍', '🐆', '🐍', '🐒', '🦫', '🐗', '🦜', '🦥'], SELVA3 = ['🐊', '🐍', '🐢'];
+    const SELVA_FONDO = {'🐆': '#ffe8a3', '🐍': '#d3f9d8', '🐒': '#ffd8a8', '🦫': '#f1e0c5', '🐗': '#e9dccb', '🦜': '#c5f6fa',
+                         '🦥': '#e6dccf', '🐊': '#c3e6cb', '🐢': '#d8f5a2'};
+    const DATOS_SELVA = [
+        'El jaguar es el felino más grande de América y nada muy bien.',
+        'La anaconda es una de las serpientes más pesadas del mundo.',
+        'El chigüiro es el roedor más grande del planeta.',
+        'El oso de anteojos es el único oso de Suramérica y vive en los Andes.',
+        'El caimán llanero vive en el Orinoco y está en peligro.',
+        'Al mono aullador se le oye a más de 3 kilómetros de distancia.',
+        'El perezoso baja del árbol solo una vez por semana.',
+        'Colombia es el país con más especies de aves del mundo.',
+        'La tortuga charapa anida en las playas de los ríos amazónicos.',
+        'El pecarí anda en manadas y siembra la selva con semillas.',
+        'La ceiba es un árbol gigante y sagrado para muchos pueblos.',
+    ];
 
     function leer(filas) {
         const N = filas.length, piezas = {}, orden = [];
@@ -24,23 +42,33 @@
         return {N, piezas: lista};
     }
 
-    function crear(safari) {
+    function crear(tema) {
+        const safari = tema !== 'trancon', selva = tema === 'selva';
         return {
-            nombre: safari ? 'Safari' : 'Trancón',
-            instrucciones: safari
+            nombre: selva ? 'Escape de la selva' : safari ? 'Safari' : 'Trancón',
+            instrucciones: selva
+                ? 'Saque el jeep de los guardaparques por la salida de la derecha. Arrastre cada animal a lo largo de su dirección (jaguares, anacondas, caimanes…); el oso de anteojos se mueve hacia los cuatro lados y las ceibas no se mueven.'
+                : safari
                 ? 'Saque el jeep por la salida de la derecha. Arrastre cada animal a lo largo de su dirección; el hipopótamo se mueve hacia los cuatro lados y las rocas no se mueven.'
                 : 'Saque el carro rojo por la salida de la derecha. Arrastre cada carro o camión solo hacia adelante o hacia atrás (no puede girar).',
             total: d => d.length,
             titulo: (d, i) => `Nivel ${i + 1} · se puede en ${d[i][0]} movimientos`,
             iniciar(zona, datos, i, api) {
                 const [minimo, filas] = datos[i], {N, piezas} = leer(filas);
-                const CEL = safari ? 56 : 64, M = 30, W = N * CEL + M * 2 + 50, H = N * CEL + M * 2 + 24, L = api.lienzo(W, H), ctx = L.ctx;
+                const CEL = safari ? 56 : 64, M = 30, W = N * CEL + M * 2 + 50, H = N * CEL + M * 2 + 24 + (selva ? 22 : 0), L = api.lienzo(W, H), ctx = L.ctx;
                 const filaSalida = piezas[0].f;
                 let arrastre = null, movs = 0, saliendo = null;
                 const historia = [];
                 piezas.forEach((p, k) => {
                     p.color = p.rojo ? '#e03131' : AUTOS[k % AUTOS.length];
-                    p.emoji = p.tipo === '4' ? '🦛' : p.tipo === 'fija' ? '🪨' : p.rojo ? '🚙' : (Math.max(p.alto, p.ancho) === 3 ? ANIM3 : ANIM2)[k % (Math.max(p.alto, p.ancho) === 3 ? 3 : 5)];
+                    const largo3 = Math.max(p.alto, p.ancho) === 3;
+                    if (selva) {
+                        const lista = largo3 ? SELVA3 : SELVA2;
+                        p.emoji = p.tipo === '4' ? '🐻' : p.tipo === 'fija' ? '🌳' : p.rojo ? '🚙' : lista[k % lista.length];
+                        p.fondo = p.tipo === '4' ? '#e3c9a8' : SELVA_FONDO[p.emoji] || '#e9fac8';
+                    } else {
+                        p.emoji = p.tipo === '4' ? '🦛' : p.tipo === 'fija' ? '🪨' : p.rojo ? '🚙' : (largo3 ? ANIM3 : ANIM2)[k % (largo3 ? 3 : 5)];
+                    }
                 });
                 function libre(f, c, salvo) {
                     if (f < 0 || c < 0 || f >= N || c >= N) return false;
@@ -59,15 +87,15 @@
                 }
                 const X = c => M + c * CEL, Y = f => M + f * CEL;
                 L.dibujar = function () {
-                    L.limpiar(safari ? '#e9d8a6' : '#dee2e6');
+                    L.limpiar(selva ? '#d8f3dc' : safari ? '#e9d8a6' : '#dee2e6');
                     // el piso
-                    ctx.fillStyle = safari ? '#b5c99a' : '#495057'; Logica.redondo(ctx, M - 8, M - 8, N * CEL + 16, N * CEL + 16, 14); ctx.fill();
+                    ctx.fillStyle = selva ? '#2d6a4f' : safari ? '#b5c99a' : '#495057'; Logica.redondo(ctx, M - 8, M - 8, N * CEL + 16, N * CEL + 16, 14); ctx.fill();
                     for (let f = 0; f < N; f++) for (let c = 0; c < N; c++) {
-                        ctx.fillStyle = safari ? ((f + c) % 2 ? '#c9d8a8' : '#bfd29a') : '#5c636a';
+                        ctx.fillStyle = selva ? ((f + c) % 2 ? '#74c69d' : '#95d5b2') : safari ? ((f + c) % 2 ? '#c9d8a8' : '#bfd29a') : '#5c636a';
                         ctx.fillRect(X(c) + 1, Y(f) + 1, CEL - 2, CEL - 2);
                     }
-                    // la salida
-                    ctx.fillStyle = safari ? '#e9d8a6' : '#dee2e6'; ctx.fillRect(M + N * CEL, Y(filaSalida) + 4, 14, CEL - 8);
+                    // la salida (en la selva, por el camino hacia el río)
+                    ctx.fillStyle = selva ? '#a5d8ff' : safari ? '#e9d8a6' : '#dee2e6'; ctx.fillRect(M + N * CEL, Y(filaSalida) + 4, 14, CEL - 8);
                     ctx.fillStyle = '#2f9e44'; ctx.beginPath(); const sy = Y(filaSalida) + CEL / 2;
                     ctx.moveTo(M + N * CEL + 20, sy - 12); ctx.lineTo(M + N * CEL + 40, sy); ctx.lineTo(M + N * CEL + 20, sy + 12); ctx.fill();
                     L.texto('SALIDA', M + N * CEL + 30, Y(filaSalida) - 6, {tam: 11, negrita: true, alinear: 'center', color: '#2f9e44'});
@@ -77,14 +105,15 @@
                         if (saliendo && p.rojo) x += saliendo.d;
                         pintar(p, x, y);
                     });
-                    L.texto(`Movimientos: ${movs}`, M, H - 6, {tam: 13, color: '#495057'});
+                    L.texto(`Movimientos: ${movs}`, M, H - 6 - (selva ? 22 : 0), {tam: 13, color: '#495057'});
+                    if (selva) L.texto('🌿 ' + DATOS_SELVA[i % DATOS_SELVA.length], M - 8, H - 8, {tam: 11.5, color: '#1b4332'});
                 };
                 function pintar(p, x, y) {
                     const w = p.ancho * CEL - 8, h = p.alto * CEL - 8;
                     x += 4; y += 4;
-                    if (p.tipo === 'fija') { ctx.fillStyle = '#868e96'; Logica.redondo(ctx, x + 4, y + 4, w - 8, h - 8, 14); ctx.fill(); }
+                    if (p.tipo === 'fija') { ctx.fillStyle = selva ? '#40916c' : '#868e96'; Logica.redondo(ctx, x + 4, y + 4, w - 8, h - 8, 14); ctx.fill(); }
                     else if (safari) {
-                        ctx.fillStyle = p.rojo ? '#e03131' : p.tipo === '4' ? '#9775fa' : '#fff3bf'; Logica.redondo(ctx, x, y, w, h, 12); ctx.fill();
+                        ctx.fillStyle = p.rojo ? '#e03131' : selva ? p.fondo : p.tipo === '4' ? '#9775fa' : '#fff3bf'; Logica.redondo(ctx, x, y, w, h, 12); ctx.fill();
                         ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 2; ctx.stroke();
                     } else {
                         ctx.fillStyle = p.color; Logica.redondo(ctx, x, y, w, h, 10); ctx.fill();
@@ -140,6 +169,7 @@
             },
         };
     }
-    Logica.registrar('trancon', crear(false));
-    Logica.registrar('safari', crear(true));
+    Logica.registrar('trancon', crear('trancon'));
+    Logica.registrar('safari', crear('safari'));
+    Logica.registrar('selva', crear('selva'));
 })();

@@ -250,6 +250,25 @@ class Gamificacion(ColegioDePrueba):
             self.assertEqual(len(set(celdas)), 35)
             self.assertNotIn(((n - 1) // 6, (n - 1) % 6), celdas)
 
+    def test_escape_de_la_selva(self):
+        """Escape de la selva: niveles propios 7×7 (no los del Safari), del fácil al difícil, cada uno con solución."""
+        import random
+        from aula import instrucciones
+        from aula.logica_generadores import trancon as T
+        from aula.views_logica import niveles
+        selva, safari = niveles('selva'), niveles('safari')
+        self.assertGreaterEqual(len(selva), 30)
+        self.assertFalse({'/'.join(f) for _, f in selva} & {'/'.join(f) for _, f in safari})
+        self.assertEqual([m for m, _ in selva], sorted(m for m, _ in selva))
+        self.assertGreaterEqual(selva[-1][0], 25)
+        for m, filas in random.Random(1).sample(selva, 4):
+            self.assertEqual(len(filas), 7)
+            self.assertTrue(all(len(f) == 7 for f in filas))
+            self.assertEqual(T.resolver(7, T.piezas_de(filas), 3, limite=2000000), m)
+        self.assertIn('jaguares', instrucciones.logica('selva', 'trancon'))
+        r = self.cliente(self.ana.user).get(f'/aula/{self.aula.pk}/logica/selva/')
+        self.assertContains(r, 'Escape de la selva')
+
     def test_velocidad_de_los_juegos(self):
         j = self.crear(tipo='ovejas', velocidad='lenta')
         self.assertEqual(j.velocidad, 'lenta')

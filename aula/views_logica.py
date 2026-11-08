@@ -17,6 +17,7 @@ JUEGOS = [
     ('hanoi', 'Torres de Hanói', 'Pase la torre de discos con el menor número de movimientos.', 'hanoi'),
     ('trancon', 'Trancón', 'Mueva los carros para sacar el rojo por la salida.', 'trancon'),
     ('safari', 'Safari', 'Como el trancón, más grande: animales, rocas y un hipopótamo que va a los 4 lados.', 'trancon'),
+    ('selva', 'Escape de la selva', 'Saque el jeep de los guardaparques entre jaguares, anacondas, caimanes y más fauna de Colombia.', 'trancon'),
     ('cerditos', 'Los tres cerditos', 'Retos de día (al jardín) y de noche (a la casita), con el lobo afuera.', 'cerditos'),
     ('ranas', 'Ranas saltarinas', 'Salte ranas hasta que solo quede la roja.', 'ranas'),
     ('bango', 'Tablero 36', 'Cubra el tablero con 7 piezas dejando destapado solo el número del reto.', 'bango'),

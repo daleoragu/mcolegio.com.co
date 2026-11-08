@@ -55,6 +55,26 @@ def resolver(N, piezas, salida_fila, limite=400000):
                         g[f + i][c + j] = True
     return -1
 
+def piezas_de(filas):
+    """Lee un nivel guardado (filas de texto) y devuelve las piezas como las recibe resolver(): el rojo primero."""
+    celdas = {}
+    for f, fila in enumerate(filas):
+        for c, letra in enumerate(fila):
+            if letra != '.':
+                celdas.setdefault(letra, []).append((f, c))
+    piezas = []
+    for letra, cs in celdas.items():
+        if letra == '#':
+            piezas += [(f, c, 1, 1, 'fija') for f, c in cs]
+            continue
+        f0, c0 = min(f for f, _ in cs), min(c for _, c in cs)
+        alto, ancho = max(f for f, _ in cs) - f0 + 1, max(c for _, c in cs) - c0 + 1
+        tipo = '4' if letra == 'H' else 'h' if alto == 1 else 'v'
+        piezas.append((f0, c0, alto, ancho, tipo))
+        if letra == 'x':
+            piezas.insert(0, piezas.pop())
+    return piezas
+
 def aleatorio(N, fila_rojo, safari):
     g = [['.'] * N for _ in range(N)]
     piezas = []
@@ -115,6 +135,22 @@ if __name__ == '__main__':
     if modo == 'trancon':
         cub = [(3, 5), (6, 9), (10, 14), (15, 20), (21, 60)]
         m = generar(6, 2, False, int(sys.argv[2]), cub)
+    elif modo == 'selva':
+        # «Escape de la selva»: las mismas reglas del safari (7x7), retos nuevos y distintos de los del safari.
+        cub = [(3, 6), (7, 11), (12, 17), (18, 25), (26, 80)]
+        m = generar(7, 3, True, int(sys.argv[2]), cub)
+        import os
+        ruta = os.path.join(os.path.dirname(__file__), '..', 'static', 'aula', 'logica', 'niveles', 'safari.json')
+        ya = {'/'.join(g) for _, g in json.load(open(ruta))}
+        elegidos = []
+        for b in cub:
+            buenos = [x for x in sorted(m[b]) if '/'.join(x[1]) not in ya]
+            paso = max(1, len(buenos) // 8)
+            elegidos += buenos[::paso][:8]          # 8 por dificultad, repartidos
+        json.dump(elegidos, open('selva.json', 'w'))
+        for b, l in m.items():
+            print(b, len(l), max([d for d, _ in l], default=0), file=sys.stderr)
+        sys.exit(0)
     else:
         cub = [(3, 6), (7, 11), (12, 17), (18, 25), (26, 80)]
         m = generar(7, 3, True, int(sys.argv[2]), cub)

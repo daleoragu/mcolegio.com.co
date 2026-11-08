@@ -25,18 +25,19 @@ def _de_archivo(ruta):
     return m.group(1).replace("\\'", "'").replace('\\n', ' ') if m else ''
 
 
-_DOBLE = re.compile(r"instrucciones:\s*\w+\s*\?\s*'((?:[^'\\]|\\.)*)'\s*:\s*'((?:[^'\\]|\\.)*)'")
+_CADENA = r"'((?:[^'\\]|\\.)*)'"
+_DOBLE = re.compile(r"instrucciones:\s*\w+\s*\?\s*" + _CADENA + r"\s*:\s*\w+\s*\?\s*" + _CADENA + r"\s*:\s*" + _CADENA)
 
 
 @lru_cache(maxsize=None)
 def _doble(ruta):
-    """El archivo que tiene dos juegos (Trancón y Safari): instrucciones: safari ? '…' : '…'."""
+    """El archivo con tres juegos: instrucciones: selva ? '…' : safari ? '…' : '…' (selva, safari, trancón)."""
     try:
         with open(ruta, encoding='utf-8') as f:
             m = _DOBLE.search(f.read())
     except OSError:
-        return '', ''
-    return tuple(x.replace("\\'", "'") for x in m.groups()) if m else ('', '')
+        return '', '', ''
+    return tuple(x.replace("\\'", "'") for x in m.groups()) if m else ('', '', '')
 
 
 def logica(juego, script=None):
@@ -44,8 +45,8 @@ def logica(juego, script=None):
     ruta = os.path.join(_ESTATICOS, 'logica', f'{script or juego}.js')
     texto = _de_archivo(ruta)
     if not texto:
-        si, no = _doble(ruta)
-        texto = si if juego == 'safari' else no
+        selva, safari, trancon = _doble(ruta)
+        texto = {'selva': selva, 'safari': safari}.get(juego, trancon)
     return texto
 
 

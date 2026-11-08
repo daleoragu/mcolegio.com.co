@@ -41,7 +41,7 @@ CATEGORIAS = [('euclides', 'Euclides', 'Pensamiento geométrico y espacial'), ('
               ('bernoulli', 'Bernoulli', 'Pensamiento aleatorio, estadístico y combinatorio')]
 # Minijuegos de la olimpiada: id, nombre, estilo
 JUEGOS = [
-    ('tangram', 'Tangram', 'logica'), ('trancon', 'Trancón (tipo Rush Hour)', 'logica'), ('safari', 'Safari', 'logica'),
+    ('tangram', 'Tangram', 'logica'), ('trancon', 'Trancón (tipo Rush Hour)', 'logica'), ('safari', 'Safari', 'logica'), ('selva', 'Escape de la selva', 'logica'),
     ('fila', 'La fila exacta (permutaciones)', 'logica'), ('bango', 'Tablero 36 (tipo Bango)', 'logica'),
     ('kadogemo', 'Cuatro cuadrantes (tipo Kadogemo)', 'logica'), ('nonograma', 'Nonograma', 'logica'), ('hanoi', 'Torres de Hanói', 'logica'),
     ('ranas', 'Ranas saltarinas', 'logica'), ('cerditos', 'Los tres cerditos', 'logica'), ('kiriku', 'Deslizables de colores', 'logica'),
@@ -1104,7 +1104,7 @@ def jugar(request, eid):
         'dificultad': {j[0]: dificultad(c, j[0]) for j in JUEGOS},
         'propios': {}, 'motor': {},
         'ritmo': {j[0]: JuegoAula.RITMO.get((c['por_juego'].get(j[0]) or {}).get('velocidad', 'normal'), 1) for j in juegos_del_evento(ev)},
-        'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito')},
+        'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'selva', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito')},
         'usuario': request.user.pk or (p.token[:8] if p else 'anon'),
         'vigilancia': dict(c['vigilancia'], graba=graba(c['vigilancia']), texto=texto_supervision(c['vigilancia'])) if c['vigilancia']['activa'] else None,
         'arcade_preguntas': _preguntas_arcade(ev, c, grado, grupo) if c.get('arcade', 'preguntas') != 'operaciones' else None,
