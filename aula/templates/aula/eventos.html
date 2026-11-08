@@ -31,7 +31,7 @@
     <div class="flex-grow-1">
       <div class="fw-bold fs-5" style="color:#1f3a68">{{ ev.titulo }}</div>
       <div class="small text-muted">
-        {% if ev.organiza %} · {% if ev.alcance == 'codigo' %}<span class="badge bg-info text-dark">Abierto · código {{ ev.codigo }}</span> · {% endif %}{% if ev.activo %}<span class="text-success fw-bold">ACTIVO: lo ven los estudiantes</span>{% else %}<span class="text-danger fw-bold">APAGADO: los estudiantes no lo ven</span>{% endif %} · {{ ev.n_participantes }} participante(s){% endif %}
+        {% if ev.organiza %} · {% if ev.alcance == 'codigo' %}<span class="badge bg-info text-dark">Abierto · código {{ ev.codigo }}</span> · {% endif %}{% if ev.activo %}<span class="text-success fw-bold">ACTIVO: lo ven los estudiantes</span>{% elif ev.programado %}<span class="text-primary fw-bold"><i class="far fa-clock"></i> PROGRAMADO: se activa el {{ ev.programado }}</span>{% else %}<span class="text-danger fw-bold">APAGADO: los estudiantes no lo ven</span>{% endif %} · {{ ev.n_participantes }} participante(s){% endif %}
         {% if ev.mi_grupo %} · Usted participa en <b>{{ ev.mi_grupo }}</b>{% endif %}
         {% if ev.mia %} · Usted lleva <b>{{ ev.mia.puntos }}</b> punto(s){% if ev.mia.terminada %} · terminó{% endif %}{% endif %}
       </div>

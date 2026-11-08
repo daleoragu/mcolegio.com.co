@@ -741,6 +741,36 @@ class Olimpiada(ColegioDePrueba):
         # El organizador siempre puede probar
         self.assertEqual(self.admin.get(f'/aula/eventos/{ev.pk}/').status_code, 200)
 
+    def test_programar_inicio(self):
+        """El organizador programa la hora de inicio: el evento se activa solo a esa hora."""
+        from datetime import timedelta
+        from django.utils import timezone
+        from aula.models import Evento
+        ev = self.crear('Olimpiada programada')
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        f = lambda m: timezone.localtime(timezone.now() + timedelta(minutes=m)).strftime('%Y-%m-%dT%H:%M')
+        self.assertContains(self.admin.get(conf), 'Programar inicio')
+        # Una hora pasada no se acepta
+        self.admin.post(conf, {'accion': 'programar', 'activar_en': f(-60)})
+        ev.refresh_from_db(); self.assertFalse(ev.config.get('activar_en'))
+        # Para mañana: queda PROGRAMADO y apagado
+        self.admin.post(conf, {'accion': 'programar', 'activar_en': f(24 * 60)})
+        ev.refresh_from_db(); self.assertFalse(ev.activo); self.assertTrue(ev.config['activar_en'])
+        self.assertContains(self.admin.get(conf), 'PROGRAMADO')
+        self.assertContains(self.admin.get('/aula/eventos/'), 'PROGRAMADO')
+        # Quitar lo programado
+        self.admin.post(conf, {'accion': 'programar', 'cancelar': '1'})
+        ev.refresh_from_db(); self.assertFalse(ev.config['activar_en'])
+        # Llega la hora (se simula guardándola en el pasado): al entrar alguien, el evento ya está activo
+        Evento.objects.filter(pk=ev.pk).update(config=dict(ev.config, activar_en=f(-1)))
+        self.admin.get('/aula/eventos/')
+        ev.refresh_from_db(); self.assertTrue(ev.activo); self.assertFalse(ev.config['activar_en'])
+        # Activar o apagar a mano quita lo programado
+        self.admin.post(conf, {'accion': 'activar'})                       # apaga
+        self.admin.post(conf, {'accion': 'programar', 'activar_en': f(120)})
+        self.admin.post(conf, {'accion': 'activar'})                       # activa ya
+        ev.refresh_from_db(); self.assertTrue(ev.activo); self.assertFalse(ev.config['activar_en'])
+
     def test_veedores_ven_resultados_en_vivo(self):
         """Profesores (o grupos) invitados ven resultados y ranking en vivo con su enlace, sin poder cambiar nada."""
         from django.core import mail
