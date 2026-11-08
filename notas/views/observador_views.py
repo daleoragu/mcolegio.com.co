@@ -7,11 +7,7 @@ from django.http import HttpResponse, HttpResponseNotFound
 from django.template.loader import render_to_string
 from django.urls import reverse
 
-try:
-    from weasyprint import HTML
-    PDF_SUPPORT = True
-except ImportError:
-    PDF_SUPPORT = False
+from ..perezoso import HTML, PDF_SUPPORT  # WeasyPrint se carga al generar el PDF, no al arrancar
 
 from ..forms import RegistroObservadorForm, FichaEstudianteForm
 from ..models import (

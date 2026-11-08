@@ -250,6 +250,58 @@ class Gamificacion(ColegioDePrueba):
             self.assertEqual(len(set(celdas)), 35)
             self.assertNotIn(((n - 1) // 6, (n - 1) % 6), celdas)
 
+    def test_escape_de_la_selva(self):
+        """Escape de la selva: niveles propios 7×7 (no los del Safari), del fácil al difícil, cada uno con solución."""
+        import random
+        from aula import instrucciones
+        from aula.logica_generadores import trancon as T
+        from aula.views_logica import niveles
+        selva, safari = niveles('selva'), niveles('safari')
+        self.assertGreaterEqual(len(selva), 30)
+        self.assertFalse({'/'.join(f) for _, f in selva} & {'/'.join(f) for _, f in safari})
+        self.assertEqual([m for m, _ in selva], sorted(m for m, _ in selva))
+        self.assertGreaterEqual(selva[-1][0], 25)
+        for m, filas in random.Random(1).sample(selva, 4):
+            self.assertEqual(len(filas), 7)
+            self.assertTrue(all(len(f) == 7 for f in filas))
+            self.assertEqual(T.resolver(7, T.piezas_de(filas), 3, limite=2000000), m)
+        self.assertIn('jaguares', instrucciones.logica('selva', 'trancon'))
+        r = self.cliente(self.ana.user).get(f'/aula/{self.aula.pk}/logica/selva/')
+        self.assertContains(r, 'Escape de la selva')
+        self.assertContains(r, 'Jeep grande · lodo fijo')               # el selector de modo
+
+    def test_selva_jeep_grande(self):
+        """Modos con el jeep grande (2×2): hasta 11 animales de 1×2, 5 de 1×3 y 2 charcos de lodo, fijos o móviles."""
+        import random
+        from collections import Counter
+        from aula import instrucciones
+        from aula.logica_generadores import trancon as T
+        from aula.views_logica import niveles
+        for modo, lodo, tipo_lodo in (('selva_fijo', 'PQ', 'fija'), ('selva_movil', 'LM', '4')):
+            retos = niveles(modo)
+            self.assertGreaterEqual(len(retos), 25)
+            self.assertEqual([m for m, _ in retos], sorted(m for m, _ in retos))
+            for m, filas in retos:
+                letras = Counter(ch for f in filas for ch in f if ch != '.')
+                self.assertEqual(letras['x'], 4)                                  # jeep 2×2
+                piezas = T.piezas_de(filas)
+                self.assertEqual(piezas[0][2:4], (2, 2))
+                tam = Counter(max(a, w) for f, c, a, w, t in piezas[1:] if (a, w) != (2, 2))
+                self.assertLessEqual(tam[2], 11)
+                self.assertLessEqual(tam[3], 5)
+                charcos = [p for p in piezas[1:] if p[2:4] == (2, 2)]
+                self.assertLessEqual(len(charcos), 2)
+                self.assertTrue(all(p[4] == tipo_lodo for p in charcos))
+                self.assertFalse(set(letras) - set('x' + lodo + 'abcdefghijknopqr'))
+            for m, filas in random.Random(3).sample(retos, 3):
+                self.assertEqual(T.resolver(7, T.piezas_de(filas), T.SALIDA_JEEP, limite=3000000), m)
+            self.assertIn('2×2', instrucciones.logica(modo, 'trancon'))
+        c = self.cliente(self.ana.user)
+        menu = c.get(f'/aula/{self.aula.pk}/logica/')
+        self.assertContains(menu, 'Modos:')
+        self.assertNotContains(menu, 'Modo jeep grande (2×2): 16 especies')   # una sola tarjeta para los tres modos
+        self.assertContains(c.get(f'/aula/{self.aula.pk}/logica/selva_movil/'), 'btn-success">Jeep grande · lodo móvil')
+
     def test_velocidad_de_los_juegos(self):
         j = self.crear(tipo='ovejas', velocidad='lenta')
         self.assertEqual(j.velocidad, 'lenta')

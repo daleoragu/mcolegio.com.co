@@ -25,10 +25,11 @@
     {% for id, nombre, desc, archivo, ins in juegos %}
     <div class="lgm-carta">
     <a href="{% url 'aula:logica_juego' aula.pk id %}" data-juego="{{ id }}">
-      <span class="ic">{% if id == 'tangram' %}🔷{% elif id == 'hanoi' %}🗼{% elif id == 'trancon' %}🚗{% elif id == 'safari' %}🦒{% elif id == 'cerditos' %}🐷{% elif id == 'ranas' %}🐸{% elif id == 'bango' %}🔢{% elif id == 'kadogemo' %}🟥{% elif id == 'kiriku' %}🔵{% elif id == 'laberinto' %}🌈{% elif id == 'fila' %}🧍{% elif id == 'nonograma' %}🔳{% elif id == 'geoplano' %}📐{% elif id == 'regletas' %}⚖️{% elif id == 'fijas' %}🎯{% elif id == 'sokoban' %}📦{% elif id == 'bloque' %}🧱{% elif id == 'cubo' %}🧊{% elif id == 'conejos' %}🐇{% elif id == 'perrito' %}🐶{% elif id == 'caperucita' %}👧{% elif id == 'ladron' %}🚓{% else %}⚡{% endif %}</span>
+      <span class="ic">{% if id == 'tangram' %}🔷{% elif id == 'hanoi' %}🗼{% elif id == 'trancon' %}🚗{% elif id == 'safari' %}🦒{% elif id == 'selva' %}🐆{% elif id == 'cerditos' %}🐷{% elif id == 'ranas' %}🐸{% elif id == 'bango' %}🔢{% elif id == 'kadogemo' %}🟥{% elif id == 'kiriku' %}🔵{% elif id == 'laberinto' %}🌈{% elif id == 'fila' %}🧍{% elif id == 'nonograma' %}🔳{% elif id == 'geoplano' %}📐{% elif id == 'regletas' %}⚖️{% elif id == 'fijas' %}🎯{% elif id == 'sokoban' %}📦{% elif id == 'bloque' %}🧱{% elif id == 'cubo' %}🧊{% elif id == 'conejos' %}🐇{% elif id == 'perrito' %}🐶{% elif id == 'caperucita' %}👧{% elif id == 'ladron' %}🚓{% else %}⚡{% endif %}</span>
       <b>{{ nombre }}</b><small>{{ desc }}</small>
       <div class="prog"></div>
     </a>
+    {% for grupo, lista in modos.items %}{% if grupo == id %}<div class="small mb-1">Modos: {% for m, etiqueta in lista %}<a href="{% url 'aula:logica_juego' aula.pk m %}" class="badge text-bg-success text-decoration-none" data-juego="{{ m }}">{{ etiqueta }}</a> {% endfor %}</div>{% endif %}{% endfor %}
     <div class="d-flex gap-2 align-items-start">
       <details class="ins-linea flex-grow-1"><summary>Instrucciones</summary><p>{{ ins }}</p></details>
       <button type="button" class="btn btn-sm btn-link p-0 mt-1 small" data-instr="{{ ins }}" data-titulo="{{ nombre }}" title="Ver en grande"><i class="fas fa-up-right-from-square"></i></button>
@@ -41,7 +42,7 @@
 document.querySelectorAll('.lgm a').forEach(a => {
   try {
     const p = JSON.parse(localStorage.getItem('mc-logica:{{ request.user.pk }}:' + a.dataset.juego) || '{}'), n = Object.keys(p).length;
-    if (n) a.querySelector('.prog').textContent = `✓ ${n} nivel(es) superado(s)`;
+    if (n && a.querySelector('.prog')) a.querySelector('.prog').textContent = `✓ ${n} nivel(es) superado(s)`;
   } catch (e) { /* sin almacenamiento */ }
 });
 </script>

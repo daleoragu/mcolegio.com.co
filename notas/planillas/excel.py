@@ -176,8 +176,9 @@ def estudiantes_de(asignacion, periodo):
 # Descargar
 # ---------------------------------------------------------------------------
 
-def generar_libro(colegio, periodo, asignaciones):
-    """Bytes del .xlsx con una hoja por asignación."""
+def generar_libro(colegio, periodo, asignaciones, estilo='junto'):
+    """Bytes del .xlsx con una hoja por asignación. estilo: 'junto' (el «Def» de cada componente después de sus
+    notas) o 'final' (todas las notas y al final los «Def»). Se sube igual con cualquiera de los dos."""
     config = configuracion(colegio)
     primario = _hex(getattr(colegio, 'color_primario', ''))
     texto_primario = _hex(getattr(colegio, 'color_texto_primario', ''), 'FFFFFF')
@@ -209,7 +210,7 @@ def generar_libro(colegio, periodo, asignaciones):
         nombre = _nombre_hoja(f'{asignacion.curso.nombre} {asignacion.materia.nombre}', usados)
         hoja = libro.create_sheet(nombre)
         _dibujar_hoja(hoja, colegio, periodo, asignacion, config, escala, fin_escala,
-                      primario, texto_primario, secundario, hoja_escala=nombre_esc)
+                      primario, texto_primario, secundario, hoja_escala=nombre_esc, estilo=estilo)
     if not asignaciones:
         libro.create_sheet('Sin asignaciones')['A1'] = 'No hay asignaturas para este docente.'
     # La primera hoja visible queda activa al abrir.
@@ -228,7 +229,7 @@ def generar_libro(colegio, periodo, asignaciones):
 
 
 def _dibujar_hoja(ws, colegio, periodo, asignacion, config, escala, fin_escala,
-                  primario, texto_primario, secundario, hoja_escala='Escala'):
+                  primario, texto_primario, secundario, hoja_escala='Escala', estilo='junto'):
     # La escala que declaró el colegio manda: de dónde a dónde van las notas.
     MINIMA, MAXIMA = escala[0][0], max(b for _, b, _ in escala)
     estudiantes = estudiantes_de(asignacion, periodo)
@@ -247,13 +248,18 @@ def _dibujar_hoja(ws, colegio, periodo, asignacion, config, escala, fin_escala,
     desbloqueada = Protection(locked=False)
 
     # --- Columnas -----------------------------------------------------------
+    al_final = estilo == 'final'
     col = 3
     mapa = {}
     for codigo, datos in plan.items():
         ini = col
         fin = col + len(datos['columnas']) - 1
-        mapa[codigo] = [ini, fin, fin + 1]
-        col = fin + 2
+        mapa[codigo] = [ini, fin, None if al_final else fin + 1]
+        col = fin + 1 if al_final else fin + 2
+    if al_final:                       # los «Def» de todos los componentes, juntos al final
+        for codigo in plan:
+            mapa[codigo][2] = col
+            col += 1
     c_final, c_desemp, c_fallas, c_id = col, col + 1, col + 2, col + 3
     ultima = c_fallas
     L = get_column_letter
@@ -298,15 +304,28 @@ def _dibujar_hoja(ws, colegio, periodo, asignacion, config, escala, fin_escala,
         ini, fin, cdef = mapa[codigo]
         peso = format(Decimal(datos['peso']).normalize(), 'f')
         titulo(3, ini, f"{datos['nombre']} ({peso}%)")
-        for c in range(ini + 1, cdef + 1):
+        hasta = fin if al_final else cdef
+        for c in range(ini + 1, hasta + 1):
             titulo(3, c, None)
-        ws.merge_cells(start_row=3, start_column=ini, end_row=3, end_column=cdef)
+        if hasta > ini:
+            ws.merge_cells(start_row=3, start_column=ini, end_row=3, end_column=hasta)
         for k, nombre_nota in enumerate(datos['columnas']):
             celda = titulo(4, ini + k, nombre_nota)
             celda.alignment = Alignment(horizontal='center', vertical='bottom', text_rotation=90, wrap_text=True)
             celda.protection = desbloqueada      # el docente puede renombrar la nota
             largo = max(largo, len(nombre_nota))
-        titulo(4, cdef, 'Def')
+        titulo(4, cdef, f"Def {datos['nombre'][:8]}" if al_final else 'Def')
+    if al_final and plan:
+        primera_def = min(m[2] for m in mapa.values())
+        ultima_def = max(m[2] for m in mapa.values())
+        titulo(3, primera_def, 'Promedios')
+        for c in range(primera_def + 1, ultima_def + 1):
+            titulo(3, c, None)
+        if ultima_def > primera_def:
+            ws.merge_cells(start_row=3, start_column=primera_def, end_row=3, end_column=ultima_def)
+        for codigo in plan:
+            ws.cell(4, mapa[codigo][2]).alignment = Alignment(horizontal='center', vertical='bottom', text_rotation=90,
+                                                              wrap_text=True)
     ws.row_dimensions[3].height = 22
     ws.row_dimensions[4].height = max(36, min(120, largo * 6.2))
 

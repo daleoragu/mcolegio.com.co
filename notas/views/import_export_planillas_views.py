@@ -33,7 +33,8 @@ def exportar_planillas_docente(request, docente_id, periodo_id):
     if not asignaciones:
         return HttpResponse("Este docente no tiene asignaturas asignadas en este colegio.", status=404)
 
-    datos = generar_libro(request.colegio, periodo, asignaciones)
+    from ..planillas.columnas import estilo_de
+    datos = generar_libro(request.colegio, periodo, asignaciones, estilo=estilo_de(request.colegio, request.user)[0])
     nombre = f"Planillas {docente.user.get_full_name()} {periodo.get_nombre_display()} {periodo.ano_lectivo}"
     nombre = re.sub(r'[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ _\-]', '', nombre).strip() or 'Planillas'
     respuesta = HttpResponse(datos, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

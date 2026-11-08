@@ -79,6 +79,26 @@ class ExcelIdaYVuelta(ColegioDePrueba):
         esperado = next(e['definitiva'] for e in hoja['estudiantes'] if e['id'] == ana.id)
         self.assertEqual(definitiva(ana, self.p1), esperado)
 
+    def test_estilo_al_final_se_sube_igual(self):
+        """Con los promedios de los componentes al final, el Excel se llena y se sube igual que el de siempre."""
+        import json
+        libro = openpyxl.load_workbook(io.BytesIO(generar_libro(self.a, self.p1, [self.asig], estilo='final')))
+        ws = libro[libro.sheetnames[1]]
+        meta = next(json.loads(c.value) for c in ws[4] if isinstance(c.value, str) and 'mcolegio' in c.value)
+        defs = sorted(m[2] for m in meta['comp'].values())
+        notas = max(m[1] for m in meta['comp'].values())
+        self.assertEqual(defs, list(range(notas + 1, notas + 1 + len(defs))))          # todos los «Def» al final
+        self.assertIn('Promedios', [c.value for c in ws[3]])
+        fila_ana = meta['fila']
+        ws.cell(fila_ana, meta['comp']['SABER'][0], 4.5)
+        ws.cell(fila_ana, meta['comp']['HACER'][0], 3)
+        resultado = self.subir(libro)
+        hoja = resultado['hojas'][0]
+        self.assertEqual(hoja['estado'], 'ok')
+        aplicar(a_sesion(resultado), self.a, self.u_docente)
+        ana = self.estudiantes[0]
+        self.assertEqual(definitiva(ana, self.p1), next(e['definitiva'] for e in hoja['estudiantes'] if e['id'] == ana.id))
+
     def test_otro_docente_no_puede_subir_la_planilla(self):
         from django.contrib.auth.models import User
         from notas.models import Docente
@@ -229,6 +249,13 @@ class EstiloDeLaPlanilla(ColegioDePrueba):
         self.assertIn('lo definió el colegio', h); self.assertIn('data-estilo="final"', h)
         self.assertNotIn('name="estilo-planilla"', h)
         self.assertEqual(profe.post('/docente/planillas/estilo/', {'estilo': 'junto'}).status_code, 403)
+        h = profe.get(f'/docente/planillas/?periodo={self.p1.id}').content.decode()
+        self.assertIn('los promedios de los componentes al final', h); self.assertIn('lo definió el colegio', h)
+        # El Excel que descarga ya viene con los promedios al final
+        import io, openpyxl
+        r = profe.get(f'/docente/planillas/{self.p1.id}/excel/{self.asig.id}/')
+        ws = [h for h in openpyxl.load_workbook(io.BytesIO(r.content)).worksheets if h.sheet_state == 'visible'][0]
+        self.assertIn('Promedios', [c.value for c in ws[3]])
         # «Cada docente escoge»: vuelve a la preferencia del docente
         config.estilo_planilla = 'docente'
         config.save()

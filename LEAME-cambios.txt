@@ -1,9 +1,10 @@
-Versión 0002 · 2026-11-08 15:56
+Versión 0004 · 2026-11-08 19:19
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
 NUEVO     LEAME-mejoras-pendientes.txt
 NUEVO     LEAME-prueba-celulares.txt
+CAMBIADO  Procfile
 NUEVO     apps/misalon/LEEME.md
 NUEVO     apps/misalon/twa-manifest.json
 CAMBIADO  aula/almacen.py
@@ -116,6 +117,9 @@ NUEVO     aula/static/aula/logica/niveles/perrito.json
 NUEVO     aula/static/aula/logica/niveles/ranas.json
 NUEVO     aula/static/aula/logica/niveles/regletas.json
 NUEVO     aula/static/aula/logica/niveles/safari.json
+NUEVO     aula/static/aula/logica/niveles/selva.json
+NUEVO     aula/static/aula/logica/niveles/selva_fijo.json
+NUEVO     aula/static/aula/logica/niveles/selva_movil.json
 NUEVO     aula/static/aula/logica/niveles/sokoban.json
 NUEVO     aula/static/aula/logica/niveles/speedrun.json
 NUEVO     aula/static/aula/logica/niveles/tangram.json
@@ -292,11 +296,14 @@ CAMBIADO  notas/models/perfiles.py
 NUEVO     notas/models/permisos.py
 CAMBIADO  notas/modulos.py
 NUEVO     notas/pases.py
+NUEVO     notas/perezoso.py
 CAMBIADO  notas/planillas/asistencia.py
 CAMBIADO  notas/planillas/columnas.py
 CAMBIADO  notas/planillas/excel.py
 CAMBIADO  notas/planillas/pdf.py
 CAMBIADO  notas/reporte_sabana.py
+CAMBIADO  notas/reportes/certificado_generator.py
+CAMBIADO  notas/reportes/pdf_generator.py
 CAMBIADO  notas/static/notas/js/ingresar_notas.js
 NUEVO     notas/static/notas/js/lector_qr.js
 NUEVO     notas/static/notas/vendor/jsQR.js
@@ -320,6 +327,7 @@ CAMBIADO  notas/templates/notas/docente/dashboard_docente.html
 CAMBIADO  notas/templates/notas/docente/kiosko_asistencia.html
 CAMBIADO  notas/templates/notas/docente/lista_estudiantes_reporte.html
 NUEVO     notas/templates/notas/docente/mi_carne.html
+CAMBIADO  notas/templates/notas/docente/mis_planillas.html
 CAMBIADO  notas/templates/notas/estudiante/_panel_estudiante_content.html
 CAMBIADO  notas/templates/notas/estudiante/dashboard_estudiante.html
 NUEVO     notas/templates/notas/estudiante/mi_ficha.html
@@ -356,16 +364,20 @@ CAMBIADO  notas/urls.py
 CAMBIADO  notas/views/admin_tools_views.py
 CAMBIADO  notas/views/app_views.py
 CAMBIADO  notas/views/asistencia_views.py
+CAMBIADO  notas/views/boletin_views.py
 CAMBIADO  notas/views/carnet_views.py
 CAMBIADO  notas/views/consulta_views.py
+CAMBIADO  notas/views/estadisticas_views.py
 NUEVO     notas/views/excusas_views.py
 NUEVO     notas/views/fichas_views.py
 CAMBIADO  notas/views/gestion_estudiantes_views.py
+CAMBIADO  notas/views/import_export_planillas_views.py
 CAMBIADO  notas/views/ingreso_notas_views.py
 CAMBIADO  notas/views/observador_views.py
 NUEVO     notas/views/permisos_views.py
 CAMBIADO  notas/views/planillas_views.py
 CAMBIADO  notas/views/reporte_parcial_views.py
+CAMBIADO  notas/views/sabana_views.py
 CAMBIADO  piar/logica.py
 CAMBIADO  prematricula/templates/prematricula/_base_publica.html
 CAMBIADO  puntoexacto/views.py
@@ -467,3 +479,4 @@ Después de desplegar:
   * Imprima y entregue los PIN (PIN del carné), por curso.
   * Los docentes deben volver a descargar el Excel de sus planillas (fórmula corregida).
   * collectstatic: build.sh ya lo hace (hay JavaScript nuevo).
+  * Procfile cambió (gunicorn recicla los procesos cada 400 peticiones): si DigitalOcean usa un «Run command» propio, póngale --max-requests 400 --max-requests-jitter 60.

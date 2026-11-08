@@ -8,10 +8,7 @@ from decimal import Decimal
 import re # Importamos el módulo de expresiones regulares
 
 # Asegúrate de tener WeasyPrint instalado: pip install WeasyPrint
-try:
-    from weasyprint import HTML
-except ImportError:
-    HTML = None # Manejar el caso si no está instalado
+from ..perezoso import HTML  # se carga al generar el PDF, no al arrancar
 
 from ..models import (
     Sede, Curso, PeriodoAcademico, Docente, AsignacionDocente, Materia,
@@ -31,10 +28,7 @@ from ..estadisticas_logic import (
 
 import io
 import base64
-import matplotlib
-matplotlib.use('Agg') # Backend no interactivo para servidores
-import matplotlib.pyplot as plt
-import numpy as np
+from ..perezoso import matplotlib, np, plt  # matplotlib (sin pantalla) y numpy: se cargan al dibujar la primera gráfica
 
 
 def generar_grafico_reprobados_area(datos_grafico):

@@ -10,11 +10,7 @@ import datetime
 from pathlib import Path
 import os
 
-try:
-    from weasyprint import HTML
-    PDF_SUPPORT = True
-except ImportError:
-    PDF_SUPPORT = False
+from ..perezoso import HTML, PDF_SUPPORT  # WeasyPrint se carga al generar el PDF, no al arrancar
 
 # Se añade FichaEstudiante para poder obtener el número de documento y la foto
 from ..models import (Curso, Sede, PeriodoAcademico, Docente, AsignacionDocente, Estudiante, FichaEstudiante,

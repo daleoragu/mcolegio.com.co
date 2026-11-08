@@ -89,7 +89,10 @@ def mis_planillas(request):
                                     'con_notas': sorted(con_notas)})
             filas.append({'a': a, 'componentes': componentes})
 
+    from ..planillas.columnas import estilo_de
+    estilo, estilo_fijo = estilo_de(request.colegio, request.user)
     return render(request, 'notas/docente/mis_planillas.html', {
+        'estilo_planilla': estilo, 'estilo_fijo': estilo_fijo,
         'docente': docente, 'filas': filas, 'periodo': periodo, 'periodos': periodos,
         'docentes': (Docente.objects.filter(colegio=request.colegio).select_related('user')
                      .order_by('user__last_name') if es_admin(request) else None),
@@ -171,7 +174,9 @@ def descargar_excel(request, periodo_id, asignacion_id=None):
             return HttpResponseForbidden('Escoja un docente.')
         asignaciones = list(qs)
         nombre = f'Planillas {docente.user.get_full_name()} {periodo.get_nombre_display()} {periodo.ano_lectivo}'
-    datos = excel_mod.generar_libro(request.colegio, periodo, asignaciones)
+    from ..planillas.columnas import estilo_de
+    datos = excel_mod.generar_libro(request.colegio, periodo, asignaciones,
+                                    estilo=estilo_de(request.colegio, request.user)[0])
     respuesta = HttpResponse(datos, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     respuesta['Content-Disposition'] = f'attachment; filename="{_nombre_archivo(nombre)}.xlsx"'
     return respuesta
