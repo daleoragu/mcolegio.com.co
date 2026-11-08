@@ -213,3 +213,23 @@ class EstiloDeLaPlanilla(ColegioDePrueba):
         self.assertEqual(capturado.get('estilo'), 'final')
         self.assertIn(b'%PDF', r.content[:8])
         self.assertIn('Promedios', real('notas/planillas/planilla_notas_pdf.html', capturado))
+
+    def test_el_administrador_fija_el_estilo_para_todos(self):
+        from notas.models.academicos import ConfiguracionCalificaciones
+        from notas.planillas.columnas import estilo_de
+        admin = self.cliente(self.rectora)
+        h = admin.get('/admin/configuracion-calificaciones/').content.decode()
+        self.assertIn('Estilo de la Planilla de Notas', h); self.assertIn('Cada docente escoge', h)
+        config, _ = ConfiguracionCalificaciones.objects.get_or_create(colegio=self.a)
+        config.estilo_planilla = 'final'
+        config.save()
+        self.assertEqual(estilo_de(self.a, self.u_docente), ('final', True))
+        profe = self.cliente(self.u_docente)
+        h = profe.get(f'/docente/ingresar-notas/?asignacion_id={self.asig.id}&periodo_id={self.p1.id}').content.decode()
+        self.assertIn('lo definió el colegio', h); self.assertIn('data-estilo="final"', h)
+        self.assertNotIn('name="estilo-planilla"', h)
+        self.assertEqual(profe.post('/docente/planillas/estilo/', {'estilo': 'junto'}).status_code, 403)
+        # «Cada docente escoge»: vuelve a la preferencia del docente
+        config.estilo_planilla = 'docente'
+        config.save()
+        self.assertEqual(estilo_de(self.a, self.u_docente), ('junto', False))

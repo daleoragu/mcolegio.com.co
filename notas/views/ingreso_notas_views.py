@@ -69,6 +69,8 @@ class IngresoNotasView(LoginRequiredMixin, View):
             'hay_indicadores': False,
             'permiso_modificar_porcentajes': config.docente_puede_modificar,
         }
+        from ..planillas.columnas import estilo_de
+        context['estilo_planilla'], context['estilo_fijo'] = estilo_de(request.colegio, request.user, config)
         context.update(context_admin)
 
         if asignacion_id and periodo_id:

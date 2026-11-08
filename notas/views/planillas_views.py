@@ -264,6 +264,9 @@ def estilo_planilla(request):
     from ..models import Docente
     if request.method != 'POST' or not request.colegio:
         return JsonResponse({'ok': False}, status=405)
+    from ..planillas.columnas import estilo_de
+    if estilo_de(request.colegio, request.user)[1]:
+        return JsonResponse({'ok': False, 'error': 'El colegio definió el estilo de la planilla para todos.'}, status=403)
     estilo = 'final' if request.POST.get('estilo') == 'final' else 'junto'
     n = Docente.objects.filter(user=request.user, colegio=request.colegio).update(estilo_planilla=estilo)
     return JsonResponse({'ok': bool(n), 'estilo': estilo})

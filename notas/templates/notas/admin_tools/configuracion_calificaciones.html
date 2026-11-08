@@ -27,6 +27,27 @@
 
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-primary text-white">
+            <h4><i class="fas fa-table-columns me-2"></i>Estilo de la Planilla de Notas</h4>
+        </div>
+        <div class="card-body p-4">
+            <p class="card-text text-muted">
+                Cómo se ven las planillas en «Ingreso de notas» y en el PDF de la planilla. Los componentes y sus porcentajes
+                no cambian: solo dónde salen los promedios de cada componente.
+            </p>
+            <div class="p-3 border rounded bg-light">
+                {% for opcion in form_global.estilo_planilla %}
+                <div class="form-check mb-1">{{ opcion.tag }}<label class="form-check-label" for="{{ opcion.id_for_label }}">{{ opcion.choice_label }}</label></div>
+                {% endfor %}
+                <div class="small text-muted mt-2">
+                    <b>Junto</b>: SABER n1 n2 n3 <b>Prom.</b> · HACER n1 n2 <b>Prom.</b> · Definitiva &nbsp;|&nbsp;
+                    <b>Al final</b>: SABER n1 n2 n3 · HACER n1 n2 · <b>Prom. SABER · Prom. HACER</b> · Definitiva
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
             <h4><i class="fas fa-percent me-2"></i>Peso de cada Periodo</h4>
         </div>
         <div class="card-body p-4">
