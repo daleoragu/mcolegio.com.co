@@ -85,7 +85,8 @@ def importar_notas(request, pk):
         'sin_pareja': sum(1 for p in emparejados if p is None),
         'minima': minima, 'maxima': maxima, 'periodos': periodos,
         'periodo_sugerido': next((p for p in periodos if p.esta_activo), None),
-        'componentes': logica.componentes_de(aula)}, 'calificaciones')
+        'componentes': logica.componentes_de(aula), 'componentes_salon': logica.componentes_salon(aula) if aula.es_salon else []},
+        'calificaciones')
 
 
 def _importar(request, c, analisis, por_clave, minima, maxima, llave):
@@ -129,8 +130,14 @@ def _importar(request, c, analisis, por_clave, minima, maxima, llave):
                 continue
             pares.append((p, importar.a_la_escala(valor, maximo, minima, maxima)))
         if aula.es_salon:
-            col = aula.columnas_manuales.filter(titulo=titulo).first() or ColumnaManual.objects.create(
-                aula=aula, titulo=titulo, orden=aula.columnas_manuales.count())
+            col = aula.columnas_manuales.filter(titulo=titulo).first()
+            if col is None:
+                col = ColumnaManual.objects.create(aula=aula, titulo=titulo, orden=aula.columnas_manuales.count())
+                comp = request.POST.get('comp_salon')
+                if comp in {x['id'] for x in logica.componentes_salon(aula)}:
+                    aula.planilla = dict(aula.planilla or {}, asignacion=dict((aula.planilla or {}).get('asignacion') or {},
+                                                                              **{f'manual:{col.pk}': comp}))
+                    aula.save(update_fields=['planilla'])
             for p, nota in pares:
                 NotaManual.objects.update_or_create(columna=col, **logica.filtro_persona(p), defaults={'nota': nota})
             resumen.append(f'«{titulo}»: {len(pares)}')

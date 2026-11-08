@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Planilla {{ aula.titulo }}</title>
+<style>
+  @page { size: letter landscape; margin: 10mm 10mm 14mm;
+          {% if not encabezado or encabezado.pie.numero %}@bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 7.5pt; color: #777; }{% endif %}
+          {% if pie_lineas %}@bottom-center { content: element(pie); width: 70%; }{% endif %} }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 8.5pt; color: #111; margin: 0; }
+  .pie-doc { position: running(pie); font-size: 7.5pt; color: #444; text-align: {% if encabezado %}{{ encabezado.pie_css }}{% else %}center{% endif %}; }
+  .enc-docente { width: 100%; border-collapse: collapse; border-bottom: 2px solid #1f3a68; margin-bottom: 4px; }
+  .enc-docente.sin-borde { border-bottom: 0; }
+  .enc-docente td { vertical-align: middle; padding-bottom: 3px; }
+  .enc-docente .lado { width: 24mm; text-align: center; }
+  .enc-docente .lado img, .enc-docente .arriba img { max-height: 17mm; max-width: 24mm; }
+  .enc-docente .arriba { text-align: center; }
+  h1 { font-size: 12pt; text-align: center; margin: 4px 0 1px; }
+  .datos { text-align: center; color: #444; font-size: 8pt; margin-bottom: 5px; }
+  table.pl { width: 100%; border-collapse: collapse; }
+  table.pl th, table.pl td { border: 0.6pt solid #9aa6bb; padding: 2px 3px; text-align: center; }
+  table.pl th { background: #1f3a68; color: #fff; font-size: 7.5pt; }
+  table.pl th.grupo { background: #e9edf3; color: #1f3a68; }
+  table.pl th.totales, table.pl .prom { background: #fff4d6; color: #111; font-weight: bold; }
+  table.pl td.nombre { text-align: left; white-space: nowrap; }
+  table.pl .peso td { color: #5b6474; font-style: italic; font-size: 7pt; }
+  table.pl td.def { font-weight: bold; }
+  tr { page-break-inside: avoid; }
+  thead { display: table-header-group; }
+</style></head>
+<body>
+{% if pie_lineas %}<div class="pie-doc">{% for l in pie_lineas %}<div>{{ l }}</div>{% endfor %}</div>{% endif %}
+{% if encabezado and encabezado.tiene_algo %}{% include 'materiales/_encabezado_docente.html' %}{% endif %}
+<h1>Planilla de calificaciones · {{ aula.titulo }}</h1>
+<div class="datos">{{ aula.subtitulo }} · Docente: {{ docente }} · {{ hoy|date:"j \d\e F \d\e Y"|lower }}{% if componentes %} · {% for c in componentes %}{{ c.nombre }} {{ c.pct }} %{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</div>
+<table class="pl">
+  <thead>
+    {% if grupos %}<tr><th class="grupo" colspan="2"></th>{% for g in grupos %}<th class="grupo{% if g.totales %} totales{% endif %}" colspan="{{ g.span }}">{{ g.nombre }}{% if g.porcentaje is not None %} ({{ g.pct }} %){% endif %}</th>{% endfor %}<th class="grupo" colspan="2"></th></tr>{% endif %}
+    <tr><th>N.º</th><th>Estudiante</th>{% for t, x in orden %}<th{% if t == 'prom' %} class="totales"{% endif %}>{% if t == 'col' %}{{ x.titulo }}{% else %}Prom. {{ x.nombre }}{% endif %}</th>{% endfor %}<th>Definitiva</th><th>Desempeño</th></tr>
+    <tr class="peso"><td></td><td style="text-align:right">Peso</td>{% for t, x in orden %}<td>{% if t == 'col' %}{{ x.porcentaje }} %{% else %}{{ x.pct }} %{% endif %}</td>{% endfor %}<td></td><td></td></tr>
+  </thead>
+  <tbody>
+  {% for f in filas %}<tr><td>{{ forloop.counter }}</td><td class="nombre">{{ f.nombre }}</td>
+    {% for v in f.vista %}<td{% if v.tipo == 'prom' %} class="prom"{% endif %}>{% if v.n is not None %}{{ v.n|floatformat:1 }}{% endif %}</td>{% endfor %}
+    <td class="def">{% if f.promedio is not None %}{{ f.promedio|floatformat:1 }}{% endif %}</td><td>{{ f.desempeno }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</body></html>

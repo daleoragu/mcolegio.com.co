@@ -74,6 +74,10 @@
             {% for k, n in componentes %}<option value="{{ k }}">{{ n }}</option>{% endfor %}</select></div>
         <div class="col-md-4 small text-muted d-flex align-items-end">Cada columna marcada queda como una columna de la planilla oficial, con su nombre.</div>
     </div>
+    {% elif componentes_salon %}
+    <div class="row g-2 mt-2"><div class="col-md-4"><label class="form-label small fw-bold mb-1">Las columnas nuevas van al componente</label>
+        <select name="comp_salon" class="form-select form-select-sm">{% for c in componentes_salon %}<option value="{{ c.id }}">{{ c.nombre }} ({{ c.pct }} %)</option>{% endfor %}</select></div>
+        <div class="col-md-8 small text-muted d-flex align-items-end">Si una columna ya existe en la planilla (mismo nombre), se actualizan sus notas y conserva su componente.</div></div>
     {% endif %}
     {% endif %}
 </div>

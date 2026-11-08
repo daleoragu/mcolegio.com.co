@@ -732,6 +732,10 @@ def calificaciones(request, pk):
                          content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         r['Content-Disposition'] = f'attachment; filename="Calificaciones {c.aula.titulo}.xlsx"'
         return r
+    if request.GET.get('formato') == 'pdf':
+        r = HttpResponse(logica.pdf_calificaciones(request, c.aula), content_type='application/pdf')
+        r['Content-Disposition'] = f'inline; filename="Planilla {c.aula.titulo}.pdf"'
+        return r
     aula = c.aula
     if request.method == 'POST':
         if not aula.es_salon:
@@ -747,6 +751,13 @@ def calificaciones(request, pk):
             col = get_object_or_404(ColumnaManual, pk=request.POST.get('columna'), aula=aula)
             col.delete()
             messages.info(request, f'Columna «{col.titulo}» eliminada.')
+        elif accion == 'componentes':
+            errores = logica.guardar_componentes(aula, request.POST)
+            for e in errores:
+                messages.warning(request, e)
+            if not errores:
+                messages.success(request, 'Componentes guardados. Escoja en cada columna a qué componente pertenece.'
+                                 if logica.componentes_salon(aula) else 'Sin componentes: el promedio es de todas las columnas.')
         elif accion == 'renombrar':
             col = get_object_or_404(ColumnaManual, pk=request.POST.get('columna'), aula=aula)
             titulo = (request.POST.get('titulo') or '').strip()[:60]
