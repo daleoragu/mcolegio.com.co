@@ -242,6 +242,11 @@ def wompi_eventos(request):
         return HttpResponse(status=401)
     if cuerpo.get('event') == 'transaction.updated':
         tr = (cuerpo.get('data') or {}).get('transaction') or {}
+        if str(tr.get('reference') or '').startswith('SD'):        # planes y pagos de Mi Salón Virtual
+            from salon_digital import pagos as pagos_salon
+            pagos_salon.aplicar_wompi(str(tr.get('reference')), tr.get('status'), tr.get('id') or '', tr.get('amount_in_cents'),
+                                      tr.get('payment_method_type') or '')
+            return HttpResponse('ok')
         wompi.aplicar(str(tr.get('reference') or ''), tr.get('status'), tr.get('id') or '', tr.get('amount_in_cents'),
                       tr.get('payment_method_type') or '')
     return HttpResponse('ok')

@@ -1,7 +1,7 @@
 # salon_digital/urls.py
 from django.urls import path, re_path
 
-from . import views, views_app, views_cuentas, views_grupos
+from . import views, views_app, views_cuentas, views_grupos, views_pagos
 
 app_name = 'salon_digital'
 
@@ -46,6 +46,13 @@ urlpatterns = [
     path('grupos/<int:pk>/estudiante/<int:integrante_pk>/volver/', views_grupos.reactivar_integrante, name='reactivar_integrante'),
     path('grupos/<int:pk>/quitar/<int:integrante_pk>/', views_grupos.quitar_integrante,
          name='quitar_integrante'),
+
+    # --- Planes y pagos ---
+    path('pagos/', views_pagos.planes, name='planes'),
+    path('pagos/revisar/', views_pagos.revisar, name='revisar_pagos'),
+    path('pagos/comprobante/<int:pk>/', views_pagos.comprobante, name='comprobante'),
+    path('pagos/<str:referencia>/', views_pagos.pago, name='pago'),
+    path('pagos/<str:referencia>/vuelta/', views_pagos.vuelta, name='pago_vuelta'),
 
     # --- Revisión de docentes (administradores) ---
     path('revision/', views_cuentas.bandeja_verificaciones, name='bandeja'),

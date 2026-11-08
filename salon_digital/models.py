@@ -633,3 +633,34 @@ class Comentario(models.Model):
 
     def __str__(self):
         return f'{self.nombre}: {self.texto[:50]}'
+
+
+# ---------------------------------------------------------------------------
+# 7. Pagos: planes y recargas (en línea con Wompi o con comprobante de llave Bre-B, Nequi o transferencia)
+# ---------------------------------------------------------------------------
+
+class Pago(models.Model):
+    CONCEPTOS = [('mensual', 'Plan mensual'), ('anual', 'Plan anual'), ('recarga', 'Recarga de saldo')]
+    FORMAS = [('linea', 'En línea (Wompi)'), ('comprobante', 'Llave Bre-B, Nequi o transferencia')]
+    ESTADOS = [('pendiente', 'Pendiente'), ('revision', 'En revisión'), ('aprobado', 'Aprobado'), ('rechazado', 'Rechazado')]
+
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pagos_salon')
+    concepto = models.CharField(max_length=10, choices=CONCEPTOS)
+    monto = models.PositiveIntegerField(help_text='Pesos que paga.')
+    bono = models.PositiveIntegerField(default=0, help_text='Solo recargas: pesos de regalo.')
+    referencia = models.CharField(max_length=40, unique=True)
+    forma = models.CharField(max_length=12, choices=FORMAS)
+    estado = models.CharField(max_length=10, choices=ESTADOS, default='pendiente', db_index=True)
+    comprobante = models.FileField(upload_to='salon/comprobantes/', blank=True, null=True)
+    medio = models.CharField(max_length=30, blank=True, help_text='Tarjeta, PSE, Nequi, llave Bre-B…')
+    transaccion = models.CharField(max_length=60, blank=True)
+    nota = models.CharField(max_length=255, blank=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    resuelto = models.DateTimeField(null=True, blank=True)
+    revisado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+
+    class Meta:
+        ordering = ['-creado']
+
+    def __str__(self):
+        return f'{self.referencia} · {self.get_concepto_display()} · ${self.monto}'

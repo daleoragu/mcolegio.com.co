@@ -1,0 +1,55 @@
+{% extends "salon_digital/base_salon.html" %}
+{% load humanize %}
+{% block titulo %}Pagar · Mi Salón Virtual{% endblock %}
+{% block contenido %}
+<div style="max-width:640px;margin:0 auto">
+  <a href="{% url 'salon_digital:planes' %}" class="small"><i class="fas fa-arrow-left me-1"></i>Planes y pagos</a>
+  <h1 class="h4 mt-2 mb-3">{{ p.get_concepto_display }} · <span style="color:var(--mor)">${{ p.monto|intcomma }}</span></h1>
+
+  {% if p.estado == 'aprobado' %}
+    <div class="alert alert-success"><b>Pago aprobado.</b> Ya está activo. ¡Gracias!</div>
+  {% elif p.estado == 'revision' %}
+    <div class="alert alert-info"><i class="far fa-clock me-1"></i><b>Recibimos su comprobante.</b> Lo revisamos y su {% if p.concepto == 'recarga' %}saldo{% else %}plan{% endif %} se activa el mismo día. Le llega un aviso a la campana.</div>
+  {% elif p.estado == 'rechazado' %}
+    <div class="alert alert-danger"><b>No pudimos confirmar este pago.</b> {{ p.nota }} Puede subir otro comprobante.</div>
+  {% endif %}
+
+  {% if p.estado != 'aprobado' %}
+  <div class="card mb-3"><div class="card-header"><span class="badge rounded-pill me-1" style="background:var(--vino)">1</span>Pague ${{ p.monto|intcomma }} a una de estas cuentas</div>
+    <div class="card-body">
+      {% if datos.titular %}<div class="small text-muted mb-2">A nombre de <b>{{ datos.titular }}</b></div>{% endif %}
+      {% if datos.llave %}<div class="d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-2">
+        <div class="flex-grow-1"><div class="small text-muted"><i class="fas fa-key me-1"></i>Llave Bre-B <span class="text-success">(llega al instante, desde cualquier banco o billetera)</span></div><div class="fw-bold fs-5 font-monospace">{{ datos.llave }}</div></div>
+        <button type="button" class="btn btn-sm btn-outline-primary pp-copiar" data-texto="{{ datos.llave }}"><i class="far fa-copy me-1"></i>Copiar</button></div>{% endif %}
+      {% if datos.nequi %}<div class="d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-2">
+        <div class="flex-grow-1"><div class="small text-muted"><i class="fas fa-mobile-screen me-1"></i>Nequi</div><div class="fw-bold fs-5 font-monospace">{{ datos.nequi }}</div></div>
+        <button type="button" class="btn btn-sm btn-outline-primary pp-copiar" data-texto="{{ datos.nequi }}"><i class="far fa-copy me-1"></i>Copiar</button></div>{% endif %}
+      {% if datos.banco %}<div class="border rounded-3 p-2 mb-2"><div class="small text-muted"><i class="fas fa-building-columns me-1"></i>Transferencia</div><div class="fw-bold">{{ datos.banco }}</div></div>{% endif %}
+      {% if not datos %}<div class="alert alert-warning small mb-2">Escríbanos por <a href="https://wa.me/573006034800?text=Hola%2C%20quiero%20pagar%20{{ p.referencia }}" target="_blank" rel="noopener">WhatsApp 300 603 4800</a> y le damos los datos para pagar.</div>{% endif %}
+      <div class="small mt-2">En la descripción o el mensaje del pago escriba esta referencia:
+        <span class="fw-bold font-monospace">{{ p.referencia }}</span>
+        <button type="button" class="btn btn-link btn-sm p-0 pp-copiar" data-texto="{{ p.referencia }}">copiar</button></div>
+    </div></div>
+
+  <form method="post" enctype="multipart/form-data" class="card mb-3">{% csrf_token %}
+    <div class="card-header"><span class="badge rounded-pill me-1" style="background:var(--vino)">2</span>Suba la foto o captura del comprobante</div>
+    <div class="card-body">
+      <label class="form-label small fw-bold">¿Por dónde pagó?</label>
+      <select name="medio" class="form-select mb-2"><option>Llave Bre-B</option><option>Nequi</option><option>Transferencia</option><option>Daviplata</option><option>Otro</option></select>
+      <input type="file" name="comprobante" class="form-control mb-2" accept="image/*,application/pdf" required>
+      <button class="btn btn-primary w-100"><i class="fas fa-upload me-1"></i>Enviar comprobante</button>
+      <div class="form-text">Foto o PDF de máximo 6 MB. Debe verse el valor, la fecha y la cuenta de destino.</div>
+    </div>
+  </form>
+  {% endif %}
+  <p class="small text-muted text-center">¿Prefiere pagar con tarjeta o PSE? <a href="{% url 'salon_digital:planes' %}">Vuelva a Planes y pagos</a> y escoja «Pagar en línea».</p>
+</div>
+<script>
+document.querySelectorAll('.pp-copiar').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var t = b.dataset.texto, ok = function () { var h = b.innerHTML; b.textContent = '¡Copiado!'; setTimeout(function () { b.innerHTML = h; }, 1500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(t).then(ok, ok); else ok();
+  });
+});
+</script>
+{% endblock %}

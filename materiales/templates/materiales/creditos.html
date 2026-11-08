@@ -62,7 +62,8 @@
         </button>
         {% endfor %}
       </form>
-      <div class="small text-muted mt-2">{% if wompi %}Pago seguro con Wompi (Bancolombia): tarjeta, PSE o Nequi. El saldo aparece apenas se aprueba.{% else %}El pago en línea todavía no está activo; por ahora se recarga por transferencia con la línea de mcolegio.{% endif %}</div>
+      <div class="small text-muted mt-2">{% if wompi %}Pago seguro con Wompi (Bancolombia): tarjeta, PSE o Nequi. El saldo aparece apenas se aprueba.{% else %}El pago en línea todavía no está activo; por ahora se recarga por transferencia con la línea de mcolegio.{% endif %}
+        {% if acceso.es_individual %}<br>¿Prefiere llave Bre-B o Nequi con comprobante? <a href="{% url 'salon_digital:planes' %}">Planes y pagos</a>.{% endif %}</div>
       {% for r in recargas %}<div class="small d-flex justify-content-between border-top mt-2 pt-1"><span>${{ r.monto|intcomma }} · {{ r.creada|date:"d M" }}</span><span>{{ r.get_estado_display }}</span></div>{% endfor %}
     </div>
 

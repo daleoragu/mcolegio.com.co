@@ -64,10 +64,12 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
           <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">{{ request.user.cuenta_salon.nombre_publico|default:"Mi cuenta" }}</a>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><a class="dropdown-item" href="{% url 'salon_digital:mi_cuenta' %}">Mi cuenta y plan</a></li>
+            <li><a class="dropdown-item fw-semibold" href="{% url 'salon_digital:planes' %}">💳 Planes y pagos</a></li>
             <li><a class="dropdown-item" href="{% url 'salon_digital:app_instalar' %}">📲 Instalar la app</a></li>
             <li><a class="dropdown-item" href="/copias/?volver={{ request.path|urlencode }}">Copia de seguridad</a></li>
             <li><a class="dropdown-item" href="{% url 'salon_digital:ayuda' %}">Ayuda</a></li>
-            {% if request.user.is_staff %}<li><a class="dropdown-item" href="{% url 'salon_digital:bandeja' %}">Revisión de docentes</a></li>{% endif %}
+            {% if request.user.is_staff %}<li><a class="dropdown-item" href="{% url 'salon_digital:bandeja' %}">Revisión de docentes</a></li>
+            <li><a class="dropdown-item" href="{% url 'salon_digital:revisar_pagos' %}">Pagos por revisar</a></li>{% endif %}
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item text-muted" href="{% url 'salon_digital:salir' %}">Salir</a></li>
           </ul>
@@ -84,6 +86,14 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
 </nav>
 
 <main class="container pb-4">
+  {% with cs=request.user.cuenta_salon %}{% if cs and request.resolver_match.url_name != 'planes' and request.resolver_match.url_name != 'pago' %}
+    {% if cs.vencida or cs.plan == 'prueba' or cs.dias_restantes is not None and cs.dias_restantes <= 5 %}
+    <div class="alert {% if cs.vencida %}alert-danger{% elif cs.dias_restantes is not None and cs.dias_restantes <= 5 %}alert-warning{% else %}alert-info{% endif %} d-flex flex-wrap align-items-center gap-2 py-2 mt-3 mb-3">
+      <i class="fas fa-credit-card"></i>
+      <span class="flex-grow-1">{% if cs.vencida %}Su plan venció. Sus actividades y resultados siguen guardados; renueve para seguir creando.{% elif cs.plan == 'prueba' %}Su prueba gratuita termina {% if cs.dias_restantes == 0 %}hoy{% else %}en {{ cs.dias_restantes }} día{{ cs.dias_restantes|pluralize }}{% endif %}.{% else %}Su plan vence {% if cs.dias_restantes == 0 %}hoy{% else %}en {{ cs.dias_restantes }} día{{ cs.dias_restantes|pluralize }}{% endif %}.{% endif %}</span>
+      <a class="btn btn-sm btn-primary" href="{% url 'salon_digital:planes' %}">{% if cs.plan == 'prueba' and not cs.vencida %}Ver planes{% else %}Pagar ahora{% endif %}</a>
+    </div>{% endif %}
+  {% endif %}{% endwith %}
   {% if messages %}
     {% for m in messages %}
       <div class="alert alert-{{ m.tags|default:'info' }} alert-dismissible fade show">
