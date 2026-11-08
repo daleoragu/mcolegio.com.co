@@ -141,7 +141,7 @@ def lista(request, a):
         'base': a.base, 'acceso': a, 'documentos': a.documentos().prefetch_related('colaboradores'), 'nube': _nube(a),
         'formatos': a.plantillas_formato().select_related('propietario'),
         'tipos': [t for t in Documento.TIPOS if t[0] not in MODELOS], 'modelos': [t for t in Documento.TIPOS if t[0] in MODELOS],
-        'invitaciones': invitaciones, 'conmigo': conmigo, **_contexto_ia(request, a)})
+        'invitaciones': invitaciones, 'conmigo': conmigo, 'aulas': a.aulas(), **_contexto_ia(request, a)})
 
 
 @require_POST
@@ -171,7 +171,7 @@ def accion(request, a, pk):
     doc, rol = doc_equipo(a, pk)
     que = request.POST.get('accion')
     # Los colaboradores pueden duplicar (copia propia) y publicar en sus propias aulas; lo demás es del dueño.
-    if rol != 'dueno' and que not in ('duplicar', 'publicar', 'ficha'):
+    if rol != 'dueno' and que not in ('duplicar', 'publicar', 'ficha', 'enviar'):
         messages.warning(request, 'Esa acción es solo del dueño del material.')
         return redirect('materiales:editor', pk=pk)
     if que == 'eliminar':
@@ -196,6 +196,8 @@ def accion(request, a, pk):
         return redirect('materiales:lista')
     if que == 'publicar':
         return _publicar(request, a, doc)
+    if que == 'enviar':
+        return _enviar(request, a, doc)
     if que == 'puntoexacto':
         return _puntoexacto(request, a, doc)
     if que == 'ficha':
@@ -253,6 +255,60 @@ def _asignar_ficha(request, a, doc):
     messages.success(request, 'Ficha copiada al aula como tarea. Revise la fecha, el periodo, para quién es '
                               'y márquela como publicada.')
     return redirect('aula:tarea_editar', pk=aula.pk, tid=t.pk)
+
+
+def _volver(request, defecto):
+    v = request.POST.get('volver') or ''
+    return redirect(v if v.startswith('/') and not v.startswith('//') else defecto)
+
+
+def _enviar(request, a, doc):
+    """Envía el material a uno o varios grupos: el PDF al Material del aula (si ya estaba, se actualiza) y/o
+    una tarea para resolver en línea (queda como borrador para que el docente revise fecha y periodo)."""
+    from aula import logica
+    from aula.models import Material, Tarea
+    from . import calificar as C
+    aulas = {str(x.pk): x for x in a.aulas()}
+    escogidas = [aulas[k] for k in request.POST.getlist('aula') if k in aulas]
+    como = set(request.POST.getlist('como')) & {'pdf', 'tarea'}
+    defecto = 'materiales:lista'
+    if not escogidas or not como:
+        messages.error(request, 'Escoja al menos un grupo y cómo enviarlo (PDF o tarea).')
+        return _volver(request, defecto)
+    unidad = B.texto_plano(request.POST.get('unidad'), 80) or doc.area or 'Mis materiales'
+    hechos = []
+    if 'pdf' in como:
+        datos = exportar.pdf(request, doc, colegio=a.colegio, encabezado=a.encabezado(), docente=a.docente(),
+                             modo=request.POST.get('modo'))
+        nombre = exportar.nombre_archivo(doc, 'pdf')
+        for aula in escogidas:
+            m = Material.objects.filter(aula=aula, titulo=doc.titulo[:150], nombre_archivo=nombre[:150], tipo='archivo').first()
+            nuevo = m is None
+            if nuevo:
+                m = Material(aula=aula, titulo=doc.titulo[:150], tipo='archivo')
+            elif m.archivo:
+                m.archivo.delete(save=False)
+            m.unidad = unidad
+            m.descripcion = ' · '.join(x for x in (doc.get_tipo_display(), doc.grado and f'Grado {doc.grado}') if x)[:300]
+            m.archivo.save(nombre, ContentFile(datos), save=False)
+            m.nombre_archivo = nombre[:150]
+            m.save()
+            logica.avisar_estudiantes(aula, f'{aula.titulo}: {"nuevo material" if nuevo else "material actualizado"} «{m.titulo}»',
+                                      request.build_absolute_uri(f'/aula/{aula.pk}/material/'))
+        hechos.append(f'PDF en el Material de {len(escogidas)} grupo(s)')
+    if 'tarea' in como:
+        contenido = B.limpiar(doc.contenido, B.imagenes_usadas(doc.contenido))
+        if not C.preguntas(contenido):
+            messages.warning(request, 'No se creó la tarea: el material no tiene preguntas para resolver.')
+        else:
+            for aula in escogidas:
+                Tarea.objects.create(aula=aula, titulo=doc.titulo[:60], ficha=contenido, publicada=False,
+                                     ficha_config={'modo': 'puntos', 'intentos': 1, 'tiempo': 0, 'mostrar': 'al_terminar',
+                                                   'documento': doc.pk})
+            hechos.append(f'tarea en borrador en {len(escogidas)} grupo(s): revise su fecha y periodo y publíquela')
+    if hechos:
+        messages.success(request, f'«{doc.titulo}» enviado: ' + '; '.join(hechos) + '.')
+    return _volver(request, defecto)
 
 
 def _destinos_examen(a):

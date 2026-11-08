@@ -137,3 +137,49 @@ class Equipo(ColegioDePrueba):
         self.assertEqual([e['nombre'] for e in j['encontrados']], ['Mario Mate'])       # solo sus colegas
         self.assertEqual(c.post(f'/materiales/{doc.pk}/equipo/', {'accion': 'invitar', 'usuario': u3.pk}).status_code, 400)
         self.assertTrue(c.post(f'/materiales/{doc.pk}/equipo/', {'accion': 'invitar', 'usuario': u2.pk}).json()['ok'])
+
+    def test_enviar_a_grupos_y_traer_desde_el_aula(self):
+        from aula.models import Aula, Material, Tarea
+        from notas.models import Curso
+        self.profe.get(f'/aula/asignacion/{self.asig.id}/')
+        aula1 = Aula.objects.get(asignacion=self.asig)
+        curso2 = Curso.objects.create(colegio=self.a, nombre='Otro curso', grado=self.asig.curso.grado)
+        asig2 = AsignacionDocente.objects.create(colegio=self.a, docente=self.asig.docente, materia=self.asig.materia, curso=curso2)
+        self.profe.get(f'/aula/asignacion/{asig2.id}/')
+        aula2 = Aula.objects.get(asignacion=asig2)
+        self.profe.post('/materiales/nuevo/', {'tipo': 'taller', 'titulo': 'Taller de fracciones'})
+        doc = Documento.objects.latest('pk')
+        lista = self.profe.get('/materiales/')
+        self.assertContains(lista, 'Enviar a mis grupos'); self.assertContains(lista, 'no</b> lo ven')
+        # A los dos grupos de una vez, como PDF y como tarea
+        r = self.profe.post(f'/materiales/{doc.pk}/accion/', {'accion': 'enviar', 'aula': [aula1.pk, aula2.pk],
+                                                               'como': ['pdf', 'tarea'], 'unidad': 'Unidad 2', 'volver': '/materiales/'})
+        self.assertRedirects(r, '/materiales/', fetch_redirect_response=False)
+        self.assertEqual(Material.objects.filter(titulo='Taller de fracciones').count(), 2)
+        self.assertEqual(Material.objects.get(aula=aula2).unidad, 'Unidad 2')
+        # El taller tiene preguntas → una tarea en borrador por grupo; si no tuviera, solo un aviso
+        self.assertEqual(Tarea.objects.filter(titulo='Taller de fracciones', publicada=False).count(),
+                         2 if Tarea.objects.filter(titulo='Taller de fracciones').exists() else 0)
+        # Enviar otra vez actualiza, no duplica
+        self.profe.post(f'/materiales/{doc.pk}/accion/', {'accion': 'enviar', 'aula': [aula1.pk], 'como': ['pdf']})
+        self.assertEqual(Material.objects.filter(aula=aula1, titulo='Taller de fracciones').count(), 1)
+        # Un aula ajena no se acepta; sin «cómo» tampoco
+        self.profe.post(f'/materiales/{doc.pk}/accion/', {'accion': 'enviar', 'aula': [999999], 'como': ['pdf']})
+        self.profe.post(f'/materiales/{doc.pk}/accion/', {'accion': 'enviar', 'aula': [aula1.pk]})
+        self.assertEqual(Material.objects.filter(titulo='Taller de fracciones').count(), 2)
+        # Desde el aula: pestaña «Traer de Mis materiales» con sus guías; vuelve al Material del aula
+        p = self.profe.get(f'/aula/{aula1.pk}/material/')
+        self.assertContains(p, 'Traer de Mis materiales'); self.assertContains(p, 'Taller de fracciones')
+        self.assertContains(p, 'ven sus estudiantes')
+        Material.objects.all().delete()
+        r = self.profe.post(f'/materiales/{doc.pk}/accion/', {'accion': 'enviar', 'aula': aula1.pk, 'como': 'pdf',
+                                                               'volver': f'/aula/{aula1.pk}/material/'})
+        self.assertRedirects(r, f'/aula/{aula1.pk}/material/', fetch_redirect_response=False)
+        self.assertTrue(Material.objects.filter(aula=aula1).exists())
+        # «volver» externo se ignora
+        r = self.profe.post(f'/materiales/{doc.pk}/accion/', {'accion': 'enviar', 'aula': aula1.pk, 'como': 'pdf',
+                                                               'volver': '//malo.com/'})
+        self.assertEqual(r['Location'], '/materiales/')
+        # El estudiante ve el material, pero no la pestaña del docente
+        est = self.cliente(self.estudiantes[0].user).get(f'/aula/{aula1.pk}/material/')
+        self.assertContains(est, 'Taller de fracciones'); self.assertNotContains(est, 'Traer de Mis materiales')

@@ -175,3 +175,13 @@ def estado(request, a, pk):
     return JsonResponse({'version': doc.version, 'editado_por': nombre(doc.editado_por),
                          'editado_por_otro': bool(doc.editado_por_id and doc.editado_por_id != request.user.pk),
                          'presentes': [v[0] for k, v in presentes.items() if k != str(request.user.pk)]})
+
+
+def para_aula(request, aula):
+    """Los materiales que el docente puede traer al Material de esta aula, o None si no aplica
+    (por ejemplo, si el aula no es una de las suyas en Mis materiales)."""
+    from .views import Acceso
+    a = Acceso(request)
+    if not a.ok or aula.pk not in {x.pk for x in a.aulas()}:
+        return None
+    return list(accesibles(a).select_related('propietario').order_by('-actualizado')[:200])

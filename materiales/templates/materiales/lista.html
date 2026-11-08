@@ -82,6 +82,7 @@
           <td class="small">{{ d.get_tipo_display }}</td>
           <td class="small text-muted">{{ d.actualizado|date:"d M, h:i a" }}</td>
           <td class="text-end text-nowrap">
+            <button type="button" class="btn btn-sm btn-outline-primary mm-enviar" data-url="{% url 'materiales:accion' d.pk %}" data-titulo="{{ d.titulo }}" title="Enviar a mis grupos"><i class="fas fa-paper-plane"></i></button>
             <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:pdf' d.pk %}?descargar=1" title="Descargar PDF"><i class="far fa-file-pdf"></i></a>
             <form method="post" action="{% url 'materiales:accion' d.pk %}" class="d-inline">{% csrf_token %}
               <input type="hidden" name="accion" value="duplicar"><button class="btn btn-sm btn-outline-secondary" title="Duplicar"><i class="far fa-copy"></i></button></form>
@@ -113,6 +114,7 @@
           <td class="small">{{ de }}</td>
           <td class="small text-muted">{{ c.documento.actualizado|date:"d M, h:i a" }}</td>
           <td class="text-end text-nowrap">
+            <button type="button" class="btn btn-sm btn-outline-primary mm-enviar" data-url="{% url 'materiales:accion' c.documento.pk %}" data-titulo="{{ c.documento.titulo }}" title="Enviar a mis grupos"><i class="fas fa-paper-plane"></i></button>
             <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:pdf' c.documento.pk %}?descargar=1" title="Descargar PDF"><i class="far fa-file-pdf"></i></a>
             <form method="post" action="{% url 'materiales:accion' c.documento.pk %}" class="d-inline">{% csrf_token %}
               <input type="hidden" name="accion" value="duplicar"><button class="btn btn-sm btn-outline-secondary" title="Hacer mi propia copia"><i class="far fa-copy"></i></button></form>
@@ -134,10 +136,33 @@
         <li>Escoja el tipo de guía y llene los bloques.</li>
         <li>Pegue imágenes con <b>Ctrl+V</b> o arrástrelas.</li>
         <li>Con <b>Acomodar</b> escoja normal, compacto o máximo ahorro de papel.</li>
-        <li>Descárguela en PDF o Word, guárdela en su Drive o publíquela en el material de un aula.</li>
+        <li>Descárguela en PDF o Word, guárdela en su Drive o envíela a sus grupos con <i class="fas fa-paper-plane"></i>.</li>
       </ol>
+    </div>
+    <div class="mm-tarjeta small">
+      <h6><i class="fas fa-right-left me-1"></i>Mis materiales y Material del aula</h6>
+      <p class="mb-1"><b>Mis materiales</b> es su taller: aquí crea y guarda. Sus estudiantes <b>no</b> lo ven.</p>
+      <p class="mb-2"><b>Material</b> (dentro de cada aula) es lo que ven sus estudiantes. Llega allí cuando lo envía con
+        <i class="fas fa-paper-plane"></i>, o desde el aula con «Traer de Mis materiales».</p>
+      {% if aulas %}<div class="d-flex flex-wrap gap-1">{% for x in aulas|slice:":8" %}<a class="btn btn-sm btn-outline-secondary" href="/aula/{{ x.pk }}/material/"><i class="fas fa-folder-open me-1"></i>{{ x.titulo }}</a>{% endfor %}</div>{% endif %}
     </div>
   </div>
 </div>
 </div>
+<div class="modal fade mm" id="mm-enviar-modal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" action="" id="mm-enviar-form">{% csrf_token %}
+    <div class="modal-header py-2"><h6 class="modal-title"><i class="fas fa-paper-plane me-1"></i>Enviar «<span id="mm-enviar-titulo"></span>»</h6>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+    <div class="modal-body">{% include 'materiales/_enviar_campos.html' with pref='l' volver=request.path %}</div>
+  </form>
+</div></div></div>
+<script>
+document.querySelectorAll('.mm-enviar').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var f = document.getElementById('mm-enviar-form');
+    f.action = b.dataset.url; document.getElementById('mm-enviar-titulo').textContent = b.dataset.titulo;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('mm-enviar-modal')).show();
+  });
+});
+</script>
 {% endblock %}

@@ -172,13 +172,9 @@
       </form>
     </div>
     <div class="dropdown">
-      <button class="btn btn-sm mm-oro dropdown-toggle" data-bs-toggle="dropdown" type="button"><i class="fas fa-share me-1"></i>Publicar en un aula</button>
-      <form method="post" action="{% url 'materiales:accion' doc.pk %}" class="dropdown-menu p-3" style="min-width:280px" id="mm-publicar">{% csrf_token %}
-        <input type="hidden" name="accion" value="publicar"><input type="hidden" name="modo" value="">
-        <label class="small fw-bold mb-1">Aula</label>
-        <select name="aula" class="form-select form-select-sm mb-2">{% for x in aulas %}<option value="{{ x.pk }}">{{ x.titulo }} · {{ x.subtitulo }}</option>{% endfor %}</select>
-        <button class="btn btn-sm mm-oro w-100">Publicar en Material</button>
-        <div class="small text-muted mt-1">Se publica el PDF; si lo cambia después, publíquelo otra vez.</div>
+      <button class="btn btn-sm mm-oro dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" type="button"><i class="fas fa-paper-plane me-1"></i>Enviar a mis grupos</button>
+      <form method="post" action="{% url 'materiales:accion' doc.pk %}" class="dropdown-menu dropdown-menu-end p-3" style="min-width:300px" id="mm-publicar">{% csrf_token %}
+        {% url 'materiales:editor' doc.pk as volver %}{% include 'materiales/_enviar_campos.html' with pref='e' volver=volver %}
       </form>
     </div>
     {% endif %}
