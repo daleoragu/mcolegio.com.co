@@ -120,20 +120,43 @@ footer a { color:var(--azul); text-decoration:none; }
       display:flex; align-items:center; gap:8px; box-shadow:0 6px 18px rgba(0,0,0,.22); }
 .wa svg { width:22px; height:22px; }
 
+/* Evita que la imagen del hero ensanche la página en el celular (scroll lateral) */
+.hero .contenedor > *, .dos > *, .destacado > * { min-width:0; }
+html, body { overflow-x:hidden; }
+/* El botón Entrar siempre a la vista, también con el celular acostado */
+.barra .acciones { margin-left:auto; flex-shrink:0; }
+.menu + .acciones { margin-left:0; }
+.barra .entrar { white-space:nowrap; padding:8px 12px; border:2px solid var(--azul); border-radius:10px; font-size:.92rem; }
+.barra .boton { white-space:nowrap; }
+.barra .contenedor { padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
+
 @media (max-width: 960px) {
   .menu { display:none; }
+  .menu + .acciones { margin-left:auto; }
   .hero .contenedor, .dos, .destacado { grid-template-columns:1fr; }
   .hero .contenedor { padding:44px 0 96px; }
   .modulos, .mas { grid-template-columns:1fr 1fr; }
   .planes { grid-template-columns:1fr; max-width:460px; }
   .destacado { padding:28px; }
 }
+/* Celular acostado (pantalla baja): barra más delgada, sin perder Entrar */
+@media (max-height: 500px) and (orientation: landscape) {
+  .barra .contenedor { height:56px; }
+  .marca img { height:28px; }
+  .hero .contenedor { padding:28px 0 90px; }
+}
 @media (max-width: 560px) {
-  .barra .entrar { display:none; }
+  .barra .contenedor { gap:10px; }
+  .barra .entrar { padding:7px 10px; font-size:.88rem; }
+  .barra .boton { padding:8px 12px; font-size:.86rem; }
+  .marca img { height:28px; }
   .marca span { display:none; }
   .modulos, .mas { grid-template-columns:1fr; }
   section.bloque { padding:52px 0; }
   .wa span { display:none; } .wa { padding:13px; }
+}
+@media (max-width: 380px) {
+  .solo-ancho { display:none; }
 }
 </style>
 </head>
@@ -156,7 +179,7 @@ footer a { color:var(--azul); text-decoration:none; }
         <a class="boton boton-azul" href="{% url 'salon_digital:crear_cuenta' %}">Activar mi salón</a>
       {% else %}
         <a class="entrar" href="{% url 'salon_digital:entrar' %}">Entrar</a>
-        <a class="boton boton-oro" href="{% url 'salon_digital:registro' %}">Crear cuenta gratis</a>
+        <a class="boton boton-oro" href="{% url 'salon_digital:registro' %}">Crear cuenta<span class="solo-ancho">gratis</span></a>
       {% endif %}
     </div>
   </div>
