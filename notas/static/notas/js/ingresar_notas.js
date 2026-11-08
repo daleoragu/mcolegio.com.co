@@ -210,9 +210,23 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Estilo de la planilla (lo escoge el docente): 'junto' = el promedio de cada componente después de sus notas;
+    // 'final' = todas las notas y al final los promedios de los componentes. Los cálculos son los mismos.
+    let estiloPlanilla = (tablaCalificaciones && tablaCalificaciones.dataset.estilo) || 'junto';
+    document.querySelectorAll('[name=estilo-planilla]').forEach(radio => radio.addEventListener('change', () => {
+        sincronizarDatosDesdeDOM();               // no perder lo que se ha digitado
+        estiloPlanilla = radio.value;
+        renderizarTabla();
+        const token = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value
+            || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+        const datos = new FormData(); datos.append('estilo', radio.value);
+        fetch('/docente/planillas/estilo/', {method: 'POST', body: datos, credentials: 'same-origin', headers: {'X-CSRFToken': token}}).catch(() => {});
+    }));
+
     function renderizarTabla() {
         const hayIndicadores = tablaCalificaciones.dataset.hayIndicadores === 'true';
         if (!hayIndicadores) return;
+        const alFinal = estiloPlanilla === 'final';
 
         const maxNotas = Object.fromEntries(TIPOS.map(t => [t, 0]));
         estudiantesData.forEach(est => {
@@ -239,8 +253,9 @@ document.addEventListener('DOMContentLoaded', function () {
         tiposPintados = visibles;
         let headerHtml = `<thead class="table-light"><tr><th rowspan="2" class="text-center align-middle">#</th><th rowspan="2" class="align-middle">Estudiante</th>`;
         for (const tipo of visibles) {
-            headerHtml += `<th colspan="${maxNotas[tipo] + 1}" class="text-center comp-${tipo}">${escaparHtml(etiquetaComponente(tipo))} <button class="btn btn-outline-success btn-sm btn-add-col ms-1" data-tipo="${tipo}" title="Añadir columna de nota">+</button><button class="btn btn-outline-danger btn-sm btn-remove-col ms-1" data-tipo="${tipo}" title="Quitar última columna">-</button></th>`;
+            headerHtml += `<th colspan="${maxNotas[tipo] + (alFinal ? 0 : 1)}" class="text-center comp-${tipo}">${escaparHtml(etiquetaComponente(tipo))} <button class="btn btn-outline-success btn-sm btn-add-col ms-1" data-tipo="${tipo}" title="Añadir columna de nota">+</button><button class="btn btn-outline-danger btn-sm btn-remove-col ms-1" data-tipo="${tipo}" title="Quitar última columna">-</button></th>`;
         }
+        if (alFinal) headerHtml += `<th colspan="${visibles.length}" class="text-center prom-grupo">Promedios por componente</th>`;
         headerHtml += `<th rowspan="2" class="text-center align-middle">Definitiva</th><th rowspan="2" class="text-center align-middle">Inasistencias</th><th rowspan="2" class="text-center align-middle th-observacion">Observación<br><span class="small fw-normal text-muted">(opcional)</span></th></tr><tr>`;
 
         for (const tipo of visibles) {
@@ -251,8 +266,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                  <span class="col-desc small fw-normal text-muted">${desc}</span>
                                </th>`;
             }
-            headerHtml += `<th class="text-center align-middle prom-header">Prom.</th>`;
+            if (!alFinal) headerHtml += `<th class="text-center align-middle prom-header">Prom.</th>`;
         }
+        if (alFinal) for (const tipo of visibles) headerHtml += `<th class="text-center align-middle prom-header">Prom.<br><span class="small fw-normal">${escaparHtml(etiquetaComponente(tipo))}</span></th>`;
         headerHtml += `</tr></thead>`;
 
         let bodyHtml = `<tbody>`;
@@ -275,8 +291,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         const nota = estudiante.notas[tipo]?.[i]?.valor || '';
                         bodyHtml += `<td><input type="text" class="form-control form-control-sm text-center input-nota" data-tipo="${tipo}" value="${nota}" inputmode="decimal"></td>`;
                     }
-                    bodyHtml += `<td class="text-center align-middle fw-bold prom-celda" data-tipo="${tipo}">0.0</td>`;
+                    if (!alFinal) bodyHtml += `<td class="text-center align-middle fw-bold prom-celda" data-tipo="${tipo}">0.0</td>`;
                 }
+                if (alFinal) for (const tipo of visibles) bodyHtml += `<td class="text-center align-middle fw-bold prom-celda prom-final" data-tipo="${tipo}">0.0</td>`;
                 bodyHtml += `<td class="text-center align-middle fw-bolder def-celda fs-6">0.0</td>
                              <td class="align-middle">
                                <div class="input-group input-group-sm">

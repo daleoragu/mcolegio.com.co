@@ -509,6 +509,10 @@ class Docente(models.Model):
     # QR del carné docente: al azar, como el de los estudiantes (ver Estudiante.codigo_carnet).
     codigo_carnet = models.CharField(max_length=16, unique=True, null=True, blank=True, editable=False,
                                      verbose_name="Código del carné")
+    # Cómo ve su planilla: el promedio de cada componente junto a sus notas, o todos los promedios al final.
+    estilo_planilla = models.CharField(max_length=6, default='junto',
+                                       choices=[('junto', 'Promedio junto a cada componente'),
+                                                ('final', 'Promedios de los componentes al final')])
 
     def __str__(self): 
         return self.user.get_full_name() or self.user.username

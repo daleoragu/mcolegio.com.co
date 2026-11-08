@@ -70,8 +70,11 @@ def generar(request, colegio, periodo, asignaciones):
     # Cada asignación con su escala (la especial de la materia, si tiene).
     planillas = [datos_planilla(colegio, periodo, a, config) for a in asignaciones]
     escala = planillas[0]['escala'] if planillas else []
+    from ..models import Docente
+    docente = Docente.objects.filter(user=request.user, colegio=colegio).first() if request.user.is_authenticated else None
     html = render_to_string('notas/planillas/planilla_notas_pdf.html', {
         'colegio': colegio, 'periodo': periodo, 'planillas': planillas, 'escala': escala,
+        'estilo': docente.estilo_planilla if docente else 'junto',
         'generado': timezone.localtime(),
     })
     return HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()

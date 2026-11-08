@@ -255,3 +255,15 @@ def subir_excel(request):
             'resultado': resultado, 'hay_algo': hay_algo, 'colegio': request.colegio, 'paso': 'revisar'})
 
     return render(request, 'notas/docente/subir_planilla.html', {'colegio': request.colegio, 'paso': 'subir'})
+
+
+@login_required
+def estilo_planilla(request):
+    """Guarda cómo prefiere ver el docente su planilla: promedios junto a cada componente o al final."""
+    from django.http import JsonResponse
+    from ..models import Docente
+    if request.method != 'POST' or not request.colegio:
+        return JsonResponse({'ok': False}, status=405)
+    estilo = 'final' if request.POST.get('estilo') == 'final' else 'junto'
+    n = Docente.objects.filter(user=request.user, colegio=request.colegio).update(estilo_planilla=estilo)
+    return JsonResponse({'ok': bool(n), 'estilo': estilo})

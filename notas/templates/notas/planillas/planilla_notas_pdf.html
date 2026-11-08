@@ -40,14 +40,17 @@
     </tr></table>
     <table class="notas">
         <colgroup><col style="width:22px"><col style="width:190px">
-            {% for c in p.componentes %}{% for n in c.columnas %}<col>{% endfor %}<col style="width:34px">{% endfor %}
+            {% for c in p.componentes %}{% for n in c.columnas %}<col>{% endfor %}{% if estilo != 'final' %}<col style="width:34px">{% endif %}{% endfor %}
+            {% if estilo == 'final' %}{% for c in p.componentes %}<col style="width:34px">{% endfor %}{% endif %}
             <col style="width:36px"><col style="width:66px"><col style="width:34px"></colgroup>
         <thead>
             <tr><th rowspan="2">N.</th><th rowspan="2">Estudiante</th>
-                {% for c in p.componentes %}<th colspan="{{ c.columnas|length|add:1 }}">{{ c.nombre }} ({{ c.peso }}%)</th>{% endfor %}
+                {% for c in p.componentes %}<th colspan="{% if estilo == 'final' %}{{ c.columnas|length }}{% else %}{{ c.columnas|length|add:1 }}{% endif %}">{{ c.nombre }} ({{ c.peso }}%)</th>{% endfor %}
+                {% if estilo == 'final' %}<th colspan="{{ p.componentes|length }}" class="prom">Promedios</th>{% endif %}
                 <th rowspan="2">Final</th><th rowspan="2">Desempeño</th><th rowspan="2">Fallas</th></tr>
             <tr class="nombres">
-                {% for c in p.componentes %}{% for n in c.columnas %}<th><span>{{ n|truncatechars:14 }}</span></th>{% endfor %}<th class="prom"><span>Prom.</span></th>{% endfor %}
+                {% for c in p.componentes %}{% for n in c.columnas %}<th><span>{{ n|truncatechars:14 }}</span></th>{% endfor %}{% if estilo != 'final' %}<th class="prom"><span>Prom.</span></th>{% endif %}{% endfor %}
+                {% if estilo == 'final' %}{% for c in p.componentes %}<th class="prom"><span>{{ c.nombre|truncatechars:12 }}</span></th>{% endfor %}{% endif %}
             </tr>
         </thead>
         <tbody>
@@ -57,8 +60,9 @@
                 <td class="nombre">{{ f.nombre }}{% if f.inclusion %} *{% endif %}</td>
                 {% for c in f.componentes %}
                     {% for v in c.notas %}<td>{% if v is not None %}{{ v|floatformat:1 }}{% endif %}</td>{% endfor %}
-                    <td class="prom">{% if c.promedio is not None %}{{ c.promedio|floatformat:1 }}{% endif %}</td>
+                    {% if estilo != 'final' %}<td class="prom">{% if c.promedio is not None %}{{ c.promedio|floatformat:1 }}{% endif %}</td>{% endif %}
                 {% endfor %}
+                {% if estilo == 'final' %}{% for c in f.componentes %}<td class="prom">{% if c.promedio is not None %}{{ c.promedio|floatformat:1 }}{% endif %}</td>{% endfor %}{% endif %}
                 <td class="final">{% if f.final is not None %}{{ f.final|floatformat:1 }}{% endif %}</td>
                 <td class="{% if f.pierde %}bajo{% endif %}">{{ f.desempeno }}</td>
                 <td>{{ f.fallas }}</td>
