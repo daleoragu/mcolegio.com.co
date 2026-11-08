@@ -540,6 +540,33 @@ def paginas(request, a, pk):
 # ---------------------------------------------------------------------------
 # Encabezado del plan individual
 # ---------------------------------------------------------------------------
+def _config_encabezado(texto):
+    """Valida lo que manda el editor del encabezado (JSON) y devuelve la configuración limpia."""
+    try:
+        cfg = json.loads(texto or '{}')
+    except ValueError:
+        cfg = {}
+    if not isinstance(cfg, dict):
+        cfg = {}
+    E = EncabezadoDocente
+    lineas = []
+    for x in (cfg.get('lineas') or [])[:E.MAX_LINEAS]:
+        if isinstance(x, dict) and B.texto_plano(x.get('texto'), 120):
+            lineas.append({'texto': B.texto_plano(x.get('texto'), 120), 'negrilla': bool(x.get('negrilla')),
+                           'tam': x.get('tam') if x.get('tam') in E.TAMANOS else 'normal'})
+    pos = dict(E.POSICIONES)
+    pie = cfg.get('pie') if isinstance(cfg.get('pie'), dict) else {}
+    alinear = ('centro', 'izquierda', 'derecha')
+    return {'lineas': lineas,
+            'alinear': cfg.get('alinear') if cfg.get('alinear') in alinear else 'centro',
+            'logo_pos': cfg.get('logo_pos') if cfg.get('logo_pos') in pos else 'izquierda',
+            'logo2_pos': cfg.get('logo2_pos') if cfg.get('logo2_pos') in pos else 'derecha',
+            'borde': bool(cfg.get('borde', True)),
+            'pie': {'lineas': [B.texto_plano(x, 150) for x in (pie.get('lineas') or [])[:E.MAX_PIE] if B.texto_plano(x, 150)],
+                    'alinear': pie.get('alinear') if pie.get('alinear') in alinear else 'centro',
+                    'numero': bool(pie.get('numero', True))}}
+
+
 @vista
 def encabezado(request, a):
     if not a.es_individual:
@@ -548,19 +575,43 @@ def encabezado(request, a):
         return redirect('materiales:lista')
     enc, _ = EncabezadoDocente.objects.get_or_create(usuario=request.user)
     if request.method == 'POST':
-        enc.linea1 = B.texto_plano(request.POST.get('linea1'), 120)
-        enc.linea2 = B.texto_plano(request.POST.get('linea2'), 120)
-        enc.linea3 = B.texto_plano(request.POST.get('linea3'), 120)
-        logo = request.FILES.get('logo')
-        if request.POST.get('quitar_logo') == 'on':
-            enc.logo = ''
-        elif logo:
-            try:
-                datos, ext, _, _ = preparar_imagen(logo)
-                enc.logo.save(f'logo{ext}', ContentFile(datos), save=False)
-            except ValueError as e:
-                messages.error(request, str(e))
+        enc.config = _config_encabezado(request.POST.get('config'))
+        primeras = [f['texto'] for f in enc.config['lineas']][:3] + ['', '', '']
+        enc.linea1, enc.linea2, enc.linea3 = primeras[:3]
+        for campo in ('logo', 'logo2'):
+            archivo = request.FILES.get(campo)
+            if request.POST.get(f'quitar_{campo}') == 'on':
+                setattr(enc, campo, '')
+            elif archivo:
+                try:
+                    datos, ext, _, _ = preparar_imagen(archivo)
+                    getattr(enc, campo).save(f'{campo}{ext}', ContentFile(datos), save=False)
+                except ValueError as e:
+                    messages.error(request, str(e))
         enc.save()
-        messages.success(request, 'Encabezado guardado.')
-        return redirect('materiales:lista')
-    return render(request, 'materiales/encabezado.html', {'base': a.base, 'acceso': a, 'enc': enc})
+        messages.success(request, 'Encabezado y pie de página guardados.')
+        if request.POST.get('muestra'):
+            return redirect(f"{request.path}?muestra=1")
+        return redirect('materiales:encabezado')
+    if request.GET.get('muestra'):
+        muestra = Documento(propietario=request.user, colegio=None, titulo='Guía de muestra', tipo='guia', area='Área',
+                            grado='—', contenido={'bloques': [{'tipo': 'texto', 'html': '<p>Así se ven el encabezado y el pie '
+                                                               'de página en sus documentos.</p>'}]})
+        r = HttpResponse(exportar.pdf(request, muestra, colegio=None, encabezado=enc, docente=a.docente()), content_type='application/pdf')
+        r['Content-Disposition'] = 'inline; filename="muestra-encabezado.pdf"'
+        return r
+    datos = {'lineas': enc.filas, 'alinear': enc.alinear, 'logo_pos': enc.logo_pos, 'logo2_pos': enc.logo2_pos,
+             'borde': enc.borde, 'pie': enc.pie}
+    return render(request, 'materiales/encabezado.html', {'base': a.base, 'acceso': a, 'enc': enc, 'datos': datos,
+                                                         'posiciones': EncabezadoDocente.POSICIONES})
+
+
+@vista
+def encabezado_logo(request, a, cual):
+    """El logo del encabezado del propio docente (para la vista previa)."""
+    enc = EncabezadoDocente.objects.filter(usuario=request.user).first()
+    archivo = getattr(enc, 'logo2' if cual == '2' else 'logo', None) if enc else None
+    if not archivo:
+        raise Http404
+    import mimetypes
+    return HttpResponse(archivo.open('rb').read(), content_type=mimetypes.guess_type(archivo.name)[0] or 'image/jpeg')

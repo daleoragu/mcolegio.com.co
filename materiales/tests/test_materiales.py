@@ -180,6 +180,29 @@ class EnElColegio(ColegioDePrueba):
 @override_settings(MEDIA_ROOT=MEDIA)
 class PlanIndividual(ColegioDePrueba):
 
+    def test_encabezado_libre_dos_logos_y_pie(self):
+        from salon_digital.models import Cuenta
+        u = User.objects.create_user('libre2', password=CLAVE, first_name='Lu', last_name='Libre')
+        Cuenta.objects.create(usuario=u, slug='lu', nombre_publico='Lu Libre', estado='verificada', plan='premium')
+        c = Client(HTTP_HOST='localhost'); c.force_login(u)
+        cfg = {'lineas': [{'texto': f'Línea {i}', 'tam': 'pequena'} for i in range(12)], 'logo_pos': 'arriba', 'logo2_pos': 'otra',
+               'pie': {'lineas': ['Lema del colegio', 'Uso exclusivo'], 'numero': False, 'alinear': 'izquierda'}}
+        c.post('/materiales/encabezado/', {'config': json.dumps(cfg), 'logo': png('a.png', 200, 200), 'logo2': png('b.png', 200, 200)})
+        enc = EncabezadoDocente.objects.get(usuario=u)
+        self.assertEqual(len(enc.filas), EncabezadoDocente.MAX_LINEAS)             # máximo 8
+        self.assertEqual((enc.logo_pos, enc.logo2_pos), ('arriba', 'derecha'))      # una posición inválida queda en la de siempre
+        self.assertTrue(enc.logo and enc.logo2)
+        self.assertEqual(enc.pie, {'lineas': ['Lema del colegio', 'Uso exclusivo'], 'alinear': 'izquierda', 'numero': False})
+        self.assertEqual(c.get('/materiales/encabezado/logo/2/').status_code, 200)
+        self.assertTrue(c.get('/materiales/encabezado/?muestra=1').content.startswith(b'%PDF'))
+        c.post('/materiales/nuevo/', {'tipo': 'taller', 'titulo': 'Taller'})
+        doc = Documento.objects.get(propietario=u)
+        self.assertTrue(c.get(f'/materiales/{doc.pk}/pdf/').content.startswith(b'%PDF'))
+        from docx import Document
+        w = Document(io.BytesIO(c.get(f'/materiales/{doc.pk}/word/').content))
+        self.assertIn('Lema del colegio', '\n'.join(p.text for p in w.sections[0].footer.paragraphs))
+        self.assertIn('Línea 7', '\n'.join(cell.text for t in w.tables for row in t.rows for cell in row.cells))
+
     def test_encabezado_propio_y_nube_llena(self):
         from salon_digital.models import Cuenta
         u = User.objects.create_user('libre', password=CLAVE, first_name='Lina', last_name='Libre')
@@ -187,7 +210,8 @@ class PlanIndividual(ColegioDePrueba):
         c = Client(HTTP_HOST='localhost')
         c.force_login(u)
         self.assertContains(c.get('/materiales/'), 'Mi encabezado')
-        c.post('/materiales/encabezado/', {'linea1': 'Prof. Lina Libre', 'linea2': 'Matemáticas', 'logo': png('logo.png', 300, 300)})
+        c.post('/materiales/encabezado/', {'config': json.dumps({'lineas': [{'texto': 'Prof. Lina Libre', 'negrilla': True, 'tam': 'grande'},
+                                                                      {'texto': 'Matemáticas'}]}), 'logo': png('logo.png', 300, 300)})
         enc = EncabezadoDocente.objects.get(usuario=u)
         self.assertEqual(enc.lineas, ['Prof. Lina Libre', 'Matemáticas'])
         self.assertTrue(enc.logo)

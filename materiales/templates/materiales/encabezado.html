@@ -1,22 +1,144 @@
 {% extends base %}
-{% block page_title %}<h4 class="mb-0"><i class="fas fa-heading me-2"></i>Mi encabezado</h4>{% endblock %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-heading me-2"></i>Mi encabezado y pie de página</h4>
+<p class="text-muted small mb-0">Salen en cada guía, taller y evaluación que descargue en PDF o Word.</p>{% endblock %}
 {% block content %}
 {% include 'materiales/_estilos.html' %}
+<style>
+  .en-fila{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+  .en-fila input[type=text]{flex:1 1 auto}
+  .en-hoja{background:#fff;border:1px solid #cfd6e2;box-shadow:0 4px 14px rgba(0,0,0,.08);aspect-ratio:8.5/11;padding:6% 7%;position:relative;font-family:Arial,sans-serif;max-width:520px;margin:0 auto}
+  .en-enc{display:flex;align-items:center;gap:8px;padding-bottom:6px}
+  .en-enc.borde{border-bottom:2px solid #1f3a68}
+  .en-lado{width:18%;text-align:center}
+  .en-lado img,.en-arriba img{max-height:52px;max-width:100%}
+  .en-centro{flex:1 1 auto}
+  .en-arriba{text-align:center;margin-bottom:3px}
+  .en-pie{position:absolute;left:7%;right:7%;bottom:3%;font-size:9px;color:#444}
+  .en-num{position:absolute;right:7%;bottom:3%;font-size:9px;color:#777}
+  .en-gris{height:7px;background:#e9edf3;border-radius:3px;margin:7px 0}
+</style>
 <div class="mm">
-<form method="post" enctype="multipart/form-data" class="mm-tarjeta" style="max-width:640px">
-    {% csrf_token %}
-    <p class="small text-muted">Sale arriba de cada guía, taller y evaluación que descargue en PDF o Word.</p>
-    <label class="form-label small fw-bold">Logo (opcional)</label>
-    {% if enc.logo %}<div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="quitar_logo" id="ql"><label class="form-check-label small" for="ql">Quitar el logo actual</label></div>{% endif %}
-    <input type="file" name="logo" accept="image/*" class="form-control mb-3">
-    <label class="form-label small fw-bold">Línea 1 (en negrilla)</label>
-    <input name="linea1" value="{{ enc.linea1 }}" maxlength="120" class="form-control mb-2" placeholder="Ej.: Prof. Ana Gómez · Matemáticas">
-    <label class="form-label small fw-bold">Línea 2</label>
-    <input name="linea2" value="{{ enc.linea2 }}" maxlength="120" class="form-control mb-2" placeholder="Ej.: Instituto … · Mariquita, Tolima">
-    <label class="form-label small fw-bold">Línea 3</label>
-    <input name="linea3" value="{{ enc.linea3 }}" maxlength="120" class="form-control mb-3" placeholder="Ej.: Correo o WhatsApp de contacto">
-    <button class="btn mm-oro px-4">Guardar</button>
-    <a href="{% url 'materiales:lista' %}" class="btn btn-link">Volver</a>
+<form method="post" enctype="multipart/form-data" id="en-form">{% csrf_token %}
+<input type="hidden" name="config" id="en-config">
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="mm-tarjeta">
+      <h6><i class="fas fa-image me-1"></i>Logos (hasta dos)</h6>
+      <div class="row g-2">
+        {% for n in "12" %}
+        <div class="col-sm-6">
+          <label class="small fw-bold">Logo {{ n }}</label>
+          {% if n == '1' and enc.logo or n == '2' and enc.logo2 %}
+            <div class="small mb-1"><img src="{% url 'materiales:encabezado_logo' n %}" alt="" style="max-height:40px" class="border rounded me-1" id="en-img{{ n }}" data-hay="1">
+              <label><input type="checkbox" name="quitar_logo{% if n == '2' %}2{% endif %}" class="form-check-input me-1 en-quitar" data-n="{{ n }}">Quitar</label></div>
+          {% else %}<img alt="" id="en-img{{ n }}" style="max-height:40px;display:none" class="border rounded mb-1">{% endif %}
+          <input type="file" name="logo{% if n == '2' %}2{% endif %}" accept="image/*" class="form-control form-control-sm mb-1 en-archivo" data-n="{{ n }}">
+          <select class="form-select form-select-sm" id="en-pos{{ n }}" aria-label="Posición del logo {{ n }}">{% for k, v in posiciones %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="mm-tarjeta">
+      <div class="d-flex align-items-center mb-2"><h6 class="mb-0 flex-grow-1"><i class="fas fa-align-center me-1"></i>Líneas del encabezado</h6>
+        <select class="form-select form-select-sm w-auto" id="en-alinear" aria-label="Alineación"><option value="centro">Centradas</option><option value="izquierda">A la izquierda</option><option value="derecha">A la derecha</option></select></div>
+      <div id="en-lineas"></div>
+      <button type="button" class="btn btn-sm btn-outline-primary" id="en-mas"><i class="fas fa-plus me-1"></i>Agregar línea</button>
+      <span class="small text-muted ms-2">Hasta 8 líneas.</span>
+      <div class="form-check small mt-2"><input class="form-check-input" type="checkbox" id="en-borde"><label class="form-check-label" for="en-borde">Línea azul debajo del encabezado</label></div>
+    </div>
+    <div class="mm-tarjeta">
+      <div class="d-flex align-items-center mb-2"><h6 class="mb-0 flex-grow-1"><i class="fas fa-shoe-prints me-1"></i>Pie de página</h6>
+        <select class="form-select form-select-sm w-auto" id="en-pie-alinear" aria-label="Alineación del pie"><option value="centro">Centrado</option><option value="izquierda">A la izquierda</option><option value="derecha">A la derecha</option></select></div>
+      <div id="en-pie"></div>
+      <button type="button" class="btn btn-sm btn-outline-primary" id="en-pie-mas"><i class="fas fa-plus me-1"></i>Agregar línea al pie</button>
+      <div class="form-check small mt-2"><input class="form-check-input" type="checkbox" id="en-numero"><label class="form-check-label" for="en-numero">Número de página (Página 1 de 3)</label></div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <button class="btn mm-oro px-4">Guardar</button>
+      <button class="btn btn-outline-primary" name="muestra" value="1" formtarget="_blank"><i class="far fa-file-pdf me-1"></i>Guardar y ver un PDF de muestra</button>
+      <a href="{% url 'materiales:lista' %}" class="btn btn-link">Volver</a>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="mm-tarjeta" style="position:sticky;top:12px">
+      <h6 class="mb-2">Vista previa</h6>
+      <div class="en-hoja">
+        <div class="en-enc" id="v-enc"></div>
+        <div style="font-weight:bold;text-align:center;margin:10px 0 6px">Guía de ejemplo</div>
+        <div class="en-gris"></div><div class="en-gris" style="width:85%"></div><div class="en-gris" style="width:92%"></div><div class="en-gris" style="width:60%"></div>
+        <div class="en-pie" id="v-pie"></div><div class="en-num" id="v-num">Página 1 de 2</div>
+      </div>
+    </div>
+  </div>
+</div>
 </form>
 </div>
+{{ datos|json_script:"en-datos" }}
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById('en-datos').textContent);
+  var $ = function (id) { return document.getElementById(id); };
+  var TAM = {grande: 'Grande', normal: 'Normal', pequena: 'Pequeña'}, PX = {grande: 17, normal: 13, pequena: 11};
+  function filaLinea(l) {
+    var d = document.createElement('div'); d.className = 'en-fila';
+    d.innerHTML = '<input type="text" class="form-control form-control-sm" maxlength="120" placeholder="Texto de la línea">' +
+      '<label class="small text-nowrap" title="Negrilla"><input type="checkbox" class="form-check-input me-1"><b>N</b></label>' +
+      '<select class="form-select form-select-sm w-auto" aria-label="Tamaño">' + Object.keys(TAM).map(function (k) { return '<option value="' + k + '">' + TAM[k] + '</option>'; }).join('') + '</select>' +
+      '<button type="button" class="btn btn-sm btn-link text-muted px-1" title="Subir"><i class="fas fa-arrow-up"></i></button>' +
+      '<button type="button" class="btn btn-sm btn-link text-danger px-1" title="Quitar"><i class="far fa-trash-can"></i></button>';
+    d.querySelector('input[type=text]').value = l.texto || ''; d.querySelector('input[type=checkbox]').checked = !!l.negrilla;
+    d.querySelector('select').value = l.tam || 'normal';
+    var b = d.querySelectorAll('button');
+    b[0].onclick = function () { if (d.previousElementSibling) d.parentNode.insertBefore(d, d.previousElementSibling); pintar(); };
+    b[1].onclick = function () { d.remove(); pintar(); };
+    $('en-lineas').appendChild(d);
+  }
+  function filaPie(t) {
+    var d = document.createElement('div'); d.className = 'en-fila';
+    d.innerHTML = '<input type="text" class="form-control form-control-sm" maxlength="150" placeholder="Ej.: «La disciplina es el puente entre metas y logros»"><button type="button" class="btn btn-sm btn-link text-danger px-1" title="Quitar"><i class="far fa-trash-can"></i></button>';
+    d.querySelector('input').value = t || ''; d.querySelector('button').onclick = function () { d.remove(); pintar(); };
+    $('en-pie').appendChild(d);
+  }
+  (D.lineas.length ? D.lineas : [{texto: '', negrilla: true, tam: 'grande'}, {texto: '', tam: 'normal'}]).forEach(filaLinea);
+  D.pie.lineas.forEach(filaPie);
+  $('en-alinear').value = D.alinear; $('en-pos1').value = D.logo_pos; $('en-pos2').value = D.logo2_pos;
+  $('en-borde').checked = D.borde; $('en-pie-alinear').value = D.pie.alinear; $('en-numero').checked = D.pie.numero;
+  $('en-mas').onclick = function () { if ($('en-lineas').children.length < 8) { filaLinea({}); pintar(); } };
+  $('en-pie-mas').onclick = function () { if ($('en-pie').children.length < 4) { filaPie(''); pintar(); } };
+  function datos() {
+    return {
+      lineas: [].map.call($('en-lineas').children, function (d) { return {texto: d.querySelector('input[type=text]').value, negrilla: d.querySelector('input[type=checkbox]').checked, tam: d.querySelector('select').value}; }),
+      alinear: $('en-alinear').value, logo_pos: $('en-pos1').value, logo2_pos: $('en-pos2').value, borde: $('en-borde').checked,
+      pie: {lineas: [].map.call($('en-pie').children, function (d) { return d.querySelector('input').value; }), alinear: $('en-pie-alinear').value, numero: $('en-numero').checked}
+    };
+  }
+  function logo(n) { var i = $('en-img' + n), q = document.querySelector('.en-quitar[data-n="' + n + '"]'); return i && i.getAttribute('src') && i.style.display !== 'none' && !(q && q.checked) ? i.getAttribute('src') : ''; }
+  function esc(t) { var x = document.createElement('div'); x.textContent = t; return x.innerHTML; }
+  function pintar() {
+    var c = datos(), alin = {centro: 'center', izquierda: 'left', derecha: 'right'};
+    var logos = [[logo(1), c.logo_pos], [logo(2), c.logo2_pos]].filter(function (x) { return x[0]; });
+    var lado = function (p) { return logos.filter(function (x) { return x[1] === p; }).map(function (x) { return '<img src="' + x[0] + '">'; }).join(''); };
+    var hayLados = logos.some(function (x) { return x[1] !== 'arriba'; });
+    var arriba = lado('arriba');
+    var texto = c.lineas.filter(function (l) { return l.texto.trim(); }).map(function (l) { return '<div style="font-size:' + PX[l.tam] + 'px;font-weight:' + (l.negrilla ? 'bold' : 'normal') + '">' + esc(l.texto) + '</div>'; }).join('');
+    $('v-enc').className = 'en-enc' + (c.borde ? ' borde' : '');
+    $('v-enc').innerHTML = (hayLados ? '<div class="en-lado">' + lado('izquierda') + '</div>' : '') +
+      '<div class="en-centro" style="text-align:' + alin[c.alinear] + '">' + (arriba ? '<div class="en-arriba">' + arriba + '</div>' : '') + (texto || '<span class="text-muted small">Escriba las líneas del encabezado</span>') + '</div>' +
+      (hayLados ? '<div class="en-lado">' + lado('derecha') + '</div>' : '');
+    $('v-pie').style.textAlign = alin[c.pie.alinear];
+    $('v-pie').innerHTML = c.pie.lineas.filter(function (t) { return t.trim(); }).map(function (t) { return '<div>' + esc(t) + '</div>'; }).join('');
+    $('v-num').style.display = c.pie.numero ? '' : 'none';
+    $('en-config').value = JSON.stringify(c);
+  }
+  document.querySelectorAll('.en-archivo').forEach(function (inp) {
+    inp.addEventListener('change', function () {
+      var f = inp.files[0], img = $('en-img' + inp.dataset.n); if (!f || !img) return;
+      img.src = URL.createObjectURL(f); img.style.display = ''; var q = document.querySelector('.en-quitar[data-n="' + inp.dataset.n + '"]'); if (q) q.checked = false; pintar();
+    });
+  });
+  $('en-form').addEventListener('input', pintar); $('en-form').addEventListener('change', pintar);
+  $('en-form').addEventListener('submit', pintar);
+  pintar();
+})();
+</script>
 {% endblock %}
