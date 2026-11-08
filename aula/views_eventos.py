@@ -106,6 +106,8 @@ CONFIG = {'juegos': [j[0] for j in JUEGOS] + ['a_' + k for k in ('salto', 'puent
           'arcade': 'preguntas',
           # Fechas (hora de Colombia, 'AAAA-MM-DDTHH:MM'; vacío = sin límite): hasta cuándo se inscriben y cuándo se presenta
           'fechas': {'inscripcion_hasta': '', 'prueba_desde': '', 'prueba_hasta': ''},
+          # Inicio programado: el evento apagado se activa solo a esta hora ('AAAA-MM-DDTHH:MM', hora de Colombia)
+          'activar_en': '',
           # Veedores: profesores (o grupos de profesores) invitados que ven los resultados en vivo con un enlace de solo lectura
           'veedores': [],
           # Podio de colegios: de cada colegio cuenta su mejor estudiante de cada nivel, con el peso del nivel
@@ -313,7 +315,7 @@ def es_admin_del_evento(request, ev):
 
 def _evento(request, eid):
     """Los eventos del colegio se ven desde su colegio; los abiertos (con código), desde cualquier parte."""
-    ev = get_object_or_404(Evento, pk=eid)
+    ev = al_dia(get_object_or_404(Evento, pk=eid))
     if not ev.codigo:
         ev.save()
     colegio = getattr(request, 'colegio', None)
@@ -403,8 +405,29 @@ def podio_colegios(ev, c=None):
     return lista
 
 
+def al_dia(ev):
+    """Si el evento está apagado y ya llegó la hora programada, lo activa."""
+    cuando = (ev.config or {}).get('activar_en')
+    if not ev.activo and cuando and _fecha(cuando) and _fecha(cuando) <= timezone.now():
+        ev.activo = True
+        ev.config = dict(ev.config, activar_en='', activado_solo=cuando)
+        ev.save(update_fields=['activo', 'config'])
+    return ev
+
+
+def activar_programados(throttle=False):
+    """Activa los eventos cuya hora de inicio programada ya pasó. Con throttle, revisa a lo sumo cada 30 s."""
+    from django.core.cache import cache
+    if throttle and not cache.add('eventos-programados', 1, 30):
+        return
+    for ev in Evento.objects.filter(activo=False, config__has_key='activar_en').exclude(config__activar_en=''):
+        al_dia(ev)
+
+
 def hay_eventos_activos(request):
     colegio = getattr(request, 'colegio', None)
+    if colegio is not None:
+        activar_programados(throttle=True)
     return colegio is not None and Evento.objects.filter(colegio=colegio, activo=True, alcance='colegio').exists()
 
 
@@ -431,6 +454,7 @@ def eventos(request):
                                    config=copy.deepcopy(CONFIG), preguntas=_banco())
         messages.success(request, f'Se creó «{ev.titulo}». Está apagado: configúrelo y actívelo cuando quiera que los participantes lo vean.')
         return redirect('aula:evento_configurar', eid=ev.pk)
+    activar_programados()
     mios = Q(creador=request.user) | Q(organizadores=request.user)
     if colegio is not None and es_admin(request):
         todos = Evento.objects.filter(Q(colegio=colegio) | mios)
@@ -446,6 +470,8 @@ def eventos(request):
         ev.mia = mias.get(ev.pk)
         ev.organiza = es_organizador(request, ev)
         ev.n_participantes = ev.participaciones.count()
+        f = None if ev.activo else _fecha((ev.config or {}).get('activar_en'))
+        ev.programado = fecha_bonita(f) if f else ''
         lista.append(ev)
     for ev in lista:
         g = grupo_de_estudiante(config_de(ev), est) if est else None
@@ -689,7 +715,8 @@ def configurar(request, eid):
         accion = request.POST.get('accion')
         if accion == 'activar':
             ev.activo = not ev.activo
-            ev.save(update_fields=['activo'])
+            ev.config = dict(ev.config or {}, activar_en='')       # activar o apagar a mano quita lo programado
+            ev.save(update_fields=['activo', 'config'])
             messages.success(request, 'Evento ACTIVO: ya lo ven los estudiantes.' if ev.activo else 'Evento apagado: los estudiantes ya no lo ven.')
         elif accion == 'config':
             c = config_de(ev)
@@ -868,6 +895,23 @@ def configurar(request, eid):
             ev.save(update_fields=['config'])
             messages.success(request, 'Podio de colegios guardado.')
             return redirect('aula:evento_resultados', eid=ev.pk)
+        elif accion == 'programar':
+            cuando = (request.POST.get('activar_en') or '').strip()[:16]
+            f = _fecha(cuando)
+            if request.POST.get('cancelar'):
+                ev.config = dict(ev.config or {}, activar_en='')
+                ev.save(update_fields=['config'])
+                messages.info(request, 'Se quitó el inicio programado. El evento sigue apagado.')
+            elif ev.activo:
+                messages.info(request, 'El evento ya está activo.')
+            elif f is None:
+                messages.warning(request, 'Escoja la fecha y la hora en que debe empezar.')
+            elif f <= timezone.now():
+                messages.warning(request, 'Esa hora ya pasó. Escoja una hora futura o use «Activar el evento».')
+            else:
+                ev.config = dict(ev.config or {}, activar_en=cuando)
+                ev.save(update_fields=['config'])
+                messages.success(request, f'Listo: el evento se activará solo el {fecha_bonita(f)} Hasta entonces los estudiantes no lo ven.')
         elif accion == 'fechas':
             c = config_de(ev)
             nuevas = {}
@@ -963,6 +1007,8 @@ def configurar(request, eid):
             ('pantalla', 'Grabar la pantalla completa', 'solo computador', 'Al empezar debe compartir la pantalla completa; si deja de compartirla, el juego se detiene. En celular se graba el juego.', False),
             ('salidas', 'Registrar salidas de la prueba', 'celular y computador', 'Anota cada vez que cambia de pestaña, ventana o aplicación: la hora y cuánto tiempo estuvo fuera.', True))],
         'grab': _resumen_grabaciones(ev), 'fechas': c['fechas'], 'vent': ventana(c),
+        'activar_en': c['activar_en'], 'activar_bonito': fecha_bonita(_fecha(c['activar_en'])) if _fecha(c['activar_en']) else '',
+        'minimo_programar': timezone.localtime().strftime('%Y-%m-%dT%H:%M'),
         'veedores': _veedores_por_grupo(request, c),
         'docentes': Docente.objects.filter(colegio=ev.colegio).select_related('user').order_by('user__last_name') if ev.colegio_id else [],
         'enlace': request.build_absolute_uri(reverse('aula:evento_inscribirse', args=[ev.codigo])),
@@ -1108,7 +1154,7 @@ def inscribirse(request, codigo):
     """Evento abierto: el participante llena el formulario de inscripción (no necesita cuenta).
     Si el organizador pide aprobarlas, queda pendiente hasta que la apruebe; los cupos por institución
     y por nivel se revisan al inscribirse y otra vez al aprobar."""
-    ev = get_object_or_404(Evento, codigo=(codigo or '').upper(), alcance='codigo')
+    ev = al_dia(get_object_or_404(Evento, codigo=(codigo or '').upper(), alcance='codigo'))
     c = config_de(ev)
     ins = c['inscripcion']
     p = participante(request, ev)

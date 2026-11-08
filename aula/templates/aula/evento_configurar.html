@@ -15,14 +15,30 @@
     <a href="{% url 'aula:evento_diplomas' ev.pk %}" class="btn btn-sm btn-outline-success"><i class="fas fa-award me-1"></i>Diplomas</a>
   </div>
 
-  <form method="post" class="au-tarjeta d-flex flex-wrap align-items-center gap-3" style="border-left:6px solid {% if ev.activo %}#2f9e44{% else %}#e03131{% endif %}">{% csrf_token %}
+  <form method="post" class="au-tarjeta d-flex flex-wrap align-items-center gap-3" style="border-left:6px solid {% if ev.activo %}#2f9e44{% elif activar_bonito %}#1971c2{% else %}#e03131{% endif %}">{% csrf_token %}
     <input type="hidden" name="accion" value="activar">
     <div class="flex-grow-1">
       {% if ev.activo %}<b class="text-success fs-5">ACTIVO</b><div class="small">Los estudiantes de 6.º a 11.º lo ven en Mi Salón Virtual y pueden participar.</div>
-      {% else %}<b class="text-danger fs-5">APAGADO</b><div class="small">Los estudiantes no lo ven. Configúrelo con calma y actívelo cuando empiece el evento.</div>{% endif %}
+      {% elif activar_bonito %}<b class="text-primary fs-5"><i class="far fa-clock me-1"></i>PROGRAMADO</b><div class="small">Se activa solo el <b>{{ activar_bonito }}</b> Hasta entonces los estudiantes no lo ven.</div>
+      {% else %}<b class="text-danger fs-5">APAGADO</b><div class="small">Los estudiantes no lo ven. Configúrelo con calma y actívelo cuando empiece el evento, o programe la hora de inicio.</div>{% endif %}
     </div>
-    <button class="btn {% if ev.activo %}btn-outline-danger{% else %}btn-success{% endif %}">{% if ev.activo %}Apagar{% else %}Activar el evento{% endif %}</button>
+    <button class="btn {% if ev.activo %}btn-outline-danger{% else %}btn-success{% endif %}">{% if ev.activo %}Apagar{% elif activar_bonito %}Activar ya{% else %}Activar el evento{% endif %}</button>
+    {% if not ev.activo %}
+    <button type="button" class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#ev-programar" aria-expanded="{% if activar_bonito %}true{% else %}false{% endif %}"><i class="far fa-clock me-1"></i>{% if activar_bonito %}Cambiar hora{% else %}Programar inicio{% endif %}</button>
+    {% endif %}
   </form>
+  {% if not ev.activo %}
+  <div class="collapse" id="ev-programar">
+  <form method="post" class="au-tarjeta d-flex flex-wrap align-items-end gap-2" style="border-left:6px solid #1971c2;margin-top:-.5rem">{% csrf_token %}
+    <input type="hidden" name="accion" value="programar">
+    <div><label class="fw-bold small d-block" for="ev-activar-en">El evento se activa solo el</label>
+      <input type="datetime-local" id="ev-activar-en" name="activar_en" min="{{ minimo_programar }}" value="{{ activar_en|default:fechas.prueba_desde }}" class="form-control form-control-sm" required></div>
+    <button class="btn btn-sm btn-primary"><i class="far fa-clock me-1"></i>Programar</button>
+    {% if activar_bonito %}<button class="btn btn-sm btn-outline-secondary" name="cancelar" value="1" formnovalidate>Quitar lo programado</button>{% endif %}
+    <div class="small text-muted w-100">Hora de Colombia. A esa hora el evento pasa a ACTIVO y los estudiantes lo ven. Si también puso «La prueba abre» en las fechas, conviene que coincidan. Activarlo o apagarlo a mano quita lo programado.</div>
+  </form>
+  </div>
+  {% endif %}
 
   <div class="au-tarjeta">
     <h6><i class="fas fa-door-open me-1"></i>¿Cómo entran los participantes?</h6>
