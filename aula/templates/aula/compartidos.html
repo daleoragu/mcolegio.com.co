@@ -19,7 +19,7 @@
     <div class="row g-2 align-items-end">
       <div class="col-sm-5"><label class="small fw-bold">Agregar a mi clase</label>
         <select name="aula" class="form-select form-select-sm cp-aula" required>{% for a in aulas %}<option value="{{ a.id }}">{{ a.nombre }}</option>{% empty %}<option value="">No tiene clases todavía</option>{% endfor %}</select></div>
-      <div class="col-sm-5">{% if e.tipo != 'publicacion' %}
+      <div class="col-sm-5">{% if not e.para_todos %}
         <label class="me-2 small"><input type="radio" name="para_modo" value="todos" class="form-check-input me-1" checked>Toda la clase</label>
         <label class="small"><input type="radio" name="para_modo" value="algunos" class="form-check-input me-1">Algunos estudiantes</label>{% else %}<span class="small text-muted">La ve toda la clase.</span>{% endif %}</div>
       <div class="col-sm-2"><button class="btn btn-sm au-oro w-100">Agregar</button></div>

@@ -47,7 +47,19 @@ def _es_suya(request, aula):
 
 
 def objeto(request, tipo, oid, recibido=False):
-    """El objeto a compartir. Si no es del docente (y no se lo compartieron), 404."""
+    """El objeto a compartir. Si no es del docente (y no se lo compartieron), 404.
+    Lo del muro de la comunidad lo puede compartir cualquier docente que lo vea (es de otro docente)."""
+    if tipo == 'muro':
+        from chat.models import Publicacion as PubMuro
+        from chat.views_colegas import es_docente
+        from chat.views_muro import visibles
+        if not es_docente(request.user):
+            raise Http404
+        qs = PubMuro.objects.filter(oculta=False) if recibido else visibles(request.user)
+        obj = qs.filter(pk=oid).select_related('autor', 'pagina', 'documento').first()
+        if obj is None:
+            raise Http404
+        return obj
     if tipo == 'pagina':
         from salon_digital.models import PaginaPublicada
         obj = PaginaPublicada.objects.filter(pk=oid).select_related('propietario__usuario').first()
@@ -64,13 +76,26 @@ def objeto(request, tipo, oid, recibido=False):
 
 
 def titulo_de(tipo, obj):
+    if tipo == 'muro':
+        return obj.titulo
     if tipo == 'publicacion':
         return (obj.texto or obj.nombre_archivo or 'Publicación').strip()[:120]
     return obj.titulo
 
 
 def se_puede_copiar(tipo, obj):
+    if tipo == 'muro' and obj.tipo == 'actividad':
+        return bool(obj.pagina) and obj.pagina.tipo == 'html'
     return not (tipo == 'pagina' and obj.tipo != 'html')
+
+
+def para_todos(tipo, obj):
+    """¿Va siempre a toda la clase? (lo que termina como publicación del muro del aula)"""
+    if tipo == 'publicacion':
+        return True
+    if tipo == 'muro':
+        return not (obj.tipo == 'actividad' and obj.pagina) and not obj.documento
+    return False
 
 
 def _copiar_archivo(campo_origen, campo_destino, nombre):
@@ -81,8 +106,43 @@ def _copiar_archivo(campo_origen, campo_destino, nombre):
     return True
 
 
-def copiar(tipo, obj, aula, para, usuario):
+def _copiar_de_muro(pub, aula, para, usuario, request):
+    """Lo de la comunidad, a una clase: la actividad HTML como actividad interactiva, el recurso de Mis materiales
+    como PDF en Material (con el encabezado de su autor) y lo demás como publicación del muro del aula."""
+    from .models import Material
+    from chat.views_colegas import nombre_de
+    autor = nombre_de(pub.autor)
+    if pub.tipo == 'actividad' and pub.pagina:
+        nuevo, url = copiar('pagina', pub.pagina, aula, para, usuario)
+        if not nuevo.descripcion:
+            nuevo.descripcion = f'De {autor}'[:300]
+            nuevo.save(update_fields=['descripcion'])
+        return nuevo, url
+    if pub.documento:
+        from materiales import exportar
+        from materiales.models import EncabezadoDocente
+        doc = pub.documento
+        datos = exportar.pdf(request, doc, colegio=None, encabezado=EncabezadoDocente.objects.filter(usuario=doc.propietario).first(),
+                             docente=nombre_de(doc.propietario))
+        nombre = exportar.nombre_archivo(doc, 'pdf')
+        m = Material(aula=aula, titulo=pub.titulo[:150], unidad='Comunidad docente', tipo='archivo', para=para,
+                     descripcion=f'{doc.get_tipo_display()} · de {autor}'[:300])
+        m.archivo.save(nombre, ContentFile(datos), save=False)
+        m.nombre_archivo = nombre[:150]
+        m.save()
+        return m, reverse('aula:material', args=[aula.pk])
+    texto = f'{pub.titulo}\n\n{pub.texto}'.strip() + f'\n\n(Compartido de la comunidad docente: {autor})'
+    nuevo = Publicacion(aula=aula, autor=usuario, texto=texto[:5000], enlace=pub.enlace or '')
+    if pub.imagen and _copiar_archivo(pub.imagen, nuevo.archivo, 'imagen.jpg'):
+        nuevo.nombre_archivo = 'imagen.jpg'
+    nuevo.save()
+    return nuevo, reverse('aula:muro', args=[aula.pk])
+
+
+def copiar(tipo, obj, aula, para, usuario, request=None):
     """Una copia en la clase «aula» para «para» (vacío = toda la clase). Devuelve (nuevo, url)."""
+    if tipo == 'muro':
+        return _copiar_de_muro(obj, aula, para, usuario, request)
     if tipo == 'actividad':
         nuevo = Actividad(aula=aula, titulo=obj.titulo, descripcion=obj.descripcion, enlace=obj.enlace,
                           califica=obj.califica, para=para)

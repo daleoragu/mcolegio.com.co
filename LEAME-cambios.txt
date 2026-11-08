@@ -1,3 +1,5 @@
+Versión 0001 · 2026-11-08 15:08
+
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
 NUEVO     LEAME-mejoras-pendientes.txt
@@ -51,6 +53,7 @@ NUEVO     aula/migrations/0022_grabaciones_eventos.py
 NUEVO     aula/migrations/0023_grabaciones_en_la_nube.py
 NUEVO     aula/migrations/0024_invertida_puntos.py
 NUEVO     aula/migrations/0025_compartir_con_colegas.py
+NUEVO     aula/migrations/0026_compartir_de_la_comunidad.py
 CAMBIADO  aula/models.py
 NUEVO     aula/planilla_eventos.py
 NUEVO     aula/planilla_preguntas.py
@@ -451,6 +454,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0024_invertida_puntos.py           (aula invertida: puntos de las preguntas abiertas)
   aula/migrations/0025_compartir_con_colegas.py      (Compartir con un colega: «Compartido conmigo»)
   notas/migrations/0063_docente_estilo_planilla.py   (estilo de la planilla del docente)
+  aula/migrations/0026_compartir_de_la_comunidad.py (compartir publicaciones del muro de la comunidad)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.
