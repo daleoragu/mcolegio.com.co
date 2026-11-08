@@ -209,17 +209,30 @@ class Olimpiada(ColegioDePrueba):
         docente.post('/aula/eventos/', {'titulo': 'Olimpiada intercolegial'})
         ev = Evento.objects.get(titulo='Olimpiada intercolegial')
         self.assertEqual((ev.colegio, ev.alcance, ev.creador), (None, 'codigo', u))
-        # Apagado: no se puede inscribir
+        # Inscripciones sin habilitar: no se puede inscribir
         anon = Client(HTTP_HOST='testserver')
-        r = anon.post(f'/aula/eventos/c/{ev.codigo}/', {'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'grado': '7', 'autoriza': 'on'})
+        pedro = {'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'grado': '7', 'documento': '1.000.123', 'autoriza': 'on'}
+        r = anon.post(f'/aula/eventos/c/{ev.codigo}/', pedro)
         self.assertFalse(ParticipacionEvento.objects.exists())
+        self.assertContains(docente.get(f'/aula/eventos/{ev.pk}/configurar/'), 'Habilitar inscripciones')
+        docente.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripciones_abrir', 'abrir': '1'})
+        # Sin documento no se inscribe
+        self.assertContains(anon.post(f'/aula/eventos/c/{ev.codigo}/', dict(pedro, documento='')), 'número de documento')
         docente.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'activar'})
         # Entra con el código, sin cuenta
         r = anon.post('/aula/eventos/entrar/', {'codigo': ev.codigo.lower()})
         self.assertRedirects(r, f'/aula/eventos/c/{ev.codigo}/', fetch_redirect_response=False)
-        r = anon.post(f'/aula/eventos/c/{ev.codigo}/', {'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'grado': '7', 'autoriza': 'on'})
-        self.assertRedirects(r, f'/aula/eventos/{ev.pk}/', fetch_redirect_response=False)
+        r = anon.post(f'/aula/eventos/c/{ev.codigo}/', pedro)
+        self.assertRedirects(r, f'/aula/eventos/c/{ev.codigo}/', fetch_redirect_response=False)
         p = ParticipacionEvento.objects.get(evento=ev)
+        # Le mostramos su código de seguridad una vez; después entra directo a la prueba
+        r = anon.get(f'/aula/eventos/c/{ev.codigo}/')
+        self.assertContains(r, p.datos['clave']); self.assertContains(r, 'Entrar a la prueba')
+        self.assertRedirects(anon.get(f'/aula/eventos/c/{ev.codigo}/'), f'/aula/eventos/{ev.pk}/', fetch_redirect_response=False)
+        # El mismo documento (escrito distinto) no se inscribe dos veces
+        otro = Client(HTTP_HOST='testserver')
+        self.assertContains(otro.post(f'/aula/eventos/c/{ev.codigo}/', dict(pedro, nombre='Pedro Otro', documento='1000123')), 'ya está inscrito')
+        self.assertEqual(ParticipacionEvento.objects.filter(evento=ev).count(), 1)
         self.assertEqual((p.nombre, p.institucion, p.grado, p.ciclo, p.estudiante), ('Pedro Pérez', 'Colegio Otro', 7, 'exploradores', None))
         r = anon.get(f'/aula/eventos/{ev.pk}/')
         self.assertEqual(r.context['datos']['grupo']['nombre'], 'Exploradores')
@@ -295,6 +308,7 @@ class Olimpiada(ColegioDePrueba):
         org = Client(HTTP_HOST='testserver'); org.force_login(u)
         org.post('/aula/eventos/', {'titulo': 'Intercolegial'})
         ev = Evento.objects.get(titulo='Intercolegial')
+        org.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripciones_abrir', 'abrir': '1'})
         org.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripcion', 'abierta': 'on', 'aprobacion': 'on', 'cupo_colegio': '2', 'cupo_nivel': '1'})
         url = f'/aula/eventos/c/{ev.codigo}/'
         # Con aprobación se inscriben aunque el evento siga apagado, pero piden documento y contacto
@@ -322,7 +336,7 @@ class Olimpiada(ColegioDePrueba):
         self.assertEqual(ParticipacionEvento.objects.filter(evento=ev).count(), 2)
         # El mismo documento no se inscribe dos veces; el cupo por institución (2) ya está lleno
         r = Client(HTTP_HOST='testserver').post(url, dict(datos, nombre='Otro Nombre', grado='10'))
-        self.assertContains(r, 'Ya hay una inscripción con ese documento')
+        self.assertContains(r, 'Ese documento ya está inscrito')
         r = Client(HTTP_HOST='testserver').post(url, dict(datos, nombre='Otro Nombre', documento='100003', grado='10'))
         self.assertContains(r, 'sus 2 cupo(s)')
         # Pendiente: no juega aunque se active el evento
@@ -352,6 +366,7 @@ class Olimpiada(ColegioDePrueba):
         self.assertRedirects(r, url, fetch_redirect_response=False)
         self.assertRedirects(otro.get(url), f'/aula/eventos/{ev.pk}/', fetch_redirect_response=False)
         # Aprobar sobre el cupo solo si el organizador lo fuerza
+        org.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripciones_abrir', 'abrir': '1'})
         org.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripcion', 'abierta': 'on', 'aprobacion': 'on', 'cupo_colegio': '1', 'cupo_nivel': '0'})
         org.post(f'/aula/eventos/{ev.pk}/inscripciones/', {'accion': 'aprobar', 'pid': q.pk})
         self.assertEqual(ParticipacionEvento.objects.get(pk=q.pk).estado, 'rechazada')
@@ -383,6 +398,7 @@ class Olimpiada(ColegioDePrueba):
         self.assertContains(self.admin.get(f'/aula/eventos/{ev.pk}/diplomas/?tipo=todos'), 'CERTIFICADO DE PARTICIPACIÓN')
         # Correo al aprobar la inscripción de alguien de fuera (si dejó un correo)
         self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'alcance', 'alcance': 'codigo'})
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripciones_abrir', 'abrir': '1'})
         self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripcion', 'abierta': 'on', 'aprobacion': 'on'})
         ev.refresh_from_db()
         Client(HTTP_HOST='testserver').post(f'/aula/eventos/c/{ev.codigo}/', {
@@ -582,6 +598,7 @@ class Olimpiada(ColegioDePrueba):
         from aula.planilla_eventos import leer_grado
         ev = self.crear('Intercolegial 2026')
         self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'alcance', 'alcance': 'codigo'})
+        self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripciones_abrir', 'abrir': '1'})
         self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripcion', 'abierta': 'on', 'aprobacion': 'on', 'cupo_colegio': '3', 'cupo_nivel': '2'})
         ev.refresh_from_db()
         url = f'/aula/eventos/{ev.pk}/planilla/'
@@ -715,12 +732,13 @@ class Olimpiada(ColegioDePrueba):
         conf = f'/aula/eventos/{ev.pk}/configurar/'
         self.admin.post(conf, {'accion': 'alcance', 'alcance': 'codigo'})
         self.admin.post(conf, {'accion': 'activar'})
+        self.admin.post(conf, {'accion': 'inscripciones_abrir', 'abrir': '1'})
         ev.refresh_from_db()
         f = lambda d: timezone.localtime(timezone.now() + timedelta(days=d)).strftime('%Y-%m-%dT%H:%M')
         # Inscripciones cerradas (ayer) y prueba que abre mañana
         self.admin.post(conf, {'accion': 'fechas', 'inscripcion_hasta': f(-1), 'prueba_desde': f(1), 'prueba_hasta': f(3)})
         url = f'/aula/eventos/c/{ev.codigo}/'
-        datos = {'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'grado': '7', 'autoriza': 'on'}
+        datos = {'nombre': 'Pedro Pérez', 'institucion': 'Colegio Otro', 'grado': '7', 'documento': '1000555', 'autoriza': 'on'}
         c = Client(HTTP_HOST='testserver')
         self.assertContains(c.post(url, datos), 'Las inscripciones cerraron')
         self.assertFalse(ParticipacionEvento.objects.filter(evento=ev).exists())
@@ -740,6 +758,37 @@ class Olimpiada(ColegioDePrueba):
         self.assertContains(c.get(f'/aula/eventos/{ev.pk}/'), 'La prueba cerró el')
         # El organizador siempre puede probar
         self.assertEqual(self.admin.get(f'/aula/eventos/{ev.pk}/').status_code, 200)
+
+    def test_codigo_de_seguridad_y_un_equipo_a_la_vez(self):
+        """Inscrito antes de que empiece: ve su código; vuelve con documento + código sin perder lo que lleva,
+        y al entrar desde otro equipo el anterior queda fuera."""
+        from django.test import Client
+        ev = self.crear('Olimpiada con código')
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        self.admin.post(conf, {'accion': 'alcance', 'alcance': 'codigo'})
+        self.admin.post(conf, {'accion': 'activar'})               # apagado (crear lo deja activo o no: se fuerza abajo)
+        Evento.objects.filter(pk=ev.pk).update(activo=False); ev.refresh_from_db()
+        self.admin.post(conf, {'accion': 'inscripciones_abrir', 'abrir': '1'})
+        url = f'/aula/eventos/c/{ev.codigo}/'
+        cel = Client(HTTP_HOST='testserver')
+        cel.post(url, {'nombre': 'Sara Gómez', 'institucion': 'IE Norte', 'grado': '8', 'documento': '1099888777', 'autoriza': 'on'})
+        p = ParticipacionEvento.objects.get(evento=ev)
+        r = cel.get(url)
+        self.assertContains(r, p.datos['clave']); self.assertContains(r, 'todavía no empieza')
+        self.assertRedirects(cel.get(f'/aula/eventos/{ev.pk}/'), url, fetch_redirect_response=False)   # apagado: a su inscripción
+        # Se cierran las inscripciones: ella igual entra
+        self.admin.post(conf, {'accion': 'inscripciones_abrir', 'abrir': '0'})
+        self.admin.post(conf, {'accion': 'activar'})
+        ParticipacionEvento.objects.filter(pk=p.pk).update(puntos=7)
+        pc = Client(HTTP_HOST='testserver')
+        self.assertContains(pc.post(url, {'accion': 'recuperar', 'documento': '1099888777', 'clave': 'XXXXXX'}), 'código de seguridad')
+        r = pc.post(url, {'accion': 'recuperar', 'documento': '1.099.888.777', 'clave': p.datos['clave'].lower()})
+        self.assertRedirects(r, url, fetch_redirect_response=False)
+        self.assertRedirects(pc.get(url), f'/aula/eventos/{ev.pk}/', fetch_redirect_response=False)
+        p.refresh_from_db(); self.assertEqual(p.puntos, 7)                                          # no perdió nada
+        self.assertEqual(pc.get(f'/aula/eventos/{ev.pk}/').status_code, 200)
+        # El celular quedó fuera: vuelve a la página para entrar con documento y código
+        self.assertRedirects(cel.get(f'/aula/eventos/{ev.pk}/'), url, fetch_redirect_response=False)
 
     def test_programar_inicio(self):
         """El organizador programa la hora de inicio: el evento se activa solo a esa hora."""
