@@ -943,7 +943,7 @@ class ParticipacionEvento(models.Model):
 # ---------------------------------------------------------------------------
 class CompartidoDocente(models.Model):
     TIPOS = [('actividad', 'Actividad interactiva'), ('invertida', 'Clase invertida'), ('publicacion', 'Publicación'),
-             ('pagina', 'Taller HTML')]
+             ('pagina', 'Taller HTML'), ('muro', 'Publicación de la comunidad')]
     de = models.ForeignKey(User, on_delete=models.CASCADE, related_name='compartidos_enviados')
     para = models.ForeignKey(User, on_delete=models.CASCADE, related_name='compartidos_recibidos')
     tipo = models.CharField(max_length=12, choices=TIPOS)

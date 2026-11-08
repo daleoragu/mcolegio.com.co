@@ -128,3 +128,64 @@ class CompartirEnElPlanIndividual(ColegioDePrueba):
         self.assertTrue(r['ok'])
         self.assertTrue(CompartidoDocente.objects.filter(para=u2, tipo='pagina').exists())
         self.assertContains(c.get('/salon_digital/panel/'), 'btn-compartir')
+
+
+@override_settings(MEDIA_ROOT=MEDIA)
+class CompartirDesdeLaComunidad(ColegioDePrueba):
+    """Lo que otro docente publicó en el muro: a una de mis clases (toda o algunos) o a un colega."""
+
+    def test_actividad_recurso_y_experiencia_del_muro(self):
+        from chat.models import Colega, Publicacion as PubMuro
+        from materiales.models import Documento
+        from salon_digital.models import Cuenta, Grupo, Integrante, PaginaPublicada
+        autor = User.objects.create_user('bea', password=CLAVE, first_name='Beatriz', last_name='Bonilla')
+        cb = Cuenta.objects.create(usuario=autor, slug='bea', nombre_publico='Beatriz Bonilla', estado='verificada')
+        yo = User.objects.create_user('luis', password=CLAVE, first_name='Luis', last_name='Libre')
+        cy = Cuenta.objects.create(usuario=yo, slug='luis', nombre_publico='Luis Libre', estado='verificada')
+        grupo = Grupo.objects.create(propietario=cy, nombre='6-01')
+        sara = Integrante.objects.create(grupo=grupo, apellidos='Gómez', nombres='Sara')
+        Integrante.objects.create(grupo=grupo, apellidos='Pérez', nombres='Juan')
+        amigo = User.objects.create_user('mario', password=CLAVE, first_name='Mario', last_name='Mate')
+        Cuenta.objects.create(usuario=amigo, slug='mario', nombre_publico='Mario Mate', estado='verificada')
+        Colega.objects.create(de=yo, para=amigo, estado='aceptada')
+        pagina = PaginaPublicada(propietario=cb, titulo='Carrera de fracciones')
+        pagina.archivo.save('j.html', ContentFile(b'<html>Juego</html>'), save=False)
+        pagina.save()
+        act = PubMuro.objects.create(autor=autor, tipo='actividad', titulo='Carrera de fracciones', pagina=pagina)
+        doc = Documento.objects.create(propietario=autor, colegio=None, titulo='Guía de límites', tipo='taller',
+                                       contenido={'bloques': [{'tipo': 'texto', 'html': '<p>Hola</p>'}]})
+        rec = PubMuro.objects.create(autor=autor, tipo='recurso', titulo='Guía de límites', documento=doc)
+        exp = PubMuro.objects.create(autor=autor, tipo='experiencia', titulo='Mi feria de ciencias', texto='Así la hice')
+        c = Client(HTTP_HOST='localhost'); c.force_login(yo)
+        self.assertContains(c.get('/chat/colegas/muro/'), 'data-tipo="muro"')
+        j = c.get(f'/aula/compartir/muro/{act.pk}/').json()
+        self.assertEqual((j['copiable'], j['para_todos']), (True, False))
+        aula = j['aulas'][0]['id']
+        clave = c.get(f'/aula/compartir/clase/{aula}/estudiantes/').json()['estudiantes']
+        clave_sara = next(e['clave'] for e in clave if 'Sara' in e['nombre'])
+        # La actividad, solo para Sara
+        self.assertTrue(c.post(f'/aula/compartir/muro/{act.pk}/', {'destino': 'clase', 'aula': aula, 'para_modo': 'algunos',
+                                                                   'para': [clave_sara]}).json()['ok'])
+        a = Actividad.objects.get(aula_id=aula)
+        self.assertEqual((a.titulo, a.para), ('Carrera de fracciones', [clave_sara]))
+        self.assertTrue(Notificacion.objects.filter(destinatario=autor, mensaje__contains='llevó su publicación').exists())
+        # El recurso, como PDF en Material para toda la clase
+        self.assertTrue(c.post(f'/aula/compartir/muro/{rec.pk}/', {'destino': 'clase', 'aula': aula, 'para_modo': 'todos'}).json()['ok'])
+        from aula.models import Material
+        m = Material.objects.get(aula_id=aula)
+        self.assertTrue(m.nombre_archivo.endswith('.pdf')); self.assertIn('Beatriz', m.descripcion)
+        # La experiencia, al muro del aula (toda la clase)
+        self.assertTrue(c.get(f'/aula/compartir/muro/{exp.pk}/').json()['para_todos'])
+        c.post(f'/aula/compartir/muro/{exp.pk}/', {'destino': 'clase', 'aula': aula})
+        self.assertTrue(Publicacion.objects.filter(aula_id=aula, texto__contains='Mi feria de ciencias').exists())
+        # A un colega: le llega a «Compartido conmigo» y lo agrega a su clase
+        self.assertTrue(c.post(f'/aula/compartir/muro/{act.pk}/', {'destino': 'colega', 'usuario': amigo.pk}).json()['ok'])
+        envio = CompartidoDocente.objects.get(para=amigo)
+        self.assertEqual(envio.tipo, 'muro')
+        ca = Client(HTTP_HOST='localhost'); ca.force_login(amigo)
+        Grupo.objects.create(propietario=amigo.cuenta_salon, nombre='7-02')
+        r = ca.get('/aula/compartidos/')
+        self.assertContains(r, 'Carrera de fracciones')
+        aula_amigo = Aula.objects.get(grupo__propietario=amigo.cuenta_salon)
+        ca.post('/aula/compartidos/', {'compartido': envio.pk, 'aula': aula_amigo.pk, 'para_modo': 'todos'})
+        self.assertTrue(Actividad.objects.filter(aula=aula_amigo, titulo='Carrera de fracciones').exists())

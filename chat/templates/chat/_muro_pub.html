@@ -51,6 +51,7 @@
     <button type="button" class="mu-r{% if 'util' in t.mias %} on{% endif %}" data-pub="{{ p.pk }}" data-tipo="util" title="Me resultó útil"><i class="fas fa-lightbulb"></i> Útil <span>{{ t.util|default:"" }}</span></button>
     <button type="button" class="mu-r{% if 'usare' in t.mias %} on{% endif %}" data-pub="{{ p.pk }}" data-tipo="usare" title="Lo voy a usar en mi clase"><i class="fas fa-chalkboard"></i> Lo usaré <span>{{ t.usare|default:"" }}</span></button>
     <a class="mu-r" href="/chat/colegas/muro/{{ p.pk }}/#comentarios"><i class="far fa-comment"></i> {% if p.tipo == 'consulta' %}Responder{% else %}Comentar{% endif %} <span>{{ t.n_com|default:"" }}</span></a>
+    <button type="button" class="mu-r btn-compartir" data-tipo="muro" data-id="{{ p.pk }}" title="Con un colega o con una de mis clases"><i class="fas fa-share-nodes"></i><span class="d-none d-sm-inline"> Compartir</span></button>
     <button type="button" class="mu-r ms-auto{% if 'guardar' in t.mias %} on{% endif %}" data-pub="{{ p.pk }}" data-tipo="guardar" title="Guardar para después"><i class="fas fa-bookmark"></i><span class="d-none d-sm-inline"> Guardar</span></button>
   </footer>
 </article>
