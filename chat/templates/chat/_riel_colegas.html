@@ -1,6 +1,7 @@
 <nav class="ch-riel" aria-label="Menú">
   <a class="ch-logo" href="{{ volver }}">mcolegio</a>
   <a class="ch-ir" href="{{ volver }}"><i class="fas fa-house"></i>Inicio</a>
+  <a class="ch-ir" href="/chat/colegas/muro/"><i class="fas fa-newspaper"></i>Muro</a>
   <a class="ch-ir activo" href="/chat/colegas/"><i class="fas fa-user-group"></i>Colegas</a>
   {% if es_del_colegio %}<a class="ch-ir" href="{% url 'chat:inicio' %}"><i class="fas fa-envelope"></i>Mi colegio</a>{% endif %}
 </nav>

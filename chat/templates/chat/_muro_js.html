@@ -1,0 +1,44 @@
+<script>
+(function () {
+  function token() { var m = document.cookie.match(/csrftoken=([^;]+)/); var i = document.querySelector('[name=csrfmiddlewaretoken]'); return i ? i.value : (m ? m[1] : ''); }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('button.mu-r[data-tipo]');
+    if (b) {
+      var fd = new FormData(); fd.append('tipo', b.dataset.tipo);
+      fetch('/chat/colegas/muro/' + b.dataset.pub + '/reaccion/', {method: 'POST', body: fd, headers: {'X-CSRFToken': token(), 'X-Requested-With': 'fetch'}})
+        .then(function (r) { return r.json(); }).then(function (j) {
+          if (!j.ok) return; b.classList.toggle('on', j.activa);
+          var s = b.querySelector('span:not(.d-none):not(.d-sm-inline)'); if (s && b.dataset.tipo !== 'guardar') s.textContent = j.n || '';
+        });
+      return;
+    }
+    var d = e.target.closest('.mu-descartar');
+    if (d) {
+      var f2 = new FormData(); f2.append('usuario', d.dataset.u);
+      fetch('/chat/colegas/muro/descartar/', {method: 'POST', body: f2, headers: {'X-CSRFToken': token(), 'X-Requested-With': 'fetch'}})
+        .then(function () { var x = document.getElementById('sug-' + d.dataset.u); if (x) x.remove(); });
+    }
+  });
+  var form = document.getElementById('mu-form'), abrir = document.getElementById('mu-abrir');
+  if (!form) return;
+  var AYUDA = {recurso: 'Comparta una guía de Mis materiales (sus colegas la ven en PDF y la pueden copiar) o el enlace de un recurso.',
+    consulta: 'Pregunte a la comunidad. Usted elige la respuesta más útil.',
+    experiencia: 'Qué hizo, qué funcionó y qué cambiaría.',
+    convocatoria: 'Olimpiadas, congresos, becas, revistas… Con fecha límite: deja de salir cuando vence.',
+    lectura: 'Un artículo o libro y una frase de por qué vale la pena.'};
+  function tipo() { var t = form.querySelector('[name=tipo]:checked'); return t ? t.value : ''; }
+  function ver() {
+    form.querySelectorAll('.mu-solo').forEach(function (x) { x.classList.toggle('d-none', x.dataset.para !== tipo()); });
+    document.getElementById('mu-ayuda').textContent = AYUDA[tipo()] || '';
+    form.texto.placeholder = tipo() === 'consulta' ? '¿Qué le gustaría preguntarles a sus colegas?' : 'Cuéntele a sus colegas…';
+  }
+  form.addEventListener('change', ver); ver();
+  if (abrir) abrir.addEventListener('click', function () { abrir.classList.add('d-none'); form.classList.remove('d-none'); form.titulo.focus(); });
+  document.getElementById('mu-cancelar').addEventListener('click', function () { form.classList.add('d-none'); if (abrir) abrir.classList.remove('d-none'); });
+  document.getElementById('mu-img').addEventListener('change', function () {
+    var hay = this.files.length > 0; document.getElementById('mu-sin-est').classList.toggle('d-none', !hay); document.getElementById('mu-se').required = hay;
+  });
+  var doc = form.querySelector('[name=documento]');
+  if (doc) doc.addEventListener('change', function () { if (doc.value && !form.titulo.value) form.titulo.value = doc.options[doc.selectedIndex].text.split(' · ')[0]; });
+})();
+</script>

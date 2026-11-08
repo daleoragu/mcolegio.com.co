@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_colegas as colegas
+from . import views, views_colegas as colegas, views_muro as muro
 
 app_name = 'chat'
 
@@ -33,6 +33,15 @@ urlpatterns = [
     path('colegas/avisos/', colegas.avisos, name='colegas_avisos'),
     path('colegas/avisos/leidos/', colegas.avisos_leidos, name='colegas_avisos_leidos'),
     path('colegas/aviso/<int:nid>/', colegas.aviso, name='colegas_aviso'),
+    path('colegas/muro/', muro.muro, name='muro'),
+    path('colegas/muro/normas/', muro.normas, name='muro_normas'),
+    path('colegas/muro/moderar/', muro.moderar, name='muro_moderar'),
+    path('colegas/muro/descartar/', muro.descartar, name='muro_descartar'),
+    path('colegas/muro/<int:pk>/', muro.detalle, name='muro_detalle'),
+    path('colegas/muro/<int:pk>/reaccion/', muro.reaccion, name='muro_reaccion'),
+    path('colegas/muro/<int:pk>/accion/', muro.accion, name='muro_accion'),
+    path('colegas/muro/<int:pk>/copiar/', muro.copiar, name='muro_copiar'),
+    path('colegas/muro/<int:pk>/material/', muro.material, name='muro_material'),
     path('colegas/mini/', colegas.mini, name='colegas_mini'),
     path('colegas/mini/abrir/', colegas.mini_abrir, name='colegas_mini_abrir'),
     path('colegas/mini/c/<int:pk>/', colegas.mini_conv, name='colegas_mini_conv'),

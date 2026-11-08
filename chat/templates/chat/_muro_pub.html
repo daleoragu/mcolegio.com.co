@@ -1,0 +1,44 @@
+{# Una publicación del muro. Espera: t (tarjeta), detalle (bool) #}
+{% with p=t.p %}
+<article class="mu-pub{% if p.oculta %} mu-oculta{% endif %}" id="pub-{{ p.pk }}">
+  <header class="d-flex align-items-start gap-2 mb-2">
+    <a href="/chat/colegas/u/{{ p.autor_id }}/" class="text-decoration-none">{% include 'chat/_av.html' with foto=t.foto nombre=t.nombre clase='' %}</a>
+    <div class="flex-grow-1 lh-sm" style="min-width:0">
+      <a href="/chat/colegas/u/{{ p.autor_id }}/" class="fw-bold text-reset text-decoration-none">{{ t.nombre }}</a>
+      <div class="small text-muted text-truncate">{{ t.desc }}</div>
+      <div class="small text-muted">{{ t.hace }} · {% if p.visibilidad == 'colegas' %}<i class="fas fa-user-group" title="Solo sus colegas"></i>{% else %}<i class="fas fa-earth-americas" title="Toda la comunidad docente"></i>{% endif %}</div>
+    </div>
+    <span class="mu-tipo" style="--c:{{ t.color }}"><i class="fas {{ t.icono }} me-1"></i>{{ p.get_tipo_display }}</span>
+    <div class="dropdown">
+      <button class="btn btn-sm btn-link text-muted px-1" data-bs-toggle="dropdown" aria-label="Más opciones"><i class="fas fa-ellipsis"></i></button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="/chat/colegas/muro/{{ p.pk }}/"><i class="far fa-comment me-2"></i>Abrir</a></li>
+        {% if t.mia or request.user.is_staff %}<li><form method="post" action="/chat/colegas/muro/{{ p.pk }}/accion/" onsubmit="return confirm('¿Eliminar esta publicación?')">{% csrf_token %}<input type="hidden" name="accion" value="eliminar"><button class="dropdown-item text-danger"><i class="far fa-trash-can me-2"></i>Eliminar</button></form></li>{% endif %}
+        {% if not t.mia %}<li><form method="post" action="/chat/colegas/muro/{{ p.pk }}/accion/" onsubmit="var m=prompt('¿Por qué la reporta? (datos de estudiantes, irrespeto, publicidad, otro)');if(m===null)return false;this.motivo.value=m;">{% csrf_token %}<input type="hidden" name="accion" value="reportar"><input type="hidden" name="motivo"><button class="dropdown-item"><i class="far fa-flag me-2"></i>Reportar</button></form></li>{% endif %}
+      </ul>
+    </div>
+  </header>
+  {% if p.oculta %}<div class="alert alert-warning small py-1 mb-2"><i class="fas fa-eye-slash me-1"></i>Oculta por reportes mientras se revisa. Solo usted{% if request.user.is_staff %} y los administradores{% endif %} la ven.</div>{% endif %}
+  <h3 class="mu-titulo"><a href="/chat/colegas/muro/{{ p.pk }}/" class="text-reset text-decoration-none">{{ p.titulo }}</a></h3>
+  {% if p.texto %}<div class="mu-texto{% if not detalle %} mu-corto{% endif %}">{{ p.texto|urlize|linebreaksbr }}</div>
+    {% if not detalle and p.texto|length > 320 %}<a href="/chat/colegas/muro/{{ p.pk }}/" class="small">Ver más</a>{% endif %}{% endif %}
+  {% if p.imagen %}<a href="{{ p.imagen.url }}" target="_blank" rel="noopener"><img src="{{ p.imagen.url }}" alt="Imagen de la publicación" class="mu-img" loading="lazy"></a>{% endif %}
+  {% if p.tipo == 'recurso' and p.documento %}
+  <div class="mu-recurso">
+    <i class="fas fa-file-pdf fa-2x" style="color:#c92a2a"></i>
+    <div class="flex-grow-1" style="min-width:0"><b class="d-block text-truncate">{{ p.documento.titulo }}</b>
+      <span class="small text-muted">{{ p.documento.get_tipo_display }}{% if p.documento.area %} · {{ p.documento.area }}{% endif %}{% if p.documento.grado %} · Grado {{ p.documento.grado }}{% endif %}{% if p.copias %} · lo usaron {{ p.copias }} docente{{ p.copias|pluralize }}{% endif %}</span></div>
+    <a class="btn btn-sm btn-outline-secondary" href="/chat/colegas/muro/{{ p.pk }}/material/" target="_blank"><i class="far fa-eye me-1"></i>Ver</a>
+    {% if not t.mia %}<form method="post" action="/chat/colegas/muro/{{ p.pk }}/copiar/" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-primary"><i class="far fa-copy me-1"></i>Copiar a mis materiales</button></form>{% endif %}
+  </div>{% endif %}
+  {% if p.enlace %}<a class="mu-enlace" href="{{ p.enlace }}" target="_blank" rel="noopener nofollow"><i class="fas fa-link me-2"></i><span class="text-truncate">{{ t.host }}</span><i class="fas fa-arrow-up-right-from-square ms-auto small"></i></a>{% endif %}
+  {% if p.fecha_limite %}<div class="small mt-2 {% if p.fecha_limite < hoy %}text-muted{% else %}text-danger fw-semibold{% endif %}"><i class="far fa-calendar me-1"></i>{% if p.fecha_limite < hoy %}Cerró{% else %}Hasta{% endif %} el {{ p.fecha_limite|date:"j \d\e F"|lower }}</div>{% endif %}
+  {% if p.area or p.grados or p.modelo %}<div class="mt-2">{% if p.area %}<a class="mu-etq" href="/chat/colegas/muro/?area={{ p.area|urlencode }}">{{ p.area }}</a>{% endif %}{% if p.grados %}<span class="mu-etq">{{ p.grados }}</span>{% endif %}{% if p.modelo %}<span class="mu-etq">{{ p.modelo }}</span>{% endif %}</div>{% endif %}
+  <footer class="mu-acciones">
+    <button type="button" class="mu-r{% if 'util' in t.mias %} on{% endif %}" data-pub="{{ p.pk }}" data-tipo="util" title="Me resultó útil"><i class="fas fa-lightbulb"></i> Útil <span>{{ t.util|default:"" }}</span></button>
+    <button type="button" class="mu-r{% if 'usare' in t.mias %} on{% endif %}" data-pub="{{ p.pk }}" data-tipo="usare" title="Lo voy a usar en mi clase"><i class="fas fa-chalkboard"></i> Lo usaré <span>{{ t.usare|default:"" }}</span></button>
+    <a class="mu-r" href="/chat/colegas/muro/{{ p.pk }}/#comentarios"><i class="far fa-comment"></i> {% if p.tipo == 'consulta' %}Responder{% else %}Comentar{% endif %} <span>{{ t.n_com|default:"" }}</span></a>
+    <button type="button" class="mu-r ms-auto{% if 'guardar' in t.mias %} on{% endif %}" data-pub="{{ p.pk }}" data-tipo="guardar" title="Guardar para después"><i class="fas fa-bookmark"></i><span class="d-none d-sm-inline"> Guardar</span></button>
+  </footer>
+</article>
+{% endwith %}

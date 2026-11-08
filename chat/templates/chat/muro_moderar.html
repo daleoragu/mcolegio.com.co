@@ -1,0 +1,23 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}Moderar el muro{% endblock %}
+{% block contenido %}
+<h1 class="h4 mt-3 mb-3"><i class="fas fa-shield-halved me-1"></i>Publicaciones reportadas</h1>
+{% for p in reportadas %}
+<div class="card mb-3"><div class="card-body">
+  <div class="d-flex flex-wrap gap-2 align-items-start">
+    <div class="flex-grow-1">
+      <div class="fw-bold">{{ p.titulo }} {% if p.oculta %}<span class="badge bg-warning text-dark">Oculta</span>{% endif %}</div>
+      <div class="small text-muted">{{ p.get_tipo_display }} · de {{ p.autor.get_full_name|default:p.autor.username }} · {{ p.creada|date:"d/m/Y" }} · {{ p.n }} reporte{{ p.n|pluralize }}</div>
+      {% if p.texto %}<div class="small mt-1" style="white-space:pre-line">{{ p.texto|truncatechars:400 }}</div>{% endif %}
+      {% if p.imagen %}<img src="{{ p.imagen.url }}" alt="" style="max-height:160px" class="mt-2 rounded border">{% endif %}
+      <ul class="small mt-2 mb-0">{% for r in p.reportes.all %}{% if not r.revisado %}<li>{{ r.motivo|default:"(sin motivo)" }}</li>{% endif %}{% endfor %}</ul>
+    </div>
+    <form method="post" class="d-flex flex-column gap-2">{% csrf_token %}<input type="hidden" name="publicacion" value="{{ p.pk }}">
+      <button class="btn btn-sm btn-success" name="decision" value="restaurar">Cumple las normas: restaurar</button>
+      <button class="btn btn-sm btn-outline-danger" name="decision" value="eliminar" onclick="return confirm('¿Eliminar y avisarle al autor?')">Eliminar</button>
+    </form>
+  </div>
+</div></div>
+{% empty %}<div class="cinta text-muted">No hay publicaciones reportadas.</div>{% endfor %}
+<h2 class="h6 mt-4">Normas</h2><ol class="small">{% for n in normas %}<li>{{ n }}</li>{% endfor %}</ol>
+{% endblock %}
