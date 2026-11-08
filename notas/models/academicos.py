@@ -270,6 +270,12 @@ class PublicacionBoletinFinal(models.Model):
 class ConfiguracionCalificaciones(models.Model):
     colegio = models.OneToOneField(Colegio, on_delete=models.CASCADE, related_name="configuracion_calificaciones", null=True)
     docente_puede_modificar = models.BooleanField(default=False, verbose_name="Permitir que los docentes modifiquen los porcentajes de calificación")
+    # Cómo se ve la planilla (en pantalla y en el PDF): lo decide el colegio o cada docente.
+    ESTILOS_PLANILLA = [('docente', 'Cada docente escoge'),
+                        ('junto', 'Todos: el promedio de cada componente junto a sus notas'),
+                        ('final', 'Todos: los promedios de los componentes al final')]
+    estilo_planilla = models.CharField(max_length=7, choices=ESTILOS_PLANILLA, default='docente',
+                                       verbose_name="Estilo de la planilla de notas")
 
     # --- Ponderación de periodos ---
     ponderar_periodos = models.BooleanField(

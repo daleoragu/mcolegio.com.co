@@ -291,7 +291,7 @@ class ConfiguracionGlobalForm(forms.ModelForm):
     class Meta:
         model = ConfiguracionCalificaciones
         fields = [
-            'docente_puede_modificar',
+            'docente_puede_modificar', 'estilo_planilla',
             'ponderar_periodos', 'exigir_periodos_completos',
             'colapsar_area_unica',
             'inclusion_en_promedio_curso', 'inclusion_puesto',
@@ -303,6 +303,7 @@ class ConfiguracionGlobalForm(forms.ModelForm):
             'exigir_periodos_completos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'colapsar_area_unica': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'docente_puede_modificar': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'estilo_planilla': forms.RadioSelect(attrs={'class': 'form-check-input'}),
         }
 
 

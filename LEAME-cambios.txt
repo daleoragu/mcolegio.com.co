@@ -1,4 +1,4 @@
-Versión 0001 · 2026-11-08 15:08
+Versión 0002 · 2026-11-08 15:56
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -283,6 +283,7 @@ NUEVO     notas/migrations/0060_permisos_salida.py
 NUEVO     notas/migrations/0061_permisos_sin_carne.py
 NUEVO     notas/migrations/0062_colores_iconos_topbar.py
 NUEVO     notas/migrations/0063_docente_estilo_planilla.py
+NUEVO     notas/migrations/0064_colegio_estilo_planilla.py
 CAMBIADO  notas/models/__init__.py
 CAMBIADO  notas/models/academicos.py
 NUEVO     notas/models/excusas.py
@@ -292,6 +293,7 @@ NUEVO     notas/models/permisos.py
 CAMBIADO  notas/modulos.py
 NUEVO     notas/pases.py
 CAMBIADO  notas/planillas/asistencia.py
+CAMBIADO  notas/planillas/columnas.py
 CAMBIADO  notas/planillas/excel.py
 CAMBIADO  notas/planillas/pdf.py
 CAMBIADO  notas/reporte_sabana.py
@@ -302,6 +304,7 @@ NUEVO     notas/static/notas/ver_clave.js
 CAMBIADO  notas/templates/notas/admin_crud/formulario_estudiante.html
 CAMBIADO  notas/templates/notas/admin_portal/personalizacion_portal.html
 CAMBIADO  notas/templates/notas/admin_tools/admin_dashboard.html
+CAMBIADO  notas/templates/notas/admin_tools/configuracion_calificaciones.html
 CAMBIADO  notas/templates/notas/admin_tools/impresion_masiva_carnets.html
 NUEVO     notas/templates/notas/admin_tools/pines_carnet.html
 CAMBIADO  notas/templates/notas/base.html
@@ -350,6 +353,7 @@ CAMBIADO  notas/tests/test_planillas.py
 CAMBIADO  notas/tests/test_sabana_reporte_parcial.py
 NUEVO     notas/tests/test_solicitudes_ficha.py
 CAMBIADO  notas/urls.py
+CAMBIADO  notas/views/admin_tools_views.py
 CAMBIADO  notas/views/app_views.py
 CAMBIADO  notas/views/asistencia_views.py
 CAMBIADO  notas/views/carnet_views.py
@@ -357,6 +361,7 @@ CAMBIADO  notas/views/consulta_views.py
 NUEVO     notas/views/excusas_views.py
 NUEVO     notas/views/fichas_views.py
 CAMBIADO  notas/views/gestion_estudiantes_views.py
+CAMBIADO  notas/views/ingreso_notas_views.py
 CAMBIADO  notas/views/observador_views.py
 NUEVO     notas/views/permisos_views.py
 CAMBIADO  notas/views/planillas_views.py
@@ -455,6 +460,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0025_compartir_con_colegas.py      (Compartir con un colega: «Compartido conmigo»)
   notas/migrations/0063_docente_estilo_planilla.py   (estilo de la planilla del docente)
   aula/migrations/0026_compartir_de_la_comunidad.py (compartir publicaciones del muro de la comunidad)
+  notas/migrations/0064_colegio_estilo_planilla.py   (estilo de la planilla definido por el colegio)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

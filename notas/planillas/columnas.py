@@ -23,6 +23,16 @@ def configuracion(colegio):
     return config
 
 
+def estilo_de(colegio, usuario, config=None):
+    """(estilo, fijado_por_el_colegio): 'junto' o 'final'. Si el colegio no lo fija, el que escogió el docente."""
+    config = config or configuracion(colegio)
+    if config.estilo_planilla in ('junto', 'final'):
+        return config.estilo_planilla, True
+    from ..models import Docente
+    docente = Docente.objects.filter(user=usuario, colegio=colegio).first() if getattr(usuario, 'is_authenticated', False) else None
+    return (docente.estilo_planilla if docente else 'junto'), False
+
+
 def nombre_componente(asignacion, codigo, config=None):
     """Cómo se llama el componente: el de la materia (si tiene nombre propio) o el del colegio."""
     return _comp.nombre(asignacion.colegio, codigo, asignacion.materia)
