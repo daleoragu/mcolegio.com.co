@@ -359,6 +359,8 @@ def material(request, pk):
     datos = {'grupos': grupos, 'unidades': unidades}
     if c.es_docente:
         datos['opciones_para'] = logica.opciones_para(aula)
+        from materiales.views_equipo import para_aula
+        datos['mis_materiales'] = para_aula(request, aula)
     return _render(request, c, 'aula/material.html', datos, 'material')
 
 

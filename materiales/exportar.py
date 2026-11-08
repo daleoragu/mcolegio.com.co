@@ -37,7 +37,7 @@ def imagenes_en_disco(doc, encabezado=None):
     usadas = B.imagenes_usadas(doc.contenido)
     with tempfile.TemporaryDirectory(prefix='material-') as carpeta:
         rutas = {}
-        for img in Imagen.objects.filter(pk__in=usadas, propietario=doc.propietario):
+        for img in Imagen.objects.filter(pk__in=usadas, propietario_id__in=doc.equipo_ids()):
             datos = _leer(img.archivo)
             if datos:
                 ruta = Path(carpeta) / f'{img.pk}{Path(img.archivo.name).suffix or ".jpg"}'

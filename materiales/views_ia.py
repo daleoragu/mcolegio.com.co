@@ -82,7 +82,10 @@ def accion(request, a, accion):
     contexto = {'imagenes': validas}
     doc = None
     if accion in ('piar', 'revisar'):
-        doc = _doc(a, _entero(datos.get('documento')))
+        from .views_equipo import doc_equipo
+        doc, _ = doc_equipo(a, _entero(datos.get('documento')))
+        validas = set(Imagen.objects.filter(propietario_id__in=doc.equipo_ids()).values_list('pk', flat=True))
+        contexto['imagenes'] = validas
         contexto['documento'] = B.limpiar(doc.contenido, validas)
         if not contexto['documento']['bloques']:
             return JsonResponse({'ok': False, 'error': 'El documento está vacío.'}, status=400)

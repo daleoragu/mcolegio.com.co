@@ -28,6 +28,17 @@ def _recuadro(estilo, titulo, html=''):
     return {'id': _id(), 'tipo': 'recuadro', 'estilo': estilo, 'titulo': titulo, 'html': html}
 
 
+def _tabla(filas, encabezado=True):
+    return {'id': _id(), 'tipo': 'tabla', 'filas': filas, 'encabezado': encabezado}
+
+
+RUBRICA = [['Criterio', 'Superior', 'Alto', 'Básico', 'Bajo'],
+           ['Contenido y comprensión', '', '', '', ''],
+           ['Trabajo en equipo', '', '', '', ''],
+           ['Producto o solución', '', '', '', ''],
+           ['Presentación y comunicación', '', '', '', '']]
+
+
 def _objetivo():
     return _recuadro('nota', 'Lo que voy a aprender', '<p>Escriba aquí el objetivo, el DBA o la competencia.</p>')
 
@@ -104,6 +115,110 @@ PLANTILLAS = {
         _recuadro('nota', 'Cómo se arma', '<p>Use el botón <b>Hoja sobre un PDF</b> para subir el PDF o las fotos de la '
                   'guía. Después, encima de cada página, dibuje los espacios para escribir, las casillas y las listas, '
                   'con su respuesta. Este recuadro se puede borrar.</p>'),
+    ],
+    # --- Modelos pedagógicos -------------------------------------------------------------------
+    # Aprendizaje basado en proyectos: una pregunta impulsora, indagación sostenida y un producto que se muestra.
+    'abp': lambda: [
+        _recuadro('nota', 'Ficha del proyecto', '<p>Complete la tabla. Un proyecto puede integrar varias áreas.</p>'),
+        _tabla([['Áreas que integra', ''], ['Grado y duración', ''], ['DBA o competencias', ''], ['Producto final', ''],
+                ['Público con quien se socializa', '']], encabezado=False),
+        _seccion('1. Pregunta impulsora', 'La pregunta abierta que guía todo el proyecto.'),
+        _recuadro('reto', 'Nuestra pregunta', '<p>Ej.: ¿Cómo podemos reducir el consumo de agua en nuestro colegio?</p>'),
+        _seccion('2. Lo que sabemos y lo que necesitamos saber', 'Punto de partida de la indagación.'),
+        _tabla([['Lo que ya sabemos', 'Lo que necesitamos averiguar'], ['', ''], ['', ''], ['', '']]),
+        _seccion('3. Equipos y roles', 'Cada integrante asume un rol y responde por él.'),
+        _tabla([['Rol', 'Responsabilidad', 'Integrante'], ['Coordinador', 'Organiza el trabajo y los tiempos', ''],
+                ['Investigador', 'Busca y verifica la información', ''], ['Relator', 'Registra avances y decisiones', ''],
+                ['Comunicador', 'Prepara la presentación del producto', '']]),
+        _seccion('4. Plan de trabajo', 'Hitos con su entregable y su fecha.'),
+        _tabla([['Semana', 'Actividad', 'Entregable', 'Fecha'], ['1', '', '', ''], ['2', '', '', ''], ['3', '', '', ''],
+                ['4', 'Socialización', 'Producto final', '']]),
+        _seccion('5. Investigación', 'Fuentes, entrevistas, experimentos o salidas de campo.'),
+        _texto('<p>Indicaciones para investigar y registrar lo encontrado.</p>'),
+        _pregunta(enunciado='¿Qué encontramos y de dónde salió la información?', opciones=[]),
+        _seccion('6. Producto final y socialización', 'Lo que se construye y a quién se le presenta.'),
+        _texto('<p>Describa el producto (maqueta, campaña, video, prototipo, informe) y cómo se presentará.</p>'),
+        _seccion('7. Evaluación', 'Rúbrica con la escala de valoración nacional.'),
+        _tabla([list(f) for f in RUBRICA]),
+        _seccion('8. Reflexión', 'Autoevaluación y coevaluación.'),
+        _pregunta(enunciado='¿Qué aprendí y qué aporté a mi equipo?', opciones=[]),
+        _pregunta(enunciado='¿Qué mejoraríamos si volviéramos a hacer el proyecto?', opciones=[]),
+    ],
+    # Aprendizaje basado en retos: involucrarse, investigar y actuar sobre un problema real del entorno.
+    'retos': lambda: [
+        _objetivo(),
+        _seccion('1. Involucrarse', 'De la gran idea al reto.'),
+        _tabla([['Gran idea', 'Ej.: el agua, la convivencia, la energía'], ['Pregunta esencial', ''],
+                ['El reto', 'Una acción concreta y alcanzable']], encabezado=False),
+        _seccion('2. Investigar', 'Preguntas guía, actividades y recursos.'),
+        _tabla([['Pregunta guía', 'Actividad o recurso para responderla'], ['', ''], ['', ''], ['', '']]),
+        _pregunta(enunciado='Con lo investigado, ¿qué conclusiones sacamos?', opciones=[]),
+        _seccion('3. Actuar', 'Proponer, aplicar y evaluar la solución.'),
+        _texto('<p>La solución propuesta y cómo se pondrá en práctica.</p>'),
+        _tabla([['Paso', 'Responsable', 'Fecha', '¿Se cumplió?'], ['', '', '', ''], ['', '', '', '']]),
+        _seccion('4. Evaluación', ''),
+        _tabla([list(f) for f in RUBRICA]),
+        _recuadro('recuerda', 'Para pensar', '<p>¿Qué cambió en el entorno gracias a nuestra solución?</p>'),
+    ],
+    # Estudio de caso: una situación real o verosímil que se analiza para decidir.
+    'caso': lambda: [
+        _objetivo(),
+        _seccion('1. El caso', 'Lea la situación con atención.'),
+        _texto('<p>Narre aquí el caso: quiénes, dónde, qué pasó y cuál es el dilema.</p>'),
+        _seccion('2. Comprensión', ''),
+        _pregunta(enunciado='¿Cuál es el problema central del caso?'),
+        _pregunta(enunciado='¿Quiénes están involucrados y qué quiere cada uno?', opciones=[]),
+        _seccion('3. Análisis', 'Causas, consecuencias y datos importantes.'),
+        _tabla([['Causas', 'Consecuencias'], ['', ''], ['', '']]),
+        _seccion('4. Alternativas de solución', ''),
+        _tabla([['Alternativa', 'Ventajas', 'Desventajas'], ['', '', ''], ['', '', ''], ['', '', '']]),
+        _seccion('5. Decisión', ''),
+        _pregunta(enunciado='¿Qué decidiría usted y por qué?', opciones=[]),
+        _recuadro('recuerda', 'Lección del caso', '<p>¿Qué aprendimos que sirve para otras situaciones?</p>'),
+    ],
+    # Aula invertida: lo teórico se estudia antes de clase; la clase es para practicar.
+    'invertida': lambda: [
+        _objetivo(),
+        _recuadro('nota', 'Cómo se trabaja esta guía', '<p>Estudie el material <b>antes</b> de la clase. En clase lo '
+                  'aplicaremos juntos. Si usa el aula de la plataforma, el video puede llevar preguntas que lo pausan '
+                  '(Aula invertida).</p>'),
+        _seccion('1. Antes de clase', 'Video, lectura o presentación.'),
+        _texto('<p>Enlace o descripción del material: duración, qué mirar con atención.</p>'),
+        _pregunta(enunciado='Pregunta de verificación 1: '),
+        _pregunta(enunciado='Pregunta de verificación 2: '),
+        _pregunta(enunciado='Escriba una duda que le haya quedado.', opciones=[]),
+        _seccion('2. En clase', 'Práctica en parejas o grupos, con el docente presente.'),
+        _texto('<p>Actividades de aplicación y resolución de problemas.</p>'),
+        _pregunta(),
+        _pregunta(opciones=[]),
+        _seccion('3. Después de clase', 'Refuerzo y aplicación en el entorno.'),
+        _texto('<p>Una tarea corta para afianzar.</p>'),
+        _lineas(3),
+        _seccion('4. Autoevaluación', ''),
+        _tabla([['Afirmación', 'Sí', 'A veces', 'No'], ['Estudié el material antes de clase', '', '', ''],
+                ['Participé en la práctica', '', '', ''], ['Puedo explicar el tema a un compañero', '', '', '']]),
+    ],
+    # Aprendizaje cooperativo: interdependencia positiva, roles, responsabilidad individual y grupal.
+    'cooperativo': lambda: [
+        _objetivo(),
+        _recuadro('nota', 'Organización', '<p>Grupos base de 4 integrantes. Cada uno se hace experto en una parte del '
+                  'tema (técnica del rompecabezas) y luego la enseña a su grupo.</p>'),
+        _seccion('1. Meta del grupo', 'Lo que todos deben lograr: nadie termina hasta que todos entiendan.'),
+        _texto('<p>Meta común del grupo.</p>'),
+        _seccion('2. Roles', ''),
+        _tabla([['Rol', 'Función', 'Integrante'], ['Coordinador', 'Distribuye el trabajo y cuida los tiempos', ''],
+                ['Secretario', 'Toma nota de acuerdos y respuestas', ''], ['Portavoz', 'Comparte las conclusiones', ''],
+                ['Supervisor', 'Revisa que todos participen y entiendan', '']]),
+        _seccion('3. Partes del rompecabezas', 'Cada integrante prepara una parte con los expertos de otros grupos.'),
+        _tabla([['Parte', 'Experto', 'Lo más importante para enseñar'], ['A', '', ''], ['B', '', ''], ['C', '', ''],
+                ['D', '', '']]),
+        _seccion('4. Tarea del grupo', 'Se resuelve entre todos con lo que aportó cada experto.'),
+        _pregunta(),
+        _pregunta(opciones=[]),
+        _seccion('5. Cómo trabajamos', 'Procesamiento grupal.'),
+        _pregunta(enunciado='¿Qué hicimos bien como grupo y qué debemos mejorar?', opciones=[]),
+        _seccion('6. Evaluación individual y grupal', ''),
+        _tabla([['Criterio', 'Valoración'], ['Aporte individual', ''], ['Resultado del grupo', ''], ['Convivencia', '']]),
     ],
     'libre': lambda: [_texto()],
 }

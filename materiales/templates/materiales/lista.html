@@ -28,6 +28,18 @@
         </form>
         {% endif %}{% endfor %}
       </div>
+      <div class="fw-semibold small mt-3 mb-1"><i class="fas fa-lightbulb me-1"></i>Modelos pedagógicos</div>
+      <div class="mm-tipos">
+        {% for clave, nombre in modelos %}
+        <form method="post" action="{% url 'materiales:nuevo' %}">{% csrf_token %}
+          <input type="hidden" name="tipo" value="{{ clave }}">
+          <button class="mm-tipo" type="submit" title="{% if clave == 'abp' %}Pregunta impulsora, equipos con roles, plan de trabajo, producto final y rúbrica{% elif clave == 'retos' %}Gran idea, pregunta esencial y reto: investigar y actuar sobre el entorno{% elif clave == 'caso' %}Una situación real para analizar causas, alternativas y decidir{% elif clave == 'invertida' %}Antes de clase, en clase y después de clase{% else %}Roles, rompecabezas y evaluación individual y grupal{% endif %}">
+            <i class="fas {% if clave == 'abp' %}fa-diagram-project{% elif clave == 'retos' %}fa-flag-checkered{% elif clave == 'caso' %}fa-magnifying-glass{% elif clave == 'invertida' %}fa-rotate{% else %}fa-people-group{% endif %}"></i>
+            <span>{{ nombre }}</span>
+          </button>
+        </form>
+        {% endfor %}
+      </div>
       <div class="mt-3">
         <div class="fw-semibold small mb-1"><i class="fas fa-building-columns me-1"></i>{% if acceso.es_individual %}Con mi formato{% else %}Con el formato del colegio{% endif %}</div>
         {% if formatos %}
@@ -44,6 +56,19 @@
       </div>
     </div>
 
+    {% if invitaciones %}
+    <div class="mm-tarjeta" style="border-left:5px solid var(--bs-primary)">
+      <h6><i class="fas fa-envelope-open-text me-1"></i>Lo invitaron a construir</h6>
+      {% for c, de in invitaciones %}
+      <div class="d-flex flex-wrap align-items-center gap-2 border-top py-2">
+        <span class="flex-grow-1"><b>{{ c.documento.titulo }}</b> <span class="small text-muted">· {{ c.documento.get_tipo_display }} · de {{ de }} · {{ c.get_permiso_display|lower }}</span></span>
+        <form method="post" action="{% url 'materiales:invitacion' c.pk %}" class="d-inline">{% csrf_token %}<input type="hidden" name="accion" value="aceptar"><button class="btn btn-sm btn-primary">Aceptar</button></form>
+        <form method="post" action="{% url 'materiales:invitacion' c.pk %}" class="d-inline">{% csrf_token %}<input type="hidden" name="accion" value="rechazar"><button class="btn btn-sm btn-outline-secondary">Rechazar</button></form>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="mm-tarjeta p-0">
       <div class="table-responsive"><table class="table align-middle mb-0">
         <thead class="table-light"><tr><th>Documento</th><th>Tipo</th><th>Modificado</th><th></th></tr></thead>
@@ -52,10 +77,12 @@
         <tr>
           <td><a href="{% url 'materiales:editor' d.pk %}" class="fw-semibold text-decoration-none">{{ d.titulo }}</a>
               {% if d.plantilla_colegio %}<span class="badge text-bg-warning ms-1"><i class="fas fa-star"></i> formato</span>{% endif %}
+              {% with n=d.colaboradores.all|length %}{% if n %}<span class="badge text-bg-info ms-1" title="Docentes en el equipo"><i class="fas fa-user-group"></i> {{ n }}</span>{% endif %}{% endwith %}
               <div class="small text-muted">{{ d.area }}{% if d.grado %} · Grado {{ d.grado }}{% endif %}</div></td>
           <td class="small">{{ d.get_tipo_display }}</td>
           <td class="small text-muted">{{ d.actualizado|date:"d M, h:i a" }}</td>
           <td class="text-end text-nowrap">
+            <button type="button" class="btn btn-sm btn-outline-primary mm-enviar" data-url="{% url 'materiales:accion' d.pk %}" data-titulo="{{ d.titulo }}" title="Enviar a mis grupos"><i class="fas fa-paper-plane"></i></button>
             <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:pdf' d.pk %}?descargar=1" title="Descargar PDF"><i class="far fa-file-pdf"></i></a>
             <form method="post" action="{% url 'materiales:accion' d.pk %}" class="d-inline">{% csrf_token %}
               <input type="hidden" name="accion" value="duplicar"><button class="btn btn-sm btn-outline-secondary" title="Duplicar"><i class="far fa-copy"></i></button></form>
@@ -73,6 +100,33 @@
         </tbody>
       </table></div>
     </div>
+
+    {% if conmigo %}
+    <div class="mm-tarjeta p-0">
+      <div class="px-3 pt-3"><h6><i class="fas fa-user-group me-1"></i>Construyo con otros docentes</h6></div>
+      <div class="table-responsive"><table class="table align-middle mb-0">
+        <thead class="table-light"><tr><th>Documento</th><th>De</th><th>Modificado</th><th></th></tr></thead>
+        <tbody>
+        {% for c, de in conmigo %}
+        <tr>
+          <td><a href="{% url 'materiales:editor' c.documento.pk %}" class="fw-semibold text-decoration-none">{{ c.documento.titulo }}</a>
+              <div class="small text-muted">{{ c.documento.get_tipo_display }}{% if c.documento.area %} · {{ c.documento.area }}{% endif %} · {{ c.get_permiso_display|lower }}</div></td>
+          <td class="small">{{ de }}</td>
+          <td class="small text-muted">{{ c.documento.actualizado|date:"d M, h:i a" }}</td>
+          <td class="text-end text-nowrap">
+            <button type="button" class="btn btn-sm btn-outline-primary mm-enviar" data-url="{% url 'materiales:accion' c.documento.pk %}" data-titulo="{{ c.documento.titulo }}" title="Enviar a mis grupos"><i class="fas fa-paper-plane"></i></button>
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:pdf' c.documento.pk %}?descargar=1" title="Descargar PDF"><i class="far fa-file-pdf"></i></a>
+            <form method="post" action="{% url 'materiales:accion' c.documento.pk %}" class="d-inline">{% csrf_token %}
+              <input type="hidden" name="accion" value="duplicar"><button class="btn btn-sm btn-outline-secondary" title="Hacer mi propia copia"><i class="far fa-copy"></i></button></form>
+            <form method="post" action="{% url 'materiales:invitacion' c.pk %}" class="d-inline" onsubmit="return confirm('¿Salir de este material? Ya no lo verá.')">{% csrf_token %}
+              <input type="hidden" name="accion" value="salir"><button class="btn btn-sm btn-outline-danger" title="Salir del equipo"><i class="fas fa-right-from-bracket"></i></button></form>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+    {% endif %}
   </div>
   <div class="col-lg-4">
     {% include 'materiales/_nube.html' %}
@@ -82,10 +136,33 @@
         <li>Escoja el tipo de guía y llene los bloques.</li>
         <li>Pegue imágenes con <b>Ctrl+V</b> o arrástrelas.</li>
         <li>Con <b>Acomodar</b> escoja normal, compacto o máximo ahorro de papel.</li>
-        <li>Descárguela en PDF o Word, guárdela en su Drive o publíquela en el material de un aula.</li>
+        <li>Descárguela en PDF o Word, guárdela en su Drive o envíela a sus grupos con <i class="fas fa-paper-plane"></i>.</li>
       </ol>
+    </div>
+    <div class="mm-tarjeta small">
+      <h6><i class="fas fa-right-left me-1"></i>Mis materiales y Material del aula</h6>
+      <p class="mb-1"><b>Mis materiales</b> es su taller: aquí crea y guarda. Sus estudiantes <b>no</b> lo ven.</p>
+      <p class="mb-2"><b>Material</b> (dentro de cada aula) es lo que ven sus estudiantes. Llega allí cuando lo envía con
+        <i class="fas fa-paper-plane"></i>, o desde el aula con «Traer de Mis materiales».</p>
+      {% if aulas %}<div class="d-flex flex-wrap gap-1">{% for x in aulas|slice:":8" %}<a class="btn btn-sm btn-outline-secondary" href="/aula/{{ x.pk }}/material/"><i class="fas fa-folder-open me-1"></i>{{ x.titulo }}</a>{% endfor %}</div>{% endif %}
     </div>
   </div>
 </div>
 </div>
+<div class="modal fade mm" id="mm-enviar-modal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" action="" id="mm-enviar-form">{% csrf_token %}
+    <div class="modal-header py-2"><h6 class="modal-title"><i class="fas fa-paper-plane me-1"></i>Enviar «<span id="mm-enviar-titulo"></span>»</h6>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+    <div class="modal-body">{% include 'materiales/_enviar_campos.html' with pref='l' volver=request.path %}</div>
+  </form>
+</div></div></div>
+<script>
+document.querySelectorAll('.mm-enviar').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var f = document.getElementById('mm-enviar-form');
+    f.action = b.dataset.url; document.getElementById('mm-enviar-titulo').textContent = b.dataset.titulo;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('mm-enviar-modal')).show();
+  });
+});
+</script>
 {% endblock %}

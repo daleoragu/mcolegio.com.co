@@ -181,6 +181,7 @@ NUEVO     aula/templates/aula/logica_informe.html
 NUEVO     aula/templates/aula/logica_juego.html
 NUEVO     aula/templates/aula/logica_menu.html
 NUEVO     aula/templates/aula/mascota.html
+CAMBIADO  aula/templates/aula/material.html
 CAMBIADO  aula/templates/aula/vivo_docente.html
 CAMBIADO  aula/templates/aula/vivo_estudiante.html
 CAMBIADO  aula/tests/test_aula.py
@@ -213,6 +214,23 @@ NUEVO     chat/test_colegas.py
 CAMBIADO  chat/urls.py
 NUEVO     chat/views_colegas.py
 CAMBIADO  config/urls.py
+CAMBIADO  materiales/exportar.py
+NUEVO     materiales/migrations/0005_colaboradores_y_modelos.py
+CAMBIADO  materiales/models.py
+CAMBIADO  materiales/plantillas.py
+CAMBIADO  materiales/static/materiales/editor.js
+NUEVO     materiales/static/materiales/equipo.js
+NUEVO     materiales/templates/materiales/_enviar_campos.html
+CAMBIADO  materiales/templates/materiales/documento_pdf.html
+CAMBIADO  materiales/templates/materiales/editor.html
+CAMBIADO  materiales/templates/materiales/lista.html
+NUEVO     materiales/tests/test_equipo.py
+CAMBIADO  materiales/tests/test_materiales.py
+CAMBIADO  materiales/urls.py
+CAMBIADO  materiales/views.py
+CAMBIADO  materiales/views_banco.py
+NUEVO     materiales/views_equipo.py
+CAMBIADO  materiales/views_ia.py
 CAMBIADO  notas/boletin/logic.py
 NUEVO     notas/colores.py
 CAMBIADO  notas/context_processors.py
@@ -363,6 +381,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   salon_digital/migrations/0004_grupo_pedir_pin.py  (Salón Digital: pedir el PIN al entrar)
   chat/migrations/0005_colegas.py                 (Mis colegas: amistad y grupos entre docentes)
   chat/migrations/0006_perfil_colega_foto.py       (Mis colegas: foto, grados y municipio del perfil)
+  materiales/migrations/0005_colaboradores_y_modelos.py  (Mis materiales: equipo, versiones y modelos ABP, retos, caso…)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

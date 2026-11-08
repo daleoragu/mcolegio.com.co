@@ -137,7 +137,7 @@ class EnElColegio(ColegioDePrueba):
         doc = self.crear('taller')
         self.profe.get(f'/aula/asignacion/{self.asig.id}/')
         aula = Aula.objects.get(asignacion=self.asig)
-        self.assertContains(self.profe.get(f'/materiales/{doc.pk}/'), 'Publicar en un aula')
+        self.assertContains(self.profe.get(f'/materiales/{doc.pk}/'), 'Enviar a mis grupos')
         self.profe.post(f'/materiales/{doc.pk}/accion/', {'accion': 'publicar', 'aula': aula.pk, 'modo': 'compacto'})
         m = Material.objects.get(aula=aula)
         self.assertEqual(m.titulo, 'Fracciones')

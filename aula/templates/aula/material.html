@@ -32,7 +32,48 @@
   </div>
   {% if c.es_docente %}
   <div class="col-lg-4">
-    <form method="post" enctype="multipart/form-data" class="au-tarjeta">
+    {% if mis_materiales is not None %}
+    <div class="au-tarjeta small py-2">
+      <i class="fas fa-circle-info me-1 text-primary"></i>Esto es lo que <b>ven sus estudiantes</b>. Sus guías se crean en
+      <a href="{% url 'materiales:lista' %}">Mis materiales</a> y llegan aquí cuando las trae o las envía.
+    </div>
+    <ul class="nav nav-tabs nav-fill flex-nowrap mb-0" role="tablist" style="font-size:.82rem">
+      <li class="nav-item"><button class="nav-link active px-2" data-bs-toggle="tab" data-bs-target="#au-mat-subir" type="button" role="tab"><i class="fas fa-plus me-1"></i>Subir o enlazar</button></li>
+      <li class="nav-item"><button class="nav-link px-2" data-bs-toggle="tab" data-bs-target="#au-mat-traer" type="button" role="tab" id="au-tab-traer"><i class="fas fa-book-open-reader me-1"></i>Traer de Mis materiales</button></li>
+    </ul>
+    <div class="tab-content">
+    <div class="tab-pane fade" id="au-mat-traer" role="tabpanel">
+      <div class="au-tarjeta" style="border-top-left-radius:0">
+        {% if mis_materiales %}
+        <input type="search" class="form-control form-control-sm mb-2" placeholder="Buscar por título o área" id="au-traer-buscar">
+        <form method="post" id="au-traer-form" action="">{% csrf_token %}
+          <input type="hidden" name="accion" value="enviar"><input type="hidden" name="aula" value="{{ aula.pk }}">
+          <input type="hidden" name="volver" value="{{ request.path }}">
+          <div class="list-group list-group-flush mb-2" style="max-height:300px;overflow:auto" id="au-traer-lista">
+            {% for d in mis_materiales %}
+            <label class="list-group-item list-group-item-action px-1 py-2 d-flex gap-2 au-traer-item" data-buscar="{{ d.titulo|lower }} {{ d.area|lower }} {{ d.get_tipo_display|lower }}">
+              <input class="form-check-input mt-1" type="radio" name="doc" value="{% url 'materiales:accion' d.pk %}" required>
+              <span><b>{{ d.titulo }}</b><span class="d-block text-muted" style="font-size:.8rem">{{ d.get_tipo_display }}{% if d.area %} · {{ d.area }}{% endif %}{% if d.grado %} · Grado {{ d.grado }}{% endif %}{% if d.propietario_id != request.user.pk %} · de {{ d.propietario.get_full_name }}{% endif %}</span></span>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" name="como" value="pdf" id="au-como-pdf" checked>
+            <label class="form-check-label small" for="au-como-pdf">Como PDF en Material</label></div>
+          <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="como" value="tarea" id="au-como-tarea">
+            <label class="form-check-label small" for="au-como-tarea">También como tarea para resolver (borrador)</label></div>
+          <input name="unidad" class="form-control form-control-sm mb-2" maxlength="80" placeholder="Unidad o tema (opcional)" list="au-unidades">
+          <button class="btn au-oro w-100"><i class="fas fa-download me-1"></i>Traer a esta aula</button>
+          <div class="form-text">Si ya lo había traído, se actualiza con la última versión.</div>
+        </form>
+        {% else %}
+        <p class="text-muted mb-2">Todavía no tiene materiales.</p>
+        <a class="btn btn-sm au-oro" href="{% url 'materiales:lista' %}">Crear en Mis materiales</a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="tab-pane fade show active" id="au-mat-subir" role="tabpanel">
+    {% endif %}
+    <form method="post" enctype="multipart/form-data" class="au-tarjeta"{% if mis_materiales is not None %} style="border-top-left-radius:0"{% endif %}>
         {% csrf_token %}
         <h6><i class="fas fa-plus me-1"></i>Agregar material</h6>
         <input name="titulo" class="form-control mb-2" maxlength="150" placeholder="Título" required>
@@ -47,6 +88,22 @@
         <div class="form-text mb-2">Los videos de YouTube se ven dentro del aula. Para videos largos use YouTube (no listado) o Drive.</div>
         <button class="btn au-oro w-100">Agregar</button>
     </form>
+    {% if mis_materiales is not None %}</div></div>
+    <script>
+    (function () {
+      var f = document.getElementById('au-traer-form'); if (!f) return;
+      document.getElementById('au-traer-buscar').addEventListener('input', function () {
+        var q = this.value.trim().toLowerCase();
+        document.querySelectorAll('.au-traer-item').forEach(function (it) { it.classList.toggle('d-none', !!q && it.dataset.buscar.indexOf(q) < 0); });
+      });
+      f.addEventListener('submit', function (e) {
+        var d = f.querySelector('[name=doc]:checked');
+        if (!d || !f.querySelector('[name=como]:checked')) { e.preventDefault(); alert('Escoja un material y cómo traerlo.'); return; }
+        f.action = d.value;
+      });
+    })();
+    </script>
+    {% endif %}
   </div>
   {% endif %}
 </div>

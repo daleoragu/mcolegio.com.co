@@ -32,6 +32,12 @@ class Documento(models.Model):
         ('ficha', 'Ficha de lectura'),
         ('cuadernillo', 'Cuadernillo tipo Saber'),
         ('ficha_pdf', 'Ficha sobre un PDF'),
+        # Modelos pedagógicos
+        ('abp', 'Proyecto (ABP)'),
+        ('retos', 'Aprendizaje basado en retos'),
+        ('caso', 'Estudio de caso'),
+        ('invertida', 'Guía de aula invertida'),
+        ('cooperativo', 'Aprendizaje cooperativo'),
         ('libre', 'Documento en blanco'),
     ]
     propietario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='materiales')
@@ -50,12 +56,39 @@ class Documento(models.Model):
                                related_name='materiales')
     creado = models.DateTimeField(auto_now_add=True)
     actualizado = models.DateTimeField(auto_now=True)
+    # Trabajo colaborativo: sube en cada guardado; si dos docentes guardan sobre la misma versión, el segundo
+    # recibe aviso en vez de borrar lo del primero.
+    version = models.PositiveIntegerField(default=0)
+    editado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
 
     class Meta:
         ordering = ['-actualizado']
 
     def __str__(self):
         return self.titulo
+
+    def equipo_ids(self):
+        """El dueño y los colaboradores que aceptaron (sus imágenes pueden ir en el documento)."""
+        if self.pk is None:          # documento armado al vuelo (vista previa de la biblioteca): sin equipo
+            return {self.propietario_id}
+        return {self.propietario_id} | set(self.colaboradores.filter(estado='aceptada').values_list('usuario_id', flat=True))
+
+
+class Colaborador(models.Model):
+    """Un docente invitado a construir un material con su dueño. En el colegio: compañeros del mismo colegio.
+    En el plan individual: sus colegas (Mis colegas)."""
+    PERMISOS = [('editar', 'Puede editar'), ('ver', 'Solo puede ver')]
+    ESTADOS = [('pendiente', 'Invitado'), ('aceptada', 'Aceptó')]
+    documento = models.ForeignKey(Documento, on_delete=models.CASCADE, related_name='colaboradores')
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='materiales_colaborando')
+    permiso = models.CharField(max_length=6, choices=PERMISOS, default='editar')
+    estado = models.CharField(max_length=10, choices=ESTADOS, default='pendiente')
+    invitado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['creado']
+        constraints = [models.UniqueConstraint(fields=['documento', 'usuario'], name='materiales_un_colaborador')]
 
 
 class Imagen(models.Model):

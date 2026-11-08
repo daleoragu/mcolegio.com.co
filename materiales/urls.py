@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_banco, views_biblioteca as vb, views_ia as vi
+from . import views, views_banco, views_biblioteca as vb, views_equipo as ve, views_ia as vi
 
 app_name = 'materiales'
 
@@ -36,6 +36,9 @@ urlpatterns = [
     path('creditos/plataforma/', vi.consumo_plataforma, name='consumo_plataforma'),
     path('pagos/wompi/eventos/', vi.wompi_eventos, name='wompi_eventos'),
     path('<int:pk>/compartir/', vb.compartir, name='compartir'),
+    path('<int:pk>/equipo/', ve.equipo, name='equipo'),
+    path('<int:pk>/estado/', ve.estado, name='estado'),
+    path('invitacion/<int:cid>/', ve.invitacion, name='invitacion'),
     path('<int:pk>/', views.editor, name='editor'),
     path('<int:pk>/guardar/', views.guardar, name='guardar'),
     path('<int:pk>/accion/', views.accion, name='accion'),

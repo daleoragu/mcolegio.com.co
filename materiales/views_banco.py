@@ -132,7 +132,8 @@ def banco_guardar(request, a):
         return JsonResponse({'ok': False, 'error': 'Datos dañados.'}, status=400)
     validas = _validas(request.user)
     if datos.get('documento'):
-        doc = _doc(a, _entero(datos['documento']))
+        from .views_equipo import doc_equipo
+        doc, _ = doc_equipo(a, _entero(datos['documento']))
         nuevas = 0
         for b in doc.contenido.get('bloques', []):
             if b.get('tipo') == 'pregunta' and b.get('modo') != 'hoja':

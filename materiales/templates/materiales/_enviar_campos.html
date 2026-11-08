@@ -1,0 +1,24 @@
+{# Campos de «Enviar a mis grupos». Espera: aulas, volver #}
+<input type="hidden" name="accion" value="enviar"><input type="hidden" name="modo" value="">
+<input type="hidden" name="volver" value="{{ volver }}">
+<div class="d-flex justify-content-between align-items-center mb-1">
+  <label class="small fw-bold">Grupos</label>
+  {% if aulas|length > 1 %}<button type="button" class="btn btn-link btn-sm p-0 mm-env-todos">Todos</button>{% endif %}
+</div>
+<div class="mm-env-aulas border rounded p-2 mb-2" style="max-height:190px;overflow:auto">
+  {% for x in aulas %}<div class="form-check"><input class="form-check-input" type="checkbox" name="aula" value="{{ x.pk }}" id="mm-env-{{ pref }}{{ x.pk }}"{% if aulas|length == 1 %} checked{% endif %}>
+    <label class="form-check-label small" for="mm-env-{{ pref }}{{ x.pk }}">{{ x.titulo }}{% if x.subtitulo %} · {{ x.subtitulo }}{% endif %}</label></div>
+  {% empty %}<div class="small text-muted">Todavía no tiene aulas.</div>{% endfor %}
+</div>
+<label class="small fw-bold mb-1">Cómo</label>
+<div class="form-check"><input class="form-check-input" type="checkbox" name="como" value="pdf" id="mm-como-pdf{{ pref }}" checked>
+  <label class="form-check-label small" for="mm-como-pdf{{ pref }}">PDF en <b>Material</b> del aula (para leer o imprimir)</label></div>
+<div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="como" value="tarea" id="mm-como-tarea{{ pref }}">
+  <label class="form-check-label small" for="mm-como-tarea{{ pref }}">Tarea para resolver en línea (si tiene preguntas; queda en borrador)</label></div>
+<input name="unidad" class="form-control form-control-sm mb-2" maxlength="80" placeholder="Unidad o tema en Material (opcional)">
+<button class="btn btn-sm mm-oro w-100"><i class="fas fa-paper-plane me-1"></i>Enviar</button>
+<div class="small text-muted mt-1">Sus estudiantes no ven nada de Mis materiales hasta que lo envíe. Si lo cambia, envíelo otra vez: el PDF se actualiza, no se repite.</div>
+<script>if(!window.mmEnvTodos){window.mmEnvTodos=1;document.addEventListener('click',function(e){var b=e.target.closest('.mm-env-todos');if(!b)return;
+var cs=b.closest('form').querySelectorAll('[name=aula]'),todas=[].every.call(cs,function(c){return c.checked});[].forEach.call(cs,function(c){c.checked=!todas});});
+document.addEventListener('submit',function(e){var f=e.target;if(!f.querySelector('.mm-env-aulas'))return;
+if(!f.querySelector('[name=aula]:checked')||!f.querySelector('[name=como]:checked')){e.preventDefault();e.stopImmediatePropagation();alert('Escoja al menos un grupo y cómo enviarlo.');}},true);}</script>
