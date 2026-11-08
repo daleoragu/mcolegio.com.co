@@ -7,11 +7,7 @@ from ..utils.numero_a_letras import numero_a_letras # Utilidad para convertir n√
 
 # Es necesario tener instalada la librer√≠a WeasyPrint
 # pip install WeasyPrint
-try:
-    from weasyprint import HTML, CSS
-except ImportError:
-    HTML = None
-    CSS = None
+from ..perezoso import CSS, HTML  # WeasyPrint se carga al generar el PDF, no al arrancar
 
 class CertificadoPDFGenerator:
     """

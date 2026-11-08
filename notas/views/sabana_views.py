@@ -17,11 +17,7 @@ from itertools import groupby
 from django.db.models import Prefetch
 from collections import defaultdict
 
-try:
-    from weasyprint import HTML
-    PDF_SUPPORT = True
-except ImportError:
-    PDF_SUPPORT = False
+from ..perezoso import HTML, PDF_SUPPORT  # WeasyPrint se carga al generar el PDF, no al arrancar
 
 from ..models import Curso, Sede, PeriodoAcademico, Docente, AsignacionDocente, Estudiante, Materia, Calificacion, AreaConocimiento, PonderacionAreaMateria, EscalaValoracion
 from .sabana_exports import generar_excel_sabana

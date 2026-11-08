@@ -10,12 +10,7 @@ MESES_ES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 
             'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
 
-try:
-    from weasyprint import HTML
-    PDF_SUPPORT = True
-except ImportError:
-    HTML = None
-    PDF_SUPPORT = False
+from ..perezoso import HTML, PDF_SUPPORT  # WeasyPrint se carga al generar el PDF, no al arrancar
 
 class AsistenciaPDFGenerator(BaseReportGenerator):
     """
