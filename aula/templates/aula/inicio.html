@@ -15,6 +15,7 @@
     <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:instrumentos' %}"><i class="fas fa-list-check me-1"></i>Mis rúbricas y listas de chequeo</a>
     <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:banco' %}"><i class="fas fa-box-archive me-1"></i>Banco de preguntas</a>
     {% if rol == 'docente' %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:panel' %}"><i class="fas fa-code me-1"></i>Mis actividades HTML y pruebas</a>{% endif %}
+    {% if rol == 'docente' %}<a class="btn btn-sm btn-outline-primary" href="{% url 'aula:compartidos' %}"><i class="fas fa-inbox me-1"></i>Compartido conmigo</a>{% endif %}
 </div>{% endif %}
 <div class="row g-3">
 {% for a in asignaciones %}

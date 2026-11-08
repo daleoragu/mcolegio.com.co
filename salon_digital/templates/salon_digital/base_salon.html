@@ -65,6 +65,7 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
           <ul class="dropdown-menu dropdown-menu-end">
             <li><a class="dropdown-item" href="{% url 'salon_digital:mi_cuenta' %}">Mi cuenta y plan</a></li>
             <li><a class="dropdown-item fw-semibold" href="{% url 'salon_digital:planes' %}">💳 Planes y pagos</a></li>
+            <li><a class="dropdown-item" href="{% url 'aula:compartidos' %}">📥 Compartido conmigo</a></li>
             <li><a class="dropdown-item" href="{% url 'salon_digital:app_instalar' %}">📲 Instalar la app</a></li>
             <li><a class="dropdown-item" href="/copias/?volver={{ request.path|urlencode }}">Copia de seguridad</a></li>
             <li><a class="dropdown-item" href="{% url 'salon_digital:ayuda' %}">Ayuda</a></li>

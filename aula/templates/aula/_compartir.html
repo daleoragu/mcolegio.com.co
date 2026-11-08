@@ -1,0 +1,100 @@
+{% comment %}Ventana «Compartir». Abra con un botón: <button class="btn-compartir" data-tipo="actividad" data-id="5">.
+Tipos: actividad, invertida, publicacion, pagina. Funciona igual en el colegio y en el plan individual.{% endcomment %}
+<div class="modal fade" id="cp-modal" tabindex="-1" aria-hidden="true" aria-labelledby="cp-titulo"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <div class="modal-header py-2"><h6 class="modal-title" id="cp-titulo"><i class="fas fa-share-nodes me-1"></i>Compartir «<span id="cp-nombre"></span>»</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+  <div class="modal-body">
+    <div id="cp-cargando" class="text-muted small">Cargando…</div>
+    <div id="cp-cuerpo" class="d-none">
+      <div class="btn-group w-100 mb-3" role="tablist">
+        <input type="radio" class="btn-check" name="cp-destino" id="cp-d-clase" value="clase" checked><label class="btn btn-outline-primary" for="cp-d-clase"><i class="fas fa-chalkboard-user me-1"></i>Con una de mis clases</label>
+        <input type="radio" class="btn-check" name="cp-destino" id="cp-d-colega" value="colega"><label class="btn btn-outline-primary" for="cp-d-colega"><i class="fas fa-user-group me-1"></i>Con un colega</label>
+      </div>
+      <div id="cp-p-clase">
+        <label class="small fw-bold mb-1" for="cp-aula">Clase</label>
+        <select id="cp-aula" class="form-select mb-2"></select>
+        <div id="cp-para-caja">
+          <div class="small fw-bold mb-1">¿Para quién?</div>
+          <label class="me-3 small"><input type="radio" name="cp-para" value="todos" class="form-check-input me-1" checked>Toda la clase</label>
+          <label class="small"><input type="radio" name="cp-para" value="algunos" class="form-check-input me-1">Solo algunos estudiantes</label>
+          <div id="cp-estudiantes" class="border rounded p-2 mt-2 d-none" style="max-height:220px;overflow:auto"></div>
+        </div>
+        <div id="cp-para-todos" class="small text-muted d-none">Las publicaciones del muro las ve toda la clase.</div>
+      </div>
+      <div id="cp-p-colega" class="d-none">
+        <label class="small fw-bold mb-1" for="cp-buscar">Colega</label>
+        <input id="cp-buscar" class="form-control form-control-sm mb-1" placeholder="Buscar por nombre">
+        <select id="cp-colega" class="form-select mb-2" size="6"></select>
+        <input id="cp-mensaje" class="form-control form-control-sm" maxlength="300" placeholder="Mensaje (opcional): «Te comparto el taller que hice para 7.º»">
+        <div class="small text-muted mt-1">Le llega un aviso y lo agrega a la clase que quiera desde «Compartido conmigo».</div>
+      </div>
+      <div id="cp-error" class="alert alert-danger py-1 px-2 small mt-2 d-none"></div>
+      <div id="cp-ok" class="alert alert-success py-1 px-2 small mt-2 d-none"></div>
+    </div>
+  </div>
+  <div class="modal-footer py-2"><button type="button" class="btn btn-link" data-bs-dismiss="modal">Cerrar</button><button type="button" class="btn btn-primary" id="cp-enviar"><i class="fas fa-share me-1"></i>Compartir</button></div>
+</div></div></div>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var actual = null, colegas = [];
+  function token() { var m = document.cookie.match(/csrftoken=([^;]+)/); var i = document.querySelector('[name=csrfmiddlewaretoken]'); return i ? i.value : (m ? m[1] : ''); }
+  function aviso(id, texto) { ['cp-error', 'cp-ok'].forEach(function (x) { $(x).classList.add('d-none'); }); if (texto) { $(id).textContent = texto; $(id).classList.remove('d-none'); } }
+  function destino() { return document.querySelector('[name=cp-destino]:checked').value; }
+  function verDestino() { $('cp-p-clase').classList.toggle('d-none', destino() !== 'clase'); $('cp-p-colega').classList.toggle('d-none', destino() !== 'colega'); aviso(); }
+  function pintarColegas() {
+    var q = $('cp-buscar').value.trim().toLowerCase();
+    $('cp-colega').innerHTML = colegas.filter(function (c) { return !q || c.nombre.toLowerCase().indexOf(q) >= 0; })
+      .map(function (c) { return '<option value="' + c.id + '">' + c.nombre.replace(/</g, '&lt;') + '</option>'; }).join('') || '<option disabled>No hay colegas para mostrar</option>';
+  }
+  function cargarEstudiantes() {
+    var caja = $('cp-estudiantes'); caja.innerHTML = '<span class="small text-muted">Cargando…</span>';
+    if (!$('cp-aula').value) { caja.innerHTML = ''; return; }
+    fetch('/aula/compartir/clase/' + $('cp-aula').value + '/estudiantes/', {credentials: 'same-origin'}).then(function (r) { return r.json(); }).then(function (j) {
+      caja.innerHTML = j.estudiantes.map(function (e) { return '<label class="d-block small"><input type="checkbox" class="form-check-input me-1" value="' + e.clave + '">' + e.nombre.replace(/</g, '&lt;') + '</label>'; }).join('') || '<span class="small text-muted">Esta clase no tiene estudiantes todavía.</span>';
+    });
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('.btn-compartir'); if (!b) return;
+    ev.preventDefault();
+    actual = {tipo: b.dataset.tipo, id: b.dataset.id};
+    $('cp-cargando').classList.remove('d-none'); $('cp-cuerpo').classList.add('d-none'); aviso(); $('cp-enviar').disabled = false;
+    bootstrap.Modal.getOrCreateInstance($('cp-modal')).show();
+    fetch('/aula/compartir/' + actual.tipo + '/' + actual.id + '/', {credentials: 'same-origin'}).then(function (r) { return r.json(); }).then(function (j) {
+      $('cp-nombre').textContent = j.titulo;
+      $('cp-aula').innerHTML = j.aulas.map(function (a) { return '<option value="' + a.id + '">' + a.nombre.replace(/</g, '&lt;') + '</option>'; }).join('') || '<option value="">No tiene otras clases</option>';
+      colegas = j.colegas; pintarColegas();
+      $('cp-para-caja').classList.toggle('d-none', j.para_todos); $('cp-para-todos').classList.toggle('d-none', !j.para_todos);
+      $('cp-cargando').classList.add('d-none'); $('cp-cuerpo').classList.remove('d-none');
+      if (!j.copiable) { aviso('cp-error', 'Este taller es un sitio completo (.zip): compártalo con su enlace.'); $('cp-enviar').disabled = true; }
+      document.querySelector('[name=cp-para][value=todos]').checked = true; $('cp-estudiantes').classList.add('d-none');
+      verDestino();
+    });
+  });
+  document.querySelectorAll('[name=cp-destino]').forEach(function (r) { r.addEventListener('change', verDestino); });
+  document.querySelectorAll('[name=cp-para]').forEach(function (r) { r.addEventListener('change', function () {
+    var algunos = document.querySelector('[name=cp-para]:checked').value === 'algunos';
+    $('cp-estudiantes').classList.toggle('d-none', !algunos); if (algunos) cargarEstudiantes();
+  }); });
+  $('cp-aula').addEventListener('change', function () { if (document.querySelector('[name=cp-para]:checked').value === 'algunos') cargarEstudiantes(); });
+  $('cp-buscar').addEventListener('input', pintarColegas);
+  $('cp-enviar').addEventListener('click', function () {
+    var fd = new FormData(); fd.append('destino', destino());
+    if (destino() === 'clase') {
+      fd.append('aula', $('cp-aula').value);
+      var algunos = document.querySelector('[name=cp-para]:checked').value === 'algunos';
+      fd.append('para_modo', algunos ? 'algunos' : 'todos');
+      if (algunos) $('cp-estudiantes').querySelectorAll('input:checked').forEach(function (c) { fd.append('para', c.value); });
+    } else { fd.append('usuario', $('cp-colega').value); fd.append('mensaje', $('cp-mensaje').value); }
+    $('cp-enviar').disabled = true;
+    fetch('/aula/compartir/' + actual.tipo + '/' + actual.id + '/', {method: 'POST', body: fd, credentials: 'same-origin', headers: {'X-CSRFToken': token()}})
+      .then(function (r) { return r.json(); }).then(function (j) {
+        $('cp-enviar').disabled = false;
+        if (!j.ok) { aviso('cp-error', j.error || 'No se pudo compartir.'); return; }
+        $('cp-ok').innerHTML = ''; $('cp-ok').textContent = j.mensaje + ' ';
+        if (j.url) { var a = document.createElement('a'); a.href = j.url; a.textContent = 'Ver allá'; $('cp-ok').appendChild(a); }
+        $('cp-ok').classList.remove('d-none'); $('cp-error').classList.add('d-none');
+      }).catch(function () { $('cp-enviar').disabled = false; aviso('cp-error', 'No se pudo compartir. Revise su conexión.'); });
+  });
+})();
+</script>

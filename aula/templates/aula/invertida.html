@@ -125,6 +125,7 @@
     <div class="au-tarjeta">
       <div class="d-flex flex-wrap gap-2">
         <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#inv-editar"><i class="fas fa-pen me-1"></i>Editar</button>
+        <button type="button" class="btn btn-sm btn-outline-primary btn-compartir" data-tipo="invertida" data-id="{{ clase.pk }}"><i class="fas fa-share-nodes me-1"></i>Compartir</button>
         <form method="post" action="{% url 'aula:invertida_accion' aula.pk clase.pk %}" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="publicar">
           <button class="btn btn-sm btn-outline-secondary">{% if clase.publicada %}<i class="fas fa-eye-slash me-1"></i>Ocultar{% else %}<i class="fas fa-eye me-1"></i>Publicar{% endif %}</button></form>
         {% if puede_planilla %}
@@ -200,7 +201,7 @@
 </div>
 {% endif %}
 </div>
-{% if c.es_docente %}{% include 'aula/_invertida_js.html' %}<script src="{% static 'aula/invertida_editor.js' %}"></script>{% endif %}
+{% if c.es_docente %}{% include 'aula/_invertida_js.html' %}<script src="{% static 'aula/invertida_editor.js' %}"></script>{% include 'aula/_compartir.html' %}{% endif %}
 {% if pausas %}
 {{ inv_config|json_script:"inv-config" }}
 <script src="{% static 'aula/invertida_pausas.js' %}"></script>

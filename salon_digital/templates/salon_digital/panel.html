@@ -78,6 +78,7 @@
                  class="btn btn-sm btn-outline-secondary" title="Comentarios">
                 Comentarios</a>
             {% endif %}
+            {% if p.tipo == 'html' %}<button type="button" class="btn btn-sm btn-outline-primary btn-compartir" data-tipo="pagina" data-id="{{ p.pk }}" title="Con una de sus clases o con un colega"><i class="fas fa-share me-1"></i>Compartir</button>{% endif %}
             {% if p.visible %}<a href="/chat/colegas/muro/?escribir=1&compartir={{ p.pk }}" class="btn btn-sm btn-outline-primary"
                title="Que otros docentes la jueguen desde el muro de la comunidad"><i class="fas fa-share-nodes me-1"></i>Compartir en el muro</a>{% endif %}
             <a href="{% url 'salon_digital:editar_pagina' p.slug %}"
@@ -128,4 +129,5 @@
   </div>
 </div>
 {% endif %}
+{% include 'aula/_compartir.html' %}
 {% endblock %}

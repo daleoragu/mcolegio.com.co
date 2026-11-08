@@ -1,0 +1,48 @@
+{% extends base %}
+{% block page_title %}<h4 class="mb-0"><i class="fas fa-inbox me-2"></i>Compartido conmigo</h4>
+<p class="text-muted small mb-0">Lo que otros docentes le compartieron. Agréguelo a una de sus clases: para toda la clase o para algunos estudiantes.</p>{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au" style="max-width:820px">
+{% for e in recibidos %}
+<div class="au-tarjeta" id="c{{ e.pk }}">
+  <div class="d-flex flex-wrap align-items-start gap-2">
+    <div class="flex-grow-1">
+      <span class="au-chip gris">{{ e.get_tipo_display }}</span>{% if e.usado %} <span class="au-chip ok"><i class="fas fa-check"></i> Ya lo agregó</span>{% endif %}
+      <div class="fw-bold mt-1">{{ e.titulo }}</div>
+      <div class="small text-muted">De {{ e.de_nombre }} · {{ e.creado|date:"d/m/Y" }}</div>
+      {% if e.mensaje %}<div class="small fst-italic mt-1">«{{ e.mensaje }}»</div>{% endif %}
+    </div>
+    <form method="post" class="m-0" onsubmit="return confirm('¿Quitar de la lista?')">{% csrf_token %}<input type="hidden" name="compartido" value="{{ e.pk }}"><input type="hidden" name="accion" value="quitar"><button class="btn btn-sm btn-link text-muted">Quitar</button></form>
+  </div>
+  <form method="post" class="border-top mt-2 pt-2 cp-agregar">{% csrf_token %}<input type="hidden" name="compartido" value="{{ e.pk }}">
+    <div class="row g-2 align-items-end">
+      <div class="col-sm-5"><label class="small fw-bold">Agregar a mi clase</label>
+        <select name="aula" class="form-select form-select-sm cp-aula" required>{% for a in aulas %}<option value="{{ a.id }}">{{ a.nombre }}</option>{% empty %}<option value="">No tiene clases todavía</option>{% endfor %}</select></div>
+      <div class="col-sm-5">{% if e.tipo != 'publicacion' %}
+        <label class="me-2 small"><input type="radio" name="para_modo" value="todos" class="form-check-input me-1" checked>Toda la clase</label>
+        <label class="small"><input type="radio" name="para_modo" value="algunos" class="form-check-input me-1">Algunos estudiantes</label>{% else %}<span class="small text-muted">La ve toda la clase.</span>{% endif %}</div>
+      <div class="col-sm-2"><button class="btn btn-sm au-oro w-100">Agregar</button></div>
+    </div>
+    <div class="cp-lista border rounded p-2 mt-2 d-none" style="max-height:200px;overflow:auto"></div>
+  </form>
+</div>
+{% empty %}
+<div class="au-tarjeta text-center text-muted py-5"><i class="fas fa-inbox fa-2x d-block mb-2"></i>Todavía nadie le ha compartido nada.<div class="small mt-1">Cuando un colega le comparta una actividad, una clase invertida o un taller, aparece aquí.</div></div>
+{% endfor %}
+</div>
+<script>
+document.querySelectorAll('.cp-agregar').forEach(function (f) {
+  var lista = f.querySelector('.cp-lista');
+  function cargar() {
+    var algunos = f.querySelector('[name=para_modo]:checked');
+    if (!algunos || algunos.value !== 'algunos') { lista.classList.add('d-none'); return; }
+    lista.classList.remove('d-none'); lista.innerHTML = '<span class="small text-muted">Cargando…</span>';
+    fetch('/aula/compartir/clase/' + f.querySelector('.cp-aula').value + '/estudiantes/', {credentials: 'same-origin'}).then(function (r) { return r.json(); }).then(function (j) {
+      lista.innerHTML = j.estudiantes.map(function (e) { return '<label class="d-block small"><input type="checkbox" name="para" class="form-check-input me-1" value="' + e.clave + '">' + e.nombre.replace(/</g, '&lt;') + '</label>'; }).join('') || '<span class="small text-muted">Esta clase no tiene estudiantes.</span>';
+    });
+  }
+  f.addEventListener('change', function (e) { if (e.target.name === 'para_modo' || e.target.classList.contains('cp-aula')) cargar(); });
+});
+</script>
+{% endblock %}

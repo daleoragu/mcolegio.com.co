@@ -48,6 +48,7 @@
                 <div class="dropdown">
                     <button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="Opciones"><i class="fas fa-ellipsis"></i></button>
                     <div class="dropdown-menu dropdown-menu-end">
+                        <button type="button" class="dropdown-item btn-compartir" data-tipo="publicacion" data-id="{{ p.pk }}"><i class="fas fa-share-nodes me-1"></i>Compartir</button>
                         <form method="post" action="{% url 'aula:moderar' aula.pk p.pk %}">{% csrf_token %}
                             <button class="dropdown-item" name="accion" value="fijar">{% if p.fijada %}Desfijar{% else %}Fijar arriba{% endif %}</button>
                             <button class="dropdown-item text-danger" name="accion" value="eliminar" onclick="return confirm('¿Eliminar la publicación?')">Eliminar</button>
@@ -102,4 +103,5 @@
   </div>
 </div>
 </div>
+{% if c.es_docente %}{% include 'aula/_compartir.html' %}{% endif %}
 {% endblock %}

@@ -936,3 +936,25 @@ class ParticipacionEvento(models.Model):
     def tiempo_efectivo(self):
         """Tiempo hasta el último punto menos 30 s por cada pregunta bien respondida."""
         return max(0.0, self.segundos_ultimo_punto - 30 * self.bonos)
+
+
+# ---------------------------------------------------------------------------
+# Compartir con un colega: lo recibe en «Compartido conmigo» y lo agrega a una de sus clases
+# ---------------------------------------------------------------------------
+class CompartidoDocente(models.Model):
+    TIPOS = [('actividad', 'Actividad interactiva'), ('invertida', 'Clase invertida'), ('publicacion', 'Publicación'),
+             ('pagina', 'Taller HTML')]
+    de = models.ForeignKey(User, on_delete=models.CASCADE, related_name='compartidos_enviados')
+    para = models.ForeignKey(User, on_delete=models.CASCADE, related_name='compartidos_recibidos')
+    tipo = models.CharField(max_length=12, choices=TIPOS)
+    objeto_id = models.PositiveIntegerField()
+    titulo = models.CharField(max_length=200)
+    mensaje = models.CharField(max_length=300, blank=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    usado = models.DateTimeField(null=True, blank=True, help_text='Cuándo lo agregó a una de sus clases.')
+
+    class Meta:
+        ordering = ['-creado']
+
+    def __str__(self):
+        return f'{self.get_tipo_display()} «{self.titulo}» para {self.para}'
