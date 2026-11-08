@@ -1,0 +1,143 @@
+{% extends "salon_digital/base_salon.html" %}
+{% load humanize %}
+{% block titulo %}Planes y pagos · Mi Salón Virtual{% endblock %}
+{% block contenido %}
+<style>
+  .pp-op{display:block;border:2px solid var(--line);border-radius:14px;padding:14px 16px;background:#fff;cursor:pointer;height:100%;transition:border-color .15s,box-shadow .15s;position:relative}
+  .pp-op:hover{border-color:#b7c4da}
+  .pp-op input{position:absolute;opacity:0;pointer-events:none}
+  .pp-op:has(input:checked){border-color:var(--mor);box-shadow:0 0 0 .2rem rgba(43,79,138,.15)}
+  .pp-op:has(input:checked) .pp-check{opacity:1}
+  .pp-op:has(input:disabled){opacity:.55;cursor:not-allowed}
+  .pp-check{position:absolute;top:10px;right:12px;color:var(--mor);opacity:0;font-size:1.2rem}
+  .pp-precio{font-size:1.7rem;font-weight:800;color:var(--ink);line-height:1.1}
+  .pp-paso{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--vino);color:#fff;font-weight:700;font-size:.85rem;margin-right:6px}
+  .pp-medio{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:.78rem;background:var(--bg);margin:2px 2px 0 0;white-space:nowrap}
+  .pp-total{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding:12px 0;z-index:5}
+  .pp-tabla th{font-size:.9rem;vertical-align:bottom}
+  .pp-tp{font-size:1.25rem;font-weight:800;color:var(--ink)}
+  .pp-dest{background:#fffaf0!important}
+  #pp-form:has(#pp-mes:checked) .pp-v-anio,#pp-form:has(#pp-anio:checked) .pp-v-mes{display:none}
+</style>
+<h1 class="h3 mb-1">Planes y pagos</h1>
+<p class="text-muted mb-3">Empiece gratis y pase a Estándar o Premium cuando lo necesite. Pague aquí mismo, en dos pasos.</p>
+
+{% if motivo %}<div class="alert alert-primary d-flex gap-2 align-items-center"><i class="fas fa-star"></i><div>{% if motivo == 'eventos' %}Los <b>eventos y olimpiadas</b> son del plan <b>Premium</b>.{% elif motivo == 'examenes' %}Los <b>exámenes con hoja de respuestas</b> están en los planes <b>Estándar</b> y <b>Premium</b>.{% elif motivo == 'grupos' %}El plan Gratis tiene <b>1 grupo</b>. Con Estándar o Premium tiene grupos ilimitados.{% elif motivo == 'materiales' %}El plan Gratis guarda hasta <b>10 materiales</b>. Con Estándar o Premium son ilimitados.{% elif motivo == 'paginas' %}Llegó al límite de actividades de su plan.{% else %}Esta función es de un plan superior.{% endif %} Nada de lo que ya tiene se pierde.</div></div>{% endif %}
+<div class="cinta d-flex flex-wrap align-items-center gap-3 mb-4">
+  <div class="flex-grow-1">
+    <div class="small text-muted">Su plan</div>
+    <div class="fw-bold fs-5">{{ cuenta.nombre_nivel }}
+      {% if cuenta.en_prueba %}<span class="badge bg-info text-dark ms-1">{{ cuenta.dias_restantes }} día{{ cuenta.dias_restantes|pluralize }} de prueba</span>
+      {% elif cuenta.nivel == 'gratis' %}<span class="badge bg-secondary ms-1">Para siempre</span>
+      {% elif cuenta.dias_restantes is not None and cuenta.dias_restantes <= 5 %}<span class="badge bg-warning text-dark ms-1">Vence pronto</span>
+      {% else %}<span class="badge bg-success ms-1">Al día</span>{% endif %}</div>
+    <div class="small">{% if cuenta.en_prueba %}Tiene todo lo de Premium hasta el <b>{{ cuenta.vence_en|date:"j \d\e F"|lower }}</b>. Después pasa a Gratis sin perder nada.
+      {% elif cuenta.nivel == 'gratis' %}{% if cuenta.vencida and cuenta.plan != 'gratis' %}Su plan {{ cuenta.get_plan_display }} venció el {{ cuenta.vence_en|date:"j \d\e F"|lower }}: volvió a Gratis, sin perder nada.{% else %}Puede usar Mi Salón Virtual gratis todo el tiempo que quiera.{% endif %}
+      {% elif cuenta.vence_en %}Vence el <b>{{ cuenta.vence_en|date:"j \d\e F \d\e Y"|lower }}</b> ({{ cuenta.dias_restantes }} día{{ cuenta.dias_restantes|pluralize }}).{% else %}Sin vencimiento.{% endif %}
+      · Saldo: <b>${{ saldo|intcomma }}</b></div>
+  </div>
+  <div class="small text-muted" style="max-width:320px">Si renueva antes de que venza, los días se suman: no pierde ninguno.</div>
+</div>
+
+<div class="card mb-4"><div class="table-responsive"><table class="table table-sm align-middle mb-0 pp-tabla">
+  <thead><tr><th></th>
+    <th class="text-center">Gratis<div class="pp-tp">$0</div><div class="small fw-normal text-muted">para siempre</div></th>
+    <th class="text-center">Estándar<div class="pp-tp">${{ precios.estandar.mes|intcomma }}</div><div class="small fw-normal text-muted">al mes · ${{ precios.estandar.anio|intcomma }} al año</div></th>
+    <th class="text-center pp-dest">⭐ Premium<div class="pp-tp">${{ precios.premium.mes|intcomma }}</div><div class="small fw-normal text-muted">al mes · ${{ precios.premium.anio|intcomma }} al año</div></th></tr></thead>
+  <tbody>{% for fila in tabla %}<tr><td class="small">{{ fila.0 }}</td>
+    {% for v in fila|slice:"1:" %}<td class="text-center small{% if forloop.last %} pp-dest{% endif %}">{% if v is True %}<i class="fas fa-check text-success"></i>{% elif v is False %}<i class="fas fa-minus text-muted"></i>{% else %}{{ v }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
+</table></div></div>
+
+<form method="post" id="pp-form">{% csrf_token %}
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <h2 class="h6 mb-0 flex-grow-1"><span class="pp-paso">1</span>¿Qué va a pagar?</h2>
+    <div class="btn-group btn-group-sm" role="group" aria-label="Periodo">
+      <input type="radio" class="btn-check" name="periodo" value="mes" id="pp-mes" {% if periodo == 'mes' %}checked{% endif %}><label class="btn btn-outline-primary" for="pp-mes">Mensual</label>
+      <input type="radio" class="btn-check" name="periodo" value="anio" id="pp-anio" {% if periodo == 'anio' %}checked{% endif %}><label class="btn btn-outline-primary" for="pp-anio">Anual <span class="badge" style="background:var(--fuc);color:#1d2433">ahorra</span></label>
+    </div>
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-4"><label class="pp-op"><input type="radio" name="concepto" value="estandar" data-mes="{{ precios.estandar.mes }}" data-anio="{{ precios.estandar.anio }}" required {% if escogido == 'estandar' %}checked{% endif %}>
+      <i class="fas fa-circle-check pp-check"></i>
+      <div class="fw-bold">Plan Estándar</div>
+      <div class="pp-precio"><span class="pp-v-mes">${{ precios.estandar.mes|intcomma }}</span><span class="pp-v-anio">${{ precios.estandar.anio|intcomma }}</span></div>
+      <div class="small text-muted mb-2"><span class="pp-v-mes">al mes</span><span class="pp-v-anio">al año · ahorra ${{ precios.estandar.ahorro|intcomma }}</span></div>
+      <div class="small">Grupos y materiales ilimitados, 30 actividades, exámenes, sin marca en los PDF.</div></label></div>
+    <div class="col-md-4"><label class="pp-op"><input type="radio" name="concepto" value="premium" data-mes="{{ precios.premium.mes }}" data-anio="{{ precios.premium.anio }}" {% if escogido == 'premium' %}checked{% endif %}>
+      <i class="fas fa-circle-check pp-check"></i>
+      <div class="fw-bold">⭐ Plan Premium <span class="badge" style="background:var(--fuc);color:#1d2433">El más completo</span></div>
+      <div class="pp-precio"><span class="pp-v-mes">${{ precios.premium.mes|intcomma }}</span><span class="pp-v-anio">${{ precios.premium.anio|intcomma }}</span></div>
+      <div class="small text-muted mb-2"><span class="pp-v-mes">al mes</span><span class="pp-v-anio">al año · ahorra ${{ precios.premium.ahorro|intcomma }}</span></div>
+      <div class="small">Todo ilimitado, <b>eventos y olimpiadas</b>, IA (200 al mes + 8 al día) y 5 GB de nube.</div></label></div>
+    <div class="col-md-4"><label class="pp-op"><input type="radio" name="concepto" value="recarga" data-valor="recarga" {% if escogido == 'recarga' %}checked{% endif %}>
+      <i class="fas fa-circle-check pp-check"></i>
+      <div class="fw-bold">Recarga de saldo</div>
+      <select name="monto" class="form-select form-select-sm my-2" id="pp-monto">{% for m, b in recargas %}<option value="{{ m }}">${{ m|intcomma }}{% if b %} + ${{ b|intcomma }} de regalo{% endif %}</option>{% endfor %}</select>
+      <div class="small">Para la IA, paquetes de créditos y más espacio en la nube. El saldo no vence.</div></label></div>
+  </div>
+
+  <h2 class="h6 mb-2"><span class="pp-paso">2</span>¿Cómo quiere pagar?</h2>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><label class="pp-op"><input type="radio" name="forma" value="linea" required {% if en_linea %}checked{% else %}disabled{% endif %}>
+      <i class="fas fa-circle-check pp-check"></i>
+      <div class="fw-bold"><i class="fas fa-bolt me-1 text-warning"></i>Pagar en línea {% if en_linea %}<span class="badge bg-success">Se activa al instante</span>{% else %}<span class="badge bg-secondary">Muy pronto</span>{% endif %}</div>
+      <div class="mt-1"><span class="pp-medio"><i class="far fa-credit-card"></i>Tarjeta crédito</span><span class="pp-medio"><i class="far fa-credit-card"></i>Tarjeta débito</span><span class="pp-medio"><i class="fas fa-building-columns"></i>PSE</span><span class="pp-medio"><i class="fas fa-mobile-screen"></i>Nequi</span><span class="pp-medio"><i class="fas fa-building-columns"></i>Botón Bancolombia</span></div>
+      <div class="small text-muted mt-2">Lo lleva a la página segura de Wompi (de Bancolombia). Allí escoge el medio que prefiera. Nosotros nunca vemos los datos de su tarjeta.</div></label></div>
+    <div class="col-md-6"><label class="pp-op"><input type="radio" name="forma" value="comprobante" {% if not en_linea %}checked{% endif %}>
+      <i class="fas fa-circle-check pp-check"></i>
+      <div class="fw-bold"><i class="fas fa-key me-1" style="color:var(--mor)"></i>Llave Bre-B, Nequi o transferencia</div>
+      <div class="mt-1"><span class="pp-medio"><i class="fas fa-key"></i>Llave Bre-B</span><span class="pp-medio"><i class="fas fa-mobile-screen"></i>Nequi</span><span class="pp-medio"><i class="fas fa-right-left"></i>Transferencia</span></div>
+      <div class="small text-muted mt-2">Le mostramos a dónde pagar. Luego sube la foto del comprobante y activamos su plan el mismo día.</div></label></div>
+  </div>
+
+  <div class="pp-total d-flex flex-wrap align-items-center gap-3">
+    <div class="flex-grow-1"><div class="small text-muted">Total a pagar</div><div class="fs-4 fw-bold" id="pp-total">$0</div></div>
+    <button class="btn btn-primary btn-lg px-4" id="pp-boton"><i class="fas fa-lock me-1"></i>Continuar al pago</button>
+  </div>
+</form>
+
+<div class="row g-4 mt-1">
+  <div class="col-lg-7">
+    <div class="card"><div class="card-header">Mis pagos</div>
+      <div class="table-responsive"><table class="table table-sm align-middle mb-0 small">
+        <thead><tr><th>Fecha</th><th>Qué</th><th>Valor</th><th>Cómo</th><th>Estado</th></tr></thead>
+        <tbody>
+        {% for p in mis_pagos %}
+        <tr><td class="text-nowrap">{{ p.creado|date:"d/m/Y" }}</td><td>{{ p.get_concepto_display }}<div class="text-muted font-monospace" style="font-size:.72rem">{{ p.referencia }}</div></td>
+          <td class="text-nowrap">${{ p.monto|intcomma }}</td><td>{{ p.medio|default:p.get_forma_display }}</td>
+          <td>{% if p.estado == 'aprobado' %}<span class="badge bg-success">Aprobado</span>
+              {% elif p.estado == 'revision' %}<span class="badge bg-info text-dark">En revisión</span>
+              {% elif p.estado == 'rechazado' %}<span class="badge bg-danger">No aprobado</span>{% if p.nota %}<div class="text-muted">{{ p.nota }}</div>{% endif %}
+              {% else %}<span class="badge bg-secondary">Sin terminar</span>{% endif %}
+              {% if p.forma == 'comprobante' and p.estado != 'aprobado' %}<a class="d-block" href="{% url 'salon_digital:pago' p.referencia %}">{% if p.estado == 'pendiente' %}Subir comprobante{% else %}Ver{% endif %}</a>{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="5" class="text-muted text-center py-3">Todavía no ha hecho pagos.</td></tr>{% endfor %}
+        </tbody></table></div></div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card"><div class="card-header">Preguntas frecuentes</div><div class="card-body small">
+      <p class="mb-2"><b>¿Es seguro pagar en línea?</b><br>Sí. El pago se hace en Wompi, la pasarela de Bancolombia; nosotros no guardamos datos de tarjetas ni de cuentas.</p>
+      <p class="mb-2"><b>¿Cuándo se activa?</b><br>En línea, apenas se aprueba (PSE puede tardar unos minutos). Con comprobante, el mismo día en que lo revisamos.</p>
+      <p class="mb-2"><b>¿Y si renuevo antes de que venza?</b><br>Los días nuevos se suman a los que le quedan.</p>
+      <p class="mb-2"><b>¿Qué pasa si mi plan vence?</b><br>Vuelve a Gratis. No pierde sus actividades, materiales, resultados ni grupos; solo no puede crear más de lo que permite Gratis hasta renovar.</p>
+      <p class="mb-0"><b>¿Dudas con un pago?</b><br>Escríbanos por <a href="https://wa.me/573006034800?text=Hola%2C%20tengo%20una%20duda%20con%20un%20pago" target="_blank" rel="noopener">WhatsApp 300 603 4800</a> con la referencia del pago.</p>
+    </div></div>
+  </div>
+</div>
+<script>
+(function () {
+  var f = document.getElementById('pp-form'), total = document.getElementById('pp-total'), boton = document.getElementById('pp-boton');
+  var pesos = function (n) { return '$' + Number(n).toLocaleString('es-CO'); };
+  function calcular() {
+    var c = f.querySelector('[name=concepto]:checked'), forma = f.querySelector('[name=forma]:checked');
+    var anual = document.getElementById('pp-anio').checked;
+    var v = c ? (c.dataset.valor || (anual ? c.dataset.anio : c.dataset.mes)) : 0;
+    if (v === 'recarga') v = document.getElementById('pp-monto').value;
+    total.textContent = pesos(v || 0);
+    boton.innerHTML = '<i class="fas fa-lock me-1"></i>' + (forma && forma.value === 'linea' ? 'Pagar ' + pesos(v || 0) + ' en línea' : 'Ver a dónde pagar');
+  }
+  f.addEventListener('change', calcular);
+  document.getElementById('pp-monto').addEventListener('focus', function () { f.querySelector('[value=recarga]').checked = true; calcular(); });
+  calcular();
+})();
+</script>
+{% endblock %}

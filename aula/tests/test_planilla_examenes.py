@@ -180,3 +180,61 @@ class ExamenesEnElAula(ColegioDePrueba):
         r = est.get(f'/aula/{aula.pk}/examenes/')
         self.assertContains(r, 'Quiz 1')
         self.assertEqual(r.context['examenes'][0].mia.nota, Decimal('4.5'))
+
+
+class PlanillaConComponentes(ColegioDePrueba):
+
+    def test_saber_hacer_ser_estilos_excel_pdf_e_importar(self):
+        cuenta, grupo, luis, sara, profe, aula = salon()
+        url = f'/aula/{aula.pk}/calificaciones/'
+        t = Tarea.objects.create(aula=aula, titulo='Taller')
+        Entrega.objects.create(tarea=t, integrante=luis, nota=Decimal('4.0'))
+        Entrega.objects.create(tarea=t, integrante=sara, nota=Decimal('2.0'))
+        profe.post(url, {'accion': 'agregar', 'titulo': 'Quiz'})
+        profe.post(url, {'accion': 'agregar', 'titulo': 'Actitud'})
+        quiz, actitud = ColumnaManual.objects.get(titulo='Quiz'), ColumnaManual.objects.get(titulo='Actitud')
+        # Plantilla rápida: Saber 40, Hacer 40, Ser 20
+        profe.post(url, {'accion': 'componentes', 'plantilla': 'ser_saber_hacer'})
+        self.assertEqual([c['nombre'] for c in logica.componentes_salon(aula.__class__.objects.get(pk=aula.pk))], ['Saber', 'Hacer', 'Ser'])
+        profe.post(url, {'accion': 'guardar', f'comp-tarea:{t.pk}': 'c2', f'comp-manual:{quiz.pk}': 'c1', f'comp-manual:{actitud.pk}': 'c3',
+                         f'n-{quiz.pk}-i{luis.pk}': '5', f'n-{quiz.pk}-i{sara.pk}': '3',
+                         f'n-{actitud.pk}-i{luis.pk}': '3', f'n-{actitud.pk}-i{sara.pk}': '5'})
+        aula.refresh_from_db()
+        datos = logica.tabla_calificaciones(aula)
+        prom = {f['nombre']: f['promedio'] for f in datos['filas']}
+        self.assertEqual(prom['Pérez Luis'], Decimal('4.2'))         # 5×40 % + 4×40 % + 3×20 %
+        self.assertEqual(prom['Gómez Sara'], Decimal('3.0'))
+        # Estilo «junto»: el promedio de cada componente va después de sus columnas
+        self.assertEqual([t_ for t_, _ in datos['orden']], ['col', 'prom', 'col', 'prom', 'col', 'prom'])
+        r = profe.get(url)
+        self.assertContains(r, 'Definitiva'); self.assertContains(r, 'Prom.<br>Saber')
+        # Estilo «final»: todas las columnas y al final los totales
+        profe.post(url, {'accion': 'componentes', 'comp_id': ['c1', 'c2', 'c3'], 'comp_nombre': ['Saber', 'Hacer', 'Ser'],
+                         'comp_pct': ['40', '40', '20'], 'estilo': 'final'})
+        aula.refresh_from_db()
+        datos = logica.tabla_calificaciones(aula)
+        self.assertEqual([t_ for t_, _ in datos['orden']], ['col', 'col', 'col', 'prom', 'prom', 'prom'])
+        self.assertTrue(datos['grupos'][-1].get('totales'))
+        # Excel y PDF con el mismo orden
+        r = profe.get(url + '?formato=excel')
+        ws = openpyxl.load_workbook(io.BytesIO(r.content)).active
+        valores = [c.value for fila in ws.iter_rows() for c in fila]
+        self.assertIn('Saber (40 %)', valores); self.assertIn('Prom. Saber', valores); self.assertIn('Definitiva', valores)
+        self.assertTrue(profe.get(url + '?formato=pdf').content.startswith(b'%PDF'))
+        # El Excel exportado se vuelve a importar: no trae los promedios ni la definitiva como columnas
+        from aula import importar
+        filas, _ = importar.leer_archivo(archivo=io.BytesIO(r.content))
+        titulos = [c['titulo'] for c in importar.analizar(filas, Decimal(5))['columnas']]
+        self.assertIn('Quiz', titulos)
+        self.assertFalse(any(x.startswith('Prom') or x in ('Definitiva', 'Desempeño') for x in titulos))
+        self.assertNotIn('Peso', [x['nombre'] for x in importar.analizar(filas, Decimal(5))['registros']])
+        # Porcentajes que no suman 100: aviso, y la definitiva se calcula en proporción
+        r = profe.post(url, {'accion': 'componentes', 'comp_id': ['c1', ''], 'comp_nombre': ['Saber', 'Convivir'],
+                             'comp_pct': ['50', '30']}, follow=True)
+        self.assertContains(r, 'suman 80')
+        aula.refresh_from_db()
+        self.assertEqual([c['nombre'] for c in logica.componentes_salon(aula)], ['Saber', 'Convivir'])
+        # Sin componentes vuelve a ser el promedio ponderado de todas las columnas
+        profe.post(url, {'accion': 'componentes'})
+        aula.refresh_from_db()
+        self.assertEqual(logica.componentes_salon(aula), [])

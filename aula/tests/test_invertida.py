@@ -232,3 +232,71 @@ class VideoConPausas(_BaseInvertida):
         _, self.clase = self.crear(preguntas=PAUSADAS)
         r = self.profe.post(f'{self.base}/{self.clase.pk}/progreso/', '{}', content_type='application/json')
         self.assertEqual(r.status_code, 403)
+
+
+class EditorComoEdpuzzle(_BaseInvertida):
+    """Preguntas puestas sobre el video (minuto, tipo y puntos), colores para el estudiante y calificación por puntos."""
+
+    def crear_editor(self):
+        import json
+        preguntas = [
+            {'texto': '¿Qué gas libera la planta?', 'tipo': 'multiple', 'segundo': 25, 'puntos': 2,
+             'opciones': [{'texto': 'Oxígeno', 'correcta': True}, {'texto': 'Nitrógeno'}]},
+            {'texto': 'La fotosíntesis ocurre en las hojas', 'tipo': 'vf', 'segundo': 50, 'puntos': 1, 'correcta': '0'},
+            {'texto': 'Explique con sus palabras qué es la fotosíntesis', 'tipo': 'abierta', 'segundo': None, 'puntos': 3},
+            {'texto': '', 'tipo': 'abierta'},                                     # vacía: se ignora
+            {'texto': 'Una sola opción', 'tipo': 'multiple', 'opciones': [{'texto': 'A'}]},    # inválida: se ignora
+        ]
+        r, self.clase = self.crear(preguntas='', preguntas_json=json.dumps(preguntas))
+        return r
+
+    def test_editor_puntos_colores_y_planilla(self):
+        self.crear_editor()
+        p = self.clase.preguntas
+        self.assertEqual([x['tipo'] for x in p], ['multiple', 'vf', 'abierta'])
+        self.assertEqual([x['segundo'] for x in p], [25, 50, None])
+        self.assertEqual([o['texto'] for o in p[1]['opciones']], ['Verdadero', 'Falso'])
+        self.assertEqual(self.clase.total_puntos, 6)
+        # El docente ve el editor con la línea de tiempo
+        r = self.profe.get(f'{self.base}/{self.clase.pk}/')
+        self.assertContains(r, 'Agregar pregunta aquí'); self.assertContains(r, 'invertida_editor.js')
+        # El estudiante ve el mapa de colores
+        c = self.cliente(self.ana.user)
+        r = c.get(f'{self.base}/{self.clase.pk}/')
+        self.assertContains(r, 'Vista sin responder'); self.assertContains(r, 'inv-linea')
+        # Responde: acierta la de 2 puntos y falla la de 1; la abierta espera al docente → 2 de 3 posibles = 3.7
+        c.post(f'{self.base}/{self.clase.pk}/', {'p0': '0', 'p1': '1', 'p2': 'Es cuando la planta fabrica su alimento con la luz'})
+        resp = RespuestaInvertida.objects.get(estudiante=self.ana)
+        self.assertEqual(resp.nota, Decimal('3.7'))
+        r = self.profe.get(f'{self.base}/{self.clase.pk}/')
+        self.assertContains(r, '1 por calificar')
+        # El docente le pone 3 de 3 a la abierta → 5 de 6 = 4.3
+        self.profe.post(f'{self.base}/{self.clase.pk}/accion/', {'accion': 'puntos', 'clave': f'e{self.ana.pk}', 'puntos-2': '3'})
+        resp.refresh_from_db()
+        self.assertEqual((resp.puntos_docente, resp.nota), ({'2': 3.0}, Decimal('4.3')))
+        # Más puntos de los que vale: no se acepta
+        self.profe.post(f'{self.base}/{self.clase.pk}/accion/', {'accion': 'puntos', 'clave': f'e{self.ana.pk}', 'puntos-2': '9'})
+        resp.refresh_from_db(); self.assertEqual(resp.puntos_docente, {'2': 3.0})
+        # Cambiar solo los puntos de una pregunta se permite aunque ya respondieron
+        import json
+        nuevas = [dict(x) for x in self.clase.preguntas]
+        nuevas[0]['puntos'] = 4
+        nuevas[1]['correcta'] = '0'
+        self.profe.post(f'{self.base}/{self.clase.pk}/accion/', {'accion': 'editar', 'titulo': 'Fotosíntesis',
+                        'video': self.clase.video, 'preguntas': '', 'preguntas_json': json.dumps(nuevas)})
+        self.clase.refresh_from_db(); self.assertEqual(self.clase.preguntas[0]['puntos'], 4.0)
+
+    def test_en_la_planilla_del_plan_individual(self):
+        from aula import logica
+        from aula.tests.test_planilla_examenes import salon
+        cuenta, grupo, luis, sara, profe, aula = salon()
+        import json
+        profe.post(f'/aula/{aula.pk}/invertida/', {'titulo': 'Video 1', 'video': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            'preguntas_json': json.dumps([{'texto': '¿2+2?', 'tipo': 'multiple', 'segundo': 5,
+                                           'opciones': [{'texto': '4', 'correcta': True}, {'texto': '5'}]}])})
+        clase = ClaseInvertida.objects.get(aula=aula)
+        RespuestaInvertida.objects.create(clase=clase, integrante=luis, respuestas={'0': 0}, nota=Decimal('5.0'))
+        datos = logica.tabla_calificaciones(aula)
+        col = next(c for c in datos['columnas'] if c['tipo'] == 'Aula invertida')
+        self.assertEqual(col['notas'][luis.pk], Decimal('5.0'))
+        self.assertContains(profe.get(f'/aula/{aula.pk}/invertida/{clase.pk}/'), 'Está en la planilla')

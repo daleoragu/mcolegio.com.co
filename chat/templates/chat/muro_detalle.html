@@ -1,0 +1,37 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}{{ t.p.titulo }} · Comunidad docente{% endblock %}
+{% block contenido %}
+{% include 'chat/_muro_estilos.html' %}
+<div style="max-width:720px;margin:12px auto 0">
+  <a href="/chat/colegas/muro/" class="small"><i class="fas fa-arrow-left me-1"></i>Volver al muro</a>
+  <div class="mt-2">{% include 'chat/_muro_pub.html' with detalle=True %}</div>
+  <div class="mu-lado" id="comentarios">
+    <h6>{% if t.p.tipo == 'consulta' %}Respuestas{% else %}Comentarios{% endif %} ({{ comentarios|length }})</h6>
+    {% for x in comentarios %}
+    <div class="d-flex gap-2 py-2 {% if not forloop.first %}border-top{% endif %}" {% if x.mejor %}style="background:#ebfbee;border-radius:10px;padding:8px!important"{% endif %}>
+      <a href="/chat/colegas/u/{{ x.c.autor_id }}/">{% include 'chat/_av.html' with foto=x.foto nombre=x.nombre clase='chico' %}</a>
+      <div class="flex-grow-1" style="min-width:0">
+        <div class="small"><a href="/chat/colegas/u/{{ x.c.autor_id }}/" class="fw-bold text-reset text-decoration-none">{{ x.nombre }}</a>
+          <span class="text-muted">· hace {{ x.c.creado|timesince|cut:","|truncatewords:2|cut:"…" }}</span>
+          {% if x.mejor %}<span class="badge bg-success ms-1"><i class="fas fa-medal me-1"></i>Mejor respuesta</span>{% endif %}</div>
+        <div style="overflow-wrap:anywhere">{{ x.c.texto|urlize|linebreaksbr }}</div>
+        <div class="d-flex gap-2 mt-1">
+          {% if t.mia and t.p.tipo == 'consulta' and not x.mio %}
+          <form method="post" action="/chat/colegas/muro/{{ t.p.pk }}/accion/" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="mejor"><input type="hidden" name="comentario" value="{{ x.c.pk }}"><button class="btn btn-link btn-sm p-0 {% if x.mejor %}text-muted{% else %}text-success{% endif %}">{% if x.mejor %}Quitar «mejor respuesta»{% else %}<i class="fas fa-medal me-1"></i>Elegir como mejor respuesta{% endif %}</button></form>{% endif %}
+          {% if x.mio or t.mia or request.user.is_staff %}
+          <form method="post" action="/chat/colegas/muro/{{ t.p.pk }}/accion/" class="m-0" onsubmit="return confirm('¿Borrar este comentario?')">{% csrf_token %}<input type="hidden" name="accion" value="borrar_comentario"><input type="hidden" name="comentario" value="{{ x.c.pk }}"><button class="btn btn-link btn-sm p-0 text-muted">Borrar</button></form>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% empty %}<p class="small text-muted mb-2">{% if t.p.tipo == 'consulta' %}Sea el primero en ayudar.{% else %}Todavía no hay comentarios.{% endif %}</p>{% endfor %}
+    {% if normas_ok %}
+    <form method="post" class="d-flex gap-2 mt-2 align-items-start">{% csrf_token %}
+      {% include 'chat/_av.html' with foto=yo.foto nombre=yo.nombre clase='chico' %}
+      <textarea name="texto" class="form-control form-control-sm" rows="2" maxlength="2000" required placeholder="{% if t.p.tipo == 'consulta' %}Escriba su respuesta…{% else %}Escriba un comentario…{% endif %}"></textarea>
+      <button class="btn btn-primary btn-sm">Enviar</button>
+    </form>
+    {% else %}<p class="small mt-2 mb-0">Para comentar, primero acepte las <a href="/chat/colegas/muro/">normas de la comunidad</a>.</p>{% endif %}
+  </div>
+</div>
+{% include 'chat/_muro_js.html' %}
+{% endblock %}

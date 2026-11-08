@@ -127,19 +127,82 @@ class PreguntaBanco(models.Model):
 
 
 class EncabezadoDocente(models.Model):
-    """El encabezado del docente del plan individual (en el colegio se usa el del colegio)."""
+    """El encabezado y el pie de página del docente del plan individual (en el colegio se usa el del colegio).
+
+    config = {
+      'lineas': [{'texto', 'negrilla': bool, 'tam': 'grande'|'normal'|'pequena'}, …]  (las que quiera, hasta MAX_LINEAS)
+      'alinear': 'centro'|'izquierda'|'derecha',
+      'logo_pos': 'izquierda'|'derecha'|'arriba',  'logo2_pos': igual,
+      'borde': bool (línea bajo el encabezado),
+      'pie': {'lineas': [texto, …], 'alinear': …, 'numero': bool (Página X de Y)},
+    }
+    linea1–3 quedan de la versión anterior: si config no tiene líneas, se usan esas.
+    """
+    MAX_LINEAS = 8
+    MAX_PIE = 4
+    POSICIONES = [('izquierda', 'A la izquierda'), ('derecha', 'A la derecha'), ('arriba', 'Arriba, en el centro')]
+    TAMANOS = {'grande': 13, 'normal': 10.5, 'pequena': 8.5}
+
     usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='encabezado_materiales')
     logo = models.FileField(upload_to=_ruta_logo, storage=almacen.privado, blank=True)
+    logo2 = models.FileField(upload_to=_ruta_logo, storage=almacen.privado, blank=True)
     linea1 = models.CharField(max_length=120, blank=True)
     linea2 = models.CharField(max_length=120, blank=True)
     linea3 = models.CharField(max_length=120, blank=True)
+    config = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return f'Encabezado de {self.usuario}'
 
     @property
+    def filas(self):
+        """[{'texto', 'negrilla', 'tam', 'pt'}] listas para pintar."""
+        filas = (self.config or {}).get('lineas')
+        if filas is None:
+            filas = [{'texto': x, 'negrilla': i == 0, 'tam': 'grande' if i == 0 else 'normal'}
+                     for i, x in enumerate((self.linea1, self.linea2, self.linea3)) if x]
+        return [dict(f, pt=self.TAMANOS.get(f.get('tam'), 10.5)) for f in filas if (f.get('texto') or '').strip()]
+
+    @property
     def lineas(self):
-        return [x for x in (self.linea1, self.linea2, self.linea3) if x]
+        return [f['texto'] for f in self.filas]
+
+    def opcion(self, clave, defecto):
+        return (self.config or {}).get(clave) or defecto
+
+    @property
+    def alinear(self):
+        return self.opcion('alinear', 'centro')
+
+    @property
+    def alinear_css(self):
+        return {'izquierda': 'left', 'derecha': 'right'}.get(self.alinear, 'center')
+
+    @property
+    def pie_css(self):
+        return {'izquierda': 'left', 'derecha': 'right'}.get(self.pie['alinear'], 'center')
+
+    @property
+    def logo_pos(self):
+        return self.opcion('logo_pos', 'izquierda')
+
+    @property
+    def logo2_pos(self):
+        return self.opcion('logo2_pos', 'derecha')
+
+    @property
+    def borde(self):
+        return (self.config or {}).get('borde', True)
+
+    @property
+    def pie(self):
+        p = (self.config or {}).get('pie') or {}
+        return {'lineas': [x for x in p.get('lineas', []) if x.strip()], 'alinear': p.get('alinear') or 'centro',
+                'numero': p.get('numero', True)}
+
+    @property
+    def tiene_algo(self):
+        return bool(self.filas or self.logo or self.logo2)
 
 
 # ---------------------------------------------------------------------------

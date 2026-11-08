@@ -21,7 +21,9 @@ PALABRAS_NOMBRE = ('nombre', 'estudiante', 'alumno', 'apellido', 'player', 'name
                    'nickname', 'usuario', 'integrante')
 PALABRAS_DOCUMENTO = ('documento', 'identificacion', 'cedula', 'tarjeta', 'doc', 'ti', 'cc', 'id')
 PALABRAS_IGNORAR = ('n', 'no', 'n.o', 'n o', 'num', 'numero', '#', 'item', 'orden', 'puesto', 'rank', 'posicion',
-                    'curso', 'grado', 'grupo', 'correo', 'email', 'fecha', 'hora', 'marca temporal', 'timestamp')
+                    'curso', 'grado', 'grupo', 'correo', 'email', 'fecha', 'hora', 'marca temporal', 'timestamp',
+                    # lo que calcula la planilla exportada (no son notas para importar)
+                    'promedio', 'prom', 'definitiva', 'nota final', 'desempeno')
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +190,7 @@ def analizar(filas, maxima_escala):
         nombre = ' '.join(f[j] for j in col_nombres if f[j]).strip()
         documento = f[col_documento].strip() if col_documento is not None else ''
         codigo = f[col_codigo].strip() if col_codigo is not None else ''
-        if not (nombre or documento or codigo):
+        if not (nombre or documento or codigo) or normalizar(nombre) in ('peso', 'porcentaje', '%'):
             continue
         registros.append({'nombre': nombre, 'documento': documento, 'codigo': codigo,
                           'valores': [f[c['j']] for c in columnas]})

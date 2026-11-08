@@ -13,6 +13,7 @@
     {% endif %}
     {% if a.enlace %}<a class="btn btn-sm btn-outline-secondary" href="{{ a.enlace }}" target="_blank" rel="noopener"><i class="fas fa-up-right-from-square me-1"></i>Abrir en otra pestaña</a>{% endif %}
     <button type="button" class="btn btn-sm btn-outline-secondary" id="act-pantalla"><i class="fas fa-expand me-1"></i>Pantalla completa</button>
+    {% if c.es_docente %}<button type="button" class="btn btn-sm btn-outline-primary btn-compartir" data-tipo="actividad" data-id="{{ a.pk }}"><i class="fas fa-share-nodes me-1"></i>Compartir</button>{% endif %}
 </div>
 {% if a.descripcion %}<p class="text-muted small mb-2">{{ a.descripcion }}</p>{% endif %}
 {% if para_nombres %}<p class="small mb-2"><span class="au-chip pend"><i class="fas fa-user-check"></i> Solo para:</span> {{ para_nombres|join:", " }}</p>{% endif %}
@@ -95,4 +96,5 @@
   {% endif %}
 })();
 </script>
+{% if c.es_docente %}{% include 'aula/_compartir.html' %}{% endif %}
 {% endblock %}

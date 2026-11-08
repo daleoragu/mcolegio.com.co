@@ -20,8 +20,12 @@ muestra la pregunta encima y sigue cuando el estudiante responde. Las preguntas
 sin minuto quedan para el final.
 """
 import re
+from decimal import Decimal, ROUND_HALF_UP
 
-from .juegos import _OPCION, _RESPUESTA, nota as nota_de
+from .juegos import _OPCION, _RESPUESTA
+
+TIPOS = {'multiple': 'Opción múltiple', 'vf': 'Verdadero o falso', 'abierta': 'Abierta'}
+MAX_PUNTOS = 100
 
 MAX_PREGUNTAS = 50
 _NUMERO = re.compile(r'^\s*(?:pregunta\s*)?\d{1,3}\s*[.)\-:]\s*(.*)$', re.I)
@@ -94,17 +98,90 @@ def es_calificable(pregunta):
     return any(o.get('correcta') for o in pregunta.get('opciones', []))
 
 
-def calificar(clase, respuestas):
-    """(aciertos, nota o None) de unas respuestas {'0': índice | texto}."""
+def tipo_de(pregunta):
+    if not pregunta.get('opciones'):
+        return 'abierta'
+    return pregunta.get('tipo') if pregunta.get('tipo') in ('multiple', 'vf') else 'multiple'
+
+
+def puntos_de(pregunta):
+    try:
+        return max(Decimal(0), min(Decimal(MAX_PUNTOS), Decimal(str(pregunta.get('puntos', 1)))))
+    except Exception:
+        return Decimal(1)
+
+
+def leer_json(texto, maximo=MAX_PREGUNTAS):
+    """Las preguntas que arma el docente en el editor (sobre el video). Devuelve [] si no hay o no sirven."""
+    import json
+    try:
+        datos = json.loads(texto or '[]')
+    except ValueError:
+        return []
+    salida = []
+    for p in datos if isinstance(datos, list) else []:
+        if not isinstance(p, dict):
+            continue
+        texto_p = ' '.join(str(p.get('texto') or '').split())[:1000]
+        if not texto_p:
+            continue
+        tipo = p.get('tipo') if p.get('tipo') in TIPOS else 'multiple'
+        opciones = []
+        if tipo == 'vf':
+            correcta = str(p.get('correcta', '0'))
+            opciones = [{'texto': 'Verdadero', 'correcta': correcta == '0'}, {'texto': 'Falso', 'correcta': correcta == '1'}]
+        elif tipo == 'multiple':
+            for o in (p.get('opciones') or [])[:8]:
+                if isinstance(o, dict) and str(o.get('texto') or '').strip():
+                    opciones.append({'texto': str(o['texto']).strip()[:300], 'correcta': bool(o.get('correcta'))})
+            if len(opciones) < 2:
+                continue
+        try:
+            segundo = int(float(p['segundo'])) if p.get('segundo') not in (None, '') else None
+        except (TypeError, ValueError):
+            segundo = None
+        try:
+            puntos = float(max(0, min(MAX_PUNTOS, float(p.get('puntos', 1)))))
+        except (TypeError, ValueError):
+            puntos = 1.0
+        salida.append({'texto': texto_p, 'tipo': tipo, 'opciones': opciones, 'segundo': segundo if segundo is None or segundo >= 0 else None,
+                       'puntos': puntos})
+    salida.sort(key=lambda p: (p['segundo'] is None, p['segundo'] or 0))
+    return salida[:maximo]
+
+
+def puntaje(clase, respuestas, puntos_docente=None):
+    """(ganados, posibles, aciertos): las de selección se califican solas; las abiertas cuentan cuando el docente
+    ya les puso puntos."""
+    puntos_docente = puntos_docente or {}
+    ganados = posibles = Decimal(0)
     aciertos = 0
     for i, p in enumerate(clase.preguntas):
-        if not es_calificable(p):
-            continue
-        valor = respuestas.get(str(i))
-        if isinstance(valor, int) and 0 <= valor < len(p['opciones']) and p['opciones'][valor].get('correcta'):
-            aciertos += 1
-    total = clase.calificables
-    return aciertos, (nota_de(clase.aula, aciertos, total) if total else None)
+        vale = puntos_de(p)
+        if es_calificable(p):
+            posibles += vale
+            valor = respuestas.get(str(i))
+            if isinstance(valor, int) and 0 <= valor < len(p['opciones']) and p['opciones'][valor].get('correcta'):
+                ganados += vale
+                aciertos += 1
+        elif not p.get('opciones') and str(i) in puntos_docente:
+            posibles += vale
+            try:
+                ganados += max(Decimal(0), min(vale, Decimal(str(puntos_docente[str(i)]))))
+            except Exception:
+                pass
+    return ganados, posibles, aciertos
+
+
+def calificar(clase, respuestas, puntos_docente=None):
+    """(aciertos, nota o None): lo ganado sobre lo posible, en la escala del aula."""
+    from . import logica
+    ganados, posibles, aciertos = puntaje(clase, respuestas, puntos_docente)
+    if not posibles:
+        return aciertos, None
+    minima, maxima = logica.rango(clase.aula)
+    nota = minima + (maxima - minima) * ganados / posibles
+    return aciertos, nota.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
 
 
 def leer_respuestas(clase, post):
@@ -125,12 +202,14 @@ def leer_respuestas(clase, post):
 
 
 def detalle(clase, respuesta):
-    """Para mostrar: [{'n', 'texto', 'opciones', 'abierta', 'valor', 'acierto'}]."""
+    """Para mostrar: [{'n', 'texto', 'opciones', 'abierta', 'valor', 'acierto', 'tipo', 'puntos', 'dados'}]."""
     salida = []
     datos = respuesta.respuestas if respuesta else {}
+    dados = (respuesta.puntos_docente or {}) if respuesta else {}
     for i, p in enumerate(clase.preguntas):
         valor = datos.get(str(i))
         fila = {'n': i + 1, 'i': i, 'texto': p['texto'], 'abierta': not p.get('opciones'),
+                'tipo': tipo_de(p), 'tipo_nombre': TIPOS[tipo_de(p)], 'puntos': puntos_de(p), 'dados': dados.get(str(i)),
                 'segundo': p.get('segundo'), 'minuto': minuto(p.get('segundo')),
                 'opciones': [dict(o, k=k, elegida=(valor == k)) for k, o in enumerate(p.get('opciones', []))],
                 'valor': valor, 'calificable': es_calificable(p), 'acierto': None}

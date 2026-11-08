@@ -65,7 +65,7 @@
             {% elif c.estado == 'rechazada' %}<span class="badge bg-danger">rechazada</span>
             {% else %}<span class="badge bg-secondary">{{ c.get_estado_display }}</span>{% endif %}
           </td>
-          <td>{{ c.get_plan_display }}</td>
+          <td>{{ c.nombre_nivel }}</td>
           <td class="small {% if c.vencida %}text-danger{% endif %}">
             {{ c.vence_en|date:"d/m/Y"|default:"—" }}
           </td>
@@ -73,10 +73,12 @@
           <td>
             <form method="post" action="{% url 'salon_digital:cambiar_plan' c.pk %}" class="d-flex gap-1">
               {% csrf_token %}
-              <select name="plan" class="form-select form-select-sm" style="max-width:130px">
-                <option value="mensual">Mensual</option>
-                <option value="anual">Anual</option>
-                <option value="prueba">Prueba</option>
+              <select name="plan" class="form-select form-select-sm" style="max-width:190px">
+                <option value="estandar_mes">Estándar · 1 mes</option>
+                <option value="estandar_anio">Estándar · 1 año</option>
+                <option value="premium_mes">Premium · 1 mes</option>
+                <option value="premium_anio">Premium · 1 año</option>
+                <option value="gratis">Gratis</option>
                 <option value="ilimitado">Ilimitado</option>
               </select>
               <button class="btn btn-sm btn-outline-primary">Activar</button>

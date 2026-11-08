@@ -15,40 +15,69 @@
             </form>
             {% endif %}
             <a class="btn btn-sm btn-outline-primary" href="{% url 'aula:importar' aula.pk %}"><i class="fas fa-file-import me-1"></i>Importar notas</a>
-            <a class="btn btn-sm btn-success" href="?formato=excel"><i class="fas fa-file-excel me-1"></i>Descargar en Excel</a>
+            <a class="btn btn-sm btn-success" href="?formato=excel"><i class="fas fa-file-excel me-1"></i>Excel</a>
+            <a class="btn btn-sm btn-outline-danger" href="?formato=pdf" target="_blank"><i class="far fa-file-pdf me-1"></i>PDF</a>
         </div>
     </div>
     {% if not aula.es_salon %}<p class="small text-muted">Estas son las notas del aula: tareas, actividades, cuestionarios y exámenes PuntoExacto. Para que cuenten en el boletín, use «Pasar a la planilla» en cada una.</p>
-    {% else %}<p class="small text-muted mb-2">Las tareas, actividades, cuestionarios y exámenes entran solos. Agregue columnas para las notas que pone a mano y dele a cada columna su <strong>peso</strong>: el promedio es ponderado (peso 0 = no cuenta). La escala es <a href="{% url 'aula:escala' %}">la suya</a>.</p>{% endif %}
+    {% else %}<p class="small text-muted mb-2">Las tareas, actividades, cuestionarios y exámenes entran solos. Agregue columnas para las notas que pone a mano{% if componentes %}, escoja en cada una a qué componente pertenece y dele su <strong>peso</strong> dentro del componente{% else %} y dele a cada columna su <strong>peso</strong>: el promedio es ponderado (peso 0 = no cuenta){% endif %}. La escala es <a href="{% url 'aula:escala' %}">la suya</a>.</p>
 
-    {% if aula.es_salon %}<form method="post" id="planilla">{% csrf_token %}<input type="hidden" name="accion" value="guardar">{% endif %}
-    <div class="table-responsive"><table class="table table-sm table-bordered align-middle mb-0">
+    <details class="border rounded-3 p-2 mb-3" {% if not componentes %}open{% endif %} style="background:#f8fafc">
+      <summary class="fw-bold small"><i class="fas fa-layer-group me-1"></i>Lo que evalúo (componentes){% if componentes %}: {% for c in componentes %}{{ c.nombre }} {{ c.pct }} %{% if not forloop.last %} · {% endif %}{% endfor %}{% endif %}</summary>
+      <form method="post" class="mt-2" id="comp-form">{% csrf_token %}<input type="hidden" name="accion" value="componentes">
+        <p class="small text-muted mb-2">Como en la planilla del colegio: escriba lo que evalúa y cuánto vale cada parte. Cada componente promedia sus columnas y la definitiva suma promedio × porcentaje. Sin componentes, se promedian todas las columnas.</p>
+        <div class="d-flex flex-wrap gap-1 mb-2"><span class="small text-muted me-1 align-self-center">Empezar con:</span>
+          {% for k, v in plantillas_componentes.items %}<button class="btn btn-sm btn-outline-secondary" name="plantilla" value="{{ k }}" onclick="return confirm('¿Usar «{{ v.0 }}»? Reemplaza los componentes actuales.')">{{ v.0 }}</button>{% endfor %}</div>
+        <div id="comp-lista">{% for c in componentes %}
+          <div class="d-flex gap-2 mb-1 comp-fila"><input type="hidden" name="comp_id" value="{{ c.id }}">
+            <input name="comp_nombre" value="{{ c.nombre }}" class="form-control form-control-sm" maxlength="40" style="max-width:260px" placeholder="Ej.: Saber">
+            <div class="input-group input-group-sm" style="width:120px"><input name="comp_pct" value="{{ c.pct }}" class="form-control text-center comp-pct" inputmode="decimal"><span class="input-group-text">%</span></div>
+            <button type="button" class="btn btn-sm btn-link text-danger comp-quitar" title="Quitar"><i class="far fa-trash-can"></i></button></div>{% endfor %}</div>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+          <button type="button" class="btn btn-sm btn-outline-primary" id="comp-mas"><i class="fas fa-plus me-1"></i>Componente</button>
+          <span class="small" id="comp-suma"></span>
+          <span class="ms-auto small fw-bold">Estilo de la planilla:</span>
+          <label class="small"><input type="radio" name="estilo" value="junto" class="form-check-input me-1" {% if estilo == 'junto' %}checked{% endif %}>El total de cada componente junto a sus notas</label>
+          <label class="small"><input type="radio" name="estilo" value="final" class="form-check-input me-1" {% if estilo == 'final' %}checked{% endif %}>Todos los totales al final</label>
+          <button class="btn btn-sm au-oro px-3">Guardar componentes</button>
+        </div>
+      </form>
+    </details>{% endif %}
+
+    <style>.au-planilla .au-grupo{background:#e9edf3!important;color:#1f3a68}.au-planilla .au-tot{background:#fff4d6!important}</style>
+    <div class="table-responsive"><table class="table table-sm table-bordered align-middle mb-0 au-planilla">
         <thead class="table-light">
+        {% if grupos %}<tr><th colspan="2"></th>{% for g in grupos %}<th class="text-center small {% if g.totales %}au-tot{% else %}au-grupo{% endif %}" colspan="{{ g.span }}">{{ g.nombre }}{% if g.porcentaje is not None %} <span class="fw-normal">({{ g.pct }} %)</span>{% endif %}</th>{% endfor %}<th colspan="2"></th></tr>{% endif %}
         <tr><th>#</th><th>Estudiante</th>
-            {% for col in columnas %}<th class="small text-center" style="min-width:86px">
+            {% for t, col in orden %}{% if t == 'col' %}<th class="small text-center" style="min-width:86px">
                 {% if col.url %}<a href="{{ col.url }}">{{ col.titulo }}</a>{% else %}{{ col.titulo }}{% endif %}
                 <div class="text-muted fw-normal" style="font-size:.7rem">{{ col.tipo }}</div>
                 {% if col.manual %}<button type="button" class="btn btn-link btn-sm p-0 text-danger" title="Eliminar columna"
                     onclick="if(confirm('¿Eliminar la columna «{{ col.titulo|escapejs }}» y sus notas?')){var f=document.getElementById('borrar-col');f.columna.value='{{ col.manual.pk }}';f.submit();}"><i class="far fa-trash-can"></i></button>{% endif %}
-            </th>{% endfor %}
-            <th class="text-center">Promedio</th><th>Desempeño</th></tr>
+            </th>{% else %}<th class="small text-center au-tot" style="min-width:70px">Prom.<br>{{ col.nombre }}</th>{% endif %}{% endfor %}
+            <th class="text-center">{% if componentes %}Definitiva{% else %}Promedio{% endif %}</th><th>Desempeño</th></tr>
         {% if aula.es_salon and columnas %}
-        <tr class="small"><td></td><td class="text-end text-muted">Peso</td>
-            {% for col in columnas %}<td class="text-center"><input name="peso-{{ col.clave }}" value="{{ col.peso|floatformat:'-2' }}" class="form-control form-control-sm text-center mx-auto" style="width:60px" inputmode="decimal">
-                <div class="text-muted" style="font-size:.7rem">{{ col.porcentaje }} %</div></td>{% endfor %}
+        <tr class="small"><td></td><td class="text-end text-muted">{% if componentes %}Componente<br>{% endif %}Peso</td>
+            {% for t, col in orden %}{% if t == 'col' %}<td class="text-center">
+                {% if componentes %}<select name="comp-{{ col.clave }}" form="planilla" class="form-select form-select-sm mb-1 mx-auto" style="width:110px;font-size:.75rem" aria-label="Componente de {{ col.titulo }}">{% for c in componentes %}<option value="{{ c.id }}" {% if c.id == col.comp %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select>{% endif %}
+                <input name="peso-{{ col.clave }}" form="planilla" value="{{ col.peso|floatformat:'-2' }}" class="form-control form-control-sm text-center mx-auto" style="width:60px" inputmode="decimal">
+                <div class="text-muted" style="font-size:.7rem">{{ col.porcentaje }} %{% if componentes %} del comp.{% endif %}</div></td>
+            {% else %}<td class="text-center au-tot" style="font-size:.75rem">{{ col.pct }} %</td>{% endif %}{% endfor %}
             <td colspan="2"></td></tr>
         {% endif %}
         </thead>
         <tbody>{% for f in filas %}<tr>
             <td class="text-muted">{{ forloop.counter }}</td><td class="text-nowrap">{{ f.nombre }}</td>
-            {% for col, n in f.celdas %}<td class="text-center">
-                {% if col.manual %}<input name="n-{{ col.manual.pk }}-{{ f.clave }}" value="{% if n is not None %}{{ n|floatformat:'-2' }}{% endif %}" class="form-control form-control-sm text-center mx-auto au-nota" style="width:64px" inputmode="decimal">
-                {% elif n is not None %}{{ n|floatformat:1 }}{% endif %}</td>{% endfor %}
+            {% for v in f.vista %}{% if v.tipo == 'col' %}<td class="text-center">
+                {% if v.col.manual %}<input name="n-{{ v.col.manual.pk }}-{{ f.clave }}" form="planilla" value="{% if v.n is not None %}{{ v.n|floatformat:'-2' }}{% endif %}" class="form-control form-control-sm text-center mx-auto au-nota" style="width:64px" inputmode="decimal">
+                {% elif v.n is not None %}{{ v.n|floatformat:1 }}{% endif %}</td>
+            {% else %}<td class="text-center fw-semibold au-tot">{% if v.n is not None %}{{ v.n|floatformat:1 }}{% endif %}</td>{% endif %}{% endfor %}
             <td class="text-center fw-bold">{% if f.promedio is not None %}{{ f.promedio|floatformat:1 }}{% endif %}</td>
             <td class="small">{{ f.desempeno }}</td>
         </tr>{% empty %}<tr><td colspan="3" class="text-muted text-center py-3">No hay estudiantes.</td></tr>{% endfor %}</tbody>
     </table></div>
     {% if aula.es_salon %}
+    <form method="post" id="planilla">{% csrf_token %}<input type="hidden" name="accion" value="guardar">
     <div class="d-flex flex-wrap align-items-center gap-3 mt-3">
         <div class="form-check"><input class="form-check-input" type="checkbox" name="faltantes_minima" id="faltantes" {% if faltantes_minima %}checked{% endif %}>
             <label class="form-check-label small" for="faltantes">Contar lo que falta con la nota mínima (si no, lo que falta no cuenta en el promedio)</label></div>
@@ -60,6 +89,23 @@
 </div>
 </div>
 <script>
+// Componentes: agregar, quitar y ver cuánto suman
+(function () {
+  var lista = document.getElementById('comp-lista'); if (!lista) return;
+  function suma() {
+    var t = 0; lista.querySelectorAll('.comp-pct').forEach(function (i) { t += parseFloat((i.value || '0').replace(',', '.')) || 0; });
+    var s = document.getElementById('comp-suma'); s.textContent = lista.children.length ? 'Suman ' + Math.round(t * 100) / 100 + ' %' : '';
+    s.className = 'small ' + (Math.abs(t - 100) < 0.01 ? 'text-success' : 'text-danger fw-bold');
+  }
+  function fila() {
+    var d = document.createElement('div'); d.className = 'd-flex gap-2 mb-1 comp-fila';
+    d.innerHTML = '<input type="hidden" name="comp_id" value=""><input name="comp_nombre" class="form-control form-control-sm" maxlength="40" style="max-width:260px" placeholder="Ej.: Saber"><div class="input-group input-group-sm" style="width:120px"><input name="comp_pct" class="form-control text-center comp-pct" inputmode="decimal"><span class="input-group-text">%</span></div><button type="button" class="btn btn-sm btn-link text-danger comp-quitar" title="Quitar"><i class="far fa-trash-can"></i></button>';
+    lista.appendChild(d); d.querySelector('[name=comp_nombre]').focus();
+  }
+  document.getElementById('comp-mas').onclick = function () { if (lista.children.length < 8) fila(); suma(); };
+  lista.addEventListener('click', function (e) { var b = e.target.closest('.comp-quitar'); if (b) { b.closest('.comp-fila').remove(); suma(); } });
+  lista.addEventListener('input', suma); suma();
+})();
 // Enter baja a la siguiente fila, como en Excel
 document.querySelectorAll('.au-nota').forEach(function (inp) {
   inp.addEventListener('keydown', function (e) {

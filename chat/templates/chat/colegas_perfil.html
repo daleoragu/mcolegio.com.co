@@ -15,7 +15,14 @@
     <div class="text-muted mb-2">{{ o.desc }}</div>
     {% if perfil.grados %}<span class="badge text-bg-light border me-1"><i class="fas fa-school me-1"></i>{{ perfil.grados }}</span>{% endif %}
     {% if perfil.area %}<span class="badge text-bg-light border"><i class="fas fa-book me-1"></i>{{ perfil.area }}</span>{% endif %}
+    {% if perfil.formacion %}<div class="small mt-2"><i class="fas fa-graduation-cap me-1"></i>{{ perfil.formacion }}</div>{% endif %}
     {% if perfil.presentacion %}<p class="mt-3 mb-2 fst-italic">«{{ perfil.presentacion }}»</p>{% endif %}
+    <div class="d-flex justify-content-center gap-4 mt-3 small">
+      <div><b class="d-block fs-5">{{ logros.publicaciones }}</b>aportes</div>
+      <div><b class="d-block fs-5">{{ logros.utiles }}</b>«útil»</div>
+      <div><b class="d-block fs-5">{{ logros.copias }}</b>copias de sus recursos</div>
+    </div>
+    {% if logros.lista %}<div class="d-flex flex-wrap justify-content-center gap-2 mt-2">{% for ic, nom, det in logros.lista %}<span class="badge rounded-pill" style="background:#fff4d6;color:#7a5200;border:1px solid #f2b632" title="{{ det }}"><i class="fas {{ ic }} me-1"></i>{{ nom }}</span>{% endfor %}</div>{% endif %}
     {% if desde %}<div class="small text-success mt-2"><i class="fas fa-user-check me-1"></i>Son colegas desde el {{ desde|date:"d/m/Y" }}</div>{% endif %}
     <div class="d-flex flex-wrap gap-2 justify-content-center mt-3">
       {% if estado == 'yo' %}<a href="/chat/colegas/?tab=perfil" class="btn btn-outline-primary"><i class="fas fa-pen me-1"></i>Editar mi perfil</a>
@@ -33,6 +40,15 @@
       {% endif %}
     </div>
   </div>
+  {% if pubs %}
+  <div class="m-3" style="max-width:640px;margin-left:auto!important;margin-right:auto!important">
+    {% include 'chat/_muro_estilos.html' %}
+    <h6 class="fw-bold small">Aportes recientes en el muro</h6>
+    {% for t in pubs %}{% include 'chat/_muro_pub.html' with detalle=False %}{% endfor %}
+    <a class="small" href="/chat/colegas/muro/">Ir al muro</a>
+  </div>
+  {% include 'chat/_muro_js.html' %}
+  {% endif %}
   {% if en_comun or grupos %}
   <div class="m-3 p-3 bg-white border rounded-4" style="max-width:640px;margin-left:auto!important;margin-right:auto!important">
     {% if en_comun %}<h6 class="fw-bold small">Colegas en común ({{ en_comun|length }})</h6>

@@ -139,6 +139,9 @@ def lista(request):
 def crear(request):
     docente = _docente_de(request)
     cuenta = _cuenta_de(request)
+    if cuenta is not None and docente is None and not cuenta.permite('examenes') and not request.user.is_superuser:
+        from salon_digital.limites import a_planes
+        return a_planes(request, 'examenes', 'estandar')
     inicial = {'fecha': datetime.date.today()}
     # Desde Mi Salón Virtual llega con la asignatura (o el grupo) ya escogida.
     for campo in ('asignacion', 'grupo'):

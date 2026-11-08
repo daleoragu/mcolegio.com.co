@@ -25,6 +25,7 @@
 {% with t=tab|default:'' %}
 <div class="ch-cuerpo">
   <div class="cg-tabs">
+    <a href="/chat/colegas/muro/"><i class="fas fa-newspaper me-1"></i>Muro</a>
     <a href="?tab=colegas" class="{% if t == 'colegas' or not t and not q and not recibidas %}activo{% endif %}">Mis colegas ({{ colegas|length }})</a>
     <a href="?tab=buscar" class="{% if t == 'buscar' or q %}activo{% endif %}">Buscar docentes</a>
     <a href="?tab=solicitudes" class="{% if t == 'solicitudes' or not t and not q and recibidas %}activo{% endif %}">Solicitudes{% if recibidas %} <span class="badge text-bg-danger">{{ recibidas|length }}</span>{% endif %}</a>
@@ -99,6 +100,8 @@
         <input id="cg-grados" name="grados" value="{{ perfil.grados }}" maxlength="60" class="form-control" placeholder="Ej.: 6.º a 9.º"></div>
       <div class="col-md-6"><label class="small fw-bold" for="cg-mun">Municipio</label>
         <input id="cg-mun" name="municipio" value="{{ perfil.municipio }}" maxlength="100" class="form-control" placeholder="Ej.: Líbano, Tolima"></div>
+      <div class="col-12"><label class="small fw-bold" for="cg-form">Formación (opcional)</label>
+        <input id="cg-form" name="formacion" value="{{ perfil.formacion }}" maxlength="200" class="form-control" placeholder="Ej.: Licenciado en Matemáticas, Magíster en Educación"></div>
       <div class="col-12"><label class="small fw-bold" for="cg-pres">Presentación corta (opcional)</label>
         <input id="cg-pres" name="presentacion" value="{{ perfil.presentacion }}" maxlength="200" class="form-control" placeholder="Ej.: Me gusta el aprendizaje con juegos; organizo olimpiadas de matemáticas"></div>
     </div>

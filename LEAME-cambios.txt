@@ -13,6 +13,8 @@ NUEVO     aula/bancos/generar_olimpiada.py
 NUEVO     aula/bancos/olimpiada.json
 NUEVO     aula/bancos/olimpiada_6_11.json
 NUEVO     aula/bancos_juegos.py
+NUEVO     aula/compartir.py
+CAMBIADO  aula/importar.py
 NUEVO     aula/instrucciones.py
 NUEVO     aula/invertida.py
 CAMBIADO  aula/logica.py
@@ -47,11 +49,14 @@ NUEVO     aula/migrations/0020_progreso_logica_y_respuestas.py
 NUEVO     aula/migrations/0021_banco_preguntas.py
 NUEVO     aula/migrations/0022_grabaciones_eventos.py
 NUEVO     aula/migrations/0023_grabaciones_en_la_nube.py
+NUEVO     aula/migrations/0024_invertida_puntos.py
+NUEVO     aula/migrations/0025_compartir_con_colegas.py
 CAMBIADO  aula/models.py
 NUEVO     aula/planilla_eventos.py
 NUEVO     aula/planilla_preguntas.py
 NUEVO     aula/static/aula/eventos/nube_grabaciones.js
 NUEVO     aula/static/aula/eventos/olimpiada.js
+NUEVO     aula/static/aula/invertida_editor.js
 NUEVO     aula/static/aula/invertida_pausas.js
 NUEVO     aula/static/aula/juegos/animaplano.js
 NUEVO     aula/static/aula/juegos/baloncesto.js
@@ -146,13 +151,19 @@ NUEVO     aula/static/aula/vendor/katex/fonts/KaTeX_Typewriter-Regular.woff2
 NUEVO     aula/static/aula/vendor/katex/katex.min.css
 NUEVO     aula/static/aula/vendor/katex/katex.min.js
 CAMBIADO  aula/templates/aula/_cabecera.html
+NUEVO     aula/templates/aula/_compartir.html
 CAMBIADO  aula/templates/aula/_estilos.html
 NUEVO     aula/templates/aula/_instrucciones.html
+NUEVO     aula/templates/aula/_invertida_editor.html
 NUEVO     aula/templates/aula/_invertida_form.html
 NUEVO     aula/templates/aula/_invertida_js.html
 NUEVO     aula/templates/aula/_mate.html
 NUEVO     aula/templates/aula/_nube_grabaciones.html
+CAMBIADO  aula/templates/aula/actividad.html
 NUEVO     aula/templates/aula/banco.html
+CAMBIADO  aula/templates/aula/calificaciones.html
+NUEVO     aula/templates/aula/calificaciones_pdf.html
+NUEVO     aula/templates/aula/compartidos.html
 CAMBIADO  aula/templates/aula/cuestionario.html
 CAMBIADO  aula/templates/aula/entrar.html
 NUEVO     aula/templates/aula/evento_cerrado.html
@@ -169,6 +180,7 @@ NUEVO     aula/templates/aula/evento_preguntas.html
 NUEVO     aula/templates/aula/evento_resultados.html
 NUEVO     aula/templates/aula/eventos.html
 NUEVO     aula/templates/aula/gamificacion.html
+CAMBIADO  aula/templates/aula/importar.html
 CAMBIADO  aula/templates/aula/inicio.html
 CAMBIADO  aula/templates/aula/inicio_salon.html
 NUEVO     aula/templates/aula/invertida.html
@@ -182,54 +194,75 @@ NUEVO     aula/templates/aula/logica_juego.html
 NUEVO     aula/templates/aula/logica_menu.html
 NUEVO     aula/templates/aula/mascota.html
 CAMBIADO  aula/templates/aula/material.html
+CAMBIADO  aula/templates/aula/muro.html
 CAMBIADO  aula/templates/aula/vivo_docente.html
 CAMBIADO  aula/templates/aula/vivo_estudiante.html
 CAMBIADO  aula/tests/test_aula.py
+NUEVO     aula/tests/test_compartir.py
 NUEVO     aula/tests/test_eventos.py
 NUEVO     aula/tests/test_gamificacion.py
 NUEVO     aula/tests/test_invertida.py
 NUEVO     aula/tests/test_mascota.py
 CAMBIADO  aula/tests/test_para.py
+CAMBIADO  aula/tests/test_planilla_examenes.py
 CAMBIADO  aula/urls.py
 CAMBIADO  aula/views.py
 NUEVO     aula/views_banco.py
+NUEVO     aula/views_compartir.py
 NUEVO     aula/views_eventos.py
 NUEVO     aula/views_gamificacion.py
+CAMBIADO  aula/views_importar.py
 NUEVO     aula/views_invertida.py
 NUEVO     aula/views_logica.py
 NUEVO     aula/views_mascota.py
 NUEVO     chat/migrations/0005_colegas.py
 NUEVO     chat/migrations/0006_perfil_colega_foto.py
+NUEVO     chat/migrations/0007_muro_academico.py
+NUEVO     chat/migrations/0008_muro_actividades.py
 CAMBIADO  chat/models.py
 NUEVO     chat/static/chat/flotante.js
 NUEVO     chat/templates/chat/_av.html
 NUEVO     chat/templates/chat/_campana_colegas.html
+NUEVO     chat/templates/chat/_muro_estilos.html
+NUEVO     chat/templates/chat/_muro_js.html
+NUEVO     chat/templates/chat/_muro_pub.html
 NUEVO     chat/templates/chat/_riel_colegas.html
 NUEVO     chat/templates/chat/colegas_conversacion.html
 NUEVO     chat/templates/chat/colegas_grupo_nuevo.html
 NUEVO     chat/templates/chat/colegas_inicio.html
 NUEVO     chat/templates/chat/colegas_lista.html
 NUEVO     chat/templates/chat/colegas_perfil.html
+NUEVO     chat/templates/chat/muro.html
+NUEVO     chat/templates/chat/muro_detalle.html
+NUEVO     chat/templates/chat/muro_moderar.html
 NUEVO     chat/test_colegas.py
+NUEVO     chat/test_muro.py
 CAMBIADO  chat/urls.py
 NUEVO     chat/views_colegas.py
+NUEVO     chat/views_muro.py
 CAMBIADO  config/urls.py
 CAMBIADO  elecciones/templates/elecciones/index.html
+CAMBIADO  materiales/creditos.py
 CAMBIADO  materiales/exportar.py
 NUEVO     materiales/migrations/0005_colaboradores_y_modelos.py
+NUEVO     materiales/migrations/0006_encabezado_libre.py
 CAMBIADO  materiales/models.py
 CAMBIADO  materiales/plantillas.py
 CAMBIADO  materiales/static/materiales/editor.js
 NUEVO     materiales/static/materiales/equipo.js
+NUEVO     materiales/templates/materiales/_encabezado_docente.html
 NUEVO     materiales/templates/materiales/_enviar_campos.html
+CAMBIADO  materiales/templates/materiales/creditos.html
 CAMBIADO  materiales/templates/materiales/documento_pdf.html
 CAMBIADO  materiales/templates/materiales/editor.html
+CAMBIADO  materiales/templates/materiales/encabezado.html
 CAMBIADO  materiales/templates/materiales/lista.html
 NUEVO     materiales/tests/test_equipo.py
 CAMBIADO  materiales/tests/test_materiales.py
 CAMBIADO  materiales/urls.py
 CAMBIADO  materiales/views.py
 CAMBIADO  materiales/views_banco.py
+CAMBIADO  materiales/views_biblioteca.py
 NUEVO     materiales/views_equipo.py
 CAMBIADO  materiales/views_ia.py
 CAMBIADO  notas/boletin/logic.py
@@ -246,6 +279,7 @@ NUEVO     notas/migrations/0059_solicitudes_ficha.py
 NUEVO     notas/migrations/0060_permisos_salida.py
 NUEVO     notas/migrations/0061_permisos_sin_carne.py
 NUEVO     notas/migrations/0062_colores_iconos_topbar.py
+NUEVO     notas/migrations/0063_docente_estilo_planilla.py
 CAMBIADO  notas/models/__init__.py
 CAMBIADO  notas/models/academicos.py
 NUEVO     notas/models/excusas.py
@@ -256,6 +290,7 @@ CAMBIADO  notas/modulos.py
 NUEVO     notas/pases.py
 CAMBIADO  notas/planillas/asistencia.py
 CAMBIADO  notas/planillas/excel.py
+CAMBIADO  notas/planillas/pdf.py
 CAMBIADO  notas/reporte_sabana.py
 CAMBIADO  notas/static/notas/js/ingresar_notas.js
 NUEVO     notas/static/notas/js/lector_qr.js
@@ -298,6 +333,7 @@ NUEVO     notas/templates/notas/permisos/_aviso_estudiante.html
 NUEVO     notas/templates/notas/permisos/historial.html
 NUEVO     notas/templates/notas/permisos/inicio.html
 NUEVO     notas/templates/notas/permisos/verificacion.html
+CAMBIADO  notas/templates/notas/planillas/planilla_notas_pdf.html
 CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial.html
 CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial_pdf.html
 CAMBIADO  notas/templatetags/nota_filters.py
@@ -320,29 +356,47 @@ NUEVO     notas/views/fichas_views.py
 CAMBIADO  notas/views/gestion_estudiantes_views.py
 CAMBIADO  notas/views/observador_views.py
 NUEVO     notas/views/permisos_views.py
+CAMBIADO  notas/views/planillas_views.py
 CAMBIADO  notas/views/reporte_parcial_views.py
 CAMBIADO  piar/logica.py
 CAMBIADO  prematricula/templates/prematricula/_base_publica.html
+CAMBIADO  puntoexacto/views.py
 CAMBIADO  salon_digital/forms.py
 CAMBIADO  salon_digital/identidad.py
+NUEVO     salon_digital/limites.py
 NUEVO     salon_digital/migrations/0004_grupo_pedir_pin.py
+NUEVO     salon_digital/migrations/0005_pagos.py
+NUEVO     salon_digital/migrations/0006_planes_gratis_estandar_premium.py
 CAMBIADO  salon_digital/models.py
+NUEVO     salon_digital/pagos.py
+NUEVO     salon_digital/planes_tabla.py
 NUEVO     salon_digital/static/salon_digital/app/apple-touch-icon.png
 NUEVO     salon_digital/static/salon_digital/app/icono-192.png
 NUEVO     salon_digital/static/salon_digital/app/icono-512-maskable.png
 NUEVO     salon_digital/static/salon_digital/app/icono-512.png
 NUEVO     salon_digital/static/salon_digital/app/icono-96.png
 NUEVO     salon_digital/templates/salon_digital/_app.html
+CAMBIADO  salon_digital/templates/salon_digital/bandeja.html
 CAMBIADO  salon_digital/templates/salon_digital/base_salon.html
 CAMBIADO  salon_digital/templates/salon_digital/identificarse.html
 NUEVO     salon_digital/templates/salon_digital/instalar_app.html
+CAMBIADO  salon_digital/templates/salon_digital/landing.html
+CAMBIADO  salon_digital/templates/salon_digital/mi_cuenta.html
+NUEVO     salon_digital/templates/salon_digital/pago.html
+NUEVO     salon_digital/templates/salon_digital/pagos_revisar.html
+CAMBIADO  salon_digital/templates/salon_digital/panel.html
+NUEVO     salon_digital/templates/salon_digital/planes.html
 NUEVO     salon_digital/templates/salon_digital/tarjetas_grupo.html
 CAMBIADO  salon_digital/templates/salon_digital/ver_grupo.html
 NUEVO     salon_digital/test_app.py
+NUEVO     salon_digital/test_pagos.py
+NUEVO     salon_digital/test_planes.py
 CAMBIADO  salon_digital/urls.py
 CAMBIADO  salon_digital/views.py
 NUEVO     salon_digital/views_app.py
+CAMBIADO  salon_digital/views_cuentas.py
 CAMBIADO  salon_digital/views_grupos.py
+NUEVO     salon_digital/views_pagos.py
 CAMBIADO  templates/base.html
 NUEVO     votaciones/cabinas.py
 NUEVO     votaciones/migrations/0002_cabinas.py
@@ -389,6 +443,14 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   chat/migrations/0005_colegas.py                 (Mis colegas: amistad y grupos entre docentes)
   chat/migrations/0006_perfil_colega_foto.py       (Mis colegas: foto, grados y municipio del perfil)
   materiales/migrations/0005_colaboradores_y_modelos.py  (Mis materiales: equipo, versiones y modelos ABP, retos, caso…)
+  salon_digital/migrations/0005_pagos.py            (Planes y pagos: pagos en línea y con comprobante)
+  chat/migrations/0007_muro_academico.py         (Comunidad docente: muro, reacciones, reportes y perfil académico)
+  salon_digital/migrations/0006_planes_gratis_estandar_premium.py  (planes Gratis, Estándar y Premium; mensual/anual pasan a Estándar)
+  materiales/migrations/0006_encabezado_libre.py     (encabezado libre: líneas, dos logos y pie de página)
+  chat/migrations/0008_muro_actividades.py          (actividades HTML en el muro)
+  aula/migrations/0024_invertida_puntos.py           (aula invertida: puntos de las preguntas abiertas)
+  aula/migrations/0025_compartir_con_colegas.py      (Compartir con un colega: «Compartido conmigo»)
+  notas/migrations/0063_docente_estilo_planilla.py   (estilo de la planilla del docente)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

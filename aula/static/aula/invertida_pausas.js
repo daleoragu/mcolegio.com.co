@@ -164,5 +164,8 @@
     document.head.appendChild(api);
 
     // Para las pruebas automáticas.
-    window.InvPausas = {abrir, seguir, pendiente, limite, respondidas, guardar};
+    window.InvPausas = {abrir, seguir, pendiente, limite, respondidas, guardar,
+        estado: () => ({visto: visto, duracion: reproductor && reproductor.getDuration ? reproductor.getDuration() : 0,
+                        abierta: abierta, ahora: reproductor && reproductor.getCurrentTime ? reproductor.getCurrentTime() : 0}),
+        ir: s => { if (reproductor && s <= limite()) reproductor.seekTo(s, true); }};
 })();

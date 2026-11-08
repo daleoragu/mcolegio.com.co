@@ -1,0 +1,15 @@
+{# Encabezado del docente (plan individual). Espera: encabezado y rutas (logo y logo2, en disco o por URL). #}
+{% with e=encabezado %}
+<table class="enc-docente{% if not e.borde %} sin-borde{% endif %}"><tr>
+  {% if rutas.logo and e.logo_pos != 'arriba' or rutas.logo2 and e.logo2_pos != 'arriba' %}
+  <td class="lado">{% if rutas.logo and e.logo_pos == 'izquierda' %}<img src="{{ rutas.logo }}" alt="">{% endif %}{% if rutas.logo2 and e.logo2_pos == 'izquierda' %}<img src="{{ rutas.logo2 }}" alt="">{% endif %}</td>
+  {% endif %}
+  <td style="text-align:{{ e.alinear_css }}">
+    {% if rutas.logo and e.logo_pos == 'arriba' or rutas.logo2 and e.logo2_pos == 'arriba' %}<div class="arriba">{% if rutas.logo and e.logo_pos == 'arriba' %}<img src="{{ rutas.logo }}" alt="">{% endif %} {% if rutas.logo2 and e.logo2_pos == 'arriba' %}<img src="{{ rutas.logo2 }}" alt="">{% endif %}</div>{% endif %}
+    {% for f in e.filas %}<div style="font-size:{{ f.pt }}pt;font-weight:{% if f.negrilla %}bold{% else %}normal{% endif %}">{{ f.texto }}</div>{% endfor %}
+  </td>
+  {% if rutas.logo and e.logo_pos != 'arriba' or rutas.logo2 and e.logo2_pos != 'arriba' %}
+  <td class="lado">{% if rutas.logo and e.logo_pos == 'derecha' %}<img src="{{ rutas.logo }}" alt="">{% endif %}{% if rutas.logo2 and e.logo2_pos == 'derecha' %}<img src="{{ rutas.logo2 }}" alt="">{% endif %}</td>
+  {% endif %}
+</tr></table>
+{% endwith %}

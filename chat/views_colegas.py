@@ -297,6 +297,7 @@ def ajustes(request):
     p.presentacion = ' '.join((request.POST.get('presentacion') or '').split())[:200]
     p.grados = ' '.join((request.POST.get('grados') or '').split())[:60]
     p.municipio = ' '.join((request.POST.get('municipio') or '').split())[:100]
+    p.formacion = ' '.join((request.POST.get('formacion') or '').split())[:200]
     if request.POST.get('quitar_foto') == 'on' and p.foto:
         p.foto.delete(save=False)
         p.foto = ''
@@ -558,8 +559,12 @@ def ver(request, uid):
     mios, suyos = set(mis_colegas(user).values_list('pk', flat=True)), set(mis_colegas(otro).values_list('pk', flat=True))
     grupos = Conversacion.objects.filter(colegio__isnull=True, tipo='colegas_g', participantes__usuario=user, participantes__activo=True) \
         .filter(pk__in=Participante.objects.filter(usuario=otro, activo=True).values('conversacion')).distinct()
+    from .views_muro import _con_conteos, _mias, _tarjeta_pub, insignias, visibles
+    pubs = list(_con_conteos(visibles(user).filter(autor=otro))[:5])
+    mias = _mias(user, [p.pk for p in pubs])
     return render(request, 'chat/colegas_perfil.html', dict(
-        _lista(request), o=tarjeta(otro), perfil=perfil, estado=estado, en_comun=[tarjeta(u) for u in User.objects.filter(pk__in=(mios & suyos) - {user.pk, otro.pk})[:12]],
+        _lista(request), o=tarjeta(otro), perfil=perfil, estado=estado, logros=insignias(otro),
+        pubs=[_tarjeta_pub(p, user, mias) for p in pubs], hoy=timezone.localdate(), en_comun=[tarjeta(u) for u in User.objects.filter(pk__in=(mios & suyos) - {user.pk, otro.pk})[:12]],
         grupos=grupos, desde=r.respondida if r and r.estado == 'aceptada' else None))
 
 

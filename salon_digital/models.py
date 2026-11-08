@@ -27,13 +27,31 @@ AREA_CHOICES = [
     ('OTR', 'Otra'),
 ]
 
-# Qué puede hacer cada plan. 0 significa sin límite.
-LIMITES = {
-    'prueba':    {'paginas': 3,  'resultados_mes': 300,   'mb': 25,  'dias': 15},
-    'mensual':   {'paginas': 30, 'resultados_mes': 5000,  'mb': 60,  'dias': 30},
-    'anual':     {'paginas': 60, 'resultados_mes': 15000, 'mb': 60,  'dias': 365},
-    'ilimitado': {'paginas': 0,  'resultados_mes': 0,     'mb': 200, 'dias': 0},
+# ---------------------------------------------------------------------------
+# Planes de Mi Salón Virtual. Para cambiar un límite o un precio, se cambia solo aquí.
+#   · Gratis: para siempre, con la comunidad completa (es el gancho).
+#   · Estándar y Premium: se pagan por mes o por año.
+#   · Al registrarse, el docente tiene Premium completo durante PRUEBA_DIAS («prueba Premium»); después pasa
+#     solo a Gratis sin perder nada. Si un plan pagado vence, también vuelve a Gratis.
+# 0 en un límite significa «sin límite».
+# ---------------------------------------------------------------------------
+PRUEBA_DIAS = 15
+PLANES = {
+    'gratis':    {'nombre': 'Gratis', 'paginas': 3, 'resultados_mes': 300, 'mb': 25, 'grupos': 1, 'materiales': 10,
+                  'examenes': False, 'eventos': False, 'marca': True, 'nube_mb': 300, 'ia': 'gratis'},
+    'estandar':  {'nombre': 'Estándar', 'paginas': 30, 'resultados_mes': 5000, 'mb': 60, 'grupos': 0, 'materiales': 0,
+                  'examenes': True, 'eventos': False, 'marca': False, 'nube_mb': 2048, 'ia': 'individual'},
+    'premium':   {'nombre': 'Premium', 'paginas': 0, 'resultados_mes': 0, 'mb': 200, 'grupos': 0, 'materiales': 0,
+                  'examenes': True, 'eventos': True, 'marca': False, 'nube_mb': 5120, 'ia': 'individual_ia'},
+    'ilimitado': {'nombre': 'Ilimitado', 'paginas': 0, 'resultados_mes': 0, 'mb': 200, 'grupos': 0, 'materiales': 0,
+                  'examenes': True, 'eventos': True, 'marca': False, 'nube_mb': 5120, 'ia': 'individual_ia'},
 }
+# Precios en pesos: (plan, periodo) → (precio, días)
+PRECIOS = {
+    ('estandar', 'mes'): (10000, 30), ('estandar', 'anio'): (80000, 365),
+    ('premium', 'mes'): (16000, 30), ('premium', 'anio'): (130000, 365),
+}
+LIMITES = PLANES          # nombre anterior, para el código que ya lo usaba
 
 
 def clave_aleatoria():
@@ -57,9 +75,10 @@ class Cuenta(models.Model):
     """Un docente que publica en Salón Digital."""
 
     PLAN_CHOICES = [
-        ('prueba', 'Prueba gratuita'),
-        ('mensual', 'Mensual'),
-        ('anual', 'Anual'),
+        ('gratis', 'Gratis'),
+        ('prueba', 'Prueba Premium'),
+        ('estandar', 'Estándar'),
+        ('premium', 'Premium'),
         ('ilimitado', 'Ilimitado'),
     ]
     ESTADO_CHOICES = [
@@ -122,7 +141,7 @@ class Cuenta(models.Model):
         if not self.slug:
             self.slug = slug_unico(Cuenta, self.nombre_publico or self.usuario.username, self.pk)
         if not self.vence_en and self.plan == 'prueba':
-            self.vence_en = timezone.localdate() + timedelta(days=LIMITES['prueba']['dias'])
+            self.vence_en = timezone.localdate() + timedelta(days=PRUEBA_DIAS)
         super().save(*args, **kwargs)
 
     # --- Estado ---
@@ -143,21 +162,48 @@ class Cuenta(models.Model):
 
     @property
     def activa(self):
-        """Puede publicar: verificada y con el plan al día."""
-        return self.verificada and not self.vencida
+        """Puede publicar: verificada. Si el plan vence no se bloquea: pasa a Gratis con sus límites."""
+        return self.verificada
 
     @property
     def motivo_inactiva(self):
         if not self.verificada:
             return dict(self.ESTADO_CHOICES).get(self.estado, 'Sin verificar')
-        if self.vencida:
-            return 'Plan vencido'
         return ''
 
-    # --- Límites ---
+    # --- Plan y límites ---
+
+    @property
+    def nivel(self):
+        """El plan que de verdad tiene hoy: 'gratis', 'estandar', 'premium' o 'ilimitado'.
+        La prueba es Premium mientras dura; un plan vencido vuelve a Gratis."""
+        plan = {'mensual': 'estandar', 'anual': 'estandar'}.get(self.plan, self.plan)
+        if plan in ('prueba', 'estandar', 'premium') and self.vencida:
+            return 'gratis'
+        if plan == 'prueba':
+            return 'premium'
+        return plan if plan in PLANES else 'gratis'
+
+    @property
+    def nombre_nivel(self):
+        if self.plan == 'prueba' and not self.vencida:
+            return 'Prueba Premium'
+        return PLANES[self.nivel]['nombre']
+
+    @property
+    def en_prueba(self):
+        return self.plan == 'prueba' and not self.vencida
 
     def limite(self, cual):
-        return LIMITES.get(self.plan, LIMITES['prueba']).get(cual, 0)
+        return PLANES[self.nivel].get(cual, 0)
+
+    @property
+    def limite_paginas(self):
+        return self.limite('paginas')
+
+    def permite(self, cosa):
+        """¿Su plan incluye esta función? (examenes, eventos…)"""
+        return bool(PLANES[self.nivel].get(cosa))
 
     @property
     def paginas_usadas(self):
@@ -179,7 +225,7 @@ class Cuenta(models.Model):
     def extender(self, plan, dias=None):
         """Activa o renueva un plan. Lo usa el administrador al recibir el pago."""
         self.plan = plan
-        dias = dias if dias is not None else LIMITES.get(plan, {}).get('dias', 0)
+        dias = dias if dias is not None else 0
         if dias:
             desde = max(self.vence_en or timezone.localdate(), timezone.localdate())
             self.vence_en = desde + timedelta(days=dias)
@@ -633,3 +679,36 @@ class Comentario(models.Model):
 
     def __str__(self):
         return f'{self.nombre}: {self.texto[:50]}'
+
+
+# ---------------------------------------------------------------------------
+# 7. Pagos: planes y recargas (en línea con Wompi o con comprobante de llave Bre-B, Nequi o transferencia)
+# ---------------------------------------------------------------------------
+
+class Pago(models.Model):
+    CONCEPTOS = [('estandar_mes', 'Plan Estándar (1 mes)'), ('estandar_anio', 'Plan Estándar (1 año)'),
+                 ('premium_mes', 'Plan Premium (1 mes)'), ('premium_anio', 'Plan Premium (1 año)'),
+                 ('recarga', 'Recarga de saldo'), ('mensual', 'Plan mensual (anterior)'), ('anual', 'Plan anual (anterior)')]
+    FORMAS = [('linea', 'En línea (Wompi)'), ('comprobante', 'Llave Bre-B, Nequi o transferencia')]
+    ESTADOS = [('pendiente', 'Pendiente'), ('revision', 'En revisión'), ('aprobado', 'Aprobado'), ('rechazado', 'Rechazado')]
+
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pagos_salon')
+    concepto = models.CharField(max_length=16, choices=CONCEPTOS)
+    monto = models.PositiveIntegerField(help_text='Pesos que paga.')
+    bono = models.PositiveIntegerField(default=0, help_text='Solo recargas: pesos de regalo.')
+    referencia = models.CharField(max_length=40, unique=True)
+    forma = models.CharField(max_length=12, choices=FORMAS)
+    estado = models.CharField(max_length=10, choices=ESTADOS, default='pendiente', db_index=True)
+    comprobante = models.FileField(upload_to='salon/comprobantes/', blank=True, null=True)
+    medio = models.CharField(max_length=30, blank=True, help_text='Tarjeta, PSE, Nequi, llave Bre-B…')
+    transaccion = models.CharField(max_length=60, blank=True)
+    nota = models.CharField(max_length=255, blank=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    resuelto = models.DateTimeField(null=True, blank=True)
+    revisado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+
+    class Meta:
+        ordering = ['-creado']
+
+    def __str__(self):
+        return f'{self.referencia} · {self.get_concepto_display()} · ${self.monto}'

@@ -1,0 +1,147 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}Comunidad docente · Mi Salón Virtual{% endblock %}
+{% block contenido %}
+{% include 'chat/_muro_estilos.html' %}
+<div class="row g-3 mt-1">
+  {# ---------- Izquierda: yo y navegación ---------- #}
+  <aside class="col-lg-3 d-none d-lg-block">
+    <div class="mu-lado text-center">
+      {% include 'chat/_av.html' with foto=yo.foto nombre=yo.nombre clase='grande' %}
+      <div class="fw-bold mt-2">{{ yo.nombre }}</div>
+      <div class="small text-muted">{{ yo.desc }}</div>
+      <a class="small" href="/chat/colegas/u/{{ request.user.pk }}/">Ver mi perfil</a>
+    </div>
+    <nav class="mu-lado mu-nav p-2">
+      <a href="/chat/colegas/muro/" class="{% if not ver %}on{% endif %}"><i class="fas fa-house"></i>Muro</a>
+      <a href="/chat/colegas/muro/?ver=guardados" class="{% if ver == 'guardados' %}on{% endif %}"><i class="fas fa-bookmark"></i>Guardados</a>
+      <a href="/chat/colegas/muro/?ver=mias" class="{% if ver == 'mias' %}on{% endif %}"><i class="fas fa-pen"></i>Mis publicaciones</a>
+      <a href="/chat/colegas/?tab=colegas"><i class="fas fa-user-group"></i>Mis colegas <span class="ms-auto small text-muted">{{ n_colegas }}</span></a>
+      <a href="/chat/colegas/?tab=solicitudes"><i class="fas fa-user-plus"></i>Solicitudes{% if n_solicitudes %} <span class="badge text-bg-danger ms-auto">{{ n_solicitudes }}</span>{% endif %}</a>
+      <a href="/chat/colegas/"><i class="fas fa-comment-dots"></i>Mensajes</a>
+      {% if request.user.is_staff %}<a href="/chat/colegas/muro/moderar/"><i class="fas fa-shield-halved"></i>Moderar{% if pendientes_mod %} <span class="badge text-bg-warning ms-auto">{{ pendientes_mod }}</span>{% endif %}</a>{% endif %}
+    </nav>
+  </aside>
+
+  {# ---------- Centro: publicar, filtros y publicaciones ---------- #}
+  <section class="col-lg-6">
+    <div class="d-flex d-lg-none gap-2 mb-2 overflow-auto pb-1">
+      <a class="mu-chip {% if not ver %}on{% endif %}" href="/chat/colegas/muro/">Muro</a>
+      <a class="mu-chip {% if ver == 'guardados' %}on{% endif %}" href="?ver=guardados"><i class="fas fa-bookmark me-1"></i>Guardados</a>
+      <a class="mu-chip {% if ver == 'mias' %}on{% endif %}" href="?ver=mias">Mías</a>
+      <a class="mu-chip" href="/chat/colegas/?tab=colegas">Colegas</a>
+      <a class="mu-chip" href="/chat/colegas/">Mensajes</a>
+    </div>
+
+    {% if not perfil.normas_aceptadas %}
+    <div class="mu-lado" style="border-color:#2b4f8a">
+      <h6><i class="fas fa-handshake me-1"></i>Bienvenido(a) a la comunidad docente</h6>
+      <p class="small mb-2">Este es un espacio académico para compartir lo que le sirve en clase. Antes de publicar, acepte las normas:</p>
+      <ol class="small ps-3 mb-2">{% for n in normas %}<li>{{ n }}</li>{% endfor %}</ol>
+      <form method="post" action="/chat/colegas/muro/normas/">{% csrf_token %}<button class="btn btn-primary btn-sm">Acepto las normas</button></form>
+    </div>
+    {% else %}
+    <div class="mu-lado">
+      <button class="btn w-100 text-start text-muted border rounded-pill px-3 {% if escribir %}d-none{% endif %}" type="button" id="mu-abrir">¿Qué quiere compartir con sus colegas?</button>
+      <form method="post" enctype="multipart/form-data" id="mu-form" class="{% if not escribir %}d-none{% endif %}">{% csrf_token %}
+        <div class="d-flex flex-wrap gap-1 mb-2" role="radiogroup" aria-label="Tipo de publicación">
+          {% for k, v in tipos %}<input type="radio" class="btn-check" name="tipo" value="{{ k }}" id="mu-t-{{ k }}" {% if compartir and k == 'actividad' or not compartir and k == 'experiencia' %}checked{% endif %}>
+          <label class="btn btn-sm btn-outline-secondary rounded-pill" for="mu-t-{{ k }}">{{ v }}</label>{% endfor %}
+        </div>
+        <div class="small text-muted mb-2" id="mu-ayuda"></div>
+        <input name="titulo" class="form-control mb-2" maxlength="150" required placeholder="Título">
+        <textarea name="texto" class="form-control mb-2" rows="4" maxlength="5000" placeholder="Cuéntele a sus colegas…"></textarea>
+        <div class="mu-solo" data-para="recurso">
+          <select name="documento" class="form-select form-select-sm mb-2"><option value="">— Escoja uno de Mis materiales (opcional) —</option>{% for d in documentos %}<option value="{{ d.pk }}">{{ d.titulo }} · {{ d.get_tipo_display }}</option>{% endfor %}</select>
+        </div>
+        <div class="mu-solo" data-para="actividad">
+          <select name="pagina" class="form-select form-select-sm mb-2"><option value="">— Escoja una de sus actividades interactivas —</option>{% for pg in paginas %}<option value="{{ pg.pk }}" {% if compartir == pg.pk|stringformat:'s' %}selected{% endif %}>{{ pg.titulo }}</option>{% empty %}<option value="" disabled>Todavía no tiene actividades publicadas</option>{% endfor %}</select>
+          <div class="small text-muted mb-2">Sus colegas la juegan aquí mismo, con pantalla completa. Sus intentos no llegan a sus resultados. <a href="{% url 'salon_digital:panel' %}">Subir una actividad HTML</a></div>
+        </div>
+        <div class="mu-solo" data-para="convocatoria"><label class="small fw-bold">Fecha límite</label><input type="date" name="fecha_limite" class="form-control form-control-sm mb-2" min="{{ hoy|date:'Y-m-d' }}"></div>
+        <input name="enlace" type="url" class="form-control form-control-sm mb-2" maxlength="300" placeholder="Enlace (opcional): https://…">
+        <div class="row g-2 mb-2">
+          <div class="col-sm-4"><input name="area" class="form-control form-control-sm" maxlength="80" placeholder="Área" value="{{ perfil.area }}"></div>
+          <div class="col-sm-3"><input name="grados" class="form-control form-control-sm" maxlength="40" placeholder="Grados (ej.: 6.º a 9.º)"></div>
+          <div class="col-sm-5"><select name="modelo" class="form-select form-select-sm"><option value="">Modelo pedagógico (opcional)</option>{% for m in modelos %}<option>{{ m }}</option>{% endfor %}</select></div>
+        </div>
+        <label class="small fw-bold d-block">Imagen (opcional)</label>
+        <input type="file" name="imagen" accept="image/*" class="form-control form-control-sm mb-1" id="mu-img">
+        <div class="form-check small mb-2 d-none" id="mu-sin-est"><input class="form-check-input" type="checkbox" name="sin_estudiantes" id="mu-se">
+          <label class="form-check-label" for="mu-se">Confirmo que en la imagen <b>no aparecen estudiantes</b> (rostros, nombres, notas ni datos personales).</label></div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <select name="visibilidad" class="form-select form-select-sm w-auto"><option value="todos">🌎 Toda la comunidad docente</option><option value="colegas">👥 Solo mis colegas</option></select>
+          <button type="button" class="btn btn-sm btn-link text-muted ms-auto" id="mu-cancelar">Cancelar</button>
+          <button class="btn btn-primary btn-sm px-3">Publicar</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+
+    <form method="get" class="mb-2">
+      {% if ver %}<input type="hidden" name="ver" value="{{ ver }}">{% endif %}
+      <div class="d-flex gap-1 overflow-auto pb-1 mb-2">
+        <a class="mu-chip {% if not tipo %}on{% endif %}" href="?{% if ver %}ver={{ ver }}{% endif %}">Todo</a>
+        {% for k, v in tipos %}<a class="mu-chip {% if tipo == k %}on{% endif %}" href="?tipo={{ k }}{% if ver %}&ver={{ ver }}{% endif %}">{{ v }}</a>{% endfor %}
+      </div>
+      {% if tipo %}<input type="hidden" name="tipo" value="{{ tipo }}">{% endif %}
+      <div class="d-flex flex-wrap gap-2">
+        <input name="q" value="{{ q }}" class="form-control form-control-sm" style="flex:1 1 160px" placeholder="Buscar en el muro">
+        <input name="area" value="{{ area }}" class="form-control form-control-sm" style="flex:1 1 110px" placeholder="Área">
+        <select name="grado" class="form-select form-select-sm w-auto"><option value="">Grado</option>{% for g in grados_lista %}<option value="{{ g }}" {% if grado == g|stringformat:'s' %}selected{% endif %}>{% if g == 0 %}Transición{% else %}{{ g }}.º{% endif %}</option>{% endfor %}</select>
+        <select name="de" class="form-select form-select-sm w-auto"><option value="">De todos</option><option value="colegas" {% if de == 'colegas' %}selected{% endif %}>De mis colegas</option></select>
+        <button class="btn btn-sm btn-outline-primary"><i class="fas fa-filter"></i><span class="visually-hidden">Filtrar</span></button>
+      </div>
+    </form>
+
+    {% for t in pubs %}{% include 'chat/_muro_pub.html' with detalle=False %}
+    {% empty %}
+    <div class="mu-lado text-center text-muted py-4">
+      {% if ver == 'guardados' %}Todavía no ha guardado publicaciones. Use <i class="fas fa-bookmark"></i> para guardarlas.
+      {% elif q or tipo or area or grado or de %}No hay publicaciones con esos filtros.
+      {% else %}El muro está esperando el primer aporte. ¡Comparta una guía, una consulta o una experiencia de aula!{% endif %}
+    </div>
+    {% endfor %}
+    <div class="d-flex justify-content-between mb-4">{% if anterior %}<a class="btn btn-sm btn-outline-secondary" href="{{ anterior }}">← Más recientes</a>{% else %}<span></span>{% endif %}{% if siguiente %}<a class="btn btn-sm btn-outline-secondary" href="{{ siguiente }}">Más antiguas →</a>{% endif %}</div>
+  </section>
+
+  {# ---------- Derecha: sugerencias, lo más útil, convocatorias ---------- #}
+  <aside class="col-lg-3">
+    {% if sugerencias %}
+    <div class="mu-lado">
+      <h6><i class="fas fa-user-plus me-1"></i>Personas que quizá conozca</h6>
+      {% for s in sugerencias %}
+      <div class="mu-sug" id="sug-{{ s.t.u.pk }}">
+        <a href="/chat/colegas/u/{{ s.t.u.pk }}/">{% include 'chat/_av.html' with foto=s.t.foto nombre=s.t.nombre clase='chico' %}</a>
+        <div class="flex-grow-1 lh-sm" style="min-width:0">
+          <a href="/chat/colegas/u/{{ s.t.u.pk }}/" class="fw-semibold text-reset text-decoration-none small d-block text-truncate">{{ s.t.nombre }}</a>
+          <div class="text-muted" style="font-size:.75rem">{{ s.razones|join:" · " }}</div>
+          <div class="d-flex gap-1 mt-1">
+            <form method="post" action="/chat/colegas/solicitud/" class="m-0">{% csrf_token %}<input type="hidden" name="usuario" value="{{ s.t.u.pk }}"><input type="hidden" name="accion" value="enviar"><input type="hidden" name="volver" value="/chat/colegas/muro/"><button class="btn btn-sm btn-outline-primary py-0 text-nowrap"><i class="fas fa-user-plus me-1"></i>Agregar</button></form>
+            <button type="button" class="btn btn-sm btn-link text-muted py-0 px-1 text-nowrap mu-descartar" data-u="{{ s.t.u.pk }}" style="font-size:.75rem">No me interesa</button>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+      <a class="small d-block mt-2" href="/chat/colegas/?tab=buscar">Buscar más docentes</a>
+    </div>
+    {% endif %}
+    {% if destacados %}
+    <div class="mu-lado">
+      <h6><i class="fas fa-lightbulb me-1 text-warning"></i>Lo más útil de la semana</h6>
+      {% for d in destacados %}<a href="/chat/colegas/muro/{{ d.pk }}/" class="d-block small text-decoration-none mb-2"><b class="text-reset">{{ d.titulo }}</b><span class="text-muted d-block">{{ d.get_tipo_display }} · {{ d.n }} reacción{{ d.n|pluralize:"es" }}</span></a>{% endfor %}
+    </div>
+    {% endif %}
+    {% if convocatorias %}
+    <div class="mu-lado">
+      <h6><i class="fas fa-bullhorn me-1" style="color:#c2255c"></i>Convocatorias abiertas</h6>
+      {% for c in convocatorias %}<a href="/chat/colegas/muro/{{ c.pk }}/" class="d-block small text-decoration-none mb-2"><b class="text-reset">{{ c.titulo }}</b><span class="text-danger d-block">Hasta el {{ c.fecha_limite|date:"j \d\e F"|lower }}</span></a>{% endfor %}
+    </div>
+    {% endif %}
+    <div class="mu-lado small text-muted">
+      <b class="d-block mb-1 text-reset">Normas de la comunidad</b>
+      Espacio académico entre docentes. Nunca publique fotos ni datos de sus estudiantes. Lo que no cumpla las normas se puede reportar.
+    </div>
+  </aside>
+</div>
+{% include 'chat/_muro_js.html' %}
+{% endblock %}

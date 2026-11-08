@@ -190,10 +190,21 @@ def perfil_publico(request, usuario):
     return render(request, 'salon_digital/perfil.html', {'cuenta': cuenta, 'paginas': paginas})
 
 
+def en_muro(request, pagina, sin_parametro=False):
+    """¿Un docente la está jugando desde el muro de la comunidad? (?muro=1 y la actividad está compartida allí)"""
+    if (request.GET.get('muro') != '1' and not sin_parametro) or not request.user.is_authenticated or pagina.estado == 'suspendida':
+        return False
+    from chat.models import Publicacion
+    from chat.views_colegas import es_docente
+    return es_docente(request.user) and Publicacion.objects.filter(pagina=pagina, oculta=False).exists()
+
+
 def ver_pagina(request, usuario, slug):
     """Sirve el HTML publicado con la política que impide robar datos."""
     pagina = _pagina_publica(usuario, slug)
     es_dueno = getattr(request.user, 'cuenta_salon', None) == pagina.propietario
+    if en_muro(request, pagina):
+        return _pagina_de_muro(pagina)
 
     if not pagina.disponible and not (es_dueno or request.user.is_staff):
         if pagina.estado in ('oculta', 'suspendida'):
@@ -231,6 +242,29 @@ def ver_pagina(request, usuario, slug):
     return respuesta
 
 
+def _pagina_de_muro(pagina):
+    """La actividad tal cual, para que otros docentes la prueben desde el muro: sin pedir identificación, sin
+    comentarios y sin que sus intentos lleguen a los resultados del autor (van a un destino de práctica)."""
+    ruta = pagina.ruta_contenido
+    if not ruta or not default_storage.exists(ruta):
+        raise Http404('El archivo de esta actividad no está disponible.')
+    with default_storage.open(ruta, 'rb') as fh:
+        texto, _ = reescribir_endpoint(fh.read(), reverse('salon_digital:api_practica'), 'PRACTICA')
+    respuesta = HttpResponse(texto, content_type='text/html; charset=utf-8')
+    respuesta['Content-Security-Policy'] = cabecera_csp(origen_archivos())
+    respuesta['X-Content-Type-Options'] = 'nosniff'
+    respuesta['X-Frame-Options'] = 'SAMEORIGIN'        # se juega dentro del muro
+    return respuesta
+
+
+@csrf_exempt
+def api_practica(request):
+    """Los intentos de práctica desde el muro: se responde que llegó, pero no se guarda nada."""
+    if request.method == 'GET':
+        return JsonResponse([], safe=False)
+    return JsonResponse({'ok': True, 'practica': True})
+
+
 def _conectar(contenido, pagina):
     """Al servir la página, su ENDPOINT apunta a esta misma dirección.
 
@@ -258,7 +292,8 @@ def archivo_pagina(request, usuario, slug, ruta):
     imágenes y hojas de estilo; solo el HTML pasa por aquí.
     """
     pagina = _pagina_publica(usuario, slug)
-    if not pagina.disponible and getattr(request.user, 'cuenta_salon', None) != pagina.propietario:
+    if not pagina.disponible and getattr(request.user, 'cuenta_salon', None) != pagina.propietario \
+            and not en_muro(request, pagina, sin_parametro=True):
         raise Http404('No disponible.')
     if pagina.tipo != 'sitio' or not pagina.base_sitio:
         raise Http404('Esta página no tiene archivos adicionales.')
@@ -475,12 +510,8 @@ def panel(request):
 def nueva_pagina(request):
     cuenta = request.cuenta
     if not cuenta.puede_publicar_otra():
-        messages.error(
-            request,
-            f'Tu plan permite {cuenta.limite("paginas")} páginas y ya las tienes todas. '
-            f'Borra una o amplía tu plan.',
-        )
-        return redirect('salon_digital:panel')
+        from .limites import a_planes
+        return a_planes(request, 'paginas', 'estandar' if cuenta.nivel == 'gratis' else 'premium')
 
     form = PaginaForm(request.POST or None, request.FILES or None, cuenta=cuenta)
     if request.method == 'POST' and form.is_valid():

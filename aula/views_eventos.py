@@ -442,9 +442,13 @@ def eventos(request):
     organiza = puede_crear(request)
     if colegio is None and not organiza:
         return redirect('aula:evento_entrar')
+    from salon_digital.limites import a_planes, permite
+    premium = permite(request.user, 'eventos', colegio)          # en Mi Salón Virtual, los eventos son de Premium
     if request.method == 'POST':
         if not organiza:
             return HttpResponseForbidden('Solo los docentes crean eventos.')
+        if not premium:
+            return a_planes(request, 'eventos')
         titulo = ' '.join((request.POST.get('titulo') or '').split())[:80]
         if not titulo:
             messages.warning(request, 'Escriba el nombre del evento.')
@@ -476,7 +480,8 @@ def eventos(request):
     for ev in lista:
         g = grupo_de_estudiante(config_de(ev), est) if est else None
         ev.mi_grupo = g['nombre'] if g else None
-    return render(request, 'aula/eventos.html', {'eventos': lista, 'organiza': organiza, 'colegio': colegio, 'base': _base(request)})
+    return render(request, 'aula/eventos.html', {'eventos': lista, 'organiza': organiza, 'colegio': colegio, 'base': _base(request),
+                                                 'premium': premium})
 
 
 def _banco():
@@ -713,6 +718,14 @@ def configurar(request, eid):
     limpiar_grabaciones(ev)
     if request.method == 'POST':
         accion = request.POST.get('accion')
+        # En Mi Salón Virtual, encender un evento (activarlo, programarlo o abrir inscripciones) es de Premium.
+        # Apagarlo o cerrar inscripciones siempre se puede.
+        enciende = ((accion == 'activar' and not ev.activo) or (accion == 'programar' and not request.POST.get('cancelar'))
+                    or (accion == 'inscripciones_abrir' and request.POST.get('abrir') == '1'))
+        if enciende and ev.colegio_id is None:
+            from salon_digital.limites import a_planes, permite
+            if not permite(request.user, 'eventos'):
+                return a_planes(request, 'eventos')
         if accion == 'activar':
             ev.activo = not ev.activo
             ev.config = dict(ev.config or {}, activar_en='')       # activar o apagar a mano quita lo programado

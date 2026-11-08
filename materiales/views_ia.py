@@ -99,6 +99,9 @@ def accion(request, a, accion):
         return error
     salida = {'ok': True, 'medidor': _medidor(K.estado(request.user, a.colegio))}
     if accion == 'piar':
+        from salon_digital.limites import TEXTOS, cupo_materiales
+        if not cupo_materiales(request.user, a.colegio):
+            return JsonResponse({'ok': False, 'error': TEXTOS['materiales']}, status=403)
         nuevo = Documento.objects.create(
             propietario=request.user, colegio=a.colegio, titulo=f'{doc.titulo[:130]} (adaptado)', tipo=doc.tipo,
             area=doc.area, grado=doc.grado, periodo=doc.periodo,
@@ -242,6 +245,11 @@ def wompi_eventos(request):
         return HttpResponse(status=401)
     if cuerpo.get('event') == 'transaction.updated':
         tr = (cuerpo.get('data') or {}).get('transaction') or {}
+        if str(tr.get('reference') or '').startswith('SD'):        # planes y pagos de Mi Salón Virtual
+            from salon_digital import pagos as pagos_salon
+            pagos_salon.aplicar_wompi(str(tr.get('reference')), tr.get('status'), tr.get('id') or '', tr.get('amount_in_cents'),
+                                      tr.get('payment_method_type') or '')
+            return HttpResponse('ok')
         wompi.aplicar(str(tr.get('reference') or ''), tr.get('status'), tr.get('id') or '', tr.get('amount_in_cents'),
                       tr.get('payment_method_type') or '')
     return HttpResponse('ok')

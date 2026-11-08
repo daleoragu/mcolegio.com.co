@@ -43,13 +43,87 @@ def imagenes_en_disco(doc, encabezado=None):
                 ruta = Path(carpeta) / f'{img.pk}{Path(img.archivo.name).suffix or ".jpg"}'
                 ruta.write_bytes(datos)
                 rutas[img.pk] = ruta
-        if encabezado is not None and getattr(encabezado, 'logo', None):
-            datos = _leer(encabezado.logo)
-            if datos:
-                ruta = Path(carpeta) / f'logo{Path(encabezado.logo.name).suffix or ".png"}'
-                ruta.write_bytes(datos)
-                rutas['logo'] = ruta
+        for campo in ('logo', 'logo2'):
+            archivo = getattr(encabezado, campo, None) if encabezado is not None else None
+            if archivo:
+                datos = _leer(archivo)
+                if datos:
+                    ruta = Path(carpeta) / f'{campo}{Path(archivo.name).suffix or ".png"}'
+                    ruta.write_bytes(datos)
+                    rutas[campo] = ruta
         yield rutas
+
+
+def _encabezado_docente_docx(w, e):
+    """El encabezado del docente en Word: logos a la izquierda, a la derecha o arriba, y sus líneas."""
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Cm, Pt
+    alinear = {'izquierda': WD_ALIGN_PARAGRAPH.LEFT, 'derecha': WD_ALIGN_PARAGRAPH.RIGHT}.get(e.alinear, WD_ALIGN_PARAGRAPH.CENTER)
+    logos = [(campo, getattr(e, f'{campo}_pos')) for campo in ('logo', 'logo2') if getattr(e, campo)]
+    lados = any(pos != 'arriba' for _, pos in logos)
+    t = w.add_table(rows=1, cols=3 if lados else 1)
+    centro = t.rows[0].cells[1 if lados else 0]
+
+    def poner(celda, campo, nuevo=False):
+        datos = _leer(getattr(e, campo))
+        if not datos:
+            return
+        p = celda.add_paragraph() if nuevo else celda.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        try:
+            p.add_run().add_picture(io.BytesIO(datos), height=Cm(1.8))
+        except Exception:
+            pass
+    arriba = [c for c, pos in logos if pos == 'arriba']
+    for i, campo in enumerate(arriba):
+        poner(centro, campo, nuevo=i > 0)
+    for campo, pos in logos:
+        if pos in ('izquierda', 'derecha'):
+            celda = t.rows[0].cells[0 if pos == 'izquierda' else 2]
+            poner(celda, campo, nuevo=bool(celda.paragraphs[0].runs))
+    for i, f in enumerate(e.filas):
+        p = centro.paragraphs[0] if i == 0 and not arriba else centro.add_paragraph()
+        p.alignment = alinear
+        p.paragraph_format.space_after = Pt(0)
+        r = p.add_run(f['texto'])
+        r.bold = bool(f.get('negrilla'))
+        r.font.size = Pt(f['pt'])
+    if lados:
+        for i, ancho in enumerate((Cm(3), Cm(13), Cm(3))):
+            t.rows[0].cells[i].width = ancho
+
+
+def _pie_docx(sec, e, marca=False):
+    """El pie de página del docente en Word (sus líneas, el número de página y, en Gratis, «Hecho con mcolegio»)."""
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.shared import Pt
+    pie = e.pie
+    lineas = list(pie['lineas']) + (['Hecho con mcolegio · mcolegio.com.co'] if marca else [])
+    if not lineas and not pie['numero']:
+        return
+    alinear = {'izquierda': WD_ALIGN_PARAGRAPH.LEFT, 'derecha': WD_ALIGN_PARAGRAPH.RIGHT}.get(pie['alinear'], WD_ALIGN_PARAGRAPH.CENTER)
+    pf = sec.footer
+    primero = True
+    for texto in lineas:
+        p = pf.paragraphs[0] if primero else pf.add_paragraph()
+        primero = False
+        p.alignment = alinear
+        r = p.add_run(texto)
+        r.font.size = Pt(8)
+    if pie['numero']:
+        p = pf.paragraphs[0] if primero else pf.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        r = p.add_run('Página ')
+        r.font.size = Pt(8)
+        run = p.add_run()
+        for tipo, texto in (('begin', None), (None, 'PAGE'), ('end', None)):
+            if tipo:
+                f = OxmlElement('w:fldChar'); f.set(qn('w:fldCharType'), tipo); run._r.append(f)
+            else:
+                it = OxmlElement('w:instrText'); it.set(qn('xml:space'), 'preserve'); it.text = texto; run._r.append(it)
+        run.font.size = Pt(8)
 
 
 def _numerar(bloques):
@@ -188,7 +262,9 @@ def contexto(doc, modo=None, docente='', respuestas=False):
 
 def _html(request, doc, modo, docente, colegio, encabezado, rutas, respuestas=False):
     ctx = contexto(doc, modo, docente, respuestas)
-    ctx.update({'colegio': colegio, 'encabezado': encabezado,
+    from salon_digital.limites import marca_pdf
+    pie_lineas = encabezado.pie['lineas'] if encabezado is not None and colegio is None else []
+    ctx.update({'colegio': colegio, 'encabezado': encabezado, 'marca': marca_pdf(doc), 'pie_lineas': pie_lineas,
                 'rutas': {k: v.as_uri() for k, v in rutas.items()}})
     return render_to_string('materiales/documento_pdf.html', ctx, request=request)
 
@@ -423,20 +499,11 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=F
     if colegio is not None:
         from puntoexacto.cuadernillo import encabezado_docx
         encabezado_docx(w, colegio, util)
-    elif encabezado is not None and (encabezado.lineas or encabezado.logo):
-        t = w.add_table(rows=1, cols=2)
-        logo = _leer(encabezado.logo) if encabezado.logo else None
-        if logo:
-            try:
-                t.rows[0].cells[0].paragraphs[0].add_run().add_picture(io.BytesIO(logo), height=Cm(1.8))
-            except Exception:
-                pass
-        for i, linea in enumerate(encabezado.lineas):
-            p = t.rows[0].cells[1].paragraphs[0] if i == 0 else t.rows[0].cells[1].add_paragraph()
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            r = p.add_run(linea)
-            r.bold = i == 0
-            r.font.size = Pt(11 if i == 0 else 9)
+    elif encabezado is not None and encabezado.tiene_algo:
+        _encabezado_docente_docx(w, encabezado)
+    if encabezado is not None and colegio is None:
+        from salon_digital.limites import marca_pdf
+        _pie_docx(sec, encabezado, marca=marca_pdf(doc))
 
     o = ctx['opciones']
     if ctx['cuadernillo'] and o['portada']:

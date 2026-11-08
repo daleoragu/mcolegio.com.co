@@ -74,6 +74,9 @@ class PerfilColega(models.Model):
     foto = models.ImageField(upload_to='colegas/', blank=True, verbose_name='Foto de perfil')
     grados = models.CharField(max_length=60, blank=True, verbose_name='Grados que enseña')
     municipio = models.CharField(max_length=100, blank=True, verbose_name='Municipio')
+    formacion = models.CharField(max_length=200, blank=True, verbose_name='Formación',
+                                 help_text='Ej.: Licenciada en Matemáticas, Magíster en Educación')
+    normas_aceptadas = models.DateTimeField(null=True, blank=True, help_text='Cuándo aceptó las normas del muro.')
 
 
 class Colega(models.Model):
@@ -197,3 +200,81 @@ class LecturaSalon(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['conversacion', 'integrante'], name='chat_salon_una_lectura')]
+
+
+# ---------------------------------------------------------------------------
+# Muro académico de los docentes (Mis colegas, plan individual)
+# ---------------------------------------------------------------------------
+class Publicacion(models.Model):
+    """Lo que un docente comparte con la comunidad. Cada publicación tiene un tipo, para que el muro sea académico."""
+    TIPOS = [('recurso', 'Recurso'), ('actividad', 'Actividad interactiva'), ('consulta', 'Consulta'),
+             ('experiencia', 'Experiencia de aula'), ('convocatoria', 'Convocatoria'), ('lectura', 'Lectura recomendada')]
+    VISIBILIDAD = [('todos', 'Toda la comunidad docente'), ('colegas', 'Solo mis colegas')]
+    autor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='publicaciones_muro')
+    tipo = models.CharField(max_length=14, choices=TIPOS, default='experiencia')
+    titulo = models.CharField(max_length=150)
+    texto = models.TextField(max_length=5000, blank=True)
+    enlace = models.URLField(max_length=300, blank=True)
+    imagen = models.ImageField(upload_to='muro/', blank=True)
+    documento = models.ForeignKey('materiales.Documento', on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='en_muro', help_text='Recurso compartido desde Mis materiales.')
+    pagina = models.ForeignKey('salon_digital.PaginaPublicada', on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='en_muro', help_text='Actividad interactiva (HTML) para jugar desde el muro.')
+    area = models.CharField(max_length=80, blank=True)
+    grados = models.CharField(max_length=40, blank=True)
+    modelo = models.CharField(max_length=40, blank=True, help_text='Modelo pedagógico: ABP, Escuela Nueva, aula invertida…')
+    fecha_limite = models.DateField(null=True, blank=True, help_text='Convocatorias: deja de salir en el muro después.')
+    visibilidad = models.CharField(max_length=8, choices=VISIBILIDAD, default='todos')
+    copias = models.PositiveIntegerField(default=0, help_text='Docentes que copiaron el recurso a sus materiales.')
+    mejor_respuesta = models.ForeignKey('ComentarioMuro', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    oculta = models.BooleanField(default=False, help_text='Oculta por reportes, mientras un administrador la revisa.')
+    creada = models.DateTimeField(auto_now_add=True, db_index=True)
+    editada = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-creada']
+
+    def __str__(self):
+        return self.titulo
+
+
+class ComentarioMuro(models.Model):
+    publicacion = models.ForeignKey(Publicacion, on_delete=models.CASCADE, related_name='comentarios')
+    autor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comentarios_muro')
+    texto = models.TextField(max_length=2000)
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['creado']
+
+
+class ReaccionMuro(models.Model):
+    """Reacciones académicas: útil, lo usaré en clase y guardar (este último solo lo ve quien guarda)."""
+    TIPOS = [('util', 'Útil'), ('usare', 'Lo usaré en clase'), ('guardar', 'Guardado')]
+    publicacion = models.ForeignKey(Publicacion, on_delete=models.CASCADE, related_name='reacciones')
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reacciones_muro')
+    tipo = models.CharField(max_length=8, choices=TIPOS)
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['publicacion', 'usuario', 'tipo'], name='chat_una_reaccion_por_tipo')]
+
+
+class ReporteMuro(models.Model):
+    publicacion = models.ForeignKey(Publicacion, on_delete=models.CASCADE, related_name='reportes')
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='+')
+    motivo = models.CharField(max_length=200, blank=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    revisado = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['publicacion', 'usuario'], name='chat_un_reporte_por_docente')]
+
+
+class SugerenciaDescartada(models.Model):
+    """«No me interesa» en las sugerencias de colegas."""
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='+')
+    descartado = models.ForeignKey(User, on_delete=models.CASCADE, related_name='+')
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['usuario', 'descartado'], name='chat_descartar_una_vez')]

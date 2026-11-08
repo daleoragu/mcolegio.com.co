@@ -184,3 +184,32 @@ class PlanillasPDFyAsistencia(ColegioDePrueba):
         Docente.objects.create(colegio=self.a, user=otro)
         r = self.cliente(otro).get(f'/docente/planillas/{self.p1.id}/pdf/{self.asig.id}/')
         self.assertEqual(r.status_code, 403)
+
+
+class EstiloDeLaPlanilla(ColegioDePrueba):
+    """El docente escoge si ve el promedio de cada componente junto a sus notas o todos al final (también en el PDF)."""
+
+    def test_guardar_estilo_y_pdf(self):
+        from unittest import mock
+        from notas.models import Docente
+        from notas.planillas import pdf as pdf_mod
+        profe = self.cliente(self.u_docente)
+        h = profe.get(f'/docente/ingresar-notas/?asignacion_id={self.asig.id}&periodo_id={self.p1.id}').content.decode()
+        self.assertIn('Estilo de la planilla', h); self.assertIn('data-estilo="junto"', h)
+        r = profe.post('/docente/planillas/estilo/', {'estilo': 'final'}).json()
+        self.assertEqual(r, {'ok': True, 'estilo': 'final'})
+        self.assertEqual(Docente.objects.get(user=self.u_docente).estilo_planilla, 'final')
+        h = profe.get(f'/docente/ingresar-notas/?asignacion_id={self.asig.id}&periodo_id={self.p1.id}').content.decode()
+        self.assertIn('data-estilo="final"', h)
+        # El PDF se arma con el estilo del docente
+        capturado = {}
+        real = pdf_mod.render_to_string
+
+        def espiar(plantilla, ctx, *a, **k):
+            capturado.update(ctx)
+            return real(plantilla, ctx, *a, **k)
+        with mock.patch.object(pdf_mod, 'render_to_string', espiar):
+            r = profe.get(f'/docente/planillas/{self.p1.id}/pdf/{self.asig.id}/')
+        self.assertEqual(capturado.get('estilo'), 'final')
+        self.assertIn(b'%PDF', r.content[:8])
+        self.assertIn('Promedios', real('notas/planillas/planilla_notas_pdf.html', capturado))

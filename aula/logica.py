@@ -626,8 +626,8 @@ def examenes_de(aula):
 
 
 def columnas_calificaciones(aula):
-    """Todo lo que da nota en el aula: tareas, actividades, cuestionarios, exámenes PuntoExacto
-    y (en el plan individual) las columnas escritas a mano.
+    """Todo lo que da nota en el aula: tareas, actividades, cuestionarios, exámenes PuntoExacto, clases
+    invertidas y (en el plan individual) las columnas escritas a mano.
 
     [{'clave', 'titulo', 'tipo', 'url', 'notas': {persona_id: nota}, 'peso', 'manual'}]
     """
@@ -661,6 +661,9 @@ def columnas_calificaciones(aula):
         notas = {getattr(h, clave): h.nota for h in ex.hojas.filter(estado='calificada', nota__isnull=False)
                  if getattr(h, clave)}
         agregar(f'examen:{ex.pk}', ex.titulo, 'Examen', reverse('aula:examen', args=[aula.pk, ex.pk]), notas)
+    for inv in aula.invertidas.filter(publicada=True).order_by('creada'):
+        agregar(f'inv:{inv.pk}', inv.titulo, 'Aula invertida', reverse('aula:invertida', args=[aula.pk, inv.pk]),
+                {getattr(r, clave): r.nota for r in inv.respuestas.filter(terminada=True, nota__isnull=False)})
     if aula.es_salon:
         for col in aula.columnas_manuales.prefetch_related('notas'):
             agregar(f'manual:{col.pk}', col.titulo, 'A mano', '', {getattr(n, clave): n.nota for n in col.notas.all()},
@@ -668,35 +671,166 @@ def columnas_calificaciones(aula):
     return columnas
 
 
-def tabla_calificaciones(aula):
-    """{'columnas': [...], 'filas': [{'nombre', 'notas': [nota|None…], 'promedio', 'desempeno'}]}
+# ---------------------------------------------------------------------------
+# Componentes de la planilla del plan individual (Saber, Hacer, Ser… con el porcentaje que el docente quiera)
+#   aula.planilla = {'pesos': {clave: peso dentro de su componente}, 'faltantes_minima': bool,
+#                    'componentes': [{'id', 'nombre', 'porcentaje'}], 'asignacion': {clave columna: id componente},
+#                    'estilo': 'junto' (el total de cada componente junto a sus columnas) | 'final' (todos al final)}
+# Sin componentes, la planilla funciona como antes: promedio ponderado de todas las columnas.
+# ---------------------------------------------------------------------------
+PLANTILLAS_COMPONENTES = {
+    'ser_saber_hacer': ('Saber, Hacer y Ser', [('Saber', 40), ('Hacer', 40), ('Ser', 20)]),
+    'cognitivo': ('Cognitivo, Procedimental y Actitudinal', [('Cognitivo', 40), ('Procedimental', 40), ('Actitudinal', 20)]),
+    'cuatro': ('Saber, Hacer, Ser y Convivir', [('Saber', 35), ('Hacer', 35), ('Ser', 15), ('Convivir', 15)]),
+}
 
-    El promedio es ponderado con el peso de cada columna (1 si no se ha cambiado; 0 = no cuenta).
-    Lo que falta no cuenta, salvo que el docente pida contarlo con la nota mínima.
+
+def _pct(d):
+    """40 → «40», 12.5 → «12,5» (sin notación científica)."""
+    texto = format(Decimal(d).normalize(), 'f')
+    return texto.replace('.', ',')
+
+
+def componentes_salon(aula):
+    out = []
+    for c in (aula.planilla or {}).get('componentes') or []:
+        try:
+            pct = Decimal(str(c['porcentaje']))
+            out.append({'id': str(c['id']), 'nombre': str(c['nombre'])[:40], 'porcentaje': pct, 'pct': _pct(pct)})
+        except Exception:
+            continue
+    return out
+
+
+def estilo_planilla(aula):
+    return 'final' if (aula.planilla or {}).get('estilo') == 'final' else 'junto'
+
+
+def _promedio(pares, faltantes_minima, minima):
+    """Promedio ponderado de [(nota|None, peso)]."""
+    suma, pesos = Decimal(0), Decimal(0)
+    for n, peso in pares:
+        if peso <= 0:
+            continue
+        if n is None and faltantes_minima:
+            n = minima
+        if n is not None:
+            suma += Decimal(n) * peso
+            pesos += peso
+    return (suma / pesos).quantize(UN_DECIMAL, rounding=ROUND_HALF_UP) if pesos else None
+
+
+def tabla_calificaciones(aula):
+    """{'columnas': [...], 'filas': [{'nombre', 'notas': [nota|None…], 'promedio', 'desempeno', 'vista'}], …}
+
+    Sin componentes: promedio ponderado con el peso de cada columna (1 si no se ha cambiado; 0 = no cuenta).
+    Con componentes: cada componente promedia sus columnas (con su peso) y la definitiva suma
+    promedio × porcentaje. Lo que falta no cuenta, salvo que el docente pida contarlo con la nota mínima.
+    'orden' dice qué va en cada columna de la tabla según el estilo: ('col', columna) o ('prom', componente).
     """
     columnas = columnas_calificaciones(aula)
     faltantes_minima = bool((aula.planilla or {}).get('faltantes_minima'))
     minima, _ = rango(aula)
+    comps = componentes_salon(aula) if aula.es_salon else []
+    estilo = estilo_planilla(aula)
+    asignacion = (aula.planilla or {}).get('asignacion') or {}
+    ids = [c['id'] for c in comps]
+    if comps:
+        for c in columnas:
+            c['comp'] = asignacion.get(c['clave']) if asignacion.get(c['clave']) in ids else ids[0]
+        columnas.sort(key=lambda c: ids.index(c['comp']))          # agrupadas por componente (orden estable)
     total_pesos = sum(c['peso'] for c in columnas)
     for c in columnas:
-        c['porcentaje'] = (c['peso'] * 100 / total_pesos).quantize(Decimal('1')) if total_pesos else 0
+        if comps:
+            del_comp = sum(x['peso'] for x in columnas if x['comp'] == c['comp'])
+            c['porcentaje'] = (c['peso'] * 100 / del_comp).quantize(Decimal('1')) if del_comp else 0
+        else:
+            c['porcentaje'] = (c['peso'] * 100 / total_pesos).quantize(Decimal('1')) if total_pesos else 0
+    # Qué va en cada columna de la tabla y los grupos de la fila de arriba
+    orden, grupos = [], []
+    if comps:
+        for comp in comps:
+            suyas = [c for c in columnas if c['comp'] == comp['id']]
+            comp['n_columnas'] = len(suyas)
+            orden += [('col', c) for c in suyas]
+            if estilo == 'junto':
+                orden.append(('prom', comp))
+                grupos.append({'nombre': comp['nombre'], 'porcentaje': comp['porcentaje'], 'pct': comp['pct'], 'span': len(suyas) + 1})
+            elif suyas:
+                grupos.append({'nombre': comp['nombre'], 'porcentaje': comp['porcentaje'], 'pct': comp['pct'], 'span': len(suyas)})
+        if estilo == 'final':
+            orden += [('prom', comp) for comp in comps]
+            grupos.append({'nombre': 'Totales por componente', 'porcentaje': None, 'span': len(comps), 'totales': True})
+    else:
+        orden = [('col', c) for c in columnas]
+    suma_pct = sum(c['porcentaje'] for c in comps)
     filas = []
     for p in estudiantes(aula):
         fila = [c['notas'].get(p.id) for c in columnas]
-        suma, pesos = Decimal(0), Decimal(0)
-        for c, n in zip(columnas, fila):
-            if c['peso'] <= 0:
-                continue
-            if n is None and faltantes_minima:
-                n = minima
-            if n is not None:
-                suma += Decimal(n) * c['peso']
-                pesos += c['peso']
-        prom = (suma / pesos).quantize(UN_DECIMAL, rounding=ROUND_HALF_UP) if pesos else None
+        nota_de = {c['clave']: n for c, n in zip(columnas, fila)}
+        if comps:
+            proms = {}
+            for comp in comps:
+                proms[comp['id']] = _promedio([(nota_de[c['clave']], c['peso']) for c in columnas if c['comp'] == comp['id']],
+                                              faltantes_minima, minima)
+            con_nota = [(proms[c['id']], c['porcentaje']) for c in comps if c['porcentaje'] > 0
+                        and (proms[c['id']] is not None or (faltantes_minima and c.get('n_columnas')))]
+            prom = _promedio(con_nota, faltantes_minima, minima)
+        else:
+            proms = {}
+            prom = _promedio([(n, c['peso']) for c, n in zip(columnas, fila)], faltantes_minima, minima)
+        vista = [{'tipo': 'col', 'col': x, 'n': nota_de[x['clave']]} if t == 'col' else
+                 {'tipo': 'prom', 'comp': x, 'n': proms.get(x['id'])} for t, x in orden]
         filas.append({'persona': p, 'clave': clave_de(p), 'nombre': nombre_de(p), 'notas': fila,
-                      'celdas': list(zip(columnas, fila)), 'promedio': prom,
-                      'desempeno': desempeno(aula, prom) if prom is not None else ''})
-    return {'columnas': columnas, 'filas': filas, 'faltantes_minima': faltantes_minima}
+                      'celdas': list(zip(columnas, fila)), 'vista': vista, 'comp_proms': [proms.get(c['id']) for c in comps],
+                      'promedio': prom, 'desempeno': desempeno(aula, prom) if prom is not None else ''})
+    return {'columnas': columnas, 'filas': filas, 'faltantes_minima': faltantes_minima, 'componentes': comps,
+            'estilo': estilo, 'orden': orden, 'grupos': grupos, 'suma_porcentajes': suma_pct,
+            'plantillas_componentes': PLANTILLAS_COMPONENTES}
+
+
+def guardar_componentes(aula, datos):
+    """Guarda los componentes (nombre y porcentaje), el estilo y a qué componente va cada columna. [errores]"""
+    errores = []
+    plan = dict(aula.planilla or {})
+    if datos.get('plantilla') in PLANTILLAS_COMPONENTES:
+        nuevos = [{'id': f'c{i + 1}', 'nombre': n, 'porcentaje': pct}
+                  for i, (n, pct) in enumerate(PLANTILLAS_COMPONENTES[datos['plantilla']][1])]
+    else:
+        nuevos, usados = [], set()
+        anteriores = {str(c.get('id')) for c in plan.get('componentes') or []}
+        for cid, nombre, pct in zip(datos.getlist('comp_id'), datos.getlist('comp_nombre'), datos.getlist('comp_pct')):
+            nombre = ' '.join((nombre or '').split())[:40]
+            if not nombre:
+                continue
+            try:
+                valor = _numero_nota(pct)
+            except ValueError:
+                valor = None
+            if valor is None or valor < 0 or valor > 100:
+                errores.append(f'El porcentaje de «{nombre}» debe ser un número entre 0 y 100.')
+                continue
+            cid = cid if cid in anteriores and cid not in usados else ''
+            if not cid:
+                n = 1
+                while f'c{n}' in anteriores | usados:
+                    n += 1
+                cid = f'c{n}'
+            usados.add(cid)
+            nuevos.append({'id': cid, 'nombre': nombre, 'porcentaje': float(valor)})
+        nuevos = nuevos[:8]
+    plan['componentes'] = nuevos
+    if datos.get('estilo') in ('junto', 'final'):
+        plan['estilo'] = datos['estilo']
+    ids = {c['id'] for c in nuevos}
+    plan['asignacion'] = {k: v for k, v in (plan.get('asignacion') or {}).items() if v in ids}
+    aula.planilla = plan
+    aula.save(update_fields=['planilla'])
+    total = sum(Decimal(str(c['porcentaje'])) for c in nuevos)
+    if nuevos and total != 100:
+        errores.append(f'Los porcentajes suman {_pct(total)} %. Ajústelos para que sumen 100 % '
+                       '(mientras tanto, la definitiva se calcula en proporción).')
+    return errores
 
 
 def _numero_nota(texto):
@@ -728,8 +862,16 @@ def guardar_planilla(aula, datos):
             errores.append(f'El peso de «{c["titulo"]}» debe ser un número entre 0 y 100.')
             continue
         pesos[c['clave']] = float(peso)
+    ids = {c['id'] for c in componentes_salon(aula)}
+    asignacion = dict((aula.planilla or {}).get('asignacion') or {})
+    for c in columnas:
+        elegido = datos.get(f'comp-{c["clave"]}')
+        if elegido in ids:
+            asignacion[c['clave']] = elegido
     aula.planilla = dict(aula.planilla or {}, pesos=dict((aula.planilla or {}).get('pesos', {}), **pesos),
-                         faltantes_minima=datos.get('faltantes_minima') == 'on')
+                         faltantes_minima=datos.get('faltantes_minima') == 'on', asignacion=asignacion)
+    if datos.get('estilo') in ('junto', 'final'):
+        aula.planilla['estilo'] = datos['estilo']
     aula.save(update_fields=['planilla'])
     minima, maxima = rango(aula)
     personas = estudiantes(aula)
@@ -764,32 +906,96 @@ def guardar_planilla(aula, datos):
     return errores
 
 
+def _texto_nota(n):
+    return '' if n is None else f'{n:.1f}'
+
+
 def excel_calificaciones(aula):
+    """La planilla en Excel con el mismo orden de la pantalla (componentes y estilo incluidos).
+    Se puede llenar y volver a subir con «Importar notas»: los promedios y la definitiva no se importan."""
     import openpyxl
-    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
     datos = tabla_calificaciones(aula)
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = 'Calificaciones'
+    ws.title = 'Planilla'
     ws.append([f'{aula.titulo} · {aula.subtitulo}'])
     ws['A1'].font = Font(bold=True, size=13)
     ws.append([])
-    ws.append(['N.º', 'Estudiante'] + [c['titulo'] for c in datos['columnas']] + ['Promedio', 'Desempeño'])
-    for c in ws[3]:
-        c.font = Font(bold=True, color='FFFFFF')
-        c.fill = PatternFill('solid', start_color='1F3A68')
-        c.alignment = Alignment(horizontal='center', wrap_text=True)
-    ws.append(['', 'Peso'] + [f"{c['porcentaje']} %" for c in datos['columnas']] + ['', ''])
-    for c in ws[4]:
-        c.font = Font(italic=True, color='5B6474')
-        c.alignment = Alignment(horizontal='center')
+    azul, gris, crema = PatternFill('solid', start_color='1F3A68'), PatternFill('solid', start_color='E9EDF3'), PatternFill('solid', start_color='FFF4D6')
+    fino = Side(style='thin', color='B7C1D3')
+    fila_grupo = 3
+    if datos['grupos']:
+        ws.append(['', ''] + [''] * len(datos['orden']) + ['', ''])
+        col = 3
+        for g in datos['grupos']:
+            ws.cell(row=fila_grupo, column=col, value=g['nombre'] + (f" ({g['pct']} %)" if g['porcentaje'] is not None else ''))
+            if g['span'] > 1:
+                ws.merge_cells(start_row=fila_grupo, start_column=col, end_row=fila_grupo, end_column=col + g['span'] - 1)
+            c = ws.cell(row=fila_grupo, column=col)
+            c.font, c.fill, c.alignment = Font(bold=True), (crema if g.get('totales') else gris), Alignment(horizontal='center')
+            col += g['span']
+        fila_titulos = 4
+    else:
+        fila_titulos = 3
+    titulos = ['N.º', 'Estudiante'] + [x['titulo'] if t == 'col' else f"Prom. {x['nombre']}" for t, x in datos['orden']] + ['Definitiva', 'Desempeño']
+    ws.append(titulos)
+    for c in ws[fila_titulos]:
+        c.font, c.fill = Font(bold=True, color='FFFFFF'), azul
+        c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    ws.append(['', 'Peso'] + [f"{x['porcentaje']} %" if t == 'col' else f"{x['pct']} %" for t, x in datos['orden']] + ['', ''])
+    for c in ws[fila_titulos + 1]:
+        c.font, c.alignment = Font(italic=True, color='5B6474'), Alignment(horizontal='center')
     for i, f in enumerate(datos['filas'], 1):
-        ws.append([i, f['nombre']] + [float(n) if n is not None else None for n in f['notas']]
+        ws.append([i, f['nombre']] + [float(v['n']) if v['n'] is not None else None for v in f['vista']]
                   + [float(f['promedio']) if f['promedio'] is not None else None, f['desempeno']])
-    ws.column_dimensions['B'].width = 36
+        for k, v in enumerate(f['vista'], 3):
+            if v['tipo'] == 'prom':
+                celda = ws.cell(row=ws.max_row, column=k)
+                celda.font, celda.fill = Font(bold=True), crema
+        ws.cell(row=ws.max_row, column=len(f['vista']) + 3).font = Font(bold=True)
+    for fila in ws.iter_rows(min_row=fila_titulos, max_row=ws.max_row, max_col=len(titulos)):
+        for c in fila:
+            c.border = Border(left=fino, right=fino, top=fino, bottom=fino)
+            if c.column > 2:
+                c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=c.row == fila_titulos)
+    ws.column_dimensions['A'].width = 5
+    ws.column_dimensions['B'].width = 34
+    for k in range(3, len(titulos) + 1):
+        ws.column_dimensions[get_column_letter(k)].width = 12
+    ws.freeze_panes = ws.cell(row=fila_titulos + 2, column=3)
     salida = io.BytesIO()
     wb.save(salida)
     return salida.getvalue()
+
+
+def pdf_calificaciones(request, aula):
+    """La planilla en PDF (horizontal), con el encabezado y el pie de página del docente."""
+    import tempfile
+    from pathlib import Path
+    from django.template.loader import render_to_string
+    from weasyprint import HTML
+    from materiales.models import EncabezadoDocente
+    enc = EncabezadoDocente.objects.filter(usuario=request.user).first() if aula.es_salon else None
+    datos = tabla_calificaciones(aula)
+    with tempfile.TemporaryDirectory(prefix='planilla-') as carpeta:
+        rutas = {}
+        for campo in ('logo', 'logo2'):
+            archivo = getattr(enc, campo, None) if enc else None
+            if archivo:
+                try:
+                    with archivo.open('rb') as fh:
+                        ruta = Path(carpeta) / f'{campo}{Path(archivo.name).suffix or ".png"}'
+                        ruta.write_bytes(fh.read())
+                        rutas[campo] = ruta.as_uri()
+                except Exception:
+                    pass
+        html = render_to_string('aula/calificaciones_pdf.html', dict(
+            datos, aula=aula, encabezado=enc, rutas=rutas, hoy=timezone.localdate(),
+            docente=request.user.get_full_name() or request.user.username,
+            pie_lineas=enc.pie['lineas'] if enc else []), request=request)
+        return HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
 
 
 def entrega_de(tarea, persona) -> Optional[Entrega]:

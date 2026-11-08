@@ -22,10 +22,10 @@
     Mientras tanto no puedes publicar, pero tus páginas y resultados siguen aquí.
     <a href="{% url 'salon_digital:mi_cuenta' %}" class="alert-link">Ir a mi cuenta</a>
   </div>
-{% elif cuenta.plan == 'prueba' and cuenta.dias_restantes <= 5 %}
+{% elif not cuenta.puede_publicar_otra %}
   <div class="alert alert-info">
-    A tu prueba gratuita le quedan {{ cuenta.dias_restantes }} días.
-    <a href="{% url 'salon_digital:mi_cuenta' %}" class="alert-link">Ver cómo renovar</a>
+    Ya usa las {{ cuenta.limite_paginas }} actividades de su plan {{ cuenta.nombre_nivel }}. Puede borrar una o
+    <a href="{% url 'salon_digital:planes' %}?para=paginas" class="alert-link">pasar a un plan con más actividades</a>.
   </div>
 {% endif %}
 
@@ -78,6 +78,9 @@
                  class="btn btn-sm btn-outline-secondary" title="Comentarios">
                 Comentarios</a>
             {% endif %}
+            {% if p.tipo == 'html' %}<button type="button" class="btn btn-sm btn-outline-primary btn-compartir" data-tipo="pagina" data-id="{{ p.pk }}" title="Con una de sus clases o con un colega"><i class="fas fa-share me-1"></i>Compartir</button>{% endif %}
+            {% if p.visible %}<a href="/chat/colegas/muro/?escribir=1&compartir={{ p.pk }}" class="btn btn-sm btn-outline-primary"
+               title="Que otros docentes la jueguen desde el muro de la comunidad"><i class="fas fa-share-nodes me-1"></i>Compartir en el muro</a>{% endif %}
             <a href="{% url 'salon_digital:editar_pagina' p.slug %}"
                class="btn btn-sm btn-outline-secondary">Editar</a>
             <form method="post" action="{% url 'salon_digital:eliminar_pagina' p.slug %}" class="d-inline"
@@ -126,4 +129,5 @@
   </div>
 </div>
 {% endif %}
+{% include 'aula/_compartir.html' %}
 {% endblock %}

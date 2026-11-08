@@ -99,7 +99,7 @@ def mi_cuenta(request):
         'cuenta': cuenta,
         'form': form,
         'verificacion': verificacion,
-        'limites': LIMITES.get(cuenta.plan, LIMITES['prueba']),
+        'limites': LIMITES[cuenta.nivel],
     })
 
 
@@ -165,12 +165,17 @@ def revisar_cuenta(request, pk):
 def cambiar_plan(request, pk):
     """Activa o renueva un plan cuando llega el pago por Nequi."""
     cuenta = get_object_or_404(Cuenta, pk=pk)
+    from .pagos import plan_de_concepto
     plan = request.POST.get('plan')
-    if plan in dict(Cuenta.PLAN_CHOICES):
-        cuenta.extender(plan)
+    p = plan_de_concepto(plan)
+    if p:
+        cuenta.extender(p[0], p[3])
+    elif plan in ('gratis', 'ilimitado'):
+        cuenta.extender(plan, 0)
+    if p or plan in ('gratis', 'ilimitado'):
         messages.success(
             request,
-            f'{cuenta.nombre_publico}: plan {cuenta.get_plan_display().lower()}'
+            f'{cuenta.nombre_publico}: plan {cuenta.nombre_nivel}'
             + (f', vence el {cuenta.vence_en}.' if cuenta.vence_en else ', sin vencimiento.'),
         )
     return redirect(request.META.get('HTTP_REFERER') or 'salon_digital:bandeja')
