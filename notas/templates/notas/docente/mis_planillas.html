@@ -80,6 +80,9 @@
         <h6><i class="fas fa-globe me-2 text-primary"></i>En línea</h6>
         <p>Notas y asistencia directo en la plataforma; la definitiva se ve al instante. Use los botones «En línea» de cada asignatura.</p>
     </div>
+    <div class="small text-muted w-100 mb-2"><i class="fas fa-table-columns me-1"></i>Estilo de las planillas (pantalla, Excel y PDF):
+        <b>{% if estilo_planilla == 'final' %}los promedios de los componentes al final{% else %}el promedio de cada componente junto a sus notas{% endif %}</b>
+        {% if estilo_fijo %}· lo definió el colegio{% else %}· puede cambiarlo en «Ingresar notas»{% endif %}.</div>
     <div class="mp-modo">
         <h6><i class="fas fa-file-excel me-2 text-success"></i>En Excel, sin internet</h6>
         <p>Descargue la planilla de notas o de asistencia con los colores del colegio, llénela donde quiera y súbala: antes de guardar le mostramos qué cambia.</p>
