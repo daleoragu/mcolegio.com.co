@@ -96,6 +96,20 @@ class Espacios(TestCase):
         self.assertContains(r, 'Estudio de Planeación')
         self.assertContains(r, 'Importar material')
 
+    def test_editar_perfil_desde_mi_espacio(self):
+        r = self.client.get('/salon_digital/mi-espacio/')
+        self.assertContains(r, '/chat/colegas/?tab=perfil&volver=/salon_digital/mi-espacio/')
+        r = self.client.get('/chat/colegas/?tab=perfil&volver=/salon_digital/mi-espacio/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'name="volver" value="/salon_digital/mi-espacio/"')
+        self.assertRedirects(self.client.get('/chat/colegas/ajustes/'), '/chat/colegas/?tab=perfil', fetch_redirect_response=False)
+        r = self.client.post('/chat/colegas/ajustes/', {'presentacion': 'Apasionado por la geometría', 'visible': 'on',
+                                                        'volver': '/salon_digital/mi-espacio/'})
+        self.assertRedirects(r, '/salon_digital/mi-espacio/', fetch_redirect_response=False)
+        self.assertContains(self.client.get('/salon_digital/mi-espacio/'), 'Apasionado por la geometría')
+        r = self.client.post('/chat/colegas/ajustes/', {'volver': '//otro-sitio.com/'})
+        self.assertRedirects(r, '/chat/colegas/?tab=perfil', fetch_redirect_response=False)
+
     def test_al_entrar_llega_al_inicio(self):
         self.client.logout()
         r = self.client.post('/salon_digital/entrar/', {'username': 'profe', 'password': 'x'})

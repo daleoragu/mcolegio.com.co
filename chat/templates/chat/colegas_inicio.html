@@ -79,7 +79,7 @@
   </div>{% endif %}
 
   {% elif t == 'perfil' %}
-  <form method="post" action="/chat/colegas/ajustes/" class="cg-caja" enctype="multipart/form-data">{% csrf_token %}
+  <form method="post" action="/chat/colegas/ajustes/" class="cg-caja" enctype="multipart/form-data">{% csrf_token %}{% if request.GET.volver %}<input type="hidden" name="volver" value="{{ request.GET.volver }}">{% endif %}
     <h6 class="fw-bold">Cómo me ven los demás docentes</h6>
     <div class="d-flex align-items-center gap-3 mb-3">
       <span style="width:96px;height:96px;flex:0 0 96px;border-radius:50%;overflow:hidden;background:#e4e9f2;display:flex;align-items:center;justify-content:center;font:700 2.2rem Poppins,system-ui;color:#1f3a68" id="cg-foto-vista">
