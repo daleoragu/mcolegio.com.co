@@ -31,7 +31,7 @@ MODULOS = OrderedDict([
     ('permisos', ('Permisos de salida', 'Pase de salida del salón con el carné: el docente lo da, cualquiera lo verifica '
                   'escaneando el carné y se ve quién está fuera de clase.', ('/permisos/',))),
     ('correo', ('Correo interno', 'Mensajería entre docentes, estudiantes y administración.', ('/mensajeria/',))),
-    ('chat', ('Chat del colegio', 'Chat uno a uno y por grupos (curso, asignatura, sala de profesores) con horario de silencio '
+    ('chat', ('Chat del colegio', 'Chat uno a uno y por grupos (curso, asignatura, reunión docente) con horario de silencio '
                        'y reportes. Los estudiantes no se escriben entre ellos en privado.', ('/chat/',))),
     ('piar', ('PIAR (inclusión)', 'Plan Individual de Ajustes Razonables (Decreto 1421) con acta de acuerdo.',
               ('/piar/',))),

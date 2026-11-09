@@ -24,7 +24,8 @@ SECCIONES = {
                 ('Guardados', 'fa-bookmark', '/chat/colegas/muro/?ver=guardados', 'guardados'),
                 ('Mi cuenta y plan', 'fa-gear', 'salon_digital:mi_cuenta', 'cuenta')],
     'estudiantes': [('Mis clases', 'fa-chalkboard-user', 'aula:inicio', 'clases'),
-                    ('Grupos, PIN y tarjetas QR', 'fa-id-card', 'salon_digital:grupos', 'grupos')],
+                    ('Grupos, PIN y tarjetas QR', 'fa-id-card', 'salon_digital:grupos', 'grupos'),
+                    ('Escanear exámenes y notas (PuntoExacto)', 'fa-camera', 'puntoexacto:lista', 'examenes')],
     'planeacion': [('Mis materiales', 'fa-file-lines', 'materiales:lista', 'materiales'),
                    ('Rúbricas', 'fa-list-check', 'aula:instrumentos', 'rubricas'),
                    ('Banco de preguntas', 'fa-box-archive', 'aula:banco', 'banco'),
@@ -95,6 +96,7 @@ def espacios(request):
         return {}
     actual, seccion = ubicar(request)
     secciones = [{'nombre': n, 'icono': ic, 'url': _url(u), 'on': k == seccion} for n, ic, u, k in SECCIONES.get(actual, [])]
+    extra = {}
     if actual == 'estudiantes':
         # Cambio rápido de grupo: cada grupo activo como una pestaña más (la del aula abierta, marcada)
         m = request.resolver_match
@@ -103,14 +105,18 @@ def espacios(request):
         if aula_pk:
             from aula.models import Aula
             grupo_abierto = Aula.objects.filter(pk=aula_pk).values_list('grupo_id', flat=True).first()
-        grupos = [{'nombre': f'{g.nombre} · {g.codigo}', 'icono': 'fa-circle-dot' if g.pk == grupo_abierto else 'fa-circle',
-                   'url': reverse('aula:por_grupo', args=[g.pk]), 'on': g.pk == grupo_abierto}
+        grupos = [{'nombre': g.nombre, 'codigo': g.codigo, 'icono': 'fa-circle-dot' if g.pk == grupo_abierto else 'fa-circle',
+                   'url': reverse('aula:por_grupo', args=[g.pk]), 'on': g.pk == grupo_abierto, 'solo_movil': bool(grupo_abierto)}
                   for g in user.cuenta_salon.grupos.filter(activo=True).order_by('nombre')[:12]]
         if grupo_abierto:
             secciones[0]['on'] = False
+            extra['grupos_menu'] = [dict(g) for g in grupos]     # dentro de un aula: la barra lateral oscura con los grupos (computador)
+        for g in grupos:
+            g['nombre'] = f"{g['nombre']} · {g['codigo']}"
         secciones = secciones[:1] + grupos + secciones[1:] + [{'nombre': 'Nuevo grupo', 'icono': 'fa-plus', 'url': reverse('salon_digital:nuevo_grupo'), 'on': False}]
     return {
         'espacio_actual': actual,
         'espacios_menu': [{'id': i, 'nombre': n, 'icono': ic, 'url': _url(u), 'on': i == actual} for i, n, ic, u in ESPACIOS],
         'secciones_menu': secciones,
+        **extra,
     }

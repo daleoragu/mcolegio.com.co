@@ -125,7 +125,7 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
 </nav>{% endif %}
 
 <main class="container pb-4">
-  {% if secciones_menu %}<div class="esp-sub" aria-label="Secciones">{% for x in secciones_menu %}<a href="{{ x.url }}" class="{% if x.on %}on{% endif %}"><i class="fas {{ x.icono }} me-1"></i>{{ x.nombre }}</a>{% endfor %}</div>{% endif %}
+  {% if secciones_menu %}<div class="esp-sub" aria-label="Secciones">{% for x in secciones_menu %}<a href="{{ x.url }}" class="{% if x.on %}on{% endif %}{% if x.solo_movil %} d-lg-none{% endif %}"><i class="fas {{ x.icono }} me-1"></i>{{ x.nombre }}</a>{% endfor %}</div>{% endif %}
   {% with cs=request.user.cuenta_salon %}{% if cs and request.resolver_match.url_name != 'planes' and request.resolver_match.url_name != 'pago' %}
     {% if cs.en_prueba or cs.plan != 'gratis' and cs.plan != 'ilimitado' and cs.vence_en and cs.dias_restantes <= 5 and cs.dias_restantes >= -7 %}
     <div class="alert {% if cs.vencida %}alert-danger{% elif cs.dias_restantes <= 5 %}alert-warning{% else %}alert-info{% endif %} d-flex flex-wrap align-items-center gap-2 py-2 mt-3 mb-3">

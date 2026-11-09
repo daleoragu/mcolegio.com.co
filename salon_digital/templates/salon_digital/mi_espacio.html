@@ -28,6 +28,7 @@
   <div class="me-arriba">
     {% if yo.foto %}<img src="{{ yo.foto }}" alt="Foto de perfil" class="me-foto">{% else %}<span class="me-foto">{{ yo.nombre|slice:":1"|upper }}</span>{% endif %}
     <div style="min-width:0">
+      <div class="small fw-bold text-uppercase mb-1" style="color:#0f766e;letter-spacing:.06em"><i class="fas fa-globe me-1"></i>Mi Espacio · mi portafolio público</div>
       <h1>{{ yo.nombre }}</h1>
       <div class="fw-semibold" style="color:#334155">{{ yo.desc }}</div>
       {% if perfil.presentacion %}<p class="mb-1 mt-1">{{ perfil.presentacion }}</p>{% else %}<p class="mb-1 mt-1 text-muted small">Escriba una presentación corta para que los colegas lo conozcan. <a href="/chat/colegas/ajustes/">Completar mi perfil</a></p>{% endif %}

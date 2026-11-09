@@ -36,6 +36,43 @@ def _comunidad(user, n):
              'icono': ICONOS.get(p.tipo, ('fa-note-sticky', '#495057'))[0]} for p in pubs]
 
 
+def pendientes(cuenta, user, grupos):
+    """Lo que el docente tiene por hacer hoy: entregas por calificar, tareas que vencen, invertidas sin ver, colegas."""
+    from datetime import timedelta
+    from django.db.models import Count
+    from django.urls import reverse
+    from aula.models import Aula, ClaseInvertida, Entrega, Tarea
+    from chat.models import Colega
+    aulas = {a.grupo_id: a for a in Aula.objects.filter(grupo__in=grupos)}
+    nombre = {g.pk: g.nombre for g in grupos}
+    total = {g.pk: g.total_integrantes for g in grupos}
+    lista = []
+    por_calificar = (Entrega.objects.filter(tarea__aula__in=aulas.values(), entregada__isnull=False, calificada__isnull=True)
+                     .values('tarea__aula__grupo_id', 'tarea__aula_id').annotate(n=Count('id')).order_by('-n'))
+    for x in por_calificar:
+        lista.append({'icono': 'fa-clipboard-check', 'color': '#2563eb', 'url': reverse('aula:tareas', args=[x['tarea__aula_id']]),
+                      'texto': f"{x['n']} entrega{'s' if x['n'] != 1 else ''} por calificar", 'grupo': nombre.get(x['tarea__aula__grupo_id'], '')})
+    hoy = timezone.localdate()
+    for t in Tarea.objects.filter(aula__in=aulas.values(), publicada=True, fecha_limite__date__gte=hoy,
+                                  fecha_limite__date__lte=hoy + timedelta(days=1)).select_related('aula').order_by('fecha_limite'):
+        cuando = 'hoy' if timezone.localtime(t.fecha_limite).date() == hoy else 'mañana'
+        lista.append({'icono': 'fa-hourglass-half', 'color': '#f59e0b', 'url': reverse('aula:tarea', args=[t.aula_id, t.pk]),
+                      'texto': f'«{t.titulo}» cierra {cuando}', 'grupo': nombre.get(t.aula.grupo_id, '')})
+    hace = timezone.now() - timedelta(days=21)
+    for c in (ClaseInvertida.objects.filter(aula__in=aulas.values(), publicada=True, creada__gte=hace)
+              .select_related('aula').annotate(n=Count('respuestas')).order_by('-creada')[:6]):
+        faltan = total.get(c.aula.grupo_id, 0) - c.n if not c.para else len(c.para) - c.n
+        if faltan > 0:
+            lista.append({'icono': 'fa-circle-play', 'color': '#e03131', 'url': reverse('aula:invertida', args=[c.aula_id, c.pk]),
+                          'texto': f"{faltan} estudiante{'s' if faltan != 1 else ''} no ha{'n' if faltan != 1 else ''} visto «{c.titulo}»",
+                          'grupo': nombre.get(c.aula.grupo_id, '')})
+    n = Colega.objects.filter(para=user, estado='pendiente').count()
+    if n:
+        lista.append({'icono': 'fa-user-plus', 'color': '#4f46e5', 'url': '/chat/colegas/?tab=solicitudes',
+                      'texto': f"{n} solicitud{'es' if n != 1 else ''} de colegas", 'grupo': 'Sala de Profesores'})
+    return lista[:8]
+
+
 @cuenta_requerida
 def inicio(request):
     cuenta, user = request.cuenta, request.user
@@ -48,7 +85,7 @@ def inicio(request):
     return render(request, 'salon_digital/inicio.html', {
         'cuenta': cuenta, 'nombre': _primer_nombre(user, cuenta),
         'fecha': f'{DIAS[hoy.weekday()].capitalize()}, {hoy.day} de {MESES[hoy.month - 1]}',
-        'grupos': grupos, 'comunidad': _comunidad(user, 5),
+        'grupos': grupos, 'comunidad': _comunidad(user, 5), 'pendientes': pendientes(cuenta, user, grupos),
         'n_materiales': Documento.objects.filter(propietario=user).count(),
         'n_paginas': cuenta.paginas.count(),
         'n_solicitudes': Colega.objects.filter(para=user, estado='pendiente').count(),

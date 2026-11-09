@@ -88,6 +88,28 @@
   </div>
 
   <div class="col-lg-4">
+    {% if c.es_docente %}
+    <div class="au-tarjeta au-panel">
+        <h6 class="d-flex align-items-center"><span class="flex-grow-1">Panel del Aula</span><small class="text-muted fw-normal">Actividad en vivo</small></h6>
+        <div class="au-pp">
+            <div class="d-flex align-items-center mb-1"><b class="flex-grow-1">Clase en vivo</b>{% if aula.enlace_clase %}<span class="badge text-bg-danger"><i class="fas fa-signal me-1"></i>Enlace listo</span>{% endif %}</div>
+            <div class="small text-muted mb-2">{% if aula.enlace_clase %}Su reunión de Meet, Zoom, Teams o Jitsi.{% else %}Todavía no ha puesto el enlace de su reunión.{% endif %}</div>
+            {% if aula.enlace_clase %}<a class="btn btn-sm au-verde w-100" href="{{ aula.enlace_clase }}" target="_blank" rel="noopener">Unirse a la clase</a>
+            {% else %}<a class="btn btn-sm btn-outline-secondary w-100" href="{% url 'aula:clase' aula.pk %}">Poner el enlace</a>{% endif %}
+        </div>
+        <div class="au-pp">
+            <div class="d-flex align-items-center"><b class="flex-grow-1">Juego en vivo</b><span style="font-size:1.4rem">🎮</span></div>
+            <div class="small text-muted mb-2">Cuestionario en vivo, tanques, penaltis y más juegos con preguntas.</div>
+            <div class="d-flex gap-2"><a class="btn btn-sm au-verde flex-grow-1" href="{% url 'aula:cuestionarios' aula.pk %}">Lanzar juego</a><a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:gamificacion' aula.pk %}">Aula arcade</a></div>
+        </div>
+        {% if pe_activo %}<div class="au-pp">
+            <div class="d-flex align-items-center mb-2"><b class="flex-grow-1">Exámenes PuntoExacto</b><i class="fas fa-camera text-muted"></i></div>
+            <a class="btn btn-sm btn-outline-secondary w-100" href="{% url 'aula:examenes' aula.pk %}">Escanear y ver notas</a>
+        </div>{% endif %}
+    </div>
+    <style>.au-pp{border:1px solid #e2e8f0;border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+    .au-verde{background:#10b981;color:#fff;font-weight:600;border-radius:10px}.au-verde:hover{background:#059669;color:#fff}</style>
+    {% endif %}
     <div class="au-tarjeta">
         <h6><i class="far fa-calendar-check me-1"></i>Próximas entregas</h6>
         {% for t in proximas %}

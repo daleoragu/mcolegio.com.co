@@ -69,6 +69,33 @@ class Espacios(TestCase):
         ajena = PaginaPublicada.objects.create(propietario=otro, titulo='Ajena', slug='ajena', identificacion='libre')
         self.assertEqual(self.client.post('/salon_digital/mi-espacio/pagina/ajena/visibilidad/', {'publica': '1'}).status_code, 404)
 
+    def test_para_hoy_en_el_inicio(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from aula.models import Aula, ClaseInvertida, Entrega, Tarea
+        from salon_digital.models import Integrante
+        aula = Aula.objects.create(grupo=self.grupo)
+        ana = Integrante.objects.create(grupo=self.grupo, nombres='Ana', apellidos='Ruiz')
+        t = Tarea.objects.create(aula=aula, titulo='Taller 1', fecha_limite=timezone.now() + timedelta(hours=2))
+        Entrega.objects.create(tarea=t, integrante=ana, entregada=timezone.now())
+        ClaseInvertida.objects.create(aula=aula, titulo='Regla de tres', video='https://youtu.be/abcdefghijk')
+        r = self.client.get('/salon_digital/inicio/')
+        self.assertContains(r, 'Para hoy')
+        self.assertContains(r, '1 entrega por calificar')
+        self.assertContains(r, '«Taller 1» cierra')
+        self.assertContains(r, '1 estudiante no ha visto «Regla de tres»')
+
+    def test_mis_estudiantes_y_planeacion(self):
+        from aula.models import Aula
+        aula = Aula.objects.create(grupo=self.grupo)
+        r = self.client.get(f'/aula/{aula.pk}/')
+        self.assertContains(r, 'class="me-grupos"')                   # barra lateral con los grupos
+        self.assertContains(r, 'Código ' + self.grupo.codigo)
+        self.assertContains(r, 'Panel del Aula')
+        r = self.client.get('/materiales/')
+        self.assertContains(r, 'Estudio de Planeación')
+        self.assertContains(r, 'Importar material')
+
     def test_al_entrar_llega_al_inicio(self):
         self.client.logout()
         r = self.client.post('/salon_digital/entrar/', {'username': 'profe', 'password': 'x'})

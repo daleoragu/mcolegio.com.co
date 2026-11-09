@@ -1,7 +1,44 @@
 {% extends 'salon_digital/base_salon.html' %}
 {% block titulo %}{% if aula %}{{ aula.titulo }} · {% endif %}Mi Salón Virtual{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+{% if grupos_menu %}<style>
+/* Mis Estudiantes: barra lateral oscura con los grupos y pestañas del aula tipo píldora */
+.me-grupos{background:#0f1f3d;border-radius:1.25rem;padding:18px 14px;color:#cbd5e1;position:sticky;top:76px}
+.me-grupos .tit{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.07);border-radius:14px;padding:12px;color:#fff;text-decoration:none;margin-bottom:16px}
+.me-grupos .tit b{display:block;font-size:1.05rem}
+.me-grupos .tit small{color:#94a3b8}
+.me-grupos h6{color:#94a3b8;font-weight:600;font-size:.95rem;margin:0 4px 10px}
+.me-grupos a.g{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;color:#e2e8f0;text-decoration:none;margin-bottom:6px}
+.me-grupos a.g:hover{background:rgba(255,255,255,.06)}
+.me-grupos a.g.on{background:rgba(255,255,255,.12)}
+.me-grupos a.g .p{width:16px;height:16px;border-radius:50%;background:#1e293b;border:2px solid #334155;flex:0 0 16px}
+.me-grupos a.g.on .p{background:#10b981;border-color:#6ee7b7;box-shadow:0 0 0 3px rgba(16,185,129,.25)}
+.me-grupos a.g b{display:block;font-weight:600;line-height:1.2}
+.me-grupos a.g small{color:#94a3b8}
+.me-grupos .nuevo{display:block;text-align:center;background:#1d7fa5;color:#fff;border-radius:12px;padding:10px;font-weight:600;text-decoration:none;margin-top:14px}
+.me-grupos .nuevo:hover{background:#17698a}
+.salon-aula .au-cabecera{border:0;background:transparent;box-shadow:none;padding-left:0}
+.salon-aula .au-cabecera h4{font-size:1.9rem;color:#0f172a}
+.salon-aula .au-cabecera .au-icono{display:none}
+.salon-aula .au-pestanas{display:flex;flex-wrap:wrap;gap:8px;border-bottom:0!important}
+.salon-aula .au-pestanas a{border:1px solid #1e3a5f!important;border-radius:999px!important;padding:7px 15px!important;font-size:.9rem;color:#0f172a!important;background:#fff;margin:0!important}
+.salon-aula .au-pestanas a.activa{background:#0f1f3d!important;color:#fff!important;box-shadow:0 0 0 3px rgba(15,31,61,.18)}
+.salon-aula .au-pestanas a::after{display:none!important}
+</style>{% endif %}{% endblock %}
 {% block contenido %}
+{% if grupos_menu %}
+<div class="row g-3">
+  <aside class="col-lg-3 d-none d-lg-block">
+    <div class="me-grupos">
+      <a class="tit" href="{% url 'aula:inicio' %}"><i class="fas fa-users"></i><span><b>Mis Estudiantes</b><small>{% for g in grupos_menu %}{% if g.on %}{{ g.nombre }}{% endif %}{% endfor %}</small></span></a>
+      <h6>Grupos</h6>
+      {% for g in grupos_menu %}<a class="g {% if g.on %}on{% endif %}" href="{{ g.url }}"><span class="p"></span><span><b>{{ g.nombre }}</b><small>Código {{ g.codigo }}</small></span></a>{% endfor %}
+      <a class="nuevo" href="{% url 'salon_digital:nuevo_grupo' %}"><i class="fas fa-plus me-1"></i>Nuevo grupo</a>
+    </div>
+  </aside>
+  <div class="col-lg-9 salon-aula">
+{% endif %}
 <div class="mb-3">{% block page_title %}{% endblock %}</div>
 {% block content %}{% endblock %}
+{% if grupos_menu %}</div></div>{% endif %}
 {% endblock %}
