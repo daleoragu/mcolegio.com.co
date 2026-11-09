@@ -288,9 +288,12 @@ def solicitud(request):
     return volver
 
 
-@require_POST
 @vista
 def ajustes(request):
+    if request.method != 'POST':          # si alguien abre la dirección directamente, va al formulario
+        return redirect(f'{BASE}/?tab=perfil')
+    volver = request.POST.get('volver') or ''
+    volver = volver if volver.startswith('/') and not volver.startswith('//') else f'{BASE}/?tab=perfil'
     p = perfil_de(request.user)
     p.visible = request.POST.get('visible') == 'on'
     p.area = ' '.join((request.POST.get('area') or '').split())[:80]
@@ -318,8 +321,8 @@ def ajustes(request):
             messages.error(request, str(error))
             return redirect(f'{BASE}/?tab=perfil')
     p.save()
-    messages.success(request, 'Perfil de colega guardado.')
-    return redirect(f'{BASE}/?tab=perfil')
+    messages.success(request, 'Perfil guardado.')
+    return redirect(volver)
 
 
 def directa(a, b):
