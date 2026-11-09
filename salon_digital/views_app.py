@@ -68,10 +68,10 @@ def manifiesto(request):
 def inicio(request):
     """Lo que abre el ícono de la app: Mis aulas si ya entró; si no, el ingreso del Salón."""
     if request.user.is_authenticated and hasattr(request.user, 'cuenta_salon'):
-        return redirect('aula:inicio')
+        return redirect('salon_digital:inicio')
     if request.user.is_authenticated:
         return redirect('salon_digital:landing')
-    return redirect(reverse('salon_digital:entrar') + '?next=' + reverse('aula:inicio'))
+    return redirect(reverse('salon_digital:entrar') + '?next=' + reverse('salon_digital:inicio'))
 
 
 def _qr_svg(texto):

@@ -1,0 +1,131 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}Inicio · Mi Salón Virtual{% endblock %}
+{% block extra_css %}<style>
+.ini{max-width:1040px;margin:0 auto}
+.ini-hola h1{font-size:clamp(1.6rem,3vw,2.1rem);font-weight:800;margin:0}
+.ini-fecha{background:#eef2f7;border-radius:999px;padding:6px 14px;font-size:.88rem;font-weight:500;color:#334155;white-space:nowrap}
+.ini-esp{display:flex;gap:18px;padding:22px;border-radius:1.25rem;border:1px solid rgba(148,163,184,.35);text-decoration:none;color:var(--ink);height:100%;transition:transform .15s,box-shadow .15s;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.ini-esp:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(15,23,42,.10);color:var(--ink)}
+.ini-esp .ic{flex:0 0 68px;height:68px;border-radius:18px;display:grid;place-items:center;font-size:1.8rem;color:#fff;box-shadow:0 6px 14px rgba(15,23,42,.15)}
+.ini-esp h2{font-size:1.25rem;font-weight:700;margin:4px 0 10px}
+.ini-esp.sala{background:linear-gradient(135deg,#fdf2e9 0%,#ede9fe 100%)} .ini-esp.sala .ic{background:#5b5fc7}
+.ini-esp.esp{background:linear-gradient(135deg,#ecfdf5 0%,#e0f2fe 100%)} .ini-esp.esp .ic{background:#10b981}
+.ini-esp.est{background:linear-gradient(135deg,#eff6ff 0%,#e0e7ff 100%)} .ini-esp.est .ic{background:#2563eb}
+.ini-esp.pla{background:linear-gradient(135deg,#fff7ed 0%,#e0f7f4 100%)} .ini-esp.pla .ic{background:#fde4c4;color:#b45309}
+.ini-chip{display:inline-block;border-radius:999px;padding:3px 11px;font-size:.82rem;font-weight:600;margin:0 4px 6px 0;text-decoration:none}
+.ini-chip.mor{background:rgba(91,95,199,.14);color:#3730a3} .ini-chip.verde{background:rgba(16,185,129,.16);color:#047857}
+.ini-chip.azul{background:rgba(37,99,235,.12);color:#1d4ed8} .ini-chip.azul.on{background:#2563eb;color:#fff}
+.ini-chip.ambar{background:rgba(245,158,11,.18);color:#92400e} .ini-chip.teal{background:rgba(20,184,166,.16);color:#0f766e}
+.ini-prev{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:.88rem}
+.ini-caja{background:#fff;border:1px solid rgba(226,232,240,.9);border-radius:1.25rem;padding:20px;height:100%;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+.ini-caja h3{font-size:1.2rem;font-weight:700;margin-bottom:14px}
+.ini-clase{display:block;border-radius:12px;padding:10px 14px;border:1px solid var(--line);border-left:5px solid var(--c);background:color-mix(in srgb,var(--c) 7%,#fff);text-decoration:none;color:var(--ink);height:100%}
+.ini-clase:hover{background:color-mix(in srgb,var(--c) 14%,#fff);color:var(--ink)}
+.ini-act{display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;text-decoration:none;color:var(--ink)}
+.ini-act:last-child{border-bottom:0}
+.ini-hoy{background:#fff;border:1px solid rgba(226,232,240,.9);border-radius:1.25rem;padding:14px 18px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+.ini-pend{display:flex;align-items:center;gap:10px;border:1px solid color-mix(in srgb,var(--c) 30%,#fff);background:color-mix(in srgb,var(--c) 7%,#fff);border-radius:12px;padding:8px 12px;text-decoration:none;color:var(--ink);flex:1 1 230px;max-width:100%}
+.ini-pend:hover{background:color-mix(in srgb,var(--c) 14%,#fff);color:var(--ink)}
+.ini-pend i{color:var(--c);font-size:1.1rem}
+.ini-pend b{display:block;font-size:.9rem;font-weight:600;line-height:1.25}
+.ini-pend small{color:#64748b}
+.ini-act img,.ini-act .av{width:42px;height:42px;border-radius:50%;object-fit:cover;flex:0 0 42px;background:#e0e7ff;color:#3730a3;display:grid;place-items:center;font-weight:700}
+</style>{% endblock %}
+{% block contenido %}
+<div class="ini">
+  <div class="d-flex flex-wrap align-items-start gap-2 mb-3 ini-hola">
+    <div class="flex-grow-1">
+      <h1>Hola, Profe {{ nombre }} 👋</h1>
+      <p class="text-muted mb-0">Qué gusto verle de nuevo. Aquí tiene un resumen de su jornada.</p>
+    </div>
+    <span class="ini-fecha"><i class="far fa-calendar me-2"></i>{{ fecha }}</span>
+  </div>
+
+  <div class="ini-hoy mb-3">
+    <div class="d-flex align-items-center mb-2"><b class="flex-grow-1"><i class="fas fa-list-check me-2" style="color:#4f46e5"></i>Para hoy</b>{% if pendientes %}<span class="small text-muted">{{ pendientes|length }} pendiente{{ pendientes|pluralize }}</span>{% endif %}</div>
+    {% if pendientes %}<div class="d-flex flex-wrap gap-2">
+      {% for x in pendientes %}<a class="ini-pend" href="{{ x.url }}" style="--c:{{ x.color }}"><i class="fas {{ x.icono }}"></i><span><b>{{ x.texto }}</b>{% if x.grupo %}<small>{{ x.grupo }}</small>{% endif %}</span></a>{% endfor %}
+    </div>{% else %}<div class="small text-muted"><i class="fas fa-circle-check me-1" style="color:#10b981"></i>¡Todo al día! No tiene entregas por calificar ni tareas que cierren hoy o mañana.</div>{% endif %}
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <a class="ini-esp sala" href="{% url 'chat:muro' %}">
+        <span class="ic"><i class="fas fa-comments"></i></span>
+        <div class="flex-grow-1" style="min-width:0">
+          <h2>Sala de Profesores</h2>
+          <span class="ini-chip mor">{% if n_solicitudes %}{{ n_solicitudes }} solicitud{{ n_solicitudes|pluralize:"es" }} de colegas{% else %}Comunidad docente{% endif %}</span>
+          {% with c=comunidad.0 %}{% if c %}<div class="ini-prev mt-1 text-truncate"><b>{{ c.p.titulo }}</b><div class="small text-muted text-truncate">{{ c.nombre }} · {{ c.hace }}</div></div>
+          {% else %}<div class="ini-prev mt-1 small text-muted">Publicaciones, recursos y experiencias de otros docentes.</div>{% endif %}{% endwith %}
+        </div>
+      </a>
+    </div>
+    <div class="col-md-6">
+      <a class="ini-esp esp" href="{% url 'salon_digital:mi_espacio' %}">
+        <span class="ic"><i class="fas fa-folder-open"></i></span>
+        <div>
+          <h2>Mi Espacio de Profe</h2>
+          <span class="ini-chip verde">Mi portafolio público</span>
+          <span class="ini-chip verde">Mis páginas interactivas ({{ n_paginas }})</span>
+          <span class="ini-chip verde">Publicaciones y guardados</span>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-6">
+      <div class="ini-esp est">
+        <a href="{% url 'aula:inicio' %}" class="ic text-decoration-none"><i class="fas fa-users"></i></a>
+        <div>
+          <a href="{% url 'aula:inicio' %}" class="text-reset text-decoration-none"><h2>Mis Estudiantes</h2></a>
+          <div class="small fw-semibold mb-1">{% if grupos %}Grupos activos:{% else %}Todavía no tiene grupos.{% endif %}</div>
+          {% for g in grupos|slice:":4" %}<a class="ini-chip azul {% if forloop.first %}on{% endif %}" href="{% url 'aula:por_grupo' g.pk %}">{{ g.nombre }}</a>{% endfor %}
+          {% if not grupos %}<a class="ini-chip azul on" href="{% url 'salon_digital:nuevo_grupo' %}">+ Crear mi primer grupo</a>{% endif %}
+          <a class="ini-chip azul" href="{% url 'salon_digital:grupos' %}">Grupos, PIN y QR</a>
+          <a class="ini-chip azul" href="{% url 'puntoexacto:lista' %}">PuntoExacto</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <a class="ini-esp pla" href="{% url 'materiales:lista' %}">
+        <span class="ic"><i class="fas fa-wand-magic-sparkles"></i></span>
+        <div>
+          <h2>Planeación</h2>
+          <span class="ini-chip ambar">Planeador con IA</span>
+          <span class="ini-chip ambar">Rúbricas y evaluaciones</span>
+          <span class="ini-chip teal">Importar material</span>
+          <span class="ini-chip ambar">Banco de preguntas</span>
+          {% if n_materiales %}<span class="ini-chip teal">{{ n_materiales }} material{{ n_materiales|pluralize:"es" }}</span>{% endif %}
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="ini-caja">
+        <h3>Mis clases activas</h3>
+        <div class="row g-2">
+          {% for g in grupos %}
+          <div class="col-6"><a class="ini-clase" style="--c:{{ g.color }}" href="{% url 'aula:por_grupo' g.pk %}"><b class="d-block text-truncate">{{ g.nombre }}</b><span class="small text-muted">{{ g.total_integrantes }} estudiante{{ g.total_integrantes|pluralize }}</span></a></div>
+          {% empty %}
+          <div class="col-12 text-muted small">Cree un grupo con la lista de sus estudiantes para abrir su aula. <a href="{% url 'salon_digital:nuevo_grupo' %}">Crear grupo</a></div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="ini-caja">
+        <h3>Actividad de la comunidad</h3>
+        {% for c in comunidad %}
+        <a class="ini-act" href="/chat/colegas/muro/{{ c.p.pk }}/">
+          {% if c.foto %}<img src="{{ c.foto }}" alt="">{% else %}<span class="av">{{ c.nombre|slice:":1"|upper }}</span>{% endif %}
+          <div style="min-width:0"><div class="text-truncate"><b>{{ c.nombre }}</b> publicó <span class="text-muted">{{ c.p.get_tipo_display|lower }}</span></div>
+            <div class="small text-truncate"><i class="fas {{ c.icono }} me-1 text-muted"></i>{{ c.p.titulo }} · <span class="text-muted">{{ c.hace }}</span></div></div>
+        </a>
+        {% empty %}
+        <div class="text-muted small">Todavía no hay publicaciones de otros docentes. <a href="{% url 'chat:muro' %}">Ir a la Sala de Profesores</a></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,18 +1,28 @@
 {% extends "salon_digital/base_salon.html" %}
-{% block titulo %}Comunidad docente · Mi Salón Virtual{% endblock %}
+{% block titulo %}Sala de Profesores · Mi Salón Virtual{% endblock %}
 {% block contenido %}
 {% include 'chat/_muro_estilos.html' %}
 <div class="row g-3 mt-1">
-  {# ---------- Izquierda: yo y navegación ---------- #}
+  {# ---------- Izquierda: navegación y filtros ---------- #}
   <aside class="col-lg-3 d-none d-lg-block">
-    <div class="mu-lado text-center">
-      {% include 'chat/_av.html' with foto=yo.foto nombre=yo.nombre clase='grande' %}
-      <div class="fw-bold mt-2">{{ yo.nombre }}</div>
-      <div class="small text-muted">{{ yo.desc }}</div>
-      <a class="small" href="/chat/colegas/u/{{ request.user.pk }}/">Ver mi perfil</a>
+    <div class="mu-lado sp-caja">
+      <h6 class="sp-tit">Navegación</h6>
+      <nav class="mu-nav sp-nav">
+        <a href="/chat/colegas/muro/" class="{% if not ver %}on{% endif %}"><i class="fas fa-table-cells-large"></i>Sala de Profesores</a>
+        <a href="{% url 'salon_digital:mi_espacio' %}"><i class="far fa-user"></i>Mi Espacio</a>
+        <a href="{% url 'aula:inicio' %}"><i class="fas fa-users"></i>Mis Estudiantes</a>
+        <a href="{% url 'materiales:lista' %}"><i class="far fa-calendar"></i>Planeación</a>
+      </nav>
+    </div>
+    <div class="mu-lado sp-caja">
+      <h6 class="sp-tit">Filtros</h6>
+      <div class="sp-filtros">
+        <a href="?{% if ver %}ver={{ ver }}{% endif %}" class="{% if not tipo %}on{% endif %}"><i class="fas {% if not tipo %}fa-circle-check{% else %}fa-border-all{% endif %}"></i>Todo</a>
+        {% for k, v, ic in filtros_tipo %}<a href="?tipo={{ k }}{% if ver %}&ver={{ ver }}{% endif %}" class="{% if tipo == k %}on{% endif %}"><i class="fas {% if tipo == k %}fa-circle-check{% else %}{{ ic }}{% endif %}"></i>{{ v }}</a>{% endfor %}
+        <a href="{% url 'aula:eventos' %}"><i class="fas fa-trophy"></i>Olimpiadas y eventos</a>
+      </div>
     </div>
     <nav class="mu-lado mu-nav p-2">
-      <a href="/chat/colegas/muro/" class="{% if not ver %}on{% endif %}"><i class="fas fa-house"></i>Muro</a>
       <a href="/chat/colegas/muro/?ver=guardados" class="{% if ver == 'guardados' %}on{% endif %}"><i class="fas fa-bookmark"></i>Guardados</a>
       <a href="/chat/colegas/muro/?ver=mias" class="{% if ver == 'mias' %}on{% endif %}"><i class="fas fa-pen"></i>Mis publicaciones</a>
       <a href="/chat/colegas/?tab=colegas"><i class="fas fa-user-group"></i>Mis colegas <span class="ms-auto small text-muted">{{ n_colegas }}</span></a>
@@ -24,7 +34,7 @@
 
   {# ---------- Centro: publicar, filtros y publicaciones ---------- #}
   <section class="col-lg-6">
-    <div class="d-flex d-lg-none gap-2 mb-2 overflow-auto pb-1">
+    <div class="{% if espacios_menu %}d-none{% else %}d-flex d-lg-none{% endif %} gap-2 mb-2 overflow-auto pb-1">
       <a class="mu-chip {% if not ver %}on{% endif %}" href="/chat/colegas/muro/">Muro</a>
       <a class="mu-chip {% if ver == 'guardados' %}on{% endif %}" href="?ver=guardados"><i class="fas fa-bookmark me-1"></i>Guardados</a>
       <a class="mu-chip {% if ver == 'mias' %}on{% endif %}" href="?ver=mias">Mías</a>
@@ -41,7 +51,19 @@
     </div>
     {% else %}
     <div class="mu-lado">
-      <button class="btn w-100 text-start text-muted border rounded-pill px-3 {% if escribir %}d-none{% endif %}" type="button" id="mu-abrir">¿Qué quiere compartir con sus colegas?</button>
+      <div class="{% if escribir %}d-none{% endif %}" id="sp-compositor">
+        <div class="d-flex gap-2 align-items-center mb-2">
+          {% include 'chat/_av.html' with foto=yo.foto nombre=yo.nombre clase='chico' %}
+          <button class="btn flex-grow-1 text-start text-muted border px-3 py-2" style="border-radius:14px" type="button" id="mu-abrir">¿Qué experiencia o material quiere compartir hoy con sus colegas?</button>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary sp-rapido" data-tipo="recurso"><i class="far fa-file-lines me-1"></i>Guía pedagógica</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary sp-rapido" data-tipo="actividad"><i class="fas fa-upload me-1"></i>Juego interactivo (HTML)</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary sp-rapido" data-tipo="experiencia"><i class="fas fa-chalkboard-user me-1"></i>Experiencia</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary sp-rapido" data-tipo="consulta"><i class="far fa-circle-question me-1"></i>Consulta</button>
+          <button type="button" class="btn btn-sm sp-publicar ms-auto sp-rapido" data-tipo="experiencia">Publicar</button>
+        </div>
+      </div>
       <form method="post" enctype="multipart/form-data" id="mu-form" class="{% if not escribir %}d-none{% endif %}">{% csrf_token %}
         <div class="d-flex flex-wrap gap-1 mb-2" role="radiogroup" aria-label="Tipo de publicación">
           {% for k, v in tipos %}<input type="radio" class="btn-check" name="tipo" value="{{ k }}" id="mu-t-{{ k }}" {% if compartir and k == 'actividad' or not compartir and k == 'experiencia' %}checked{% endif %}>
@@ -79,7 +101,7 @@
 
     <form method="get" class="mb-2">
       {% if ver %}<input type="hidden" name="ver" value="{{ ver }}">{% endif %}
-      <div class="d-flex gap-1 overflow-auto pb-1 mb-2">
+      <div class="d-flex d-lg-none gap-1 overflow-auto pb-1 mb-2">
         <a class="mu-chip {% if not tipo %}on{% endif %}" href="?{% if ver %}ver={{ ver }}{% endif %}">Todo</a>
         {% for k, v in tipos %}<a class="mu-chip {% if tipo == k %}on{% endif %}" href="?tipo={{ k }}{% if ver %}&ver={{ ver }}{% endif %}">{{ v }}</a>{% endfor %}
       </div>
@@ -108,7 +130,7 @@
   <aside class="col-lg-3">
     {% if sugerencias %}
     <div class="mu-lado">
-      <h6><i class="fas fa-user-plus me-1"></i>Personas que quizá conozca</h6>
+      <h6 class="sp-tit">Colegas sugeridos</h6>
       {% for s in sugerencias %}
       <div class="mu-sug" id="sug-{{ s.t.u.pk }}">
         <a href="/chat/colegas/u/{{ s.t.u.pk }}/">{% include 'chat/_av.html' with foto=s.t.foto nombre=s.t.nombre clase='chico' %}</a>
@@ -116,7 +138,7 @@
           <a href="/chat/colegas/u/{{ s.t.u.pk }}/" class="fw-semibold text-reset text-decoration-none small d-block text-truncate">{{ s.t.nombre }}</a>
           <div class="text-muted" style="font-size:.75rem">{{ s.razones|join:" · " }}</div>
           <div class="d-flex gap-1 mt-1">
-            <form method="post" action="/chat/colegas/solicitud/" class="m-0">{% csrf_token %}<input type="hidden" name="usuario" value="{{ s.t.u.pk }}"><input type="hidden" name="accion" value="enviar"><input type="hidden" name="volver" value="/chat/colegas/muro/"><button class="btn btn-sm btn-outline-primary py-0 text-nowrap"><i class="fas fa-user-plus me-1"></i>Agregar</button></form>
+            <form method="post" action="/chat/colegas/solicitud/" class="m-0">{% csrf_token %}<input type="hidden" name="usuario" value="{{ s.t.u.pk }}"><input type="hidden" name="accion" value="enviar"><input type="hidden" name="volver" value="/chat/colegas/muro/"><button class="btn btn-sm sp-conectar py-0 text-nowrap">Conectar</button></form>
             <button type="button" class="btn btn-sm btn-link text-muted py-0 px-1 text-nowrap mu-descartar" data-u="{{ s.t.u.pk }}" style="font-size:.75rem">No me interesa</button>
           </div>
         </div>
@@ -125,9 +147,19 @@
       <a class="small d-block mt-2" href="/chat/colegas/?tab=buscar">Buscar más docentes</a>
     </div>
     {% endif %}
+    <div class="mu-lado sp-caja">
+      <a href="{% url 'aula:eventos' %}" class="d-flex align-items-center text-reset text-decoration-none mb-2"><h6 class="sp-tit flex-grow-1 mb-0">Eventos activos</h6><i class="fas fa-chevron-right" style="color:#f59e0b"></i></a>
+      {% for e in eventos %}
+      <div class="sp-evento mb-2"><b class="d-block">{{ e.titulo }}</b><span class="small">{{ e.get_tipo_display }}</span>
+        <a class="btn btn-sm sp-unirse mt-2 d-inline-block" href="{% url 'aula:evento' e.pk %}">Ver ranking en vivo</a></div>
+      {% empty %}
+      <div class="sp-evento"><b class="d-block">Olimpiadas y eventos</b><span class="small">Organice una olimpiada intercolegiada con ranking en vivo y veedores.</span>
+        <a class="btn btn-sm sp-unirse mt-2 d-inline-block" href="{% url 'aula:eventos' %}">Ver eventos</a></div>
+      {% endfor %}
+    </div>
     {% if destacados %}
     <div class="mu-lado">
-      <h6><i class="fas fa-lightbulb me-1 text-warning"></i>Lo más útil de la semana</h6>
+      <h6 class="sp-tit">Recursos en tendencia</h6>
       {% for d in destacados %}<a href="/chat/colegas/muro/{{ d.pk }}/" class="d-block small text-decoration-none mb-2"><b class="text-reset">{{ d.titulo }}</b><span class="text-muted d-block">{{ d.get_tipo_display }} · {{ d.n }} reacción{{ d.n|pluralize:"es" }}</span></a>{% endfor %}
     </div>
     {% endif %}
@@ -144,5 +176,19 @@
   </aside>
 </div>
 {% include 'chat/_muro_js.html' %}
+<script>
+document.querySelectorAll('.sp-rapido').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var r = document.getElementById('mu-t-' + b.dataset.tipo);
+    if (r) { r.checked = true; r.dispatchEvent(new Event('change', {bubbles: true})); }
+    var abrir = document.getElementById('mu-abrir'); if (abrir) abrir.click();
+    document.getElementById('sp-compositor').classList.add('d-none');
+  });
+});
+var ab = document.getElementById('mu-abrir');
+if (ab) ab.addEventListener('click', function () { document.getElementById('sp-compositor').classList.add('d-none'); });
+var cancel = document.getElementById('mu-cancelar');
+if (cancel) cancel.addEventListener('click', function () { document.getElementById('sp-compositor').classList.remove('d-none'); });
+</script>
 {% include 'aula/_compartir.html' %}
 {% endblock %}

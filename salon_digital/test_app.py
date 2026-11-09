@@ -28,7 +28,7 @@ class AppMiSalon(TestCase):
     def test_entrada_de_la_app(self):
         self.assertIn('/salon_digital/entrar/', self.client.get('/salon_digital/app/')['Location'])
         self.client.force_login(self.u)
-        self.assertEqual(self.client.get('/salon_digital/app/')['Location'], '/aula/')
+        self.assertEqual(self.client.get('/salon_digital/app/')['Location'], '/salon_digital/inicio/')
 
     def test_paginas_con_manifiesto_e_instalar(self):
         self.client.force_login(self.u)

@@ -1,4 +1,4 @@
-Versión 0005 · 2026-11-08 20:26
+Versión 0007 · 2026-11-09 00:23
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -168,6 +168,7 @@ NUEVO     aula/templates/aula/_mate.html
 NUEVO     aula/templates/aula/_nube_grabaciones.html
 CAMBIADO  aula/templates/aula/actividad.html
 NUEVO     aula/templates/aula/banco.html
+CAMBIADO  aula/templates/aula/base_salon.html
 CAMBIADO  aula/templates/aula/calificaciones.html
 NUEVO     aula/templates/aula/calificaciones_pdf.html
 NUEVO     aula/templates/aula/compartidos.html
@@ -226,7 +227,9 @@ NUEVO     chat/migrations/0005_colegas.py
 NUEVO     chat/migrations/0006_perfil_colega_foto.py
 NUEVO     chat/migrations/0007_muro_academico.py
 NUEVO     chat/migrations/0008_muro_actividades.py
+NUEVO     chat/migrations/0009_reunion_docente.py
 CAMBIADO  chat/models.py
+CAMBIADO  chat/reglas.py
 NUEVO     chat/static/chat/flotante.js
 NUEVO     chat/templates/chat/_av.html
 NUEVO     chat/templates/chat/_campana_colegas.html
@@ -382,6 +385,7 @@ CAMBIADO  notas/views/sabana_views.py
 CAMBIADO  piar/logica.py
 CAMBIADO  prematricula/templates/prematricula/_base_publica.html
 CAMBIADO  puntoexacto/views.py
+NUEVO     salon_digital/espacios.py
 CAMBIADO  salon_digital/forms.py
 CAMBIADO  salon_digital/identidad.py
 NUEVO     salon_digital/limites.py
@@ -400,9 +404,11 @@ NUEVO     salon_digital/templates/salon_digital/_app.html
 CAMBIADO  salon_digital/templates/salon_digital/bandeja.html
 CAMBIADO  salon_digital/templates/salon_digital/base_salon.html
 CAMBIADO  salon_digital/templates/salon_digital/identificarse.html
+NUEVO     salon_digital/templates/salon_digital/inicio.html
 NUEVO     salon_digital/templates/salon_digital/instalar_app.html
 CAMBIADO  salon_digital/templates/salon_digital/landing.html
 CAMBIADO  salon_digital/templates/salon_digital/mi_cuenta.html
+NUEVO     salon_digital/templates/salon_digital/mi_espacio.html
 NUEVO     salon_digital/templates/salon_digital/pago.html
 NUEVO     salon_digital/templates/salon_digital/pagos_revisar.html
 CAMBIADO  salon_digital/templates/salon_digital/panel.html
@@ -410,12 +416,14 @@ NUEVO     salon_digital/templates/salon_digital/planes.html
 NUEVO     salon_digital/templates/salon_digital/tarjetas_grupo.html
 CAMBIADO  salon_digital/templates/salon_digital/ver_grupo.html
 NUEVO     salon_digital/test_app.py
+NUEVO     salon_digital/test_espacios.py
 NUEVO     salon_digital/test_pagos.py
 NUEVO     salon_digital/test_planes.py
 CAMBIADO  salon_digital/urls.py
 CAMBIADO  salon_digital/views.py
 NUEVO     salon_digital/views_app.py
 CAMBIADO  salon_digital/views_cuentas.py
+NUEVO     salon_digital/views_espacios.py
 CAMBIADO  salon_digital/views_grupos.py
 NUEVO     salon_digital/views_pagos.py
 CAMBIADO  templates/base.html
@@ -474,6 +482,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   notas/migrations/0063_docente_estilo_planilla.py   (estilo de la planilla del docente)
   aula/migrations/0026_compartir_de_la_comunidad.py (compartir publicaciones del muro de la comunidad)
   notas/migrations/0064_colegio_estilo_planilla.py   (estilo de la planilla definido por el colegio)
+  chat/migrations/0009_reunion_docente.py           (el grupo «Sala de profesores» del chat del colegio pasa a llamarse «Reunión docente»)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

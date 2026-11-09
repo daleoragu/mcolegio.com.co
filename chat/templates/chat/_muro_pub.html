@@ -29,7 +29,7 @@
     <div class="flex-grow-1" style="min-width:0"><b class="d-block text-truncate">{{ p.documento.titulo }}</b>
       <span class="small text-muted">{{ p.documento.get_tipo_display }}{% if p.documento.area %} · {{ p.documento.area }}{% endif %}{% if p.documento.grado %} · Grado {{ p.documento.grado }}{% endif %}{% if p.copias %} · lo usaron {{ p.copias }} docente{{ p.copias|pluralize }}{% endif %}</span></div>
     <a class="btn btn-sm btn-outline-secondary" href="/chat/colegas/muro/{{ p.pk }}/material/" target="_blank"><i class="far fa-eye me-1"></i>Ver</a>
-    {% if not t.mia %}<form method="post" action="/chat/colegas/muro/{{ p.pk }}/copiar/" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-primary"><i class="far fa-copy me-1"></i>Copiar a mis materiales</button></form>{% endif %}
+    {% if not t.mia %}<form method="post" action="/chat/colegas/muro/{{ p.pk }}/copiar/" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-primary"><i class="fas fa-file-import me-1"></i>Importar a mi Planeación</button></form>{% endif %}
   </div>{% endif %}
   {% if p.tipo == 'actividad' and p.pagina %}
   <div class="mu-actividad">

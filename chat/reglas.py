@@ -160,7 +160,7 @@ def grupo_asignatura(colegio, asignacion, quien):
 
 def sala_profesores(colegio, quien):
     conv, _ = Conversacion.objects.get_or_create(colegio=colegio, clave='p', defaults={
-        'tipo': 'profesores', 'nombre': 'Sala de profesores', 'creada_por': quien})
+        'tipo': 'profesores', 'nombre': 'Reunión docente', 'creada_por': quien})
     sincronizar(conv)
     return conv
 
@@ -170,7 +170,7 @@ def grupos_disponibles(user, colegio):
     r = rol(user, colegio)
     salida = []
     if r in ('admin', 'docente'):
-        salida.append(('profesores', None, 'Sala de profesores'))
+        salida.append(('profesores', None, 'Reunión docente'))
         cursos = Curso.objects.filter(colegio=colegio).order_by('nombre') if r == 'admin' else \
             _cursos_del_docente(user, colegio).order_by('nombre')
         for c in cursos:

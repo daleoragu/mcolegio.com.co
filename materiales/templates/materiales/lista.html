@@ -1,7 +1,44 @@
 {% extends base %}
 {% block page_title %}
+{% if espacios_menu %}
+<style>
+.ep-acciones{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.ep-acciones .btn{border-radius:10px;font-weight:600;padding:8px 14px}
+.ep-crear{background:#1e2a78;color:#fff}.ep-crear:hover{background:#151f5c;color:#fff}
+.ep-mas{background:#fff;border:1px solid #cbd5e1;color:#0f172a}.ep-mas:hover{border-color:#64748b}
+.ep-importar{background:linear-gradient(90deg,#7e2a8a,#0f8b8d);color:#fff;box-shadow:0 0 0 3px rgba(15,139,141,.18)}.ep-importar:hover{color:#fff;filter:brightness(1.08)}
+.mm-tipos{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))!important;gap:14px!important}
+.mm-tipo{height:100%;padding:0!important;overflow:hidden;background:#fff!important;border-radius:16px!important;text-align:left!important;display:flex!important;flex-direction:column;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.mm-tipo i{display:grid!important;place-items:center;height:96px;width:100%;font-size:2.4rem!important;color:#fff;background:linear-gradient(135deg,#a5b4fc,#5eead4)}
+.mm-tipos form:nth-child(4n+2) .mm-tipo i{background:linear-gradient(135deg,#c4b5fd,#93c5fd)}
+.mm-tipos form:nth-child(4n+3) .mm-tipo i{background:linear-gradient(135deg,#5eead4,#a7f3d0)}
+.mm-tipos form:nth-child(4n+4) .mm-tipo i{background:linear-gradient(135deg,#fcd34d,#fda4af)}
+.mm-tipo span{padding:10px 12px;font-weight:700;color:#0f172a;font-size:.92rem}
+.mm-tipo:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(15,23,42,.10)}
+</style>
+<h3 class="mb-0 fw-bold">Estudio de Planeación</h3>
+<p class="text-muted small mb-0">Cree desde plantillas, importe material y envíelo a sus grupos.</p>
+<div class="ep-acciones">
+  <form method="post" action="{% url 'materiales:nuevo' %}" class="m-0">{% csrf_token %}<input type="hidden" name="tipo" value="guia_momentos"><button class="btn ep-crear"><i class="fas fa-plus me-1"></i>Crear guía por momentos</button></form>
+  <a class="btn ep-mas" href="{% url 'aula:instrumentos' %}"><i class="fas fa-plus me-1"></i>Rúbrica / Lista de chequeo</a>
+  <a class="btn ep-mas" href="{% url 'puntoexacto:crear' %}"><i class="fas fa-plus me-1"></i>Examen PuntoExacto</a>
+  <div class="dropdown">
+    <button class="btn ep-importar dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-file-import me-1"></i>Importar material (Biblioteca / Sala / HTML / Excel)</button>
+    <ul class="dropdown-menu">
+      <li><a class="dropdown-item" href="{% url 'materiales:biblioteca' %}"><i class="fas fa-book-bookmark me-2 text-muted"></i>Biblioteca comunitaria</a></li>
+      <li><a class="dropdown-item" href="/chat/colegas/muro/?tipo=recurso"><i class="fas fa-comments me-2 text-muted"></i>Recursos de la Sala de Profesores</a></li>
+      <li><a class="dropdown-item" href="/chat/colegas/muro/?ver=guardados"><i class="fas fa-bookmark me-2 text-muted"></i>Mis guardados de la Sala</a></li>
+      <li><a class="dropdown-item" href="{% url 'aula:compartidos' %}"><i class="fas fa-inbox me-2 text-muted"></i>Compartido conmigo</a></li>
+      <li><hr class="dropdown-divider"></li>
+      <li><a class="dropdown-item" href="{% url 'salon_digital:nueva_pagina' %}"><i class="fas fa-code me-2 text-muted"></i>Página o juego HTML / ZIP</a></li>
+      <li><a class="dropdown-item" href="{% url 'materiales:banco_pagina' %}"><i class="fas fa-file-excel me-2 text-muted"></i>Preguntas desde Excel (Banco de preguntas)</a></li>
+    </ul>
+  </div>
+</div>
+{% else %}
 <h4 class="mb-0"><i class="fas fa-book-open-reader me-2"></i>Mis materiales</h4>
 <p class="text-muted small mb-0">Guías, talleres, evaluaciones y fichas con {% if acceso.es_individual %}su encabezado{% else %}el encabezado del colegio{% endif %}, listos para imprimir o publicar en el aula.</p>
+{% endif %}
 {% endblock %}
 {% block content %}
 {% include 'materiales/_estilos.html' %}
@@ -11,7 +48,7 @@
   <div class="col-lg-8">
     <div class="mm-tarjeta">
       <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-        <h6 class="mb-0 flex-grow-1">Crear</h6>
+        <h6 class="mb-0 flex-grow-1">{% if espacios_menu %}Plantillas{% else %}Crear{% endif %}</h6>
         <a class="btn btn-sm btn-outline-primary" href="{% url 'materiales:biblioteca' %}"><i class="fas fa-book-bookmark me-1"></i>Biblioteca</a>
         <a class="btn btn-sm btn-outline-primary" href="{% url 'materiales:banco_pagina' %}"><i class="fas fa-box-archive me-1"></i>Banco de preguntas</a>
         <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:ayuda' %}"><i class="far fa-circle-question me-1"></i>Guías de uso</a>

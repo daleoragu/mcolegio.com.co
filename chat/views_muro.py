@@ -352,10 +352,13 @@ def muro(request):
                   .order_by('-n', '-creada')[:5])
     convocatorias = visibles(user).filter(tipo='convocatoria', fecha_limite__gte=hoy, oculta=False).order_by('fecha_limite')[:4]
     perfil = perfil_de(user)
+    from aula.models import Evento
+    eventos = list(Evento.objects.filter(Q(creador=user) | Q(organizadores=user), activo=True).distinct().order_by('-creado')[:3])
     filtros = {k: v for k, v in (('tipo', tipo), ('area', area), ('grado', grado), ('de', de), ('q', q), ('ver', ver)) if v}
     from urllib.parse import urlencode
     return render(request, 'chat/muro.html', {
         'pubs': [_tarjeta_pub(p, user, mias) for p in lista], 'tipos': Publicacion.TIPOS, 'iconos': ICONOS,
+        'filtros_tipo': [(k, v, ICONOS.get(k, ('fa-note-sticky', ''))[0]) for k, v in Publicacion.TIPOS], 'eventos': eventos,
         'tipo': tipo, 'area': area, 'grado': grado, 'de': de, 'q': q, 'ver': ver,
         'siguiente': f'?{urlencode(dict(filtros, pagina=pagina + 1))}' if pagina * POR_PAGINA < total else '',
         'anterior': f'?{urlencode(dict(filtros, pagina=pagina - 1))}' if pagina > 1 else '',

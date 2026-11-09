@@ -7,86 +7,125 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 {% include 'salon_digital/_app.html' %}
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  /* Mismos colores de mcolegio: azul y dorado */
-  --vino:#1f3a68; --mor:#2b4f8a; --fuc:#f2b632; --lila:#eaf0f9;
-  --line:#dde3ec; --bg:#f5f7fb; --ink:#1d2433; --tenue:#5b6474;
-  --bs-primary:#2b4f8a;
+  /* Rediseño: fondo claro, azul real de base, verde para juegos y ámbar para IA y planeación */
+  --vino:#1e3a8a; --mor:#2563eb; --fuc:#f59e0b; --lila:#eef2ff;
+  --line:#e2e8f0; --bg:#f8fafc; --ink:#0f172a; --tenue:#64748b;
+  --indigo:#4f46e5; --esmeralda:#10b981; --ambar:#f59e0b;
+  --bs-primary:#2563eb; --bs-primary-rgb:37,99,235; --bs-border-radius:.75rem; --bs-body-font-family:'Inter',system-ui,'Segoe UI',Arial,sans-serif;
 }
-body{background:var(--bg);color:var(--ink);font-family:'Segoe UI',system-ui,Arial,sans-serif}
+body{background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,'Segoe UI',Arial,sans-serif}
 a{color:var(--mor)}
 a:hover{color:var(--vino)}
+.btn{border-radius:.7rem;font-weight:500}
 .btn-primary{background:var(--mor);border-color:var(--mor)}
 .btn-primary:hover,.btn-primary:focus{background:var(--vino);border-color:var(--vino)}
 .btn-outline-primary{color:var(--mor);border-color:var(--mor)}
 .btn-outline-primary:hover{background:var(--mor);border-color:var(--mor)}
-.form-control:focus,.form-select:focus{border-color:var(--mor);box-shadow:0 0 0 .2rem rgba(43,79,138,.15)}
-.navbar-salon{background:#fff;border-bottom:3px solid var(--fuc)}
-.navbar-salon .marca img{height:30px;width:auto}
-.navbar-salon .marca small{font-weight:700;color:var(--vino);border-left:2px solid var(--line);padding-left:10px;font-size:.95rem}
-.navbar-salon .nav-link{color:var(--ink);font-weight:500}
-.navbar-salon .nav-link:hover,.navbar-salon .nav-link.activo{color:var(--mor)}
-.navbar-salon .marca{font-weight:800;color:var(--vino);font-size:1.15rem;text-decoration:none;letter-spacing:-.01em}
-.card{border-color:var(--line)}
+.form-control,.form-select{border-radius:.7rem;border-color:#cbd5e1}
+.form-control:focus,.form-select:focus{border-color:var(--mor);box-shadow:0 0 0 .2rem rgba(37,99,235,.15)}
+.card{border-color:rgba(226,232,240,.8);border-radius:1rem;box-shadow:0 1px 2px rgba(15,23,42,.05)}
 .card-header{background:var(--lila);border-bottom-color:var(--line);font-weight:600;color:var(--vino)}
 .tabla-limpia th{background:var(--vino);color:#fff;font-size:.74rem;letter-spacing:.04em;text-transform:uppercase}
-.cinta{background:var(--lila);border:1px solid var(--line);border-radius:12px;padding:14px 18px}
-h1,h2,h3{color:var(--vino)}
+.cinta{background:var(--lila);border:1px solid var(--line);border-radius:1rem;padding:14px 18px}
+h1,h2,h3{color:var(--ink);font-weight:700;letter-spacing:-.01em}
 code{color:var(--mor);background:var(--lila);padding:1px 5px;border-radius:4px}
 footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px solid var(--line);margin-top:48px}
+/* Barra superior */
+.navbar-salon{background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1030}
+.navbar-salon .marca{font-weight:800;color:var(--ink);font-size:1.15rem;text-decoration:none;letter-spacing:-.01em}
+.navbar-salon .marca .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--indigo),var(--mor));color:#fff;display:grid;place-items:center;font-size:1.05rem}
+.navbar-salon .marca b{display:block;line-height:1.05;font-size:1.12rem}
+.navbar-salon .marca small{display:block;font-weight:500;color:var(--tenue);font-size:.74rem}
+.navbar-salon .marca img{height:30px;width:auto}
+.navbar-salon .nav-link{color:var(--ink);font-weight:500}
+.esp-nav{display:flex;gap:4px}
+.esp-nav a{padding:8px 14px;border-radius:999px;color:#334155;font-weight:600;font-size:.93rem;text-decoration:none;white-space:nowrap}
+.esp-nav a:hover{background:#f1f5f9;color:var(--ink)}
+.esp-nav a.on{background:var(--lila);color:var(--indigo);box-shadow:inset 0 -3px 0 var(--indigo)}
+.esp-ico{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#334155;background:transparent;border:0;position:relative;text-decoration:none}
+.esp-ico:hover{background:#f1f5f9;color:var(--ink)}
+.esp-yo{display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;border-radius:999px;background:#f1f5f9;color:var(--ink);text-decoration:none;font-weight:600;font-size:.9rem}
+.esp-av{width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--indigo);color:#fff;display:grid;place-items:center;font-weight:700;font-size:.85rem}
+/* Secciones del espacio (pestañas tipo píldora) */
+.esp-sub{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;margin-bottom:6px;scrollbar-width:thin}
+.esp-sub a{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font-size:.88rem;font-weight:600;color:#334155;text-decoration:none}
+.esp-sub a:hover{border-color:#94a3b8}
+.esp-sub a.on{background:var(--ink);border-color:var(--ink);color:#fff}
+/* Barra de abajo en el celular */
+.esp-abajo{display:none}
+@media (max-width:991.98px){
+  .esp-abajo{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:1030;background:#fff;border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -4px 16px rgba(15,23,42,.06)}
+  .esp-abajo a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.68rem;font-weight:600;color:#64748b;text-decoration:none;padding:4px 0;border-radius:12px}
+  .esp-abajo a i{font-size:1.15rem}
+  .esp-abajo a.on{color:var(--indigo);background:var(--lila)}
+  body.con-abajo{padding-bottom:78px}
+  body.con-abajo .ms-instalar{bottom:84px!important}
+  body.con-abajo .cf-boton{bottom:88px!important}
+}
+/* Tarjetas del rediseño */
+.esp-card{background:#fff;border:1px solid rgba(226,232,240,.8);border-radius:1rem;box-shadow:0 1px 2px rgba(15,23,42,.05);transition:box-shadow .15s}
+.esp-card:hover{box-shadow:0 6px 18px rgba(15,23,42,.08)}
+.esp-chip{display:inline-block;border-radius:999px;padding:3px 10px;font-size:.8rem;font-weight:600;text-decoration:none;margin:0 4px 6px 0}
 </style>
 {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="{% if espacios_menu %}con-abajo{% endif %}">
 
-<nav class="navbar navbar-expand-lg navbar-salon py-2 mb-4">
-  <div class="container">
-    <a class="marca d-flex align-items-center gap-2 text-decoration-none" href="{% if request.user.cuenta_salon %}{% url 'aula:inicio' %}{% else %}{% url 'salon_digital:landing' %}{% endif %}">
-      <img src="{% static 'img/mcolegio-logo-oscuro.png' %}" alt="mcolegio"><small>Mi Salón Virtual</small>
+<nav class="navbar navbar-salon py-2 mb-3">
+  <div class="container d-flex flex-nowrap align-items-center gap-2">
+    {% if espacios_menu %}
+    <a class="marca d-flex align-items-center gap-2" href="{% url 'salon_digital:inicio' %}">
+      <span class="logo"><i class="fas fa-users"></i></span><span><b>mcolegio</b><small>Mi Salón Virtual</small></span>
     </a>
-    {% if request.user.cuenta_salon %}
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu-salon" aria-controls="menu-salon" aria-expanded="false" aria-label="Menú">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="menu-salon">
-      <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
-        <li class="nav-item"><a class="nav-link {% if request.resolver_match.app_name == 'aula' and request.resolver_match.url_name != 'instrumentos' and request.resolver_match.url_name != 'instrumento' and request.resolver_match.url_name != 'escala' %}activo{% endif %}" href="{% url 'aula:inicio' %}">Mis aulas</a></li>
-        <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'grupos' or request.resolver_match.url_name == 'ver_grupo' %}activo{% endif %}" href="{% url 'salon_digital:grupos' %}">Grupos</a></li>
-        <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'panel' %}activo{% endif %}" href="{% url 'salon_digital:panel' %}">Actividades y pruebas</a></li>
-        <li class="nav-item"><a class="nav-link {% if request.resolver_match.app_name == 'materiales' %}activo{% endif %}" href="{% url 'materiales:lista' %}">Mis materiales</a></li>
-        <li class="nav-item"><a class="nav-link {% if request.resolver_match.app_name == 'puntoexacto' %}activo{% endif %}" href="{% url 'puntoexacto:lista' %}">Exámenes</a></li>
-        <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'instrumentos' or request.resolver_match.url_name == 'instrumento' %}activo{% endif %}" href="{% url 'aula:instrumentos' %}">Rúbricas</a></li>
-        <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'escala' %}activo{% endif %}" href="{% url 'aula:escala' %}">Mi escala</a></li>
-        <li class="nav-item">{% include 'chat/_campana_colegas.html' with boton='nav-link border-0 bg-transparent px-2' %}</li>
-        <li class="nav-item"><a class="nav-link position-relative {% if request.resolver_match.app_name == 'chat' %}activo{% endif %}" href="{% url 'chat:muro' %}" id="nav-colegas" title="Comunidad docente: muro, colegas y mensajes"><i class="fas fa-user-group me-1"></i>Comunidad<span class="badge rounded-pill text-bg-danger ms-1 d-none" id="nav-colegas-n"></span></a></li>
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">{{ request.user.cuenta_salon.nombre_publico|default:"Mi cuenta" }}</a>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" href="{% url 'salon_digital:mi_cuenta' %}">Mi cuenta y plan</a></li>
-            <li><a class="dropdown-item fw-semibold" href="{% url 'salon_digital:planes' %}">💳 Planes y pagos</a></li>
-            <li><a class="dropdown-item" href="{% url 'aula:compartidos' %}">📥 Compartido conmigo</a></li>
-            <li><a class="dropdown-item" href="{% url 'salon_digital:app_instalar' %}">📲 Instalar la app</a></li>
-            <li><a class="dropdown-item" href="/copias/?volver={{ request.path|urlencode }}">Copia de seguridad</a></li>
-            <li><a class="dropdown-item" href="{% url 'salon_digital:ayuda' %}">Ayuda</a></li>
-            {% if request.user.is_staff %}<li><a class="dropdown-item" href="{% url 'salon_digital:bandeja' %}">Revisión de docentes</a></li>
-            <li><a class="dropdown-item" href="{% url 'salon_digital:revisar_pagos' %}">Pagos por revisar</a></li>{% endif %}
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item text-muted" href="{% url 'salon_digital:salir' %}">Salir</a></li>
-          </ul>
-        </li>
-      </ul>
+    <div class="esp-nav mx-auto d-none d-lg-flex" aria-label="Espacios">
+      {% for e in espacios_menu %}<a href="{{ e.url }}" class="{% if e.on %}on{% endif %}"{% if e.on %} aria-current="page"{% endif %}>{{ e.nombre }}</a>{% endfor %}
     </div>
-    {% elif not hide_cuenta %}
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center gap-1 ms-auto ms-lg-0">
+      {% include 'chat/_campana_colegas.html' with boton='esp-ico' %}
+      <a class="esp-ico" href="/chat/colegas/" id="nav-colegas" title="Mensajes y colegas"><i class="fas fa-comment-dots"></i><span class="badge rounded-pill text-bg-danger position-absolute top-0 end-0 d-none" id="nav-colegas-n" style="font-size:.6rem"></span></a>
+      <div class="dropdown">
+        <a class="esp-yo dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <span class="esp-av">{{ request.user.cuenta_salon.nombre_publico|default:request.user.username|slice:":1"|upper }}</span><span class="d-none d-md-inline text-truncate" style="max-width:160px">{{ request.user.cuenta_salon.nombre_publico|default:"Mi cuenta" }}</span>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{% url 'salon_digital:mi_espacio' %}">👤 Mi Espacio de Profe</a></li>
+          <li><a class="dropdown-item" href="{% url 'salon_digital:mi_cuenta' %}">Mi cuenta y plan</a></li>
+          <li><a class="dropdown-item fw-semibold" href="{% url 'salon_digital:planes' %}">💳 Planes y pagos</a></li>
+          <li><a class="dropdown-item" href="{% url 'aula:compartidos' %}">📥 Compartido conmigo</a></li>
+          <li><a class="dropdown-item" href="{% url 'salon_digital:app_instalar' %}">📲 Instalar la app</a></li>
+          <li><a class="dropdown-item" href="/copias/?volver={{ request.path|urlencode }}">Copia de seguridad</a></li>
+          <li><a class="dropdown-item" href="{% url 'salon_digital:ayuda' %}">Ayuda</a></li>
+          {% if request.user.is_staff %}<li><a class="dropdown-item" href="{% url 'salon_digital:bandeja' %}">Revisión de docentes</a></li>
+          <li><a class="dropdown-item" href="{% url 'salon_digital:revisar_pagos' %}">Pagos por revisar</a></li>{% endif %}
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-muted" href="{% url 'salon_digital:salir' %}">Salir</a></li>
+        </ul>
+      </div>
+    </div>
+    {% else %}
+    <a class="marca d-flex align-items-center gap-2 text-decoration-none" href="{% if request.user.cuenta_salon %}{% url 'salon_digital:inicio' %}{% else %}{% url 'salon_digital:landing' %}{% endif %}">
+      <img src="{% static 'img/mcolegio-logo-oscuro.png' %}" alt="mcolegio"><small style="border-left:2px solid var(--line);padding-left:10px;font-weight:700">Mi Salón Virtual</small>
+    </a>
+    {% if not hide_cuenta and not request.user.cuenta_salon %}
+    <div class="d-flex align-items-center gap-2 ms-auto">
       <a class="btn btn-sm btn-outline-primary" href="{% url 'salon_digital:entrar' %}">Entrar</a>
       <a class="btn btn-sm btn-primary" href="{% url 'salon_digital:registro' %}">Crear cuenta</a>
     </div>
     {% endif %}
+    {% endif %}
   </div>
 </nav>
+{% if espacios_menu %}
+<nav class="esp-abajo" aria-label="Espacios">
+  {% for e in espacios_menu %}<a href="{{ e.url }}" class="{% if e.on %}on{% endif %}"><i class="fas {{ e.icono }}"></i>{% if e.id == 'sala' %}Sala{% elif e.id == 'espacio' %}Mi Espacio{% elif e.id == 'estudiantes' %}Estudiantes{% else %}{{ e.nombre }}{% endif %}</a>{% endfor %}
+</nav>{% endif %}
 
 <main class="container pb-4">
+  {% if secciones_menu %}<div class="esp-sub" aria-label="Secciones">{% for x in secciones_menu %}<a href="{{ x.url }}" class="{% if x.on %}on{% endif %}{% if x.solo_movil %} d-lg-none{% endif %}"><i class="fas {{ x.icono }} me-1"></i>{{ x.nombre }}</a>{% endfor %}</div>{% endif %}
   {% with cs=request.user.cuenta_salon %}{% if cs and request.resolver_match.url_name != 'planes' and request.resolver_match.url_name != 'pago' %}
     {% if cs.en_prueba or cs.plan != 'gratis' and cs.plan != 'ilimitado' and cs.vence_en and cs.dias_restantes <= 5 and cs.dias_restantes >= -7 %}
     <div class="alert {% if cs.vencida %}alert-danger{% elif cs.dias_restantes <= 5 %}alert-warning{% else %}alert-info{% endif %} d-flex flex-wrap align-items-center gap-2 py-2 mt-3 mb-3">

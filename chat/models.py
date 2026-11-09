@@ -1,4 +1,4 @@
-"""Chat interno de cada colegio: conversaciones uno a uno y grupos (curso, asignatura, sala de profesores
+"""Chat interno de cada colegio: conversaciones uno a uno y grupos (curso, asignatura, reunión docente
 y grupos que arma un docente o un directivo).
 
 Reglas (ver reglas.py):
@@ -37,7 +37,7 @@ class AjustesChat(models.Model):
 
 class Conversacion(models.Model):
     TIPOS = [('directa', 'Uno a uno'), ('curso', 'Grupo del curso'), ('asignatura', 'Grupo de la asignatura'),
-             ('profesores', 'Sala de profesores'), ('grupo', 'Grupo'),
+             ('profesores', 'Reunión docente'), ('grupo', 'Grupo'),
              ('colegas', 'Colegas: uno a uno'), ('colegas_g', 'Grupo de docentes')]
     # Sin colegio: conversaciones entre colegas docentes de toda la plataforma (ver views_colegas.py)
     colegio = models.ForeignKey('notas.Colegio', on_delete=models.CASCADE, related_name='conversaciones_chat',

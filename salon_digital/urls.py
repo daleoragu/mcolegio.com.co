@@ -1,7 +1,7 @@
 # salon_digital/urls.py
 from django.urls import path, re_path
 
-from . import views, views_app, views_cuentas, views_grupos, views_pagos
+from . import views, views_app, views_cuentas, views_espacios, views_grupos, views_pagos
 
 app_name = 'salon_digital'
 
@@ -21,6 +21,12 @@ urlpatterns = [
     path('eliminar-datos/', views_cuentas.eliminar_datos, name='eliminar_datos'),
     path('ayuda/', views.ayuda, name='ayuda'),
     path('ayuda/descargar/<slug:cual>/', views.descargar, name='descargar'),
+
+    # --- Los espacios del docente: Inicio y Mi Espacio de Profe ---
+    path('inicio/', views_espacios.inicio, name='inicio'),
+    path('mi-espacio/', views_espacios.mi_espacio, name='mi_espacio'),
+    path('mi-espacio/qr.png', views_espacios.qr_espacio, name='qr_espacio'),
+    path('mi-espacio/pagina/<slug:slug>/visibilidad/', views_espacios.visibilidad_pagina, name='visibilidad_pagina'),
 
     # --- Panel del docente ---
     path('panel/', views.panel, name='panel'),
