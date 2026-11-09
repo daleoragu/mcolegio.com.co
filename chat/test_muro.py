@@ -71,7 +71,7 @@ class Muro(TestCase):
 
     def test_normas_publicar_y_visibilidad(self):
         r = self.cl.get('/chat/colegas/muro/')
-        self.assertContains(r, 'Acepto las normas'); self.assertContains(r, 'Personas que quizá conozca')
+        self.assertContains(r, 'Acepto las normas'); self.assertContains(r, 'Colegas sugeridos')
         # Sin aceptar las normas no publica
         self.cl.post('/chat/colegas/muro/', {'tipo': 'experiencia', 'titulo': 'Mi clase con Tangram'})
         self.assertFalse(Publicacion.objects.exists())

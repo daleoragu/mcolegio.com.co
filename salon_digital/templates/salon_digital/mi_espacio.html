@@ -1,0 +1,147 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}Mi Espacio de Profe · Mi Salón Virtual{% endblock %}
+{% block extra_css %}<style>
+.me-cab{position:relative;overflow:hidden;border-radius:1.25rem;background:linear-gradient(120deg,#cffafe 0%,#e0f2fe 45%,#ede9fe 100%);border:1px solid rgba(148,163,184,.3);box-shadow:0 2px 8px rgba(15,23,42,.06)}
+.me-cab::before,.me-cab::after{content:"";position:absolute;border-radius:50%;opacity:.35}
+.me-cab::before{width:180px;height:180px;right:-50px;bottom:-70px;background:#a5b4fc}
+.me-cab::after{width:18px;height:18px;left:24px;top:64%;background:#10b981}
+.me-arriba{display:flex;gap:22px;align-items:center;padding:22px 26px 14px;position:relative;z-index:1}
+.me-foto{width:128px;height:128px;border-radius:50%;object-fit:cover;border:5px solid #fff;box-shadow:0 6px 18px rgba(15,23,42,.15);background:#4f46e5;color:#fff;display:grid;place-items:center;font-size:3rem;font-weight:800;flex:0 0 128px}
+.me-cab h1{font-size:clamp(1.4rem,3vw,1.9rem);font-weight:800;margin:0}
+.me-cifras{display:grid;grid-template-columns:repeat(4,1fr);background:rgba(255,255,255,.55);border-top:1px solid rgba(148,163,184,.25);position:relative;z-index:1}
+.me-cifras div{text-align:center;padding:10px 4px}
+.me-cifras b{display:block;font-size:1.35rem;font-weight:800}
+.me-cifras span{font-size:.8rem;color:#475569}
+.me-tabs{display:flex;gap:6px;overflow-x:auto;border-bottom:1px solid var(--line);margin:18px 0 14px}
+.me-tabs a{flex:0 0 auto;padding:10px 14px;font-weight:600;color:#475569;text-decoration:none;border-bottom:3px solid transparent}
+.me-tabs a.on{color:var(--mor);border-bottom-color:var(--mor)}
+.me-caja{background:#fff;border:1px solid rgba(226,232,240,.9);border-radius:1rem;padding:16px;box-shadow:0 1px 2px rgba(15,23,42,.05);margin-bottom:14px}
+.me-pag{display:flex;gap:14px;align-items:flex-start}
+.me-pag .mini{flex:0 0 96px;height:72px;border-radius:12px;background:linear-gradient(135deg,#e0e7ff,#ccfbf1);display:grid;place-items:center;font-size:1.6rem;color:#4338ca}
+.form-switch .form-check-input{width:2.6em;height:1.35em;cursor:pointer}
+.me-enlace{background:#eff6ff;border-radius:10px;padding:8px 12px;font-weight:600;color:#1d4ed8;word-break:break-all}
+@media (max-width:575.98px){.me-arriba{flex-direction:column;text-align:center}.me-cifras{grid-template-columns:repeat(2,1fr)}}
+</style>{% endblock %}
+{% block contenido %}
+{% if tab == 'publicaciones' %}{% include 'chat/_muro_estilos.html' %}{% endif %}
+<div class="me-cab mb-2">
+  <div class="me-arriba">
+    {% if yo.foto %}<img src="{{ yo.foto }}" alt="Foto de perfil" class="me-foto">{% else %}<span class="me-foto">{{ yo.nombre|slice:":1"|upper }}</span>{% endif %}
+    <div style="min-width:0">
+      <h1>{{ yo.nombre }}</h1>
+      <div class="fw-semibold" style="color:#334155">{{ yo.desc }}</div>
+      {% if perfil.presentacion %}<p class="mb-1 mt-1">{{ perfil.presentacion }}</p>{% else %}<p class="mb-1 mt-1 text-muted small">Escriba una presentación corta para que los colegas lo conozcan. <a href="/chat/colegas/ajustes/">Completar mi perfil</a></p>{% endif %}
+      <span class="badge rounded-pill {% if cuenta.nivel == 'premium' or cuenta.nivel == 'ilimitado' %}text-bg-warning{% else %}text-bg-light border{% endif %}">⭐ {{ cuenta.nombre_nivel }}</span>
+      <a class="small ms-2" href="/chat/colegas/ajustes/"><i class="fas fa-pen me-1"></i>Editar perfil</a>
+    </div>
+  </div>
+  <div class="me-cifras">
+    <div><b>{{ n_publicaciones }}</b><span>Publicaciones compartidas</span></div>
+    <div><b>{{ n_colegas }}</b><span>Colegas</span></div>
+    <div><b>{{ visitas }}</b><span>Visitas a /p/{{ cuenta.slug }}</span></div>
+    <div><b>{{ copias }}</b><span>Veces que lo usaron colegas</span></div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-9">
+    <nav class="me-tabs" aria-label="Mi Espacio">
+      <a href="?tab=publicaciones" class="{% if tab == 'publicaciones' %}on{% endif %}"><i class="fas fa-layer-group me-1"></i>Mis publicaciones</a>
+      <a href="?tab=vitrina" class="{% if tab == 'vitrina' %}on{% endif %}"><i class="fas fa-box-open me-1"></i>Mi vitrina de materiales</a>
+      <a href="?tab=paginas" class="{% if tab == 'paginas' %}on{% endif %}"><i class="fas fa-code me-1"></i>Mis páginas interactivas HTML</a>
+      <a href="/chat/colegas/muro/?ver=guardados"><i class="fas fa-bookmark me-1"></i>Guardados</a>
+    </nav>
+
+    {% if tab == 'publicaciones' %}
+    <div class="me-caja">
+      <div class="small fw-bold text-muted mb-2"><i class="fas fa-pen me-1"></i>¿Qué quiere compartir hoy?</div>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-sm btn-outline-secondary" href="/chat/colegas/muro/?escribir=1"><i class="fas fa-share-nodes me-1"></i>Compartir recurso</a>
+        <a class="btn btn-sm btn-outline-secondary" href="/chat/colegas/muro/?escribir=1"><i class="fas fa-pen-to-square me-1"></i>Escribir reflexión</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:nueva_pagina' %}"><i class="fas fa-upload me-1"></i>Subir HTML / actividad</a>
+      </div>
+    </div>
+    {% for t in pubs %}{% include 'chat/_muro_pub.html' with detalle=False %}
+    {% empty %}<div class="me-caja text-center text-muted py-4">Todavía no ha publicado en la Sala de Profesores. <a href="/chat/colegas/muro/?escribir=1">Haga su primera publicación</a></div>{% endfor %}
+
+    {% elif tab == 'vitrina' %}
+    <p class="small text-muted">Los materiales y actividades que ha compartido con la comunidad. Sus colegas los ven y los pueden usar.</p>
+    {% for p in vitrina %}
+    <div class="me-caja me-pag">
+      <span class="mini">{% if p.documento %}<i class="fas fa-file-lines"></i>{% else %}<i class="fas fa-gamepad"></i>{% endif %}</span>
+      <div class="flex-grow-1" style="min-width:0">
+        <div class="small text-muted">{% if p.documento %}{{ p.documento.get_tipo_display }}{% else %}Actividad HTML{% endif %}{% if p.area %} · {{ p.area }}{% endif %}</div>
+        <b class="d-block">{{ p.titulo }}</b>
+        <div class="small text-muted mt-1"><i class="fas fa-download me-1"></i>{{ p.copias }} docente{{ p.copias|pluralize }} lo usaron · {% if p.visibilidad == 'colegas' %}<i class="fas fa-user-group me-1"></i>Solo mis colegas{% else %}<i class="fas fa-earth-americas me-1"></i>Público en Sala de Profesores{% endif %}</div>
+      </div>
+      <a class="btn btn-sm btn-outline-secondary" href="/chat/colegas/muro/{{ p.pk }}/">Ver</a>
+    </div>
+    {% empty %}<div class="me-caja text-center text-muted py-4">Todavía no ha compartido materiales. Desde <a href="{% url 'materiales:lista' %}">Planeación</a> puede publicar una guía en la Sala de Profesores.</div>{% endfor %}
+
+    {% else %}
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+      <p class="small text-muted mb-0 flex-grow-1">Cada página con su interruptor: <b>Pública</b> sale en su perfil <code>/p/{{ cuenta.slug }}</code>; <b>Solo con enlace</b> la ve quien tenga el enlace o el QR.</p>
+      <a class="btn btn-sm btn-primary" href="{% url 'salon_digital:nueva_pagina' %}"><i class="fas fa-upload me-1"></i>Subir .html / .zip</a>
+    </div>
+    {% for p in paginas %}
+    <div class="me-caja me-pag">
+      <span class="mini"><i class="fas {% if p.tipo == 'sitio' %}fa-folder-tree{% else %}fa-code{% endif %}"></i></span>
+      <div class="flex-grow-1" style="min-width:0">
+        <div class="small text-muted">{% if p.tipo == 'sitio' %}Sitio interactivo (.zip){% else %}HTML interactivo{% endif %}{% if p.grado %} · Grado {{ p.grado }}{% endif %}{% if not p.visible %} · <span class="text-danger">No publicada</span>{% endif %}</div>
+        <b class="d-block">{{ p.titulo }}</b>
+        {% if p.descripcion %}<div class="small text-truncate">{{ p.descripcion }}</div>{% endif %}
+        <div class="small text-muted mt-1"><i class="far fa-eye me-1"></i>{{ p.visitas }} visita{{ p.visitas|pluralize }} · <i class="fas fa-square-poll-vertical me-1"></i>{{ p.total_sesiones }} resultado{{ p.total_sesiones|pluralize }}</div>
+      </div>
+      <div class="text-end" style="flex:0 0 auto">
+        <form method="post" action="{% url 'salon_digital:visibilidad_pagina' p.slug %}" class="form-check form-switch d-flex align-items-center justify-content-end gap-2 mb-2 me-vis">{% csrf_token %}
+          <label class="form-check-label small" for="vis-{{ p.pk }}">{% if p.listar_en_perfil %}Pública{% else %}Solo con enlace{% endif %}</label>
+          <input class="form-check-input ms-0" type="checkbox" role="switch" id="vis-{{ p.pk }}" name="publica" value="1" {% if p.listar_en_perfil %}checked{% endif %}>
+        </form>
+        <div class="d-flex flex-wrap gap-1 justify-content-end">
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:qr_hoja' p.slug %}"><i class="fas fa-qrcode me-1"></i>Hoja QR</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ p.ruta }}" target="_blank">Abrir</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'salon_digital:editar_pagina' p.slug %}">Editar</a>
+        </div>
+      </div>
+    </div>
+    {% empty %}<div class="me-caja text-center text-muted py-4">Todavía no tiene páginas. Suba un archivo .html o un sitio .zip y reciba los resultados de sus estudiantes.</div>{% endfor %}
+    <a class="small" href="{% url 'salon_digital:panel' %}">Ver el panel completo de mis páginas (resultados, clave, comentarios) →</a>
+    {% endif %}
+  </div>
+
+  <aside class="col-lg-3">
+    <div class="me-caja">
+      <div class="d-flex align-items-center mb-2"><b class="flex-grow-1">Enlace público</b><i class="fas fa-link text-muted"></i></div>
+      <div class="me-enlace mb-2">/p/{{ cuenta.slug }}</div>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" id="me-copiar" data-enlace="{{ enlace }}">Copiar enlace</button>
+        <a class="btn btn-sm btn-outline-secondary" href="/p/{{ cuenta.slug }}/" target="_blank">Ver</a>
+      </div>
+    </div>
+    <div class="me-caja">
+      <div class="d-flex align-items-center mb-2"><b class="flex-grow-1">Mis colegas</b><a class="small" href="/chat/colegas/?tab=colegas">Ver todos</a></div>
+      <div class="small text-muted">{{ n_colegas }} colega{{ n_colegas|pluralize }} · <a href="/chat/colegas/?tab=buscar">Buscar más</a></div>
+    </div>
+    <div class="me-caja text-center">
+      <b class="d-block">Código QR</b>
+      <div class="small text-muted mb-2">El código QR de mi espacio</div>
+      <img src="{% url 'salon_digital:qr_espacio' %}" alt="Código QR de mi espacio público" class="img-fluid" style="max-width:180px" loading="lazy">
+      <a class="d-block small mt-1" href="{% url 'salon_digital:qr_espacio' %}" download="qr-mi-espacio.png">Descargar QR</a>
+    </div>
+  </aside>
+</div>
+{% if tab == 'publicaciones' %}{% include 'chat/_muro_js.html' %}{% include 'aula/_compartir.html' %}{% endif %}
+<script>
+document.querySelectorAll('.me-vis input').forEach(function (i) {
+  i.addEventListener('change', function () {
+    var f = i.form, d = new FormData(f);
+    if (!i.checked) d.delete('publica');
+    fetch(f.action, {method: 'POST', body: d, credentials: 'same-origin', headers: {'x-requested-with': 'fetch'}}).then(function (r) {
+      if (r.ok) f.querySelector('label').textContent = i.checked ? 'Pública' : 'Solo con enlace'; else i.checked = !i.checked;
+    }).catch(function () { i.checked = !i.checked; });
+  });
+});
+var b = document.getElementById('me-copiar');
+if (b) b.addEventListener('click', function () { navigator.clipboard.writeText(b.dataset.enlace).then(function () { b.textContent = '¡Copiado!'; setTimeout(function () { b.textContent = 'Copiar enlace'; }, 1500); }); });
+</script>
+{% endblock %}
