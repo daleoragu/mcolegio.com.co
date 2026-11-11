@@ -14,7 +14,7 @@ MAX_PUNTOS = 3000
 MAX_CAMBIOS = 400
 LIMITE = 1_000_000          # el mundo es «infinito», pero no tanto
 TIPOS = ('trazo', 'linea', 'texto', 'imagen')
-HERRAMIENTAS = ('lapiz', 'resaltar', 'linea')
+HERRAMIENTAS = ('lapiz', 'resaltar', 'linea', 'poli')     # poli: segmentos rectos (formas, regla, compás)
 FONDOS = ('blanco', 'cuadros', 'rayas', 'verde')
 
 
@@ -26,6 +26,19 @@ def _num(v, minimo=-LIMITE, maximo=LIMITE):
     if x != x:
         raise ValueError('número inválido')
     return round(max(minimo, min(maximo, x)), 1)
+
+
+def _punto(p):
+    x, y = _num(p[0]), _num(p[1])
+    if len(p) < 3 or p[2] is None:
+        return [x, y]
+    try:
+        pr = float(p[2])
+    except (TypeError, ValueError):
+        return [x, y]
+    if pr != pr:
+        return [x, y]
+    return [x, y, -1 if pr < 0 else round(min(1.0, pr), 2)]
 
 
 def _color(v):
@@ -48,7 +61,8 @@ def limpiar_objeto(o, tablero, autor):
         puntos = o.get('p')
         if not isinstance(puntos, list) or not puntos or len(puntos) > MAX_PUNTOS:
             raise ValueError('trazo inválido')
-        n['p'] = [[_num(x), _num(y)] for x, y in (p[:2] for p in puntos if isinstance(p, (list, tuple)) and len(p) >= 2)]
+        # Cada punto: [x, y] o [x, y, presión 0..1] (lápiz); en «poli», presión -1 = levantar el lápiz (otra parte de la forma)
+        n['p'] = [_punto(p) for p in puntos if isinstance(p, (list, tuple)) and len(p) >= 2]
         if not n['p']:
             raise ValueError('trazo vacío')
         n['h'] = o.get('h') if o.get('h') in HERRAMIENTAS else 'lapiz'

@@ -49,7 +49,7 @@ class Tablero(TestCase):
         r = self.d.post('/salon_digital/pizarra/tablero/', {'titulo': 'Fracciones'})
         t = TableroClase.objects.get()
         self.assertRedirects(r, f'/salon_digital/pizarra/tablero/{t.pk}/', fetch_redirect_response=False)
-        self.assertContains(self.d.get(f'/salon_digital/pizarra/tablero/{t.pk}/'), 'tb-lienzo')
+        self.assertContains(self.d.get(f'/salon_digital/pizarra/tablero/{t.pk}/'), 'tb-capa')
         self.assertEqual(self.op(self.d, t, self.trazo('a1')).json()['v'], 1)
         self.op(self.d, t, self.trazo('a1'))                                   # repetido: no se duplica
         j = self.d.post(f'/aula/tablero/{t.pk}/imagen/', {'imagen': png()}).json()
@@ -76,7 +76,7 @@ class Tablero(TestCase):
         r = self.d.post(f'/salon_digital/pizarra/tablero/{t.pk}/compartir/', {'aula': self.aula.pk, 'editan': '0'})
         self.assertTrue(r.json()['compartido'])
         self.assertContains(ana.get(f'/aula/{self.aula.pk}/'), 'Tablero en vivo: Clase')
-        self.assertContains(ana.get(f'/aula/{self.aula.pk}/tablero/{t.pk}/'), 'tb-lienzo')
+        self.assertContains(ana.get(f'/aula/{self.aula.pk}/tablero/{t.pk}/'), 'tb-capa')
         # Solo ver: no puede escribir ni subir imágenes
         self.assertEqual(self.op(ana, t, self.trazo('e1')).status_code, 403)
         self.assertEqual(ana.post(f'/aula/tablero/{t.pk}/imagen/', {'imagen': png()}).status_code, 403)
@@ -112,3 +112,19 @@ class Tablero(TestCase):
         e = TB.estado(t, 1)
         self.assertIn('objetos', e)                                            # demasiado atrás: todo de nuevo
         self.assertIn('ops', TB.estado(t, t.version - 3))
+
+
+class TintaYFormas(Tablero):
+    def test_presion_y_formas_con_varias_partes(self):
+        t = TableroClase.objects.create(autor=self.u)
+        tinta = {'op': 'agregar', 'obj': {'id': 'p1', 't': 'trazo', 'h': 'lapiz', 'c': '#111827', 'g': 4,
+                                          'p': [[0, 0, 0.2], [5, 5, 0.85], [9, 7, 7], [12, 8]]}}
+        flecha = {'op': 'agregar', 'obj': {'id': 'f1', 't': 'trazo', 'h': 'poli', 'c': '#111827', 'g': 3,
+                                           'p': [[0, 0], [100, 0], [80, -10], [100, 0, -1], [80, 10]]}}
+        self.assertEqual(self.op(self.d, t, tinta).status_code, 200)
+        self.assertEqual(self.op(self.d, t, flecha).status_code, 200)
+        t.refresh_from_db()
+        p1, f1 = t.objetos
+        self.assertEqual(p1['p'], [[0.0, 0.0, 0.2], [5.0, 5.0, 0.85], [9.0, 7.0, 1.0], [12.0, 8.0]])   # presión acotada a 0..1
+        self.assertEqual(f1['h'], 'poli')
+        self.assertEqual(f1['p'][3], [100.0, 0.0, -1])                                              # levantar el lápiz

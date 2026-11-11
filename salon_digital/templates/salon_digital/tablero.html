@@ -8,8 +8,8 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   * { box-sizing:border-box; }
-  html, body { margin:0; height:100%; overflow:hidden; font-family:system-ui,'Segoe UI',Arial,sans-serif; background:#0f172a; touch-action:none; overscroll-behavior:none; }
-  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  html, body { margin:0; height:100%; overflow:hidden; font-family:system-ui,'Segoe UI',Arial,sans-serif; background:#0f172a; touch-action:none; overscroll-behavior:none; -webkit-user-select:none; user-select:none; }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
   .tb-barra { position:fixed; left:50%; bottom:12px; transform:translateX(-50%); z-index:5; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:4px;
               background:rgba(15,23,42,.93); color:#fff; border-radius:16px; padding:7px 9px; box-shadow:0 8px 24px rgba(0,0,0,.35); max-width:calc(100vw - 12px); }
   .tb-barra button, .tb-barra label { border:0; background:transparent; color:#e2e8f0; width:36px; height:36px; border-radius:10px; font-size:.95rem; display:grid; place-items:center; cursor:pointer; margin:0; position:relative; }
@@ -31,20 +31,26 @@
   .tb-interruptor { display:flex; align-items:center; gap:8px; margin-top:10px; font-weight:600; cursor:pointer; }
   .tb-interruptor input { width:40px; height:22px; accent-color:#047857; }
   .tb-enlace { margin-top:8px; font-size:.78rem; word-break:break-all; background:#f1f5f9; border-radius:8px; padding:6px 8px; display:none; }
-  .tb-aviso { position:fixed; left:50%; top:62px; transform:translateX(-50%); z-index:7; background:#0f172a; color:#fff; padding:8px 14px; border-radius:10px; font-size:.88rem; display:none; }
-  .tb-texto { position:fixed; z-index:6; min-width:140px; background:rgba(255,255,255,.92); border:2px dashed #38bdf8; outline:none; padding:2px 4px; font-family:system-ui, sans-serif; resize:both; }
+  .tb-aviso { position:fixed; left:50%; top:62px; transform:translateX(-50%); z-index:7; background:#0f172a; color:#fff; padding:8px 14px; border-radius:10px; font-size:.88rem; display:none; max-width:92vw; text-align:center; }
+  .tb-texto { position:fixed; z-index:6; min-width:140px; background:rgba(255,255,255,.92); border:2px dashed #38bdf8; outline:none; padding:2px 4px; font-family:system-ui, sans-serif; resize:both; -webkit-user-select:text; user-select:text; }
   .tb-zoom { position:fixed; right:10px; bottom:76px; z-index:5; display:flex; flex-direction:column; gap:4px; }
   .tb-zoom button { width:38px; height:38px; border:0; border-radius:10px; background:rgba(15,23,42,.88); color:#fff; font-size:1rem; cursor:pointer; }
   .tb-zoom span { color:#fff; font-size:.7rem; text-align:center; background:rgba(15,23,42,.7); border-radius:6px; }
   .tb-soltar { position:fixed; inset:0; z-index:8; background:rgba(56,189,248,.18); border:4px dashed #38bdf8; display:none; place-items:center; color:#0f172a; font-weight:800; font-size:1.4rem; }
+  .tb-menu { position:fixed; z-index:6; bottom:76px; left:50%; transform:translateX(-50%); background:#fff; color:#0f172a; border-radius:14px; padding:8px; box-shadow:0 10px 30px rgba(0,0,0,.35); display:none; gap:6px; flex-wrap:wrap; justify-content:center; max-width:94vw; }
+  .tb-menu.abierto { display:flex; }
+  .tb-menu button { border:1px solid #e2e8f0; background:#fff; border-radius:10px; padding:8px 10px; font-size:.85rem; display:flex; flex-direction:column; align-items:center; gap:3px; min-width:84px; cursor:pointer; color:#0f172a; }
+  .tb-menu button i, .tb-menu button span.ic { font-size:1.2rem; }
+  .tb-menu button.on { background:#0f172a; color:#fff; border-color:#0f172a; }
 </style>
 </head>
 <body>
-<canvas id="tb-lienzo"></canvas>
+<canvas id="tb-base"></canvas>
+<canvas id="tb-capa"></canvas>
 <div class="tb-arriba">
   <a class="tb-pildora" href="{{ cfg.volver }}"><i class="fas fa-arrow-left"></i>{% if es_dueno %}Mis tableros{% else %}Volver al aula{% endif %}</a>
   <span class="tb-pildora tb-titulo" id="tb-titulo">{{ t.titulo }}</span>
-  <span class="ms-auto" style="margin-left:auto"></span>
+  <span style="margin-left:auto"></span>
   <span class="tb-pildora" id="tb-estado"></span>
   {% if es_dueno %}<button type="button" class="tb-pildora verde" id="tb-compartir-btn"><i class="fas fa-share-nodes"></i>Compartir con la clase</button>{% endif %}
 </div>
@@ -55,7 +61,7 @@
   <label for="tb-p-aula">Clase</label>
   <select id="tb-p-aula"><option value="">— No compartir (solo yo) —</option>{% for a in aulas %}<option value="{{ a.id }}" {% if t.aula_id == a.id %}selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select>
   <label class="tb-interruptor"><input type="checkbox" id="tb-p-editan" {% if t.editan_estudiantes %}checked{% endif %}>Los estudiantes pueden escribir</label>
-  <div class="text-muted" style="font-size:.78rem;color:#64748b;margin-top:4px">Si está apagado, solo ven lo que usted escribe, en vivo. Encendido, cada uno puede escribir, pegar imágenes y borrar <b>lo suyo</b>.</div>
+  <div style="font-size:.78rem;color:#64748b;margin-top:4px">Si está apagado, solo ven lo que usted escribe, en vivo. Encendido, cada uno puede escribir, pegar imágenes y borrar <b>lo suyo</b>.</div>
   <div class="tb-enlace" id="tb-p-enlace"></div>
   {% if not aulas %}<div style="font-size:.8rem;color:#b45309;margin-top:8px">Todavía no tiene grupos: créelos en Mis Estudiantes.</div>{% endif %}
 </div>
@@ -66,11 +72,27 @@
   <button type="button" id="tb-mas" title="Acercar">+</button><span id="tb-z">100%</span><button type="button" id="tb-menos" title="Alejar">−</button>
   <button type="button" id="tb-todo" title="Ver todo"><i class="fas fa-expand-arrows-alt"></i></button>
 </div>
+<div class="tb-menu" id="tb-menu-formas" aria-label="Formas">
+  <button type="button" data-forma="rect"><i class="far fa-square"></i>Rectángulo</button>
+  <button type="button" data-forma="circulo"><i class="far fa-circle"></i>Círculo</button>
+  <button type="button" data-forma="triangulo"><span class="ic">△</span>Triángulo</button>
+  <button type="button" data-forma="flecha"><i class="fas fa-arrow-right-long"></i>Flecha</button>
+  <button type="button" data-forma="plano"><i class="fas fa-plus"></i>Plano cartesiano</button>
+</div>
+<div class="tb-menu" id="tb-menu-inst" aria-label="Instrumentos de geometría">
+  <button type="button" data-inst="regla"><i class="fas fa-ruler-horizontal"></i>Regla</button>
+  <button type="button" data-inst="escuadra45"><span class="ic">◺</span>Escuadra 45°</button>
+  <button type="button" data-inst="escuadra60"><span class="ic">◿</span>Escuadra 30°-60°</button>
+  <button type="button" data-inst="transportador"><span class="ic">◠</span>Transportador</button>
+  <button type="button" data-h="compas" class="tb-esc"><i class="fas fa-compass-drafting"></i>Compás</button>
+</div>
 <div class="tb-barra" role="toolbar" aria-label="Herramientas del tablero">
   <button type="button" data-h="mano" title="Mover la vista (también con dos dedos o la barra espaciadora)"><i class="fas fa-hand"></i></button>
-  <button type="button" data-h="lapiz" class="on tb-esc" title="Lápiz"><i class="fas fa-pen"></i></button>
+  <button type="button" data-h="lapiz" class="on tb-esc" title="Lápiz (sensible a la presión con lápiz digital)"><i class="fas fa-pen"></i></button>
   <button type="button" data-h="resaltar" class="tb-esc" title="Resaltador"><i class="fas fa-highlighter"></i></button>
   <button type="button" data-h="linea" class="tb-esc" title="Línea recta"><i class="fas fa-slash"></i></button>
+  <button type="button" id="tb-formas" class="tb-esc" title="Formas: rectángulo, círculo, triángulo, flecha, plano cartesiano"><i class="fas fa-shapes"></i></button>
+  <button type="button" id="tb-inst" title="Instrumentos: regla, escuadras, transportador y compás"><i class="fas fa-compass-drafting"></i></button>
   <button type="button" data-h="texto" class="tb-esc" title="Texto"><i class="fas fa-font"></i></button>
   <button type="button" data-h="mover" class="tb-esc" title="Seleccionar, mover y cambiar el tamaño"><i class="fas fa-arrow-pointer"></i></button>
   <button type="button" data-h="borrar" class="tb-esc" title="Borrador (borra trazos y textos completos)"><i class="fas fa-eraser"></i></button>
@@ -93,83 +115,230 @@
   'use strict';
   const CFG = JSON.parse(document.getElementById('tb-cfg').textContent);
   const CSRF = '{{ csrf_token }}';
-  const lienzo = document.getElementById('tb-lienzo'), cx = lienzo.getContext('2d');
+  const base = document.getElementById('tb-base'), capa = document.getElementById('tb-capa');
+  const bx = base.getContext('2d'), kx = capa.getContext('2d');
   const COLORES = ['#111827', '#2563eb', '#dc2626', '#16a34a', '#ea580c', '#7c3aed', '#ffffff'];
   const GROSORES = [3, 6, 12];
   const FONDOS = ['blanco', 'cuadros', 'rayas', 'verde'];
+  const CM = 37.8;                                       // 1 cm en el mundo (a 100 %)
   let objetos = CFG.objetos || [], version = CFG.v, fondo = CFG.fondo || 'cuadros', editar = CFG.editar, compartido = CFG.compartido;
-  let herramienta = editar ? 'lapiz' : 'mano', color = COLORES[0], grosor = GROSORES[0];
-  const vista = {x: -40, y: -40, z: 1};               // esquina superior izquierda de la pantalla, en el «mundo»
-  let actual = null, seleccion = null, accion = null, espacio = false;
-  const mios = [];                                    // lo que agregué (para deshacer)
-  const imagenes = {};                                 // id → <img>
+  let herramienta = editar ? 'lapiz' : 'mano', color = COLORES[0], grosor = GROSORES[0], forma = 'rect';
+  const vista = {x: -40, y: -40, z: 1};
+  let actual = null, seleccion = null, accion = null, espacio = false, guia = null, rotulo = '', compas = null, lapizVisto = false;
+  const instrumentos = [];
+  const mios = [], imagenes = {};
   const dpr = () => window.devicePixelRatio || 1;
   const nid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const aMundo = (sx, sy) => [sx / vista.z + vista.x, sy / vista.z + vista.y];
   const esMio = o => CFG.docente || o.a === CFG.yo;
+  const r1 = v => Math.round(v * 10) / 10;
 
-  // ----------------------------------------------------------------- dibujar
-  function tamano() { lienzo.width = innerWidth * dpr(); lienzo.height = innerHeight * dpr(); pintar(); }
+  // ================================================================= dibujo
+  function transformar(c) { const k = dpr(); c.setTransform(k * vista.z, 0, 0, k * vista.z, -vista.x * vista.z * k, -vista.y * vista.z * k); }
+  function limpiarLienzo(c, l) { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, l.width, l.height); }
+  function tamano() { [base, capa].forEach(l => { l.width = innerWidth * dpr(); l.height = innerHeight * dpr(); }); pintar(); }
   function imagenDe(id) {
     if (!imagenes[id]) { const im = new Image(); im.onload = pintar; im.src = CFG.urlVerImagen.replace('ID', id); imagenes[id] = im; }
     return imagenes[id];
   }
-  function fondoMundo() {
+  function fondoMundo(c) {
     const w = innerWidth / vista.z, h = innerHeight / vista.z, x0 = vista.x, y0 = vista.y;
-    cx.fillStyle = fondo === 'verde' ? '#1f3d2f' : '#ffffff'; cx.fillRect(x0, y0, w, h);
+    c.fillStyle = fondo === 'verde' ? '#1f3d2f' : '#ffffff'; c.fillRect(x0, y0, w, h);
     const paso = fondo === 'cuadros' ? 32 : 40;
-    if (fondo !== 'cuadros' && fondo !== 'rayas') return;
-    if (paso * vista.z < 6) return;
-    cx.strokeStyle = fondo === 'cuadros' ? '#dbeafe' : '#cbd5e1'; cx.lineWidth = 1 / vista.z; cx.beginPath();
-    if (fondo === 'cuadros') for (let x = Math.floor(x0 / paso) * paso; x < x0 + w; x += paso) { cx.moveTo(x, y0); cx.lineTo(x, y0 + h); }
-    for (let y = Math.floor(y0 / paso) * paso; y < y0 + h; y += paso) { cx.moveTo(x0, y); cx.lineTo(x0 + w, y); }
-    cx.stroke();
+    if ((fondo !== 'cuadros' && fondo !== 'rayas') || paso * vista.z < 6) return;
+    c.strokeStyle = fondo === 'cuadros' ? '#dbeafe' : '#cbd5e1'; c.lineWidth = 1 / vista.z; c.beginPath();
+    if (fondo === 'cuadros') for (let x = Math.floor(x0 / paso) * paso; x < x0 + w; x += paso) { c.moveTo(x, y0); c.lineTo(x, y0 + h); }
+    for (let y = Math.floor(y0 / paso) * paso; y < y0 + h; y += paso) { c.moveTo(x0, y); c.lineTo(x0 + w, y); }
+    c.stroke();
   }
   function caja(o) {
     if (o.t === 'imagen') return [o.x, o.y, o.w, o.h];
-    if (o.t === 'texto') { const lineas = o.texto.split('\n'); return [o.x, o.y, Math.max(...lineas.map(l => l.length)) * o.g * .55, lineas.length * o.g * 1.25]; }
+    if (o.t === 'texto') { const ls = o.texto.split('\n'); return [o.x, o.y, Math.max(...ls.map(l => l.length)) * o.g * .55, ls.length * o.g * 1.25]; }
     const xs = o.p.map(p => p[0]), ys = o.p.map(p => p[1]), m = o.g / 2;
     return [Math.min(...xs) - m, Math.min(...ys) - m, Math.max(...xs) - Math.min(...xs) + o.g, Math.max(...ys) - Math.min(...ys) + o.g];
   }
-  function dibujar(o) {
-    cx.save();
+  // Tinta con presión: el contorno del trazo con un ancho distinto en cada punto (como OneNote)
+  function tinta(c, o) {
+    const p = o.p, n = p.length, ancho = q => o.g * (.3 + .85 * (q[2] === undefined ? .5 : q[2]));
+    c.fillStyle = o.c;
+    if (n < 3) { c.beginPath(); c.arc(p[0][0], p[0][1], ancho(p[0]) / 2, 0, 7); c.fill(); if (n === 2) { c.beginPath(); c.arc(p[1][0], p[1][1], ancho(p[1]) / 2, 0, 7); c.fill(); } return; }
+    const L = [], R = [];
+    for (let i = 0; i < n; i++) {
+      const a = p[Math.max(0, i - 1)], b = p[Math.min(n - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, w = ancho(p[i]) / 2;
+      L.push([p[i][0] - dy / l * w, p[i][1] + dx / l * w]); R.push([p[i][0] + dy / l * w, p[i][1] - dx / l * w]);
+    }
+    c.beginPath(); c.moveTo(L[0][0], L[0][1]);
+    for (let i = 1; i < n - 1; i++) c.quadraticCurveTo(L[i][0], L[i][1], (L[i][0] + L[i + 1][0]) / 2, (L[i][1] + L[i + 1][1]) / 2);
+    c.lineTo(L[n - 1][0], L[n - 1][1]); c.lineTo(R[n - 1][0], R[n - 1][1]);
+    for (let i = n - 2; i > 0; i--) c.quadraticCurveTo(R[i][0], R[i][1], (R[i][0] + R[i - 1][0]) / 2, (R[i][1] + R[i - 1][1]) / 2);
+    c.lineTo(R[0][0], R[0][1]); c.closePath(); c.fill();
+    [0, n - 1].forEach(i => { c.beginPath(); c.arc(p[i][0], p[i][1], ancho(p[i]) / 2, 0, 7); c.fill(); });
+  }
+  function dibujar(c, o) {
+    c.save();
     if (o.t === 'imagen') {
       const im = imagenDe(o.img);
-      if (im.complete && im.naturalWidth) cx.drawImage(im, o.x, o.y, o.w, o.h);
-      else { cx.fillStyle = '#e2e8f0'; cx.fillRect(o.x, o.y, o.w, o.h); }
+      if (im.complete && im.naturalWidth) c.drawImage(im, o.x, o.y, o.w, o.h); else { c.fillStyle = '#e2e8f0'; c.fillRect(o.x, o.y, o.w, o.h); }
     } else if (o.t === 'texto') {
-      cx.fillStyle = o.c; cx.font = `${o.g}px system-ui, sans-serif`; cx.textBaseline = 'top';
-      o.texto.split('\n').forEach((l, i) => cx.fillText(l, o.x, o.y + i * o.g * 1.25));
+      c.fillStyle = o.c; c.font = `${o.g}px system-ui, sans-serif`; c.textBaseline = 'top';
+      o.texto.split('\n').forEach((l, i) => c.fillText(l, o.x, o.y + i * o.g * 1.25));
+    } else if (o.t === 'trazo' && o.h === 'lapiz' && o.p.length && o.p[0].length > 2) {
+      tinta(c, o);
     } else {
-      cx.lineCap = cx.lineJoin = 'round'; cx.strokeStyle = o.h === 'resaltar' ? o.c + '55' : o.c; cx.lineWidth = o.g;
-      const p = o.p; cx.beginPath(); cx.moveTo(p[0][0], p[0][1]);
-      if (o.t === 'linea') cx.lineTo(p[p.length - 1][0], p[p.length - 1][1]);
-      else for (let i = 1; i < p.length; i++) { const m = [(p[i - 1][0] + p[i][0]) / 2, (p[i - 1][1] + p[i][1]) / 2]; cx.quadraticCurveTo(p[i - 1][0], p[i - 1][1], m[0], m[1]); }
-      if (p.length === 1) cx.lineTo(p[0][0] + .1, p[0][1]);
-      cx.stroke();
+      c.lineCap = c.lineJoin = 'round'; c.strokeStyle = o.h === 'resaltar' ? o.c + '55' : o.c; c.lineWidth = o.g;
+      const p = o.p; c.beginPath(); c.moveTo(p[0][0], p[0][1]);
+      if (o.t === 'linea') c.lineTo(p[p.length - 1][0], p[p.length - 1][1]);
+      else if (o.h === 'poli') for (let i = 1; i < p.length; i++) { if (p[i][2] === -1) c.moveTo(p[i][0], p[i][1]); else c.lineTo(p[i][0], p[i][1]); }
+      else for (let i = 1; i < p.length; i++) { const m = [(p[i - 1][0] + p[i][0]) / 2, (p[i - 1][1] + p[i][1]) / 2]; c.quadraticCurveTo(p[i - 1][0], p[i - 1][1], m[0], m[1]); }
+      if (p.length === 1) c.lineTo(p[0][0] + .1, p[0][1]);
+      c.stroke();
     }
-    cx.restore();
+    c.restore();
   }
-  function pintar() {
-    const k = dpr();
-    cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, lienzo.width, lienzo.height);
-    cx.setTransform(k * vista.z, 0, 0, k * vista.z, -vista.x * vista.z * k, -vista.y * vista.z * k);
-    fondoMundo();
-    objetos.forEach(dibujar);
-    if (actual) dibujar(actual);
+  function pintarBase() { limpiarLienzo(bx, base); transformar(bx); fondoMundo(bx); objetos.forEach(o => dibujar(bx, o)); }
+  let pendiente = false;
+  function pintarCapa() {
+    pendiente = false;
+    limpiarLienzo(kx, capa); transformar(kx);
+    if (actual) dibujar(kx, actual);
+    instrumentos.forEach(dibujarInstrumento);
+    if (compas) dibujarCompas();
     if (seleccion) {
-      const [x, y, w, h] = caja(seleccion);
-      cx.setLineDash([6 / vista.z, 4 / vista.z]); cx.strokeStyle = '#0ea5e9'; cx.lineWidth = 2 / vista.z; cx.strokeRect(x - 4 / vista.z, y - 4 / vista.z, w + 8 / vista.z, h + 8 / vista.z); cx.setLineDash([]);
-      if (seleccion.t === 'imagen') { const s = 14 / vista.z; cx.fillStyle = '#0ea5e9'; cx.fillRect(x + w - s / 2, y + h - s / 2, s, s); }
+      const [x, y, w, h] = caja(seleccion), z = vista.z;
+      kx.setLineDash([6 / z, 4 / z]); kx.strokeStyle = '#0ea5e9'; kx.lineWidth = 2 / z; kx.strokeRect(x - 4 / z, y - 4 / z, w + 8 / z, h + 8 / z); kx.setLineDash([]);
+      if (seleccion.t === 'imagen') { const s = 14 / z; kx.fillStyle = '#0ea5e9'; kx.fillRect(x + w - s / 2, y + h - s / 2, s, s); }
     }
+    if (rotulo && accion && accion.punto) etiqueta(rotulo, accion.punto[0], accion.punto[1]);
     document.getElementById('tb-z').textContent = Math.round(vista.z * 100) + '%';
   }
+  function etiqueta(t, wx, wy) {
+    const z = vista.z; kx.save(); kx.font = `600 ${13 / z}px system-ui`; const w = kx.measureText(t).width + 12 / z;
+    kx.fillStyle = 'rgba(15,23,42,.88)'; kx.fillRect(wx + 14 / z, wy - 30 / z, w, 22 / z); kx.fillStyle = '#fff'; kx.textBaseline = 'middle'; kx.fillText(t, wx + 20 / z, wy - 19 / z); kx.restore();
+  }
+  const pedirCapa = () => { if (!pendiente) { pendiente = true; requestAnimationFrame(pintarCapa); } };
+  function pintar() { pintarBase(); pintarCapa(); }
 
-  // ----------------------------------------------------------------- servidor
+  // ================================================================= instrumentos de geometría
+  const GEO = {
+    regla: {w: 15 * CM, h: 1.8 * CM, poli: () => [[0, 0], [15 * CM, 0], [15 * CM, 1.8 * CM], [0, 1.8 * CM]], bordes: [[[0, 0], [15 * CM, 0]], [[0, 1.8 * CM], [15 * CM, 1.8 * CM]]], giro: [15 * CM + 18, .9 * CM]},
+    escuadra45: {poli: () => [[0, 0], [10 * CM, 0], [0, -10 * CM]], bordes: [[[0, 0], [10 * CM, 0]], [[0, 0], [0, -10 * CM]], [[10 * CM, 0], [0, -10 * CM]]], giro: [10 * CM + 18, 0]},
+    escuadra60: {poli: () => [[0, 0], [12.12 * CM, 0], [0, -7 * CM]], bordes: [[[0, 0], [12.12 * CM, 0]], [[0, 0], [0, -7 * CM]], [[12.12 * CM, 0], [0, -7 * CM]]], giro: [12.12 * CM + 18, 0]},
+    transportador: {r: 6 * CM, poli: () => { const r = 6 * CM, l = []; for (let a = 0; a <= 180; a += 3) l.push([Math.cos(Math.PI + a * Math.PI / 180) * r, Math.sin(Math.PI + a * Math.PI / 180) * r]); return l; },
+                    bordes: [[[-6 * CM, 0], [6 * CM, 0]]], giro: [6 * CM + 18, 0]},
+  };
+  const aLocal = (i, wx, wy) => { const dx = wx - i.x, dy = wy - i.y, c = Math.cos(-i.ang), s = Math.sin(-i.ang); return [dx * c - dy * s, dx * s + dy * c]; };
+  const aMundoI = (i, lx, ly) => { const c = Math.cos(i.ang), s = Math.sin(i.ang); return [i.x + lx * c - ly * s, i.y + lx * s + ly * c]; };
+  function dentro(poli, x, y) { let d = false; for (let a = 0, b = poli.length - 1; a < poli.length; b = a++) { const [xa, ya] = poli[a], [xb, yb] = poli[b]; if ((ya > y) !== (yb > y) && x < (xb - xa) * (y - ya) / (yb - ya) + xa) d = !d; } return d; }
+  function dibujarInstrumento(i) {
+    const g = GEO[i.tipo], z = vista.z;
+    kx.save(); kx.translate(i.x, i.y); kx.rotate(i.ang);
+    kx.beginPath(); g.poli().forEach((p, k) => k ? kx.lineTo(p[0], p[1]) : kx.moveTo(p[0], p[1])); kx.closePath();
+    kx.fillStyle = 'rgba(224,242,254,.55)'; kx.fill(); kx.strokeStyle = 'rgba(2,132,199,.9)'; kx.lineWidth = 1.5 / z; kx.stroke();
+    kx.strokeStyle = '#0c4a6e'; kx.fillStyle = '#0c4a6e'; kx.lineWidth = 1 / z; kx.font = `${Math.max(7, 9 / z)}px system-ui`; kx.textAlign = 'center';
+    if (i.tipo === 'transportador') {
+      const r = g.r;
+      for (let a = 0; a <= 180; a++) {
+        const ang = Math.PI + a * Math.PI / 180, l = a % 10 === 0 ? 14 : a % 5 === 0 ? 9 : 5, cs = Math.cos(ang), sn = Math.sin(ang);
+        kx.beginPath(); kx.moveTo(cs * r, sn * r); kx.lineTo(cs * (r - l), sn * (r - l)); kx.stroke();
+        if (a % 10 === 0) { kx.fillText(String(a), cs * (r - 24), sn * (r - 24) + 3); kx.fillStyle = '#64748b'; kx.fillText(String(180 - a), cs * (r - 38), sn * (r - 38) + 3); kx.fillStyle = '#0c4a6e'; }
+      }
+      kx.beginPath(); kx.moveTo(-6, 0); kx.lineTo(6, 0); kx.moveTo(0, -6); kx.lineTo(0, 6); kx.stroke();
+    } else {
+      const largo = i.tipo === 'regla' ? 15 : i.tipo === 'escuadra45' ? 10 : 12;
+      for (let mm = 0; mm <= largo * 10; mm++) {
+        const x = mm * CM / 10, l = mm % 10 === 0 ? 12 : mm % 5 === 0 ? 8 : 4;
+        kx.beginPath(); kx.moveTo(x, 0); kx.lineTo(x, i.tipo === 'regla' ? l : -l); kx.stroke();
+        if (mm % 10 === 0 && (CM * vista.z > 18 || mm % 50 === 0)) kx.fillText(String(mm / 10), x, i.tipo === 'regla' ? 24 : -16);
+      }
+    }
+    // el asa para girar y el ángulo
+    const [hx, hy] = g.giro; kx.beginPath(); kx.arc(hx, hy, 11 / z, 0, 7); kx.fillStyle = '#0284c7'; kx.fill();
+    kx.fillStyle = '#fff'; kx.font = `700 ${12 / z}px system-ui`; kx.textBaseline = 'middle'; kx.fillText('⟳', hx, hy + .5 / z);
+    kx.restore();
+    let grados = Math.round(((i.ang * 180 / Math.PI) % 360 + 360) % 360);
+    const [ex, ey] = aMundoI(i, g.giro[0], g.giro[1]); etiqueta(grados + '°', ex, ey + 30 / z);
+  }
+  function instrumentoEn(wx, wy) {
+    for (let k = instrumentos.length - 1; k >= 0; k--) {
+      const i = instrumentos[k], g = GEO[i.tipo], [lx, ly] = aLocal(i, wx, wy);
+      if (Math.hypot(lx - g.giro[0], ly - g.giro[1]) < 16 / vista.z) return {i: i, parte: 'giro'};
+      if (dentro(g.poli(), lx, ly)) return {i: i, parte: 'cuerpo'};
+    }
+    return null;
+  }
+  // El borde de un instrumento más cercano: para dibujar recto (o en arco con el transportador) pegado a él
+  function bordeCerca(wx, wy) {
+    const tol = 22 / vista.z;
+    for (const i of instrumentos) {
+      const g = GEO[i.tipo], [lx, ly] = aLocal(i, wx, wy);
+      if (i.tipo === 'transportador' && ly <= 4 / vista.z && Math.abs(Math.hypot(lx, ly) - g.r) < tol) return {tipo: 'arco', i: i};
+      for (const [a, b] of g.bordes) {
+        const dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy, s = Math.max(0, Math.min(1, ((lx - a[0]) * dx + (ly - a[1]) * dy) / l));
+        if (Math.hypot(lx - (a[0] + s * dx), ly - (a[1] + s * dy)) < tol) return {tipo: 'recta', i: i, a: a, b: b};
+      }
+    }
+    return null;
+  }
+  function proyectar(gu, wx, wy) {
+    const [lx, ly] = aLocal(gu.i, wx, wy);
+    if (gu.tipo === 'arco') { const r = GEO.transportador.r, a = Math.atan2(ly, lx); return {ang: a, p: aMundoI(gu.i, Math.cos(a) * r, Math.sin(a) * r)}; }
+    const {a, b} = gu, dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy, s = ((lx - a[0]) * dx + (ly - a[1]) * dy) / l;
+    return {p: aMundoI(gu.i, a[0] + s * dx, a[1] + s * dy)};
+  }
+  const menuInst = document.getElementById('tb-menu-inst'), menuFormas = document.getElementById('tb-menu-formas');
+  const barraTop = () => { const r = document.querySelector('.tb-barra').getBoundingClientRect(); return innerHeight - r.top + 8 + 'px'; };
+  function abrirMenu(m, otro) { otro.classList.remove('abierto'); m.style.bottom = barraTop(); m.classList.toggle('abierto'); }
+  document.getElementById('tb-inst').onclick = () => abrirMenu(menuInst, menuFormas);
+  menuInst.querySelectorAll('[data-inst]').forEach(b => b.addEventListener('click', () => {
+    const k = instrumentos.findIndex(i => i.tipo === b.dataset.inst);
+    if (k >= 0) instrumentos.splice(k, 1);
+    else { const [cx0, cy0] = aMundo(innerWidth / 2 - 200, innerHeight / 2); instrumentos.push({tipo: b.dataset.inst, x: cx0, y: cy0, ang: 0});
+      aviso('Arrástrelo para moverlo; gírelo con ⟳, con dos dedos o con la rueda del mouse. Dibuje pegado al borde para trazar recto.', 5000); }
+    b.classList.toggle('on', k < 0); menuInst.classList.remove('abierto'); pedirCapa();
+  }));
+
+  // ================================================================= compás
+  function dibujarCompas() {
+    const z = vista.z, c = compas.c;
+    kx.save(); kx.strokeStyle = '#0284c7'; kx.lineWidth = 1.5 / z; kx.setLineDash([5 / z, 4 / z]);
+    if (compas.r > 0) { kx.beginPath(); kx.arc(c[0], c[1], compas.r, 0, 7); kx.stroke(); }
+    kx.setLineDash([]); kx.beginPath(); kx.arc(c[0], c[1], 5 / z, 0, 7); kx.fillStyle = '#0284c7'; kx.fill();
+    if (compas.punta) { kx.beginPath(); kx.moveTo(c[0], c[1]); kx.lineTo(compas.punta[0], compas.punta[1]); kx.stroke(); }
+    kx.restore();
+    etiqueta('r = ' + (compas.r / CM).toFixed(1) + ' cm', c[0], c[1]);
+  }
+
+  // ================================================================= formas
+  document.getElementById('tb-formas').onclick = () => abrirMenu(menuFormas, menuInst);
+  menuFormas.querySelectorAll('[data-forma]').forEach(b => b.addEventListener('click', () => {
+    forma = b.dataset.forma; menuFormas.querySelectorAll('[data-forma]').forEach(x => x.classList.toggle('on', x === b));
+    elegir('forma'); menuFormas.classList.remove('abierto'); aviso('Arrastre para dibujar la forma.');
+  }));
+  function puntosForma(f, s, e, cuadrada) {
+    let [x0, y0] = s, [x1, y1] = e;
+    if (cuadrada) { const d = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)); x1 = x0 + Math.sign(x1 - x0 || 1) * d; y1 = y0 + Math.sign(y1 - y0 || 1) * d; }
+    if (f === 'rect') return [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]];
+    if (f === 'triangulo') return [[(x0 + x1) / 2, y0], [x1, y1], [x0, y1], [(x0 + x1) / 2, y0]];
+    if (f === 'circulo') { const cx0 = (x0 + x1) / 2, cy0 = (y0 + y1) / 2, rx = Math.abs(x1 - x0) / 2, ry = Math.abs(y1 - y0) / 2, l = [];
+      for (let a = 0; a <= 72; a++) l.push([cx0 + rx * Math.cos(a / 72 * 2 * Math.PI), cy0 + ry * Math.sin(a / 72 * 2 * Math.PI)]); return l; }
+    if (f === 'flecha') { const a = Math.atan2(y1 - y0, x1 - x0), t = Math.max(10, Math.hypot(x1 - x0, y1 - y0) * .18);
+      return [[x0, y0], [x1, y1], [x1 - t * Math.cos(a - .45), y1 - t * Math.sin(a - .45)], [x1, y1, -1], [x1 - t * Math.cos(a + .45), y1 - t * Math.sin(a + .45)]]; }
+    // plano cartesiano: ejes con flechas y marcas cada cuadro
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, xa = Math.min(x0, x1), xb = Math.max(x0, x1), ya = Math.min(y0, y1), yb = Math.max(y0, y1), t = 10, paso = 32, l = [];
+    l.push([xa, my], [xb, my], [xb - t, my - t / 2], [xb, my, -1], [xb - t, my + t / 2]);
+    l.push([mx, yb, -1], [mx, ya], [mx - t / 2, ya + t], [mx, ya, -1], [mx + t / 2, ya + t]);
+    for (let x = mx + paso; x < xb - t; x += paso) l.push([x, my - 4, -1], [x, my + 4]);
+    for (let x = mx - paso; x > xa; x -= paso) l.push([x, my - 4, -1], [x, my + 4]);
+    for (let y = my + paso; y < yb; y += paso) l.push([mx - 4, y, -1], [mx + 4, y]);
+    for (let y = my - paso; y > ya + t; y -= paso) l.push([mx - 4, y, -1], [mx + 4, y]);
+    return l;
+  }
+
+  // ================================================================= servidor (en vivo)
   function aviso(t, ms) { const a = document.getElementById('tb-aviso'); a.textContent = t; a.style.display = 'block'; clearTimeout(aviso.t); aviso.t = setTimeout(() => { a.style.display = 'none'; }, ms || 2500); }
   function enviar(op) {
     return fetch(CFG.urlOp, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF}, body: JSON.stringify(op)})
-      .then(r => r.json().then(j => [r, j])).then(([r, j]) => {
+      .then(r => r.json()).then(j => {
         if (!j.ok) { aviso(j.error || 'No se pudo guardar.'); traer(true); return; }
         if (j.v === version + 1) version = j.v; else traer();
       }).catch(() => aviso('Sin conexión: lo último puede no haberse guardado.'));
@@ -187,66 +356,69 @@
     fetch(CFG.urlEstado + '?desde=' + (todo ? -1 : version), {credentials: 'same-origin'}).then(r => r.json()).then(j => {
       pidiendo = false;
       if (j.objetos) { objetos = j.objetos; seleccion = null; } else if (j.ops) j.ops.forEach(aplicar);
-      version = j.v; fondo = j.fondo || fondo; compartido = j.compartido;
+      const cambio = j.v !== version || j.objetos; version = j.v; fondo = j.fondo || fondo; compartido = j.compartido;
       if (j.editar !== editar) { editar = j.editar; permisos(); aviso(editar ? '✏️ El docente habilitó la escritura: ya puede escribir.' : '👀 El docente desactivó la escritura: ahora solo puede ver.', 4000); }
-      pintar(); rotulo();
+      if (cambio) pintar(); estadoRotulo();
     }).catch(() => { pidiendo = false; });
   }
-  // En vivo: si el tablero está compartido (o lo mira un estudiante), pregunta cada 2,5 s por lo nuevo (solo si la pestaña está visible)
   setInterval(() => { if (!document.hidden && (compartido || !CFG.docente) && !actual && !accion) traer(); }, 2500);
 
-  // ----------------------------------------------------------------- herramientas
+  // ================================================================= herramientas
   function permisos() {
     document.querySelectorAll('.tb-esc').forEach(b => { b.disabled = !editar; });
-    document.querySelectorAll('.tb-color').forEach(b => { b.disabled = !editar; });
     if (!editar && herramienta !== 'mano') elegir('mano');
-    rotulo();
+    estadoRotulo();
   }
-  function rotulo() {
+  function estadoRotulo() {
     const e = document.getElementById('tb-estado');
     if (CFG.docente) { e.innerHTML = compartido ? '<i class="fas fa-signal"></i>En vivo con la clase' : '<i class="fas fa-lock"></i>Solo usted'; e.className = 'tb-pildora' + (compartido ? ' verde' : ''); }
     else { e.innerHTML = editar ? '<i class="fas fa-pen"></i>Puede escribir' : '<i class="fas fa-eye"></i>Solo ver'; e.className = 'tb-pildora ' + (editar ? 'verde' : 'ambar'); }
   }
-  function elegir(h) { herramienta = h; document.querySelectorAll('[data-h]').forEach(x => x.classList.toggle('on', x.dataset.h === h)); seleccionar(null); lienzo.style.cursor = h === 'mano' ? 'grab' : h === 'mover' ? 'default' : 'crosshair'; }
+  function elegir(h) {
+    herramienta = h; compas = h === 'compas' ? compas : null;
+    document.querySelectorAll('[data-h]').forEach(x => x.classList.toggle('on', x.dataset.h === h));
+    document.getElementById('tb-formas').classList.toggle('on', h === 'forma');
+    seleccionar(null); capa.style.cursor = h === 'mano' ? 'grab' : h === 'mover' ? 'default' : 'crosshair';
+    if (h === 'compas') { menuInst.classList.remove('abierto'); aviso('Compás: toque el centro y arrastre para abrirlo; luego dibuje alrededor. Toque el centro de nuevo para cambiar el radio.', 5000); }
+  }
   document.querySelectorAll('[data-h]').forEach(b => b.addEventListener('click', () => elegir(b.dataset.h)));
   const zonaColores = document.getElementById('tb-colores');
-  COLORES.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'tb-color' + (i ? '' : ' on'); b.style.background = c; b.title = 'Color';
+  COLORES.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'tb-color tb-esc' + (i ? '' : ' on'); b.style.background = c; b.title = 'Color';
     b.onclick = () => { color = c; zonaColores.querySelectorAll('.tb-color').forEach(x => x.classList.toggle('on', x === b)); if (seleccion && esMio(seleccion) && seleccion.t !== 'imagen') { seleccion.c = c; enviar({op: 'reemplazar', obj: seleccion}); pintar(); } if (['borrar', 'mano', 'mover'].includes(herramienta)) elegir('lapiz'); };
     zonaColores.appendChild(b); });
   document.getElementById('tb-grosor').onclick = function () { grosor = GROSORES[(GROSORES.indexOf(grosor) + 1) % GROSORES.length]; this.querySelector('i').style.fontSize = ['.6rem', '.9rem', '1.25rem'][GROSORES.indexOf(grosor)]; };
-  function seleccionar(o) { seleccion = o; document.getElementById('tb-quitar').disabled = !(o && editar && esMio(o)); pintar(); }
+  function seleccionar(o) { seleccion = o; document.getElementById('tb-quitar').disabled = !(o && editar && esMio(o)); pedirCapa(); }
   function quitar(ids) { if (!ids.length) return; objetos = objetos.filter(o => !ids.includes(o.id)); seleccion = null; document.getElementById('tb-quitar').disabled = true; pintar(); enviar({op: 'borrar', ids: ids}); }
   document.getElementById('tb-quitar').onclick = () => { if (seleccion) quitar([seleccion.id]); };
   document.getElementById('tb-deshacer').onclick = deshacer;
   function deshacer() { while (mios.length) { const id = mios.pop(); if (objetos.some(o => o.id === id)) { quitar([id]); return; } } }
-  function agregar(o) { o.a = CFG.yo; objetos.push(o); mios.push(o.id); pintar(); enviar({op: 'agregar', obj: o}); }
+  function agregar(o) { o.a = CFG.yo; objetos.push(o); mios.push(o.id); dibujar(bx, o); pedirCapa(); enviar({op: 'agregar', obj: o}); }
   const btnFondo = document.getElementById('tb-fondo');
   if (btnFondo) btnFondo.onclick = () => { fondo = FONDOS[(FONDOS.indexOf(fondo) + 1) % FONDOS.length]; pintar(); enviar({op: 'fondo', fondo: fondo}); };
   const btnLimpiar = document.getElementById('tb-limpiar');
   if (btnLimpiar) btnLimpiar.onclick = () => { if (confirm('¿Borrar TODO lo del tablero (también lo de los estudiantes)?')) { objetos = []; seleccion = null; pintar(); enviar({op: 'limpiar'}); } };
 
-  // ----------------------------------------------------------------- vista: mover y acercar
-  function acercar(f, sx, sy) {
-    const [wx, wy] = aMundo(sx, sy); vista.z = Math.max(.1, Math.min(5, vista.z * f));
-    vista.x = wx - sx / vista.z; vista.y = wy - sy / vista.z; pintar();
-  }
+  // ================================================================= vista
+  function acercar(f, sx, sy) { const [wx, wy] = aMundo(sx, sy); vista.z = Math.max(.1, Math.min(5, vista.z * f)); vista.x = wx - sx / vista.z; vista.y = wy - sy / vista.z; pintar(); }
   document.getElementById('tb-mas').onclick = () => acercar(1.25, innerWidth / 2, innerHeight / 2);
   document.getElementById('tb-menos').onclick = () => acercar(.8, innerWidth / 2, innerHeight / 2);
   function verTodo() {
     if (!objetos.length) { vista.x = -40; vista.y = -40; vista.z = 1; pintar(); return; }
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     objetos.forEach(o => { const [x, y, w, h] = caja(o); x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + w); y1 = Math.max(y1, y + h); });
-    const m = 60; vista.z = Math.max(.1, Math.min(2, Math.min((innerWidth - 2 * m) / (x1 - x0 || 1), (innerHeight - 160) / (y1 - y0 || 1))));
+    vista.z = Math.max(.1, Math.min(2, Math.min((innerWidth - 120) / (x1 - x0 || 1), (innerHeight - 160) / (y1 - y0 || 1))));
     vista.x = x0 - (innerWidth / vista.z - (x1 - x0)) / 2; vista.y = y0 - 60 / vista.z; pintar();
   }
   document.getElementById('tb-todo').onclick = verTodo;
-  lienzo.addEventListener('wheel', ev => {
+  capa.addEventListener('wheel', ev => {
     ev.preventDefault();
+    const [wx, wy] = aMundo(ev.clientX, ev.clientY), ins = instrumentoEn(wx, wy);
+    if (ins && !ev.ctrlKey) { ins.i.ang += (ev.deltaY > 0 ? 1 : -1) * (ev.shiftKey ? 15 : 1) * Math.PI / 180; pedirCapa(); return; }
     if (ev.ctrlKey || ev.metaKey) acercar(Math.exp(-ev.deltaY * .01), ev.clientX, ev.clientY);
     else { vista.x += ev.deltaX / vista.z; vista.y += ev.deltaY / vista.z; pintar(); }
   }, {passive: false});
 
-  // ----------------------------------------------------------------- tocar y dibujar
+  // ================================================================= tocar y escribir
   const dedos = new Map();
   function golpe(wx, wy, filtro) {
     const tol = 8 / vista.z;
@@ -264,78 +436,162 @@
     }
     return null;
   }
-  lienzo.addEventListener('pointerdown', ev => {
-    lienzo.setPointerCapture(ev.pointerId);
-    dedos.set(ev.pointerId, [ev.clientX, ev.clientY]);
-    if (dedos.size === 2) { actual = null; const [a, b] = [...dedos.values()]; accion = {tipo: 'pellizco', d: Math.hypot(a[0] - b[0], a[1] - b[1]), m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]}; pintar(); return; }
+  // presión: la del lápiz o, con dedo/mouse, simulada con la velocidad (rápido = más delgado, como la tinta)
+  function presion(ev, ultimo) {
+    if (ev.pointerType === 'pen' && ev.pressure > 0) return ev.pressure;
+    if (!ultimo) return .6;
+    const v = Math.hypot(ev.clientX - ultimo.sx, ev.clientY - ultimo.sy) / Math.max(1, ev.timeStamp - ultimo.t);
+    return Math.max(.3, Math.min(1, 1.05 - v * .35));
+  }
+  capa.addEventListener('pointerdown', ev => {
+    capa.setPointerCapture(ev.pointerId);
+    menuInst.classList.remove('abierto'); menuFormas.classList.remove('abierto');
+    if (ev.pointerType === 'pen' && !lapizVisto) { lapizVisto = true; aviso('✍️ Lápiz detectado: ahora el dedo solo mueve y acerca la vista (la palma no raya).', 4500); }
+    dedos.set(ev.pointerId, [ev.clientX, ev.clientY, ev.pointerType]);
     const [wx, wy] = aMundo(ev.clientX, ev.clientY);
-    if (herramienta === 'mano' || espacio || ev.button === 1) { accion = {tipo: 'vista', sx: ev.clientX, sy: ev.clientY, vx: vista.x, vy: vista.y}; lienzo.style.cursor = 'grabbing'; return; }
+    if (dedos.size === 2) {
+      actual = null; guia = null; const [a, b] = [...dedos.values()];
+      const ins = accion && accion.tipo === 'instrumento' ? accion.ins : null;
+      accion = {tipo: 'pellizco', d: Math.hypot(a[0] - b[0], a[1] - b[1]), m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], ang: Math.atan2(b[1] - a[1], b[0] - a[0]), ins: ins};
+      pedirCapa(); return;
+    }
+    const navegar = herramienta === 'mano' || espacio || ev.button === 1 || (ev.pointerType === 'touch' && lapizVisto);
+    const ins = instrumentoEn(wx, wy);
+    if (ins && (navegar || !['lapiz', 'resaltar', 'linea', 'compas'].includes(herramienta) || ins.parte === 'giro' || !bordeCerca(wx, wy))) {
+      accion = ins.parte === 'giro' ? {tipo: 'girar', ins: ins.i} : {tipo: 'instrumento', ins: ins.i, dx: wx - ins.i.x, dy: wy - ins.i.y};
+      return;
+    }
+    if (navegar) { accion = {tipo: 'vista', sx: ev.clientX, sy: ev.clientY, vx: vista.x, vy: vista.y}; capa.style.cursor = 'grabbing'; return; }
     if (!editar) return;
     if (herramienta === 'texto') { ev.preventDefault(); ponerTexto(ev.clientX, ev.clientY); return; }
     if (herramienta === 'borrar') { accion = {tipo: 'borrar'}; borrarEn(wx, wy); return; }
     if (herramienta === 'mover') {
       if (seleccion && seleccion.t === 'imagen') {
         const [x, y, w, h] = caja(seleccion), s = 16 / vista.z;
-        if (Math.abs(wx - (x + w)) < s && Math.abs(wy - (y + h)) < s) { accion = {tipo: 'tamano', o: seleccion, w0: seleccion.w, h0: seleccion.h, x0: wx, y0: wy}; return; }
+        if (Math.abs(wx - (x + w)) < s && Math.abs(wy - (y + h)) < s) { accion = {tipo: 'tamano', o: seleccion, w0: seleccion.w, h0: seleccion.h, x0: wx}; return; }
       }
-      const o = golpe(wx, wy, esMio);
-      seleccionar(o);
+      const o = golpe(wx, wy, esMio); seleccionar(o);
       if (o) accion = {tipo: 'arrastrar', o: o, x0: wx, y0: wy, copia: JSON.parse(JSON.stringify(o))};
       return;
     }
-    actual = {id: nid(), t: herramienta === 'linea' ? 'linea' : 'trazo', h: herramienta, c: color, g: Math.round(grosor / vista.z * 10) / 10 || .1, p: [[wx, wy]]};
+    if (herramienta === 'compas') {
+      if (compas && compas.r > 0 && Math.hypot(wx - compas.c[0], wy - compas.c[1]) > 14 / vista.z) {
+        const a = Math.atan2(wy - compas.c[1], wx - compas.c[0]);
+        accion = {tipo: 'arco', a0: a, ult: a, suma: 0, punto: [wx, wy]}; compas.punta = null;
+        actual = {id: nid(), t: 'trazo', h: 'poli', c: color, g: r1(grosor / vista.z), p: [[compas.c[0] + Math.cos(a) * compas.r, compas.c[1] + Math.sin(a) * compas.r]]};
+      } else { compas = {c: [wx, wy], r: 0}; accion = {tipo: 'radio', punto: [wx, wy]}; }
+      pedirCapa(); return;
+    }
+    if (herramienta === 'forma') { accion = {tipo: 'forma', s: [wx, wy], punto: [wx, wy]}; return; }
+    const g = r1(grosor / vista.z) || .1;
+    guia = (herramienta === 'lapiz' || herramienta === 'resaltar') ? bordeCerca(wx, wy) : null;
+    if (guia) {
+      const pr = proyectar(guia, wx, wy);
+      accion = {tipo: 'guia', ini: pr, ult: pr.ang, suma: 0, punto: pr.p};
+      actual = guia.tipo === 'arco' ? {id: nid(), t: 'trazo', h: 'poli', c: color, g: g, p: [pr.p]} : {id: nid(), t: 'linea', h: 'linea', c: color, g: g, p: [pr.p, pr.p]};
+      pedirCapa(); return;
+    }
+    const pr = herramienta === 'lapiz' ? presion(ev, null) : undefined;
+    actual = {id: nid(), t: herramienta === 'linea' ? 'linea' : 'trazo', h: herramienta, c: color, g: herramienta === 'lapiz' ? g * 1.4 : g, p: [pr === undefined ? [wx, wy] : [wx, wy, pr]]};
+    accion = {tipo: 'tinta', ult: {sx: ev.clientX, sy: ev.clientY, t: ev.timeStamp, pr: pr, w: [wx, wy]}};
+    pedirCapa();
   });
-  lienzo.addEventListener('pointermove', ev => {
+  capa.addEventListener('pointermove', ev => {
     if (!dedos.has(ev.pointerId)) return;
-    dedos.set(ev.pointerId, [ev.clientX, ev.clientY]);
+    dedos.set(ev.pointerId, [ev.clientX, ev.clientY, ev.pointerType]);
     const [wx, wy] = aMundo(ev.clientX, ev.clientY);
-    if (accion && accion.tipo === 'pellizco' && dedos.size === 2) {
-      const [a, b] = [...dedos.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    if (!accion) return;
+    if (accion.tipo === 'pellizco' && dedos.size === 2) {
+      const [a, b] = [...dedos.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
+      if (accion.ins) {          // dos dedos sobre un instrumento: girarlo y moverlo
+        accion.ins.ang += ang - accion.ang; accion.ins.x += (m[0] - accion.m[0]) / vista.z; accion.ins.y += (m[1] - accion.m[1]) / vista.z;
+        accion.ang = ang; accion.m = m; pedirCapa(); return;
+      }
       vista.x -= (m[0] - accion.m[0]) / vista.z; vista.y -= (m[1] - accion.m[1]) / vista.z;
       acercar(d / accion.d, m[0], m[1]); accion.d = d; accion.m = m; return;
     }
-    if (accion && accion.tipo === 'vista') { vista.x = accion.vx - (ev.clientX - accion.sx) / vista.z; vista.y = accion.vy - (ev.clientY - accion.sy) / vista.z; pintar(); return; }
-    if (accion && accion.tipo === 'borrar') { borrarEn(wx, wy); return; }
-    if (accion && accion.tipo === 'arrastrar') {
+    if (accion.tipo === 'vista') { vista.x = accion.vx - (ev.clientX - accion.sx) / vista.z; vista.y = accion.vy - (ev.clientY - accion.sy) / vista.z; pintar(); return; }
+    if (accion.tipo === 'instrumento') { accion.ins.x = wx - accion.dx; accion.ins.y = wy - accion.dy; pedirCapa(); return; }
+    if (accion.tipo === 'girar') {
+      const i = accion.ins, g = GEO[i.tipo], base0 = Math.atan2(g.giro[1], g.giro[0]);
+      let a = Math.atan2(wy - i.y, wx - i.x) - base0; const paso = (ev.shiftKey ? 15 : 1) * Math.PI / 180; i.ang = Math.round(a / paso) * paso; pedirCapa(); return;
+    }
+    if (accion.tipo === 'borrar') { borrarEn(wx, wy); return; }
+    if (accion.tipo === 'arrastrar') {
       const dx = wx - accion.x0, dy = wy - accion.y0, o = accion.o, c = accion.copia;
-      if (o.p) o.p = c.p.map(p => [p[0] + dx, p[1] + dy]); else { o.x = c.x + dx; o.y = c.y + dy; }
+      if (o.p) o.p = c.p.map(p => p.length > 2 ? [p[0] + dx, p[1] + dy, p[2]] : [p[0] + dx, p[1] + dy]); else { o.x = c.x + dx; o.y = c.y + dy; }
       pintar(); return;
     }
-    if (accion && accion.tipo === 'tamano') {
-      const o = accion.o, k = Math.max(.05, (accion.w0 + (wx - accion.x0)) / accion.w0);
-      o.w = accion.w0 * k; o.h = accion.h0 * k; pintar(); return;
+    if (accion.tipo === 'tamano') { const o = accion.o, k = Math.max(.05, (accion.w0 + (wx - accion.x0)) / accion.w0); o.w = accion.w0 * k; o.h = accion.h0 * k; pintar(); return; }
+    if (accion.tipo === 'radio') { compas.r = Math.hypot(wx - compas.c[0], wy - compas.c[1]); compas.punta = [wx, wy]; accion.punto = compas.c; pedirCapa(); return; }
+    if (accion.tipo === 'arco') {
+      const a = Math.atan2(wy - compas.c[1], wx - compas.c[0]); let d = a - accion.ult; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI;
+      accion.suma = Math.max(-2 * Math.PI, Math.min(2 * Math.PI, accion.suma + d)); accion.ult = a; accion.punto = [wx, wy];
+      const n = Math.max(2, Math.ceil(Math.abs(accion.suma) / (Math.PI / 90))); actual.p = [];
+      for (let k = 0; k <= n; k++) { const t = accion.a0 + accion.suma * k / n; actual.p.push([r1(compas.c[0] + Math.cos(t) * compas.r), r1(compas.c[1] + Math.sin(t) * compas.r)]); }
+      rotulo = Math.round(Math.abs(accion.suma) * 180 / Math.PI) + '°'; pedirCapa(); return;
     }
-    if (!actual) return;
-    if (actual.t === 'linea') actual.p[1] = [wx, wy]; else actual.p.push([wx, wy]);
-    pintar();
+    if (accion.tipo === 'forma') {
+      accion.e = [wx, wy]; accion.punto = [wx, wy];
+      actual = {id: accion.id || (accion.id = nid()), t: 'trazo', h: 'poli', c: color, g: r1(grosor / vista.z), p: puntosForma(forma, accion.s, [wx, wy], ev.shiftKey).map(p => p.length > 2 ? [r1(p[0]), r1(p[1]), -1] : [r1(p[0]), r1(p[1])])};
+      pedirCapa(); return;
+    }
+    if (accion.tipo === 'guia') {
+      const pr = proyectar(guia, wx, wy); accion.punto = pr.p;
+      if (guia.tipo === 'arco') {
+        let d = pr.ang - accion.ult; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI;
+        accion.suma += d; accion.ult = pr.ang; const n = Math.max(2, Math.ceil(Math.abs(accion.suma) / (Math.PI / 90))), r = GEO.transportador.r; actual.p = [];
+        for (let k = 0; k <= n; k++) { const t = accion.ini.ang + accion.suma * k / n, q = aMundoI(guia.i, Math.cos(t) * r, Math.sin(t) * r); actual.p.push([r1(q[0]), r1(q[1])]); }
+        rotulo = Math.round(Math.abs(accion.suma) * 180 / Math.PI) + '°';
+      } else { actual.p[1] = pr.p; rotulo = (Math.hypot(pr.p[0] - actual.p[0][0], pr.p[1] - actual.p[0][1]) / CM).toFixed(1) + ' cm'; }
+      pedirCapa(); return;
+    }
+    if (accion.tipo === 'tinta' && actual) {
+      if (actual.t === 'linea') { actual.p[1] = [wx, wy]; pedirCapa(); return; }
+      // todos los puntos que entregó el lápiz desde el último cuadro (más suavidad), con un suavizado ligero
+      const eventos = ev.getCoalescedEvents ? ev.getCoalescedEvents() : [ev];
+      for (const e of (eventos.length ? eventos : [ev])) {
+        const [ex, ey] = aMundo(e.clientX, e.clientY), u = accion.ult;
+        if (Math.hypot(e.clientX - u.sx, e.clientY - u.sy) < .8) continue;
+        const k = e.pointerType === 'pen' ? .75 : .55, x = u.w[0] + (ex - u.w[0]) * k, y = u.w[1] + (ey - u.w[1]) * k;
+        let pr = u.pr;
+        if (pr !== undefined) { pr = u.pr * .6 + presion(e, u) * .4; actual.p.push([r1(x), r1(y), Math.round(pr * 100) / 100]); } else actual.p.push([r1(x), r1(y)]);
+        accion.ult = {sx: e.clientX, sy: e.clientY, t: e.timeStamp, pr: pr, w: [x, y]};
+      }
+      pedirCapa();
+    }
   });
   function soltar(ev) {
     dedos.delete(ev.pointerId);
-    if (accion && (accion.tipo === 'arrastrar' || accion.tipo === 'tamano')) {
-      const o = accion.o; ['x', 'y', 'w', 'h'].forEach(k => { if (o[k] !== undefined) o[k] = Math.round(o[k] * 10) / 10; });
-      if (o.p) o.p = o.p.map(p => [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10]);
+    if (!accion) return;
+    if (accion.tipo === 'pellizco') { if (dedos.size < 2) accion = null; return; }
+    if (accion.tipo === 'arrastrar' || accion.tipo === 'tamano') {
+      const o = accion.o; ['x', 'y', 'w', 'h'].forEach(k => { if (o[k] !== undefined) o[k] = r1(o[k]); });
+      if (o.p) o.p = o.p.map(p => p.length > 2 ? [r1(p[0]), r1(p[1]), p[2]] : [r1(p[0]), r1(p[1])]);
       if (JSON.stringify(o) !== JSON.stringify(accion.copia || {})) enviar({op: 'reemplazar', obj: o});
     }
-    if (accion && accion.tipo === 'vista') lienzo.style.cursor = herramienta === 'mano' ? 'grab' : 'crosshair';
-    if (dedos.size < 2 && accion && accion.tipo === 'pellizco') { accion = null; return; }
-    accion = null;
-    if (actual) {
-      actual.p = actual.p.map(p => [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10]);
-      if (actual.p.length > 2800) actual.p = actual.p.filter((_, i) => i % 2 === 0);
-      const o = actual; actual = null; agregar(o);
+    if (accion.tipo === 'vista') capa.style.cursor = herramienta === 'mano' ? 'grab' : 'crosshair';
+    if (accion.tipo === 'radio' && compas.r < 4 / vista.z) compas = null;
+    if (accion.tipo === 'forma' && accion.e && actual) { const o = actual; actual = null; agregar(o); }
+    if (['tinta', 'guia', 'arco'].includes(accion.tipo) && actual) {
+      const o = actual; actual = null;
+      if (o.p.length > 2800) o.p = o.p.filter((_, i) => i % 2 === 0);
+      o.p = o.p.map(p => p.length > 2 ? [r1(p[0]), r1(p[1]), p[2]] : [r1(p[0]), r1(p[1])]);
+      if (!(o.t === 'linea' && o.p[0][0] === o.p[1][0] && o.p[0][1] === o.p[1][1] && accion.tipo === 'guia')) agregar(o);
     }
+    accion = null; guia = null; rotulo = ''; actual = null; pedirCapa();
   }
-  lienzo.addEventListener('pointerup', soltar); lienzo.addEventListener('pointercancel', soltar);
+  capa.addEventListener('pointerup', soltar); capa.addEventListener('pointercancel', soltar);
   function borrarEn(wx, wy) { const o = golpe(wx, wy, x => x.t !== 'imagen' && esMio(x)); if (o) quitar([o.id]); }
   function ponerTexto(sx, sy) {
-    const caja = document.createElement('textarea'); caja.className = 'tb-texto'; caja.style.left = sx + 'px'; caja.style.top = sy + 'px'; caja.style.color = color;
-    const tam = grosor * 5 + 16; caja.style.fontSize = tam + 'px'; caja.rows = 1; document.body.appendChild(caja); caja.focus();
+    const area = document.createElement('textarea'); area.className = 'tb-texto'; area.style.left = sx + 'px'; area.style.top = sy + 'px'; area.style.color = color;
+    const tam = grosor * 5 + 16; area.style.fontSize = tam + 'px'; area.rows = 1; document.body.appendChild(area); area.focus();
     const [wx, wy] = aMundo(sx + 4, sy + 4);
-    caja.addEventListener('blur', () => { if (caja.value.trim()) agregar({id: nid(), t: 'texto', c: color, g: Math.round(tam / vista.z * 10) / 10, x: wx, y: wy, texto: caja.value.slice(0, 2000)}); caja.remove(); });
-    caja.addEventListener('keydown', e => { if (e.key === 'Escape') { caja.value = ''; caja.blur(); } });
+    area.addEventListener('blur', () => { if (area.value.trim()) agregar({id: nid(), t: 'texto', c: color, g: r1(tam / vista.z), x: wx, y: wy, texto: area.value.slice(0, 2000)}); area.remove(); });
+    area.addEventListener('keydown', e => { if (e.key === 'Escape') { area.value = ''; area.blur(); } });
   }
 
-  // ----------------------------------------------------------------- imágenes: pegar, arrastrar o subir
+  // ================================================================= imágenes
   function subir(archivo) {
     if (!editar) { aviso('El docente no ha habilitado la escritura.'); return; }
     if (!archivo || !archivo.type.startsWith('image/')) return;
@@ -352,29 +608,33 @@
   document.getElementById('tb-archivo').addEventListener('change', function () { subir(this.files[0]); this.value = ''; });
   document.addEventListener('paste', ev => {
     if (document.activeElement && ['TEXTAREA', 'INPUT'].includes(document.activeElement.tagName)) return;
-    const items = [...(ev.clipboardData || {}).items || []], img = items.find(i => i.type.startsWith('image/'));
+    const items = [...((ev.clipboardData || {}).items || [])], img = items.find(i => i.type.startsWith('image/'));
     if (img) { ev.preventDefault(); subir(img.getAsFile()); return; }
     const texto = ev.clipboardData && ev.clipboardData.getData('text/plain');
     if (texto && editar) { ev.preventDefault(); const [wx, wy] = aMundo(innerWidth / 2 - 100, innerHeight / 2 - 20);
-      agregar({id: nid(), t: 'texto', c: color, g: Math.round((grosor * 5 + 16) / vista.z * 10) / 10, x: wx, y: wy, texto: texto.slice(0, 2000)}); }
+      agregar({id: nid(), t: 'texto', c: color, g: r1((grosor * 5 + 16) / vista.z), x: wx, y: wy, texto: texto.slice(0, 2000)}); }
   });
   const capaSoltar = document.getElementById('tb-soltar');
   addEventListener('dragover', e => { e.preventDefault(); if (editar) capaSoltar.style.display = 'grid'; });
   addEventListener('dragleave', e => { if (!e.relatedTarget) capaSoltar.style.display = 'none'; });
   addEventListener('drop', e => { e.preventDefault(); capaSoltar.style.display = 'none'; [...e.dataTransfer.files].slice(0, 5).forEach(subir); });
 
-  // ----------------------------------------------------------------- teclado, descargar, pantalla completa
+  // ================================================================= teclado, descargar, pantalla completa
   document.addEventListener('keydown', e => {
     if (['TEXTAREA', 'INPUT', 'SELECT'].includes(document.activeElement.tagName)) return;
-    if (e.code === 'Space') { espacio = true; lienzo.style.cursor = 'grab'; e.preventDefault(); }
+    if (e.code === 'Space') { espacio = true; capa.style.cursor = 'grab'; e.preventDefault(); }
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); deshacer(); }
     if ((e.key === 'Delete' || e.key === 'Backspace') && seleccion && esMio(seleccion) && editar) { e.preventDefault(); quitar([seleccion.id]); }
   });
-  document.addEventListener('keyup', e => { if (e.code === 'Space') { espacio = false; lienzo.style.cursor = herramienta === 'mano' ? 'grab' : 'crosshair'; } });
-  document.getElementById('tb-guardar').onclick = () => { const s = seleccion; seleccion = null; pintar(); const a = document.createElement('a'); a.download = 'tablero.png'; a.href = lienzo.toDataURL('image/png'); a.click(); seleccion = s; pintar(); };
+  document.addEventListener('keyup', e => { if (e.code === 'Space') { espacio = false; capa.style.cursor = herramienta === 'mano' ? 'grab' : 'crosshair'; } });
+  document.getElementById('tb-guardar').onclick = () => {
+    const c = document.createElement('canvas'); c.width = base.width; c.height = base.height;
+    const x = c.getContext('2d'); x.drawImage(base, 0, 0); const s = seleccion; seleccion = null; pintarCapa(); x.drawImage(capa, 0, 0); seleccion = s; pedirCapa();
+    const a = document.createElement('a'); a.download = 'tablero.png'; a.href = c.toDataURL('image/png'); a.click();
+  };
   document.getElementById('tb-completa').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); };
 
-  // ----------------------------------------------------------------- compartir con la clase (docente)
+  // ================================================================= compartir con la clase (docente)
   const btnC = document.getElementById('tb-compartir-btn'), panel = document.getElementById('tb-panel');
   if (btnC) {
     btnC.onclick = () => panel.classList.toggle('abierto');
@@ -383,7 +643,7 @@
       f.append('aula', document.getElementById('tb-p-aula').value); f.append('editan', document.getElementById('tb-p-editan').checked ? '1' : '0');
       fetch('{% if es_dueno %}{% url "salon_digital:tablero_compartir" t.pk %}{% endif %}', {method: 'POST', body: f, credentials: 'same-origin', headers: {'X-CSRFToken': CSRF}})
         .then(r => r.json()).then(j => {
-          compartido = j.compartido; document.getElementById('tb-titulo').textContent = j.titulo; rotulo();
+          compartido = j.compartido; document.getElementById('tb-titulo').textContent = j.titulo; estadoRotulo();
           const enl = document.getElementById('tb-p-enlace'); enl.style.display = j.url ? 'block' : 'none';
           enl.innerHTML = j.url ? 'Sus estudiantes lo ven en el aula (les llegó el aviso). Enlace: <b>' + j.url.replace(/</g, '') + '</b>' : '';
           aviso(j.compartido ? (j.editan ? 'Compartido: los estudiantes pueden escribir.' : 'Compartido: los estudiantes solo ven.') : 'Ya no está compartido.');
