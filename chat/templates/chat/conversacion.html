@@ -8,6 +8,7 @@
   <b>{{ titulo }}</b><small>{% if conv.tipo == 'directa' %}{% for u, et, mod in participantes %}{% if u.pk != request.user.pk %}{{ et }}{% endif %}{% endfor %}{% else %}{{ participantes|length }} participante{{ participantes|length|pluralize }}{% if conv.solo_lectura %} · solo docentes escriben{% endif %}{% endif %}</small>
 </button>
 {% if p %}
+{% include 'chat/_herramientas.html' with vaciar=True %}
 <form method="post" action="{% url 'chat:accion' conv.pk %}" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="silenciar">
   <button class="ch-icono" title="{% if p.silenciada %}Volver a recibir avisos{% else %}Silenciar este chat{% endif %}" aria-label="Avisos de este chat"><i class="fas {% if p.silenciada %}fa-bell-slash{% else %}fa-bell{% endif %}"></i></button></form>
 {% endif %}

@@ -181,3 +181,25 @@ class Colegas(ColegioDePrueba):
         self.assertEqual(lucho.post('/chat/colegas/mini/abrir/', {'usuario': self.de_b.pk}).status_code, 403)
         # Ajenos no ven la conversación
         self.assertEqual(self.cliente(self.de_b).get(f'/chat/colegas/mini/c/{r["id"]}/').status_code, 404)
+
+
+def _test_editar_buscar_vaciar(self):
+    """Entre colegas: editar, buscar y vaciar; en el grupo, el moderador vacía para todos."""
+    from .models import Colega
+    profe, lucho = self.cliente(self.u_docente), self.cliente(self.libre)
+    Colega.objects.create(de=self.u_docente, para=self.libre, estado='aceptada')
+    profe.post('/chat/colegas/escribir/', {'usuario': self.libre.pk})
+    conv = Conversacion.objects.get(colegio__isnull=True)
+    url = f'/chat/colegas/c/{conv.pk}/'
+    m = profe.post(url + 'enviar/', json.dumps({'texto': 'Nos vemos en la reunión del jueves'}), content_type='application/json').json()['mensaje']
+    self.assertTrue(profe.post(url + 'accion/', {'accion': 'editar', 'mensaje': m['id'], 'texto': 'Nos vemos en la reunión del viernes'}).json()['ok'])
+    self.assertEqual(lucho.post(url + 'accion/', {'accion': 'editar', 'mensaje': m['id'], 'texto': 'x'}).status_code, 403)
+    self.assertEqual(len(lucho.get(url + 'nuevos/?q=viernes').json()['resultados']), 1)
+    self.assertNotContains(lucho.get(url), 'Vaciar para todos')
+    lucho.post(url + 'accion/', {'accion': 'limpiar', 'alcance': 'todos'})              # uno a uno: solo para él
+    self.assertNotContains(lucho.get(url), 'viernes')
+    self.assertContains(profe.get(url), 'viernes')
+    self.assertEqual(lucho.get('/chat/colegas/mini/c/%d/' % conv.pk).json()['mensajes'], [])
+
+
+Colegas.test_editar_buscar_vaciar = _test_editar_buscar_vaciar

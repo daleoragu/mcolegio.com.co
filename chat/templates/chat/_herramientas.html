@@ -1,0 +1,17 @@
+{% comment %}Buscar en el chat y vaciarlo (para mí o, el moderador o el docente, para todos). Va en la barra de arriba.{% endcomment %}
+<button type="button" class="ch-icono" id="ch-buscar-btn" title="Buscar en el chat" aria-label="Buscar en el chat" aria-controls="ch-busqueda"><i class="fas fa-magnifying-glass"></i></button>
+{% if vaciar %}
+<div class="dropdown">
+  <button type="button" class="ch-icono" data-bs-toggle="dropdown" aria-expanded="false" title="Más opciones" aria-label="Más opciones del chat"><i class="fas fa-broom"></i></button>
+  <div class="dropdown-menu dropdown-menu-end shadow" style="min-width:260px">
+    <form method="post" action="{{ cfg.accion }}" class="px-2" onsubmit="return confirm('¿Vaciar este chat solo para usted? Los demás seguirán viendo los mensajes.')">{% csrf_token %}
+      <input type="hidden" name="accion" value="limpiar"><input type="hidden" name="alcance" value="mi">
+      <button class="dropdown-item rounded small"><i class="fas fa-broom me-2 text-secondary"></i>Vaciar el chat (solo para mí)</button></form>
+    {% if vaciar_todos %}
+    <form method="post" action="{{ cfg.accion }}" class="px-2" onsubmit="return confirm('¿Vaciar este chat para TODOS los participantes? Nadie verá los mensajes anteriores.')">{% csrf_token %}
+      <input type="hidden" name="accion" value="limpiar"><input type="hidden" name="alcance" value="todos">
+      <button class="dropdown-item rounded small text-danger"><i class="fas fa-trash-can me-2"></i>Vaciar para todos</button></form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

@@ -19,9 +19,10 @@ from django.views.decorators.http import require_POST
 from aula import logica
 from aula.models import Aula
 
+from . import extras as X
 from .models import ConversacionSalon, LecturaSalon, MensajeSalon
-from .views import (MAX_TEXTO, POR_PAGINA, RESPUESTAS_ADULTO, RESPUESTAS_ESTUDIANTE, _adjunto, _json, dia_de,
-                    fecha_corta, hora_de, peso_txt, url_archivo, vista_previa)
+from .views import (MAX_TEXTO, POR_PAGINA, RESPUESTAS_ADULTO, RESPUESTAS_ESTUDIANTE, _adjunto, _iso, _json, busqueda_json,
+                    dia_de, editar_json, fecha_corta, hora_de, peso_txt, url_archivo, vista_previa)
 
 CLAVE_PIN = 'chat_salon_pin'
 MAX_INTENTOS = 5
@@ -103,7 +104,7 @@ def _no_leidos_estudiante(c, convs):
                     .values_list('conversacion_id', 'ultimo_leido'))
     salida = {}
     for conv in convs:
-        qs = conv.mensajes.filter(eliminado=False).exclude(integrante=c.integrante)
+        qs = X.visibles(conv.mensajes.filter(eliminado=False).exclude(integrante=c.integrante), conv.limpiado)
         if lecturas.get(conv.pk):
             qs = qs.filter(creado__gt=lecturas[conv.pk])
         salida[conv.pk] = qs.count()
@@ -120,13 +121,26 @@ def _json_mensaje(c, m):
             'nombre': m.nombre_archivo, 'peso_txt': peso_txt(m.peso) if m.tipo == 'doc' else '',
             'eliminado': m.eliminado, 'duracion': m.duracion,
             'archivo': f'/aula/{c.aula.pk}/chat/m/{m.pk}/archivo/' if con_archivo else '',
-            'hora': hora_de(m.creado), 'dia': dia_de(m.creado),
+            'hora': hora_de(m.creado), 'dia': dia_de(m.creado), 'editado': bool(m.editado) and not m.eliminado,
+            'puede_editar': X.se_puede_editar(m, mio and (c.docente or c.con_pin)),
             'puede_borrar': not m.eliminado and (c.docente or mio)}
 
 
+def _corte(c, conv):
+    """Desde cuándo ve los mensajes: el docente vació el chat para todos, o cada uno lo vació para sí."""
+    if c.docente:
+        return X.desde(conv.limpiado, conv.docente_limpiado)
+    propio = LecturaSalon.objects.filter(conversacion=conv, integrante=c.integrante).values_list('limpiado', flat=True).first()
+    return X.desde(conv.limpiado, propio)
+
+
+def _mensajes(c, conv):
+    return X.visibles(conv.mensajes.select_related('integrante'), _corte(c, conv))
+
+
 # ---------------------------------------------------------------------------
-def _previa(conv):
-    m = conv.mensajes.order_by('-creado', '-id').first()
+def _previa(c, conv):
+    m = _mensajes(c, conv).order_by('-creado', '-id').first()
     return vista_previa(m.nombre_archivo if m.tipo == 'doc' else m.texto, m.tipo, m.eliminado) if m else ''
 
 
@@ -137,7 +151,7 @@ def _lista(c):
         pendientes = no_leidos_docente(c.grupo)
         privados = {x.integrante_id: x for x in ConversacionSalon.objects.filter(grupo=c.grupo, integrante__isnull=False)}
         filas = [{'url': f'{base}c/{grupo_conv.pk}/', 'titulo': 'Todo el grupo', 'grupo': True, 'id': grupo_conv.pk,
-                  'previa': _previa(grupo_conv) or ('Solo usted escribe' if grupo_conv.solo_lectura
+                  'previa': _previa(c, grupo_conv) or ('Solo usted escribe' if grupo_conv.solo_lectura
                                                      else 'Escriben usted y los estudiantes con PIN'),
                   'sin_leer': pendientes.get(grupo_conv.pk, 0), 'dt': grupo_conv.ultimo_mensaje}]
         estudiantes = []
@@ -145,7 +159,7 @@ def _lista(c):
             conv = privados.get(i.pk)
             estudiantes.append({'url': f'{base}con/{i.pk}/', 'titulo': i.completo, 'grupo': False,
                                 'id': conv.pk if conv else None,
-                                'previa': (_previa(conv) if conv else '') or 'Chat privado',
+                                'previa': (_previa(c, conv) if conv else '') or 'Chat privado',
                                 'sin_leer': pendientes.get(conv.pk, 0) if conv else 0,
                                 'dt': conv.ultimo_mensaje if conv else None})
         estudiantes.sort(key=lambda f: (-f['sin_leer'], -(f['dt'].timestamp() if f['dt'] else 0)))
@@ -155,7 +169,7 @@ def _lista(c):
         pend = _no_leidos_estudiante(c, convs)
         filas = [{'url': f'{base}c/{x.pk}/', 'grupo': x.integrante_id is None, 'id': x.pk,
                   'titulo': 'Todo el grupo' if x.integrante_id is None else f'{c.nombre_docente} (docente)',
-                  'previa': _previa(x) or ('Mensajes para toda la clase' if x.integrante_id is None
+                  'previa': _previa(c, x) or ('Mensajes para toda la clase' if x.integrante_id is None
                                            else 'Su chat privado con el docente'),
                   'sin_leer': pend.get(x.pk, 0), 'dt': x.ultimo_mensaje} for x in convs]
     for f in filas:
@@ -210,8 +224,8 @@ def con(request, c, iid):
 def conversacion(request, c, cid):
     conv = _conversacion(c, cid)
     _leido(c, conv)
-    qs = conv.mensajes.select_related('integrante')
-    ultimos = list(qs.order_by('-creado', '-id')[:POR_PAGINA])[::-1]
+    qs = _mensajes(c, conv)
+    ultimos = X.ultimos(qs, POR_PAGINA, request.GET.get('ver'))
     if conv.integrante_id is None:
         titulo, sub = 'Todo el grupo', f'{c.grupo.nombre} · {c.grupo.integrantes.filter(activo=True).count()} estudiantes'
     elif c.docente:
@@ -227,28 +241,33 @@ def conversacion(request, c, cid):
         cerrado = 'En este chat solo escribe el docente.'
     return render(request, 'chat/salon_conversacion.html', {
         **_lista(c), 'conv': conv, 'titulo': titulo, 'sub': sub, 'activa': conv.pk,
-        'compartidos': [_json_mensaje(c, m) for m in conv.mensajes.filter(tipo__in=('foto', 'voz', 'doc'), eliminado=False)
-                        .exclude(archivo='').select_related('integrante').order_by('-creado', '-id')[:12]],
+        'compartidos': [_json_mensaje(c, m) for m in qs.filter(tipo__in=('foto', 'voz', 'doc'), eliminado=False)
+                        .exclude(archivo='').order_by('-creado', '-id')[:12]],
+        'vaciar': c.docente or c.con_pin, 'vaciar_todos': c.docente, 'accion_url': base + 'accion/',
         'respuestas': RESPUESTAS_ADULTO if c.docente else RESPUESTAS_ESTUDIANTE,
         'mensajes': [_json_mensaje(c, m) for m in ultimos], 'hay_mas': qs.count() > POR_PAGINA,
         'puede_escribir': _puede_escribir(c, conv), 'mensaje_cerrado': cerrado,
         'cfg': {'nuevos': base + 'nuevos/', 'enviar': base + 'enviar/', 'accion': base + 'accion/', 'reportar': '',
-                'autores': conv.integrante_id is None}})
+                'autores': conv.integrante_id is None, 'corte': _iso(_corte(c, conv))}})
 
 
 @vista
 def nuevos(request, c, cid):
     conv = _conversacion(c, cid)
+    qs = _mensajes(c, conv)
+    if request.GET.get('q') is not None:
+        return busqueda_json(qs, request.GET['q'], lambda m: _json_mensaje(c, m))
     try:
         despues = int(request.GET.get('despues') or 0)
     except ValueError:
         despues = 0
-    lista = list(conv.mensajes.select_related('integrante').filter(id__gt=despues)[:100])
-    borrados = list(conv.mensajes.filter(id__lte=despues, eliminado=True).values_list('id', flat=True)[:200])
+    lista = list(qs.filter(id__gt=despues)[:100])
+    borrados = list(qs.filter(id__lte=despues, eliminado=True).values_list('id', flat=True)[:200])
     if lista:
         _leido(c, conv)
     conv.refresh_from_db(fields=['solo_lectura'])
     return JsonResponse({'mensajes': [_json_mensaje(c, m) for m in lista], 'borrados': borrados,
+                         'editados': X.editados(qs, despues), 'corte': _iso(_corte(c, conv)),
                          'puede_escribir': _puede_escribir(c, conv)})
 
 
@@ -294,6 +313,22 @@ def accion(request, c, cid):
             MensajeSalon.objects.filter(pk=m.pk).update(eliminado=True)
         if request.headers.get('x-requested-with') == 'fetch':
             return JsonResponse({'ok': True})
+    elif que == 'editar':
+        m = get_object_or_404(MensajeSalon.objects.select_related('integrante'), pk=request.POST.get('mensaje') or 0, conversacion=conv)
+        mio = m.integrante_id is None if c.docente else bool(c.con_pin and m.integrante_id == c.integrante.pk)
+        return editar_json(request, m, mio, lambda x: _json_mensaje(c, x))
+    elif que == 'limpiar' and (c.docente or c.con_pin):
+        from django.contrib import messages
+        ahora = timezone.now()
+        if c.docente and request.POST.get('alcance') == 'todos':
+            ConversacionSalon.objects.filter(pk=conv.pk).update(limpiado=ahora, docente_leido=ahora)
+            messages.success(request, 'Chat vaciado para todos.')
+        elif c.docente:
+            ConversacionSalon.objects.filter(pk=conv.pk).update(docente_limpiado=ahora, docente_leido=ahora)
+            messages.success(request, 'Chat vaciado solo para usted.')
+        else:
+            LecturaSalon.objects.update_or_create(conversacion=conv, integrante=c.integrante, defaults={'limpiado': ahora, 'ultimo_leido': ahora})
+            messages.success(request, 'Chat vaciado. Solo cambió para usted.')
     elif que == 'solo_lectura' and c.docente and conv.integrante_id is None:
         conv.solo_lectura = not conv.solo_lectura
         conv.save(update_fields=['solo_lectura'])
