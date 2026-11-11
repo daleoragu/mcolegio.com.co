@@ -31,6 +31,16 @@
     <a class="btn btn-sm btn-outline-secondary" href="/chat/colegas/muro/{{ p.pk }}/material/" target="_blank"><i class="far fa-eye me-1"></i>Ver</a>
     {% if not t.mia %}<form method="post" action="/chat/colegas/muro/{{ p.pk }}/copiar/" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-primary"><i class="fas fa-file-import me-1"></i>Importar a mi Planeación</button></form>{% endif %}
   </div>{% endif %}
+  {% if p.juego %}
+  <div class="mu-actividad">
+    <div class="cab">
+      <i class="fas fa-gamepad fa-2x" style="color:#10b981"></i>
+      <div class="flex-grow-1" style="min-width:0"><b class="d-block text-truncate">{{ p.juego.titulo }}</b>
+        <span class="small text-muted">{{ p.juego.nombre_tipo }} · {{ p.juego.preguntas|length }} pregunta{{ p.juego.preguntas|length|pluralize }}{% if p.copias %} · lo importaron {{ p.copias }} docente{{ p.copias|pluralize }}{% endif %}</span></div>
+      <a class="btn btn-sm btn-success" href="{% url 'materiales:juego_muro' p.pk %}"><i class="fas fa-play me-1"></i>Probar</a>
+      {% if not t.mia %}<form method="post" action="{% url 'materiales:juego_importar' p.pk %}" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-outline-primary"><i class="fas fa-file-import me-1"></i>Importar a Mis juegos</button></form>{% endif %}
+    </div>
+  </div>{% endif %}
   {% if p.tipo == 'actividad' and p.pagina %}
   <div class="mu-actividad">
     <div class="cab">

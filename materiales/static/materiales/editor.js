@@ -459,12 +459,16 @@
                 campo(b.pie, 'Pie de imagen (opcional)', function (v) { b.pie = v; }, 'form-control form-control-sm border-0 text-center fst-italic')]);
         },
         tabla: function (b) {
-            var t = el('table', { class: 'mm-tabla mx-auto' });
+            var t = el('table', { class: 'mm-tabla mx-auto' + (b.privada ? ' mm-privada' : '') });
             b.filas.forEach(function (fila, i) {
                 var tr = el('tr');
                 fila.forEach(function (valor, j) {
                     var td = el('td', { contenteditable: 'true', style: i === 0 && b.encabezado ? 'font-weight:700;background:#e8eef9' : '' });
                     td.textContent = valor;
+                    td._celda = { b: b, i: i, j: j, td: td };
+                    var est = (b.estilos || {})[i + '-' + j];
+                    if (est && est.f) td.style.background = est.f;
+                    if (est && est.c) td.style.color = est.c;
                     td.addEventListener('input', function () { b.filas[i][j] = td.textContent; cambio(); });
                     tr.appendChild(td);
                 });
@@ -479,7 +483,13 @@
                 boton('− fila', function () { if (b.filas.length > 1) b.filas.pop(); }),
                 boton('+ columna', function () { if (b.filas[0].length < 8) b.filas.forEach(function (f) { f.push(''); }); }),
                 boton('− columna', function () { if (b.filas[0].length > 1) b.filas.forEach(function (f) { f.pop(); }); }),
-                el('span', { class: 'form-check ms-2' }, [enc, el('label', { class: 'form-check-label', for: 'enc-' + b.id, text: 'Primera fila de títulos' })])])]);
+                el('span', { class: 'form-check ms-2' }, [enc, el('label', { class: 'form-check-label', for: 'enc-' + b.id, text: 'Primera fila de títulos' })]),
+                (function () {
+                    var pr = el('input', { type: 'checkbox', class: 'form-check-input', id: 'priv-' + b.id });
+                    pr.checked = !!b.privada;
+                    pr.addEventListener('change', function () { b.privada = pr.checked; cambio(); pintar(); });
+                    return el('span', { class: 'form-check ms-2', title: 'Datos del estudiante: nunca se envían a la IA' }, [pr, el('label', { class: 'form-check-label', for: 'priv-' + b.id, text: '🔒 Privada (no va a la IA)' })]);
+                })()])]);
         },
         recuadro: function (b) {
             var sel = el('select', { class: 'form-select form-select-sm', style: 'width:auto' });
@@ -614,6 +624,60 @@
         b.addEventListener('click', function () { document.execCommand(b.getAttribute('data-cmd'), false, null); });
     });
 
+    // Color de letra y relleno (como en Word): sobre el texto seleccionado o sobre la celda de la tabla donde está el cursor
+    var ultimaCelda = null, ultimoRango = null;
+    document.addEventListener('focusin', function (ev) {
+        if (!ev.target.closest) return;
+        if (ev.target.closest('.mm-colorbtn')) return;
+        var td = ev.target.closest('.mm-tabla td');
+        ultimaCelda = td && td._celda ? td._celda : null;
+    });
+    document.addEventListener('selectionchange', function () {
+        var s = window.getSelection();
+        if (s && s.rangeCount && !s.isCollapsed) {
+            var nodo = s.anchorNode && (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement);
+            if (nodo && nodo.closest('.mm-edit')) { ultimoRango = s.getRangeAt(0).cloneRange(); ultimaCelda = null; }
+        }
+    });
+    function aplicarColor(tipo, color) {
+        if (ultimaCelda) {
+            var c = ultimaCelda, b = c.b, k = c.i + '-' + c.j;
+            b.estilos = b.estilos || {};
+            var e = b.estilos[k] || {};
+            if (color) e[tipo] = color; else delete e[tipo];
+            if (Object.keys(e).length) b.estilos[k] = e; else delete b.estilos[k];
+            if (tipo === 'f') c.td.style.background = color || ''; else c.td.style.color = color || '';
+            cambio();
+            return;
+        }
+        if (!ultimoRango) { estado('Seleccione un texto o haga clic en una celda'); return; }
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(ultimoRango);
+        document.execCommand('styleWithCSS', false, true);
+        document.execCommand(tipo === 'c' ? 'foreColor' : 'hiliteColor', false, color || (tipo === 'c' ? '#000000' : 'transparent'));
+        var ed = ultimoRango.commonAncestorContainer;
+        ed = ed && (ed.nodeType === 1 ? ed : ed.parentElement);
+        ed = ed && ed.closest('.mm-edit');
+        if (ed) ed.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    $$('.mm-colorbtn').forEach(function (g) {
+        var tipo = g.getAttribute('data-tipo'), barra = g.querySelector('.mm-barrita');
+        var actual = tipo === 'c' ? '#dc2626' : '#fef08a';
+        g.addEventListener('mousedown', function (e) { if (!e.target.matches('input')) e.preventDefault(); });
+        g.querySelector('.mm-color-aplicar').addEventListener('click', function () { aplicarColor(tipo, actual); });
+        g.querySelectorAll('[data-color]').forEach(function (m) {
+            m.addEventListener('click', function () {
+                var c = m.getAttribute('data-color');
+                if (c) { actual = c; barra.style.background = c; }
+                aplicarColor(tipo, c);
+                var dd = window.bootstrap && bootstrap.Dropdown.getInstance(g.querySelector('.dropdown-toggle'));
+                if (dd) dd.hide();
+            });
+        });
+        g.querySelector('.mm-color-libre').addEventListener('change', function () {
+            actual = this.value; barra.style.background = actual; aplicarColor(tipo, actual);
+        });
+    });
+
     // -------------------------------------------------------------------
     // Imágenes: pegar, arrastrar o subir
     // -------------------------------------------------------------------
@@ -687,6 +751,18 @@
     $$('#mm-modo [data-modo]').forEach(function (b) { b.addEventListener('click', function () { datos.opciones.modo = b.getAttribute('data-modo'); pintarOpciones(); cambio(); }); });
     $$('#mm-columnas [data-col]').forEach(function (b) { b.addEventListener('click', function () { datos.opciones.columnas = +b.getAttribute('data-col'); pintarOpciones(); cambio(); }); });
     $('#mm-letra').addEventListener('input', function () { datos.opciones.letra = +this.value; pintarOpciones(); cambio(); });
+    // Color de los títulos, franjas y recuadros del documento
+    var selColor = window.MMColores && MMColores.iniciar('mm-colores', datos.opciones.color || '#1f3a68', function (c) {
+        datos.opciones.color = c; document.documentElement.style.setProperty('--mm-doc', c); cambio();
+    });
+    // Color por área: al escribir el área, el documento toma el color que el docente le asignó en «Mi encabezado»
+    var reglasColor = [];
+    try { reglasColor = JSON.parse(document.getElementById('mm-colores-area').textContent) || []; } catch (e) { /* sin reglas */ }
+    if (selColor && reglasColor.length) $('#mm-area').addEventListener('change', function () {
+        var c = MMColores.regla(reglasColor, this.value);
+        if (c && c !== datos.opciones.color) { datos.opciones.color = c; selColor.poner(c); document.documentElement.style.setProperty('--mm-doc', c); cambio(); }
+    });
+    document.documentElement.style.setProperty('--mm-doc', datos.opciones.color || '#1f3a68');
     $('#mm-datos').addEventListener('change', function () { datos.opciones.datos = this.checked; cambio(); });
     // Cuadernillo: portada y datos de la sesión
     var CAMPOS_CUAD = ['sesion', 'duracion', 'horario', 'aviso', 'fin'];
@@ -1047,6 +1123,11 @@
             }
             if (j.redirect) { estado(j.mensaje || 'Listo'); location.href = j.redirect; return; }
             if (j.cambios) { mostrarCambios(j.cambios); return; }
+            if (j.reemplazar) {
+                datos.bloques = j.reemplazar; pintar(); cambio();
+                caja.innerHTML = '<div class="alert alert-success small">Listo: la IA llenó ' + (j.llenas || 0) + ' celda(s) vacía(s). Revíselas y ajuste lo que quiera.</div>';
+                return;
+            }
             if (j.bloques) {
                 insertarVarios(j.bloques);
                 caja.innerHTML = '<div class="alert alert-success small">Listo: ' + j.bloques.length + ' bloque(s) agregados al documento. Revíselos antes de usarlos.</div>';

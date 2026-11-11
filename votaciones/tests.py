@@ -132,6 +132,49 @@ class Elecciones(ColegioDePrueba):
         self.assertEqual(self.cliente(self.ana.user).get('/votaciones/').status_code, 403)
 
 
+class QuienVotoYCertificado(Elecciones):
+    """La lista de quién votó y quién no (sin decir por quién) y el certificado electoral con su código."""
+
+    def test_lista_de_votantes_y_certificado(self):
+        rectora, e, personero, contralor, vocero = self._preparar()
+        rectora.post(f'/votaciones/{e.pk}/', {'accion': 'abrir'})
+        ana = self.cliente(self.ana.user)
+        voto = {f'cargo-{personero.pk}': personero.candidatos.get(numero=1).pk, f'cargo-{contralor.pk}': 'blanco',
+                f'cargo-{vocero.pk}': vocero.candidatos.get(curso=self.curso).pk}
+        r = ana.post(f'/votaciones/{e.pk}/votar/', voto)
+        self.assertContains(r, 'Descargar mi certificado electoral')
+        # La lista: Ana votó; Beto, Caro y Dora no
+        r = rectora.get(f'/votaciones/{e.pk}/votantes/')
+        self.assertContains(r, 'votaron 1 de 4')
+        self.assertNotContains(r, 'votó por')                                      # nunca dice por quién
+        self.assertNotContains(r, 'Personero')
+        r = rectora.get(f'/votaciones/{e.pk}/votantes/?estado=faltan')
+        self.assertContains(r, self.beto.user.get_full_name())
+        self.assertNotContains(r, self.ana.user.get_full_name())
+        r = rectora.get(f'/votaciones/{e.pk}/votantes/?curso={self.otro_curso.pk}')
+        self.assertContains(r, self.dora.user.get_full_name())
+        self.assertNotContains(r, self.beto.user.get_full_name())
+        self.assertEqual(rectora.get(f'/votaciones/{e.pk}/votantes/?excel=1')['Content-Type'],
+                         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        # Un estudiante no ve la lista
+        self.assertEqual(ana.get(f'/votaciones/{e.pk}/votantes/').status_code, 403)
+        # El certificado de Ana, con su código, y la verificación
+        from .logica import codigo_certificado
+        codigo = codigo_certificado(e.pk, self.ana.user.pk)
+        r = ana.get(f'/votaciones/{e.pk}/certificado/')
+        self.assertContains(r, 'CERTIFICADO ELECTORAL')
+        self.assertContains(r, codigo)
+        self.assertContains(r, self.ana.user.get_full_name())
+        r = self.client.get(f'/votaciones/certificado/verificar/?codigo={codigo}', HTTP_HOST='a.localhost')
+        self.assertContains(r, 'Certificado auténtico')
+        r = self.client.get('/votaciones/certificado/verificar/?codigo=AAAA-BBBB-CCCC', HTTP_HOST='a.localhost')
+        self.assertContains(r, 'No encontramos ese código')
+        # Beto no votó: no tiene certificado; la rectora sí puede imprimir el de Ana
+        r = self.cliente(self.beto.user).get(f'/votaciones/{e.pk}/certificado/')
+        self.assertEqual(r.status_code, 302)
+        self.assertContains(rectora.get(f'/votaciones/{e.pk}/certificado/?u={self.ana.user.pk}'), codigo)
+
+
 class BorrarElecciones(ColegioDePrueba):
     """Una elección creada por error se puede borrar, aunque ya tenga votos."""
     _preparar = Elecciones._preparar

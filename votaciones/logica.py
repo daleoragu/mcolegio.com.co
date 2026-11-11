@@ -147,3 +147,50 @@ def plantilla_basica(eleccion):
         Cargo(eleccion=eleccion, nombre='Contralor(a) estudiantil', votan='estudiantes', orden=2),
         Cargo(eleccion=eleccion, nombre='Vocero(a) del curso (consejo estudiantil)', votan='curso', voto_blanco=True, orden=3),
     ])
+
+
+# ---------------------------------------------------------------------------
+# Quién votó y quién no (sin decir por quién: eso es secreto) y el certificado electoral
+# ---------------------------------------------------------------------------
+def lista_votantes(eleccion, curso_id=None):
+    """[{'persona', 'tipo', 'nombre', 'curso', 'voto'}] de las personas habilitadas, con su VotoEmitido o None."""
+    votos = {v.usuario_id: v for v in VotoEmitido.objects.filter(eleccion=eleccion)}
+    cargos = list(eleccion.cargos.all())
+    filas = []
+    if any(c.votan != 'docentes' for c in cargos):
+        qs = (Estudiante.objects.filter(colegio=eleccion.colegio, is_active=True, curso__isnull=False)
+              .select_related('user', 'curso').order_by('curso__nombre', 'user__last_name', 'user__first_name'))
+        if curso_id:
+            qs = qs.filter(curso_id=curso_id)
+        for est in qs:
+            if not cargos_de(eleccion, 'estudiante', est):
+                continue
+            filas.append({'persona': est, 'tipo': 'estudiante', 'usuario': est.user, 'curso': est.curso,
+                          'nombre': est.user.get_full_name() or est.user.username, 'voto': votos.get(est.user_id)})
+    if not curso_id and any(c.votan == 'docentes' for c in cargos):
+        for d in Docente.objects.filter(colegio=eleccion.colegio, user__is_active=True).select_related('user') \
+                .order_by('user__last_name', 'user__first_name'):
+            filas.append({'persona': d, 'tipo': 'docente', 'usuario': d.user, 'curso': None,
+                          'nombre': d.user.get_full_name() or d.user.username, 'voto': votos.get(d.user_id)})
+    return filas
+
+
+def codigo_certificado(eleccion_id, usuario_id):
+    """Código de verificación del certificado electoral: no se puede inventar sin la clave del servidor."""
+    import hashlib
+    import hmac
+    from django.conf import settings
+    firma = hmac.new(settings.SECRET_KEY.encode(), f'certificado-electoral:{eleccion_id}:{usuario_id}'.encode(), hashlib.sha256)
+    t = firma.hexdigest().upper()
+    return f'{t[:4]}-{t[4:8]}-{t[8:12]}'
+
+
+def buscar_certificado(colegio, codigo):
+    """El voto (VotoEmitido) que corresponde a un código de verificación, o None."""
+    codigo = (codigo or '').strip().upper().replace(' ', '')
+    if len(codigo.replace('-', '')) != 12:
+        return None
+    for v in VotoEmitido.objects.filter(eleccion__colegio=colegio).select_related('eleccion', 'usuario', 'curso'):
+        if codigo_certificado(v.eleccion_id, v.usuario_id).replace('-', '') == codigo.replace('-', ''):
+            return v
+    return None

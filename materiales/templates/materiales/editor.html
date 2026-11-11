@@ -51,6 +51,24 @@
       <button type="button" class="btn btn-outline-secondary" data-cmd="superscript" title="Exponente"><i class="fas fa-superscript"></i></button>
       <button type="button" class="btn btn-outline-secondary" data-cmd="subscript" title="Subíndice"><i class="fas fa-subscript"></i></button>
     </div>
+    {# Color de letra y relleno, como en Word: el botón aplica el último color; la flecha abre la paleta #}
+    {% for tipo, titulo in colores_texto %}
+    <div class="btn-group btn-group-sm mm-colorbtn" data-tipo="{{ tipo }}">
+      <button type="button" class="btn btn-outline-secondary mm-color-aplicar" title="{{ titulo }}">
+        {% if tipo == 'c' %}<span class="mm-a">A</span>{% else %}<i class="fas fa-fill-drip"></i>{% endif %}<span class="mm-barrita" style="background:{% if tipo == 'c' %}#dc2626{% else %}#fef08a{% endif %}"></span>
+      </button>
+      <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" title="Escoger {{ titulo|lower }}"><span class="visually-hidden">Escoger color</span></button>
+      <div class="dropdown-menu p-2 mm-paleta">
+        <div class="small fw-bold mb-1">{{ titulo }}</div>
+        <div class="d-grid mb-2" style="grid-template-columns:repeat(6,24px);gap:5px">
+          {% for c in paleta %}<button type="button" class="mm-muestra" data-color="{% if tipo == 'c' %}{{ c.0 }}{% else %}{{ c.1 }}{% endif %}" style="background:{% if tipo == 'c' %}{{ c.0 }}{% else %}{{ c.1 }}{% endif %}" title="Color"></button>{% endfor %}
+        </div>
+        <button type="button" class="btn btn-sm btn-light w-100 mb-1 mm-muestra-sin" data-color="">{% if tipo == 'c' %}Automático (negro){% else %}Sin relleno{% endif %}</button>
+        <label class="btn btn-sm btn-light w-100 mb-0 position-relative"><i class="fas fa-palette me-1"></i>Más colores…<input type="color" class="mm-color-libre position-absolute top-0 start-0 w-100 h-100 opacity-0"></label>
+        <div class="text-muted mt-1" style="font-size:.72rem;max-width:180px">Seleccione un texto, o haga clic en una celda de una tabla.</div>
+      </div>
+    </div>
+    {% endfor %}
     <div class="dropdown">
       <button class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" type="button"><i class="fas fa-compress me-1"></i>Acomodar</button>
       <div class="dropdown-menu p-3" style="min-width:290px">
@@ -67,6 +85,9 @@
         </div>
         <label class="small fw-bold mb-1">Tamaño de letra: <span id="mm-letra-v"></span> pt</label>
         <input type="range" class="form-range" min="9" max="14" step="1" id="mm-letra">
+        <div class="small fw-bold mb-1">Color del documento</div>
+        {% include 'materiales/_colores.html' with id='mm-colores' %}
+        {{ colores_area|json_script:"mm-colores-area" }}
         <div class="form-check small"><input class="form-check-input" type="checkbox" id="mm-datos"><label class="form-check-label" for="mm-datos">Área, grado, periodo y docente</label></div>
         <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" id="mm-nombre"><label class="form-check-label" for="mm-nombre">Renglón para el nombre del estudiante</label></div>
         {% if doc.tipo == 'cuadernillo' %}
@@ -208,6 +229,7 @@
     <div class="modal-body">
       {% if not ia_lista %}<div class="alert alert-warning small">El asistente todavía no está activo en la plataforma.</div>{% endif %}
       <div class="d-flex flex-wrap gap-1 mb-3" id="mm-ia-acciones" role="tablist">
+        {% if es_formato %}<button type="button" class="btn btn-sm btn-success" data-ia="llenar"><i class="fas fa-table me-1"></i>Llenar el formato</button>{% endif %}
         <button type="button" class="btn btn-sm btn-primary" data-ia="guia">Borrador de guía</button>
         <button type="button" class="btn btn-sm btn-outline-primary" data-ia="actividad">Actividad del banco</button>
         <button type="button" class="btn btn-sm btn-outline-primary" data-ia="cuadernillo">Cuadernillo tipo Saber</button>
@@ -248,6 +270,10 @@
         <label class="small fw-bold">Criterios que quiere (opcional)</label>
         <input class="form-control form-control-sm" data-c="criterios" maxlength="300" placeholder="Dominio del tema, uso de apoyos, trabajo en equipo">
         <div class="small text-muted mt-1">Los niveles son los de su escala de valoración. La rúbrica queda en sus instrumentos de evaluación.</div>
+      </div>
+      <div class="mm-ia-form d-none" data-form="llenar">
+        <div class="small text-muted mb-1">La IA llena <b>solo las celdas vacías</b> de las tablas; lo que usted ya escribió no cambia. Las tablas marcadas como <b>privadas</b> (datos del estudiante) nunca se envían.</div>
+        <label class="small fw-bold">Tema</label><input class="form-control form-control-sm" data-c="tema" maxlength="200" placeholder="Fracciones equivalentes (o déjelo vacío si ya está en el formato)">
       </div>
       <div class="mm-ia-form d-none" data-form="revisar">
         <div class="small text-muted">Revisa la ortografía y la redacción de todo el documento. Usted acepta cada corrección.</div>
@@ -313,6 +339,7 @@ window.MM = {
     estado: "{% url 'materiales:estado' doc.pk %}"
 };
 </script>
+<script src="{% static 'materiales/colores.js' %}"></script>
 <script src="{% static 'materiales/editor.js' %}"></script>
 <script src="{% static 'materiales/equipo.js' %}"></script>
 {% endblock %}

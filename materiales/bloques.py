@@ -58,14 +58,45 @@ MAX_BLOQUES = 300
 MAX_TEXTO = 20000
 MAX_CORTO = 600
 MAX_OPCIONES = 6
-MAX_FILAS, MAX_COLUMNAS = 30, 8
+MAX_FILAS, MAX_COLUMNAS = 40, 8
+MAX_CELDA = 1500
 
 ETIQUETAS = {'b', 'strong', 'i', 'em', 'u', 'br', 'p', 'ul', 'ol', 'li', 'sub', 'sup', 'div', 'span'}
 VACIAS = {'br'}
 
 
+def _a_hex(valor):
+    """'#abc', '#aabbcc' o 'rgb(1, 2, 3)' → '#aabbcc'; si no es un color, ''."""
+    v = str(valor or '').strip().lower()
+    m = re.fullmatch(r'#([0-9a-f]{3})', v)
+    if m:
+        return '#' + ''.join(c * 2 for c in m.group(1))
+    if re.fullmatch(r'#[0-9a-f]{6}', v):
+        return v
+    m = re.fullmatch(r'rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*([\d.]+)\s*)?\)', v)
+    if m and (m.group(4) is None or float(m.group(4)) > 0):
+        return '#%02x%02x%02x' % tuple(min(255, int(x)) for x in m.groups()[:3])
+    return ''
+
+
+def _estilo_color(attrs):
+    """De un <span style> o <font color>: 'color:#…;background-color:#…' (solo esos dos, validados)."""
+    d = dict(attrs)
+    color, fondo = _a_hex(d.get('color')), ''
+    for parte in str(d.get('style') or '').split(';'):
+        if ':' not in parte:
+            continue
+        k, v = (x.strip().lower() for x in parte.split(':', 1))
+        if k == 'color':
+            color = _a_hex(v) or color
+        elif k in ('background-color', 'background'):
+            fondo = _a_hex(v) or fondo
+    return ';'.join(x for x in (color and f'color:{color}', fondo and f'background-color:{fondo}') if x)
+
+
 class _Limpiador(HTMLParser):
-    """Deja solo negrilla, cursiva, subrayado, listas, párrafos y saltos; sin atributos."""
+    """Deja solo negrilla, cursiva, subrayado, listas, párrafos, saltos y el color de letra o de relleno
+    (<span style="color:#…;background-color:#…">); ningún otro atributo."""
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -73,8 +104,16 @@ class _Limpiador(HTMLParser):
         self.abiertas = []
 
     def handle_starttag(self, tag, attrs):
-        tag = {'strong': 'b', 'em': 'i', 'div': 'p', 'span': None}.get(tag, tag)
-        if tag is None or tag not in ETIQUETAS:
+        if tag in ('span', 'font', 'mark'):
+            estilo = _estilo_color(attrs) or ('background-color:#fef08a' if tag == 'mark' else '')
+            if estilo:
+                self.salida.append(f'<span style="{estilo}">')
+                self.abiertas.append('span')
+            else:
+                self.abiertas.append('-' + tag)      # se cierra sin escribir nada
+            return
+        tag = {'strong': 'b', 'em': 'i', 'div': 'p'}.get(tag, tag)
+        if tag not in ETIQUETAS:
             return
         if tag in VACIAS:
             self.salida.append('<br>')
@@ -83,12 +122,23 @@ class _Limpiador(HTMLParser):
         self.abiertas.append(tag)
 
     def handle_endtag(self, tag):
-        tag = {'strong': 'b', 'em': 'i', 'div': 'p', 'span': None}.get(tag, tag)
-        if tag is None or tag in VACIAS or tag not in self.abiertas:
+        if tag in ('span', 'font', 'mark'):
+            # cierra el último span (o el marcador de uno sin color)
+            for k in range(len(self.abiertas) - 1, -1, -1):
+                if self.abiertas[k] in ('span', '-' + tag, '-span', '-font', '-mark'):
+                    while len(self.abiertas) > k:
+                        t = self.abiertas.pop()
+                        if not t.startswith('-'):
+                            self.salida.append(f'</{t}>')
+                    return
+            return
+        tag = {'strong': 'b', 'em': 'i', 'div': 'p'}.get(tag, tag)
+        if tag in VACIAS or tag not in self.abiertas:
             return
         while self.abiertas:
             t = self.abiertas.pop()
-            self.salida.append(f'</{t}>')
+            if not t.startswith('-'):
+                self.salida.append(f'</{t}>')
             if t == tag:
                 break
 
@@ -97,7 +147,9 @@ class _Limpiador(HTMLParser):
 
     def texto(self):
         while self.abiertas:
-            self.salida.append(f'</{self.abiertas.pop()}>')
+            t = self.abiertas.pop()
+            if not t.startswith('-'):
+                self.salida.append(f'</{t}>')
         return ''.join(self.salida)
 
 
@@ -123,6 +175,47 @@ def _entero(v, defecto, minimo, maximo):
         return defecto
 
 
+COLOR_DEFECTO = '#1f3a68'
+COLORES = [('#1f3a68', 'Azul institucional'), ('#2563eb', 'Azul claro'), ('#0f766e', 'Verde azulado'), ('#15803d', 'Verde'),
+           ('#7c3aed', 'Morado'), ('#be185d', 'Fucsia'), ('#b91c1c', 'Rojo'), ('#c2410c', 'Naranja'), ('#a16207', 'Mostaza'),
+           ('#374151', 'Gris oscuro'), ('#000000', 'Negro (ahorra tinta de color)')]
+
+
+def color_valido(valor, defecto=COLOR_DEFECTO):
+    """Un color #rrggbb; si no es válido, el de siempre."""
+    v = str(valor or '').strip().lower()
+    return v if re.fullmatch(r'#[0-9a-f]{6}', v) else defecto
+
+
+def comparable(texto):
+    """Minúsculas, sin tildes ni espacios de más: para comparar áreas («Matemáticas» = «matematicas»)."""
+    import unicodedata
+    t = unicodedata.normalize('NFD', str(texto or '').lower())
+    return ' '.join(''.join(c for c in t if unicodedata.category(c) != 'Mn').split())
+
+
+def mezclar(color, blanco):
+    """El color aclarado con blanco (blanco = 0..1): para los fondos suaves de los recuadros."""
+    c = color_valido(color)
+    r, g, b = (int(c[i:i + 2], 16) for i in (1, 3, 5))
+    return '#%02x%02x%02x' % tuple(round(x + (255 - x) * blanco) for x in (r, g, b))
+
+
+def _estilos_celdas(crudo, n_filas, n_cols):
+    """Relleno y color de letra de cada celda: {'fila-col': {'f': '#…', 'c': '#…'}} (solo celdas que existen)."""
+    salida = {}
+    if not isinstance(crudo, dict):
+        return salida
+    for clave, v in list(crudo.items())[:MAX_FILAS * MAX_COLUMNAS]:
+        m = re.fullmatch(r'(\d{1,2})-(\d)', str(clave))
+        if not m or not isinstance(v, dict) or int(m.group(1)) >= n_filas or int(m.group(2)) >= n_cols:
+            continue
+        e = {k: _a_hex(v.get(k)) for k in ('f', 'c') if _a_hex(v.get(k))}
+        if e:
+            salida[clave] = e
+    return salida
+
+
 def limpiar(contenido, imagenes_validas):
     """Devuelve el contenido limpio: solo tipos conocidos, textos acotados, imágenes del docente."""
     contenido = contenido if isinstance(contenido, dict) else {}
@@ -145,12 +238,15 @@ def limpiar(contenido, imagenes_validas):
                 continue
             n.update(imagen=img, ancho=_entero(b.get('ancho'), 60, 10, 100), pie=texto_plano(b.get('pie'), 200))
         elif tipo == 'tabla':
-            filas = [[texto_plano(c, 300) for c in (f or [])[:MAX_COLUMNAS]]
+            filas = [[texto_plano(c, MAX_CELDA) for c in (f or [])[:MAX_COLUMNAS]]
                      for f in (b.get('filas') or [])[:MAX_FILAS] if isinstance(f, list)]
             ancho = max((len(f) for f in filas), default=0)
             if not ancho:
                 continue
-            n.update(filas=[f + [''] * (ancho - len(f)) for f in filas], encabezado=bool(b.get('encabezado')))
+            n.update(filas=[f + [''] * (ancho - len(f)) for f in filas], encabezado=bool(b.get('encabezado')),
+                     # privada: datos del estudiante (PIAR) que nunca se envían a la IA
+                     privada=bool(b.get('privada')),
+                     estilos=_estilos_celdas(b.get('estilos'), len(filas), ancho))
         elif tipo == 'recuadro':
             estilo = b.get('estilo') if b.get('estilo') in ESTILOS_RECUADRO else 'nota'
             n.update(estilo=estilo, titulo=texto_plano(b.get('titulo'), 80) or ESTILOS_RECUADRO[estilo],
@@ -179,6 +275,8 @@ def limpiar(contenido, imagenes_validas):
         'horario': texto_plano(o.get('horario'), 80),
         'aviso': texto_plano(o.get('aviso'), 300),
         'fin': texto_plano(o.get('fin'), 200),
+        # Color de los títulos, las franjas de sección y los recuadros (antes siempre azul)
+        'color': color_valido(o.get('color')),
     }
     return {'bloques': bloques, 'opciones': opciones}
 

@@ -71,7 +71,8 @@ def inicio(request):
         'abiertas': abiertas, 'admin': admin, 'jurado': _puede_jurado(request),
         'elecciones': Eleccion.objects.filter(colegio=request.colegio) if admin else
         Eleccion.objects.filter(colegio=request.colegio, estado='abierta'),
-        'cerradas': Eleccion.objects.filter(colegio=request.colegio, estado='cerrada')[:5]})
+        'cerradas': Eleccion.objects.filter(colegio=request.colegio, estado='cerrada')[:5],
+        'mis_certificados': Eleccion.objects.filter(colegio=request.colegio, votantes__usuario=request.user).exclude(estado='abierta')[:10]})
 
 
 # ---------------------------------------------------------------------------
@@ -309,3 +310,86 @@ def acta(request, pk):
     return render(request, 'votaciones/acta.html', {
         'e': e, 'resultados': L.resultados(e), 'votaron': votaron, 'habilitados': habilitados,
         'pct': round(votaron * 100 / habilitados, 1) if habilitados else 0, 'hoy': timezone.localtime()})
+
+
+# ---------------------------------------------------------------------------
+# Quién votó y quién no, y el certificado electoral
+# ---------------------------------------------------------------------------
+@solo_admin
+def votantes(request, pk):
+    """Lista de las personas habilitadas: quién ya votó (cuándo y cómo) y quién falta. Nunca dice por quién votó."""
+    e = _eleccion(request, pk)
+    curso_id = request.GET.get('curso') if (request.GET.get('curso') or '').isdigit() else None
+    estado = request.GET.get('estado') if request.GET.get('estado') in ('votaron', 'faltan') else ''
+    filas = L.lista_votantes(e, curso_id)
+    total, votaron = len(filas), sum(1 for f in filas if f['voto'])
+    if estado == 'votaron':
+        filas = [f for f in filas if f['voto']]
+    elif estado == 'faltan':
+        filas = [f for f in filas if not f['voto']]
+    if request.GET.get('excel'):
+        return _votantes_excel(e, filas)
+    return render(request, 'votaciones/votantes.html', {
+        'e': e, 'filas': filas, 'total': total, 'votaron': votaron, 'faltan': total - votaron,
+        'pct': round(votaron * 100 / total) if total else 0, 'curso_id': int(curso_id) if curso_id else None, 'estado': estado,
+        'cursos': Curso.objects.filter(colegio=request.colegio).order_by('orden', 'nombre')})
+
+
+def _votantes_excel(e, filas):
+    from django.http import HttpResponse
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Votantes'
+    ws.append([e.nombre])
+    ws['A1'].font = Font(bold=True, size=13)
+    ws.append(['Nombre', 'Curso', 'Votó', 'Fecha y hora', 'Cómo votó'])
+    for c in ws[2]:
+        c.font = Font(bold=True, color='FFFFFF')
+        c.fill = PatternFill('solid', fgColor='1F3A68')
+    for f in filas:
+        v = f['voto']
+        ws.append([f['nombre'], f['curso'].nombre if f['curso'] else 'Docente', 'Sí' if v else 'No',
+                   timezone.localtime(v.creado).strftime('%d/%m/%Y %I:%M %p') if v else '', v.get_medio_display() if v else ''])
+    for col, ancho in zip('ABCDE', (38, 12, 8, 22, 22)):
+        ws.column_dimensions[col].width = ancho
+    r = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    r['Content-Disposition'] = f'attachment; filename="votantes-{e.pk}.xlsx"'
+    wb.save(r)
+    return r
+
+
+@del_colegio
+def certificado(request, pk):
+    """El certificado electoral de quien votó. El estudiante descarga el suyo; un directivo puede imprimir el de cualquier
+    votante (?u=<id>), por ejemplo para quien votó en la mesa o en una cabina."""
+    e = _eleccion(request, pk)
+    usuario = request.user
+    if request.GET.get('u') and es_admin(request):
+        usuario = get_object_or_404(User, pk=request.GET.get('u'))
+    voto = VotoEmitido.objects.filter(eleccion=e, usuario=usuario).select_related('curso').first()
+    if voto is None:
+        messages.info(request, 'El certificado electoral es para quien ya votó en esta elección.')
+        return redirect('votaciones:inicio')
+    tipo, persona = L.votante(usuario, request.colegio)
+    documento = ''
+    if tipo == 'estudiante':
+        ficha = getattr(persona, 'ficha', None) if hasattr(persona, 'ficha') else None
+        documento = f'{ficha.get_tipo_documento_display()} {ficha.numero_documento}' if ficha and ficha.numero_documento else ''
+    codigo = L.codigo_certificado(e.pk, usuario.pk)
+    return render(request, 'votaciones/certificado.html', {
+        'e': e, 'colegio': request.colegio, 'voto': voto, 'nombre': usuario.get_full_name() or usuario.username,
+        'tipo': tipo, 'documento': documento, 'curso': voto.curso or getattr(persona, 'curso', None), 'codigo': codigo,
+        'verificar': request.build_absolute_uri(f'/votaciones/certificado/verificar/?codigo={codigo}')})
+
+
+def verificar_certificado(request):
+    """Cualquiera puede comprobar si un certificado electoral es auténtico con su código."""
+    colegio = getattr(request, 'colegio', None)
+    if colegio is None:
+        raise Http404
+    codigo = (request.GET.get('codigo') or '').strip()
+    voto = L.buscar_certificado(colegio, codigo) if codigo else None
+    return render(request, 'votaciones/verificar.html', {'colegio': colegio, 'codigo': codigo, 'voto': voto,
+                                                         'nombre': (voto.usuario.get_full_name() or voto.usuario.username) if voto else ''})

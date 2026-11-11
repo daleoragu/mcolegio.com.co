@@ -6,7 +6,7 @@ from django.urls import reverse
 
 ESPACIOS = [
     # id, nombre, icono, url
-    ('inicio', 'Inicio', 'fa-house', 'salon_digital:inicio'),
+    ('inicio', 'Pizarra', 'fa-chalkboard', 'salon_digital:inicio'),
     ('sala', 'Sala de Profesores', 'fa-comments', 'chat:muro'),
     ('espacio', 'Mi Espacio', 'fa-folder-open', 'salon_digital:mi_espacio'),
     ('estudiantes', 'Mis Estudiantes', 'fa-users', 'aula:inicio'),
@@ -27,6 +27,7 @@ SECCIONES = {
                     ('Grupos, PIN y tarjetas QR', 'fa-id-card', 'salon_digital:grupos', 'grupos'),
                     ('Escanear exámenes y notas (PuntoExacto)', 'fa-camera', 'puntoexacto:lista', 'examenes')],
     'planeacion': [('Mis materiales', 'fa-file-lines', 'materiales:lista', 'materiales'),
+                   ('Mis juegos', 'fa-gamepad', 'materiales:juegos', 'juegos'),
                    ('Rúbricas', 'fa-list-check', 'aula:instrumentos', 'rubricas'),
                    ('Banco de preguntas', 'fa-box-archive', 'aula:banco', 'banco'),
                    ('Exámenes PuntoExacto', 'fa-barcode', 'puntoexacto:lista', 'examenes'),
@@ -46,7 +47,7 @@ def ubicar(request):
         return '', ''
     app, nombre = m.app_name, m.url_name
     if app == 'salon_digital':
-        if nombre == 'inicio':
+        if nombre in ('inicio', 'tablero'):
             return 'inicio', ''
         if nombre in ('grupos', 'nuevo_grupo', 'ver_grupo', 'editar_grupo', 'tarjetas_grupo', 'editar_integrante'):
             return 'estudiantes', 'grupos'
@@ -68,6 +69,8 @@ def ubicar(request):
             return 'sala', 'colegas'
         return 'sala', 'mensajes'
     if app in ('materiales',):
+        if nombre and (nombre.startswith('juego') or nombre == 'logica_probar'):
+            return 'planeacion', 'juegos'
         return 'planeacion', 'materiales'
     if app == 'puntoexacto':
         return 'planeacion', 'examenes'

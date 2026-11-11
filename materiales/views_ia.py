@@ -81,7 +81,7 @@ def accion(request, a, accion):
     validas = set(Imagen.objects.filter(propietario=request.user).values_list('pk', flat=True))
     contexto = {'imagenes': validas}
     doc = None
-    if accion in ('piar', 'revisar'):
+    if accion in ('piar', 'revisar', 'llenar'):
         from .views_equipo import doc_equipo
         doc, _ = doc_equipo(a, _entero(datos.get('documento')))
         validas = set(Imagen.objects.filter(propietario_id__in=doc.equipo_ids()).values_list('pk', flat=True))
@@ -89,6 +89,8 @@ def accion(request, a, accion):
         contexto['documento'] = B.limpiar(doc.contenido, validas)
         if not contexto['documento']['bloques']:
             return JsonResponse({'ok': False, 'error': 'El documento está vacío.'}, status=400)
+        if accion == 'llenar' and not ia._tablas_para_llenar(contexto['documento']):
+            return JsonResponse({'ok': False, 'error': 'No hay celdas vacías para llenar (las tablas privadas no se envían a la IA).'}, status=400)
     if accion == 'rubrica':
         from aula import logica
         contexto['niveles'] = logica.niveles_sugeridos(a.colegio, request.user)

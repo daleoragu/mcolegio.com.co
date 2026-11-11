@@ -3,7 +3,7 @@
 {% block page_title %}{% endblock %}
 {% block content %}
 {% include 'aula/_instrucciones.html' %}
-{% include 'aula/_cabecera.html' %}
+{% if aula %}{% include 'aula/_cabecera.html' %}{% else %}{% include 'aula/_estilos.html' %}{% endif %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
@@ -51,9 +51,9 @@
 </style>
 <div class="au">
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2" style="max-width:760px;margin:0 auto">
-  <a href="{% url 'aula:gamificacion' aula.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Menú de juegos</a>
+  <a href="{% if aula %}{% url 'aula:gamificacion' aula.pk %}{% else %}{{ menu_url }}{% endif %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% if aula %}Menú de juegos{% else %}Mis juegos{% endif %}</a>
   <h5 class="fw-bold mb-0 flex-grow-1">{% if juego %}{{ juego.titulo }}{% else %}{{ nombre_juego }} · {{ banco }}{% endif %}</h5>
-  <span class="small text-muted">{{ nombre_juego }}{% if not guarda %} · {% if juego %}prueba del docente{% else %}práctica sin nota{% endif %}{% endif %}{% if mio and mio.nota is not None %} · su mejor nota: <b>{{ mio.nota }}</b>{% endif %}</span>
+  <span class="small text-muted">{{ nombre_juego }}{% if not guarda %} · {% if juego or prueba_docente %}prueba del docente{% else %}práctica sin nota{% endif %}{% endif %}{% if mio and mio.nota is not None %} · su mejor nota: <b>{{ mio.nota }}</b>{% endif %}</span>
 </div>
 
 {% if elegir_velocidad %}
@@ -177,7 +177,7 @@
       });
     },
     alTerminar: async (r) => {
-      const otra = `<a class="btn au-oro" href="">Jugar otra vez</a> <a class="btn btn-outline-secondary" href="{% url 'aula:gamificacion' aula.pk %}">Menú de juegos</a>`;
+      const otra = `<a class="btn au-oro" href="">Jugar otra vez</a> <a class="btn btn-outline-secondary" href="{% if aula %}{% url 'aula:gamificacion' aula.pk %}{% else %}{{ menu_url }}{% endif %}">{% if aula %}Menú de juegos{% else %}Mis juegos{% endif %}</a>`;
       if (!GUARDA || !URL_RESULTADO) {
         textoFinal = {{ jugadores|default:1 }} === 2 ? 'PARTIDA DE 2: SIN NOTA' : 'PRÁCTICA: NO SE GUARDA NOTA';
         salida.innerHTML = `<div class="au-tarjeta text-center">${r.aciertos} de ${r.total} correctas. ${otra}</div>`;

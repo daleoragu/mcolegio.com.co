@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verificar certificado electoral · {{ colegio.nombre }}</title>
+<style>
+  body { font-family: system-ui, Arial, sans-serif; background:#f1f5f9; color:#1d2433; margin:0; padding:24px; }
+  .caja { max-width:520px; margin:40px auto; background:#fff; border-radius:16px; padding:24px; box-shadow:0 6px 20px rgba(15,23,42,.1); }
+  h1 { font-size:1.2rem; margin:0 0 12px; } input { width:100%; padding:10px; font-size:1.1rem; border:1px solid #cbd5e1; border-radius:10px; font-family:ui-monospace, monospace; text-transform:uppercase; }
+  button { margin-top:10px; padding:10px 16px; border:0; border-radius:10px; background:#1f3a68; color:#fff; font-size:1rem; }
+  .ok { background:#dcfce7; border:1px solid #86efac; border-radius:12px; padding:12px; margin-top:16px; } .no { background:#fee2e2; border:1px solid #fca5a5; border-radius:12px; padding:12px; margin-top:16px; }
+</style></head><body>
+<div class="caja">
+  <h1>Verificar un certificado electoral<br><small style="font-weight:normal;color:#64748b">{{ colegio.nombre }}</small></h1>
+  <form method="get"><input name="codigo" value="{{ codigo }}" placeholder="XXXX-XXXX-XXXX" aria-label="Código de verificación" required><button>Verificar</button></form>
+  {% if codigo %}{% if voto %}<div class="ok"><b>✔ Certificado auténtico.</b><br>{{ nombre }}{% if voto.curso %} · Curso {{ voto.curso.nombre }}{% endif %} votó en «{{ voto.eleccion.nombre }}» el {{ voto.creado|date:"j/m/Y" }}.</div>
+  {% else %}<div class="no"><b>✘ No encontramos ese código</b> en las elecciones de este colegio. Revise que lo haya escrito bien.</div>{% endif %}{% endif %}
+</div>
+</body></html>

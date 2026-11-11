@@ -102,6 +102,7 @@ ACCIONES = {
     'rubrica': {'nombre': 'Crear rúbrica', 'creditos': 3, 'tokens': 2500},
     'retro': {'nombre': 'Retroalimentación sugerida', 'creditos': 1, 'tokens': 700},
     'revisar': {'nombre': 'Revisar el texto', 'creditos': 8, 'tokens': 5000},
+    'llenar': {'nombre': 'Llenar el formato', 'creditos': 6, 'tokens': 9000},
 }
 AJUSTES_PIAR = {
     'lectura': 'lectura más sencilla: frases cortas, vocabulario cotidiano, una idea por oración',
@@ -311,8 +312,63 @@ def _p_revisar(d, ctx):
             + _extra(d))
 
 
+def _tablas_para_llenar(documento):
+    """Las tablas que la IA puede llenar (nunca las privadas) y el contexto de cada una (su sección)."""
+    seccion, salida = '', []
+    for b in documento.get('bloques', []):
+        if b['tipo'] == 'seccion':
+            seccion = b.get('titulo', '')
+        elif b['tipo'] == 'titulo':
+            seccion = seccion or b.get('texto', '')
+        elif b['tipo'] == 'tabla' and not b.get('privada'):
+            if any(c == '' for f in b['filas'] for c in f):
+                salida.append({'id': b['id'], 'seccion': seccion, 'encabezado': b.get('encabezado'), 'filas': b['filas']})
+    return salida
+
+
+def _p_llenar(d, ctx):
+    tablas = _tablas_para_llenar(ctx['documento'])
+    return ('Llena este formato escolar (planeación, plan de aula, PIAR o matriz DUA) de un docente colombiano.\n'
+            f'Tema: {_t(d.get("tema"), 200) or "el que indican las celdas ya llenas"}\nGrado: {_t(d.get("grado"), 40)}\n'
+            f'Área: {_t(d.get("area"), 80)}\n'
+            'Reglas: completa SOLO las celdas vacías (""); deja exactamente igual las que ya tienen texto. Cada celda: '
+            'texto concreto y aplicable en el aula, de 1 a 4 frases. En las tablas de dos columnas, la primera columna es el '
+            'nombre del campo y la segunda su valor. Si una celda pide la institución, el docente, la fecha o un dato que no '
+            'conoces, déjala vacía. Para DBA y estándares escribe el enunciado tal como lo conozcas del MEN, y si no estás '
+            'seguro escribe una competencia general sin inventar el número. En el PIAR no uses nombres ni diagnósticos.\n'
+            f'Tablas (JSON):\n{json.dumps(tablas, ensure_ascii=False)[:14000]}\n'
+            'Devuelve {"tablas": {"<id>": [[fila con todas las celdas], ...]}} con las mismas filas y columnas.' + _extra(d))
+
+
+def _v_llenar(obj, d, ctx):
+    """Une lo que llenó la IA con el documento: solo entran celdas que estaban vacías y en tablas no privadas."""
+    nuevas = obj.get('tablas')
+    if not isinstance(nuevas, dict):
+        raise ValueError('Falta "tablas".')
+    bloques, llenas = [], 0
+    for b in ctx['documento'].get('bloques', []):
+        b = dict(b)
+        propuesta = nuevas.get(b.get('id')) if b['tipo'] == 'tabla' and not b.get('privada') else None
+        if isinstance(propuesta, list):
+            filas = [list(f) for f in b['filas']]
+            for i, fila in enumerate(filas):
+                if i >= len(propuesta) or not isinstance(propuesta[i], list):
+                    continue
+                for j, valor in enumerate(fila):
+                    if valor == '' and j < len(propuesta[i]):
+                        texto = B.texto_plano(propuesta[i][j], B.MAX_CELDA)
+                        if texto:
+                            fila[j] = texto
+                            llenas += 1
+            b['filas'] = filas
+        bloques.append(b)
+    if not llenas:
+        raise ValueError('No llenó ninguna celda vacía.')
+    return {'reemplazar': bloques, 'llenas': llenas}
+
+
 PROMPTS = {'guia': _p_guia, 'actividad': _p_actividad, 'cuadernillo': _p_cuadernillo, 'piar': _p_piar,
-           'rubrica': _p_rubrica, 'retro': _p_retro, 'revisar': _p_revisar}
+           'rubrica': _p_rubrica, 'retro': _p_retro, 'revisar': _p_revisar, 'llenar': _p_llenar}
 
 
 # ---------------------------------------------------------------------------
@@ -431,4 +487,4 @@ def _v_revisar(obj, d, ctx):
 
 
 VALIDAR = {'guia': _v_bloques, 'actividad': _v_actividad, 'cuadernillo': _v_cuadernillo, 'piar': _v_piar,
-           'rubrica': _v_rubrica, 'retro': _v_retro, 'revisar': _v_revisar}
+           'rubrica': _v_rubrica, 'retro': _v_retro, 'revisar': _v_revisar, 'llenar': _v_llenar}

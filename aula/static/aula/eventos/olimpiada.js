@@ -370,11 +370,55 @@
         let caja = document.getElementById('ol-espejo');
         if (!caja) {
             caja = document.createElement('div'); caja.id = 'ol-espejo';
-            caja.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:2147483000;width:96px;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.4);background:#000;pointer-events:none';
-            caja.innerHTML = '<video autoplay muted playsinline style="width:100%;display:block;transform:scaleX(-1)"></video><div style="position:absolute;top:3px;left:5px;color:#fff;font:700 10px system-ui;text-shadow:0 0 3px #000"><span style="color:#ff4d4f">●</span> GRABANDO</div>';
+            caja.style.cssText = 'position:fixed;z-index:2147483000;width:96px;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.4);background:#000;cursor:grab;touch-action:none;user-select:none';
+            caja.title = 'Arrástrela a otra esquina para que no tape las preguntas';
+            caja.innerHTML = '<video autoplay muted playsinline style="width:100%;display:block;transform:scaleX(-1);pointer-events:none"></video><div style="position:absolute;top:3px;left:5px;color:#fff;font:700 10px system-ui;text-shadow:0 0 3px #000;pointer-events:none"><span style="color:#ff4d4f">●</span> GRABANDO</div>' +
+                '<button type="button" aria-label="Mover la cámara a otra esquina" title="Mover a otra esquina" style="position:absolute;right:3px;bottom:3px;width:24px;height:24px;border:0;border-radius:6px;background:rgba(255,255,255,.85);font:700 13px system-ui;line-height:24px;padding:0;cursor:pointer">⤡</button>';
             $('#ol').appendChild(caja);
+            moverEspejo(caja);
         }
         caja.querySelector('video').srcObject = Vig.stream;
+    }
+    // La cámara se puede mover a cualquiera de las cuatro esquinas (arrastrándola o con su botón) para no tapar las
+    // preguntas. No se puede ocultar: la supervisión sigue grabando. La esquina queda guardada en este equipo.
+    const ESQUINAS = ['abajo-izq', 'abajo-der', 'arriba-der', 'arriba-izq'];
+    function ponerEsquina(caja, esq) {
+        const m = '8px';
+        caja.style.left = caja.style.right = caja.style.top = caja.style.bottom = '';
+        caja.style[esq.endsWith('izq') ? 'left' : 'right'] = m;
+        caja.style[esq.startsWith('abajo') ? 'bottom' : 'top'] = esq.startsWith('arriba') ? '64px' : m;   // arriba deja ver la barra del reto
+        caja.dataset.esquina = esq;
+        try { localStorage.setItem('ol-camara-esquina', esq); } catch (e) { /* sin almacenamiento */ }
+    }
+    function moverEspejo(caja) {
+        let guardada = 'abajo-izq';
+        try { guardada = localStorage.getItem('ol-camara-esquina') || guardada; } catch (e) { /* sin almacenamiento */ }
+        ponerEsquina(caja, ESQUINAS.includes(guardada) ? guardada : 'abajo-izq');
+        const boton = caja.querySelector('button');
+        boton.addEventListener('pointerdown', ev => ev.stopPropagation());
+        boton.addEventListener('click', ev => {
+            ev.stopPropagation();
+            ponerEsquina(caja, ESQUINAS[(ESQUINAS.indexOf(caja.dataset.esquina) + 1) % ESQUINAS.length]);
+        });
+        let arrastre = null;
+        caja.addEventListener('pointerdown', ev => {
+            const r = caja.getBoundingClientRect();
+            arrastre = {dx: ev.clientX - r.left, dy: ev.clientY - r.top};
+            caja.setPointerCapture(ev.pointerId); caja.style.cursor = 'grabbing'; caja.style.transition = 'none';
+        });
+        caja.addEventListener('pointermove', ev => {
+            if (!arrastre) return;
+            const x = Math.max(0, Math.min(innerWidth - caja.offsetWidth, ev.clientX - arrastre.dx));
+            const y = Math.max(0, Math.min(innerHeight - caja.offsetHeight, ev.clientY - arrastre.dy));
+            caja.style.right = caja.style.bottom = ''; caja.style.left = x + 'px'; caja.style.top = y + 'px';
+        });
+        const soltar = () => {
+            if (!arrastre) return;
+            arrastre = null; caja.style.cursor = 'grab'; caja.style.transition = 'left .15s, top .15s';
+            const r = caja.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+            ponerEsquina(caja, (cy < innerHeight / 2 ? 'arriba-' : 'abajo-') + (cx < innerWidth / 2 ? 'izq' : 'der'));
+        };
+        caja.addEventListener('pointerup', soltar); caja.addEventListener('pointercancel', soltar);
     }
     // --- El video armado: arriba los datos de la prueba, en el centro el juego (o la pantalla), la cámara en un recuadro
     //     y una franja roja si el estudiante está fuera de la prueba.

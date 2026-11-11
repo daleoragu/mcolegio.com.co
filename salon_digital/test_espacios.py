@@ -25,7 +25,7 @@ class Espacios(TestCase):
                        'Actividad de la comunidad', '7-01 Matemáticas'):
             self.assertContains(r, nombre)
         self.assertContains(r, 'class="esp-abajo"')                 # barra de abajo en el celular
-        self.assertContains(r, 'aria-current="page">Inicio</a>')
+        self.assertContains(r, 'aria-current="page">Pizarra</a>')
 
     def test_el_menu_marca_el_espacio_de_cada_pagina(self):
         casos = [('/chat/colegas/muro/', 'Sala de Profesores'), ('/salon_digital/mi-espacio/', 'Mi Espacio'),
@@ -45,7 +45,7 @@ class Espacios(TestCase):
         p.normas_aceptadas = timezone.now()
         p.save()
         r = self.client.get('/chat/colegas/muro/')
-        for texto in ('Navegación', 'Filtros', 'Eventos activos', 'Guía pedagógica', 'Juego interactivo (HTML)'):
+        for texto in ('Navegación', 'Filtros', 'Eventos activos', 'Guía pedagógica', 'Juego o actividad interactiva'):
             self.assertContains(r, texto)
 
     def test_mi_espacio_perfil_qr_y_paginas(self):
@@ -109,6 +109,25 @@ class Espacios(TestCase):
         self.assertContains(self.client.get('/salon_digital/mi-espacio/'), 'Apasionado por la geometría')
         r = self.client.post('/chat/colegas/ajustes/', {'volver': '//otro-sitio.com/'})
         self.assertRedirects(r, '/chat/colegas/?tab=perfil', fetch_redirect_response=False)
+
+    def test_pizarra_notas_y_tablero(self):
+        r = self.client.get('/salon_digital/inicio/')
+        self.assertContains(r, 'aria-current="page">Pizarra</a>')
+        self.assertContains(r, 'Mi pizarra')
+        j = self.client.post('/salon_digital/pizarra/nota/', {'accion': 'crear', 'texto': 'Calificar 7-01', 'color': 'verde'}).json()
+        nid = j['nota']['id']
+        self.client.post('/salon_digital/pizarra/nota/', {'accion': 'editar', 'id': nid, 'hecha': '1', 'texto': 'Calificar 7-01 y 7-02'})
+        from salon_digital.models import NotaPizarra
+        n = NotaPizarra.objects.get(pk=nid)
+        self.assertEqual((n.texto, n.color, n.hecha), ('Calificar 7-01 y 7-02', 'verde', True))
+        self.assertContains(self.client.get('/salon_digital/inicio/'), 'Calificar 7-01 y 7-02')
+        # Las notas de otro docente no se tocan
+        otro = User.objects.create_user('otro2')
+        ajena = NotaPizarra.objects.create(usuario=otro, texto='Ajena')
+        self.assertEqual(self.client.post('/salon_digital/pizarra/nota/', {'accion': 'borrar', 'id': ajena.pk}).status_code, 404)
+        self.client.post('/salon_digital/pizarra/nota/', {'accion': 'borrar', 'id': nid})
+        self.assertFalse(NotaPizarra.objects.filter(pk=nid).exists())
+        self.assertContains(self.client.get('/salon_digital/pizarra/tablero/'), 'tb-lienzo')
 
     def test_al_entrar_llega_al_inicio(self):
         self.client.logout()

@@ -1,0 +1,49 @@
+{% load static %}<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Certificado electoral · {{ nombre }}</title>
+<style>
+  @page { size: letter landscape; margin: 12mm; }
+  body { font-family: Georgia, 'Times New Roman', serif; color:#1d2433; background:#eef2f7; margin:0; padding:20px; }
+  .cert { max-width:960px; margin:0 auto; background:#fff; border:3px solid {{ colegio.color_primario|default:'#1f3a68' }}; outline:8px solid #f2b632; outline-offset:-14px;
+          padding:42px 56px 34px; position:relative; box-shadow:0 8px 30px rgba(15,23,42,.15); }
+  .cab { display:flex; align-items:center; gap:18px; justify-content:center; text-align:center; }
+  .cab img { height:78px; }
+  .col { font-weight:bold; font-size:15px; letter-spacing:.06em; text-transform:uppercase; }
+  h1 { font-size:34px; margin:18px 0 2px; text-align:center; color:{{ colegio.color_primario|default:'#1f3a68' }}; letter-spacing:.08em; }
+  .sub { text-align:center; font-style:italic; color:#5b6474; margin-bottom:22px; }
+  .texto { font-size:18px; line-height:1.7; text-align:center; }
+  .nombre { font-size:30px; font-weight:bold; display:block; margin:10px 0 2px; border-bottom:1px solid #94a3b8; padding-bottom:4px; }
+  .datos { font-size:14px; color:#475569; }
+  .firmas { display:grid; grid-template-columns:1fr 1fr; gap:80px; margin:56px 40px 0; text-align:center; font-size:13px; }
+  .firmas div { border-top:1px solid #333; padding-top:4px; }
+  .pie { display:flex; justify-content:space-between; align-items:flex-end; margin-top:26px; font-size:11px; color:#64748b; font-family:Arial, sans-serif; }
+  .codigo { font-family:ui-monospace, Consolas, monospace; font-size:13px; color:#1d2433; font-weight:bold; }
+  .sello { position:absolute; right:56px; top:150px; width:110px; height:110px; border-radius:50%; border:3px double #b91c1c; color:#b91c1c;
+           display:grid; place-items:center; text-align:center; font:bold 12px Arial, sans-serif; transform:rotate(-12deg); opacity:.85; }
+  .barra { max-width:960px; margin:0 auto 12px; font-family:Arial, sans-serif; }
+  .barra button, .barra a { font-size:14px; padding:8px 14px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; text-decoration:none; color:#1d2433; }
+  .barra button { background:#1f3a68; color:#fff; border-color:#1f3a68; }
+  @media print { body { background:#fff; padding:0; } .barra { display:none; } .cert { box-shadow:none; } }
+</style></head><body>
+<div class="barra"><button onclick="window.print()">Imprimir o guardar en PDF</button> <a href="{% url 'votaciones:inicio' %}">Volver</a></div>
+<div class="cert">
+  <div class="cab">
+    {% if colegio.escudo %}<img src="{{ colegio.escudo.url }}" alt="Escudo">{% elif colegio.logo_izquierdo %}<img src="{{ colegio.logo_izquierdo.url }}" alt="Escudo">{% endif %}
+    <div><div class="col">{{ colegio.nombre }}</div><div class="datos">{% if colegio.ciudad %}{{ colegio.ciudad }} · {% endif %}Gobierno escolar · Ley 115 de 1994, art. 94</div></div>
+  </div>
+  <h1>CERTIFICADO ELECTORAL</h1>
+  <div class="sub">{{ e.nombre }}</div>
+  <div class="sello">VOTÓ<br>{{ voto.creado|date:"d/m/Y" }}</div>
+  <div class="texto">
+    El comité electoral de la institución certifica que
+    <span class="nombre">{{ nombre }}</span>
+    <span class="datos">{% if documento %}{{ documento }} · {% endif %}{% if curso %}Curso {{ curso.nombre }}{% elif tipo == 'docente' %}Docente{% endif %}</span><br>
+    ejerció su derecho al voto en la elección del gobierno escolar realizada el <b>{{ voto.creado|date:"j \d\e F \d\e Y" }}</b>.
+    <br>¡Gracias por participar en la democracia de nuestro colegio!
+  </div>
+  <div class="firmas"><div>{{ colegio.nombre_rector|default:"Rector(a)" }}<br><small>Rector(a)</small></div><div>Comité electoral escolar</div></div>
+  <div class="pie">
+    <div>Código de verificación: <span class="codigo">{{ codigo }}</span><br>Verifíquelo en {{ verificar }}</div>
+    <div>Expedido con la plataforma mcolegio</div>
+  </div>
+</div>
+</body></html>

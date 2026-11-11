@@ -79,6 +79,7 @@
   <div class="col-lg-5">
     <form method="post" class="au-tarjeta" id="gm-form">{% csrf_token %}
       <h6><i class="fas fa-plus me-1"></i>Nuevo juego con sus preguntas</h6>
+      <div class="small text-muted mb-2"><i class="fas fa-lightbulb me-1 text-warning"></i>También puede crearlo y probarlo en <a href="{% url 'materiales:juegos' %}">Planeación → Mis juegos</a> y enviarlo a varias clases a la vez.</div>
       <label class="form-label small fw-bold mb-1">Juego</label>
       <div class="row g-2 mb-2">
         {% for k, nombre, desc, ins in tipos %}
@@ -130,7 +131,8 @@
 <script src="{% static 'aula/juegos/editor.js' %}"></script>
 {{ max_opciones|json_script:"gm-max-opciones" }}
 <script>EditorPreguntas.montar({form: document.getElementById('gm-form'), texto: document.getElementById('gm-preguntas'), tipos: JSON.parse(document.getElementById('gm-max-opciones').textContent),
-                          banco: '{% url 'aula:banco_json' %}', planilla: '{% url 'aula:banco_planilla' %}', csrf: '{{ csrf_token }}'});</script>
+                          banco: '{% url 'aula:banco_json' %}', planilla: '{% url 'aula:banco_planilla' %}', csrf: '{{ csrf_token }}',
+                          ia: '{% url 'materiales:ia' 'actividad' %}'});</script>
 {% endif %}
 <script>
 (function () {

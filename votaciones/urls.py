@@ -16,5 +16,8 @@ urlpatterns = [
     path('cabina/v/<str:vinculo>/', cabinas.vincular_desde_enlace, name='cabina_vincular'),
     path('<int:pk>/resultados/', views.resultados, name='resultados'),
     path('<int:pk>/acta/', views.acta, name='acta'),
+    path('<int:pk>/votantes/', views.votantes, name='votantes'),
+    path('<int:pk>/certificado/', views.certificado, name='certificado'),
+    path('certificado/verificar/', views.verificar_certificado, name='verificar_certificado'),
     path('candidato/<int:cid>/foto/', views.foto, name='foto'),
 ]

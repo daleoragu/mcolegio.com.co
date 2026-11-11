@@ -1,4 +1,4 @@
-Versión 0008 · 2026-11-09 00:52
+Versión 0014 · 2026-11-11 13:53
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -228,6 +228,7 @@ NUEVO     chat/migrations/0006_perfil_colega_foto.py
 NUEVO     chat/migrations/0007_muro_academico.py
 NUEVO     chat/migrations/0008_muro_actividades.py
 NUEVO     chat/migrations/0009_reunion_docente.py
+NUEVO     chat/migrations/0010_muro_juegos.py
 CAMBIADO  chat/models.py
 CAMBIADO  chat/reglas.py
 NUEVO     chat/static/chat/flotante.js
@@ -253,22 +254,34 @@ NUEVO     chat/views_muro.py
 CAMBIADO  config/settings.py
 CAMBIADO  config/urls.py
 CAMBIADO  elecciones/templates/elecciones/index.html
+CAMBIADO  materiales/bloques.py
 CAMBIADO  materiales/creditos.py
 CAMBIADO  materiales/exportar.py
+CAMBIADO  materiales/ia.py
 NUEVO     materiales/migrations/0005_colaboradores_y_modelos.py
 NUEVO     materiales/migrations/0006_encabezado_libre.py
+NUEVO     materiales/migrations/0007_mis_juegos.py
+NUEVO     materiales/migrations/0008_formatos.py
 CAMBIADO  materiales/models.py
 CAMBIADO  materiales/plantillas.py
+NUEVO     materiales/static/materiales/colores.js
 CAMBIADO  materiales/static/materiales/editor.js
 NUEVO     materiales/static/materiales/equipo.js
+NUEVO     materiales/templates/materiales/_colores.html
 NUEVO     materiales/templates/materiales/_encabezado_docente.html
 NUEVO     materiales/templates/materiales/_enviar_campos.html
+CAMBIADO  materiales/templates/materiales/_estilos.html
+NUEVO     materiales/templates/materiales/_juego_form.html
+NUEVO     materiales/templates/materiales/_juego_js.html
 CAMBIADO  materiales/templates/materiales/creditos.html
 CAMBIADO  materiales/templates/materiales/documento_pdf.html
 CAMBIADO  materiales/templates/materiales/editor.html
 CAMBIADO  materiales/templates/materiales/encabezado.html
+NUEVO     materiales/templates/materiales/juego_editar.html
+NUEVO     materiales/templates/materiales/juegos.html
 CAMBIADO  materiales/templates/materiales/lista.html
 NUEVO     materiales/tests/test_equipo.py
+NUEVO     materiales/tests/test_juegos_colores.py
 CAMBIADO  materiales/tests/test_materiales.py
 CAMBIADO  materiales/urls.py
 CAMBIADO  materiales/views.py
@@ -276,6 +289,7 @@ CAMBIADO  materiales/views_banco.py
 CAMBIADO  materiales/views_biblioteca.py
 NUEVO     materiales/views_equipo.py
 CAMBIADO  materiales/views_ia.py
+NUEVO     materiales/views_juegos.py
 CAMBIADO  notas/boletin/logic.py
 NUEVO     notas/colores.py
 CAMBIADO  notas/context_processors.py
@@ -392,6 +406,7 @@ NUEVO     salon_digital/limites.py
 NUEVO     salon_digital/migrations/0004_grupo_pedir_pin.py
 NUEVO     salon_digital/migrations/0005_pagos.py
 NUEVO     salon_digital/migrations/0006_planes_gratis_estandar_premium.py
+NUEVO     salon_digital/migrations/0007_pizarra.py
 CAMBIADO  salon_digital/models.py
 NUEVO     salon_digital/pagos.py
 NUEVO     salon_digital/planes_tabla.py
@@ -413,6 +428,7 @@ NUEVO     salon_digital/templates/salon_digital/pago.html
 NUEVO     salon_digital/templates/salon_digital/pagos_revisar.html
 CAMBIADO  salon_digital/templates/salon_digital/panel.html
 NUEVO     salon_digital/templates/salon_digital/planes.html
+NUEVO     salon_digital/templates/salon_digital/tablero.html
 NUEVO     salon_digital/templates/salon_digital/tarjetas_grupo.html
 CAMBIADO  salon_digital/templates/salon_digital/ver_grupo.html
 NUEVO     salon_digital/test_app.py
@@ -428,16 +444,21 @@ CAMBIADO  salon_digital/views_grupos.py
 NUEVO     salon_digital/views_pagos.py
 CAMBIADO  templates/base.html
 NUEVO     votaciones/cabinas.py
+CAMBIADO  votaciones/logica.py
 NUEVO     votaciones/migrations/0002_cabinas.py
 CAMBIADO  votaciones/models.py
 NUEVO     votaciones/templates/votaciones/cabina.html
 NUEVO     votaciones/templates/votaciones/cabina_vincular.html
+NUEVO     votaciones/templates/votaciones/certificado.html
 CAMBIADO  votaciones/templates/votaciones/eleccion.html
 CAMBIADO  votaciones/templates/votaciones/inicio.html
 NUEVO     votaciones/templates/votaciones/jurado.html
 CAMBIADO  votaciones/templates/votaciones/listo.html
 CAMBIADO  votaciones/templates/votaciones/mesa.html
+CAMBIADO  votaciones/templates/votaciones/resultados.html
 CAMBIADO  votaciones/templates/votaciones/tarjeton.html
+NUEVO     votaciones/templates/votaciones/verificar.html
+NUEVO     votaciones/templates/votaciones/votantes.html
 CAMBIADO  votaciones/tests.py
 CAMBIADO  votaciones/urls.py
 CAMBIADO  votaciones/views.py
@@ -483,6 +504,10 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0026_compartir_de_la_comunidad.py (compartir publicaciones del muro de la comunidad)
   notas/migrations/0064_colegio_estilo_planilla.py   (estilo de la planilla definido por el colegio)
   chat/migrations/0009_reunion_docente.py           (el grupo «Sala de profesores» del chat del colegio pasa a llamarse «Reunión docente»)
+  materiales/migrations/0007_mis_juegos.py           (Mis juegos: crear y probar juegos sin grupo en Planeación)
+  chat/migrations/0010_muro_juegos.py               (compartir juegos de Mis juegos en la Sala de Profesores)
+  salon_digital/migrations/0007_pizarra.py          (notas de la Pizarra del docente)
+  materiales/migrations/0008_formatos.py            (formatos de planeación, plan de aula, PIAR y DUA)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

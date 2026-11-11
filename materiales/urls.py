@@ -1,11 +1,23 @@
 from django.urls import path
 
-from . import views, views_banco, views_biblioteca as vb, views_equipo as ve, views_ia as vi
+from . import views, views_banco, views_biblioteca as vb, views_equipo as ve, views_ia as vi, views_juegos as vjg
 
 app_name = 'materiales'
 
 urlpatterns = [
     path('', views.lista, name='lista'),
+    # Mis juegos: crear, editar y probar sin grupo; enviar a las clases
+    path('juegos/', vjg.juegos, name='juegos'),
+    path('juegos/<int:pk>/', vjg.juego_editar, name='juego_editar'),
+    path('juegos/<int:pk>/probar/', vjg.juego_probar, name='juego_probar'),
+    path('juegos/<int:pk>/enviar/', vjg.juego_enviar, name='juego_enviar'),
+    path('juegos/<int:pk>/eliminar/', vjg.juego_eliminar, name='juego_eliminar'),
+    path('juegos/<int:pk>/vivo/', vjg.juego_vivo, name='juego_vivo'),
+    path('juegos/sala/<int:pk>/', vjg.juego_muro, name='juego_muro'),
+    path('juegos/sala/<int:pk>/importar/', vjg.juego_importar, name='juego_importar'),
+    path('juegos/ejemplo/<str:tipo>/', vjg.juego_ejemplo, name='juego_ejemplo'),
+    path('juegos/ejemplo/<str:tipo>/<str:banco>/', vjg.juego_ejemplo, name='juego_ejemplo_banco'),
+    path('juegos/logica/<slug:juego>/', vjg.logica_probar, name='logica_probar'),
     path('nuevo/', views.nuevo, name='nuevo'),
     path('encabezado/', views.encabezado, name='encabezado'),
     path('encabezado/logo/<str:cual>/', views.encabezado_logo, name='encabezado_logo'),

@@ -141,7 +141,9 @@ def lista(request, a):
     return render(request, 'materiales/lista.html', {
         'base': a.base, 'acceso': a, 'documentos': a.documentos().prefetch_related('colaboradores'), 'nube': _nube(a),
         'formatos': a.plantillas_formato().select_related('propietario'),
-        'tipos': [t for t in Documento.TIPOS if t[0] not in MODELOS], 'modelos': [t for t in Documento.TIPOS if t[0] in MODELOS],
+        'tipos': [t for t in Documento.TIPOS if t[0] not in MODELOS and t[0] not in plantillas.FORMATOS],
+        'modelos': [t for t in Documento.TIPOS if t[0] in MODELOS],
+        'formatos_tipos': [t for t in Documento.TIPOS if t[0] in plantillas.FORMATOS],
         'invitaciones': invitaciones, 'conmigo': conmigo, 'aulas': a.aulas(), **_contexto_ia(request, a)})
 
 
@@ -164,8 +166,26 @@ def nuevo(request, a):
     doc = Documento.objects.create(propietario=request.user, colegio=a.colegio, titulo=titulo, tipo=tipo,
                                    area=(request.POST.get('area') or (base.area if base else ''))[:80],
                                    grado=(request.POST.get('grado') or '')[:40],
-                                   contenido=plantillas.contenido_inicial(tipo, base))
+                                   contenido=_con_mi_color(request.user, plantillas.contenido_inicial(tipo, base), base,
+                                                           area=request.POST.get('area') or '', grado=request.POST.get('grado') or ''))
     return redirect('materiales:editor', pk=doc.pk)
+
+
+def _reglas_color(usuario):
+    enc = EncabezadoDocente.objects.filter(usuario=usuario).first()
+    return enc.por_area if enc is not None else []
+
+
+def _con_mi_color(usuario, contenido, base=None, area='', grado=''):
+    """Un documento nuevo sale con el color que el docente escogió en «Mi encabezado»: el de su área o grado si
+    tiene una regla, o su color general (el formato base manda su propio color)."""
+    if base is None:
+        enc = EncabezadoDocente.objects.filter(usuario=usuario).first()
+        color = enc.color_para(area, grado) if enc is not None else B.COLOR_DEFECTO
+        if color != B.COLOR_DEFECTO:
+            contenido = dict(contenido)
+            contenido['opciones'] = dict(contenido.get('opciones') or {}, color=color)
+    return contenido
 
 
 @require_POST
@@ -387,7 +407,14 @@ def editor(request, a, pk):
         'rol': rol, 'solo_ver': rol == 'ver', 'dueno_nombre': nombre(doc.propietario),
         'base': a.base, 'acceso': a, 'doc': doc, 'contenido': doc.contenido, 'imagenes': imagenes,
         'aulas': a.aulas(), 'nube': _nube(a), 'tipos': Documento.TIPOS, 'nube_docente': _nube_docente(request),
-        'destinos': _destinos_examen(a), 'modos_pregunta': B.MODOS_PREGUNTA,
+        'destinos': _destinos_examen(a), 'modos_pregunta': B.MODOS_PREGUNTA, 'colores': B.COLORES,
+        'es_formato': doc.tipo in plantillas.FORMATOS,
+        'colores_texto': [('c', 'Color de letra'), ('f', 'Relleno')],
+        # (color de letra, color de relleno suave) para las paletas
+        'paleta': [('#000000', '#fef08a'), ('#1f3a68', '#bbf7d0'), ('#2563eb', '#bfdbfe'), ('#0f766e', '#99f6e4'),
+                   ('#15803d', '#d9f99d'), ('#7c3aed', '#ddd6fe'), ('#be185d', '#fbcfe8'), ('#dc2626', '#fecaca'),
+                   ('#ea580c', '#fed7aa'), ('#ca8a04', '#fde68a'), ('#6b7280', '#e5e7eb'), ('#ffffff', '#f1f5f9')],
+        'colores_area': _reglas_color(request.user),
         'examen': doc.examen if doc.examen_id else None, **_contexto_ia(request, a, doc)})
 
 
@@ -562,6 +589,10 @@ def _config_encabezado(texto):
             'logo_pos': cfg.get('logo_pos') if cfg.get('logo_pos') in pos else 'izquierda',
             'logo2_pos': cfg.get('logo2_pos') if cfg.get('logo2_pos') in pos else 'derecha',
             'borde': bool(cfg.get('borde', True)),
+            'color': B.color_valido(cfg.get('color')),
+            # Color por área o grado: «Matemáticas» → azul, «Ciencias» → verde… (para los documentos nuevos)
+            'por_area': [{'area': B.texto_plano(x.get('area'), 60), 'color': B.color_valido(x.get('color'))}
+                         for x in (cfg.get('por_area') or [])[:12] if isinstance(x, dict) and B.texto_plano(x.get('area'), 60)],
             'pie': {'lineas': [B.texto_plano(x, 150) for x in (pie.get('lineas') or [])[:E.MAX_PIE] if B.texto_plano(x, 150)],
                     'alinear': pie.get('alinear') if pie.get('alinear') in alinear else 'centro',
                     'numero': bool(pie.get('numero', True))}}
@@ -595,15 +626,17 @@ def encabezado(request, a):
         return redirect('materiales:encabezado')
     if request.GET.get('muestra'):
         muestra = Documento(propietario=request.user, colegio=None, titulo='Guía de muestra', tipo='guia', area='Área',
-                            grado='—', contenido={'bloques': [{'tipo': 'texto', 'html': '<p>Así se ven el encabezado y el pie '
-                                                               'de página en sus documentos.</p>'}]})
+                            grado='—', contenido={'bloques': [{'tipo': 'seccion', 'titulo': 'Exploración', 'indicacion': ''},
+                                                              {'tipo': 'texto', 'html': '<p>Así se ven el encabezado, el pie '
+                                                               'de página y el color de sus documentos.</p>'}],
+                                                  'opciones': {'color': enc.color}})
         r = HttpResponse(exportar.pdf(request, muestra, colegio=None, encabezado=enc, docente=a.docente()), content_type='application/pdf')
         r['Content-Disposition'] = 'inline; filename="muestra-encabezado.pdf"'
         return r
     datos = {'lineas': enc.filas, 'alinear': enc.alinear, 'logo_pos': enc.logo_pos, 'logo2_pos': enc.logo2_pos,
-             'borde': enc.borde, 'pie': enc.pie}
+             'borde': enc.borde, 'pie': enc.pie, 'color': enc.color, 'por_area': enc.por_area}
     return render(request, 'materiales/encabezado.html', {'base': a.base, 'acceso': a, 'enc': enc, 'datos': datos,
-                                                         'posiciones': EncabezadoDocente.POSICIONES})
+                                                         'posiciones': EncabezadoDocente.POSICIONES, 'colores': B.COLORES})
 
 
 @vista

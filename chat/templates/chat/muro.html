@@ -58,7 +58,7 @@
         </div>
         <div class="d-flex flex-wrap gap-2">
           <button type="button" class="btn btn-sm btn-outline-secondary sp-rapido" data-tipo="recurso"><i class="far fa-file-lines me-1"></i>Guía pedagógica</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary sp-rapido" data-tipo="actividad"><i class="fas fa-upload me-1"></i>Juego interactivo (HTML)</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary sp-rapido" data-tipo="actividad"><i class="fas fa-gamepad me-1"></i>Juego o actividad interactiva</button>
           <button type="button" class="btn btn-sm btn-outline-secondary sp-rapido" data-tipo="experiencia"><i class="fas fa-chalkboard-user me-1"></i>Experiencia</button>
           <button type="button" class="btn btn-sm btn-outline-secondary sp-rapido" data-tipo="consulta"><i class="far fa-circle-question me-1"></i>Consulta</button>
           <button type="button" class="btn btn-sm sp-publicar ms-auto sp-rapido" data-tipo="experiencia">Publicar</button>
@@ -76,7 +76,9 @@
           <select name="documento" class="form-select form-select-sm mb-2"><option value="">— Escoja uno de Mis materiales (opcional) —</option>{% for d in documentos %}<option value="{{ d.pk }}">{{ d.titulo }} · {{ d.get_tipo_display }}</option>{% endfor %}</select>
         </div>
         <div class="mu-solo" data-para="actividad">
-          <select name="pagina" class="form-select form-select-sm mb-2"><option value="">— Escoja una de sus actividades interactivas —</option>{% for pg in paginas %}<option value="{{ pg.pk }}" {% if compartir == pg.pk|stringformat:'s' %}selected{% endif %}>{{ pg.titulo }}</option>{% empty %}<option value="" disabled>Todavía no tiene actividades publicadas</option>{% endfor %}</select>
+          <select name="pagina" class="form-select form-select-sm mb-2"><option value="">— Escoja una actividad o uno de Mis juegos —</option>
+            {% if mis_juegos %}<optgroup label="🎮 Mis juegos (con preguntas)">{% for j in mis_juegos %}<option value="j{{ j.pk }}" {% if compartir_juego == j.pk %}selected{% endif %}>{{ j.titulo }} · {{ j.nombre_tipo }}</option>{% endfor %}</optgroup>{% endif %}
+            <optgroup label="Actividades interactivas (HTML)">{% for pg in paginas %}<option value="{{ pg.pk }}" {% if compartir == pg.pk|stringformat:'s' %}selected{% endif %}>{{ pg.titulo }}</option>{% empty %}<option value="" disabled>Todavía no tiene actividades publicadas</option>{% endfor %}</optgroup></select>
           <div class="small text-muted mb-2">Sus colegas la juegan aquí mismo, con pantalla completa. Sus intentos no llegan a sus resultados. <a href="{% url 'salon_digital:panel' %}">Subir una actividad HTML</a></div>
         </div>
         <div class="mu-solo" data-para="convocatoria"><label class="small fw-bold">Fecha límite</label><input type="date" name="fecha_limite" class="form-control form-control-sm mb-2" min="{{ hoy|date:'Y-m-d' }}"></div>

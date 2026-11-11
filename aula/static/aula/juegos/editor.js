@@ -130,6 +130,7 @@
             </div>
             <button type="button" class="btn btn-sm btn-outline-dark ep-abrir-calc"><span class="fw-bold">∑√π</span> Calculadora de símbolos</button>
             ${cfg.banco ? '<button type="button" class="btn btn-sm btn-outline-success ep-abrir-banco"><i class="fas fa-box-archive me-1"></i>Traer del banco</button>' : ''}
+            ${cfg.ia ? '<button type="button" class="btn btn-sm btn-outline-warning ep-abrir-ia"><i class="fas fa-wand-magic-sparkles me-1"></i>Generar con IA</button>' : ''}
             ${cfg.planilla ? `<label class="btn btn-sm btn-outline-success mb-0"><i class="fas fa-file-excel me-1"></i>Subir planilla<input type="file" accept=".xlsx,.csv" class="ep-planilla" hidden></label>
               <a class="btn btn-sm btn-link px-1" href="${cfg.planilla}?de=vacia">planilla vacía</a>` : ''}
           </div>
@@ -141,6 +142,16 @@
             </div>
             <div class="ep-b-lista small" style="max-height:300px;overflow:auto"></div>
           </div>
+          ${cfg.ia ? `<div class="ep-ia border rounded-3 p-2 mb-2" hidden style="background:#fffbeb">
+            <div class="small fw-bold mb-1"><i class="fas fa-wand-magic-sparkles me-1 text-warning"></i>Preguntas con IA (selección única, revíselas antes de guardar)</div>
+            <div class="row g-1 mb-1">
+              <div class="col-12"><input class="form-control form-control-sm ep-ia-tema" maxlength="150" placeholder="Tema (ej.: fracciones equivalentes, la célula, el Frente Nacional)"></div>
+              <div class="col-4"><input class="form-control form-control-sm ep-ia-grado" maxlength="40" placeholder="Grado (ej.: 7)"></div>
+              <div class="col-4"><select class="form-select form-select-sm ep-ia-cant"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></div>
+              <div class="col-4"><select class="form-select form-select-sm ep-ia-nivel"><option value="basico">Básico</option><option value="medio" selected>Medio</option><option value="alto">Alto</option></select></div>
+            </div>
+            <div class="d-flex align-items-center gap-2"><button type="button" class="btn btn-sm btn-warning ep-ia-ir">Generar</button><span class="small text-muted ep-ia-msg">Hasta 10 preguntas: 5 créditos de IA · más de 10: 8 créditos.</span></div>
+          </div>` : ''}
           <div class="ep-calc-sitio"></div>
           <div class="small mb-2 ep-limite text-primary fw-semibold"></div>
           <div class="ep-lista"></div>
@@ -213,6 +224,32 @@
             } catch (e) { errores.textContent = 'No se pudo leer la planilla.'; }
             inPlanilla.value = '';
         });
+        // Generar preguntas con la IA de Mis materiales: llegan al editor y el docente las revisa antes de guardar
+        if (cfg.ia) {
+            const panelIA = raiz.querySelector('.ep-ia'), msgIA = raiz.querySelector('.ep-ia-msg');
+            raiz.querySelector('.ep-abrir-ia').addEventListener('click', () => { panelIA.hidden = !panelIA.hidden; if (!panelIA.hidden) raiz.querySelector('.ep-ia-tema').focus(); });
+            raiz.querySelector('.ep-ia-ir').addEventListener('click', async ev => {
+                const tema = raiz.querySelector('.ep-ia-tema').value.trim();
+                if (!tema) { msgIA.textContent = 'Escriba el tema.'; return; }
+                ev.target.disabled = true; msgIA.textContent = 'Generando… puede tardar unos segundos.';
+                try {
+                    const r = await fetch(cfg.ia, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRFToken': cfg.csrf || ''},
+                        body: JSON.stringify({tipo: 'unica', tema, grado: raiz.querySelector('.ep-ia-grado').value, area: cfg.area || '',
+                                              cantidad: +raiz.querySelector('.ep-ia-cant').value, nivel: raiz.querySelector('.ep-ia-nivel').value,
+                                              indicaciones: `Cada pregunta con máximo ${max()} opciones.`})});
+                    const j = await r.json();
+                    if (!j.ok) { msgIA.textContent = j.error || 'La IA no pudo generar las preguntas.'; return; }
+                    const nuevas = (j.bloques || []).filter(b => b.tipo === 'pregunta' && (b.opciones || []).length >= 2 && b.correcta !== null && b.correcta !== undefined)
+                        .map(b => ({texto: b.enunciado, opciones: b.opciones.slice(0, max()).map((o, k) => ({texto: o, correcta: k === b.correcta}))}))
+                        .filter(p => p.opciones.some(o => o.correcta));
+                    if (modo === 'pegar') area.value = escribir(leer(area.value).concat(nuevas));
+                    else { preguntas = preguntas.filter(p => p.texto.trim() || p.opciones.some(o => o.texto.trim())).concat(nuevas); pintar(); sincronizar(); }
+                    revisar();
+                    msgIA.textContent = `Listo: ${nuevas.length} pregunta(s) nuevas en el editor. Revíselas antes de guardar.`;
+                } catch (e) { msgIA.textContent = 'No se pudo conectar con la IA.'; }
+                finally { ev.target.disabled = false; }
+            });
+        }
         if (cfg.banco) {
             raiz.querySelector('.ep-abrir-banco').addEventListener('click', () => { panelBanco.hidden = !panelBanco.hidden; if (!panelBanco.hidden) cargarBanco(); });
             raiz.querySelector('.ep-b-tema').addEventListener('change', cargarBanco);

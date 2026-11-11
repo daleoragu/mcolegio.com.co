@@ -122,3 +122,33 @@ class Mascota(ColegioDePrueba):
 
     def test_en_el_menu_de_juegos(self):
         self.assertContains(self.yo.get(f'/aula/{self.aula.pk}/gamificacion/'), 'MI MASCOTA')
+
+
+class MascotaUnica(Mascota):
+    """En el colegio cada estudiante tiene UNA mascota: la ve en todas sus clases y come preguntas de todos sus profes."""
+
+    def test_una_sola_mascota_con_preguntas_de_todos_los_docentes(self):
+        from notas.models import AsignacionDocente, Docente, Materia
+        from django.contrib.auth.models import User
+        m = self.adoptar()
+        # Otra docente del mismo curso, con su propia clase y sus preguntas para las mascotas
+        u2 = User.objects.create_user('lucia', password='x', first_name='Lucía')
+        d2 = Docente.objects.create(colegio=self.a, user=u2)
+        mat2 = Materia.objects.create(colegio=self.a, nombre='Ciencias', usar_ponderacion_equitativa=True)
+        asig2 = AsignacionDocente.objects.create(colegio=self.a, docente=d2, materia=mat2, curso=self.curso)
+        profe2 = self.cliente(u2)
+        profe2.get(f'/aula/asignacion/{asig2.id}/')
+        aula2 = Aula.objects.get(asignacion=asig2)
+        profe2.post(f'/aula/{aula2.pk}/mascota/', {'preguntas': '1. ¿Qué gas respiramos?\n*A) Oxígeno\nB) Helio'})
+        # En la clase de ciencias la estudiante ve la misma mascota (no tiene que adoptar otra)
+        r = self.yo.get(f'/aula/{aula2.pk}/mascota/')
+        self.assertNotContains(r, 'Adopte su mascota')
+        self.assertContains(r, 'Michi')
+        self.assertEqual(MascotaAula.objects.filter(estudiante=self.ana).count(), 1)
+        # Su banco incluye las preguntas de las dos clases
+        textos = {p['texto'] for p in MA.banco(self.aula, None, MA.aulas_de(self.aula, self.ana))}
+        self.assertIn('¿Qué gas respiramos?', textos)
+        # El tablero de la clase de ciencias la muestra
+        r = profe2.get(f'/aula/{aula2.pk}/mascota/')
+        self.assertContains(r, 'Michi')
+        self.assertContains(r, 'una sola mascota')

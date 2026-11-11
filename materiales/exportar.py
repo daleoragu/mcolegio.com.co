@@ -240,12 +240,23 @@ def _fuente(tamano):
         return ImageFont.load_default()
 
 
+def _css_celda(e):
+    """El estilo de una celda (ya validado en bloques.limpiar): relleno y color de letra."""
+    if not e:
+        return ''
+    return ';'.join(x for x in (e.get('f') and f'background:{e["f"]}', e.get('c') and f'color:{e["c"]}') if x)
+
+
 def contexto(doc, modo=None, docente='', respuestas=False):
     contenido = B.limpiar(doc.contenido, B.imagenes_usadas(doc.contenido))
     opciones = contenido['opciones']
     modo = modo if modo in MODOS else opciones['modo']
     m = MODOS[modo]
     bloques, total = _numerar([dict(b) for b in contenido['bloques']])
+    for b in bloques:
+        if b['tipo'] == 'tabla':
+            est = b.get('estilos') or {}
+            b['filas_estilo'] = [[(c, _css_celda(est.get(f'{i}-{j}'))) for j, c in enumerate(fila)] for i, fila in enumerate(b['filas'])]
     for b in bloques:
         if b['tipo'] == 'pregunta':
             _preparar_pregunta(b, modo)
@@ -257,6 +268,8 @@ def contexto(doc, modo=None, docente='', respuestas=False):
         'letra': max(8.5, opciones['letra'] + m['dif']), 'margen': m['margen'], 'interlineado': m['linea'],
         'columnas': m['columnas'] or opciones['columnas'], 'alto_imagen': m['img'], 'separacion': m['sep'],
         'docente': docente, 'fecha': timezone.localdate(),
+        'color': B.color_valido(opciones.get('color')), 'color_claro': B.mezclar(opciones.get('color'), .93),
+        'color_medio': B.mezclar(opciones.get('color'), .86),
     }
 
 
@@ -298,6 +311,7 @@ class _Trozos(HTMLParser):
         self.parrafos = [[]]
         self.formato = []
         self.vinieta = []
+        self.colores = []          # pila de los <span style>: [('c:#…', 'f:#…'), …]
 
     def _nuevo(self):
         if self.parrafos[-1]:
@@ -311,16 +325,28 @@ class _Trozos(HTMLParser):
             self.parrafos[-1].append(('• ', frozenset()))
         elif tag in ('b', 'i', 'u', 'sub', 'sup'):
             self.formato.append(tag)
+        elif tag == 'span':
+            from .bloques import _estilo_color
+            marcas = []
+            for parte in _estilo_color(attrs).split(';'):
+                if parte.startswith('color:'):
+                    marcas.append('c:' + parte[6:])
+                elif parte.startswith('background-color:'):
+                    marcas.append('f:' + parte[17:])
+            self.colores.append(tuple(marcas))
 
     def handle_endtag(self, tag):
         if tag in ('p', 'li'):
             self._nuevo()
+        elif tag == 'span':
+            if self.colores:
+                self.colores.pop()
         elif tag in self.formato:
             self.formato.remove(tag)
 
     def handle_data(self, data):
         if data:
-            self.parrafos[-1].append((data, frozenset(self.formato)))
+            self.parrafos[-1].append((data, frozenset(self.formato) | frozenset(m for grupo in self.colores for m in grupo)))
 
 
 def _parrafos(html):
@@ -342,6 +368,23 @@ def _escribir(parrafo, trozos, tam=None):
             r.font.superscript = True
         if tam:
             r.font.size = Pt(tam)
+        for marca in sorted(x for x in f if x[:2] in ('c:', 'f:')):     # el último (el más interno) gana
+            if marca.startswith('c:'):
+                from docx.shared import RGBColor
+                r.font.color.rgb = RGBColor.from_string(marca[3:].upper())
+            else:
+                _relleno_run(r, marca[3:].upper())
+
+
+def _relleno_run(run, color):
+    """Relleno (sombreado) detrás del texto de un trozo, como el resaltador de Word pero de cualquier color."""
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    shd = OxmlElement('w:shd')
+    shd.set(qn('w:val'), 'clear')
+    shd.set(qn('w:color'), 'auto')
+    shd.set(qn('w:fill'), color)
+    run._r.get_or_add_rPr().append(shd)
 
 
 def _sombrear(celda, color):
@@ -560,7 +603,7 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=F
                 p = w.add_paragraph()
                 r = p.add_run(b['titulo'])
                 r.bold = True
-                r.font.color.rgb = RGBColor(0x1F, 0x3A, 0x68)
+                r.font.color.rgb = RGBColor.from_string(ctx["color"][1:].upper())
                 r.font.size = Pt(letra + 1.5)
                 if b['indicacion']:
                     q = w.add_paragraph()
@@ -587,10 +630,17 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=F
                     for j, valor in enumerate(fila):
                         celda = tabla.cell(i, j)
                         celda.text = valor
+                        e = (b.get('estilos') or {}).get(f'{i}-{j}') or {}
                         if i == 0 and b['encabezado']:
                             for r in celda.paragraphs[0].runs:
                                 r.bold = True
-                            _sombrear(celda, 'E8EEF9')
+                            if not e.get('f'):
+                                _sombrear(celda, 'E8EEF9')
+                        if e.get('f'):
+                            _sombrear(celda, e['f'][1:].upper())
+                        if e.get('c'):
+                            for r in celda.paragraphs[0].runs:
+                                r.font.color.rgb = RGBColor.from_string(e['c'][1:].upper())
                 w.add_paragraph()
             elif t == 'recuadro':
                 tabla = w.add_table(rows=1, cols=1)
@@ -612,7 +662,7 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=F
                     p = w.add_paragraph()
                     r = p.add_run(rango + ' de acuerdo con la siguiente información.')
                     r.bold = True
-                    r.font.color.rgb = RGBColor(0x1F, 0x3A, 0x68)
+                    r.font.color.rgb = RGBColor.from_string(ctx["color"][1:].upper())
                 if b['titulo']:
                     p = w.add_paragraph()
                     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -637,7 +687,7 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=F
             tabla = w.add_table(rows=1, cols=1)
             tabla.style = 'Table Grid'
             celda = tabla.cell(0, 0)
-            _sombrear(celda, '1F3A68')
+            _sombrear(celda, ctx['color'][1:].upper())
             r = celda.paragraphs[0].add_run(o['fin'] or 'FIN. Revisa que hayas marcado todas las respuestas en la hoja de respuestas.')
             r.bold = True
             r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)

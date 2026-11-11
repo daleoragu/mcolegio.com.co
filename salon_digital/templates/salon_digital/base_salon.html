@@ -37,7 +37,7 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
 /* Barra superior */
 .navbar-salon{background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1030}
 .navbar-salon .marca{font-weight:800;color:var(--ink);font-size:1.15rem;text-decoration:none;letter-spacing:-.01em}
-.navbar-salon .marca .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--indigo),var(--mor));color:#fff;display:grid;place-items:center;font-size:1.05rem}
+.navbar-salon .marca .logo{width:40px;height:40px;border-radius:11px;object-fit:contain;display:block}
 .navbar-salon .marca b{display:block;line-height:1.05;font-size:1.12rem}
 .navbar-salon .marca small{display:block;font-weight:500;color:var(--tenue);font-size:.74rem}
 .navbar-salon .marca img{height:30px;width:auto}
@@ -79,7 +79,7 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
   <div class="container d-flex flex-nowrap align-items-center gap-2">
     {% if espacios_menu %}
     <a class="marca d-flex align-items-center gap-2" href="{% url 'salon_digital:inicio' %}">
-      <span class="logo"><i class="fas fa-users"></i></span><span><b>mcolegio</b><small>Mi Salón Virtual</small></span>
+      <img class="logo" src="{% static 'img/mcolegio-icono.png' %}" alt="mcolegio"><span><b>mcolegio</b><small>Mi Salón Virtual</small></span>
     </a>
     <div class="esp-nav mx-auto d-none d-lg-flex" aria-label="Espacios">
       {% for e in espacios_menu %}<a href="{{ e.url }}" class="{% if e.on %}on{% endif %}"{% if e.on %} aria-current="page"{% endif %}>{{ e.nombre }}</a>{% endfor %}

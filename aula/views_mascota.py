@@ -15,8 +15,7 @@ def _persona(c):
 
 
 def _mia(c):
-    p = _persona(c)
-    return MascotaAula.objects.filter(aula=c.aula, **logica.filtro_persona(p)).first() if p else None
+    return MA.de_persona(c.aula, _persona(c))
 
 
 @vista_aula
@@ -35,11 +34,18 @@ def mascota(request, pk):
                 preguntas = []
             aula.texto_preguntas_mascota, aula.preguntas_mascota = texto[:60000], preguntas
             aula.save(update_fields=['texto_preguntas_mascota', 'preguntas_mascota'])
+            if request.POST.get('todos') and aula.es_salon and aula.grupo_id:
+                from .models import Aula
+                n = (Aula.objects.filter(grupo__propietario_id=aula.grupo.propietario_id).exclude(pk=aula.pk)
+                     .update(texto_preguntas_mascota=texto[:60000], preguntas_mascota=preguntas))
+                if n:
+                    messages.info(request, f'También quedaron en las mascotas de sus otros {n} grupo(s).')
             messages.success(request, f'Las mascotas de la clase usarán {len(preguntas)} pregunta(s) suyas.' if preguntas
                              else 'Sin preguntas propias: las mascotas usan las de los juegos de la clase (o las de prueba).')
             return redirect('aula:mascota', pk=pk)
         return _render(request, c, 'aula/mascota.html', {
-            'tablero': MA.ranking(aula, n=None), 'n_banco': len(MA.banco(aula)), 'propias': len(aula.preguntas_mascota or [])},
+            'tablero': MA.ranking(aula, n=None), 'n_banco': len(MA.banco(aula)), 'propias': len(aula.preguntas_mascota or []),
+            'colegio_unica': bool(aula.colegio_id and aula.asignacion_id)},
             'gamificacion')
     if _persona(c) is None:
         raise _Prohibido('La mascota es de cada estudiante.')

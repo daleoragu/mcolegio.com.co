@@ -11,6 +11,7 @@
     <a class="vt-boton oro mt-4" style="max-width:420px;margin:0 auto;text-decoration:none" href="{% url 'votaciones:mesa' e.pk %}" id="vt-sig">Siguiente votante</a>
     <script>setTimeout(function () { location.href = document.getElementById('vt-sig').href; }, 6000);</script>
   {% else %}
+    <a class="btn btn-warning fw-bold mt-3" href="{% url 'votaciones:certificado' e.pk %}" target="_blank"><i class="fas fa-award me-1"></i>Descargar mi certificado electoral</a><br>
     <a class="btn btn-outline-secondary mt-3" href="{% url 'notas:dashboard' %}">Volver al inicio</a>
   {% endif %}
 </div>

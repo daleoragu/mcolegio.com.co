@@ -106,7 +106,7 @@ def _tarjeta_pub(p, user, mias):
 
 
 def _con_conteos(qs):
-    return qs.select_related('autor', 'documento', 'pagina__propietario').annotate(
+    return qs.select_related('autor', 'documento', 'pagina__propietario', 'juego').annotate(
         n_util=Count('reacciones', filter=Q(reacciones__tipo='util'), distinct=True),
         n_usare=Count('reacciones', filter=Q(reacciones__tipo='usare'), distinct=True),
         n_com=Count('comentarios', distinct=True))
@@ -227,6 +227,11 @@ def _mis_paginas(user):
     return PaginaPublicada.objects.filter(propietario__usuario=user, visible=True).order_by('-actualizada_en')[:100]
 
 
+def _mis_juegos(user):
+    from materiales.models import JuegoMaterial
+    return JuegoMaterial.objects.filter(propietario=user)[:100]
+
+
 def _mis_documentos(user):
     from materiales.models import Documento
     return Documento.objects.filter(propietario=user, colegio__isnull=True).order_by('-actualizado')[:100]
@@ -256,14 +261,23 @@ def _publicar(request):
     if tipo == 'recurso' and request.POST.get('documento'):
         documento = _mis_documentos(user).model.objects.filter(pk=request.POST.get('documento'), propietario=user,
                                                                colegio__isnull=True).first()
-    pagina = None
+    pagina = juego = None
     if tipo == 'actividad':
-        pagina = _mis_paginas(user).model.objects.filter(pk=request.POST.get('pagina') or 0, propietario__usuario=user).first()
-        if pagina is None:
-            messages.error(request, 'Escoja una de sus actividades interactivas (las que publicó en «Actividades y pruebas»).')
+        valor = request.POST.get('pagina') or ''
+        if valor.startswith('j'):          # un juego de «Mis juegos»
+            from materiales.models import JuegoMaterial
+            juego = JuegoMaterial.objects.filter(pk=valor[1:] if valor[1:].isdigit() else 0, propietario=user).first()
+        else:
+            pagina = _mis_paginas(user).model.objects.filter(pk=valor if valor.isdigit() else 0, propietario__usuario=user).first()
+        if pagina is None and juego is None:
+            messages.error(request, 'Escoja una de sus actividades interactivas o uno de Mis juegos.')
             return None
-        titulo = titulo or pagina.titulo[:150]
-        texto = texto or pagina.descripcion[:5000]
+        if juego is not None:
+            titulo = titulo or juego.titulo[:150]
+            texto = texto or f'{juego.nombre_tipo} con {len(juego.preguntas)} preguntas. Pruébelo aquí e impórtelo a sus juegos.'
+        else:
+            titulo = titulo or pagina.titulo[:150]
+            texto = texto or pagina.descripcion[:5000]
     if len(titulo) < 4:
         messages.error(request, 'Escriba un título (mínimo 4 letras).')
         return None
@@ -293,7 +307,7 @@ def _publicar(request):
             fecha = date.fromisoformat(request.POST.get('fecha_limite'))
         except ValueError:
             fecha = None
-    p = Publicacion(autor=user, tipo=tipo, titulo=titulo, texto=texto, enlace=enlace, documento=documento, pagina=pagina,
+    p = Publicacion(autor=user, tipo=tipo, titulo=titulo, texto=texto, enlace=enlace, documento=documento, pagina=pagina, juego=juego,
                     area=limpio('area', 80) or (documento.area if documento else '') or perfil.area,
                     grados=limpio('grados', 40) or (documento.grado if documento else ''),
                     modelo=limpio('modelo', 40), fecha_limite=fecha,
@@ -365,8 +379,9 @@ def muro(request):
         'sugerencias': sugerencias(user, 5), 'destacados': destacados, 'convocatorias': convocatorias,
         'perfil': perfil, 'yo': {'nombre': nombre_de(user), 'foto': foto_de(user), 'desc': descripcion(user)},
         'n_colegas': mis_colegas(user).count(), 'n_solicitudes': Colega.objects.filter(para=user, estado='pendiente').count(),
-        'documentos': _mis_documentos(user), 'paginas': _mis_paginas(user), 'modelos': MODELOS, 'normas': NORMAS,
-        'escribir': request.GET.get('escribir') == '1', 'compartir': request.GET.get('compartir', ''), 'grados_lista': range(0, 12), 'hoy': hoy,
+        'documentos': _mis_documentos(user), 'paginas': _mis_paginas(user), 'mis_juegos': _mis_juegos(user), 'modelos': MODELOS, 'normas': NORMAS,
+        'escribir': request.GET.get('escribir') == '1', 'compartir': request.GET.get('compartir', ''),
+        'compartir_juego': int(request.GET['compartir'][1:]) if request.GET.get('compartir', '')[:1] == 'j' and request.GET['compartir'][1:].isdigit() else None, 'grados_lista': range(0, 12), 'hoy': hoy,
         'pendientes_mod': ReporteMuro.objects.filter(revisado=False, publicacion__oculta=True).values('publicacion').distinct().count() if user.is_staff else 0,
     })
 

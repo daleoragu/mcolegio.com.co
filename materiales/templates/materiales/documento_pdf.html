@@ -3,17 +3,17 @@
 <title>{{ doc.titulo }}</title>
 <style>
     @page { size: letter; margin: {% if cuadernillo %}{{ margen|add:6 }}{% else %}{{ margen }}{% endif %}mm {{ margen }}mm {{ margen|add:4 }}mm;
-            {% if cuadernillo %}@top-left { content: "{{ css_izquierda|safe }}"; font-size: 7.5pt; font-weight: bold; color: #1f3a68; border-bottom: 1px solid #1f3a68; vertical-align: bottom; padding-bottom: 2mm; }
-            @top-right { content: "{{ css_derecha|safe }}"; font-size: 7.5pt; font-style: italic; color: #333; border-bottom: 1px solid #1f3a68; vertical-align: bottom; padding-bottom: 2mm; }
+            {% if cuadernillo %}@top-left { content: "{{ css_izquierda|safe }}"; font-size: 7.5pt; font-weight: bold; color: {{ color }}; border-bottom: 1px solid {{ color }}; vertical-align: bottom; padding-bottom: 2mm; }
+            @top-right { content: "{{ css_derecha|safe }}"; font-size: 7.5pt; font-style: italic; color: #333; border-bottom: 1px solid {{ color }}; vertical-align: bottom; padding-bottom: 2mm; }
             @bottom-left { content: "Material de uso institucional · No escribas en este cuadernillo"; font-size: 7pt; font-style: italic; color: #555; }{% endif %}
             {% if not encabezado or encabezado.pie.numero or colegio %}@bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 7.5pt; color: #777; }{% endif %}
             {% if pie_lineas or marca %}@bottom-center { content: element(pie); width: 70%; }{% endif %} }
     .pie-doc { position: running(pie); font-size: 7.5pt; color: #444; text-align: {% if encabezado and not colegio %}{{ encabezado.pie_css }}{% else %}center{% endif %}; line-height: 1.25; }
-    .pie-doc .marca { color: #1f3a68; font-size: 7pt; }
+    .pie-doc .marca { color: {{ color }}; font-size: 7pt; }
     {% if cuadernillo and opciones.portada %}@page portada { @top-left { content: none; border: 0; } @top-right { content: none; border: 0; } @bottom-left { content: none; } }
-    .portada { page: portada; break-after: page; text-align: center; border: 3px double #1f3a68; padding: 10mm 8mm; min-height: 215mm; }{% endif %}
+    .portada { page: portada; break-after: page; text-align: center; border: 3px double {{ color }}; padding: 10mm 8mm; min-height: 215mm; }{% endif %}
     body { font-family: Arial, Helvetica, sans-serif; font-size: {{ letra }}pt; color: #111; line-height: {{ interlineado }}; margin: 0; }
-    .enc-docente { width: 100%; border-collapse: collapse; border-bottom: 2px solid #1f3a68; margin-bottom: 6px; }
+    .enc-docente { width: 100%; border-collapse: collapse; border-bottom: 2px solid {{ color }}; margin-bottom: 6px; }
     .enc-docente td { vertical-align: middle; padding-bottom: 4px; }
     .enc-docente .l1 { font-weight: bold; font-size: 12pt; }
     .enc-docente .l { font-size: 9pt; }
@@ -24,9 +24,9 @@
     .portada h1 { font-size: 30pt; margin: 16mm 0 4mm; line-height: 1.05; }
     .portada .grado { font-size: 24pt; font-weight: bold; margin: 2mm 0; }
     .portada .sesion { font-size: 15pt; font-weight: bold; }
-    .portada .areas { font-size: 15pt; font-weight: bold; color: #1f3a68; margin: 3mm 0; }
+    .portada .areas { font-size: 15pt; font-weight: bold; color: {{ color }}; margin: 3mm 0; }
     .portada .info { font-size: 12pt; }
-    .portada .horario { display: inline-block; background: #1f3a68; color: #fff; font-weight: bold; padding: 2mm 6mm; border-radius: 6mm; margin-top: 3mm; }
+    .portada .horario { display: inline-block; background: {{ color }}; color: #fff; font-weight: bold; padding: 2mm 6mm; border-radius: 6mm; margin-top: 3mm; }
     .portada .aviso { margin: 14mm auto 0; width: 80%; border: 1px solid #999; border-left: 5px solid #c0392b; border-radius: 3mm; padding: 3mm; font-size: 9.5pt; }
     h1.titulo { text-align: center; font-size: {{ letra|add:4 }}pt; margin: 4px 0 2px; }
     .datos { text-align: center; font-size: 9pt; color: #333; margin-bottom: 4px; }
@@ -35,9 +35,9 @@
     .nombre .c { display: inline-block; border-bottom: 1px solid #111; min-width: 60px; }
     .cuerpo.dos { column-count: 2; column-gap: 8mm; column-rule: 0.5px solid #bbb; column-fill: balance; }
     .b { margin: 0 0 {{ separacion }}px; }
-    h2.t1 { font-size: {{ letra|add:3 }}pt; margin: {{ separacion }}px 0 3px; color: #1f3a68; break-after: avoid; }
+    h2.t1 { font-size: {{ letra|add:3 }}pt; margin: {{ separacion }}px 0 3px; color: {{ color }}; break-after: avoid; }
     h3.t2 { font-size: {{ letra|add:1 }}pt; margin: {{ separacion }}px 0 2px; break-after: avoid; }
-    .seccion { background: #1f3a68; color: #fff; font-weight: bold; padding: 3px 8px; margin: {{ separacion }}px 0 3px;
+    .seccion { background: {{ color }}; color: #fff; font-weight: bold; padding: 3px 8px; margin: {{ separacion }}px 0 3px;
                border-left: 5px solid #c0392b; break-after: avoid; break-inside: avoid; }
     .seccion-ind { font-style: italic; color: #333; margin: 0 0 4px; break-after: avoid; }
     .texto p, .contexto p { margin: 0 0 3px; }
@@ -47,7 +47,8 @@
     .img .pie { font-size: 8pt; font-style: italic; color: #444; }
     table.tabla { border-collapse: collapse; width: 100%; break-inside: avoid; }
     table.tabla td, table.tabla th { border: 0.6px solid #555; padding: 2px 5px; font-size: 0.95em; vertical-align: top; }
-    table.tabla th { background: #e8eef9; }
+    table.tabla th { background: {{ color_medio }}; }
+    table.tabla.campos td:first-child { width: 32%; font-weight: bold; background: {{ color_claro }}; }
     /* Tablas para llenar (ABP, retos, rúbricas): columnas parejas y renglón de escritura en las celdas vacías */
     table.tabla.llenar { table-layout: fixed; }
     table.tabla td:empty { height: 7mm; }
@@ -56,22 +57,22 @@
     .recuadro.recuerda { border-color: #c9a227; background: #fff8e4; }
     .recuadro.reto { border-color: #c0392b; background: #fdf0f1; }
     .recuadro.vocabulario { border-color: #2e7d32; background: #eef7ef; }
-    .recuadro.nota { border-color: #1f3a68; background: #f1f4fa; }
-    .rango { background: #e9eef7; border-left: 4px solid #1f3a68; color: #1f3a68; font-weight: bold; padding: 2px 6px; font-size: 0.92em; break-after: avoid; }
+    .recuadro.nota { border-color: {{ color }}; background: {{ color_claro }}; }
+    .rango { background: {{ color_medio }}; border-left: 4px solid {{ color }}; color: {{ color }}; font-weight: bold; padding: 2px 6px; font-size: 0.92em; break-after: avoid; }
     .ctx-titulo { text-align: center; font-weight: bold; margin: 3px 0; break-after: avoid; }
     .linea { border-bottom: 0.7px solid #555; height: {{ letra|add:9 }}pt; }
     .pregunta { break-inside: avoid; }
-    .enun b { color: #1f3a68; }
+    .enun b { color: {{ color }}; }
     .ops { margin: 2px 0 0 14px; }
     .ops.fila span { display: inline-block; margin-right: 18px; }
     .ops.dos span { display: inline-block; width: 48%; vertical-align: top; }
     .ops.lista span { display: block; }
-    .ops b { color: #1f3a68; }
+    .ops b { color: {{ color }}; }
     .ok { color: #198754; font-weight: bold; }
     .hueco { display: inline-block; border-bottom: 0.8px solid #111; min-width: 22mm; text-align: center; }
     .emp { width: 100%; border-collapse: collapse; margin-left: 8px; }
     .emp td { padding: 1px 4px; vertical-align: top; width: 50%; }
-    .emp .p { color: #1f3a68; font-weight: bold; }
+    .emp .p { color: {{ color }}; font-weight: bold; }
     .orden span { display: block; margin-left: 14px; }
     .caja { display: inline-block; width: 7mm; border: 0.7px solid #333; text-align: center; margin-right: 4px; }
     .banco { border: 0.7px dashed #777; padding: 2px 6px; margin: 2px 0 3px 14px; }
@@ -82,7 +83,7 @@
     .control { font-size: 0.85em; color: #8a6d00; }
     .sep { border-top: 1px dashed #999; margin: {{ separacion }}px 0; }
     .salto { break-after: page; }
-    .fin { background: #1f3a68; color: #fff; font-weight: bold; text-align: center; padding: 4px 8px; margin-top: 6px; break-inside: avoid; }
+    .fin { background: {{ color }}; color: #fff; font-weight: bold; text-align: center; padding: 4px 8px; margin-top: 6px; break-inside: avoid; }
     .lienzo { position: relative; margin: 2px auto; }
     .lienzo img { display: block; width: 100%; }
     .lienzo .zona { position: absolute; border: 2px solid #198754; border-radius: 3px; background: rgba(25,135,84,.12); }
@@ -100,7 +101,7 @@
     table.cruci .n { position: absolute; left: 0.5mm; top: 0; font-size: 5pt; }
     table.cruci .l { display: block; text-align: center; font-weight: bold; color: #198754; padding-top: 1mm; font-size: 8.5pt; }
     .pistas { font-size: 0.92em; }
-    .pistas b { color: #1f3a68; }
+    .pistas b { color: {{ color }}; }
     .nota-archivo { font-style: italic; color: #444; margin-left: 14px; }
     .clave-docente { text-align: center; color: #198754; font-weight: bold; font-size: 9pt; border: 1px solid #198754; padding: 2px; margin-bottom: 4px; }
 </style></head>
@@ -148,7 +149,7 @@
     {% elif b.tipo == 'imagen' %}
         {% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="b img"><img src="{{ ruta }}" style="width:{{ b.ancho }}%">{% if b.pie %}<div class="pie">{{ b.pie }}</div>{% endif %}</div>{% endif %}{% endwith %}
     {% elif b.tipo == 'tabla' %}
-        <table class="b tabla{% if '' in b.filas.0 or '' in b.filas.1 %} llenar{% endif %}">{% for fila in b.filas %}<tr>{% for c in fila %}{% if forloop.parentloop.first and b.encabezado %}<th>{{ c }}</th>{% else %}<td>{{ c }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</table>
+        <table class="b tabla{% if '' in b.filas.0 or '' in b.filas.1 %} llenar{% endif %}{% if not b.encabezado and b.filas.0|length == 2 %} campos{% endif %}">{% for fila in b.filas_estilo %}<tr>{% for c, e in fila %}{% if forloop.parentloop.first and b.encabezado %}<th{% if e %} style="{{ e }}"{% endif %}>{{ c }}</th>{% else %}<td{% if e %} style="{{ e }}"{% endif %}>{{ c }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</table>
     {% elif b.tipo == 'recuadro' %}
         <div class="b recuadro {{ b.estilo }}"><div class="rt">{{ b.titulo }}</div>{{ b.html|safe }}</div>
     {% elif b.tipo == 'lineas' %}
