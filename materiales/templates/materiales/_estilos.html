@@ -40,6 +40,21 @@
   .mm-tabla td:focus { outline:2px solid #9ec5fe; }
   .mm-tabla.mm-privada td { background:#fff7ed; border-color:#fdba74; }
   .mm-colorbtn .mm-color-aplicar { position:relative; padding-bottom:7px; min-width:34px; }
+  /* Ecuaciones: en el texto se ven como en el PDF; un clic las abre para editarlas */
+  .mm-eqv { display:inline-block; cursor:pointer; padding:0 2px; border-radius:4px; user-select:all; -webkit-user-select:all; }
+  .mm-eqv:hover { background:#e0ecff; outline:1px solid #93c5fd; }
+  .mm-eqv img { vertical-align:middle; pointer-events:none; zoom:1.15; }
+  .mm-eqv.mala { color:#b02a37; font-family:monospace; font-size:.85em; }
+  .mm-eq-campo math-field { width:100%; font-size:1.6rem; border:1px solid #cbd5e1; border-radius:10px; padding:8px 10px; min-height:64px; }
+  .mm-eq-campo textarea { font-size:1.1rem; }
+  .mm-eq-paleta { display:flex; flex-wrap:wrap; gap:4px; }
+  .mm-eq-paleta button { min-width:42px; height:36px; border:1px solid #d0d5dd; background:#fff; border-radius:8px; font-family:'Times New Roman', serif; font-size:1.05rem; padding:0 8px; }
+  .mm-eq-paleta button:hover { background:#eef4ff; border-color:#93c5fd; }
+  .mm-eq-paleta .grupo { width:100%; font:600 .72rem system-ui, sans-serif; color:#667085; margin-top:4px; }
+  .mm-eq-previa { min-height:48px; border:1px dashed #cbd5e1; border-radius:10px; padding:10px; text-align:center; font-size:1.5rem; background:#fafafa; }
+  .mm-eq-previa img { zoom:2; vertical-align:middle; }
+  .mm-eq-vista { font-size:.95rem; margin:2px 0 0 28px; color:#344054; }
+  .mm-eq-vista img { vertical-align:middle; zoom:1.15; }
   .mm-colorbtn .mm-a { font-weight:800; font-family:Georgia, serif; }
   .mm-colorbtn .mm-barrita { position:absolute; left:7px; right:7px; bottom:3px; height:4px; border-radius:2px; border:1px solid rgba(0,0,0,.15); }
   .mm-muestra { width:24px; height:24px; border-radius:5px; border:1px solid rgba(0,0,0,.2); padding:0; }

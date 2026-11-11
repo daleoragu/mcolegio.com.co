@@ -660,3 +660,18 @@ def encabezado_logo(request, a, cual):
         raise Http404
     import mimetypes
     return HttpResponse(archivo.open('rb').read(), content_type=mimetypes.guess_type(archivo.name)[0] or 'image/jpeg')
+
+
+@vista
+def ecuacion(request, a):
+    """La imagen (SVG) de una ecuación para el editor: ?tex=\\frac{1}{2}. Si no se puede dibujar, 422."""
+    from . import ecuaciones as E
+    r = E.dibujar(request.GET.get('tex', ''))
+    if r is None:
+        return HttpResponse('No se pudo dibujar', status=422, content_type='text/plain; charset=utf-8')
+    datos, ancho, alto, fondo = r
+    resp = HttpResponse(datos, content_type='image/svg+xml')
+    resp['Cache-Control'] = 'private, max-age=604800'
+    resp['X-Alto'] = f'{(alto + 1) / E.TAM:.3f}'
+    resp['X-Fondo'] = f'{(fondo + .5) / E.TAM:.3f}'
+    return resp

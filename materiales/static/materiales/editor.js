@@ -12,6 +12,8 @@
     datos.opciones = Object.assign({ columnas: 1, letra: 11, modo: 'normal', nombre_estudiante: true, datos: true }, datos.opciones || {});
 
     var $ = function (s, r) { return (r || document).querySelector(s); };
+    var EQ = window.MMEq || { aVista: function () {}, aTexto: function (e, plano) { return plano ? e.textContent : e.innerHTML; },
+                              vista: function (t) { var d = document.createElement('div'); d.textContent = t; return d; } };
     var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
     var caja = $('#mm-bloques');
     var activo = null;            // id del bloque marcado: lo nuevo se agrega debajo
@@ -321,8 +323,11 @@
                 } else b.correcta = i;
                 cambio();
             });
+            var vistaOp = el('div');
+            function verOp(v) { vistaOp.innerHTML = ''; if ((v || '').indexOf('\\(') >= 0) vistaOp.appendChild(EQ.vista(v)); }
+            verOp(op);
             caja3.appendChild(el('div', { class: 'mm-op' }, [marca, el('b', { text: letras[i] + '.' }),
-                campo(op, 'Opción ' + letras[i], function (v) { b.opciones[i] = v; }, ''),
+                campo(op, 'Opción ' + letras[i], function (v) { b.opciones[i] = v; verOp(v); }, ''),
                 el('button', { type: 'button', class: 'btn btn-sm btn-link text-danger py-0', title: 'Quitar opción', html: '&times;',
                     onclick: function () {
                         b.opciones.splice(i, 1);
@@ -330,6 +335,7 @@
                         else if (b.correcta === i) b.correcta = null; else if (b.correcta > i) b.correcta--;
                         cambio(); pintar();
                     } })]));
+            caja3.appendChild(vistaOp);
         });
         caja3.appendChild(el('div', { class: 'd-flex gap-2 small' }, [
             b.opciones.length < 6 ? el('button', { type: 'button', class: 'btn btn-sm btn-link py-0', text: '+ opción',
@@ -358,6 +364,7 @@
     var temporizador = null, guardando = false, pendiente = false;
     function cambio() {
         if (CFG.soloVer || CFG.bloqueado) return;
+        anotar();
         estado('Cambios sin guardar…');
         clearTimeout(temporizador);
         temporizador = setTimeout(guardar, 1200);
@@ -422,7 +429,8 @@
     function editable(valor, ayuda, alCambiar, plano) {
         var e = el('div', { contenteditable: 'true', class: 'mm-edit', 'data-ayuda': ayuda });
         if (plano) e.textContent = valor || ''; else e.innerHTML = valor || '';
-        e.addEventListener('input', function () { alCambiar(plano ? e.textContent : e.innerHTML); cambio(); });
+        EQ.aVista(e);                        // las ecuaciones \( … \) se ven dibujadas
+        e.addEventListener('input', function () { alCambiar(EQ.aTexto(e, plano)); cambio(); });
         return e;
     }
     function campo(valor, ayuda, alCambiar, clase) {
@@ -465,11 +473,12 @@
                 fila.forEach(function (valor, j) {
                     var td = el('td', { contenteditable: 'true', style: i === 0 && b.encabezado ? 'font-weight:700;background:#e8eef9' : '' });
                     td.textContent = valor;
+                    EQ.aVista(td);
                     td._celda = { b: b, i: i, j: j, td: td };
                     var est = (b.estilos || {})[i + '-' + j];
                     if (est && est.f) td.style.background = est.f;
                     if (est && est.c) td.style.color = est.c;
-                    td.addEventListener('input', function () { b.filas[i][j] = td.textContent; cambio(); });
+                    td.addEventListener('input', function () { b.filas[i][j] = EQ.aTexto(td, true); cambio(); });
                     tr.appendChild(td);
                 });
                 t.appendChild(tr);
@@ -719,10 +728,10 @@
             archivos.reduce(function (p, f) { return p.then(function () { return subirImagen(f); }); }, Promise.resolve());
             return;
         }
-        // Texto pegado de Word o de internet: solo el texto, sin estilos ajenos.
+        // Texto pegado de Word o de internet: solo el texto, sin estilos ajenos (las ecuaciones \( … \) se dibujan).
         if (e.target && e.target.isContentEditable) {
             e.preventDefault();
-            document.execCommand('insertText', false, cd.getData('text/plain'));
+            pegarTexto(e.target, cd.getData('text/plain'));
         }
     });
     var hoja = $('#mm-hoja');
@@ -1138,6 +1147,94 @@
     var botonIA = $('#mm-ia-generar');
     if (botonIA) botonIA.addEventListener('click', function () { generarIA(false); });
 
+    // -------------------------------------------------------------------
+    // Deshacer y rehacer (todo el documento: textos, bloques, opciones…)
+    // Cada cambio deja una «foto»; lo que se escribe seguido queda en una sola.
+    // -------------------------------------------------------------------
+    var historial = [], futuro = [], foto = null, esperaFoto = null, restaurando = false;
+    var btnDeshacer = $('#mm-deshacer'), btnRehacer = $('#mm-rehacer');
+    function fotoActual() { return JSON.stringify({ bloques: datos.bloques, opciones: datos.opciones }); }
+    function botonesHist() {
+        if (btnDeshacer) btnDeshacer.disabled = !(historial.length || esperaFoto);
+        if (btnRehacer) btnRehacer.disabled = !futuro.length;
+    }
+    function anotar() {
+        if (restaurando || foto == null) return;
+        clearTimeout(esperaFoto);
+        esperaFoto = setTimeout(cerrarFoto, 700);
+        botonesHist();
+    }
+    function cerrarFoto() {
+        clearTimeout(esperaFoto); esperaFoto = null;
+        var f = fotoActual();
+        if (f !== foto) { historial.push(foto); if (historial.length > 100) historial.shift(); foto = f; futuro = []; }
+        botonesHist();
+    }
+    function restaurar(f) {
+        restaurando = true;
+        var d = JSON.parse(f);
+        datos.bloques = d.bloques; datos.opciones = d.opciones; foto = f;
+        pintarOpciones(); pintar(); cambio();
+        restaurando = false;
+        botonesHist();
+    }
+    function deshacer() { cerrarFoto(); if (!historial.length) return; futuro.push(foto); restaurar(historial.pop()); estado('Deshecho · guardando…'); }
+    function rehacer() { cerrarFoto(); if (!futuro.length) return; historial.push(foto); restaurar(futuro.pop()); estado('Rehecho · guardando…'); }
+    if (btnDeshacer) { btnDeshacer.addEventListener('mousedown', function (e) { e.preventDefault(); }); btnDeshacer.addEventListener('click', deshacer); }
+    if (btnRehacer) { btnRehacer.addEventListener('mousedown', function (e) { e.preventDefault(); }); btnRehacer.addEventListener('click', rehacer); }
+    document.addEventListener('keydown', function (e) {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+        var t = e.target;
+        if (t.closest && (t.closest('.modal') || t.closest('#mm-titulo, #mm-area, #mm-grado, #mm-periodo'))) return;   // ahí, el de siempre
+        var k = (e.key || '').toLowerCase();
+        if (k === 'z' && !e.shiftKey) { e.preventDefault(); deshacer(); }
+        else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); rehacer(); }
+    });
+
+    // -------------------------------------------------------------------
+    // Cortar, copiar y pegar (botones; con el teclado funcionan Ctrl+X, Ctrl+C y Ctrl+V)
+    // Al copiar, las ecuaciones viajan como \( … \) y al pegarlas se vuelven a dibujar.
+    // -------------------------------------------------------------------
+    function enElEditor(n) { n = n && n.nodeType === 3 ? n.parentNode : n; return !!(n && n.closest && n.closest('.mm-bloque')); }
+    function copiarConEcuaciones(e) {
+        var s = window.getSelection();
+        if (!s.rangeCount || !enElEditor(s.anchorNode) || !e.clipboardData) return;
+        var d = document.createElement('div');
+        d.appendChild(s.getRangeAt(0).cloneContents());
+        if (!d.querySelector('.mm-eqv')) return;
+        e.clipboardData.setData('text/plain', EQ.aTexto(d, true));
+        e.preventDefault();
+        if (e.type === 'cut') document.execCommand('delete');
+    }
+    document.addEventListener('copy', copiarConEcuaciones);
+    document.addEventListener('cut', copiarConEcuaciones);
+    function pegarTexto(destino, texto) {
+        if (destino && destino.isContentEditable) {
+            document.execCommand('insertText', false, texto);
+            var ed = destino.closest('[contenteditable="true"]') || destino;
+            if (texto.indexOf('\\(') >= 0 && EQ.aVista(ed)) ed.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (destino && (destino.tagName === 'TEXTAREA' || (destino.tagName === 'INPUT' && destino.type === 'text'))) {
+            destino.setRangeText(texto, destino.selectionStart, destino.selectionEnd, 'end');
+            destino.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+    $$('.mm-porta').forEach(function (b) {
+        b.addEventListener('mousedown', function (e) { e.preventDefault(); });          // que no se pierda la selección
+        b.addEventListener('click', function () {
+            var accion = b.getAttribute('data-porta'), destino = document.activeElement;
+            if (accion !== 'paste') {
+                if (!document.execCommand(accion)) alert('Seleccione primero el texto. También puede usar Ctrl+' + (accion === 'copy' ? 'C' : 'X') + '.');
+                return;
+            }
+            if (!enElEditor(destino) && !(destino && /^mm-(titulo|area|grado|periodo)$/.test(destino.id))) { alert('Haga clic primero donde quiere pegar.'); return; }
+            if (!navigator.clipboard || !navigator.clipboard.readText) { alert('Este navegador no deja pegar con el botón: use Ctrl+V (en el celular, mantenga presionado y «Pegar»).'); return; }
+            navigator.clipboard.readText().then(function (t) { if (t) pegarTexto(destino, t); })
+                .catch(function () { alert('El navegador no dio permiso para leer el portapapeles. Use Ctrl+V (en el celular, mantenga presionado y «Pegar»).'); });
+        });
+    });
+
     pintarOpciones();
     pintar();
+    foto = fotoActual();
+    botonesHist();
 })();

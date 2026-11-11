@@ -13,6 +13,7 @@ from django.views.decorators.http import require_POST
 
 from notas.models import AsignacionDocente, Curso, Notificacion
 
+from . import extras as X
 from . import reglas as R
 from .models import Conversacion, Mensaje, Participante, Reporte
 
@@ -124,8 +125,43 @@ def _mensaje_json(m, user, moderador):
             'nombre': m.nombre_archivo, 'peso_txt': peso_txt(m.peso) if m.tipo == 'doc' else '',
             'texto': '' if m.eliminado else m.texto, 'eliminado': m.eliminado,
             'archivo': f'/chat/m/{m.pk}/archivo/' if con_archivo else '', 'duracion': m.duracion,
-            'hora': hora_de(m.creado), 'dia': dia_de(m.creado),
+            'hora': hora_de(m.creado), 'dia': dia_de(m.creado), 'editado': bool(m.editado) and not m.eliminado,
+            'puede_editar': X.se_puede_editar(m, m.autor_id == user.pk),
             'puede_borrar': not m.eliminado and (m.autor_id == user.pk or moderador)}
+
+
+def corte_de(conv, p):
+    """Desde cuándo se muestran los mensajes a este participante (vació el chat él o un moderador para todos)."""
+    return X.desde(conv.limpiado, p.limpiado) if p is not None else None
+
+
+def limpiar(request, conv, p, puede_todos):
+    """Vaciar el chat: «mi» (solo deja de verlo él) o «todos» (moderador). No borra nada de la base de datos."""
+    ahora = timezone.now()
+    if request.POST.get('alcance') == 'todos' and puede_todos:
+        conv.limpiado = ahora
+        conv.save(update_fields=['limpiado'])
+        # Lo vaciado no cuenta como «sin leer» para nadie
+        Participante.objects.filter(conversacion=conv).filter(Q(ultimo_leido__lt=ahora) | Q(ultimo_leido__isnull=True)).update(ultimo_leido=ahora)
+        messages.success(request, 'Chat vaciado para todos los participantes.')
+    else:
+        p.limpiado = p.ultimo_leido = ahora
+        p.save(update_fields=['limpiado', 'ultimo_leido'])
+        messages.success(request, 'Chat vaciado. Solo cambió para usted: los demás siguen viendo los mensajes.')
+
+
+def editar_json(request, m, propio, a_json):
+    if not X.se_puede_editar(m, propio):
+        return JsonResponse({'ok': False, 'error': 'Solo puede editar sus mensajes de las últimas 24 horas.'}, status=403)
+    try:
+        X.editar(m, request.POST.get('texto'))
+    except ValueError as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
+    return JsonResponse({'ok': True, 'mensaje': a_json(m)})
+
+
+def busqueda_json(qs, q, a_json):
+    return JsonResponse({'resultados': [X.resultado(a_json(m), q) for m in X.buscar(qs, q)]})
 
 
 def vista_previa(texto, tipo, eliminado=False):
@@ -140,6 +176,18 @@ def vista_previa(texto, tipo, eliminado=False):
     return texto or ''
 
 
+def mi_limpiado(user):
+    return Subquery(Participante.objects.filter(conversacion=OuterRef('pk'), usuario=user).values('limpiado')[:1])
+
+
+def previa_lista(x, si_no_hay):
+    """La vista previa del último mensaje en la lista de chats (si se vació, no se muestra lo anterior)."""
+    corte = X.desde(x.limpiado, x.mi_limpiado)
+    if corte and (x.ultimo_mensaje is None or x.ultimo_mensaje <= corte):
+        return 'Chat vaciado'
+    return vista_previa(x.u_nombre if x.u_tipo == 'doc' else x.u_texto, x.u_tipo, x.u_borrado) if x.u_tipo else si_no_hay
+
+
 def _lista(c, request):
     """Lo que necesita la columna de chats (en el celular es la página de inicio; en el computador va al lado)."""
     pendientes = _no_leidos(c.user, c.colegio)
@@ -148,12 +196,11 @@ def _lista(c, request):
                                              participantes__activo=True)
                  .annotate(u_texto=Subquery(ultimo.values('texto')[:1]), u_tipo=Subquery(ultimo.values('tipo')[:1]),
                            u_borrado=Subquery(ultimo.values('eliminado')[:1]),
-                           u_nombre=Subquery(ultimo.values('nombre_archivo')[:1]))
+                           u_nombre=Subquery(ultimo.values('nombre_archivo')[:1]), mi_limpiado=mi_limpiado(c.user))
                  .prefetch_related('participantes__usuario').distinct()[:150])
     filas = [{'c': x, 'titulo': _titulo(x, c.user), 'sin_leer': pendientes.get(x.pk, 0),
               'url': f'/chat/c/{x.pk}/', 'grupo': x.tipo != 'directa', 'cuando': fecha_corta(x.ultimo_mensaje),
-              'previa': vista_previa(x.u_nombre if x.u_tipo == 'doc' else x.u_texto, x.u_tipo, x.u_borrado)
-              if x.u_tipo else x.get_tipo_display()}
+              'previa': previa_lista(x, x.get_tipo_display())}
              for x in convs]
     q = (request.GET.get('q') or '').strip()[:60]
     encontrados = []
@@ -321,8 +368,8 @@ def grupo_nuevo(request, c):
 def conversacion(request, c, pk):
     conv, p = _conversacion(c, pk, auditar=True)
     auditoria = p is None
-    mensajes_qs = conv.mensajes.select_related('autor')
-    ultimos = list(mensajes_qs.order_by('-creado', '-id')[:POR_PAGINA])[::-1]
+    mensajes_qs = X.visibles(conv.mensajes.select_related('autor'), corte_de(conv, p))
+    ultimos = X.ultimos(mensajes_qs, POR_PAGINA, request.GET.get('ver'))
     if p is not None:
         p.ultimo_leido = timezone.now()
         p.save(update_fields=['ultimo_leido'])
@@ -335,6 +382,7 @@ def conversacion(request, c, pk):
         'conv': conv, 'p': p, 'titulo': _titulo(conv, c.user), 'auditoria': auditoria, 'moderador': moderador,
         'puede_escribir': R.puede_escribir(conv, p) and not auditoria, 'participantes': participantes,
         'mensajes': [dict(_mensaje_json(m, c.user, moderador), texto_auditoria=m.texto if auditoria else '',
+                          original_auditoria=m.texto_original if auditoria and m.editado else '',
                           archivo_auditoria=f'/chat/m/{m.pk}/archivo/' if auditoria and m.archivo else '')
                      for m in ultimos],
         'hay_mas': mensajes_qs.count() > POR_PAGINA, 'rol': c.rol,
@@ -342,32 +390,41 @@ def conversacion(request, c, pk):
         if auditoria else set(),
         'silencio': R.en_silencio(c.colegio), 'aj': R.ajustes(c.colegio), 'activa': conv.pk,
         'compartidos': [_mensaje_json(m, c.user, moderador) for m in
-                        conv.mensajes.filter(tipo__in=('foto', 'voz', 'doc'), eliminado=False).exclude(archivo='')
-                        .select_related('autor').order_by('-creado', '-id')[:12]] if not auditoria else [],
+                        mensajes_qs.filter(tipo__in=('foto', 'voz', 'doc'), eliminado=False).exclude(archivo='')
+                        .order_by('-creado', '-id')[:12]] if not auditoria else [],
         'respuestas': RESPUESTAS_ESTUDIANTE if c.rol == 'estudiante' else RESPUESTAS_ADULTO,
         **_lista(c, request),
         'cfg': {'nuevos': f'/chat/c/{conv.pk}/nuevos/', 'enviar': f'/chat/c/{conv.pk}/enviar/',
                 'accion': f'/chat/c/{conv.pk}/accion/', 'reportar': '/chat/m/ID/reportar/',
-                'autores': conv.tipo != 'directa'}})
+                'autores': conv.tipo != 'directa', 'corte': _iso(corte_de(conv, p))},
+        'vaciar_todos': moderador and conv.tipo != 'directa'})
+
+
+def _iso(dt):
+    return dt.isoformat() if dt else ''
 
 
 @vista
 def nuevos(request, c, pk):
     """Los mensajes después de ?despues=<id> (la página pregunta cada pocos segundos)."""
     conv, p = _conversacion(c, pk)
+    qs = X.visibles(conv.mensajes.select_related('autor'), corte_de(conv, p))
+    if request.GET.get('q') is not None:
+        return busqueda_json(qs, request.GET['q'], lambda m: _mensaje_json(m, c.user, p.moderador))
     try:
         despues = int(request.GET.get('despues') or 0)
     except ValueError:
         despues = 0
-    lista = list(conv.mensajes.select_related('autor').filter(id__gt=despues)[:100])
-    # Los borrados que ya estaban en pantalla
-    borrados = list(conv.mensajes.filter(id__lte=despues, eliminado=True).values_list('id', flat=True)[:200])
+    lista = list(qs.filter(id__gt=despues)[:100])
+    # Los borrados y los editados que ya estaban en pantalla
+    borrados = list(qs.filter(id__lte=despues, eliminado=True).values_list('id', flat=True)[:200])
     if lista:
         p.ultimo_leido = timezone.now()
         p.save(update_fields=['ultimo_leido'])
         Notificacion.objects.filter(destinatario=c.user, url=f'/chat/c/{conv.pk}/', leido=False).update(leido=True)
     conv.refresh_from_db(fields=['solo_lectura'])
     return JsonResponse({'mensajes': [_mensaje_json(m, c.user, p.moderador) for m in lista], 'borrados': borrados,
+                         'editados': X.editados(qs, despues), 'corte': _iso(corte_de(conv, p)),
                          'puede_escribir': R.puede_escribir(conv, p)})
 
 
@@ -423,6 +480,11 @@ def accion(request, c, pk):
             m.save(update_fields=['eliminado', 'eliminado_por'])
         if request.headers.get('x-requested-with') == 'fetch':
             return JsonResponse({'ok': True})
+    elif que == 'editar':
+        m = get_object_or_404(Mensaje.objects.select_related('autor'), pk=request.POST.get('mensaje') or 0, conversacion=conv)
+        return editar_json(request, m, m.autor_id == c.user.pk, lambda x: _mensaje_json(x, c.user, p.moderador))
+    elif que == 'limpiar':
+        limpiar(request, conv, p, p.moderador and conv.tipo != 'directa')
     elif que == 'salir' and conv.tipo == 'grupo':
         p.activo = False
         p.save(update_fields=['activo'])

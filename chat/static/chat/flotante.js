@@ -158,7 +158,7 @@
         let h = '';
         if (!anterior || anterior.dia !== m.dia) h += `<div class="cf-dia">${esc(m.dia)}</div>`;
         if (grupo && !m.mio && (!anterior || anterior.autor !== m.autor || anterior.mio)) h += `<div class="cf-autor">${esc(m.autor)}</div>`;
-        return h + `<div class="cf-m${m.mio ? ' mio' : ''}" data-id="${m.id}"><div class="b">${cont}<small>${esc(m.hora)}</small></div></div>`;
+        return h + `<div class="cf-m${m.mio ? ' mio' : ''}" data-id="${m.id}"><div class="b">${cont}<small>${m.editado ? 'editado · ' : ''}${esc(m.hora)}</small></div></div>`;
     }
     function abrirVentana(id, minimizada) {
         let v = ventanas.find(x => x.id === id);
@@ -229,6 +229,13 @@
         pedir(`${BASE}/c/${v.id}/nuevos/?despues=${v.ultimo}`).then(j => {
             if (j.mensajes && j.mensajes.length) agregar(v, j.mensajes);
             (j.borrados || []).forEach(id => { const b = $(`.cf-m[data-id="${id}"] .b`, v.el); if (b) b.innerHTML = '<i>Mensaje eliminado</i>'; });
+            // Mensajes de texto que su autor editó
+            (j.editados || []).forEach(x => {
+                const b = $(`.cf-m[data-id="${x.id}"] .b`, v.el);
+                if (!b || b.querySelector('img, audio, a, i')) return;
+                const hora = (($('small', b) || {}).textContent || '').replace(/^editado · /, '');
+                b.innerHTML = `${esc(x.texto)}<small>editado · ${esc(hora)}</small>`;
+            });
             permitir(v, j.puede_escribir);
         }).catch(() => {});
     }

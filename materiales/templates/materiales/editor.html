@@ -42,6 +42,14 @@
     <div class="col-md-2"><input id="mm-periodo" class="form-control form-control-sm" maxlength="40" value="{{ doc.periodo }}" placeholder="Periodo"></div>
   </div>
   <div class="d-flex flex-wrap gap-1 mt-2 align-items-center">
+    <div class="btn-group btn-group-sm" role="group" aria-label="Deshacer y portapapeles">
+      <button type="button" class="btn btn-outline-secondary" id="mm-deshacer" title="Deshacer (Ctrl+Z)" aria-label="Deshacer" disabled><i class="fas fa-rotate-left"></i></button>
+      <button type="button" class="btn btn-outline-secondary" id="mm-rehacer" title="Rehacer (Ctrl+Y)" aria-label="Rehacer" disabled><i class="fas fa-rotate-right"></i></button>
+      <button type="button" class="btn btn-outline-secondary mm-porta" data-porta="cut" title="Cortar (Ctrl+X)" aria-label="Cortar"><i class="fas fa-scissors"></i></button>
+      <button type="button" class="btn btn-outline-secondary mm-porta" data-porta="copy" title="Copiar (Ctrl+C)" aria-label="Copiar"><i class="far fa-copy"></i></button>
+      <button type="button" class="btn btn-outline-secondary mm-porta" data-porta="paste" title="Pegar (Ctrl+V)" aria-label="Pegar"><i class="fas fa-paste"></i></button>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-primary" id="mm-ecuacion-btn" title="Insertar una ecuación (Alt+=)"><span style="font-family:'Times New Roman',serif;font-style:italic;font-weight:700">∑ x²</span> Ecuación</button>
     <div class="btn-group btn-group-sm" role="group" aria-label="Formato del texto">
       <button type="button" class="btn btn-outline-secondary" data-cmd="bold" title="Negrilla"><i class="fas fa-bold"></i></button>
       <button type="button" class="btn btn-outline-secondary" data-cmd="italic" title="Cursiva"><i class="fas fa-italic"></i></button>
@@ -306,6 +314,24 @@
     </div>
 </div></div></div>
 
+<div class="modal fade" id="mm-eq-modal" tabindex="-1" aria-hidden="true" aria-labelledby="mm-eq-titulo"><div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header py-2"><h6 class="modal-title" id="mm-eq-titulo"><i class="fas fa-square-root-variable me-1"></i>Ecuación</h6><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+    <div class="modal-body">
+      <p class="small text-muted mb-2">Escríbala con el teclado de ecuaciones (se abre al tocar el recuadro) o con los botones. Use las flechas o Tab para pasar del numerador al denominador.</p>
+      <div id="mm-eq-campo" class="mm-eq-campo"></div>
+      <div class="mm-eq-paleta my-2" id="mm-eq-paleta" aria-label="Plantillas de ecuaciones"></div>
+      <details class="small mb-2"><summary>Escribir en LaTeX (avanzado)</summary>
+        <textarea id="mm-eq-latex" class="form-control form-control-sm font-monospace mt-1" rows="2" spellcheck="false" placeholder="\frac{a}{b}"></textarea></details>
+      <div class="small fw-bold mb-1">Así queda en el documento (PDF y Word):</div>
+      <div id="mm-eq-previa" class="mm-eq-previa"></div>
+    </div>
+    <div class="modal-footer py-2">
+      <button type="button" class="btn btn-sm btn-outline-danger me-auto d-none" id="mm-eq-quitar"><i class="far fa-trash-can me-1"></i>Quitar ecuación</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+      <button type="button" class="btn btn-sm btn-primary" id="mm-eq-insertar">Insertar</button>
+    </div>
+</div></div></div>
+
 <div class="modal fade" id="mm-previa" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header py-2"><h6 class="modal-title">Vista previa</h6><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
     <div class="modal-body p-0"><iframe id="mm-previa-marco" title="Vista previa" style="width:100%;height:78vh;border:0"></iframe></div>
@@ -336,10 +362,12 @@ window.MM = {
     soloVer: {% if solo_ver %}true{% else %}false{% endif %},
     rol: "{{ rol }}",
     equipo: "{% url 'materiales:equipo' doc.pk %}",
-    estado: "{% url 'materiales:estado' doc.pk %}"
+    estado: "{% url 'materiales:estado' doc.pk %}",
+    ecuacion: "{% url 'materiales:ecuacion' %}"
 };
 </script>
 <script src="{% static 'materiales/colores.js' %}"></script>
+<script src="{% static 'materiales/ecuaciones.js' %}"></script>
 <script src="{% static 'materiales/editor.js' %}"></script>
 <script src="{% static 'materiales/equipo.js' %}"></script>
 {% endblock %}

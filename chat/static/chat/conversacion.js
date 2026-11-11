@@ -13,7 +13,9 @@
   function cuerpoDe(m) {
     var c = document.createElement('div'); c.className = 'b';
     if (CFG.autores && !m.mio) { var au = document.createElement('b'); au.className = 'ch-autor'; au.textContent = m.autor; c.appendChild(au); }
-    var hora = document.createElement('span'); hora.className = 'ch-hora'; hora.textContent = m.hora;
+    var hora = document.createElement('span'); hora.className = 'ch-hora';
+    if (m.editado && !m.eliminado) { var ed = document.createElement('span'); ed.className = 'ch-editado'; ed.textContent = 'editado · '; hora.appendChild(ed); }
+    hora.appendChild(document.createTextNode(m.hora));
     if (m.eliminado) { c.appendChild(document.createTextNode('Mensaje eliminado')); c.appendChild(hora); return c; }
     if (m.tipo === 'foto' && m.archivo) { var i = document.createElement('img'); i.src = m.archivo; i.alt = 'Foto'; i.loading = 'lazy'; i.onload = function () { if (cercaDelFinal(200)) abajo(); }; c.appendChild(i); }
     if (m.tipo === 'voz' && m.archivo) { var a = document.createElement('audio'); a.controls = true; a.preload = 'metadata'; a.src = m.archivo; c.appendChild(a); }
@@ -51,6 +53,7 @@
       var sp = document.createElement('span'); sp.textContent = m.dia; sep.appendChild(sp); muro.appendChild(sep);
     }
     var acc = document.createElement('div'); acc.className = 'm';
+    if (m.puede_editar) { var e = document.createElement('button'); e.type = 'button'; e.className = 'ch-editar'; e.setAttribute('data-id', m.id); e.textContent = 'Editar'; acc.appendChild(e); }
     if (m.puede_borrar) { var x = document.createElement('button'); x.type = 'button'; x.className = 'ch-borrar'; x.setAttribute('data-id', m.id); x.textContent = 'Borrar'; acc.appendChild(x); }
     if (CFG.reportar && !m.mio && !m.eliminado) { var r = document.createElement('button'); r.type = 'button'; r.className = 'ch-reportar'; r.setAttribute('data-id', m.id); r.textContent = 'Reportar'; acc.appendChild(r); }
     d.appendChild(cuerpoDe(m)); d.appendChild(acc);
@@ -63,12 +66,109 @@
     b.innerHTML = ''; if (au) b.appendChild(au); b.appendChild(document.createTextNode('Mensaje eliminado')); if (h) b.appendChild(h);
     d.querySelectorAll('button').forEach(function (x) { x.remove(); });
   }
+  // El texto de un mensaje cambió (lo editó su autor, aquí o en otra pantalla)
+  function textoEnPantalla(id, texto) {
+    var d = muro.querySelector('.ch-msg[data-id="' + id + '"]');
+    if (!d || d.classList.contains('borrado') || d.querySelector('.ch-edicion')) return;
+    var b = d.querySelector('.b'), pie = b.querySelector('.ch-pie'), hora = b.querySelector('.ch-hora');
+    if (pie && pie.textContent === texto) return;
+    if (!pie && texto) { pie = document.createElement('span'); pie.className = 'ch-pie'; b.insertBefore(pie, hora); }
+    if (pie) { if (texto) pie.textContent = texto; else pie.remove(); }
+    if (hora && !hora.querySelector('.ch-editado')) { var ed = document.createElement('span'); ed.className = 'ch-editado'; ed.textContent = 'editado · '; hora.insertBefore(ed, hora.firstChild); }
+  }
+  function accion(datos) {
+    var f = new FormData(); Object.keys(datos).forEach(function (k) { f.append(k, datos[k]); });
+    return fetch(URL_ACCION, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': token, 'X-Requested-With': 'fetch' }, body: f })
+      .then(function (r) { return r.json().catch(function () { return { ok: r.ok }; }); });
+  }
+  function editarEnPantalla(id) {
+    var d = muro.querySelector('.ch-msg[data-id="' + id + '"]');
+    if (!d || d.querySelector('.ch-edicion')) return;
+    var b = d.querySelector('.b'), pie = b.querySelector('.ch-pie');
+    var caja = document.createElement('div'); caja.className = 'ch-edicion';
+    var t = document.createElement('textarea'); t.maxLength = 2000; t.value = pie ? pie.textContent : ''; t.setAttribute('aria-label', 'Editar el mensaje');
+    var botones = document.createElement('div');
+    var no = document.createElement('button'); no.type = 'button'; no.textContent = 'Cancelar'; no.style.background = '#e5e7eb';
+    var si = document.createElement('button'); si.type = 'button'; si.textContent = 'Guardar'; si.style.background = '#2f9e44'; si.style.color = '#fff';
+    botones.appendChild(no); botones.appendChild(si); caja.appendChild(t); caja.appendChild(botones);
+    if (pie) pie.style.display = 'none';
+    b.insertBefore(caja, b.querySelector('.ch-hora'));
+    t.focus(); t.setSelectionRange(t.value.length, t.value.length);
+    function cerrar() { caja.remove(); if (pie) pie.style.display = ''; }
+    no.addEventListener('click', cerrar);
+    t.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') cerrar();
+      if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(pointer:fine)').matches) { e.preventDefault(); si.click(); }
+    });
+    si.addEventListener('click', function () {
+      si.disabled = true;
+      accion({ accion: 'editar', mensaje: id, texto: t.value }).then(function (j) {
+        si.disabled = false;
+        if (!j.ok) { alert(j.error || 'No se pudo editar.'); return; }
+        cerrar(); textoEnPantalla(id, j.mensaje.texto);
+      }).catch(function () { si.disabled = false; alert('Sin conexión: no se guardó el cambio.'); });
+    });
+  }
+
+  // Buscar lo que se escribió en el chat
+  var panelBuscar = document.getElementById('ch-busqueda'), entradaBuscar = document.getElementById('ch-buscar'), resultados = document.getElementById('ch-resultados');
+  var botonBuscar = document.getElementById('ch-buscar-btn'), esperaBuscar = null, ultimaBusqueda = '';
+  function resaltar(el, texto, q) {
+    var palabras = q.toLowerCase().split(/\s+/).filter(Boolean), bajo = texto.toLowerCase(), i = 0;
+    while (i < texto.length) {
+      var mejor = -1, largo = 0;
+      palabras.forEach(function (p) { var k = bajo.indexOf(p, i); if (k >= 0 && (mejor < 0 || k < mejor)) { mejor = k; largo = p.length; } });
+      if (mejor < 0) { el.appendChild(document.createTextNode(texto.slice(i))); break; }
+      el.appendChild(document.createTextNode(texto.slice(i, mejor)));
+      var mk = document.createElement('mark'); mk.textContent = texto.slice(mejor, mejor + largo); el.appendChild(mk);
+      i = mejor + largo;
+    }
+  }
+  function buscar() {
+    var q = entradaBuscar.value.trim();
+    if (q === ultimaBusqueda) return; ultimaBusqueda = q;
+    if (q.length < 2) { resultados.innerHTML = ''; return; }
+    fetch(URL_NUEVOS + '?q=' + encodeURIComponent(q), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+      if (q !== ultimaBusqueda) return;
+      resultados.innerHTML = '';
+      var lista = j.resultados || [];
+      if (!lista.length) { var n = document.createElement('div'); n.className = 'ch-res-nada'; n.textContent = 'No hay mensajes con «' + q + '».'; resultados.appendChild(n); return; }
+      lista.forEach(function (x) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'ch-res'; b.setAttribute('data-id', x.id);
+        var s = document.createElement('small'); s.textContent = (x.mio ? 'Usted' : x.autor) + ' · ' + x.dia + ' ' + x.hora;
+        var t = document.createElement('span'); resaltar(t, x.texto, q);
+        b.appendChild(s); b.appendChild(t); resultados.appendChild(b);
+      });
+    }).catch(function () {});
+  }
+  function irA(id) {
+    var d = muro.querySelector('.ch-msg[data-id="' + id + '"]');
+    if (!d) { location.href = location.pathname + '?ver=' + id; return; }        // más antiguo: se abre alrededor de ese mensaje
+    d.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    d.classList.add('resaltado'); setTimeout(function () { d.classList.remove('resaltado'); }, 2500);
+  }
+  if (botonBuscar && panelBuscar) {
+    botonBuscar.addEventListener('click', function () {
+      var abrir = panelBuscar.classList.contains('d-none');
+      panelBuscar.classList.toggle('d-none', !abrir);
+      if (abrir) entradaBuscar.focus();
+    });
+    document.getElementById('ch-buscar-cerrar').addEventListener('click', function () {
+      panelBuscar.classList.add('d-none'); entradaBuscar.value = ''; ultimaBusqueda = ''; resultados.innerHTML = '';
+    });
+    entradaBuscar.addEventListener('input', function () { clearTimeout(esperaBuscar); esperaBuscar = setTimeout(buscar, 300); });
+    entradaBuscar.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(esperaBuscar); buscar(); } });
+    resultados.addEventListener('click', function (e) { var b = e.target.closest('.ch-res'); if (b) irA(b.getAttribute('data-id')); });
+  }
+
   function cercaDelFinal(px) { return muro.scrollHeight - muro.scrollTop - muro.clientHeight < (px || 80); }
   function traer() {
     fetch(URL_NUEVOS + '?despues=' + ultimo(), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
       var cerca = cercaDelFinal();
       (j.mensajes || []).forEach(dibujar);
       (j.borrados || []).forEach(borradoEnPantalla);
+      (j.editados || []).forEach(function (x) { textoEnPantalla(x.id, x.texto); });
+      if ('corte' in j && (j.corte || '') !== (CFG.corte || '')) { location.reload(); return; }   // alguien vació el chat
       if (form && 'puede_escribir' in j) { form.classList.toggle('d-none', !j.puede_escribir); if (rapidas) rapidas.classList.toggle('d-none', !j.puede_escribir); var ce = document.getElementById('ch-cerrado'); if (ce) ce.classList.toggle('d-none', !!j.puede_escribir); }
       if ((j.mensajes || []).length && cerca) abajo();
     }).catch(function () {});
@@ -201,6 +301,7 @@
     if (img) { visor.querySelector('img').src = img.src; visor.classList.remove('d-none'); return; }
     var b = e.target.closest('button'); if (!b) return;
     var id = b.getAttribute('data-id');
+    if (b.classList.contains('ch-editar')) { editarEnPantalla(id); return; }
     if (b.classList.contains('ch-borrar')) {
       if (!confirm('¿Borrar este mensaje? Quedará como «mensaje eliminado».')) return;
       var f = new FormData(); f.append('accion', 'borrar'); f.append('mensaje', id);
@@ -213,7 +314,8 @@
       rf.action = CFG.reportar.replace('ID', id); rf.motivo.value = motivo; rf.submit();
     }
   });
-  abajo();
-  setTimeout(abajo, 400);
+  var ver = new URLSearchParams(location.search).get('ver');
+  if (ver && muro.querySelector('.ch-msg[data-id="' + ver + '"]')) { setTimeout(function () { irA(ver); }, 300); }
+  else { abajo(); setTimeout(abajo, 400); }
   setInterval(function () { if (!document.hidden) traer(); }, 5000);
 })();

@@ -53,6 +53,8 @@ class Conversacion(models.Model):
     solo_lectura = models.BooleanField(default=False, help_text='Solo los moderadores escriben.')
     creada = models.DateTimeField(auto_now_add=True)
     ultimo_mensaje = models.DateTimeField(null=True, blank=True)
+    limpiado = models.DateTimeField(null=True, blank=True, help_text='Un moderador vació el chat para todos: lo anterior no se muestra '
+                                                                     '(queda guardado para la revisión de los directivos).')
 
     class Meta:
         ordering = ['-ultimo_mensaje', '-creada']
@@ -102,6 +104,7 @@ class Participante(models.Model):
     silenciada = models.BooleanField(default=False, help_text='No avisa de los mensajes nuevos.')
     ultimo_leido = models.DateTimeField(null=True, blank=True)
     activo = models.BooleanField(default=True, help_text='Falso cuando sale del grupo o deja el curso.')
+    limpiado = models.DateTimeField(null=True, blank=True, help_text='Vació el chat para sí: no ve lo anterior.')
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['conversacion', 'usuario'], name='chat_un_participante')]
@@ -120,6 +123,8 @@ class Mensaje(models.Model):
     creado = models.DateTimeField(auto_now_add=True)
     eliminado = models.BooleanField(default=False)
     eliminado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    editado = models.DateTimeField(null=True, blank=True)
+    texto_original = models.TextField(max_length=2000, blank=True, help_text='Lo que decía antes de la primera edición (para los directivos).')
 
     class Meta:
         ordering = ['creado', 'id']
@@ -160,6 +165,8 @@ class ConversacionSalon(models.Model):
     docente_leido = models.DateTimeField(null=True, blank=True)
     ultimo_mensaje = models.DateTimeField(null=True, blank=True)
     creada = models.DateTimeField(auto_now_add=True)
+    limpiado = models.DateTimeField(null=True, blank=True, help_text='El docente vació el chat para todos.')
+    docente_limpiado = models.DateTimeField(null=True, blank=True, help_text='El docente lo vació solo para él.')
 
     class Meta:
         ordering = ['-ultimo_mensaje', '-creada']
@@ -187,6 +194,8 @@ class MensajeSalon(models.Model):
     nombre_archivo = models.CharField(max_length=150, blank=True)
     creado = models.DateTimeField(auto_now_add=True)
     eliminado = models.BooleanField(default=False)
+    editado = models.DateTimeField(null=True, blank=True)
+    texto_original = models.TextField(max_length=2000, blank=True)
 
     class Meta:
         ordering = ['creado', 'id']
@@ -197,6 +206,7 @@ class LecturaSalon(models.Model):
     conversacion = models.ForeignKey(ConversacionSalon, on_delete=models.CASCADE, related_name='lecturas')
     integrante = models.ForeignKey('salon_digital.Integrante', on_delete=models.CASCADE, related_name='+')
     ultimo_leido = models.DateTimeField()
+    limpiado = models.DateTimeField(null=True, blank=True, help_text='El estudiante vació el chat para sí.')
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['conversacion', 'integrante'], name='chat_salon_una_lectura')]

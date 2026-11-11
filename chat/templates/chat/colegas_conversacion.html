@@ -7,6 +7,7 @@
 <button type="button" class="ch-titulo text-start border-0 bg-transparent p-0" data-bs-toggle="offcanvas" data-bs-target="#ch-info" aria-controls="ch-info">
   <b>{{ titulo }}</b><small>{% if conv.tipo == 'colegas' %}{% for u, n, d, mod, f in participantes %}{% if u.pk != request.user.pk %}{{ d }}{% endif %}{% endfor %}{% else %}Grupo de docentes · {{ participantes|length }} participante{{ participantes|length|pluralize }}{% if conv.solo_lectura %} · solo moderadores escriben{% endif %}{% endif %}</small>
 </button>
+{% include 'chat/_herramientas.html' with vaciar=True %}
 <form method="post" action="/chat/colegas/c/{{ conv.pk }}/accion/" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="silenciar">
   <button class="ch-icono" title="{% if p.silenciada %}Volver a recibir avisos{% else %}Silenciar este chat{% endif %}" aria-label="Avisos de este chat"><i class="fas {% if p.silenciada %}fa-bell-slash{% else %}fa-bell{% endif %}"></i></button></form>
 <button type="button" class="ch-icono" data-bs-toggle="offcanvas" data-bs-target="#ch-info" aria-label="Información del chat"><i class="fas fa-ellipsis-vertical"></i></button>

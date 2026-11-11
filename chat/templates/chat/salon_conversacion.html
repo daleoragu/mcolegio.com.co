@@ -5,6 +5,7 @@
 {% block barra %}
 <span class="ch-avatar chico{% if not conv.integrante_id %} grupo{% endif %}">{% if conv.integrante_id %}{{ titulo|slice:":1"|upper }}{% else %}<i class="fas fa-users"></i>{% endif %}</span>
 <div class="ch-titulo"><b>{{ titulo }}</b><small>{{ sub }}{% if conv.solo_lectura and not conv.integrante_id %} · solo el docente escribe{% endif %}</small></div>
+{% include 'chat/_herramientas.html' %}
 {% if c.docente and not conv.integrante_id %}
 <form method="post" action="{% url 'aula:chat_accion' aula.pk conv.pk %}" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="solo_lectura">
   <button class="ch-icono" title="{% if conv.solo_lectura %}Dejar que los estudiantes escriban{% else %}Que solo escriba yo{% endif %}" aria-label="Quién escribe"><i class="fas {% if conv.solo_lectura %}fa-lock{% else %}fa-lock-open{% endif %}"></i></button></form>

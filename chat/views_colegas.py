@@ -22,8 +22,9 @@ from django.views.decorators.http import require_POST
 from notas.models import AdministradorColegio, Docente, Notificacion
 
 from .models import Colega, Conversacion, Mensaje, Participante, PerfilColega
-from .views import (MAX_TEXTO, POR_PAGINA, RESPUESTAS_ADULTO, _adjunto, _json, _mensaje_json, fecha_corta,
-                    vista_previa)
+from . import extras as X
+from .views import (MAX_TEXTO, POR_PAGINA, RESPUESTAS_ADULTO, _adjunto, _iso, _json, _mensaje_json, busqueda_json, corte_de,
+                    editar_json, fecha_corta, limpiar, mi_limpiado, previa_lista, vista_previa)
 
 TIPOS = ('colegas', 'colegas_g')
 SOLICITUDES_DIA = 40          # para que nadie llene de solicitudes a los demás
@@ -182,13 +183,13 @@ def _lista(request, activa=None):
     convs = list(Conversacion.objects.filter(colegio__isnull=True, tipo__in=TIPOS, participantes__usuario=user,
                                              participantes__activo=True)
                  .annotate(u_texto=Subquery(ultimo.values('texto')[:1]), u_tipo=Subquery(ultimo.values('tipo')[:1]),
-                           u_borrado=Subquery(ultimo.values('eliminado')[:1]), u_nombre=Subquery(ultimo.values('nombre_archivo')[:1]))
+                           u_borrado=Subquery(ultimo.values('eliminado')[:1]), u_nombre=Subquery(ultimo.values('nombre_archivo')[:1]),
+                           mi_limpiado=mi_limpiado(user))
                  .prefetch_related('participantes__usuario').distinct()[:150])
     filas = [{'c': x, 'titulo': _titulo(x, user), 'sin_leer': pendientes.get(x.pk, 0), 'url': f'{BASE}/c/{x.pk}/',
               'foto': '' if x.tipo == 'colegas_g' else foto_de(next((p.usuario for p in x.participantes.all() if p.usuario_id != user.pk), user)),
               'grupo': x.tipo == 'colegas_g', 'cuando': fecha_corta(x.ultimo_mensaje),
-              'previa': vista_previa(x.u_nombre if x.u_tipo == 'doc' else x.u_texto, x.u_tipo, x.u_borrado) if x.u_tipo
-              else ('Grupo de docentes' if x.tipo == 'colegas_g' else 'Escríbale a su colega')} for x in convs]
+              'previa': previa_lista(x, 'Grupo de docentes' if x.tipo == 'colegas_g' else 'Escríbale a su colega')} for x in convs]
     return {'filas': filas, 'activa': activa, 'lista_tpl': 'chat/colegas_lista.html', 'riel_tpl': 'chat/_riel_colegas.html',
             'volver': _volver(user), 'es_del_colegio': False,
             'n_solicitudes': Colega.objects.filter(para=user, estado='pendiente').count(),
@@ -400,8 +401,8 @@ def _json_m(m, user, moderador):
 def conversacion(request, pk):
     conv, p = _conversacion(request, pk)
     user = request.user
-    qs = conv.mensajes.select_related('autor')
-    ultimos = list(qs.order_by('-creado', '-id')[:POR_PAGINA])[::-1]
+    qs = X.visibles(conv.mensajes.select_related('autor'), corte_de(conv, p))
+    ultimos = X.ultimos(qs, POR_PAGINA, request.GET.get('ver'))
     p.ultimo_leido = timezone.now()
     p.save(update_fields=['ultimo_leido'])
     Notificacion.objects.filter(destinatario=user, url=f'{BASE}/c/{conv.pk}/', leido=False).update(leido=True)
@@ -418,28 +419,33 @@ def conversacion(request, pk):
         agregables=agregables, puede_escribir=escribir_ok,
         aviso_escribir='' if escribir_ok else ('Ya no son colegas: no se pueden escribir.' if conv.tipo == 'colegas' else 'En este grupo solo escriben los moderadores.'),
         mensajes=[_json_m(m, user, p.moderador) for m in ultimos], hay_mas=qs.count() > POR_PAGINA,
-        compartidos=[_json_m(m, user, p.moderador) for m in conv.mensajes.filter(tipo__in=('foto', 'voz', 'doc'), eliminado=False)
-                     .exclude(archivo='').select_related('autor').order_by('-creado', '-id')[:12]],
+        compartidos=[_json_m(m, user, p.moderador) for m in qs.filter(tipo__in=('foto', 'voz', 'doc'), eliminado=False)
+                     .exclude(archivo='').order_by('-creado', '-id')[:12]],
+        vaciar_todos=p.moderador and conv.tipo == 'colegas_g',
         respuestas=RESPUESTAS_ADULTO,
         cfg={'nuevos': f'{BASE}/c/{conv.pk}/nuevos/', 'enviar': f'{BASE}/c/{conv.pk}/enviar/',
-             'accion': f'{BASE}/c/{conv.pk}/accion/', 'autores': conv.tipo == 'colegas_g'}))
+             'accion': f'{BASE}/c/{conv.pk}/accion/', 'autores': conv.tipo == 'colegas_g', 'corte': _iso(corte_de(conv, p))}))
 
 
 @vista
 def nuevos(request, pk):
     conv, p = _conversacion(request, pk)
+    qs = X.visibles(conv.mensajes.select_related('autor'), corte_de(conv, p))
+    if request.GET.get('q') is not None:
+        return busqueda_json(qs, request.GET['q'], lambda m: _json_m(m, request.user, p.moderador))
     try:
         despues = int(request.GET.get('despues') or 0)
     except ValueError:
         despues = 0
-    lista = list(conv.mensajes.select_related('autor').filter(id__gt=despues)[:100])
-    borrados = list(conv.mensajes.filter(id__lte=despues, eliminado=True).values_list('id', flat=True)[:200])
+    lista = list(qs.filter(id__gt=despues)[:100])
+    borrados = list(qs.filter(id__lte=despues, eliminado=True).values_list('id', flat=True)[:200])
     if lista:
         p.ultimo_leido = timezone.now()
         p.save(update_fields=['ultimo_leido'])
         Notificacion.objects.filter(destinatario=request.user, url=f'{BASE}/c/{conv.pk}/', leido=False).update(leido=True)
     conv.refresh_from_db(fields=['solo_lectura'])
     return JsonResponse({'mensajes': [_json_m(m, request.user, p.moderador) for m in lista], 'borrados': borrados,
+                         'editados': X.editados(qs, despues), 'corte': _iso(corte_de(conv, p)),
                          'puede_escribir': puede_escribir(conv, p, request.user)})
 
 
@@ -497,6 +503,11 @@ def accion(request, pk):
             m.save(update_fields=['eliminado', 'eliminado_por'])
         if request.headers.get('x-requested-with') == 'fetch':
             return JsonResponse({'ok': True})
+    elif que == 'editar':
+        m = get_object_or_404(Mensaje.objects.select_related('autor'), pk=request.POST.get('mensaje') or 0, conversacion=conv)
+        return editar_json(request, m, m.autor_id == user.pk, lambda x: _json_m(x, user, p.moderador))
+    elif que == 'limpiar':
+        limpiar(request, conv, p, grupo and p.moderador)
     elif que == 'renombrar' and grupo and p.moderador:
         nombre = ' '.join((request.POST.get('nombre') or '').split())[:80]
         if nombre:
@@ -641,7 +652,7 @@ def mini_conv(request, pk):
     """Los últimos mensajes de una conversación para la ventanita del chat flotante (y quedan leídos)."""
     conv, p = _conversacion(request, pk)
     user = request.user
-    ultimos = list(conv.mensajes.select_related('autor').order_by('-creado', '-id')[:40])[::-1]
+    ultimos = list(X.visibles(conv.mensajes.select_related('autor'), corte_de(conv, p)).order_by('-creado', '-id')[:40])[::-1]
     p.ultimo_leido = timezone.now()
     p.save(update_fields=['ultimo_leido'])
     Notificacion.objects.filter(destinatario=user, url=f'{BASE}/c/{conv.pk}/', leido=False).update(leido=True)

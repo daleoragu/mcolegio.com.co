@@ -1,4 +1,4 @@
-Versión 0017 · 2026-11-11 20:55
+Versión 0019 · 2026-11-11 21:40
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -191,6 +191,7 @@ NUEVO     aula/templates/aula/evento_jugar.html
 NUEVO     aula/templates/aula/evento_preguntas.html
 NUEVO     aula/templates/aula/evento_resultados.html
 NUEVO     aula/templates/aula/eventos.html
+CAMBIADO  aula/templates/aula/ficha.html
 NUEVO     aula/templates/aula/gamificacion.html
 CAMBIADO  aula/templates/aula/importar.html
 CAMBIADO  aula/templates/aula/inicio.html
@@ -229,17 +230,24 @@ NUEVO     aula/views_invertida.py
 NUEVO     aula/views_logica.py
 NUEVO     aula/views_mascota.py
 NUEVO     aula/views_tablero.py
+NUEVO     chat/extras.py
 NUEVO     chat/migrations/0005_colegas.py
 NUEVO     chat/migrations/0006_perfil_colega_foto.py
 NUEVO     chat/migrations/0007_muro_academico.py
 NUEVO     chat/migrations/0008_muro_actividades.py
 NUEVO     chat/migrations/0009_reunion_docente.py
 NUEVO     chat/migrations/0010_muro_juegos.py
+NUEVO     chat/migrations/0011_editar_y_vaciar.py
 CAMBIADO  chat/models.py
 CAMBIADO  chat/reglas.py
+CAMBIADO  chat/static/chat/conversacion.js
 NUEVO     chat/static/chat/flotante.js
 NUEVO     chat/templates/chat/_av.html
+NUEVO     chat/templates/chat/_buscar.html
 NUEVO     chat/templates/chat/_campana_colegas.html
+CAMBIADO  chat/templates/chat/_estilos.html
+NUEVO     chat/templates/chat/_herramientas.html
+CAMBIADO  chat/templates/chat/_muro.html
 NUEVO     chat/templates/chat/_muro_estilos.html
 NUEVO     chat/templates/chat/_muro_js.html
 NUEVO     chat/templates/chat/_muro_pub.html
@@ -249,19 +257,25 @@ NUEVO     chat/templates/chat/colegas_grupo_nuevo.html
 NUEVO     chat/templates/chat/colegas_inicio.html
 NUEVO     chat/templates/chat/colegas_lista.html
 NUEVO     chat/templates/chat/colegas_perfil.html
+CAMBIADO  chat/templates/chat/conversacion.html
 NUEVO     chat/templates/chat/muro.html
 NUEVO     chat/templates/chat/muro_detalle.html
 NUEVO     chat/templates/chat/muro_moderar.html
+CAMBIADO  chat/templates/chat/salon_conversacion.html
 NUEVO     chat/test_colegas.py
+NUEVO     chat/test_editar_buscar.py
 NUEVO     chat/test_muro.py
 CAMBIADO  chat/urls.py
+CAMBIADO  chat/views.py
 NUEVO     chat/views_colegas.py
 NUEVO     chat/views_muro.py
+CAMBIADO  chat/views_salon.py
 CAMBIADO  config/settings.py
 CAMBIADO  config/urls.py
 CAMBIADO  elecciones/templates/elecciones/index.html
 CAMBIADO  materiales/bloques.py
 CAMBIADO  materiales/creditos.py
+NUEVO     materiales/ecuaciones.py
 CAMBIADO  materiales/exportar.py
 CAMBIADO  materiales/ia.py
 NUEVO     materiales/migrations/0005_colaboradores_y_modelos.py
@@ -271,6 +285,7 @@ NUEVO     materiales/migrations/0008_formatos.py
 CAMBIADO  materiales/models.py
 CAMBIADO  materiales/plantillas.py
 NUEVO     materiales/static/materiales/colores.js
+NUEVO     materiales/static/materiales/ecuaciones.js
 CAMBIADO  materiales/static/materiales/editor.js
 NUEVO     materiales/static/materiales/equipo.js
 NUEVO     materiales/templates/materiales/_colores.html
@@ -286,6 +301,9 @@ CAMBIADO  materiales/templates/materiales/encabezado.html
 NUEVO     materiales/templates/materiales/juego_editar.html
 NUEVO     materiales/templates/materiales/juegos.html
 CAMBIADO  materiales/templates/materiales/lista.html
+NUEVO     materiales/templatetags/__init__.py
+NUEVO     materiales/templatetags/ecuaciones.py
+NUEVO     materiales/tests/test_ecuaciones.py
 NUEVO     materiales/tests/test_equipo.py
 NUEVO     materiales/tests/test_juegos_colores.py
 CAMBIADO  materiales/tests/test_materiales.py
@@ -517,6 +535,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   materiales/migrations/0008_formatos.py            (formatos de planeación, plan de aula, PIAR y DUA)
   aula/migrations/0027_tableros.py                  (tableros de la Pizarra: pantalla infinita, imágenes y compartir con la clase)
   aula/migrations/0028_tableros_carpeta.py  (carpetas de tableros y peso de imágenes en la nube)
+  chat/migrations/0011_editar_y_vaciar.py           (chat: mensajes editados y vaciar el chat)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

@@ -60,6 +60,24 @@
   .ch-msg.mio .ch-hora { color:#b8c4dc; }
   .ch-msg .m { font-size:.7rem; color:var(--mc-gris); margin:1px 8px; display:flex; gap:10px; opacity:.75; }
   .ch-msg .m button { border:0; background:none; color:var(--mc-gris); padding:0; font-size:.7rem; }
+  .ch-msg .ch-editado { font-style:italic; }
+  .ch-msg.resaltado .b { box-shadow:0 0 0 3px #f2b632; transition:box-shadow .3s; }
+  .ch-msg .ch-edicion { display:flex; flex-direction:column; gap:6px; min-width:min(70vw, 320px); }
+  .ch-msg .ch-edicion textarea { border:1px solid #cbd5e1; border-radius:10px; padding:6px 8px; font:inherit; color:#1d2433; resize:vertical; min-height:60px; }
+  .ch-msg .ch-edicion div { display:flex; gap:6px; justify-content:flex-end; }
+  .ch-msg .ch-edicion button { border:0; border-radius:999px; padding:3px 12px; font-size:.8rem; }
+  .ch-busqueda { flex:0 0 auto; background:#fff; border-bottom:1px solid var(--mc-linea, #e5e7eb); position:relative; z-index:5; }
+  .ch-busqueda-barra { display:flex; align-items:center; gap:8px; padding:8px 12px; }
+  .ch-busqueda-barra input { flex:1 1 auto; border:1px solid #d0d5dd; border-radius:999px; padding:6px 14px; outline:none; min-width:0; }
+  .ch-busqueda-barra input:focus { border-color:var(--mc-azul, #1d4ed8); }
+  .ch-busqueda-barra button { border:0; background:none; font-size:1.1rem; color:#667085; }
+  .ch-resultados { max-height:45vh; overflow-y:auto; }
+  .ch-resultados:empty { display:none; }
+  .ch-res { display:block; width:100%; text-align:left; border:0; border-top:1px solid #f1f5f9; background:#fff; padding:8px 14px; font-size:.88rem; color:#1d2433; }
+  .ch-res:hover, .ch-res:focus { background:#f8fafc; }
+  .ch-res small { color:#667085; display:block; }
+  .ch-res mark { background:#fde68a; padding:0 1px; border-radius:3px; }
+  .ch-res-nada { padding:10px 14px; color:#667085; font-size:.88rem; }
   .ch-msg.borrado .b { font-style:italic; color:#8a8f98; background:#f1f1f1; }
   .ch-msg.reportado .b { outline:2px solid #dc3545; }
   .ch-msg .b img { display:block; max-width:min(280px, 62vw); max-height:320px; border-radius:12px; cursor:zoom-in; margin:2px -6px 4px; }
