@@ -37,9 +37,9 @@ AREA_CHOICES = [
 # ---------------------------------------------------------------------------
 PRUEBA_DIAS = 15
 PLANES = {
-    'gratis':    {'nombre': 'Gratis', 'paginas': 3, 'resultados_mes': 300, 'mb': 25, 'grupos': 1, 'materiales': 10,
+    'gratis':    {'nombre': 'Gratis', 'paginas': 3, 'resultados_mes': 300, 'mb': 25, 'grupos': 1, 'materiales': 10, 'tableros': 5,
                   'examenes': False, 'eventos': False, 'marca': True, 'nube_mb': 300, 'ia': 'gratis'},
-    'estandar':  {'nombre': 'Estándar', 'paginas': 30, 'resultados_mes': 5000, 'mb': 60, 'grupos': 0, 'materiales': 0,
+    'estandar':  {'nombre': 'Estándar', 'paginas': 30, 'resultados_mes': 5000, 'mb': 60, 'grupos': 0, 'materiales': 0, 'tableros': 50,
                   'examenes': True, 'eventos': False, 'marca': False, 'nube_mb': 2048, 'ia': 'individual'},
     'premium':   {'nombre': 'Premium', 'paginas': 0, 'resultados_mes': 0, 'mb': 200, 'grupos': 0, 'materiales': 0,
                   'examenes': True, 'eventos': True, 'marca': False, 'nube_mb': 5120, 'ia': 'individual_ia'},

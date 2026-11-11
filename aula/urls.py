@@ -28,6 +28,7 @@ urlpatterns = [
     path('eventos/<int:eid>/grabaciones/<int:pid>/', ve.grabaciones, name='evento_grabaciones'),
     path('eventos/<int:eid>/grabaciones/archivo/<int:gid>/', ve.grabacion_archivo, name='evento_grabacion_archivo'),
     path('eventos/<int:eid>/grabaciones/nube/', ve.grabaciones_nube, name='evento_grabaciones_nube'),
+    path('eventos/<int:eid>/grabaciones/colegios/', ve.grabaciones_colegios, name='evento_grabaciones_colegios'),
     path('eventos/<int:eid>/grabaciones/<int:pid>/zip/', ve.grabaciones_zip, name='evento_grabaciones_zip'),
     path('eventos/<int:eid>/configurar/', ve.configurar, name='evento_configurar'),
     path('eventos/<int:eid>/resultados/', ve.resultados, name='evento_resultados'),

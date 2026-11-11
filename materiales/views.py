@@ -63,18 +63,10 @@ class Acceso:
         return self.documentos().filter(plantilla_colegio=True)
 
     def cuota(self):
-        from .creditos import nube_extra_bytes, plan_de
-        if self.colegio is None and self.cuenta is not None:
-            from salon_digital.models import PLANES
-            base = PLANES[self.cuenta.nivel]['nube_mb'] * MB
-            if plan_de(self.request.user, None) == 'individual_ia':          # compró el plan con IA con su saldo
-                base = max(base, 5 * 1024 * MB)
-        else:
-            base = 2048 * MB
-        return base + nube_extra_bytes(self.request.user)
+        return cuota_nube(self.request.user, self.cuenta if self.colegio is None else None)
 
     def usado(self):
-        return Imagen.objects.filter(propietario=self.request.user).aggregate(t=Sum('peso'))['t'] or 0
+        return usado_nube(self.request.user)
 
     def encabezado(self):
         if self.colegio is not None:
@@ -93,6 +85,26 @@ class Acceso:
         if self.cuenta is not None:
             return list(Aula.objects.filter(grupo__propietario=self.cuenta).select_related('grupo'))
         return []
+
+
+def cuota_nube(user, cuenta):
+    """Los bytes de nube del docente: los de su plan individual (cuenta) o 2 GB en un colegio, más lo que compró."""
+    from .creditos import nube_extra_bytes, plan_de
+    if cuenta is not None:
+        from salon_digital.models import PLANES
+        base = PLANES[cuenta.nivel]['nube_mb'] * MB
+        if plan_de(user, None) == 'individual_ia':          # compró el plan con IA con su saldo
+            base = max(base, 5 * 1024 * MB)
+    else:
+        base = 2048 * MB
+    return base + nube_extra_bytes(user)
+
+
+def usado_nube(user):
+    """Lo que ocupa: las imágenes de sus materiales y las de sus tableros de clase."""
+    from aula.models import ImagenTablero
+    return ((Imagen.objects.filter(propietario=user).aggregate(t=Sum('peso'))['t'] or 0)
+            + (ImagenTablero.objects.filter(tablero__autor=user).aggregate(t=Sum('peso'))['t'] or 0))
 
 
 def vista(fn):

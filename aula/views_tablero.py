@@ -84,12 +84,15 @@ def subir(request, tid):
     if f is None:
         return JsonResponse({'ok': False, 'error': 'Falta la imagen.'}, status=400)
     from django.core.files.base import ContentFile
-    from materiales.views import preparar_imagen
+    from materiales.views import cuota_nube, preparar_imagen, usado_nube
     try:
         datos, ext, ancho, alto = preparar_imagen(f)
     except ValueError as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=400)
-    img = ImagenTablero(tablero=t, ancho=ancho, alto=alto)
+    # Las imágenes cuentan en la nube del docente dueño del tablero (también las que pegan los estudiantes)
+    if usado_nube(t.autor) + len(datos) > cuota_nube(t.autor, getattr(t.autor, 'cuenta_salon', None)):
+        return JsonResponse({'ok': False, 'error': 'La nube del docente está llena: borre imágenes o tableros que ya no use, o amplíe su plan.'}, status=400)
+    img = ImagenTablero(tablero=t, ancho=ancho, alto=alto, peso=len(datos))
     img.archivo.save(f'imagen.{ext}', ContentFile(datos), save=False)
     img.save()
     return JsonResponse({'ok': True, 'id': img.pk, 'w': ancho, 'h': alto,

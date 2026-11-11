@@ -1,27 +1,65 @@
 {% extends "salon_digital/base_salon.html" %}
 {% block titulo %}Mis tableros · Mi Salón Virtual{% endblock %}
 {% block contenido %}
-<div style="max-width:960px;margin:0 auto">
-  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+<style>
+  .tb-repo-mini { display:block; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; background:#f8fafc; aspect-ratio:16/9; margin-bottom:.6rem; }
+  .tb-repo-mini svg { width:100%; height:100%; display:block; }
+  .tb-repo-mini:hover { border-color:#0f766e; box-shadow:0 0 0 2px rgba(15,118,110,.15); }
+  .tb-chip { border-radius:999px; font-size:.78rem; }
+</style>
+<div style="max-width:1080px;margin:0 auto">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
     <div class="flex-grow-1"><h3 class="fw-bold mb-0"><i class="fas fa-chalkboard me-2" style="color:#0f766e"></i>Mis tableros</h3>
-      <p class="text-muted small mb-0">Pantalla infinita para escribir, dibujar y pegar imágenes. Proyéctela en clase o compártala con un grupo: usted decide si los estudiantes pueden escribir.</p></div>
-    <form method="post" class="d-flex gap-2">{% csrf_token %}<input name="titulo" class="form-control form-control-sm" maxlength="80" placeholder="Título (opcional)"><button class="btn btn-sm btn-success text-nowrap"><i class="fas fa-plus me-1"></i>Nuevo tablero</button></form>
+      <p class="text-muted small mb-0">Su repositorio de tableros: pantalla infinita para escribir, dibujar y pegar imágenes. Proyéctelos en clase o compártalos con un grupo: usted decide si los estudiantes pueden escribir.</p></div>
+    {% if lleno %}
+    <a class="btn btn-sm btn-warning text-nowrap" href="/salon_digital/pagos/?plan=premium&para=tableros"><i class="fas fa-crown me-1"></i>Llegó a {{ tope }} tableros: ampliar plan</a>
+    {% else %}
+    <form method="post" class="d-flex flex-wrap gap-2">{% csrf_token %}
+      <input name="titulo" class="form-control form-control-sm" style="max-width:200px" maxlength="80" placeholder="Título (opcional)">
+      <input name="carpeta" class="form-control form-control-sm" style="max-width:150px" maxlength="60" list="tb-carpetas" placeholder="Carpeta" value="{% if carpeta and carpeta != '-' %}{{ carpeta }}{% endif %}">
+      <button class="btn btn-sm btn-success text-nowrap"><i class="fas fa-plus me-1"></i>Nuevo tablero</button></form>
+    {% endif %}
   </div>
+  <div class="small text-muted mb-3">
+    {% if tope %}{{ total }} de {{ tope }} tableros de su plan{% else %}{{ total }} tablero{{ total|pluralize }} · sin límite en su plan{% endif %}
+    · Nube: {{ nube.usado_mb }} de {{ nube.cuota_mb }} MB (las imágenes de los tableros cuentan aquí)
+    <div class="progress mt-1" style="height:5px;max-width:320px"><div class="progress-bar {% if nube.porcentaje >= 90 %}bg-danger{% endif %}" style="width:{{ nube.porcentaje }}%"></div></div>
+  </div>
+
+  <form method="get" class="d-flex flex-wrap gap-2 align-items-center mb-3">
+    <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm" style="max-width:260px" placeholder="Buscar por título">
+    {% if carpeta %}<input type="hidden" name="carpeta" value="{{ carpeta }}">{% endif %}
+    <button class="btn btn-sm btn-primary"><i class="fas fa-magnifying-glass"></i></button>
+    <a href="?{% if q %}q={{ q|urlencode }}{% endif %}" class="btn btn-sm tb-chip {% if not carpeta %}btn-dark{% else %}btn-outline-secondary{% endif %}">Todos</a>
+    {% for c in carpetas %}<a href="?carpeta={{ c|urlencode }}{% if q %}&q={{ q|urlencode }}{% endif %}" class="btn btn-sm tb-chip {% if carpeta == c %}btn-dark{% else %}btn-outline-secondary{% endif %}"><i class="far fa-folder me-1"></i>{{ c }}</a>{% endfor %}
+    {% if carpetas %}<a href="?carpeta=-{% if q %}&q={{ q|urlencode }}{% endif %}" class="btn btn-sm tb-chip {% if carpeta == '-' %}btn-dark{% else %}btn-outline-secondary{% endif %}">Sin carpeta</a>{% endif %}
+  </form>
+  <datalist id="tb-carpetas">{% for c in carpetas %}<option value="{{ c }}">{% endfor %}</datalist>
+
   <div class="row g-3">
     {% for t in tableros %}
     <div class="col-sm-6 col-lg-4">
       <div class="esp-card p-3 h-100 d-flex flex-column">
+        <a class="tb-repo-mini" href="{% url 'salon_digital:tablero_abrir' t.pk %}" title="Abrir «{{ t.titulo }}»">{{ t.mini }}</a>
         <a class="fw-bold text-reset text-decoration-none" href="{% url 'salon_digital:tablero_abrir' t.pk %}"><i class="fas fa-chalkboard me-1 text-success"></i>{{ t.titulo }}</a>
-        <div class="small text-muted mb-2">{{ t.objetos|length }} elemento{{ t.objetos|length|pluralize }} · {{ t.actualizado|date:"d/m/Y H:i" }}</div>
+        <div class="small text-muted mb-2">{% if t.carpeta %}<i class="far fa-folder me-1"></i>{{ t.carpeta }} · {% endif %}{{ t.objetos|length }} elemento{{ t.objetos|length|pluralize }}{% if t.n_img %} · {{ t.n_img }} imagen{{ t.n_img|pluralize:"es" }} ({{ t.mb }} MB){% endif %} · {{ t.actualizado|date:"d/m/Y H:i" }}</div>
         <div class="small mb-2">{% if t.aula %}<span class="badge text-bg-success"><i class="fas fa-users me-1"></i>Compartido con {{ t.aula.titulo }}</span>{% if t.editan_estudiantes %} <span class="badge text-bg-warning">Los estudiantes escriben</span>{% endif %}{% else %}<span class="badge text-bg-light border">Solo usted</span>{% endif %}</div>
+        <details class="small mb-2"><summary class="text-primary">Renombrar o mover a carpeta</summary>
+          <form method="post" action="{% url 'salon_digital:tablero_organizar' t.pk %}" class="d-flex flex-column gap-1 mt-1">{% csrf_token %}
+            <input type="hidden" name="volver" value="{{ request.get_full_path }}">
+            <input name="titulo" value="{{ t.titulo }}" maxlength="80" class="form-control form-control-sm" aria-label="Título">
+            <div class="d-flex gap-1"><input name="carpeta" value="{{ t.carpeta }}" maxlength="60" list="tb-carpetas" class="form-control form-control-sm" placeholder="Carpeta (grupo, tema…)" aria-label="Carpeta">
+              <button class="btn btn-sm btn-outline-primary">Guardar</button></div>
+          </form></details>
         <div class="mt-auto d-flex gap-2">
           <a class="btn btn-sm btn-primary flex-grow-1" href="{% url 'salon_digital:tablero_abrir' t.pk %}">Abrir</a>
+          {% if not lleno %}<form method="post" action="{% url 'salon_digital:tablero_duplicar' t.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" title="Duplicar (para usarlo con otro grupo)"><i class="far fa-copy"></i></button></form>{% endif %}
           <form method="post" action="{% url 'salon_digital:tablero_eliminar' t.pk %}" onsubmit="return confirm('¿Eliminar este tablero y sus imágenes?')">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="far fa-trash-can"></i></button></form>
         </div>
       </div>
     </div>
     {% empty %}
-    <div class="col-12"><div class="esp-card p-4 text-center text-muted">Todavía no tiene tableros. Cree el primero con <b>Nuevo tablero</b>.</div></div>
+    <div class="col-12"><div class="esp-card p-4 text-center text-muted">{% if q or carpeta %}Ningún tablero coincide con la búsqueda.{% else %}Todavía no tiene tableros. Cree el primero con <b>Nuevo tablero</b>.{% endif %}</div></div>
     {% endfor %}
   </div>
 </div>

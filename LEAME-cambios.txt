@@ -1,4 +1,4 @@
-Versión 0015 · 2026-11-11 15:03
+Versión 0017 · 2026-11-11 20:55
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -56,6 +56,7 @@ NUEVO     aula/migrations/0024_invertida_puntos.py
 NUEVO     aula/migrations/0025_compartir_con_colegas.py
 NUEVO     aula/migrations/0026_compartir_de_la_comunidad.py
 NUEVO     aula/migrations/0027_tableros.py
+NUEVO     aula/migrations/0028_tableros_carpeta.py
 CAMBIADO  aula/models.py
 NUEVO     aula/planilla_eventos.py
 NUEVO     aula/planilla_preguntas.py
@@ -176,6 +177,7 @@ NUEVO     aula/templates/aula/calificaciones_pdf.html
 NUEVO     aula/templates/aula/compartidos.html
 CAMBIADO  aula/templates/aula/cuestionario.html
 CAMBIADO  aula/templates/aula/entrar.html
+NUEVO     aula/templates/aula/evento_capturas_colegios.html
 NUEVO     aula/templates/aula/evento_cerrado.html
 NUEVO     aula/templates/aula/evento_configurar.html
 NUEVO     aula/templates/aula/evento_diplomas.html
@@ -514,6 +516,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   salon_digital/migrations/0007_pizarra.py          (notas de la Pizarra del docente)
   materiales/migrations/0008_formatos.py            (formatos de planeación, plan de aula, PIAR y DUA)
   aula/migrations/0027_tableros.py                  (tableros de la Pizarra: pantalla infinita, imágenes y compartir con la clase)
+  aula/migrations/0028_tableros_carpeta.py  (carpetas de tableros y peso de imágenes en la nube)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

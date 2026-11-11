@@ -1027,3 +1027,68 @@ def _test_banco_calculo(self):
 
 
 Olimpiada.test_banco_calculo = _test_banco_calculo
+
+def _test_corregir_datos(self):
+    """Los muchachos escriben mal el colegio: el organizador corrige los datos de una inscripción o unifica varias."""
+    ev = self.crear('Intercolegial')
+    ev.config = dict(ev.config or {}, inscripcion={'abierta': True, 'aprobacion': True, 'cupo_colegio': 0, 'cupo_nivel': 0})
+    ev.save(update_fields=['config'])
+    nueva = lambda nombre, inst, doc, grado=7: ParticipacionEvento.objects.create(
+        evento=ev, nombre=nombre, institucion=inst, grado=grado, ciclo='exploradores' if grado <= 7 else 'avanzados',
+        token=nombre, estado='aprobada', datos={'documento': doc, 'ciudad': 'Ibague'})
+    a = nueva('Pedro Perez', 'Col San Jose', '100001')
+    b = nueva('María Gómez', 'colegio sanjose', '100002')
+    c = nueva('Luis Mora', 'Colegio San José', '100003')
+    url = f'/aula/eventos/{ev.pk}/inscripciones/'
+    r = self.admin.get(url + '?estado=todas')
+    self.assertContains(r, 'id="ed-%d"' % a.pk); self.assertContains(r, 'Unificar instituciones')
+    self.admin.post(url, {'accion': 'editar', 'pid': a.pk, 'nombre': 'Pedro  Pérez', 'documento': '1.000.01', 'institucion': 'Colegio San José',
+                          'ciudad': 'Ibagué', 'grado': '7', 'contacto': '3001234567', 'acompanante': 'Prof. Rosa'})
+    a.refresh_from_db()
+    self.assertEqual((a.nombre, a.institucion, a.datos['documento'], a.datos['ciudad'], a.datos['acompanante']),
+                     ('Pedro Pérez', 'Colegio San José', '100001', 'Ibagué', 'Prof. Rosa'))
+    # No se puede poner el documento de otro ni dejar el nombre vacío
+    self.admin.post(url, {'accion': 'editar', 'pid': a.pk, 'nombre': 'Pedro Pérez', 'documento': '100002', 'institucion': 'X', 'grado': '7'})
+    self.admin.post(url, {'accion': 'editar', 'pid': a.pk, 'nombre': '', 'documento': '100001', 'institucion': 'X', 'grado': '7'})
+    a.refresh_from_db(); self.assertEqual(a.institucion, 'Colegio San José')
+    # Unificar: «colegio sanjose» pasa a llamarse como los demás
+    self.admin.post(url, {'accion': 'unificar', 'viejo': ['colegio sanjose', 'Colegio San José'], 'nuevo': 'I.E. Colegio San José'})
+    self.assertEqual(set(ParticipacionEvento.objects.filter(evento=ev).values_list('institucion', flat=True)), {'I.E. Colegio San José'})
+    # Solo el organizador
+    self.assertEqual(self.cliente(self.ana.user).post(url, {'accion': 'editar', 'pid': b.pk, 'nombre': 'Hack'}).status_code, 403)
+
+def _test_capturas(self):
+    """Las capturas se agrupan por colegio (sin importar cómo lo escribieron) y se bajan en un .zip por colegio."""
+    import io, zipfile
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from aula.models import GrabacionEvento
+    ev = self.crear('Intercolegial')
+    nueva = lambda nombre, inst, acomp='': ParticipacionEvento.objects.create(
+        evento=ev, nombre=nombre, institucion=inst, grado=7, ciclo='exploradores', token=nombre, estado='aprobada',
+        datos={'documento': nombre[:6], 'acompanante': acomp})
+    a, b, c = nueva('Pedro Pérez', 'Colegio San José', 'Prof. Rosa'), nueva('María Gómez', 'colegio  san jose'), nueva('Luis Mora', 'Liceo Nacional')
+    for p, n in ((a, 1), (a, 2), (b, 1), (c, 1)):
+        GrabacionEvento.objects.create(participacion=p, numero=n, archivo=SimpleUploadedFile(f'p{n}.jpg', b'JPG%d' % n),
+                                       tipo='image/jpeg', bytes=4)
+    url = f'/aula/eventos/{ev.pk}/grabaciones/colegios/'
+    r = self.admin.get(url)
+    nombres = [g['nombre'] for g in r.context['colegios']]
+    self.assertEqual(len(nombres), 2); self.assertIn('Liceo Nacional', nombres)
+    san = next(g for g in r.context['colegios'] if g['clave'] == 'colegio san jose')
+    self.assertEqual((len(san['personas']), san['n'], san['docentes']), (2, 3, ['Prof. Rosa']))
+    self.assertContains(r, 'Prof. Rosa')
+    self.assertEqual(len(self.admin.get(url + '?q=liceo').context['colegios']), 1)
+    # ZIP del colegio: una carpeta por estudiante, sin los de otros colegios
+    r = self.admin.get(url + '?zip=colegio+san+jose')
+    z = zipfile.ZipFile(io.BytesIO(b''.join(r.streaming_content)))
+    self.assertEqual(sorted(n.split('/')[0] for n in z.namelist()), ['María Gómez', 'Pedro Pérez', 'Pedro Pérez'])
+    self.assertEqual(self.admin.get(url + '?zip=otro').status_code, 404)
+    # Para la nube: solo los de ese colegio, con su carpeta
+    d = self.admin.get(f'/aula/eventos/{ev.pk}/grabaciones/nube/?colegio=liceo+nacional').json()
+    self.assertEqual((d['colegio'], [x['nombre'] for x in d['personas']]), ('Liceo Nacional', ['Luis Mora']))
+    self.assertEqual(self.cliente(self.ana.user).get(url).status_code, 403)
+    self.assertContains(self.admin.get(f'/aula/eventos/{ev.pk}/resultados/'), 'Capturas por colegio')
+
+
+Olimpiada.test_corregir_datos_de_inscritos_y_unificar_colegios = _test_corregir_datos
+Olimpiada.test_capturas_por_colegio = _test_capturas

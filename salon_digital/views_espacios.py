@@ -199,13 +199,97 @@ def _mis_aulas(cuenta):
 @cuenta_requerida
 def tablero(request):
     """Mis tableros: cada uno es una pantalla infinita para escribir, dibujar y pegar imágenes; se comparte con un grupo."""
+    from django.db.models import Count, Sum
+    from django.utils.safestring import mark_safe
+    from aula import tablero as TB
     from aula.models import TableroClase
+    from . import limites
     if request.method == 'POST':
+        if not limites.cupo_tableros(request.user):
+            return limites.a_planes(request, 'tableros', 'premium')
         t = TableroClase.objects.create(autor=request.user, titulo=' '.join((request.POST.get('titulo') or '').split())[:80]
-                                        or f'Tablero del {timezone.localdate():%d/%m/%Y}')
+                                        or f'Tablero del {timezone.localdate():%d/%m/%Y}',
+                                        carpeta=' '.join((request.POST.get('carpeta') or '').split())[:60])
         return redirect('salon_digital:tablero_abrir', pk=t.pk)
-    tableros = TableroClase.objects.filter(autor=request.user).select_related('aula__grupo')
-    return render(request, 'salon_digital/tableros.html', {'tableros': tableros})
+    todos = TableroClase.objects.filter(autor=request.user)
+    carpetas = sorted({c for c in todos.values_list('carpeta', flat=True) if c}, key=str.lower)
+    q, carpeta = ' '.join((request.GET.get('q') or '').split()), request.GET.get('carpeta')
+    tableros = todos.select_related('aula__grupo').annotate(n_img=Count('imagenes'), mb_img=Sum('imagenes__peso'))
+    if q:
+        tableros = tableros.filter(titulo__icontains=q)
+    if carpeta == '-':
+        tableros = tableros.filter(carpeta='')
+    elif carpeta:
+        tableros = tableros.filter(carpeta=carpeta)
+    tableros = list(tableros)
+    for t in tableros:
+        t.mini = mark_safe(TB.miniatura(t, lambda iid, t=t: reverse('aula:tablero_imagen', args=[t.pk, iid])))
+        t.mb = round((t.mb_img or 0) / 1048576, 1)
+    cuenta = request.cuenta
+    tope = cuenta.limite('tableros') if not request.user.is_superuser else 0
+    from materiales.views import cuota_nube, usado_nube
+    usado, cuota = usado_nube(request.user), cuota_nube(request.user, cuenta)
+    return render(request, 'salon_digital/tableros.html', {
+        'tableros': tableros, 'total': todos.count(), 'tope': tope, 'lleno': bool(tope) and todos.count() >= tope,
+        'carpetas': carpetas, 'q': q, 'carpeta': carpeta or '',
+        'nube': {'usado_mb': round(usado / 1048576, 1), 'cuota_mb': round(cuota / 1048576),
+                 'porcentaje': min(100, round(usado * 100 / cuota)) if cuota else 0}})
+
+
+@require_POST
+@cuenta_requerida
+def tablero_duplicar(request, pk):
+    """Una copia del tablero (con sus imágenes) para reutilizarlo con otro grupo: queda sin compartir."""
+    from django.core.files.base import ContentFile
+    from aula.models import ImagenTablero, TableroClase
+    from materiales.views import cuota_nube, usado_nube
+    from . import limites
+    t = get_object_or_404(TableroClase, pk=pk, autor=request.user)
+    if not limites.cupo_tableros(request.user):
+        return limites.a_planes(request, 'tableros', 'premium')
+    imagenes = list(t.imagenes.all())
+    peso = sum(i.peso for i in imagenes)
+    if peso and usado_nube(request.user) + peso > cuota_nube(request.user, request.cuenta):
+        messages.warning(request, 'No hay espacio en su nube para copiar las imágenes de este tablero.')
+        return redirect('salon_digital:tablero')
+    copia = TableroClase.objects.create(autor=request.user, titulo=f'{t.titulo[:72]} (copia)', fondo=t.fondo, carpeta=t.carpeta)
+    nuevas = {}
+    for i in imagenes:
+        try:
+            with i.archivo.open('rb') as f:
+                datos = f.read()
+        except Exception:
+            continue
+        n = ImagenTablero(tablero=copia, ancho=i.ancho, alto=i.alto, peso=len(datos))
+        n.archivo.save('imagen.' + (i.archivo.name.rsplit('.', 1)[-1] if '.' in i.archivo.name else 'jpg'), ContentFile(datos), save=False)
+        n.save()
+        nuevas[i.pk] = n.pk
+    objetos = []
+    for o in t.objetos or []:
+        if o.get('t') == 'imagen':
+            if o.get('img') not in nuevas:
+                continue
+            o = dict(o, img=nuevas[o['img']])
+        objetos.append(o)
+    copia.objetos = objetos
+    copia.save(update_fields=['objetos'])
+    messages.success(request, f'Se creó «{copia.titulo}». Puede compartirlo con otro grupo.')
+    return redirect('salon_digital:tablero')
+
+
+@require_POST
+@cuenta_requerida
+def tablero_organizar(request, pk):
+    """Cambiar el título o la carpeta desde la lista del repositorio."""
+    from aula.models import TableroClase
+    t = get_object_or_404(TableroClase, pk=pk, autor=request.user)
+    if 'titulo' in request.POST:
+        t.titulo = ' '.join(request.POST['titulo'].split())[:80] or t.titulo
+    if 'carpeta' in request.POST:
+        t.carpeta = ' '.join(request.POST['carpeta'].split())[:60]
+    t.save(update_fields=['titulo', 'carpeta'])          # sin tocar «actualizado»: el orden es por lo último dibujado
+    volver = request.POST.get('volver') or ''
+    return redirect(volver if volver.startswith('/salon_digital/pizarra/tablero/') else reverse('salon_digital:tablero'))
 
 
 @cuenta_requerida
