@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.db.models import Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -190,7 +191,67 @@ def models_F(campo):
     return F(campo)
 
 
+def _mis_aulas(cuenta):
+    from aula.models import Aula
+    return list(Aula.objects.filter(grupo__propietario=cuenta, grupo__activo=True).select_related('grupo').order_by('grupo__nombre'))
+
+
 @cuenta_requerida
 def tablero(request):
-    """Tablero para la clase: escribir y dibujar a pantalla completa (para proyectar), con fondo liso, cuadriculado o rayado."""
-    return render(request, 'salon_digital/tablero.html', {'cuenta': request.cuenta})
+    """Mis tableros: cada uno es una pantalla infinita para escribir, dibujar y pegar imágenes; se comparte con un grupo."""
+    from aula.models import TableroClase
+    if request.method == 'POST':
+        t = TableroClase.objects.create(autor=request.user, titulo=' '.join((request.POST.get('titulo') or '').split())[:80]
+                                        or f'Tablero del {timezone.localdate():%d/%m/%Y}')
+        return redirect('salon_digital:tablero_abrir', pk=t.pk)
+    tableros = TableroClase.objects.filter(autor=request.user).select_related('aula__grupo')
+    return render(request, 'salon_digital/tableros.html', {'tableros': tableros})
+
+
+@cuenta_requerida
+def tablero_abrir(request, pk):
+    from aula.models import TableroClase
+    from aula.views_tablero import config
+    t = get_object_or_404(TableroClase, pk=pk, autor=request.user)
+    return render(request, 'salon_digital/tablero.html', {
+        'cfg': config(request, t, ('d', True, True), reverse('salon_digital:tablero')), 't': t, 'es_dueno': True,
+        'aulas': [{'id': a.pk, 'nombre': a.titulo} for a in _mis_aulas(request.cuenta)]})
+
+
+@require_POST
+@cuenta_requerida
+def tablero_compartir(request, pk):
+    """Compartir con una clase (o dejar de compartir), permitir que los estudiantes escriban y cambiar el título."""
+    from django.http import JsonResponse
+    from aula import logica
+    from aula.models import TableroClase
+    t = get_object_or_404(TableroClase, pk=pk, autor=request.user)
+    if 'titulo' in request.POST:
+        t.titulo = ' '.join(request.POST['titulo'].split())[:80] or t.titulo
+    aulas = {a.pk: a for a in _mis_aulas(request.cuenta)}
+    antes = t.aula_id
+    if 'aula' in request.POST:
+        valor = request.POST.get('aula') or ''
+        t.aula = aulas.get(int(valor)) if valor.isdigit() else None
+    if 'editan' in request.POST:
+        t.editan_estudiantes = request.POST.get('editan') == '1'
+    t.save(update_fields=['titulo', 'aula', 'editan_estudiantes', 'actualizado'])
+    url = ''
+    if t.aula_id:
+        url = request.build_absolute_uri(reverse('aula:tablero_ver', args=[t.aula_id, t.pk]))
+        if t.aula_id != antes:
+            logica.avisar_estudiantes(t.aula, f'{t.aula.titulo}: el docente compartió el tablero «{t.titulo}» 📋', url)
+    return JsonResponse({'ok': True, 'compartido': bool(t.aula_id), 'aula': t.aula_id, 'editan': t.editan_estudiantes,
+                         'url': url, 'titulo': t.titulo})
+
+
+@require_POST
+@cuenta_requerida
+def tablero_eliminar(request, pk):
+    from aula.models import TableroClase
+    t = get_object_or_404(TableroClase, pk=pk, autor=request.user)
+    for img in t.imagenes.all():
+        img.archivo.delete(save=False)
+    t.delete()
+    messages.info(request, 'Tablero eliminado.')
+    return redirect('salon_digital:tablero')

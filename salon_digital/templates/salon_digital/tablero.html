@@ -3,136 +3,398 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Tablero · Mi Salón Virtual</title>
+<title>{{ t.titulo }} · Tablero</title>
 <link rel="icon" type="image/png" href="{% static 'salon_digital/app/icono-192.png' %}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-  :root { --barra:#0f172a; }
   * { box-sizing:border-box; }
-  html, body { margin:0; height:100%; overflow:hidden; font-family:system-ui,'Segoe UI',Arial,sans-serif; background:#0f172a; touch-action:none; }
-  #tb-hoja { position:fixed; inset:0 0 0 0; }
-  canvas { position:absolute; inset:0; width:100%; height:100%; display:block; cursor:crosshair; }
-  .tb-barra { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); z-index:5; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:6px;
-              background:rgba(15,23,42,.92); color:#fff; border-radius:16px; padding:8px 10px; box-shadow:0 8px 24px rgba(0,0,0,.35); max-width:calc(100vw - 16px); }
-  .tb-barra button, .tb-barra a { border:0; background:transparent; color:#e2e8f0; width:38px; height:38px; border-radius:10px; font-size:1rem; display:grid; place-items:center; cursor:pointer; text-decoration:none; }
-  .tb-barra button:hover, .tb-barra a:hover { background:rgba(255,255,255,.12); }
+  html, body { margin:0; height:100%; overflow:hidden; font-family:system-ui,'Segoe UI',Arial,sans-serif; background:#0f172a; touch-action:none; overscroll-behavior:none; }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .tb-barra { position:fixed; left:50%; bottom:12px; transform:translateX(-50%); z-index:5; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:4px;
+              background:rgba(15,23,42,.93); color:#fff; border-radius:16px; padding:7px 9px; box-shadow:0 8px 24px rgba(0,0,0,.35); max-width:calc(100vw - 12px); }
+  .tb-barra button, .tb-barra label { border:0; background:transparent; color:#e2e8f0; width:36px; height:36px; border-radius:10px; font-size:.95rem; display:grid; place-items:center; cursor:pointer; margin:0; position:relative; }
+  .tb-barra button:hover, .tb-barra label:hover { background:rgba(255,255,255,.12); }
   .tb-barra button.on { background:#fff; color:#0f172a; }
-  .tb-color { width:26px!important; height:26px!important; border-radius:50%!important; border:2px solid rgba(255,255,255,.6)!important; }
+  .tb-barra button:disabled { opacity:.35; cursor:not-allowed; }
+  .tb-color { width:24px!important; height:24px!important; border-radius:50%!important; border:2px solid rgba(255,255,255,.6)!important; }
   .tb-color.on { box-shadow:0 0 0 3px #38bdf8; }
-  .tb-sep { width:1px; height:26px; background:rgba(255,255,255,.2); margin:0 2px; }
-  .tb-pag { font-size:.8rem; color:#cbd5e1; min-width:44px; text-align:center; }
-  .tb-volver { position:fixed; top:12px; left:12px; z-index:5; background:rgba(15,23,42,.85); color:#fff; border-radius:12px; padding:8px 12px; text-decoration:none; font-size:.9rem; }
-  .tb-texto { position:fixed; z-index:6; min-width:120px; background:rgba(255,255,255,.9); border:2px dashed #38bdf8; outline:none; font-size:28px; padding:2px 4px; font-family:inherit; }
+  .tb-sep { width:1px; height:24px; background:rgba(255,255,255,.2); margin:0 2px; }
+  .tb-arriba { position:fixed; top:10px; left:10px; right:10px; z-index:5; display:flex; gap:8px; align-items:center; pointer-events:none; }
+  .tb-arriba > * { pointer-events:auto; }
+  .tb-pildora { background:rgba(15,23,42,.88); color:#fff; border-radius:12px; padding:7px 12px; text-decoration:none; font-size:.88rem; border:0; display:inline-flex; align-items:center; gap:6px; }
+  .tb-pildora.verde { background:#047857; } .tb-pildora.ambar { background:#b45309; }
+  .tb-titulo { font-weight:700; max-width:40vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tb-panel { position:fixed; top:56px; right:10px; z-index:6; width:min(330px,calc(100vw - 20px)); background:#fff; color:#0f172a; border-radius:14px; padding:14px; box-shadow:0 10px 30px rgba(0,0,0,.35); display:none; font-size:.9rem; }
+  .tb-panel.abierto { display:block; }
+  .tb-panel label { display:block; font-weight:600; margin:8px 0 3px; }
+  .tb-panel input[type=text], .tb-panel select { width:100%; padding:7px 9px; border:1px solid #cbd5e1; border-radius:9px; font-size:.9rem; }
+  .tb-interruptor { display:flex; align-items:center; gap:8px; margin-top:10px; font-weight:600; cursor:pointer; }
+  .tb-interruptor input { width:40px; height:22px; accent-color:#047857; }
+  .tb-enlace { margin-top:8px; font-size:.78rem; word-break:break-all; background:#f1f5f9; border-radius:8px; padding:6px 8px; display:none; }
+  .tb-aviso { position:fixed; left:50%; top:62px; transform:translateX(-50%); z-index:7; background:#0f172a; color:#fff; padding:8px 14px; border-radius:10px; font-size:.88rem; display:none; }
+  .tb-texto { position:fixed; z-index:6; min-width:140px; background:rgba(255,255,255,.92); border:2px dashed #38bdf8; outline:none; padding:2px 4px; font-family:system-ui, sans-serif; resize:both; }
+  .tb-zoom { position:fixed; right:10px; bottom:76px; z-index:5; display:flex; flex-direction:column; gap:4px; }
+  .tb-zoom button { width:38px; height:38px; border:0; border-radius:10px; background:rgba(15,23,42,.88); color:#fff; font-size:1rem; cursor:pointer; }
+  .tb-zoom span { color:#fff; font-size:.7rem; text-align:center; background:rgba(15,23,42,.7); border-radius:6px; }
+  .tb-soltar { position:fixed; inset:0; z-index:8; background:rgba(56,189,248,.18); border:4px dashed #38bdf8; display:none; place-items:center; color:#0f172a; font-weight:800; font-size:1.4rem; }
 </style>
 </head>
 <body>
-<a class="tb-volver" href="{% url 'salon_digital:inicio' %}"><i class="fas fa-arrow-left me-1"></i> Pizarra</a>
-<div id="tb-hoja"><canvas id="tb-fondo"></canvas><canvas id="tb-lienzo"></canvas></div>
+<canvas id="tb-lienzo"></canvas>
+<div class="tb-arriba">
+  <a class="tb-pildora" href="{{ cfg.volver }}"><i class="fas fa-arrow-left"></i>{% if es_dueno %}Mis tableros{% else %}Volver al aula{% endif %}</a>
+  <span class="tb-pildora tb-titulo" id="tb-titulo">{{ t.titulo }}</span>
+  <span class="ms-auto" style="margin-left:auto"></span>
+  <span class="tb-pildora" id="tb-estado"></span>
+  {% if es_dueno %}<button type="button" class="tb-pildora verde" id="tb-compartir-btn"><i class="fas fa-share-nodes"></i>Compartir con la clase</button>{% endif %}
+</div>
+{% if es_dueno %}
+<div class="tb-panel" id="tb-panel" role="dialog" aria-label="Compartir el tablero">
+  <b>Compartir con la clase</b>
+  <label for="tb-p-titulo">Título</label><input type="text" id="tb-p-titulo" maxlength="80" value="{{ t.titulo }}">
+  <label for="tb-p-aula">Clase</label>
+  <select id="tb-p-aula"><option value="">— No compartir (solo yo) —</option>{% for a in aulas %}<option value="{{ a.id }}" {% if t.aula_id == a.id %}selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select>
+  <label class="tb-interruptor"><input type="checkbox" id="tb-p-editan" {% if t.editan_estudiantes %}checked{% endif %}>Los estudiantes pueden escribir</label>
+  <div class="text-muted" style="font-size:.78rem;color:#64748b;margin-top:4px">Si está apagado, solo ven lo que usted escribe, en vivo. Encendido, cada uno puede escribir, pegar imágenes y borrar <b>lo suyo</b>.</div>
+  <div class="tb-enlace" id="tb-p-enlace"></div>
+  {% if not aulas %}<div style="font-size:.8rem;color:#b45309;margin-top:8px">Todavía no tiene grupos: créelos en Mis Estudiantes.</div>{% endif %}
+</div>
+{% endif %}
+<div class="tb-aviso" id="tb-aviso"></div>
+<div class="tb-soltar" id="tb-soltar">Suelte la imagen aquí</div>
+<div class="tb-zoom">
+  <button type="button" id="tb-mas" title="Acercar">+</button><span id="tb-z">100%</span><button type="button" id="tb-menos" title="Alejar">−</button>
+  <button type="button" id="tb-todo" title="Ver todo"><i class="fas fa-expand-arrows-alt"></i></button>
+</div>
 <div class="tb-barra" role="toolbar" aria-label="Herramientas del tablero">
-  <button type="button" data-h="lapiz" class="on" title="Lápiz"><i class="fas fa-pen"></i></button>
-  <button type="button" data-h="resaltar" title="Resaltador"><i class="fas fa-highlighter"></i></button>
-  <button type="button" data-h="linea" title="Línea recta"><i class="fas fa-slash"></i></button>
-  <button type="button" data-h="texto" title="Texto"><i class="fas fa-font"></i></button>
-  <button type="button" data-h="borrar" title="Borrador"><i class="fas fa-eraser"></i></button>
+  <button type="button" data-h="mano" title="Mover la vista (también con dos dedos o la barra espaciadora)"><i class="fas fa-hand"></i></button>
+  <button type="button" data-h="lapiz" class="on tb-esc" title="Lápiz"><i class="fas fa-pen"></i></button>
+  <button type="button" data-h="resaltar" class="tb-esc" title="Resaltador"><i class="fas fa-highlighter"></i></button>
+  <button type="button" data-h="linea" class="tb-esc" title="Línea recta"><i class="fas fa-slash"></i></button>
+  <button type="button" data-h="texto" class="tb-esc" title="Texto"><i class="fas fa-font"></i></button>
+  <button type="button" data-h="mover" class="tb-esc" title="Seleccionar, mover y cambiar el tamaño"><i class="fas fa-arrow-pointer"></i></button>
+  <button type="button" data-h="borrar" class="tb-esc" title="Borrador (borra trazos y textos completos)"><i class="fas fa-eraser"></i></button>
+  <label class="tb-esc" title="Pegar o subir una imagen (también Ctrl+V o arrastrándola)"><i class="far fa-image"></i><input type="file" accept="image/*" id="tb-archivo" hidden></label>
   <span class="tb-sep"></span>
-  <span id="tb-colores"></span>
-  <button type="button" id="tb-grosor" title="Grosor"><i class="fas fa-circle" style="font-size:.6rem"></i></button>
+  <span id="tb-colores" style="display:flex;gap:3px"></span>
+  <button type="button" id="tb-grosor" class="tb-esc" title="Grosor"><i class="fas fa-circle" style="font-size:.6rem"></i></button>
   <span class="tb-sep"></span>
-  <button type="button" id="tb-fondo-btn" title="Fondo: liso, cuadriculado, rayado o pizarra verde"><i class="fas fa-table-cells"></i></button>
-  <button type="button" id="tb-deshacer" title="Deshacer (Ctrl+Z)"><i class="fas fa-rotate-left"></i></button>
-  <button type="button" id="tb-limpiar" title="Borrar la hoja"><i class="far fa-trash-can"></i></button>
+  <button type="button" id="tb-deshacer" class="tb-esc" title="Deshacer lo último que hice (Ctrl+Z)"><i class="fas fa-rotate-left"></i></button>
+  <button type="button" id="tb-quitar" class="tb-esc" title="Quitar lo seleccionado (Supr)" disabled><i class="far fa-trash-can"></i></button>
+  {% if es_dueno %}<button type="button" id="tb-fondo" title="Fondo: liso, cuadriculado, rayado o pizarra verde"><i class="fas fa-table-cells"></i></button>
+  <button type="button" id="tb-limpiar" title="Borrar todo el tablero"><i class="fas fa-broom"></i></button>{% endif %}
   <span class="tb-sep"></span>
-  <button type="button" id="tb-ant" title="Hoja anterior"><i class="fas fa-chevron-left"></i></button>
-  <span class="tb-pag" id="tb-pag">1 / 1</span>
-  <button type="button" id="tb-sig" title="Hoja siguiente (o nueva)"><i class="fas fa-chevron-right"></i></button>
-  <span class="tb-sep"></span>
-  <button type="button" id="tb-guardar" title="Descargar la hoja como imagen"><i class="fas fa-download"></i></button>
+  <button type="button" id="tb-guardar" title="Descargar lo que se ve como imagen"><i class="fas fa-download"></i></button>
   <button type="button" id="tb-completa" title="Pantalla completa"><i class="fas fa-expand"></i></button>
 </div>
+{{ cfg|json_script:"tb-cfg" }}
 <script>
 (function () {
-  const fondo = document.getElementById('tb-fondo'), lienzo = document.getElementById('tb-lienzo');
-  const fx = fondo.getContext('2d'), cx = lienzo.getContext('2d');
+  'use strict';
+  const CFG = JSON.parse(document.getElementById('tb-cfg').textContent);
+  const CSRF = '{{ csrf_token }}';
+  const lienzo = document.getElementById('tb-lienzo'), cx = lienzo.getContext('2d');
   const COLORES = ['#111827', '#2563eb', '#dc2626', '#16a34a', '#ea580c', '#7c3aed', '#ffffff'];
   const GROSORES = [3, 6, 12];
   const FONDOS = ['blanco', 'cuadros', 'rayas', 'verde'];
-  let herramienta = 'lapiz', color = COLORES[0], grosor = GROSORES[0], tipoFondo = 0;
-  // Cada hoja guarda sus trazos (vectoriales): así se redibujan al cambiar de tamaño o de hoja
-  let hojas = [[]], actual = 0, trazo = null;
+  let objetos = CFG.objetos || [], version = CFG.v, fondo = CFG.fondo || 'cuadros', editar = CFG.editar, compartido = CFG.compartido;
+  let herramienta = editar ? 'lapiz' : 'mano', color = COLORES[0], grosor = GROSORES[0];
+  const vista = {x: -40, y: -40, z: 1};               // esquina superior izquierda de la pantalla, en el «mundo»
+  let actual = null, seleccion = null, accion = null, espacio = false;
+  const mios = [];                                    // lo que agregué (para deshacer)
+  const imagenes = {};                                 // id → <img>
   const dpr = () => window.devicePixelRatio || 1;
+  const nid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const aMundo = (sx, sy) => [sx / vista.z + vista.x, sy / vista.z + vista.y];
+  const esMio = o => CFG.docente || o.a === CFG.yo;
 
-  function tamano() {
-    [fondo, lienzo].forEach(c => { c.width = innerWidth * dpr(); c.height = innerHeight * dpr(); c.getContext('2d').setTransform(dpr(), 0, 0, dpr(), 0, 0); });
-    pintarFondo(); redibujar();
+  // ----------------------------------------------------------------- dibujar
+  function tamano() { lienzo.width = innerWidth * dpr(); lienzo.height = innerHeight * dpr(); pintar(); }
+  function imagenDe(id) {
+    if (!imagenes[id]) { const im = new Image(); im.onload = pintar; im.src = CFG.urlVerImagen.replace('ID', id); imagenes[id] = im; }
+    return imagenes[id];
   }
-  function pintarFondo() {
-    const w = innerWidth, h = innerHeight, t = FONDOS[tipoFondo];
-    fx.fillStyle = t === 'verde' ? '#1f3d2f' : '#ffffff'; fx.fillRect(0, 0, w, h);
-    fx.strokeStyle = t === 'cuadros' ? '#dbeafe' : '#cbd5e1'; fx.lineWidth = 1;
-    if (t === 'cuadros') { for (let x = 0; x < w; x += 32) { fx.beginPath(); fx.moveTo(x, 0); fx.lineTo(x, h); fx.stroke(); } for (let y = 0; y < h; y += 32) { fx.beginPath(); fx.moveTo(0, y); fx.lineTo(w, y); fx.stroke(); } }
-    if (t === 'rayas') { for (let y = 64; y < h; y += 40) { fx.beginPath(); fx.moveTo(0, y); fx.lineTo(w, y); fx.stroke(); } fx.strokeStyle = '#fca5a5'; fx.beginPath(); fx.moveTo(80, 0); fx.lineTo(80, h); fx.stroke(); }
-    if (t === 'verde') { fx.strokeStyle = '#7c4a1e'; fx.lineWidth = 14; fx.strokeRect(0, 0, w, h); }
+  function fondoMundo() {
+    const w = innerWidth / vista.z, h = innerHeight / vista.z, x0 = vista.x, y0 = vista.y;
+    cx.fillStyle = fondo === 'verde' ? '#1f3d2f' : '#ffffff'; cx.fillRect(x0, y0, w, h);
+    const paso = fondo === 'cuadros' ? 32 : 40;
+    if (fondo !== 'cuadros' && fondo !== 'rayas') return;
+    if (paso * vista.z < 6) return;
+    cx.strokeStyle = fondo === 'cuadros' ? '#dbeafe' : '#cbd5e1'; cx.lineWidth = 1 / vista.z; cx.beginPath();
+    if (fondo === 'cuadros') for (let x = Math.floor(x0 / paso) * paso; x < x0 + w; x += paso) { cx.moveTo(x, y0); cx.lineTo(x, y0 + h); }
+    for (let y = Math.floor(y0 / paso) * paso; y < y0 + h; y += paso) { cx.moveTo(x0, y); cx.lineTo(x0 + w, y); }
+    cx.stroke();
   }
-  function dibujar(t) {
+  function caja(o) {
+    if (o.t === 'imagen') return [o.x, o.y, o.w, o.h];
+    if (o.t === 'texto') { const lineas = o.texto.split('\n'); return [o.x, o.y, Math.max(...lineas.map(l => l.length)) * o.g * .55, lineas.length * o.g * 1.25]; }
+    const xs = o.p.map(p => p[0]), ys = o.p.map(p => p[1]), m = o.g / 2;
+    return [Math.min(...xs) - m, Math.min(...ys) - m, Math.max(...xs) - Math.min(...xs) + o.g, Math.max(...ys) - Math.min(...ys) + o.g];
+  }
+  function dibujar(o) {
     cx.save();
-    if (t.h === 'texto') { cx.fillStyle = t.c; cx.font = `${t.g * 6 + 16}px system-ui, sans-serif`; cx.textBaseline = 'top'; (t.texto || '').split('\n').forEach((l, i) => cx.fillText(l, t.p[0][0], t.p[0][1] + i * (t.g * 6 + 20))); cx.restore(); return; }
-    cx.lineCap = cx.lineJoin = 'round';
-    cx.globalCompositeOperation = t.h === 'borrar' ? 'destination-out' : 'source-over';
-    cx.strokeStyle = t.h === 'resaltar' ? t.c + '55' : t.c;
-    cx.lineWidth = t.h === 'borrar' ? t.g * 5 : t.h === 'resaltar' ? t.g * 4 : t.g;
-    const p = t.p; cx.beginPath(); cx.moveTo(p[0][0], p[0][1]);
-    if (t.h === 'linea') cx.lineTo(p[p.length - 1][0], p[p.length - 1][1]);
-    else for (let i = 1; i < p.length; i++) { const m = [(p[i - 1][0] + p[i][0]) / 2, (p[i - 1][1] + p[i][1]) / 2]; cx.quadraticCurveTo(p[i - 1][0], p[i - 1][1], m[0], m[1]); }
-    if (p.length === 1) cx.lineTo(p[0][0] + .1, p[0][1]);
-    cx.stroke(); cx.restore();
+    if (o.t === 'imagen') {
+      const im = imagenDe(o.img);
+      if (im.complete && im.naturalWidth) cx.drawImage(im, o.x, o.y, o.w, o.h);
+      else { cx.fillStyle = '#e2e8f0'; cx.fillRect(o.x, o.y, o.w, o.h); }
+    } else if (o.t === 'texto') {
+      cx.fillStyle = o.c; cx.font = `${o.g}px system-ui, sans-serif`; cx.textBaseline = 'top';
+      o.texto.split('\n').forEach((l, i) => cx.fillText(l, o.x, o.y + i * o.g * 1.25));
+    } else {
+      cx.lineCap = cx.lineJoin = 'round'; cx.strokeStyle = o.h === 'resaltar' ? o.c + '55' : o.c; cx.lineWidth = o.g;
+      const p = o.p; cx.beginPath(); cx.moveTo(p[0][0], p[0][1]);
+      if (o.t === 'linea') cx.lineTo(p[p.length - 1][0], p[p.length - 1][1]);
+      else for (let i = 1; i < p.length; i++) { const m = [(p[i - 1][0] + p[i][0]) / 2, (p[i - 1][1] + p[i][1]) / 2]; cx.quadraticCurveTo(p[i - 1][0], p[i - 1][1], m[0], m[1]); }
+      if (p.length === 1) cx.lineTo(p[0][0] + .1, p[0][1]);
+      cx.stroke();
+    }
+    cx.restore();
   }
-  function redibujar() { cx.clearRect(0, 0, innerWidth, innerHeight); hojas[actual].forEach(dibujar); document.getElementById('tb-pag').textContent = `${actual + 1} / ${hojas.length}`; }
+  function pintar() {
+    const k = dpr();
+    cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, lienzo.width, lienzo.height);
+    cx.setTransform(k * vista.z, 0, 0, k * vista.z, -vista.x * vista.z * k, -vista.y * vista.z * k);
+    fondoMundo();
+    objetos.forEach(dibujar);
+    if (actual) dibujar(actual);
+    if (seleccion) {
+      const [x, y, w, h] = caja(seleccion);
+      cx.setLineDash([6 / vista.z, 4 / vista.z]); cx.strokeStyle = '#0ea5e9'; cx.lineWidth = 2 / vista.z; cx.strokeRect(x - 4 / vista.z, y - 4 / vista.z, w + 8 / vista.z, h + 8 / vista.z); cx.setLineDash([]);
+      if (seleccion.t === 'imagen') { const s = 14 / vista.z; cx.fillStyle = '#0ea5e9'; cx.fillRect(x + w - s / 2, y + h - s / 2, s, s); }
+    }
+    document.getElementById('tb-z').textContent = Math.round(vista.z * 100) + '%';
+  }
 
+  // ----------------------------------------------------------------- servidor
+  function aviso(t, ms) { const a = document.getElementById('tb-aviso'); a.textContent = t; a.style.display = 'block'; clearTimeout(aviso.t); aviso.t = setTimeout(() => { a.style.display = 'none'; }, ms || 2500); }
+  function enviar(op) {
+    return fetch(CFG.urlOp, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF}, body: JSON.stringify(op)})
+      .then(r => r.json().then(j => [r, j])).then(([r, j]) => {
+        if (!j.ok) { aviso(j.error || 'No se pudo guardar.'); traer(true); return; }
+        if (j.v === version + 1) version = j.v; else traer();
+      }).catch(() => aviso('Sin conexión: lo último puede no haberse guardado.'));
+  }
+  function aplicar(op) {
+    if (op.op === 'agregar') { if (!objetos.some(o => o.id === op.obj.id)) objetos.push(op.obj); }
+    else if (op.op === 'reemplazar') { const k = objetos.findIndex(o => o.id === op.obj.id); if (k >= 0) objetos[k] = op.obj; }
+    else if (op.op === 'borrar') { objetos = objetos.filter(o => !op.ids.includes(o.id)); if (seleccion && op.ids.includes(seleccion.id)) seleccion = null; }
+    else if (op.op === 'limpiar') { objetos = []; seleccion = null; }
+    else if (op.op === 'fondo') fondo = op.fondo;
+  }
+  let pidiendo = false;
+  function traer(todo) {
+    if (pidiendo) return; pidiendo = true;
+    fetch(CFG.urlEstado + '?desde=' + (todo ? -1 : version), {credentials: 'same-origin'}).then(r => r.json()).then(j => {
+      pidiendo = false;
+      if (j.objetos) { objetos = j.objetos; seleccion = null; } else if (j.ops) j.ops.forEach(aplicar);
+      version = j.v; fondo = j.fondo || fondo; compartido = j.compartido;
+      if (j.editar !== editar) { editar = j.editar; permisos(); aviso(editar ? '✏️ El docente habilitó la escritura: ya puede escribir.' : '👀 El docente desactivó la escritura: ahora solo puede ver.', 4000); }
+      pintar(); rotulo();
+    }).catch(() => { pidiendo = false; });
+  }
+  // En vivo: si el tablero está compartido (o lo mira un estudiante), pregunta cada 2,5 s por lo nuevo (solo si la pestaña está visible)
+  setInterval(() => { if (!document.hidden && (compartido || !CFG.docente) && !actual && !accion) traer(); }, 2500);
+
+  // ----------------------------------------------------------------- herramientas
+  function permisos() {
+    document.querySelectorAll('.tb-esc').forEach(b => { b.disabled = !editar; });
+    document.querySelectorAll('.tb-color').forEach(b => { b.disabled = !editar; });
+    if (!editar && herramienta !== 'mano') elegir('mano');
+    rotulo();
+  }
+  function rotulo() {
+    const e = document.getElementById('tb-estado');
+    if (CFG.docente) { e.innerHTML = compartido ? '<i class="fas fa-signal"></i>En vivo con la clase' : '<i class="fas fa-lock"></i>Solo usted'; e.className = 'tb-pildora' + (compartido ? ' verde' : ''); }
+    else { e.innerHTML = editar ? '<i class="fas fa-pen"></i>Puede escribir' : '<i class="fas fa-eye"></i>Solo ver'; e.className = 'tb-pildora ' + (editar ? 'verde' : 'ambar'); }
+  }
+  function elegir(h) { herramienta = h; document.querySelectorAll('[data-h]').forEach(x => x.classList.toggle('on', x.dataset.h === h)); seleccionar(null); lienzo.style.cursor = h === 'mano' ? 'grab' : h === 'mover' ? 'default' : 'crosshair'; }
+  document.querySelectorAll('[data-h]').forEach(b => b.addEventListener('click', () => elegir(b.dataset.h)));
+  const zonaColores = document.getElementById('tb-colores');
+  COLORES.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'tb-color' + (i ? '' : ' on'); b.style.background = c; b.title = 'Color';
+    b.onclick = () => { color = c; zonaColores.querySelectorAll('.tb-color').forEach(x => x.classList.toggle('on', x === b)); if (seleccion && esMio(seleccion) && seleccion.t !== 'imagen') { seleccion.c = c; enviar({op: 'reemplazar', obj: seleccion}); pintar(); } if (['borrar', 'mano', 'mover'].includes(herramienta)) elegir('lapiz'); };
+    zonaColores.appendChild(b); });
+  document.getElementById('tb-grosor').onclick = function () { grosor = GROSORES[(GROSORES.indexOf(grosor) + 1) % GROSORES.length]; this.querySelector('i').style.fontSize = ['.6rem', '.9rem', '1.25rem'][GROSORES.indexOf(grosor)]; };
+  function seleccionar(o) { seleccion = o; document.getElementById('tb-quitar').disabled = !(o && editar && esMio(o)); pintar(); }
+  function quitar(ids) { if (!ids.length) return; objetos = objetos.filter(o => !ids.includes(o.id)); seleccion = null; document.getElementById('tb-quitar').disabled = true; pintar(); enviar({op: 'borrar', ids: ids}); }
+  document.getElementById('tb-quitar').onclick = () => { if (seleccion) quitar([seleccion.id]); };
+  document.getElementById('tb-deshacer').onclick = deshacer;
+  function deshacer() { while (mios.length) { const id = mios.pop(); if (objetos.some(o => o.id === id)) { quitar([id]); return; } } }
+  function agregar(o) { o.a = CFG.yo; objetos.push(o); mios.push(o.id); pintar(); enviar({op: 'agregar', obj: o}); }
+  const btnFondo = document.getElementById('tb-fondo');
+  if (btnFondo) btnFondo.onclick = () => { fondo = FONDOS[(FONDOS.indexOf(fondo) + 1) % FONDOS.length]; pintar(); enviar({op: 'fondo', fondo: fondo}); };
+  const btnLimpiar = document.getElementById('tb-limpiar');
+  if (btnLimpiar) btnLimpiar.onclick = () => { if (confirm('¿Borrar TODO lo del tablero (también lo de los estudiantes)?')) { objetos = []; seleccion = null; pintar(); enviar({op: 'limpiar'}); } };
+
+  // ----------------------------------------------------------------- vista: mover y acercar
+  function acercar(f, sx, sy) {
+    const [wx, wy] = aMundo(sx, sy); vista.z = Math.max(.1, Math.min(5, vista.z * f));
+    vista.x = wx - sx / vista.z; vista.y = wy - sy / vista.z; pintar();
+  }
+  document.getElementById('tb-mas').onclick = () => acercar(1.25, innerWidth / 2, innerHeight / 2);
+  document.getElementById('tb-menos').onclick = () => acercar(.8, innerWidth / 2, innerHeight / 2);
+  function verTodo() {
+    if (!objetos.length) { vista.x = -40; vista.y = -40; vista.z = 1; pintar(); return; }
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    objetos.forEach(o => { const [x, y, w, h] = caja(o); x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + w); y1 = Math.max(y1, y + h); });
+    const m = 60; vista.z = Math.max(.1, Math.min(2, Math.min((innerWidth - 2 * m) / (x1 - x0 || 1), (innerHeight - 160) / (y1 - y0 || 1))));
+    vista.x = x0 - (innerWidth / vista.z - (x1 - x0)) / 2; vista.y = y0 - 60 / vista.z; pintar();
+  }
+  document.getElementById('tb-todo').onclick = verTodo;
+  lienzo.addEventListener('wheel', ev => {
+    ev.preventDefault();
+    if (ev.ctrlKey || ev.metaKey) acercar(Math.exp(-ev.deltaY * .01), ev.clientX, ev.clientY);
+    else { vista.x += ev.deltaX / vista.z; vista.y += ev.deltaY / vista.z; pintar(); }
+  }, {passive: false});
+
+  // ----------------------------------------------------------------- tocar y dibujar
+  const dedos = new Map();
+  function golpe(wx, wy, filtro) {
+    const tol = 8 / vista.z;
+    for (let k = objetos.length - 1; k >= 0; k--) {
+      const o = objetos[k]; if (filtro && !filtro(o)) continue;
+      const [x, y, w, h] = caja(o);
+      if (wx < x - tol || wx > x + w + tol || wy < y - tol || wy > y + h + tol) continue;
+      if (o.t === 'imagen' || o.t === 'texto') return o;
+      const p = o.p, r = Math.max(tol, o.g / 2 + 2 / vista.z);
+      for (let i = 0; i < p.length; i++) {
+        const a = p[Math.max(0, i - 1)], b = p[i], dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy;
+        const s = l ? Math.max(0, Math.min(1, ((wx - a[0]) * dx + (wy - a[1]) * dy) / l)) : 0;
+        if (Math.hypot(wx - (a[0] + s * dx), wy - (a[1] + s * dy)) <= r) return o;
+      }
+    }
+    return null;
+  }
   lienzo.addEventListener('pointerdown', ev => {
-    if (herramienta === 'texto') { ev.preventDefault(); ponerTexto(ev.clientX, ev.clientY); return; }
     lienzo.setPointerCapture(ev.pointerId);
-    trazo = {h: herramienta, c: color, g: grosor, p: [[ev.clientX, ev.clientY]]};
+    dedos.set(ev.pointerId, [ev.clientX, ev.clientY]);
+    if (dedos.size === 2) { actual = null; const [a, b] = [...dedos.values()]; accion = {tipo: 'pellizco', d: Math.hypot(a[0] - b[0], a[1] - b[1]), m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]}; pintar(); return; }
+    const [wx, wy] = aMundo(ev.clientX, ev.clientY);
+    if (herramienta === 'mano' || espacio || ev.button === 1) { accion = {tipo: 'vista', sx: ev.clientX, sy: ev.clientY, vx: vista.x, vy: vista.y}; lienzo.style.cursor = 'grabbing'; return; }
+    if (!editar) return;
+    if (herramienta === 'texto') { ev.preventDefault(); ponerTexto(ev.clientX, ev.clientY); return; }
+    if (herramienta === 'borrar') { accion = {tipo: 'borrar'}; borrarEn(wx, wy); return; }
+    if (herramienta === 'mover') {
+      if (seleccion && seleccion.t === 'imagen') {
+        const [x, y, w, h] = caja(seleccion), s = 16 / vista.z;
+        if (Math.abs(wx - (x + w)) < s && Math.abs(wy - (y + h)) < s) { accion = {tipo: 'tamano', o: seleccion, w0: seleccion.w, h0: seleccion.h, x0: wx, y0: wy}; return; }
+      }
+      const o = golpe(wx, wy, esMio);
+      seleccionar(o);
+      if (o) accion = {tipo: 'arrastrar', o: o, x0: wx, y0: wy, copia: JSON.parse(JSON.stringify(o))};
+      return;
+    }
+    actual = {id: nid(), t: herramienta === 'linea' ? 'linea' : 'trazo', h: herramienta, c: color, g: Math.round(grosor / vista.z * 10) / 10 || .1, p: [[wx, wy]]};
   });
   lienzo.addEventListener('pointermove', ev => {
-    if (!trazo) return;
-    if (trazo.h === 'linea') trazo.p[1] = [ev.clientX, ev.clientY]; else trazo.p.push([ev.clientX, ev.clientY]);
-    redibujar(); dibujar(trazo);
+    if (!dedos.has(ev.pointerId)) return;
+    dedos.set(ev.pointerId, [ev.clientX, ev.clientY]);
+    const [wx, wy] = aMundo(ev.clientX, ev.clientY);
+    if (accion && accion.tipo === 'pellizco' && dedos.size === 2) {
+      const [a, b] = [...dedos.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      vista.x -= (m[0] - accion.m[0]) / vista.z; vista.y -= (m[1] - accion.m[1]) / vista.z;
+      acercar(d / accion.d, m[0], m[1]); accion.d = d; accion.m = m; return;
+    }
+    if (accion && accion.tipo === 'vista') { vista.x = accion.vx - (ev.clientX - accion.sx) / vista.z; vista.y = accion.vy - (ev.clientY - accion.sy) / vista.z; pintar(); return; }
+    if (accion && accion.tipo === 'borrar') { borrarEn(wx, wy); return; }
+    if (accion && accion.tipo === 'arrastrar') {
+      const dx = wx - accion.x0, dy = wy - accion.y0, o = accion.o, c = accion.copia;
+      if (o.p) o.p = c.p.map(p => [p[0] + dx, p[1] + dy]); else { o.x = c.x + dx; o.y = c.y + dy; }
+      pintar(); return;
+    }
+    if (accion && accion.tipo === 'tamano') {
+      const o = accion.o, k = Math.max(.05, (accion.w0 + (wx - accion.x0)) / accion.w0);
+      o.w = accion.w0 * k; o.h = accion.h0 * k; pintar(); return;
+    }
+    if (!actual) return;
+    if (actual.t === 'linea') actual.p[1] = [wx, wy]; else actual.p.push([wx, wy]);
+    pintar();
   });
-  const soltar = () => { if (trazo) { hojas[actual].push(trazo); trazo = null; redibujar(); } };
+  function soltar(ev) {
+    dedos.delete(ev.pointerId);
+    if (accion && (accion.tipo === 'arrastrar' || accion.tipo === 'tamano')) {
+      const o = accion.o; ['x', 'y', 'w', 'h'].forEach(k => { if (o[k] !== undefined) o[k] = Math.round(o[k] * 10) / 10; });
+      if (o.p) o.p = o.p.map(p => [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10]);
+      if (JSON.stringify(o) !== JSON.stringify(accion.copia || {})) enviar({op: 'reemplazar', obj: o});
+    }
+    if (accion && accion.tipo === 'vista') lienzo.style.cursor = herramienta === 'mano' ? 'grab' : 'crosshair';
+    if (dedos.size < 2 && accion && accion.tipo === 'pellizco') { accion = null; return; }
+    accion = null;
+    if (actual) {
+      actual.p = actual.p.map(p => [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10]);
+      if (actual.p.length > 2800) actual.p = actual.p.filter((_, i) => i % 2 === 0);
+      const o = actual; actual = null; agregar(o);
+    }
+  }
   lienzo.addEventListener('pointerup', soltar); lienzo.addEventListener('pointercancel', soltar);
-
-  function ponerTexto(x, y) {
-    const caja = document.createElement('textarea'); caja.className = 'tb-texto'; caja.style.left = x + 'px'; caja.style.top = y + 'px'; caja.style.color = color;
-    caja.style.fontSize = (grosor * 6 + 16) + 'px'; caja.rows = 1; document.body.appendChild(caja); caja.focus();
-    caja.addEventListener('blur', () => { if (caja.value.trim()) { hojas[actual].push({h: 'texto', c: color, g: grosor, p: [[x + 4, y + 4]], texto: caja.value}); redibujar(); } caja.remove(); });
+  function borrarEn(wx, wy) { const o = golpe(wx, wy, x => x.t !== 'imagen' && esMio(x)); if (o) quitar([o.id]); }
+  function ponerTexto(sx, sy) {
+    const caja = document.createElement('textarea'); caja.className = 'tb-texto'; caja.style.left = sx + 'px'; caja.style.top = sy + 'px'; caja.style.color = color;
+    const tam = grosor * 5 + 16; caja.style.fontSize = tam + 'px'; caja.rows = 1; document.body.appendChild(caja); caja.focus();
+    const [wx, wy] = aMundo(sx + 4, sy + 4);
+    caja.addEventListener('blur', () => { if (caja.value.trim()) agregar({id: nid(), t: 'texto', c: color, g: Math.round(tam / vista.z * 10) / 10, x: wx, y: wy, texto: caja.value.slice(0, 2000)}); caja.remove(); });
     caja.addEventListener('keydown', e => { if (e.key === 'Escape') { caja.value = ''; caja.blur(); } });
   }
-  // Herramientas
-  document.querySelectorAll('[data-h]').forEach(b => b.addEventListener('click', () => {
-    herramienta = b.dataset.h; document.querySelectorAll('[data-h]').forEach(x => x.classList.toggle('on', x === b));
-  }));
-  const zona = document.getElementById('tb-colores');
-  COLORES.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'tb-color' + (i ? '' : ' on'); b.style.background = c; b.title = 'Color';
-    b.onclick = () => { color = c; zona.querySelectorAll('.tb-color').forEach(x => x.classList.toggle('on', x === b)); if (herramienta === 'borrar') document.querySelector('[data-h=lapiz]').click(); };
-    zona.appendChild(b); });
-  zona.style.display = 'flex'; zona.style.gap = '4px';
-  document.getElementById('tb-grosor').onclick = function () { grosor = GROSORES[(GROSORES.indexOf(grosor) + 1) % GROSORES.length]; this.querySelector('i').style.fontSize = ['.6rem', '.9rem', '1.25rem'][GROSORES.indexOf(grosor)]; };
-  document.getElementById('tb-fondo-btn').onclick = () => { tipoFondo = (tipoFondo + 1) % FONDOS.length; if (FONDOS[tipoFondo] === 'verde' && color === COLORES[0]) zona.querySelectorAll('.tb-color')[6].click(); pintarFondo(); };
-  const deshacer = () => { hojas[actual].pop(); redibujar(); };
-  document.getElementById('tb-deshacer').onclick = deshacer;
-  document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'z' && document.activeElement.tagName !== 'TEXTAREA') { e.preventDefault(); deshacer(); } });
-  document.getElementById('tb-limpiar').onclick = () => { if (!hojas[actual].length || confirm('¿Borrar todo lo de esta hoja?')) { hojas[actual] = []; redibujar(); } };
-  document.getElementById('tb-ant').onclick = () => { if (actual > 0) { actual--; redibujar(); } };
-  document.getElementById('tb-sig').onclick = () => { if (actual === hojas.length - 1) { if (!hojas[actual].length) return; hojas.push([]); } actual++; redibujar(); };
-  document.getElementById('tb-guardar').onclick = () => {
-    const c = document.createElement('canvas'); c.width = fondo.width; c.height = fondo.height;
-    const x = c.getContext('2d'); x.drawImage(fondo, 0, 0); x.drawImage(lienzo, 0, 0);
-    const a = document.createElement('a'); a.download = `tablero-hoja-${actual + 1}.png`; a.href = c.toDataURL('image/png'); a.click();
-  };
+
+  // ----------------------------------------------------------------- imágenes: pegar, arrastrar o subir
+  function subir(archivo) {
+    if (!editar) { aviso('El docente no ha habilitado la escritura.'); return; }
+    if (!archivo || !archivo.type.startsWith('image/')) return;
+    aviso('Subiendo la imagen…', 8000);
+    const f = new FormData(); f.append('imagen', archivo);
+    fetch(CFG.urlImagen, {method: 'POST', body: f, credentials: 'same-origin', headers: {'X-CSRFToken': CSRF}}).then(r => r.json()).then(j => {
+      if (!j.ok) { aviso(j.error || 'No se pudo subir la imagen.'); return; }
+      const max = 420 / vista.z, k = Math.min(1, max / Math.max(j.w, j.h)), w = j.w * k, h = j.h * k;
+      const [cxw, cyw] = aMundo(innerWidth / 2, innerHeight / 2);
+      const o = {id: nid(), t: 'imagen', img: j.id, c: '#000000', g: 1, x: Math.round(cxw - w / 2), y: Math.round(cyw - h / 2), w: Math.round(w), h: Math.round(h)};
+      agregar(o); elegir('mover'); seleccionar(o); aviso('Imagen pegada: arrástrela o cambie su tamaño desde la esquina.');
+    }).catch(() => aviso('No se pudo subir la imagen.'));
+  }
+  document.getElementById('tb-archivo').addEventListener('change', function () { subir(this.files[0]); this.value = ''; });
+  document.addEventListener('paste', ev => {
+    if (document.activeElement && ['TEXTAREA', 'INPUT'].includes(document.activeElement.tagName)) return;
+    const items = [...(ev.clipboardData || {}).items || []], img = items.find(i => i.type.startsWith('image/'));
+    if (img) { ev.preventDefault(); subir(img.getAsFile()); return; }
+    const texto = ev.clipboardData && ev.clipboardData.getData('text/plain');
+    if (texto && editar) { ev.preventDefault(); const [wx, wy] = aMundo(innerWidth / 2 - 100, innerHeight / 2 - 20);
+      agregar({id: nid(), t: 'texto', c: color, g: Math.round((grosor * 5 + 16) / vista.z * 10) / 10, x: wx, y: wy, texto: texto.slice(0, 2000)}); }
+  });
+  const capaSoltar = document.getElementById('tb-soltar');
+  addEventListener('dragover', e => { e.preventDefault(); if (editar) capaSoltar.style.display = 'grid'; });
+  addEventListener('dragleave', e => { if (!e.relatedTarget) capaSoltar.style.display = 'none'; });
+  addEventListener('drop', e => { e.preventDefault(); capaSoltar.style.display = 'none'; [...e.dataTransfer.files].slice(0, 5).forEach(subir); });
+
+  // ----------------------------------------------------------------- teclado, descargar, pantalla completa
+  document.addEventListener('keydown', e => {
+    if (['TEXTAREA', 'INPUT', 'SELECT'].includes(document.activeElement.tagName)) return;
+    if (e.code === 'Space') { espacio = true; lienzo.style.cursor = 'grab'; e.preventDefault(); }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); deshacer(); }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && seleccion && esMio(seleccion) && editar) { e.preventDefault(); quitar([seleccion.id]); }
+  });
+  document.addEventListener('keyup', e => { if (e.code === 'Space') { espacio = false; lienzo.style.cursor = herramienta === 'mano' ? 'grab' : 'crosshair'; } });
+  document.getElementById('tb-guardar').onclick = () => { const s = seleccion; seleccion = null; pintar(); const a = document.createElement('a'); a.download = 'tablero.png'; a.href = lienzo.toDataURL('image/png'); a.click(); seleccion = s; pintar(); };
   document.getElementById('tb-completa').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); };
+
+  // ----------------------------------------------------------------- compartir con la clase (docente)
+  const btnC = document.getElementById('tb-compartir-btn'), panel = document.getElementById('tb-panel');
+  if (btnC) {
+    btnC.onclick = () => panel.classList.toggle('abierto');
+    const guardarPanel = () => {
+      const f = new FormData(); f.append('titulo', document.getElementById('tb-p-titulo').value);
+      f.append('aula', document.getElementById('tb-p-aula').value); f.append('editan', document.getElementById('tb-p-editan').checked ? '1' : '0');
+      fetch('{% if es_dueno %}{% url "salon_digital:tablero_compartir" t.pk %}{% endif %}', {method: 'POST', body: f, credentials: 'same-origin', headers: {'X-CSRFToken': CSRF}})
+        .then(r => r.json()).then(j => {
+          compartido = j.compartido; document.getElementById('tb-titulo').textContent = j.titulo; rotulo();
+          const enl = document.getElementById('tb-p-enlace'); enl.style.display = j.url ? 'block' : 'none';
+          enl.innerHTML = j.url ? 'Sus estudiantes lo ven en el aula (les llegó el aviso). Enlace: <b>' + j.url.replace(/</g, '') + '</b>' : '';
+          aviso(j.compartido ? (j.editan ? 'Compartido: los estudiantes pueden escribir.' : 'Compartido: los estudiantes solo ven.') : 'Ya no está compartido.');
+        });
+    };
+    ['tb-p-aula', 'tb-p-editan'].forEach(id => document.getElementById(id).addEventListener('change', guardarPanel));
+    document.getElementById('tb-p-titulo').addEventListener('change', guardarPanel);
+  }
+
   addEventListener('resize', tamano);
-  addEventListener('beforeunload', e => { if (hojas.some(h => h.length)) { e.preventDefault(); e.returnValue = ''; } });
-  tamano();
+  permisos(); elegir(herramienta); tamano(); if (objetos.length) verTodo();
 })();
 </script>
 </body>

@@ -1,4 +1,4 @@
-Versión 0014 · 2026-11-11 13:53
+Versión 0015 · 2026-11-11 15:03
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -55,6 +55,7 @@ NUEVO     aula/migrations/0023_grabaciones_en_la_nube.py
 NUEVO     aula/migrations/0024_invertida_puntos.py
 NUEVO     aula/migrations/0025_compartir_con_colegas.py
 NUEVO     aula/migrations/0026_compartir_de_la_comunidad.py
+NUEVO     aula/migrations/0027_tableros.py
 CAMBIADO  aula/models.py
 NUEVO     aula/planilla_eventos.py
 NUEVO     aula/planilla_preguntas.py
@@ -157,6 +158,7 @@ NUEVO     aula/static/aula/vendor/katex/fonts/KaTeX_Size4-Regular.woff2
 NUEVO     aula/static/aula/vendor/katex/fonts/KaTeX_Typewriter-Regular.woff2
 NUEVO     aula/static/aula/vendor/katex/katex.min.css
 NUEVO     aula/static/aula/vendor/katex/katex.min.js
+NUEVO     aula/tablero.py
 CAMBIADO  aula/templates/aula/_cabecera.html
 NUEVO     aula/templates/aula/_compartir.html
 CAMBIADO  aula/templates/aula/_estilos.html
@@ -213,6 +215,7 @@ NUEVO     aula/tests/test_invertida.py
 NUEVO     aula/tests/test_mascota.py
 CAMBIADO  aula/tests/test_para.py
 CAMBIADO  aula/tests/test_planilla_examenes.py
+NUEVO     aula/tests/test_tablero.py
 CAMBIADO  aula/urls.py
 CAMBIADO  aula/views.py
 NUEVO     aula/views_banco.py
@@ -223,6 +226,7 @@ CAMBIADO  aula/views_importar.py
 NUEVO     aula/views_invertida.py
 NUEVO     aula/views_logica.py
 NUEVO     aula/views_mascota.py
+NUEVO     aula/views_tablero.py
 NUEVO     chat/migrations/0005_colegas.py
 NUEVO     chat/migrations/0006_perfil_colega_foto.py
 NUEVO     chat/migrations/0007_muro_academico.py
@@ -429,6 +433,7 @@ NUEVO     salon_digital/templates/salon_digital/pagos_revisar.html
 CAMBIADO  salon_digital/templates/salon_digital/panel.html
 NUEVO     salon_digital/templates/salon_digital/planes.html
 NUEVO     salon_digital/templates/salon_digital/tablero.html
+NUEVO     salon_digital/templates/salon_digital/tableros.html
 NUEVO     salon_digital/templates/salon_digital/tarjetas_grupo.html
 CAMBIADO  salon_digital/templates/salon_digital/ver_grupo.html
 NUEVO     salon_digital/test_app.py
@@ -508,6 +513,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   chat/migrations/0010_muro_juegos.py               (compartir juegos de Mis juegos en la Sala de Profesores)
   salon_digital/migrations/0007_pizarra.py          (notas de la Pizarra del docente)
   materiales/migrations/0008_formatos.py            (formatos de planeación, plan de aula, PIAR y DUA)
+  aula/migrations/0027_tableros.py                  (tableros de la Pizarra: pantalla infinita, imágenes y compartir con la clase)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

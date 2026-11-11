@@ -47,7 +47,7 @@ def ubicar(request):
         return '', ''
     app, nombre = m.app_name, m.url_name
     if app == 'salon_digital':
-        if nombre in ('inicio', 'tablero'):
+        if nombre in ('inicio', 'tablero', 'tablero_abrir'):
             return 'inicio', ''
         if nombre in ('grupos', 'nuevo_grupo', 'ver_grupo', 'editar_grupo', 'tarjetas_grupo', 'editar_integrante'):
             return 'estudiantes', 'grupos'

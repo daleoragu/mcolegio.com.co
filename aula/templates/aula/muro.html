@@ -2,6 +2,13 @@
 {% block page_title %}{% endblock %}
 {% block content %}
 {% include 'aula/_cabecera.html' %}
+{% for tb in aula.tableros.all %}
+<div class="alert d-flex flex-wrap align-items-center gap-2 py-2 mb-3" style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:14px">
+  <span style="font-size:1.4rem">📋</span>
+  <div class="flex-grow-1"><b>Tablero en vivo: {{ tb.titulo }}</b><div class="small text-muted">{% if tb.editan_estudiantes %}Puede escribir, dibujar y pegar imágenes.{% else %}Puede verlo en vivo mientras el docente escribe.{% endif %}</div></div>
+  <a class="btn btn-sm btn-success" href="{% url 'aula:tablero_ver' aula.pk tb.pk %}"><i class="fas fa-chalkboard me-1"></i>Entrar al tablero</a>
+</div>
+{% endfor %}
 <div class="au">
 <div class="row g-3">
   <div class="col-lg-8">

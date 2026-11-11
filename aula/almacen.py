@@ -62,3 +62,7 @@ def ruta_entrega(instancia, nombre):
 def ruta_ficha(instancia, nombre):
     """Fotos y audios que el estudiante manda como respuesta de una ficha."""
     return _ruta(f'aula/fichas/{instancia.entrega.tarea_id}', nombre)
+
+
+def ruta_tablero(instancia, nombre):
+    return _ruta(f'tableros/{instancia.tablero_id}', nombre)

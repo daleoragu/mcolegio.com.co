@@ -2,7 +2,7 @@ from django.urls import path
 
 from chat import views_salon as chs
 
-from . import views, views_compartir as vcp, views_examenes as vx, views_fichas as vf, views_importar as vi, views_invertida as vinv, views_juegos as vj, views_gamificacion as vg, views_mascota as vm, views_logica as vl, views_eventos as ve, views_banco as vb
+from . import views, views_compartir as vcp, views_examenes as vx, views_fichas as vf, views_importar as vi, views_invertida as vinv, views_juegos as vj, views_gamificacion as vg, views_mascota as vm, views_logica as vl, views_eventos as ve, views_banco as vb, views_tablero as vtb
 
 app_name = 'aula'
 
@@ -38,6 +38,11 @@ urlpatterns = [
     path('grupo/<int:grupo_id>/', views.por_grupo, name='por_grupo'),
 
     path('<int:pk>/', views.muro, name='muro'),
+    path('<int:pk>/tablero/<int:tid>/', vtb.ver, name='tablero_ver'),
+    path('tablero/<int:tid>/estado/', vtb.estado, name='tablero_estado'),
+    path('tablero/<int:tid>/op/', vtb.op, name='tablero_op'),
+    path('tablero/<int:tid>/imagen/', vtb.subir, name='tablero_subir'),
+    path('tablero/<int:tid>/imagen/<int:iid>/', vtb.imagen, name='tablero_imagen'),
     path('<int:pk>/entrar/', views.entrar, name='entrar'),
     path('<int:pk>/salir/', views.salir, name='salir'),
     # Chat de Mi Salón Virtual (los colegios usan el chat del colegio en /chat/)
