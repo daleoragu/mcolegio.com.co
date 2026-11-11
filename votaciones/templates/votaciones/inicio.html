@@ -2,11 +2,13 @@
 {% block page_title %}<div><h4 class="mb-0"><i class="fas fa-check-to-slot me-2"></i>Elecciones escolares</h4>
 <p class="text-muted small mb-0">Gobierno escolar: personero, contralor, voceros y los cargos que el colegio defina.</p></div>{% endblock %}
 {% block content %}
+{% if mis_certificados %}<div class="alert alert-warning d-flex flex-wrap align-items-center gap-2 py-2"><i class="fas fa-award"></i><span class="flex-grow-1">Sus certificados electorales:</span>
+  {% for x in mis_certificados %}<a class="btn btn-sm btn-outline-dark" href="{% url 'votaciones:certificado' x.pk %}" target="_blank">{{ x.nombre }}</a>{% endfor %}</div>{% endif %}
 {% for a in abiertas %}
 <div class="card border-warning mb-3"><div class="card-body d-flex flex-wrap align-items-center gap-3">
   <div style="font-size:2.2rem">🗳️</div>
   <div class="flex-grow-1"><div class="fw-bold">{{ a.e.nombre }}</div><div class="small text-muted">{{ a.cargos }} cargo{{ a.cargos|pluralize }} para usted</div></div>
-  {% if a.ya %}<span class="badge text-bg-success fs-6">Ya votó ✓</span>{% else %}<a class="btn btn-warning btn-lg fw-bold" href="{% url 'votaciones:votar' a.e.pk %}">Votar ahora</a>{% endif %}
+  {% if a.ya %}<span class="badge text-bg-success fs-6">Ya votó ✓</span> <a class="btn btn-sm btn-outline-warning" href="{% url 'votaciones:certificado' a.e.pk %}" target="_blank"><i class="fas fa-award me-1"></i>Mi certificado</a>{% else %}<a class="btn btn-warning btn-lg fw-bold" href="{% url 'votaciones:votar' a.e.pk %}">Votar ahora</a>{% endif %}
 </div></div>
 {% endfor %}
 {% if not abiertas and not admin %}<div class="text-muted">No hay votaciones abiertas para usted en este momento.</div>{% endif %}
