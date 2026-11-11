@@ -413,9 +413,14 @@ def _publicar(request, a, doc):
 def editor(request, a, pk):
     from .views_equipo import doc_equipo, nombre
     doc, rol = doc_equipo(a, pk)
-    imagenes = {i.pk: request.build_absolute_uri(f'/materiales/imagen/{i.pk}/')
-                for i in Imagen.objects.filter(propietario_id__in=doc.equipo_ids(), pk__in=B.imagenes_usadas(doc.contenido))}
+    usadas = list(Imagen.objects.filter(propietario_id__in=doc.equipo_ids(), pk__in=B.imagenes_usadas(doc.contenido)))
+    imagenes = {i.pk: request.build_absolute_uri(f'/materiales/imagen/{i.pk}/') + (f'?v={i.peso}' if i.grafica else '')
+                for i in usadas}
+    graficas = {i.pk: i.grafica for i in usadas if i.grafica and i.propietario_id == request.user.pk}
+    recortes = {i.pk: dict(i.recorte, url_origen=request.build_absolute_uri(f'/materiales/imagen/{i.recorte["origen"]}/'))
+                for i in usadas if i.recorte and i.recorte.get('origen')}
     return render(request, 'materiales/editor.html', {
+        'graficas': graficas, 'recortes': recortes,
         'rol': rol, 'solo_ver': rol == 'ver', 'dueno_nombre': nombre(doc.propietario),
         'base': a.base, 'acceso': a, 'doc': doc, 'contenido': doc.contenido, 'imagenes': imagenes,
         'aulas': a.aulas(), 'nube': _nube(a), 'tipos': Documento.TIPOS, 'nube_docente': _nube_docente(request),
@@ -528,8 +533,7 @@ def imagen_subir(request, a):
                          'nube': _nube(a)})
 
 
-@vista
-def imagen_ver(request, a, pk):
+def _imagen_visible(request, a, pk):
     img = get_object_or_404(Imagen, pk=pk)
     if img.propietario_id != request.user.pk:
         # una imagen de otro docente del equipo, puesta en un material que este docente construye con él
@@ -537,7 +541,68 @@ def imagen_ver(request, a, pk):
         if not any(pk in B.imagenes_usadas(d.contenido) for d in accesibles(a).exclude(propietario=request.user)
                    .filter(Q(propietario=img.propietario) | Q(colaboradores__usuario=img.propietario)).distinct()[:200]):
             raise Http404
-    return redirect(img.archivo.url)
+    return img
+
+
+@vista
+def imagen_ver(request, a, pk):
+    return redirect(_imagen_visible(request, a, pk).archivo.url)
+
+
+@require_POST
+@vista
+def imagen_recortar(request, a, pk):
+    """Recorta (y gira) una imagen: queda una imagen nueva del docente y la original se guarda para volver a recortar
+    o restaurarla. Siempre se recorta desde la original, así no se pierde calidad al recortar varias veces.
+    POST JSON {x, y, w, h} (fracciones 0..1 de la imagen ya girada) y giro (0, 90, 180, 270)."""
+    from PIL import Image as PILImage, ImageOps
+    img = _imagen_visible(request, a, pk)
+    if img.grafica:
+        return JsonResponse({'ok': False, 'error': 'Las gráficas se cambian con «Editar gráfica».'}, status=400)
+    origen = img
+    if img.recorte and img.recorte.get('origen'):
+        origen = Imagen.objects.filter(pk=img.recorte['origen']).first() or img
+        if origen.pk != img.pk:
+            origen = _imagen_visible(request, a, origen.pk)
+    try:
+        d = json.loads(request.body or b'{}')
+        x, y, w, h = (max(0.0, min(1.0, float(d.get(k, v)))) for k, v in (('x', 0), ('y', 0), ('w', 1), ('h', 1)))
+        giro = int(d.get('giro') or 0) % 360
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'Recorte inválido.'}, status=400)
+    if giro not in (0, 90, 180, 270):
+        giro = 0
+    if d.get('restaurar'):
+        return JsonResponse({'ok': True, 'id': origen.pk, 'url': request.build_absolute_uri(f'/materiales/imagen/{origen.pk}/'),
+                             'recorte': None})
+    w, h = min(w, 1 - x), min(h, 1 - y)
+    if w < .02 or h < .02:
+        return JsonResponse({'ok': False, 'error': 'El recorte es demasiado pequeño.'}, status=400)
+    with origen.archivo.open('rb') as f:
+        foto = ImageOps.exif_transpose(PILImage.open(f))
+        foto.load()
+    if giro:
+        foto = foto.rotate(-giro, expand=True)          # PIL gira al revés de las agujas del reloj
+    W, H = foto.size
+    caja = (round(x * W), round(y * H), round((x + w) * W), round((y + h) * H))
+    foto = foto.crop(caja)
+    salida = io.BytesIO()
+    if foto.mode in ('RGBA', 'LA', 'P'):
+        foto.save(salida, 'PNG', optimize=True)
+        ext = '.png'
+    else:
+        foto.convert('RGB').save(salida, 'JPEG', quality=88, optimize=True)
+        ext = '.jpg'
+    datos = salida.getvalue()
+    if a.usado() + len(datos) > a.cuota():
+        return JsonResponse({'ok': False, 'error': f'Su nube está llena ({round(a.cuota() / MB)} MB).'}, status=400)
+    nueva = Imagen(propietario=request.user, ancho=foto.size[0], alto=foto.size[1], peso=len(datos),
+                   recorte={'origen': origen.pk, 'x': round(x, 4), 'y': round(y, 4), 'w': round(w, 4), 'h': round(h, 4), 'giro': giro})
+    nueva.archivo.save(f'recorte{ext}', ContentFile(datos), save=False)
+    nueva.save()
+    return JsonResponse({'ok': True, 'id': nueva.pk, 'url': request.build_absolute_uri(f'/materiales/imagen/{nueva.pk}/'),
+                         'recorte': dict(nueva.recorte, url_origen=request.build_absolute_uri(f'/materiales/imagen/{origen.pk}/')),
+                         'nube': _nube(a)})
 
 
 # ---------------------------------------------------------------------------
@@ -675,3 +740,52 @@ def ecuacion(request, a):
     resp['X-Alto'] = f'{(alto + 1) / E.TAM:.3f}'
     resp['X-Fondo'] = f'{(fondo + .5) / E.TAM:.3f}'
     return resp
+
+
+# ---------------------------------------------------------------------------
+# Graficador: gráficas de funciones y figuras que se insertan como imagen (y se pueden volver a editar)
+# ---------------------------------------------------------------------------
+@require_POST
+@vista
+def grafica_vista(request, a):
+    """La vista previa mientras el docente arma la gráfica: el SVG, dónde quedaron los ejes (para ubicar los clics)
+    y lo que no se pudo dibujar."""
+    from . import graficas as G
+    try:
+        spec = json.loads(request.body or b'{}').get('grafica')
+    except ValueError:
+        spec = None
+    svg, caja, errores = G.dibujar(spec, 'svg')
+    return JsonResponse({'svg': svg.decode('utf-8'), 'caja': caja, 'errores': errores, 'grafica': G.limpiar(spec)})
+
+
+@require_POST
+@vista
+def grafica_guardar(request, a):
+    """Guarda la gráfica como imagen PNG del docente (nueva, o la misma imagen si la está editando)."""
+    from . import graficas as G
+    try:
+        d = json.loads(request.body or b'{}')
+    except ValueError:
+        d = {}
+    spec = G.limpiar(d.get('grafica'))
+    if not spec['elementos']:
+        return JsonResponse({'ok': False, 'error': 'La gráfica está vacía: agregue una función, un punto o una figura.'}, status=400)
+    datos, _, errores = G.dibujar(spec, 'png', dpi=200)
+    img = None
+    if d.get('imagen'):
+        img = Imagen.objects.filter(pk=d['imagen'], propietario=request.user, grafica__isnull=False).first()
+    antes = img.peso if img else 0
+    if a.usado() - antes + len(datos) > a.cuota():
+        return JsonResponse({'ok': False, 'error': f'Su nube está llena ({round(a.cuota() / MB)} MB).'}, status=400)
+    from PIL import Image as PILImage
+    ancho, alto = PILImage.open(io.BytesIO(datos)).size
+    if img is None:
+        img = Imagen(propietario=request.user)
+    elif img.archivo:
+        img.archivo.delete(save=False)
+    img.ancho, img.alto, img.peso, img.grafica = ancho, alto, len(datos), spec
+    img.archivo.save('grafica.png', ContentFile(datos), save=False)
+    img.save()
+    return JsonResponse({'ok': True, 'id': img.pk, 'grafica': spec, 'errores': errores, 'nube': _nube(a),
+                         'url': request.build_absolute_uri(f'/materiales/imagen/{img.pk}/') + f'?v={img.peso}'})

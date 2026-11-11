@@ -96,7 +96,7 @@
         {% if b.titulo %}<div class="text-center fw-bold mt-1">{{ b.titulo }}</div>{% endif %}
         {% if b.imagen %}<div class="fi-img text-center"><img src="{% url 'aula:ficha_imagen' aula.pk t.pk b.imagen %}" alt="{{ b.titulo|default:'Imagen del texto' }}" style="width:{{ b.ancho }}%"></div>{% endif %}
         <div>{{ b.html|safe|eq }}</div>
-    {% elif b.tipo == 'imagen' %}<div class="fi-img text-center my-2"><img src="{% url 'aula:ficha_imagen' aula.pk t.pk b.imagen %}" alt="{{ b.pie|default:'Imagen' }}" style="width:{{ b.ancho }}%">{% if b.pie %}<div class="small fst-italic">{{ b.pie }}</div>{% endif %}</div>
+    {% elif b.tipo == 'imagen' %}<div class="fi-img {{ b.clase_img|default:'text-center my-2' }}" style="{{ b.css_caja }}"><img src="{% url 'aula:ficha_imagen' aula.pk t.pk b.imagen %}" alt="{{ b.pie|default:'Imagen' }}" style="{{ b.css_img|default:'' }}{% if not b.css_img %}width:{{ b.ancho }}%{% endif %}">{% if b.pie and b.ajuste != 'detras' and b.ajuste != 'delante' %}<div class="small fst-italic text-center">{{ b.pie }}</div>{% endif %}</div>
     {% elif b.tipo == 'tabla' %}<table class="table table-sm table-bordered my-2">{% for fila in b.filas %}<tr>{% for x in fila %}{% if forloop.parentloop.first and b.encabezado %}<th class="table-light">{{ x|eq }}</th>{% else %}<td>{{ x|eq }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</table>
     {% elif b.tipo == 'recuadro' %}<div class="fi-recuadro {{ b.estilo }}"><b>{{ b.titulo }}</b>{{ b.html|safe|eq }}</div>
     {% elif b.tipo == 'separador' %}<hr>

@@ -1,4 +1,4 @@
-Versión 0019 · 2026-11-11 21:40
+Versión 0021 · 2026-11-11 23:13
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -224,6 +224,7 @@ CAMBIADO  aula/views.py
 NUEVO     aula/views_banco.py
 NUEVO     aula/views_compartir.py
 NUEVO     aula/views_eventos.py
+CAMBIADO  aula/views_fichas.py
 NUEVO     aula/views_gamificacion.py
 CAMBIADO  aula/views_importar.py
 NUEVO     aula/views_invertida.py
@@ -277,17 +278,22 @@ CAMBIADO  materiales/bloques.py
 CAMBIADO  materiales/creditos.py
 NUEVO     materiales/ecuaciones.py
 CAMBIADO  materiales/exportar.py
+NUEVO     materiales/graficas.py
 CAMBIADO  materiales/ia.py
 NUEVO     materiales/migrations/0005_colaboradores_y_modelos.py
 NUEVO     materiales/migrations/0006_encabezado_libre.py
 NUEVO     materiales/migrations/0007_mis_juegos.py
 NUEVO     materiales/migrations/0008_formatos.py
+NUEVO     materiales/migrations/0009_graficas.py
+NUEVO     materiales/migrations/0010_recortes.py
 CAMBIADO  materiales/models.py
 CAMBIADO  materiales/plantillas.py
 NUEVO     materiales/static/materiales/colores.js
 NUEVO     materiales/static/materiales/ecuaciones.js
 CAMBIADO  materiales/static/materiales/editor.js
 NUEVO     materiales/static/materiales/equipo.js
+NUEVO     materiales/static/materiales/graficador.js
+NUEVO     materiales/static/materiales/imagenes.js
 NUEVO     materiales/templates/materiales/_colores.html
 NUEVO     materiales/templates/materiales/_encabezado_docente.html
 NUEVO     materiales/templates/materiales/_enviar_campos.html
@@ -305,6 +311,8 @@ NUEVO     materiales/templatetags/__init__.py
 NUEVO     materiales/templatetags/ecuaciones.py
 NUEVO     materiales/tests/test_ecuaciones.py
 NUEVO     materiales/tests/test_equipo.py
+NUEVO     materiales/tests/test_graficas.py
+NUEVO     materiales/tests/test_imagenes.py
 NUEVO     materiales/tests/test_juegos_colores.py
 CAMBIADO  materiales/tests/test_materiales.py
 CAMBIADO  materiales/urls.py
@@ -536,6 +544,8 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0027_tableros.py                  (tableros de la Pizarra: pantalla infinita, imágenes y compartir con la clase)
   aula/migrations/0028_tableros_carpeta.py  (carpetas de tableros y peso de imágenes en la nube)
   chat/migrations/0011_editar_y_vaciar.py           (chat: mensajes editados y vaciar el chat)
+  materiales/migrations/0009_graficas.py            (graficador: la imagen guarda su gráfica para editarla)
+  materiales/migrations/0010_recortes.py            (imágenes recortadas: guardan la original)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

@@ -61,6 +61,30 @@ MAX_OPCIONES = 6
 MAX_FILAS, MAX_COLUMNAS = 40, 8
 MAX_CELDA = 1500
 
+# Imagen: dónde va. «linea»: sola en su renglón; «cuadrado»: el texto que sigue la rodea; «detras» / «delante»:
+# libre, encima o debajo del texto, en (x, y) = % del ancho de la hoja desde el borde izquierdo y desde donde está el bloque.
+ALINEAR = ('izquierda', 'centro', 'derecha')
+AJUSTES = ('linea', 'cuadrado', 'detras', 'delante')
+
+
+def css_imagen(b, ancho_util_mm=None):
+    """(clase del contenedor, estilo del contenedor, estilo de la imagen) para la web (ancho_util_mm=None) o el PDF."""
+    ajuste, alinear, ancho = b.get('ajuste') or 'linea', b.get('alinear') or 'centro', b.get('ancho') or 60
+    if ajuste == 'cuadrado':
+        lado = 'right' if alinear == 'derecha' else 'left'
+        margen = '0 0 2mm 4mm' if lado == 'right' else '0 4mm 2mm 0'
+        return f'img-flota img-{lado}', f'float:{lado};width:{ancho}%;margin:{margen}', 'width:100%'
+    if ajuste in ('detras', 'delante'):
+        x, y = b.get('x') or 0, b.get('y') or 0
+        top = f'{y * ancho_util_mm / 100:.1f}mm' if ancho_util_mm else f'{y}cqw'
+        capa = '-1' if ajuste == 'detras' else '5'
+        opacidad = (b.get('opacidad') or 100) / 100
+        return (f'img-libre img-{ajuste}', 'position:relative;height:0;margin:0;overflow:visible' + ('' if ancho_util_mm else ';container-type:inline-size'),
+                f'position:absolute;left:{x}%;top:{top};width:{ancho}%;z-index:{capa};opacity:{opacidad:.2f};max-height:none')
+    texto = {'izquierda': 'left', 'derecha': 'right'}.get(alinear, 'center')
+    return 'img-linea', f'text-align:{texto}', f'width:{ancho}%'
+
+
 ETIQUETAS = {'b', 'strong', 'i', 'em', 'u', 'br', 'p', 'ul', 'ol', 'li', 'sub', 'sup', 'div', 'span'}
 VACIAS = {'br'}
 
@@ -236,7 +260,11 @@ def limpiar(contenido, imagenes_validas):
             img = _entero(b.get('imagen'), 0, 0, 2 ** 62)
             if img not in imagenes_validas:
                 continue
-            n.update(imagen=img, ancho=_entero(b.get('ancho'), 60, 10, 100), pie=texto_plano(b.get('pie'), 200))
+            n.update(imagen=img, ancho=_entero(b.get('ancho'), 60, 10, 100), pie=texto_plano(b.get('pie'), 200),
+                     alinear=b.get('alinear') if b.get('alinear') in ALINEAR else 'centro',
+                     ajuste=b.get('ajuste') if b.get('ajuste') in AJUSTES else 'linea',
+                     x=_entero(b.get('x'), 0, -50, 100), y=_entero(b.get('y'), 0, -150, 300),
+                     opacidad=_entero(b.get('opacidad'), 100, 10, 100))
         elif tipo == 'tabla':
             filas = [[texto_plano(c, MAX_CELDA) for c in (f or [])[:MAX_COLUMNAS]]
                      for f in (b.get('filas') or [])[:MAX_FILAS] if isinstance(f, list)]

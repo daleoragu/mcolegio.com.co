@@ -257,9 +257,12 @@ def contexto(doc, modo=None, docente='', respuestas=False):
         if b['tipo'] == 'tabla':
             est = b.get('estilos') or {}
             b['filas_estilo'] = [[(c, _css_celda(est.get(f'{i}-{j}'))) for j, c in enumerate(fila)] for i, fila in enumerate(b['filas'])]
+    ancho_util = 215.9 - 2 * m['margen']          # hoja carta
     for b in bloques:
         if b['tipo'] == 'pregunta':
             _preparar_pregunta(b, modo)
+        elif b['tipo'] == 'imagen':
+            b['clase_img'], b['css_caja'], b['css_img'] = B.css_imagen(b, ancho_util)
     areas = [b['titulo'] for b in bloques if b['tipo'] == 'seccion' and b['titulo']]
     derecha = ' · '.join(x for x in (doc.grado and f'Grado {doc.grado}', opciones.get('sesion')) if x)
     return {'css_izquierda': _css(doc.titulo)[:70], 'css_derecha': _css(derecha)[:70],'respuestas': respuestas, 'total_preguntas': total, 'areas': areas,
@@ -409,6 +412,40 @@ def _run(parrafo, texto, f, tam):
         else:
             _relleno_run(r, marca[3:].upper())
     return r
+
+
+def _flotante(run, ajuste, alinear, x, y, opacidad=100):
+    """Vuelve flotante la imagen recién puesta en el párrafo (como en Word): «cuadrado» = el texto la rodea a la
+    izquierda o derecha; «detras» / «delante» = libre en (x, y) EMU desde el margen y el párrafo, detrás o encima del texto."""
+    from docx.oxml import parse_xml
+    from docx.oxml.ns import nsdecls, qn
+    inline = run._r.find('.//' + qn('wp:inline'))
+    if inline is None:
+        return
+    extent = inline.find(qn('wp:extent'))
+    cx, cy = extent.get('cx'), extent.get('cy')
+    if ajuste == 'cuadrado':
+        lado = 'right' if alinear == 'derecha' else 'left'
+        pos = (f'<wp:positionH relativeFrom="column"><wp:align>{lado}</wp:align></wp:positionH>'
+               '<wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV>')
+        envoltura, detras = '<wp:wrapSquare wrapText="bothSides"/>', '0'
+    else:
+        pos = (f'<wp:positionH relativeFrom="column"><wp:posOffset>{x}</wp:posOffset></wp:positionH>'
+               f'<wp:positionV relativeFrom="paragraph"><wp:posOffset>{y}</wp:posOffset></wp:positionV>')
+        envoltura, detras = '<wp:wrapNone/>', '1' if ajuste == 'detras' else '0'
+    anchor = parse_xml(
+        f'<wp:anchor {nsdecls("wp", "a", "pic", "r")} distT="0" distB="0" distL="114300" distR="114300" simplePos="0" '
+        f'relativeHeight="{251658240 if detras == "1" else 251659264}" behindDoc="{detras}" locked="0" layoutInCell="1" allowOverlap="1">'
+        f'<wp:simplePos x="0" y="0"/>{pos}<wp:extent cx="{cx}" cy="{cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>{envoltura}</wp:anchor>')
+    for nombre in ('wp:docPr', 'wp:cNvGraphicFramePr', 'a:graphic'):
+        hijo = inline.find(qn(nombre))
+        if hijo is not None:
+            anchor.append(hijo)
+    if opacidad < 100:
+        blip = anchor.find('.//' + qn('a:blip'))
+        if blip is not None:
+            blip.append(parse_xml(f'<a:alphaModFix {nsdecls("a")} amt="{int(opacidad * 1000)}"/>'))
+    inline.getparent().replace(inline, anchor)
 
 
 def _relleno_run(run, color):
@@ -649,15 +686,21 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=F
                     _escribir(w.add_paragraph(), trozos)
             elif t == 'imagen' and b['imagen'] in rutas:
                 p = w.add_paragraph()
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                alinear = {'izquierda': WD_ALIGN_PARAGRAPH.LEFT, 'derecha': WD_ALIGN_PARAGRAPH.RIGHT}.get(b.get('alinear'), WD_ALIGN_PARAGRAPH.CENTER)
+                p.alignment = alinear
+                ajuste = b.get('ajuste') or 'linea'
                 try:
                     ancho = util * b['ancho'] / 100 / (2 if ctx['columnas'] == 2 else 1)
-                    p.add_run().add_picture(str(rutas[b['imagen']]), width=int(ancho))
+                    run = p.add_run()
+                    run.add_picture(str(rutas[b['imagen']]), width=int(ancho))
+                    if ajuste != 'linea':
+                        _flotante(run, ajuste, b.get('alinear') or 'centro', int(util * (b.get('x') or 0) / 100),
+                                  int(util * (b.get('y') or 0) / 100), (b.get('opacidad') or 100) if ajuste in ('detras', 'delante') else 100)
                 except Exception:
                     pass
-                if b['pie']:
+                if b['pie'] and ajuste in ('linea', 'cuadrado'):
                     q = w.add_paragraph(b['pie'])
-                    q.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    q.alignment = alinear
             elif t == 'tabla':
                 tabla = w.add_table(rows=len(b['filas']), cols=len(b['filas'][0]))
                 tabla.style = 'Table Grid'

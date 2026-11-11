@@ -40,6 +40,33 @@
   .mm-tabla td:focus { outline:2px solid #9ec5fe; }
   .mm-tabla.mm-privada td { background:#fff7ed; border-color:#fdba74; }
   .mm-colorbtn .mm-color-aplicar { position:relative; padding-bottom:7px; min-width:34px; }
+  /* Recortar imágenes */
+  .rc-zona { display:flex; justify-content:center; background:#f2f4f7; border-radius:10px; padding:10px; }
+  .rc-marco { position:relative; touch-action:none; user-select:none; cursor:crosshair; }
+  .rc-marco canvas { display:block; }
+  .rc-sel { position:absolute; border:2px solid #fff; outline:1px solid #2563eb; box-shadow:0 0 0 9999px rgba(15,23,42,.55); cursor:move; }
+  .rc-esq { position:absolute; width:14px; height:14px; background:#fff; border:2px solid #2563eb; border-radius:3px; }
+  .rc-no { left:-8px; top:-8px; cursor:nwse-resize; } .rc-ne { right:-8px; top:-8px; cursor:nesw-resize; }
+  .rc-so { left:-8px; bottom:-8px; cursor:nesw-resize; } .rc-se { right:-8px; bottom:-8px; cursor:nwse-resize; }
+  /* Imagen: dónde va en la hoja (como en el PDF) */
+  .mm-hoja { position:relative; }
+  .mm-hoja::after { content:""; display:block; clear:both; }
+  .mm-bloque.mm-flota-left { float:left; margin-right:12px; z-index:3; }
+  .mm-bloque.mm-flota-right { float:right; margin-left:12px; z-index:3; }
+  .mm-bloque.mm-libre { min-height:0; }
+  .mm-libre-caja { position:relative; height:0; container-type:inline-size; }
+  .mm-libre-caja img { position:absolute; max-width:none; cursor:grab; touch-action:none; }
+  .mm-bloque.mm-libre:not(.activo) .mm-libre-caja img { pointer-events:none; }
+  .mm-bloque.activo .mm-libre-caja img { outline:2px dashed #2563eb; z-index:30 !important; }
+  .mm-img-ajustes { display:flex; flex-wrap:wrap; gap:6px; align-items:center; justify-content:center; font-size:.8rem; color:#475467; margin-top:4px; }
+  .mm-img-ajustes .btn-group .btn { padding:2px 8px; }
+  .mm-seccion-clear, .mm-bloque[data-tipo="seccion"], .mm-bloque[data-tipo="titulo"], .mm-bloque[data-tipo="salto"] { clear:both; }
+  /* Graficador */
+  .gr-lista { max-height:42vh; overflow-y:auto; display:flex; flex-direction:column; gap:6px; }
+  .gr-elem { border:1px solid #e4e7ec; border-radius:10px; padding:6px 8px; background:#fcfcfd; }
+  .gr-elem .form-control-color { width:30px; height:26px; padding:2px; }
+  .gr-previa { border:1px solid #e4e7ec; border-radius:12px; overflow:hidden; background:#fff; min-height:200px; }
+  .mm-graf-editar { position:absolute; top:40px; right:6px; }
   /* Ecuaciones: en el texto se ven como en el PDF; un clic las abre para editarlas */
   .mm-eqv { display:inline-block; cursor:pointer; padding:0 2px; border-radius:4px; user-select:all; -webkit-user-select:all; }
   .mm-eqv:hover { background:#e0ecff; outline:1px solid #93c5fd; }
