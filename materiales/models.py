@@ -102,6 +102,7 @@ class Imagen(models.Model):
     ancho = models.PositiveIntegerField(default=0)
     alto = models.PositiveIntegerField(default=0)
     peso = models.PositiveIntegerField(default=0, help_text='Bytes, para la nube del docente.')
+    grafica = models.JSONField(null=True, blank=True, help_text='Si la hizo el graficador: su descripción, para volver a editarla.')
     creada = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

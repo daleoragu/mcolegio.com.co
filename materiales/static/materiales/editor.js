@@ -7,6 +7,7 @@
     var CFG = window.MM;
     var datos = JSON.parse(document.getElementById('mm-contenido').textContent || '{}');
     var IMAGENES = JSON.parse(document.getElementById('mm-imagenes').textContent || '{}');
+    var GRAFICAS = JSON.parse((document.getElementById('mm-graficas') || {}).textContent || '{}');
     var NUBE = JSON.parse(document.getElementById('mm-nube-config').textContent || '{}');
     datos.bloques = datos.bloques || [];
     datos.opciones = Object.assign({ columnas: 1, letra: 11, modo: 'normal', nombre_estudiante: true, datos: true }, datos.opciones || {});
@@ -462,7 +463,7 @@
             var rango = el('input', { type: 'range', min: '10', max: '100', step: '5', class: 'form-range', style: 'max-width:200px' });
             rango.value = b.ancho || 60;
             rango.addEventListener('input', function () { b.ancho = +rango.value; img.style.width = b.ancho + '%'; cambio(); });
-            return el('div', { class: 'mm-img text-center' }, [img,
+            return el('div', { class: 'mm-img text-center position-relative' }, [img, botonGrafica(b),
                 el('div', { class: 'd-flex gap-2 align-items-center justify-content-center mt-1 small text-muted' }, [el('span', { text: 'Tamaño' }), rango]),
                 campo(b.pie, 'Pie de imagen (opcional)', function (v) { b.pie = v; }, 'form-control form-control-sm border-0 text-center fst-italic')]);
         },
@@ -558,6 +559,9 @@
             caja2.appendChild(el('div', { class: 'd-flex flex-wrap gap-2 align-items-center small mt-1' }, [
                 b.modo === 'senalar' ? null : el('button', { type: 'button', class: 'btn btn-sm btn-link py-0', text: 'Imagen para la pregunta',
                     onclick: function () { activo = b.id; destinoImagen = b; $('#mm-archivo').click(); } }),
+                b.modo === 'senalar' || b.modo === 'hoja' ? null : el('button', { type: 'button', class: 'btn btn-sm btn-link py-0',
+                    html: '<i class="fas fa-chart-line me-1"></i>' + (GRAFICAS[b.imagen] ? 'Editar la gráfica' : 'Gráfica para la pregunta'),
+                    onclick: function () { activo = b.id; abrirGrafica(b); } }),
                 el('button', { type: 'button', class: 'btn btn-sm btn-link py-0 ms-auto', html: '<i class="fas fa-box-archive me-1"></i>Guardar en el banco',
                     onclick: function () { guardarEnBanco(b); } })]));
             return caja2;
@@ -624,10 +628,33 @@
             var tipo = b.getAttribute('data-nuevo');
             if (tipo === 'imagen') { destinoImagen = null; $('#mm-archivo').click(); return; }
             if (tipo === 'hoja') { $('#mm-archivo-hoja').click(); return; }
+            if (tipo === 'grafica') { abrirGrafica(null); return; }
             if (tipo === 'banco') { abrirBanco(); return; }
             insertar(nuevo(tipo));
         });
     });
+    // Graficador: una gráfica nueva (bloque de imagen o la de una pregunta) o editar la que ya está
+    function abrirGrafica(b) {
+        if (!window.MMGraf) { estado('No cargó el graficador.', true); return; }
+        var actual = b && b.imagen && GRAFICAS[b.imagen] ? { id: b.imagen, grafica: GRAFICAS[b.imagen] } : null;
+        window.MMGraf.abrir(actual, function (j) {
+            IMAGENES[j.id] = j.url; GRAFICAS[j.id] = j.grafica;
+            if (b) { b.imagen = j.id; pintar(); cambio(); }
+            else { var n = nuevo('imagen'); n.imagen = j.id; n.ancho = 70; n.pie = ''; insertar(n); }
+            estado('Gráfica guardada');
+        });
+    }
+    function botonGrafica(b) {
+        if (!GRAFICAS[b.imagen]) return null;
+        return el('button', { type: 'button', class: 'btn btn-sm btn-light border shadow-sm mm-graf-editar', html: '<i class="fas fa-chart-line me-1"></i>Editar gráfica',
+            onclick: function () { activo = b.id; abrirGrafica(b); } });
+    }
+    var botonGraf = $('#mm-grafica-btn');
+    if (botonGraf) botonGraf.addEventListener('click', function () {
+        var b = activo && datos.bloques[indice(activo)];
+        abrirGrafica(b && b.tipo === 'imagen' && GRAFICAS[b.imagen] ? b : null);
+    });
+
     $$('[data-cmd]').forEach(function (b) {
         b.addEventListener('mousedown', function (e) { e.preventDefault(); });
         b.addEventListener('click', function () { document.execCommand(b.getAttribute('data-cmd'), false, null); });

@@ -49,6 +49,7 @@
       <button type="button" class="btn btn-outline-secondary mm-porta" data-porta="copy" title="Copiar (Ctrl+C)" aria-label="Copiar"><i class="far fa-copy"></i></button>
       <button type="button" class="btn btn-outline-secondary mm-porta" data-porta="paste" title="Pegar (Ctrl+V)" aria-label="Pegar"><i class="fas fa-paste"></i></button>
     </div>
+    <button type="button" class="btn btn-sm btn-outline-primary" id="mm-grafica-btn" title="Insertar una gráfica de funciones o figuras"><i class="fas fa-chart-line me-1"></i>Gráfica</button>
     <button type="button" class="btn btn-sm btn-outline-primary" id="mm-ecuacion-btn" title="Insertar una ecuación (Alt+=)"><span style="font-family:'Times New Roman',serif;font-style:italic;font-weight:700">∑ x²</span> Ecuación</button>
     <div class="btn-group btn-group-sm" role="group" aria-label="Formato del texto">
       <button type="button" class="btn btn-outline-secondary" data-cmd="bold" title="Negrilla"><i class="fas fa-bold"></i></button>
@@ -218,6 +219,7 @@
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="titulo"><i class="fas fa-heading me-1"></i>Título</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="seccion"><i class="fas fa-bookmark me-1"></i>Sección</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="imagen"><i class="far fa-image me-1"></i>Imagen</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-nuevo="grafica"><i class="fas fa-chart-line me-1"></i>Gráfica</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="pregunta"><i class="fas fa-circle-question me-1"></i>Pregunta</button>
         <button type="button" class="btn btn-sm btn-outline-primary" data-nuevo="banco"><i class="fas fa-box-archive me-1"></i>Del banco</button>
         <button type="button" class="btn btn-sm btn-outline-primary" data-nuevo="hoja"><i class="far fa-file-pdf me-1"></i>Hoja sobre un PDF</button>
@@ -332,6 +334,58 @@
     </div>
 </div></div></div>
 
+<div class="modal fade" id="mm-graf-modal" tabindex="-1" aria-hidden="true" aria-labelledby="gr-titulo"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header py-2">
+      <h6 class="modal-title" id="gr-titulo"><i class="fas fa-chart-line me-1"></i>Graficador</h6>
+      <div class="dropdown ms-3"><button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Ejemplos</button>
+        <ul class="dropdown-menu" id="gr-ejemplos"></ul></div>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+    </div>
+    <div class="modal-body">
+      <div class="row g-3">
+        <div class="col-lg-5">
+          <div class="small fw-bold mb-1">Agregar</div>
+          <div class="d-flex flex-wrap gap-1 mb-2">
+            <button type="button" class="btn btn-sm btn-primary" data-agregar="funcion"><i class="fas fa-chart-line me-1"></i>Función</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-agregar="punto">• Punto</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-agregar="segmento">Segmento</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-agregar="vector">→ Vector</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-agregar="poligono">△ Polígono</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-agregar="circulo">○ Circunferencia</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-agregar="vertical">x = a</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-agregar="area">Área</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-agregar="texto">Texto</button>
+          </div>
+          <div class="gr-lista" id="gr-lista"></div>
+          <div class="small text-muted mt-1">Escriba como en el cuaderno: <code>2x^2 - 3x + 1</code>, <code>sen(x)</code>, <code>raiz(x+4)</code>, <code>|x - 2|</code>, <code>ln(x)</code>, <code>1/x</code>, <code>π</code>. Los números pueden ser <code>pi/2</code> o <code>2,5</code>.</div>
+          <div class="small fw-bold mt-3 mb-1">Ventana de la gráfica</div>
+          <div id="gr-ajustes"></div>
+        </div>
+        <div class="col-lg-7">
+          <div class="d-flex flex-wrap gap-1 align-items-center mb-1">
+            <span class="small text-muted me-1">Clic en la gráfica para poner:</span>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Herramienta">
+              <button type="button" class="btn btn-outline-secondary active" data-herr="mover">Nada</button>
+              <button type="button" class="btn btn-outline-secondary" data-herr="punto">Punto</button>
+              <button type="button" class="btn btn-outline-secondary" data-herr="segmento">Segmento</button>
+              <button type="button" class="btn btn-outline-secondary" data-herr="vector">Vector</button>
+              <button type="button" class="btn btn-outline-secondary" data-herr="poligono">Polígono</button>
+            </div>
+            <button type="button" class="btn btn-sm btn-success d-none" id="gr-terminar">Terminar polígono</button>
+            <span class="form-check form-check-inline small ms-auto m-0"><input class="form-check-input" type="checkbox" id="gr-imantar" checked><label class="form-check-label" for="gr-imantar">Ajustar a la cuadrícula</label></span>
+          </div>
+          <div class="gr-previa" id="gr-previa"></div>
+          <div class="small text-primary mt-1" id="gr-avisos" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer py-2">
+      <span class="small text-muted me-auto">Queda como imagen en el documento (PDF, Word y ficha) y se puede volver a editar.</span>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+      <button type="button" class="btn btn-sm btn-primary" id="gr-guardar">Insertar gráfica</button>
+    </div>
+</div></div></div>
+
 <div class="modal fade" id="mm-previa" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header py-2"><h6 class="modal-title">Vista previa</h6><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
     <div class="modal-body p-0"><iframe id="mm-previa-marco" title="Vista previa" style="width:100%;height:78vh;border:0"></iframe></div>
@@ -339,6 +393,7 @@
 </div>
 {{ contenido|json_script:"mm-contenido" }}
 {{ imagenes|json_script:"mm-imagenes" }}
+{{ graficas|json_script:"mm-graficas" }}
 {{ nube_docente|json_script:"mm-nube-config" }}
 {{ modos_pregunta|json_script:"mm-modos" }}
 {{ med|json_script:"mm-medidor-datos" }}
@@ -363,11 +418,13 @@ window.MM = {
     rol: "{{ rol }}",
     equipo: "{% url 'materiales:equipo' doc.pk %}",
     estado: "{% url 'materiales:estado' doc.pk %}",
-    ecuacion: "{% url 'materiales:ecuacion' %}"
+    ecuacion: "{% url 'materiales:ecuacion' %}",
+    grafica: { vista: "{% url 'materiales:grafica_vista' %}", guardar: "{% url 'materiales:grafica_guardar' %}" }
 };
 </script>
 <script src="{% static 'materiales/colores.js' %}"></script>
 <script src="{% static 'materiales/ecuaciones.js' %}"></script>
+<script src="{% static 'materiales/graficador.js' %}"></script>
 <script src="{% static 'materiales/editor.js' %}"></script>
 <script src="{% static 'materiales/equipo.js' %}"></script>
 {% endblock %}

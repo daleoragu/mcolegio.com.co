@@ -413,9 +413,12 @@ def _publicar(request, a, doc):
 def editor(request, a, pk):
     from .views_equipo import doc_equipo, nombre
     doc, rol = doc_equipo(a, pk)
-    imagenes = {i.pk: request.build_absolute_uri(f'/materiales/imagen/{i.pk}/')
-                for i in Imagen.objects.filter(propietario_id__in=doc.equipo_ids(), pk__in=B.imagenes_usadas(doc.contenido))}
+    usadas = list(Imagen.objects.filter(propietario_id__in=doc.equipo_ids(), pk__in=B.imagenes_usadas(doc.contenido)))
+    imagenes = {i.pk: request.build_absolute_uri(f'/materiales/imagen/{i.pk}/') + (f'?v={i.peso}' if i.grafica else '')
+                for i in usadas}
+    graficas = {i.pk: i.grafica for i in usadas if i.grafica and i.propietario_id == request.user.pk}
     return render(request, 'materiales/editor.html', {
+        'graficas': graficas,
         'rol': rol, 'solo_ver': rol == 'ver', 'dueno_nombre': nombre(doc.propietario),
         'base': a.base, 'acceso': a, 'doc': doc, 'contenido': doc.contenido, 'imagenes': imagenes,
         'aulas': a.aulas(), 'nube': _nube(a), 'tipos': Documento.TIPOS, 'nube_docente': _nube_docente(request),
@@ -675,3 +678,52 @@ def ecuacion(request, a):
     resp['X-Alto'] = f'{(alto + 1) / E.TAM:.3f}'
     resp['X-Fondo'] = f'{(fondo + .5) / E.TAM:.3f}'
     return resp
+
+
+# ---------------------------------------------------------------------------
+# Graficador: gráficas de funciones y figuras que se insertan como imagen (y se pueden volver a editar)
+# ---------------------------------------------------------------------------
+@require_POST
+@vista
+def grafica_vista(request, a):
+    """La vista previa mientras el docente arma la gráfica: el SVG, dónde quedaron los ejes (para ubicar los clics)
+    y lo que no se pudo dibujar."""
+    from . import graficas as G
+    try:
+        spec = json.loads(request.body or b'{}').get('grafica')
+    except ValueError:
+        spec = None
+    svg, caja, errores = G.dibujar(spec, 'svg')
+    return JsonResponse({'svg': svg.decode('utf-8'), 'caja': caja, 'errores': errores, 'grafica': G.limpiar(spec)})
+
+
+@require_POST
+@vista
+def grafica_guardar(request, a):
+    """Guarda la gráfica como imagen PNG del docente (nueva, o la misma imagen si la está editando)."""
+    from . import graficas as G
+    try:
+        d = json.loads(request.body or b'{}')
+    except ValueError:
+        d = {}
+    spec = G.limpiar(d.get('grafica'))
+    if not spec['elementos']:
+        return JsonResponse({'ok': False, 'error': 'La gráfica está vacía: agregue una función, un punto o una figura.'}, status=400)
+    datos, _, errores = G.dibujar(spec, 'png', dpi=200)
+    img = None
+    if d.get('imagen'):
+        img = Imagen.objects.filter(pk=d['imagen'], propietario=request.user, grafica__isnull=False).first()
+    antes = img.peso if img else 0
+    if a.usado() - antes + len(datos) > a.cuota():
+        return JsonResponse({'ok': False, 'error': f'Su nube está llena ({round(a.cuota() / MB)} MB).'}, status=400)
+    from PIL import Image as PILImage
+    ancho, alto = PILImage.open(io.BytesIO(datos)).size
+    if img is None:
+        img = Imagen(propietario=request.user)
+    elif img.archivo:
+        img.archivo.delete(save=False)
+    img.ancho, img.alto, img.peso, img.grafica = ancho, alto, len(datos), spec
+    img.archivo.save('grafica.png', ContentFile(datos), save=False)
+    img.save()
+    return JsonResponse({'ok': True, 'id': img.pk, 'grafica': spec, 'errores': errores, 'nube': _nube(a),
+                         'url': request.build_absolute_uri(f'/materiales/imagen/{img.pk}/') + f'?v={img.peso}'})
