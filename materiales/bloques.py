@@ -58,7 +58,8 @@ MAX_BLOQUES = 300
 MAX_TEXTO = 20000
 MAX_CORTO = 600
 MAX_OPCIONES = 6
-MAX_FILAS, MAX_COLUMNAS = 30, 8
+MAX_FILAS, MAX_COLUMNAS = 40, 8
+MAX_CELDA = 1500
 
 ETIQUETAS = {'b', 'strong', 'i', 'em', 'u', 'br', 'p', 'ul', 'ol', 'li', 'sub', 'sup', 'div', 'span'}
 VACIAS = {'br'}
@@ -171,12 +172,14 @@ def limpiar(contenido, imagenes_validas):
                 continue
             n.update(imagen=img, ancho=_entero(b.get('ancho'), 60, 10, 100), pie=texto_plano(b.get('pie'), 200))
         elif tipo == 'tabla':
-            filas = [[texto_plano(c, 300) for c in (f or [])[:MAX_COLUMNAS]]
+            filas = [[texto_plano(c, MAX_CELDA) for c in (f or [])[:MAX_COLUMNAS]]
                      for f in (b.get('filas') or [])[:MAX_FILAS] if isinstance(f, list)]
             ancho = max((len(f) for f in filas), default=0)
             if not ancho:
                 continue
-            n.update(filas=[f + [''] * (ancho - len(f)) for f in filas], encabezado=bool(b.get('encabezado')))
+            n.update(filas=[f + [''] * (ancho - len(f)) for f in filas], encabezado=bool(b.get('encabezado')),
+                     # privada: datos del estudiante (PIAR) que nunca se envían a la IA
+                     privada=bool(b.get('privada')))
         elif tipo == 'recuadro':
             estilo = b.get('estilo') if b.get('estilo') in ESTILOS_RECUADRO else 'nota'
             n.update(estilo=estilo, titulo=texto_plano(b.get('titulo'), 80) or ESTILOS_RECUADRO[estilo],

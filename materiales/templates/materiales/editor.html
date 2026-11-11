@@ -211,6 +211,7 @@
     <div class="modal-body">
       {% if not ia_lista %}<div class="alert alert-warning small">El asistente todavía no está activo en la plataforma.</div>{% endif %}
       <div class="d-flex flex-wrap gap-1 mb-3" id="mm-ia-acciones" role="tablist">
+        {% if es_formato %}<button type="button" class="btn btn-sm btn-success" data-ia="llenar"><i class="fas fa-table me-1"></i>Llenar el formato</button>{% endif %}
         <button type="button" class="btn btn-sm btn-primary" data-ia="guia">Borrador de guía</button>
         <button type="button" class="btn btn-sm btn-outline-primary" data-ia="actividad">Actividad del banco</button>
         <button type="button" class="btn btn-sm btn-outline-primary" data-ia="cuadernillo">Cuadernillo tipo Saber</button>
@@ -251,6 +252,10 @@
         <label class="small fw-bold">Criterios que quiere (opcional)</label>
         <input class="form-control form-control-sm" data-c="criterios" maxlength="300" placeholder="Dominio del tema, uso de apoyos, trabajo en equipo">
         <div class="small text-muted mt-1">Los niveles son los de su escala de valoración. La rúbrica queda en sus instrumentos de evaluación.</div>
+      </div>
+      <div class="mm-ia-form d-none" data-form="llenar">
+        <div class="small text-muted mb-1">La IA llena <b>solo las celdas vacías</b> de las tablas; lo que usted ya escribió no cambia. Las tablas marcadas como <b>privadas</b> (datos del estudiante) nunca se envían.</div>
+        <label class="small fw-bold">Tema</label><input class="form-control form-control-sm" data-c="tema" maxlength="200" placeholder="Fracciones equivalentes (o déjelo vacío si ya está en el formato)">
       </div>
       <div class="mm-ia-form d-none" data-form="revisar">
         <div class="small text-muted">Revisa la ortografía y la redacción de todo el documento. Usted acepta cada corrección.</div>

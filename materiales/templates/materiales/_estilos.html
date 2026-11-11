@@ -35,8 +35,11 @@
   .mm-agregar { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; padding:10px; border:1px dashed #c9d3e6; border-radius:10px; margin-top:10px; }
   .mm-agregar button { font-size:.85rem; }
   .mm-img img { max-width:100%; border-radius:4px; }
-  .mm-tabla td { border:1px solid #999; padding:2px 6px; min-width:60px; }
+  .mm-tabla { width:100%; }
+  .mm-tabla td { border:1px solid #999; padding:4px 6px; min-width:60px; vertical-align:top; height:30px; white-space:pre-wrap; }
   .mm-tabla td:focus { outline:2px solid #9ec5fe; }
+  .mm-tabla.mm-privada td { background:#fff7ed; border-color:#fdba74; }
+  .mm-tabla tr:only-child td, .mm-tabla td:first-child:nth-last-child(2) { width:32%; font-weight:600; background:#f8fafc; }
   .mm-estado { font-size:.8rem; color:var(--mm-tenue); }
   .mm-lienzo { position:relative; margin:4px auto; user-select:none; touch-action:none; cursor:crosshair; }
   .mm-lienzo > img { display:block; width:100%; border-radius:4px; pointer-events:auto; }

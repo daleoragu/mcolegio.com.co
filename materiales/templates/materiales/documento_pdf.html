@@ -47,7 +47,8 @@
     .img .pie { font-size: 8pt; font-style: italic; color: #444; }
     table.tabla { border-collapse: collapse; width: 100%; break-inside: avoid; }
     table.tabla td, table.tabla th { border: 0.6px solid #555; padding: 2px 5px; font-size: 0.95em; vertical-align: top; }
-    table.tabla th { background: #e8eef9; }
+    table.tabla th { background: {{ color_medio }}; }
+    table.tabla.campos td:first-child { width: 32%; font-weight: bold; background: {{ color_claro }}; }
     /* Tablas para llenar (ABP, retos, rúbricas): columnas parejas y renglón de escritura en las celdas vacías */
     table.tabla.llenar { table-layout: fixed; }
     table.tabla td:empty { height: 7mm; }
@@ -148,7 +149,7 @@
     {% elif b.tipo == 'imagen' %}
         {% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="b img"><img src="{{ ruta }}" style="width:{{ b.ancho }}%">{% if b.pie %}<div class="pie">{{ b.pie }}</div>{% endif %}</div>{% endif %}{% endwith %}
     {% elif b.tipo == 'tabla' %}
-        <table class="b tabla{% if '' in b.filas.0 or '' in b.filas.1 %} llenar{% endif %}">{% for fila in b.filas %}<tr>{% for c in fila %}{% if forloop.parentloop.first and b.encabezado %}<th>{{ c }}</th>{% else %}<td>{{ c }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</table>
+        <table class="b tabla{% if '' in b.filas.0 or '' in b.filas.1 %} llenar{% endif %}{% if not b.encabezado and b.filas.0|length == 2 %} campos{% endif %}">{% for fila in b.filas %}<tr>{% for c in fila %}{% if forloop.parentloop.first and b.encabezado %}<th>{{ c }}</th>{% else %}<td>{{ c }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</table>
     {% elif b.tipo == 'recuadro' %}
         <div class="b recuadro {{ b.estilo }}"><div class="rt">{{ b.titulo }}</div>{{ b.html|safe }}</div>
     {% elif b.tipo == 'lineas' %}

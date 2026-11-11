@@ -66,6 +66,18 @@
         </form>
         {% endif %}{% endfor %}
       </div>
+      <div class="fw-semibold small mt-3 mb-1"><i class="fas fa-table me-1"></i>Formatos para llenar <span class="fw-normal text-muted">· genéricos: cámbieles la forma (filas, columnas, nombres) y llénelos a mano o con IA</span></div>
+      <div class="mm-tipos">
+        {% for clave, nombre in formatos_tipos %}
+        <form method="post" action="{% url 'materiales:nuevo' %}">{% csrf_token %}
+          <input type="hidden" name="tipo" value="{{ clave }}">
+          <button class="mm-tipo" type="submit">
+            <i class="fas {% if clave == 'planeacion' %}fa-calendar-check{% elif clave == 'plan_aula' %}fa-calendar-week{% elif clave == 'piar' %}fa-hands-holding-child{% else %}fa-universal-access{% endif %}"></i>
+            <span>{{ nombre }}</span>
+          </button>
+        </form>
+        {% endfor %}
+      </div>
       <div class="fw-semibold small mt-3 mb-1"><i class="fas fa-lightbulb me-1"></i>Modelos pedagógicos</div>
       <div class="mm-tipos">
         {% for clave, nombre in modelos %}

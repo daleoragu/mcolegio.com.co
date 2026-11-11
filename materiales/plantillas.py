@@ -43,6 +43,75 @@ def _objetivo():
     return _recuadro('nota', 'Lo que voy a aprender', '<p>Escriba aquí el objetivo, el DBA o la competencia.</p>')
 
 
+def _titulo(texto):
+    return {'id': _id(), 'tipo': 'titulo', 'texto': texto, 'nivel': 1}
+
+
+def _datos(campos, privada=False):
+    """Tabla de dos columnas: «campo | valor» (el valor queda vacío para llenarlo)."""
+    t = _tabla([[c, ''] for c in campos], encabezado=False)
+    t['privada'] = privada
+    return t
+
+
+DATOS_CLASE = ['Institución', 'Docente', 'Área / asignatura', 'Grado', 'Periodo', 'Fecha', 'Tema', 'Duración']
+
+# Formatos genéricos: el colegio o el docente les cambia la forma (filas, columnas, nombres) y los llena a mano o con IA.
+FORMATOS = {
+    'planeacion': lambda: [
+        _datos(DATOS_CLASE),
+        _seccion('Referentes', 'DBA, estándar o competencia que se trabaja.'),
+        _datos(['DBA', 'Estándar / competencia', 'Desempeño esperado', 'Evidencias de aprendizaje']),
+        _seccion('Momentos de la clase', ''),
+        _tabla([['Momento', 'Actividades', 'Tiempo', 'Recursos'],
+                ['Inicio (exploración)', '', '', ''],
+                ['Desarrollo (estructuración y práctica)', '', '', ''],
+                ['Cierre (transferencia)', '', '', ''],
+                ['Evaluación', '', '', '']]),
+        _seccion('Diseño Universal para el Aprendizaje (DUA)', 'Cómo llega la clase a todos.'),
+        _tabla([['Principio', 'Estrategia en esta clase'],
+                ['Representación (varias formas de presentar)', ''],
+                ['Acción y expresión (varias formas de mostrar lo aprendido)', ''],
+                ['Implicación (motivación y participación)', '']]),
+        _datos(['Ajustes para estudiantes con PIAR', 'Observaciones']),
+    ],
+    'plan_aula': lambda: [
+        _datos(['Institución', 'Docente', 'Área / asignatura', 'Grado', 'Periodo', 'Intensidad horaria semanal']),
+        _datos(['Pregunta problematizadora', 'Competencias del periodo', 'Criterios de evaluación']),
+        _tabla([['Semana', 'Tema', 'DBA / estándar', 'Desempeño', 'Actividades', 'Evaluación']]
+               + [[f'Semana {n}', '', '', '', '', ''] for n in range(1, 11)]),
+    ],
+    'piar': lambda: [
+        _texto('<p>Según el Decreto 1421 de 2017. Los datos del estudiante son privados: <b>no se envían a la IA</b>.</p>'),
+        _seccion('1. Información del estudiante', 'Datos privados.'),
+        _datos(['Nombre del estudiante', 'Documento', 'Grado', 'Edad', 'Fecha de elaboración', 'Docentes que participan'], privada=True),
+        _seccion('2. Valoración pedagógica', 'Describa al estudiante sin nombres ni diagnósticos médicos.'),
+        _datos(['Fortalezas', 'Gustos e intereses', 'Barreras para el aprendizaje y la participación', 'Apoyos que recibe']),
+        _seccion('3. Ajustes razonables por área', ''),
+        _tabla([['Área', 'Propósitos / DBA del periodo', 'Barreras identificadas', 'Ajustes razonables (didácticos y evaluativos)', 'Evaluación de los ajustes'],
+                ['Matemáticas', '', '', '', ''], ['Lenguaje', '', '', '', ''], ['Ciencias naturales', '', '', '', ''],
+                ['Ciencias sociales', '', '', '', ''], ['Inglés', '', '', '', '']]),
+        _seccion('4. Compromisos', ''),
+        _tabla([['Responsable', 'Compromisos'], ['Docentes', ''], ['Familia', ''], ['Estudiante', ''], ['Institución', '']]),
+        _seccion('Firmas', ''),
+        _lineas(3),
+    ],
+    'dua': lambda: [
+        _datos(['Docente', 'Área / asignatura', 'Grado', 'Tema']),
+        _tabla([['Principio', 'Pauta', 'Estrategia en mi clase'],
+                ['Representación (el qué)', 'Percepción: presentar la información de varias formas', ''],
+                ['Representación (el qué)', 'Lenguaje y símbolos: aclarar vocabulario y notación', ''],
+                ['Representación (el qué)', 'Comprensión: activar saberes previos y destacar ideas clave', ''],
+                ['Acción y expresión (el cómo)', 'Acción física: varias formas de responder y moverse', ''],
+                ['Acción y expresión (el cómo)', 'Expresión y comunicación: varios medios para mostrar lo aprendido', ''],
+                ['Acción y expresión (el cómo)', 'Funciones ejecutivas: metas, planeación y seguimiento', ''],
+                ['Implicación (el porqué)', 'Captar el interés: opciones, relevancia y autonomía', ''],
+                ['Implicación (el porqué)', 'Mantener el esfuerzo: metas claras, colaboración y retroalimentación', ''],
+                ['Implicación (el porqué)', 'Autorregulación: expectativas, estrategias y autoevaluación', '']]),
+    ],
+}
+
+
 PLANTILLAS = {
     'guia_momentos': lambda: [
         _objetivo(),
@@ -239,6 +308,9 @@ def contenido_inicial(tipo, base=None):
             b['id'] = _id()
             bloques.append(b)
         return {'bloques': bloques, 'opciones': dict(base.contenido.get('opciones') or {})}
+    if tipo in FORMATOS:
+        return {'bloques': FORMATOS[tipo](), 'opciones': {'columnas': 1, 'letra': 10, 'modo': 'normal',
+                                                          'nombre_estudiante': False, 'datos': False}}
     fabrica = PLANTILLAS.get(tipo) or PLANTILLAS['libre']
     if tipo == 'cuadernillo':
         return {'bloques': fabrica(), 'opciones': dict(OPCIONES_CUADERNILLO)}

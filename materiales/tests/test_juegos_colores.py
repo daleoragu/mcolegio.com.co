@@ -175,3 +175,51 @@ class ColorPorArea(ColorDocumentos):
         doc = Documento.objects.get(propietario=self.u)
         self.assertEqual(doc.contenido['opciones']['color'], '#2563eb')
         self.assertContains(self.c.get(f'/materiales/{doc.pk}/'), 'mm-colores-area')
+
+
+class FormatosGenericos(ColorDocumentos):
+    def test_crear_cada_formato_y_exportar(self):
+        from materiales import exportar, plantillas
+        for tipo in plantillas.FORMATOS:
+            self.c.post('/materiales/nuevo/', {'tipo': tipo})
+            doc = Documento.objects.filter(propietario=self.u, tipo=tipo).get()
+            r = self.c.get(f'/materiales/{doc.pk}/')
+            self.assertContains(r, 'Llenar el formato')
+            self.assertTrue(any(b['tipo'] == 'tabla' for b in doc.contenido['bloques']), tipo)
+            self.assertTrue(exportar.docx(doc).startswith(b'PK'), tipo)
+        piar = Documento.objects.get(propietario=self.u, tipo='piar')
+        self.assertTrue(any(b.get('privada') for b in piar.contenido['bloques']))
+        self.assertContains(self.c.get('/materiales/'), 'Formatos para llenar')
+
+    def test_llenar_solo_celdas_vacias_y_nunca_las_privadas(self):
+        import json
+        from unittest import mock
+        from materiales import ia
+        self.c.post('/materiales/nuevo/', {'tipo': 'piar'})
+        doc = Documento.objects.get(propietario=self.u, tipo='piar')
+        contenido = B.limpiar(doc.contenido, set())
+        privada = next(b for b in contenido['bloques'] if b.get('privada'))
+        ajustes = next(b for b in contenido['bloques'] if b['tipo'] == 'tabla' and b['filas'][0][0] == 'Área')
+        ajustes['filas'][1][1] = 'Lo escribió el docente'
+        doc.contenido = contenido
+        doc.save()
+        enviados = []
+
+        def falsa_api(sistema, mensaje, tokens):
+            enviados.append(mensaje)
+            respuesta = {'tablas': {
+                ajustes['id']: [[c or 'IA' for c in f] for f in ajustes['filas']],
+                privada['id']: [['Nombre del estudiante', 'Juanito Pérez']],      # intento de llenar la privada: no entra
+            }}
+            return json.dumps(respuesta), 100, 100
+        with mock.patch.object(ia, 'disponible', return_value=True), mock.patch.object(ia, '_llamar_api', side_effect=falsa_api), \
+                mock.patch('materiales.creditos.cobrar') as cobrar, mock.patch('materiales.creditos.anotar_consumo'):
+            cobrar.return_value = None
+            r = self.c.post('/materiales/ia/llenar/', json.dumps({'documento': doc.pk, 'tema': 'fracciones'}), content_type='application/json')
+        j = r.json()
+        self.assertTrue(j['ok'], j)
+        self.assertNotIn('Nombre del estudiante', enviados[0])           # la tabla privada no se envió
+        nuevos = {b['id']: b for b in j['reemplazar']}
+        self.assertEqual(nuevos[ajustes['id']]['filas'][1][1], 'Lo escribió el docente')
+        self.assertEqual(nuevos[ajustes['id']]['filas'][1][2], 'IA')
+        self.assertEqual(nuevos[privada['id']]['filas'][0][1], '')

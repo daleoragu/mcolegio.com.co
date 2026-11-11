@@ -38,6 +38,11 @@ class Documento(models.Model):
         ('caso', 'Estudio de caso'),
         ('invertida', 'Guía de aula invertida'),
         ('cooperativo', 'Aprendizaje cooperativo'),
+        # Formatos (tablas que el colegio o el docente adapta a su forma y llena a mano o con IA)
+        ('planeacion', 'Planeación de clase'),
+        ('plan_aula', 'Plan de aula del periodo'),
+        ('piar', 'PIAR · ajustes razonables'),
+        ('dua', 'Matriz DUA'),
         ('libre', 'Documento en blanco'),
     ]
     propietario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='materiales')

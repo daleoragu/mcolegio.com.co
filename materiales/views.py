@@ -141,7 +141,9 @@ def lista(request, a):
     return render(request, 'materiales/lista.html', {
         'base': a.base, 'acceso': a, 'documentos': a.documentos().prefetch_related('colaboradores'), 'nube': _nube(a),
         'formatos': a.plantillas_formato().select_related('propietario'),
-        'tipos': [t for t in Documento.TIPOS if t[0] not in MODELOS], 'modelos': [t for t in Documento.TIPOS if t[0] in MODELOS],
+        'tipos': [t for t in Documento.TIPOS if t[0] not in MODELOS and t[0] not in plantillas.FORMATOS],
+        'modelos': [t for t in Documento.TIPOS if t[0] in MODELOS],
+        'formatos_tipos': [t for t in Documento.TIPOS if t[0] in plantillas.FORMATOS],
         'invitaciones': invitaciones, 'conmigo': conmigo, 'aulas': a.aulas(), **_contexto_ia(request, a)})
 
 
@@ -406,6 +408,7 @@ def editor(request, a, pk):
         'base': a.base, 'acceso': a, 'doc': doc, 'contenido': doc.contenido, 'imagenes': imagenes,
         'aulas': a.aulas(), 'nube': _nube(a), 'tipos': Documento.TIPOS, 'nube_docente': _nube_docente(request),
         'destinos': _destinos_examen(a), 'modos_pregunta': B.MODOS_PREGUNTA, 'colores': B.COLORES,
+        'es_formato': doc.tipo in plantillas.FORMATOS,
         'colores_area': _reglas_color(request.user),
         'examen': doc.examen if doc.examen_id else None, **_contexto_ia(request, a, doc)})
 
