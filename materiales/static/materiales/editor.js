@@ -465,6 +465,10 @@
                 fila.forEach(function (valor, j) {
                     var td = el('td', { contenteditable: 'true', style: i === 0 && b.encabezado ? 'font-weight:700;background:#e8eef9' : '' });
                     td.textContent = valor;
+                    td._celda = { b: b, i: i, j: j, td: td };
+                    var est = (b.estilos || {})[i + '-' + j];
+                    if (est && est.f) td.style.background = est.f;
+                    if (est && est.c) td.style.color = est.c;
                     td.addEventListener('input', function () { b.filas[i][j] = td.textContent; cambio(); });
                     tr.appendChild(td);
                 });
@@ -618,6 +622,60 @@
     $$('[data-cmd]').forEach(function (b) {
         b.addEventListener('mousedown', function (e) { e.preventDefault(); });
         b.addEventListener('click', function () { document.execCommand(b.getAttribute('data-cmd'), false, null); });
+    });
+
+    // Color de letra y relleno (como en Word): sobre el texto seleccionado o sobre la celda de la tabla donde está el cursor
+    var ultimaCelda = null, ultimoRango = null;
+    document.addEventListener('focusin', function (ev) {
+        if (!ev.target.closest) return;
+        if (ev.target.closest('.mm-colorbtn')) return;
+        var td = ev.target.closest('.mm-tabla td');
+        ultimaCelda = td && td._celda ? td._celda : null;
+    });
+    document.addEventListener('selectionchange', function () {
+        var s = window.getSelection();
+        if (s && s.rangeCount && !s.isCollapsed) {
+            var nodo = s.anchorNode && (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement);
+            if (nodo && nodo.closest('.mm-edit')) { ultimoRango = s.getRangeAt(0).cloneRange(); ultimaCelda = null; }
+        }
+    });
+    function aplicarColor(tipo, color) {
+        if (ultimaCelda) {
+            var c = ultimaCelda, b = c.b, k = c.i + '-' + c.j;
+            b.estilos = b.estilos || {};
+            var e = b.estilos[k] || {};
+            if (color) e[tipo] = color; else delete e[tipo];
+            if (Object.keys(e).length) b.estilos[k] = e; else delete b.estilos[k];
+            if (tipo === 'f') c.td.style.background = color || ''; else c.td.style.color = color || '';
+            cambio();
+            return;
+        }
+        if (!ultimoRango) { estado('Seleccione un texto o haga clic en una celda'); return; }
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(ultimoRango);
+        document.execCommand('styleWithCSS', false, true);
+        document.execCommand(tipo === 'c' ? 'foreColor' : 'hiliteColor', false, color || (tipo === 'c' ? '#000000' : 'transparent'));
+        var ed = ultimoRango.commonAncestorContainer;
+        ed = ed && (ed.nodeType === 1 ? ed : ed.parentElement);
+        ed = ed && ed.closest('.mm-edit');
+        if (ed) ed.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    $$('.mm-colorbtn').forEach(function (g) {
+        var tipo = g.getAttribute('data-tipo'), barra = g.querySelector('.mm-barrita');
+        var actual = tipo === 'c' ? '#dc2626' : '#fef08a';
+        g.addEventListener('mousedown', function (e) { if (!e.target.matches('input')) e.preventDefault(); });
+        g.querySelector('.mm-color-aplicar').addEventListener('click', function () { aplicarColor(tipo, actual); });
+        g.querySelectorAll('[data-color]').forEach(function (m) {
+            m.addEventListener('click', function () {
+                var c = m.getAttribute('data-color');
+                if (c) { actual = c; barra.style.background = c; }
+                aplicarColor(tipo, c);
+                var dd = window.bootstrap && bootstrap.Dropdown.getInstance(g.querySelector('.dropdown-toggle'));
+                if (dd) dd.hide();
+            });
+        });
+        g.querySelector('.mm-color-libre').addEventListener('change', function () {
+            actual = this.value; barra.style.background = actual; aplicarColor(tipo, actual);
+        });
     });
 
     // -------------------------------------------------------------------

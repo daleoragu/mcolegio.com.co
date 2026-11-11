@@ -409,6 +409,11 @@ def editor(request, a, pk):
         'aulas': a.aulas(), 'nube': _nube(a), 'tipos': Documento.TIPOS, 'nube_docente': _nube_docente(request),
         'destinos': _destinos_examen(a), 'modos_pregunta': B.MODOS_PREGUNTA, 'colores': B.COLORES,
         'es_formato': doc.tipo in plantillas.FORMATOS,
+        'colores_texto': [('c', 'Color de letra'), ('f', 'Relleno')],
+        # (color de letra, color de relleno suave) para las paletas
+        'paleta': [('#000000', '#fef08a'), ('#1f3a68', '#bbf7d0'), ('#2563eb', '#bfdbfe'), ('#0f766e', '#99f6e4'),
+                   ('#15803d', '#d9f99d'), ('#7c3aed', '#ddd6fe'), ('#be185d', '#fbcfe8'), ('#dc2626', '#fecaca'),
+                   ('#ea580c', '#fed7aa'), ('#ca8a04', '#fde68a'), ('#6b7280', '#e5e7eb'), ('#ffffff', '#f1f5f9')],
         'colores_area': _reglas_color(request.user),
         'examen': doc.examen if doc.examen_id else None, **_contexto_ia(request, a, doc)})
 

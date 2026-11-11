@@ -223,3 +223,33 @@ class FormatosGenericos(ColorDocumentos):
         self.assertEqual(nuevos[ajustes['id']]['filas'][1][1], 'Lo escribió el docente')
         self.assertEqual(nuevos[ajustes['id']]['filas'][1][2], 'IA')
         self.assertEqual(nuevos[privada['id']]['filas'][0][1], '')
+
+
+class ColorDeLetraYRelleno(ColorDocumentos):
+    def test_texto_con_color_y_relleno(self):
+        L = B.limpiar_html
+        self.assertEqual(L('<p>Hola <span style="color: rgb(220, 38, 38); background-color: rgb(254, 240, 138);">x</span></p>'),
+                         '<p>Hola <span style="color:#dc2626;background-color:#fef08a">x</span></p>')
+        self.assertEqual(L('<font color="#2563EB">azul</font>'), '<span style="color:#2563eb">azul</span>')
+        # Nada fuera de los dos colores: sin posiciones, sin url(), sin eventos
+        self.assertEqual(L('<span style="position:fixed;background:url(javascript:x)" onclick="y()">z</span>'), 'z')
+        self.assertEqual(L('<span style="background-color:transparent">t</span>'), 't')
+        self.assertEqual(L('<span><b>a</b></span>c'), '<b>a</b>c')
+
+    def test_celdas_con_relleno_en_pdf_y_word(self):
+        import io
+        import zipfile
+        from materiales import exportar
+        contenido = {'bloques': [{'id': 't1', 'tipo': 'tabla', 'encabezado': True, 'filas': [['Momento', 'Actividad'], ['Inicio', 'Lectura']],
+                                  'estilos': {'1-0': {'f': '#BFDBFE', 'c': 'rgb(31,58,104)'}, '9-9': {'f': '#000000'}, '0-0': {'f': 'red'}}},
+                                 {'id': 'x', 'tipo': 'texto', 'html': '<p><span style="color:#dc2626">Rojo</span></p>'}]}
+        limpio = B.limpiar(contenido, set())
+        self.assertEqual(limpio['bloques'][0]['estilos'], {'1-0': {'f': '#bfdbfe', 'c': '#1f3a68'}})   # fuera la celda que no existe y el color inválido
+        doc = Documento(propietario=self.u, titulo='Prueba', tipo='planeacion', contenido=limpio)
+        ctx = exportar.contexto(doc)
+        self.assertEqual(ctx['bloques'][0]['filas_estilo'][1][0], ('Inicio', 'background:#bfdbfe;color:#1f3a68'))
+        x = zipfile.ZipFile(io.BytesIO(exportar.docx(doc))).read('word/document.xml').decode().upper()
+        self.assertIn('BFDBFE', x)
+        self.assertIn('DC2626', x)
+        doc.save()
+        self.assertContains(self.c.get(f'/materiales/{doc.pk}/'), 'mm-colorbtn')
