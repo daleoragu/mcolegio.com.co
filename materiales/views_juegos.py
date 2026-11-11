@@ -250,6 +250,71 @@ def juego_enviar(request, a, pk):
 
 @require_POST
 @vista
+def juego_vivo(request, a, pk):
+    """Jugarlo en vivo con una clase: se vuelve un cuestionario en vivo (el docente proyecta, los estudiantes responden
+    desde el celular) y se abre de una vez la partida."""
+    from aula import juegos as JQ, logica
+    from aula.models import Cuestionario
+    j = _mio(request, pk)
+    mias = {x.pk: x for x in a.aulas()}
+    aula = mias.get(int(request.POST.get('aula') or 0)) if (request.POST.get('aula') or '').isdigit() else None
+    if aula is None:
+        messages.warning(request, 'Escoja la clase con la que lo va a jugar en vivo.')
+        return redirect(reverse('materiales:juegos') + f'#j{j.pk}')
+    preguntas = [(p.get('texto', ''), [(o.get('texto', ''), bool(o.get('correcta'))) for o in p.get('opciones', [])][:6])
+                 for p in j.preguntas if p.get('opciones')]
+    if not preguntas:
+        messages.warning(request, 'El juego no tiene preguntas con opciones.')
+        return redirect(reverse('materiales:juegos') + f'#j{j.pk}')
+    q = Cuestionario.objects.create(aula=aula, titulo=j.titulo[:60], segundos=j.segundos, a_su_ritmo=False,
+                                    descripcion='En vivo desde Mis juegos')
+    JQ.guardar_preguntas(q, preguntas)
+    s = JQ.nueva_sesion(q)
+    logica.avisar_estudiantes(aula, f'{aula.titulo}: ¡juego en vivo «{q.titulo}»! Entre ya',
+                              request.build_absolute_uri(reverse('aula:vivo', args=[aula.pk, s.pk])))
+    return redirect('aula:vivo', pk=aula.pk, sid=s.pk)
+
+
+def _pub_con_juego(request, pk):
+    """La publicación de la Sala de Profesores con un juego que este docente puede ver."""
+    from chat.views_muro import visibles
+    p = visibles(request.user).filter(pk=pk, juego__isnull=False).select_related('juego', 'autor').first()
+    if p is None:
+        raise Http404
+    return p
+
+
+@vista
+def juego_muro(request, a, pk):
+    """Probar el juego que un colega compartió en la Sala de Profesores."""
+    animaplano, bancos_juegos, instrucciones, JuegoAula, vg = _aula()
+    p = _pub_con_juego(request, pk)
+    j = p.juego
+    return _jugar(request, a, j.tipo, j.titulo, vg._para_jugar(j.preguntas, j.tipo), j.segundos, j.minutos, j.velocidad)
+
+
+@require_POST
+@vista
+def juego_importar(request, a, pk):
+    """Copia el juego del colega a «Mis juegos»: queda mío para editarlo, probarlo y enviarlo a mis clases."""
+    from chat.models import Publicacion
+    from chat.views_colegas import avisar, nombre_de
+    p = _pub_con_juego(request, pk)
+    j = p.juego
+    if j.propietario_id == request.user.pk:
+        messages.info(request, 'Ese juego ya es suyo.')
+        return redirect('materiales:juegos')
+    copia = JuegoMaterial.objects.create(propietario=request.user, tipo=j.tipo, titulo=j.titulo, texto_preguntas=j.texto_preguntas,
+                                         preguntas=j.preguntas, segundos=j.segundos, minutos=j.minutos, velocidad=j.velocidad)
+    Publicacion.objects.filter(pk=p.pk).update(copias=p.copias + 1)
+    avisar(p.autor, f'{nombre_de(request.user)} importó su juego «{j.titulo[:60]}» para usarlo con sus estudiantes. ¡Gracias por compartir!',
+           f'/chat/colegas/muro/{p.pk}/')
+    messages.success(request, f'«{copia.titulo}» quedó en Mis juegos: pruébelo, ajústelo y envíelo a sus clases.')
+    return redirect(reverse('materiales:juegos') + f'#j{copia.pk}')
+
+
+@require_POST
+@vista
 def juego_eliminar(request, a, pk):
     j = _mio(request, pk)
     titulo = j.titulo

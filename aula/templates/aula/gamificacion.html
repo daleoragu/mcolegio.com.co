@@ -131,7 +131,8 @@
 <script src="{% static 'aula/juegos/editor.js' %}"></script>
 {{ max_opciones|json_script:"gm-max-opciones" }}
 <script>EditorPreguntas.montar({form: document.getElementById('gm-form'), texto: document.getElementById('gm-preguntas'), tipos: JSON.parse(document.getElementById('gm-max-opciones').textContent),
-                          banco: '{% url 'aula:banco_json' %}', planilla: '{% url 'aula:banco_planilla' %}', csrf: '{{ csrf_token }}'});</script>
+                          banco: '{% url 'aula:banco_json' %}', planilla: '{% url 'aula:banco_planilla' %}', csrf: '{{ csrf_token }}',
+                          ia: '{% url 'materiales:ia' 'actividad' %}'});</script>
 {% endif %}
 <script>
 (function () {

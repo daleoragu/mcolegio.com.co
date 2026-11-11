@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import PaginaPublicada
+from .models import NotaPizarra, PaginaPublicada
 from .decoradores import cuenta_requerida
 
 COLORES = ['#4f46e5', '#f59e0b', '#10b981', '#ec4899', '#0ea5e9', '#8b5cf6']
@@ -86,6 +86,7 @@ def inicio(request):
         'cuenta': cuenta, 'nombre': _primer_nombre(user, cuenta),
         'fecha': f'{DIAS[hoy.weekday()].capitalize()}, {hoy.day} de {MESES[hoy.month - 1]}',
         'grupos': grupos, 'comunidad': _comunidad(user, 5), 'pendientes': pendientes(cuenta, user, grupos),
+        'notas': [_nota_json(n) for n in NotaPizarra.objects.filter(usuario=user)], 'colores_nota': dict(NotaPizarra.COLORES),
         'n_materiales': Documento.objects.filter(propietario=user).count(),
         'n_paginas': cuenta.paginas.count(),
         'n_solicitudes': Colega.objects.filter(para=user, estado='pendiente').count(),
@@ -139,3 +140,57 @@ def visibilidad_pagina(request, slug):
         return HttpResponse('ok')
     messages.success(request, f'«{pagina.titulo}»: {"pública en su perfil" if pagina.listar_en_perfil else "solo con el enlace"}.')
     return redirect('/salon_digital/mi-espacio/?tab=paginas')
+
+
+# ---------------------------------------------------------------------------
+# La Pizarra: notas adhesivas del docente y el tablero para la clase
+# ---------------------------------------------------------------------------
+def _nota_json(n):
+    return {'id': n.pk, 'texto': n.texto, 'color': n.color, 'hecha': n.hecha}
+
+
+@require_POST
+@cuenta_requerida
+def nota(request):
+    """Crear, editar, tachar, borrar u ordenar las notas de la Pizarra (responde JSON)."""
+    from django.http import JsonResponse
+    accion = request.POST.get('accion')
+    mias = NotaPizarra.objects.filter(usuario=request.user)
+    if accion == 'crear':
+        if mias.count() >= 60:
+            return JsonResponse({'ok': False, 'error': 'Tiene 60 notas: borre algunas antes de crear más.'}, status=400)
+        n = NotaPizarra.objects.create(usuario=request.user, texto=(request.POST.get('texto') or '')[:400],
+                                       color=request.POST.get('color') if request.POST.get('color') in dict(NotaPizarra.COLORES) else 'amarillo',
+                                       orden=0)
+        mias.exclude(pk=n.pk).update(orden=models_F('orden') + 1)
+        return JsonResponse({'ok': True, 'nota': _nota_json(n)})
+    if accion == 'ordenar':
+        ids = [int(x) for x in request.POST.getlist('ids') if x.isdigit()]
+        for i, pk in enumerate(ids):
+            mias.filter(pk=pk).update(orden=i)
+        return JsonResponse({'ok': True})
+    n = mias.filter(pk=request.POST.get('id') or 0).first()
+    if n is None:
+        return JsonResponse({'ok': False}, status=404)
+    if accion == 'borrar':
+        n.delete()
+        return JsonResponse({'ok': True})
+    if 'texto' in request.POST:
+        n.texto = request.POST['texto'][:400]
+    if request.POST.get('color') in dict(NotaPizarra.COLORES):
+        n.color = request.POST['color']
+    if 'hecha' in request.POST:
+        n.hecha = request.POST['hecha'] == '1'
+    n.save()
+    return JsonResponse({'ok': True, 'nota': _nota_json(n)})
+
+
+def models_F(campo):
+    from django.db.models import F
+    return F(campo)
+
+
+@cuenta_requerida
+def tablero(request):
+    """Tablero para la clase: escribir y dibujar a pantalla completa (para proyectar), con fondo liso, cuadriculado o rayado."""
+    return render(request, 'salon_digital/tablero.html', {'cuenta': request.cuenta})

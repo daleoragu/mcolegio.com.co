@@ -34,6 +34,8 @@
         <a class="btn btn-sm btn-success" href="{% url 'materiales:juego_probar' j.pk %}"><i class="fas fa-play me-1"></i>Probar</a>
         <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:juego_editar' j.pk %}"><i class="fas fa-pen me-1"></i>Editar</a>
         <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#env{{ j.pk }}"><i class="fas fa-paper-plane me-1"></i>Enviar a mis clases</button>
+        <a class="btn btn-sm btn-outline-secondary" href="/chat/colegas/muro/?escribir=1&compartir=j{{ j.pk }}" title="Publicarlo en la Sala de Profesores"><i class="fas fa-share-nodes me-1"></i>Compartir en la Sala</a>
+        {% if aulas %}<button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#viv{{ j.pk }}"><i class="fas fa-tower-broadcast me-1"></i>En vivo</button>{% endif %}
         <form method="post" action="{% url 'materiales:juego_eliminar' j.pk %}" class="m-0 ms-auto" onsubmit="return confirm('¿Quitar «{{ j.titulo|escapejs }}» de Mis juegos? Los juegos que ya están en sus clases siguen allá.')">{% csrf_token %}<button class="btn btn-sm btn-link text-danger">Eliminar</button></form>
       </div>
       <form method="post" action="{% url 'materiales:juego_enviar' j.pk %}" class="collapse border-top mt-2 pt-2" id="env{{ j.pk }}">{% csrf_token %}
@@ -41,6 +43,11 @@
         {% empty %}<div class="small text-muted">Todavía no tiene clases. {% if acceso.es_individual %}<a href="{% url 'salon_digital:nuevo_grupo' %}">Cree un grupo</a> cuando quiera usarlo con estudiantes.{% endif %}</div>{% endfor %}
         {% if aulas %}<button class="btn btn-sm btn-primary mt-1">Enviar</button><span class="small text-muted ms-2">Si ya estaba en esa clase y nadie lo ha jugado, se actualiza.</span>{% endif %}
       </form>
+      {% if aulas %}<form method="post" action="{% url 'materiales:juego_vivo' j.pk %}" class="collapse border-top mt-2 pt-2" id="viv{{ j.pk }}">{% csrf_token %}
+        <div class="small text-muted mb-1">Usted proyecta la pregunta y sus estudiantes responden desde el celular, todos al mismo tiempo, con ranking.</div>
+        <div class="d-flex gap-2"><select name="aula" class="form-select form-select-sm">{% for a in aulas %}<option value="{{ a.pk }}">{{ a.titulo }}{% if a.subtitulo %} · {{ a.subtitulo }}{% endif %}</option>{% endfor %}</select>
+          <button class="btn btn-sm btn-danger text-nowrap"><i class="fas fa-play me-1"></i>Abrir partida</button></div>
+      </form>{% endif %}
     </div>
     {% empty %}
     <div class="mj-juego text-center text-muted py-4"><i class="fas fa-gamepad fa-2x d-block mb-2" style="color:#10b981"></i>Todavía no tiene juegos. Cree el primero con el formulario y pruébelo de una vez.</div>

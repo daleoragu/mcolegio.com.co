@@ -135,6 +135,13 @@ def color_valido(valor, defecto=COLOR_DEFECTO):
     return v if re.fullmatch(r'#[0-9a-f]{6}', v) else defecto
 
 
+def comparable(texto):
+    """Minúsculas, sin tildes ni espacios de más: para comparar áreas («Matemáticas» = «matematicas»)."""
+    import unicodedata
+    t = unicodedata.normalize('NFD', str(texto or '').lower())
+    return ' '.join(''.join(c for c in t if unicodedata.category(c) != 'Mn').split())
+
+
 def mezclar(color, blanco):
     """El color aclarado con blanco (blanco = 0..1): para los fondos suaves de los recuadros."""
     c = color_valido(color)

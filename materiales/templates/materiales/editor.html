@@ -69,6 +69,7 @@
         <input type="range" class="form-range" min="9" max="14" step="1" id="mm-letra">
         <div class="small fw-bold mb-1">Color del documento</div>
         {% include 'materiales/_colores.html' with id='mm-colores' %}
+        {{ colores_area|json_script:"mm-colores-area" }}
         <div class="form-check small"><input class="form-check-input" type="checkbox" id="mm-datos"><label class="form-check-label" for="mm-datos">Área, grado, periodo y docente</label></div>
         <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" id="mm-nombre"><label class="form-check-label" for="mm-nombre">Renglón para el nombre del estudiante</label></div>
         {% if doc.tipo == 'cuadernillo' %}

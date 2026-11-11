@@ -55,9 +55,11 @@
     <form method="post" class="au-tarjeta">{% csrf_token %}
       <h6><i class="fas fa-question me-1"></i>Preguntas para las mascotas</h6>
       <p class="small text-muted">Opcional. Si las deja vacías, las mascotas usan las preguntas de los juegos de la clase (o las de prueba). Ahora hay <b>{{ n_banco }}</b> pregunta(s) disponibles{% if propias %}, {{ propias }} suyas{% endif %}. Se pueden repetir y mezclar temas.</p>
+      {% if colegio_unica %}<div class="alert alert-info small py-2"><i class="fas fa-paw me-1"></i>Cada estudiante tiene <b>una sola mascota</b> en el colegio: come las preguntas de <b>todos los docentes de su curso</b> (las de mascota y las de los juegos de cada clase).</div>{% endif %}
       <textarea name="preguntas" class="form-control mb-1 inv-preguntas" rows="10" style="font-family:ui-monospace,Consolas,monospace;font-size:.85rem"
                 placeholder="1. ¿Cuánto es 12 ÷ 4?&#10;A) 2&#10;*B) 3&#10;C) 4">{{ aula.texto_preguntas_mascota }}</textarea>
       <div class="small mb-2 inv-cuenta text-primary fw-semibold" aria-live="polite"></div>
+      {% if aula.es_salon %}<div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="todos" id="ms-todos"><label class="form-check-label" for="ms-todos">Usar estas preguntas en las mascotas de <b>todos mis grupos</b></label></div>{% endif %}
       <button class="btn au-oro w-100">Guardar</button>
     </form>
   </div>

@@ -117,3 +117,61 @@ class ColorDocumentos(TestCase):
         doc = Documento.objects.get(propietario=self.u)
         self.assertEqual(doc.contenido['opciones']['color'], '#7c3aed')
         self.assertContains(self.c.get(f'/materiales/{doc.pk}/'), 'id="mm-colores"')
+
+
+class JuegosEnLaSalaYEnVivo(MisJuegos):
+    def test_compartir_en_la_sala_probar_e_importar(self):
+        from chat.models import Publicacion
+        from chat.views_colegas import perfil_de
+        from django.utils import timezone
+        self.crear()
+        j = JuegoMaterial.objects.get()
+        p = perfil_de(self.u); p.normas_aceptadas = timezone.now(); p.save()
+        r = self.c.get(f'/chat/colegas/muro/?escribir=1&compartir=j{j.pk}')
+        self.assertContains(r, f'value="j{j.pk}" selected')
+        self.c.post('/chat/colegas/muro/', {'tipo': 'actividad', 'pagina': f'j{j.pk}', 'titulo': '', 'texto': '', 'visibilidad': 'todos'})
+        pub = Publicacion.objects.get()
+        self.assertEqual(pub.juego, j)
+        # Otro docente lo prueba e importa
+        otro = User.objects.create_user('beto')
+        Cuenta.objects.create(usuario=otro, slug='beto', nombre_publico='Beto', estado='verificada', plan='ilimitado')
+        c2 = Client(HTTP_HOST='localhost'); c2.force_login(otro)
+        r = c2.get('/chat/colegas/muro/')
+        self.assertContains(r, 'Importar a Mis juegos')
+        self.assertContains(c2.get(f'/materiales/juegos/sala/{pub.pk}/'), 'aula/juegos/laberinto.js')
+        c2.post(f'/materiales/juegos/sala/{pub.pk}/importar/')
+        copia = JuegoMaterial.objects.get(propietario=otro)
+        self.assertEqual(copia.preguntas, j.preguntas)
+        pub.refresh_from_db()
+        self.assertEqual(pub.copias, 1)
+
+    def test_jugarlo_en_vivo(self):
+        from aula.models import Cuestionario, SesionVivo
+        g = Grupo.objects.create(propietario=self.cuenta, nombre='7-01')
+        aula = Aula.objects.create(grupo=g)
+        self.crear()
+        j = JuegoMaterial.objects.get()
+        r = self.c.post(f'/materiales/juegos/{j.pk}/vivo/', {'aula': aula.pk})
+        q = Cuestionario.objects.get(aula=aula)
+        s = SesionVivo.objects.get(cuestionario=q)
+        self.assertRedirects(r, f'/aula/{aula.pk}/vivo/{s.pk}/', fetch_redirect_response=False)
+        self.assertEqual(q.preguntas.count(), 2)
+        self.assertTrue(q.preguntas.first().opciones.filter(correcta=True).exists())
+
+    def test_boton_de_ia_en_el_editor(self):
+        self.assertContains(self.c.get('/materiales/juegos/'), "ia: '/materiales/ia/actividad/'")
+
+
+class ColorPorArea(ColorDocumentos):
+    def test_color_por_area(self):
+        import json
+        self.c.post('/materiales/encabezado/', {'config': json.dumps({'color': '#7c3aed', 'por_area': [
+            {'area': 'Matemáticas', 'color': '#2563eb'}, {'area': 'Ciencias naturales', 'color': '#15803d'}]})})
+        enc = EncabezadoDocente.objects.get(usuario=self.u)
+        self.assertEqual(enc.color_para('matematicas'), '#2563eb')
+        self.assertEqual(enc.color_para('Ciencias Naturales y Ed. Ambiental'), '#15803d')
+        self.assertEqual(enc.color_para('Inglés'), '#7c3aed')            # sin regla: el color general
+        self.c.post('/materiales/nuevo/', {'tipo': 'taller', 'area': 'Matemáticas'})
+        doc = Documento.objects.get(propietario=self.u)
+        self.assertEqual(doc.contenido['opciones']['color'], '#2563eb')
+        self.assertContains(self.c.get(f'/materiales/{doc.pk}/'), 'mm-colores-area')

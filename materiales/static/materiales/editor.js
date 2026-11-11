@@ -688,8 +688,15 @@
     $$('#mm-columnas [data-col]').forEach(function (b) { b.addEventListener('click', function () { datos.opciones.columnas = +b.getAttribute('data-col'); pintarOpciones(); cambio(); }); });
     $('#mm-letra').addEventListener('input', function () { datos.opciones.letra = +this.value; pintarOpciones(); cambio(); });
     // Color de los títulos, franjas y recuadros del documento
-    if (window.MMColores) MMColores.iniciar('mm-colores', datos.opciones.color || '#1f3a68', function (c) {
+    var selColor = window.MMColores && MMColores.iniciar('mm-colores', datos.opciones.color || '#1f3a68', function (c) {
         datos.opciones.color = c; document.documentElement.style.setProperty('--mm-doc', c); cambio();
+    });
+    // Color por área: al escribir el área, el documento toma el color que el docente le asignó en «Mi encabezado»
+    var reglasColor = [];
+    try { reglasColor = JSON.parse(document.getElementById('mm-colores-area').textContent) || []; } catch (e) { /* sin reglas */ }
+    if (selColor && reglasColor.length) $('#mm-area').addEventListener('change', function () {
+        var c = MMColores.regla(reglasColor, this.value);
+        if (c && c !== datos.opciones.color) { datos.opciones.color = c; selColor.poner(c); document.documentElement.style.setProperty('--mm-doc', c); cambio(); }
     });
     document.documentElement.style.setProperty('--mm-doc', datos.opciones.color || '#1f3a68');
     $('#mm-datos').addEventListener('change', function () { datos.opciones.datos = this.checked; cambio(); });

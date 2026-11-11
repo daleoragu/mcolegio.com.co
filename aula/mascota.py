@@ -66,14 +66,38 @@ def estado(mascota):
 # ---------------------------------------------------------------------------
 # Preguntas
 # ---------------------------------------------------------------------------
-def banco(aula, persona_clave=None):
+def aulas_de(aula, persona):
+    """Las clases que alimentan la mascota. En el colegio cada estudiante tiene UNA mascota y come preguntas de
+    todas las clases de su curso (de cualquier docente); en el plan individual, las de la clase de su profe."""
+    from .models import Aula
+    curso_id = getattr(persona, 'curso_id', None)
+    if aula.colegio_id and aula.asignacion_id and curso_id:
+        return list(Aula.objects.filter(colegio_id=aula.colegio_id, asignacion__curso_id=curso_id))
+    return [aula]
+
+
+def de_persona(aula, persona):
+    """La mascota del estudiante: en el colegio es una sola aunque la haya adoptado en otra clase."""
+    from .models import MascotaAula
+    if persona is None:
+        return None
+    if aula.colegio_id and not hasattr(persona, 'completo'):
+        return (MascotaAula.objects.filter(estudiante=persona, aula__colegio_id=aula.colegio_id)
+                .order_by('-respondidas', 'creada').first())
+    from .logica import filtro_persona
+    return MascotaAula.objects.filter(aula=aula, **filtro_persona(persona)).first()
+
+
+def banco(aula, persona_clave=None, aulas=None):
     """Las preguntas de selección que sirven: las del docente para las mascotas, las de los juegos
-    de la clase y, si no hay ninguna, los bancos de prueba."""
-    preguntas = [p for p in (aula.preguntas_mascota or [])]
+    de la clase (o de todas las clases del curso) y, si no hay ninguna, los bancos de prueba."""
     from .logica import es_para
-    for j in aula.juegos.filter(publicado=True):
-        if persona_clave is None or es_para(j, persona_clave):
-            preguntas.extend(j.preguntas)
+    preguntas = []
+    for a in (aulas or [aula]):
+        preguntas.extend(a.preguntas_mascota or [])
+        for j in a.juegos.filter(publicado=True):
+            if persona_clave is None or es_para(j, persona_clave):
+                preguntas.extend(j.preguntas)
     buenas = [p for p in preguntas if 2 <= len(p.get('opciones', [])) <= 4
               and sum(1 for o in p['opciones'] if o.get('correcta')) == 1]
     if buenas:
@@ -96,7 +120,8 @@ def pedir(mascota, accion, persona_clave=None):
                           'banar': f'{mascota.nombre} ya está limpia.'}[accion]
     else:
         return None, 'Acción desconocida.'
-    lista = banco(mascota.aula, persona_clave)
+    persona = mascota.estudiante or mascota.integrante
+    lista = banco(mascota.aula, persona_clave, aulas_de(mascota.aula, persona))
     # Que no salga la misma pregunta dos veces seguidas
     anterior = (mascota.pendiente or {}).get('texto')
     opciones = [p for p in lista if p['texto'] != anterior] or lista
@@ -152,8 +177,19 @@ def nueva(aula, persona, especie, nombre):
 
 
 def ranking(aula, n=10):
+    """El tablero de la clase. En el colegio: la mascota única de cada estudiante del curso (la adoptara donde la adoptara)."""
+    from .models import MascotaAula
     lista = []
-    for m in aula.mascotas.select_related('estudiante__user', 'integrante'):
+    if aula.colegio_id and aula.asignacion_id:
+        vistas, mascotas = set(), []
+        for m in (MascotaAula.objects.filter(estudiante__curso_id=aula.asignacion.curso_id, aula__colegio_id=aula.colegio_id)
+                  .select_related('estudiante__user', 'integrante').order_by('-respondidas', 'creada')):
+            if m.estudiante_id not in vistas:
+                vistas.add(m.estudiante_id)
+                mascotas.append(m)
+    else:
+        mascotas = aula.mascotas.select_related('estudiante__user', 'integrante')
+    for m in mascotas:
         actualizar(m, guardar=False)
         persona = m.estudiante or m.integrante
         from .logica import nombre_de

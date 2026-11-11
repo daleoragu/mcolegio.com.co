@@ -1,5 +1,5 @@
 {% extends "salon_digital/base_salon.html" %}
-{% block titulo %}Inicio · Mi Salón Virtual{% endblock %}
+{% block titulo %}Pizarra · Mi Salón Virtual{% endblock %}
 {% block extra_css %}<style>
 .ini{max-width:1040px;margin:0 auto}
 .ini-hola h1{font-size:clamp(1.6rem,3vw,2.1rem);font-weight:800;margin:0}
@@ -29,6 +29,21 @@
 .ini-pend i{color:var(--c);font-size:1.1rem}
 .ini-pend b{display:block;font-size:.9rem;font-weight:600;line-height:1.25}
 .ini-pend small{color:#64748b}
+.pz{background:#24443a;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1px);background-size:14px 14px;border:10px solid #8b5e34;border-radius:1.25rem;padding:14px 16px;color:#fff;box-shadow:inset 0 2px 10px rgba(0,0,0,.35),0 2px 6px rgba(15,23,42,.12)}
+.pz .text-muted{color:#cbd5e1!important}
+.pz-tablero{background:#fff;color:#0f766e;font-weight:700;border-radius:10px}.pz-tablero:hover{background:#ecfdf5;color:#0f766e}
+.pz .btn-outline-secondary{color:#fff;border-color:rgba(255,255,255,.5)}.pz .btn-outline-secondary:hover{background:rgba(255,255,255,.15)}
+.pz-notas{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.pz-nota{position:relative;background:var(--c);color:#1f2937;border-radius:4px 4px 14px 4px;padding:22px 10px 10px;min-height:120px;box-shadow:2px 4px 8px rgba(0,0,0,.3);transform:rotate(var(--r,0deg));cursor:grab;display:flex;flex-direction:column}
+.pz-nota.arrastrando{opacity:.4}
+.pz-nota::before{content:"";position:absolute;top:6px;left:50%;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#dc2626;box-shadow:0 2px 2px rgba(0,0,0,.35)}
+.pz-nota .t{flex:1;outline:none;font-size:.92rem;line-height:1.35;white-space:pre-wrap;word-break:break-word;min-height:60px;cursor:text}
+.pz-nota .t:empty::before{content:"Escriba aquí…";color:#6b7280}
+.pz-nota.hecha .t{text-decoration:line-through;opacity:.55}
+.pz-nota .bar{display:flex;align-items:center;gap:4px;margin-top:6px;opacity:.75}
+.pz-nota:hover .bar{opacity:1}
+.pz-nota .bar button{border:0;background:transparent;padding:2px 4px;color:#374151;font-size:.85rem}
+.pz-nota .punto{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.25);padding:0!important}
 .ini-act img,.ini-act .av{width:42px;height:42px;border-radius:50%;object-fit:cover;flex:0 0 42px;background:#e0e7ff;color:#3730a3;display:grid;place-items:center;font-weight:700}
 </style>{% endblock %}
 {% block contenido %}
@@ -46,6 +61,16 @@
     {% if pendientes %}<div class="d-flex flex-wrap gap-2">
       {% for x in pendientes %}<a class="ini-pend" href="{{ x.url }}" style="--c:{{ x.color }}"><i class="fas {{ x.icono }}"></i><span><b>{{ x.texto }}</b>{% if x.grupo %}<small>{{ x.grupo }}</small>{% endif %}</span></a>{% endfor %}
     </div>{% else %}<div class="small text-muted"><i class="fas fa-circle-check me-1" style="color:#10b981"></i>¡Todo al día! No tiene entregas por calificar ni tareas que cierren hoy o mañana.</div>{% endif %}
+  </div>
+
+  <div class="pz mb-3">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+      <b class="flex-grow-1"><i class="fas fa-chalkboard me-2" style="color:#0f766e"></i>Mi pizarra <span class="small text-muted fw-normal">· notas, pendientes e ideas (arrástrelas para ordenarlas)</span></b>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="pz-nueva"><i class="fas fa-plus me-1"></i>Nota</button>
+      <a class="btn btn-sm pz-tablero" href="{% url 'salon_digital:tablero' %}"><i class="fas fa-pen-nib me-1"></i>Abrir tablero para la clase</a>
+    </div>
+    <div class="pz-notas" id="pz-notas"></div>
+    <div class="small text-muted pz-vacia" id="pz-vacia">Su pizarra está limpia. Toque <b>+ Nota</b> para anotar un pendiente, una idea para la clase o un recordatorio.</div>
   </div>
 
   <div class="row g-3 mb-3">
@@ -128,4 +153,50 @@
     </div>
   </div>
 </div>
+{{ notas|json_script:"pz-datos" }}{{ colores_nota|json_script:"pz-colores" }}
+<script>
+(function () {
+  var COL = JSON.parse(document.getElementById('pz-colores').textContent);
+  var URL = '{% url "salon_digital:nota_pizarra" %}', CSRF = '{{ csrf_token }}';
+  var caja = document.getElementById('pz-notas'), vacia = document.getElementById('pz-vacia');
+  function enviar(datos) {
+    var f = new FormData(); Object.keys(datos).forEach(function (k) { [].concat(datos[k]).forEach(function (v) { f.append(k, v); }); });
+    return fetch(URL, {method: 'POST', body: f, credentials: 'same-origin', headers: {'X-CSRFToken': CSRF}}).then(function (r) { return r.json(); });
+  }
+  function revisarVacia() { vacia.style.display = caja.children.length ? 'none' : ''; }
+  function tarjeta(n) {
+    var d = document.createElement('div'); d.className = 'pz-nota' + (n.hecha ? ' hecha' : ''); d.draggable = true; d.dataset.id = n.id;
+    d.style.setProperty('--c', COL[n.color] || COL.amarillo); d.style.setProperty('--r', ((n.id * 37 % 5) - 2) + 'deg');
+    d.innerHTML = '<div class="t" contenteditable="true" spellcheck="true"></div><div class="bar">' +
+      Object.keys(COL).map(function (k) { return '<button type="button" class="punto" data-color="' + k + '" title="Color" style="background:' + COL[k] + '"></button>'; }).join('') +
+      '<span class="ms-auto"></span><button type="button" class="hc" title="Hecha"><i class="fas fa-check"></i></button><button type="button" class="br" title="Borrar"><i class="far fa-trash-can"></i></button></div>';
+    var t = d.querySelector('.t'); t.textContent = n.texto;
+    var espera = null;
+    t.addEventListener('input', function () { clearTimeout(espera); espera = setTimeout(function () { enviar({accion: 'editar', id: n.id, texto: t.innerText.slice(0, 400)}); }, 600); });
+    t.addEventListener('mousedown', function () { d.draggable = false; }); t.addEventListener('blur', function () { d.draggable = true; });
+    d.querySelectorAll('.punto').forEach(function (b) { b.onclick = function () { d.style.setProperty('--c', COL[b.dataset.color]); enviar({accion: 'editar', id: n.id, color: b.dataset.color}); }; });
+    d.querySelector('.hc').onclick = function () { var h = !d.classList.contains('hecha'); d.classList.toggle('hecha', h); enviar({accion: 'editar', id: n.id, hecha: h ? '1' : '0'}); };
+    d.querySelector('.br').onclick = function () { if (!t.innerText.trim() || confirm('¿Borrar esta nota?')) { enviar({accion: 'borrar', id: n.id}); d.remove(); revisarVacia(); } };
+    d.addEventListener('dragstart', function () { d.classList.add('arrastrando'); });
+    d.addEventListener('dragend', function () { d.classList.remove('arrastrando'); enviar({accion: 'ordenar', ids: [].map.call(caja.children, function (x) { return x.dataset.id; })}); });
+    return d;
+  }
+  caja.addEventListener('dragover', function (ev) {
+    ev.preventDefault();
+    var mov = caja.querySelector('.arrastrando'); if (!mov) return;
+    var sobre = [].filter.call(caja.children, function (x) { return x !== mov; }).find(function (x) {
+      var r = x.getBoundingClientRect(); return ev.clientY < r.bottom && ev.clientX < r.right && ev.clientY > r.top - 10 && ev.clientX > r.left - 10;
+    });
+    caja.insertBefore(mov, sobre || null);
+  });
+  JSON.parse(document.getElementById('pz-datos').textContent).forEach(function (n) { caja.appendChild(tarjeta(n)); });
+  revisarVacia();
+  document.getElementById('pz-nueva').onclick = function () {
+    enviar({accion: 'crear', texto: '', color: Object.keys(COL)[caja.children.length % 6]}).then(function (j) {
+      if (!j.ok) { alert(j.error || 'No se pudo crear la nota.'); return; }
+      var d = tarjeta(j.nota); caja.insertBefore(d, caja.firstChild); revisarVacia(); d.querySelector('.t').focus();
+    });
+  };
+})();
+</script>
 {% endblock %}

@@ -1,0 +1,139 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Tablero · Mi Salón Virtual</title>
+<link rel="icon" type="image/png" href="{% static 'salon_digital/app/icono-192.png' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root { --barra:#0f172a; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; font-family:system-ui,'Segoe UI',Arial,sans-serif; background:#0f172a; touch-action:none; }
+  #tb-hoja { position:fixed; inset:0 0 0 0; }
+  canvas { position:absolute; inset:0; width:100%; height:100%; display:block; cursor:crosshair; }
+  .tb-barra { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); z-index:5; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:6px;
+              background:rgba(15,23,42,.92); color:#fff; border-radius:16px; padding:8px 10px; box-shadow:0 8px 24px rgba(0,0,0,.35); max-width:calc(100vw - 16px); }
+  .tb-barra button, .tb-barra a { border:0; background:transparent; color:#e2e8f0; width:38px; height:38px; border-radius:10px; font-size:1rem; display:grid; place-items:center; cursor:pointer; text-decoration:none; }
+  .tb-barra button:hover, .tb-barra a:hover { background:rgba(255,255,255,.12); }
+  .tb-barra button.on { background:#fff; color:#0f172a; }
+  .tb-color { width:26px!important; height:26px!important; border-radius:50%!important; border:2px solid rgba(255,255,255,.6)!important; }
+  .tb-color.on { box-shadow:0 0 0 3px #38bdf8; }
+  .tb-sep { width:1px; height:26px; background:rgba(255,255,255,.2); margin:0 2px; }
+  .tb-pag { font-size:.8rem; color:#cbd5e1; min-width:44px; text-align:center; }
+  .tb-volver { position:fixed; top:12px; left:12px; z-index:5; background:rgba(15,23,42,.85); color:#fff; border-radius:12px; padding:8px 12px; text-decoration:none; font-size:.9rem; }
+  .tb-texto { position:fixed; z-index:6; min-width:120px; background:rgba(255,255,255,.9); border:2px dashed #38bdf8; outline:none; font-size:28px; padding:2px 4px; font-family:inherit; }
+</style>
+</head>
+<body>
+<a class="tb-volver" href="{% url 'salon_digital:inicio' %}"><i class="fas fa-arrow-left me-1"></i> Pizarra</a>
+<div id="tb-hoja"><canvas id="tb-fondo"></canvas><canvas id="tb-lienzo"></canvas></div>
+<div class="tb-barra" role="toolbar" aria-label="Herramientas del tablero">
+  <button type="button" data-h="lapiz" class="on" title="Lápiz"><i class="fas fa-pen"></i></button>
+  <button type="button" data-h="resaltar" title="Resaltador"><i class="fas fa-highlighter"></i></button>
+  <button type="button" data-h="linea" title="Línea recta"><i class="fas fa-slash"></i></button>
+  <button type="button" data-h="texto" title="Texto"><i class="fas fa-font"></i></button>
+  <button type="button" data-h="borrar" title="Borrador"><i class="fas fa-eraser"></i></button>
+  <span class="tb-sep"></span>
+  <span id="tb-colores"></span>
+  <button type="button" id="tb-grosor" title="Grosor"><i class="fas fa-circle" style="font-size:.6rem"></i></button>
+  <span class="tb-sep"></span>
+  <button type="button" id="tb-fondo-btn" title="Fondo: liso, cuadriculado, rayado o pizarra verde"><i class="fas fa-table-cells"></i></button>
+  <button type="button" id="tb-deshacer" title="Deshacer (Ctrl+Z)"><i class="fas fa-rotate-left"></i></button>
+  <button type="button" id="tb-limpiar" title="Borrar la hoja"><i class="far fa-trash-can"></i></button>
+  <span class="tb-sep"></span>
+  <button type="button" id="tb-ant" title="Hoja anterior"><i class="fas fa-chevron-left"></i></button>
+  <span class="tb-pag" id="tb-pag">1 / 1</span>
+  <button type="button" id="tb-sig" title="Hoja siguiente (o nueva)"><i class="fas fa-chevron-right"></i></button>
+  <span class="tb-sep"></span>
+  <button type="button" id="tb-guardar" title="Descargar la hoja como imagen"><i class="fas fa-download"></i></button>
+  <button type="button" id="tb-completa" title="Pantalla completa"><i class="fas fa-expand"></i></button>
+</div>
+<script>
+(function () {
+  const fondo = document.getElementById('tb-fondo'), lienzo = document.getElementById('tb-lienzo');
+  const fx = fondo.getContext('2d'), cx = lienzo.getContext('2d');
+  const COLORES = ['#111827', '#2563eb', '#dc2626', '#16a34a', '#ea580c', '#7c3aed', '#ffffff'];
+  const GROSORES = [3, 6, 12];
+  const FONDOS = ['blanco', 'cuadros', 'rayas', 'verde'];
+  let herramienta = 'lapiz', color = COLORES[0], grosor = GROSORES[0], tipoFondo = 0;
+  // Cada hoja guarda sus trazos (vectoriales): así se redibujan al cambiar de tamaño o de hoja
+  let hojas = [[]], actual = 0, trazo = null;
+  const dpr = () => window.devicePixelRatio || 1;
+
+  function tamano() {
+    [fondo, lienzo].forEach(c => { c.width = innerWidth * dpr(); c.height = innerHeight * dpr(); c.getContext('2d').setTransform(dpr(), 0, 0, dpr(), 0, 0); });
+    pintarFondo(); redibujar();
+  }
+  function pintarFondo() {
+    const w = innerWidth, h = innerHeight, t = FONDOS[tipoFondo];
+    fx.fillStyle = t === 'verde' ? '#1f3d2f' : '#ffffff'; fx.fillRect(0, 0, w, h);
+    fx.strokeStyle = t === 'cuadros' ? '#dbeafe' : '#cbd5e1'; fx.lineWidth = 1;
+    if (t === 'cuadros') { for (let x = 0; x < w; x += 32) { fx.beginPath(); fx.moveTo(x, 0); fx.lineTo(x, h); fx.stroke(); } for (let y = 0; y < h; y += 32) { fx.beginPath(); fx.moveTo(0, y); fx.lineTo(w, y); fx.stroke(); } }
+    if (t === 'rayas') { for (let y = 64; y < h; y += 40) { fx.beginPath(); fx.moveTo(0, y); fx.lineTo(w, y); fx.stroke(); } fx.strokeStyle = '#fca5a5'; fx.beginPath(); fx.moveTo(80, 0); fx.lineTo(80, h); fx.stroke(); }
+    if (t === 'verde') { fx.strokeStyle = '#7c4a1e'; fx.lineWidth = 14; fx.strokeRect(0, 0, w, h); }
+  }
+  function dibujar(t) {
+    cx.save();
+    if (t.h === 'texto') { cx.fillStyle = t.c; cx.font = `${t.g * 6 + 16}px system-ui, sans-serif`; cx.textBaseline = 'top'; (t.texto || '').split('\n').forEach((l, i) => cx.fillText(l, t.p[0][0], t.p[0][1] + i * (t.g * 6 + 20))); cx.restore(); return; }
+    cx.lineCap = cx.lineJoin = 'round';
+    cx.globalCompositeOperation = t.h === 'borrar' ? 'destination-out' : 'source-over';
+    cx.strokeStyle = t.h === 'resaltar' ? t.c + '55' : t.c;
+    cx.lineWidth = t.h === 'borrar' ? t.g * 5 : t.h === 'resaltar' ? t.g * 4 : t.g;
+    const p = t.p; cx.beginPath(); cx.moveTo(p[0][0], p[0][1]);
+    if (t.h === 'linea') cx.lineTo(p[p.length - 1][0], p[p.length - 1][1]);
+    else for (let i = 1; i < p.length; i++) { const m = [(p[i - 1][0] + p[i][0]) / 2, (p[i - 1][1] + p[i][1]) / 2]; cx.quadraticCurveTo(p[i - 1][0], p[i - 1][1], m[0], m[1]); }
+    if (p.length === 1) cx.lineTo(p[0][0] + .1, p[0][1]);
+    cx.stroke(); cx.restore();
+  }
+  function redibujar() { cx.clearRect(0, 0, innerWidth, innerHeight); hojas[actual].forEach(dibujar); document.getElementById('tb-pag').textContent = `${actual + 1} / ${hojas.length}`; }
+
+  lienzo.addEventListener('pointerdown', ev => {
+    if (herramienta === 'texto') { ev.preventDefault(); ponerTexto(ev.clientX, ev.clientY); return; }
+    lienzo.setPointerCapture(ev.pointerId);
+    trazo = {h: herramienta, c: color, g: grosor, p: [[ev.clientX, ev.clientY]]};
+  });
+  lienzo.addEventListener('pointermove', ev => {
+    if (!trazo) return;
+    if (trazo.h === 'linea') trazo.p[1] = [ev.clientX, ev.clientY]; else trazo.p.push([ev.clientX, ev.clientY]);
+    redibujar(); dibujar(trazo);
+  });
+  const soltar = () => { if (trazo) { hojas[actual].push(trazo); trazo = null; redibujar(); } };
+  lienzo.addEventListener('pointerup', soltar); lienzo.addEventListener('pointercancel', soltar);
+
+  function ponerTexto(x, y) {
+    const caja = document.createElement('textarea'); caja.className = 'tb-texto'; caja.style.left = x + 'px'; caja.style.top = y + 'px'; caja.style.color = color;
+    caja.style.fontSize = (grosor * 6 + 16) + 'px'; caja.rows = 1; document.body.appendChild(caja); caja.focus();
+    caja.addEventListener('blur', () => { if (caja.value.trim()) { hojas[actual].push({h: 'texto', c: color, g: grosor, p: [[x + 4, y + 4]], texto: caja.value}); redibujar(); } caja.remove(); });
+    caja.addEventListener('keydown', e => { if (e.key === 'Escape') { caja.value = ''; caja.blur(); } });
+  }
+  // Herramientas
+  document.querySelectorAll('[data-h]').forEach(b => b.addEventListener('click', () => {
+    herramienta = b.dataset.h; document.querySelectorAll('[data-h]').forEach(x => x.classList.toggle('on', x === b));
+  }));
+  const zona = document.getElementById('tb-colores');
+  COLORES.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'tb-color' + (i ? '' : ' on'); b.style.background = c; b.title = 'Color';
+    b.onclick = () => { color = c; zona.querySelectorAll('.tb-color').forEach(x => x.classList.toggle('on', x === b)); if (herramienta === 'borrar') document.querySelector('[data-h=lapiz]').click(); };
+    zona.appendChild(b); });
+  zona.style.display = 'flex'; zona.style.gap = '4px';
+  document.getElementById('tb-grosor').onclick = function () { grosor = GROSORES[(GROSORES.indexOf(grosor) + 1) % GROSORES.length]; this.querySelector('i').style.fontSize = ['.6rem', '.9rem', '1.25rem'][GROSORES.indexOf(grosor)]; };
+  document.getElementById('tb-fondo-btn').onclick = () => { tipoFondo = (tipoFondo + 1) % FONDOS.length; if (FONDOS[tipoFondo] === 'verde' && color === COLORES[0]) zona.querySelectorAll('.tb-color')[6].click(); pintarFondo(); };
+  const deshacer = () => { hojas[actual].pop(); redibujar(); };
+  document.getElementById('tb-deshacer').onclick = deshacer;
+  document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'z' && document.activeElement.tagName !== 'TEXTAREA') { e.preventDefault(); deshacer(); } });
+  document.getElementById('tb-limpiar').onclick = () => { if (!hojas[actual].length || confirm('¿Borrar todo lo de esta hoja?')) { hojas[actual] = []; redibujar(); } };
+  document.getElementById('tb-ant').onclick = () => { if (actual > 0) { actual--; redibujar(); } };
+  document.getElementById('tb-sig').onclick = () => { if (actual === hojas.length - 1) { if (!hojas[actual].length) return; hojas.push([]); } actual++; redibujar(); };
+  document.getElementById('tb-guardar').onclick = () => {
+    const c = document.createElement('canvas'); c.width = fondo.width; c.height = fondo.height;
+    const x = c.getContext('2d'); x.drawImage(fondo, 0, 0); x.drawImage(lienzo, 0, 0);
+    const a = document.createElement('a'); a.download = `tablero-hoja-${actual + 1}.png`; a.href = c.toDataURL('image/png'); a.click();
+  };
+  document.getElementById('tb-completa').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); };
+  addEventListener('resize', tamano);
+  addEventListener('beforeunload', e => { if (hojas.some(h => h.length)) { e.preventDefault(); e.returnValue = ''; } });
+  tamano();
+})();
+</script>
+</body>
+</html>

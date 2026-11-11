@@ -52,6 +52,10 @@
       <h6 class="mb-1"><i class="fas fa-palette me-1"></i>Color de mis documentos</h6>
       <p class="small text-muted mb-2">Para la línea del encabezado, los títulos, las franjas de cada sección y los recuadros. Los documentos nuevos salen con este color; en cada documento lo puede cambiar.</p>
       {% include 'materiales/_colores.html' with id='en-colores' %}
+      <div class="small fw-bold mt-2 mb-1">Color por área o asignatura <span class="fw-normal text-muted">(opcional)</span></div>
+      <p class="small text-muted mb-1">Ej.: Matemáticas en azul, Ciencias en verde. Un documento nuevo de esa área sale con su color, y en el editor cambia solo cuando escribe el área.</p>
+      <div id="en-areas"></div>
+      <button type="button" class="btn btn-sm btn-outline-primary" id="en-area-mas"><i class="fas fa-plus me-1"></i>Agregar área</button>
     </div>
     <div class="mm-tarjeta">
       <div class="d-flex align-items-center mb-2"><h6 class="mb-0 flex-grow-1"><i class="fas fa-shoe-prints me-1"></i>Pie de página</h6>
@@ -111,6 +115,18 @@
   D.pie.lineas.forEach(filaPie);
   $('en-alinear').value = D.alinear; $('en-pos1').value = D.logo_pos; $('en-pos2').value = D.logo2_pos;
   var COLOR = D.color || '#1f3a68';
+  function filaArea(x) {
+    var d = document.createElement('div'); d.className = 'd-flex gap-2 align-items-center mb-1';
+    d.innerHTML = '<input type="text" class="form-control form-control-sm" maxlength="60" placeholder="Área (ej.: Matemáticas)">' +
+      '<input type="color" class="form-control form-control-color form-control-sm" title="Color">' +
+      '<button type="button" class="btn btn-sm btn-link text-danger p-0" title="Quitar"><i class="far fa-trash-can"></i></button>';
+    d.querySelector('input[type=text]').value = x.area || ''; d.querySelector('input[type=color]').value = x.color || '#15803d';
+    d.querySelector('button').onclick = function () { d.remove(); pintar(); };
+    d.addEventListener('input', pintar);
+    $('en-areas').appendChild(d);
+  }
+  (D.por_area || []).forEach(filaArea);
+  $('en-area-mas').onclick = function () { if ($('en-areas').children.length < 12) { filaArea({}); pintar(); } };
   MMColores.iniciar('en-colores', COLOR, function (c) { COLOR = c; pintar(); });
   $('en-borde').checked = D.borde; $('en-pie-alinear').value = D.pie.alinear; $('en-numero').checked = D.pie.numero;
   $('en-mas').onclick = function () { if ($('en-lineas').children.length < 8) { filaLinea({}); pintar(); } };
@@ -119,6 +135,7 @@
     return {
       lineas: [].map.call($('en-lineas').children, function (d) { return {texto: d.querySelector('input[type=text]').value, negrilla: d.querySelector('input[type=checkbox]').checked, tam: d.querySelector('select').value}; }),
       alinear: $('en-alinear').value, logo_pos: $('en-pos1').value, logo2_pos: $('en-pos2').value, borde: $('en-borde').checked, color: COLOR,
+      por_area: [].map.call($('en-areas').children, function (d) { return {area: d.querySelector('input[type=text]').value, color: d.querySelector('input[type=color]').value}; }).filter(function (x) { return x.area.trim(); }),
       pie: {lineas: [].map.call($('en-pie').children, function (d) { return d.querySelector('input').value; }), alinear: $('en-pie-alinear').value, numero: $('en-numero').checked}
     };
   }

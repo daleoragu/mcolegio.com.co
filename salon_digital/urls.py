@@ -24,6 +24,8 @@ urlpatterns = [
 
     # --- Los espacios del docente: Inicio y Mi Espacio de Profe ---
     path('inicio/', views_espacios.inicio, name='inicio'),
+    path('pizarra/nota/', views_espacios.nota, name='nota_pizarra'),
+    path('pizarra/tablero/', views_espacios.tablero, name='tablero'),
     path('mi-espacio/', views_espacios.mi_espacio, name='mi_espacio'),
     path('mi-espacio/qr.png', views_espacios.qr_espacio, name='qr_espacio'),
     path('mi-espacio/pagina/<slug:slug>/visibilidad/', views_espacios.visibilidad_pagina, name='visibilidad_pagina'),

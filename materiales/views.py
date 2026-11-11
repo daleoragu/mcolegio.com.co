@@ -164,17 +164,25 @@ def nuevo(request, a):
     doc = Documento.objects.create(propietario=request.user, colegio=a.colegio, titulo=titulo, tipo=tipo,
                                    area=(request.POST.get('area') or (base.area if base else ''))[:80],
                                    grado=(request.POST.get('grado') or '')[:40],
-                                   contenido=_con_mi_color(request.user, plantillas.contenido_inicial(tipo, base), base))
+                                   contenido=_con_mi_color(request.user, plantillas.contenido_inicial(tipo, base), base,
+                                                           area=request.POST.get('area') or '', grado=request.POST.get('grado') or ''))
     return redirect('materiales:editor', pk=doc.pk)
 
 
-def _con_mi_color(usuario, contenido, base=None):
-    """Un documento nuevo sale con el color que el docente escogió en «Mi encabezado» (el formato base manda su propio color)."""
+def _reglas_color(usuario):
+    enc = EncabezadoDocente.objects.filter(usuario=usuario).first()
+    return enc.por_area if enc is not None else []
+
+
+def _con_mi_color(usuario, contenido, base=None, area='', grado=''):
+    """Un documento nuevo sale con el color que el docente escogió en «Mi encabezado»: el de su área o grado si
+    tiene una regla, o su color general (el formato base manda su propio color)."""
     if base is None:
         enc = EncabezadoDocente.objects.filter(usuario=usuario).first()
-        if enc is not None and enc.color != B.COLOR_DEFECTO:
+        color = enc.color_para(area, grado) if enc is not None else B.COLOR_DEFECTO
+        if color != B.COLOR_DEFECTO:
             contenido = dict(contenido)
-            contenido['opciones'] = dict(contenido.get('opciones') or {}, color=enc.color)
+            contenido['opciones'] = dict(contenido.get('opciones') or {}, color=color)
     return contenido
 
 
@@ -398,6 +406,7 @@ def editor(request, a, pk):
         'base': a.base, 'acceso': a, 'doc': doc, 'contenido': doc.contenido, 'imagenes': imagenes,
         'aulas': a.aulas(), 'nube': _nube(a), 'tipos': Documento.TIPOS, 'nube_docente': _nube_docente(request),
         'destinos': _destinos_examen(a), 'modos_pregunta': B.MODOS_PREGUNTA, 'colores': B.COLORES,
+        'colores_area': _reglas_color(request.user),
         'examen': doc.examen if doc.examen_id else None, **_contexto_ia(request, a, doc)})
 
 
@@ -573,6 +582,9 @@ def _config_encabezado(texto):
             'logo2_pos': cfg.get('logo2_pos') if cfg.get('logo2_pos') in pos else 'derecha',
             'borde': bool(cfg.get('borde', True)),
             'color': B.color_valido(cfg.get('color')),
+            # Color por área o grado: «Matemáticas» → azul, «Ciencias» → verde… (para los documentos nuevos)
+            'por_area': [{'area': B.texto_plano(x.get('area'), 60), 'color': B.color_valido(x.get('color'))}
+                         for x in (cfg.get('por_area') or [])[:12] if isinstance(x, dict) and B.texto_plano(x.get('area'), 60)],
             'pie': {'lineas': [B.texto_plano(x, 150) for x in (pie.get('lineas') or [])[:E.MAX_PIE] if B.texto_plano(x, 150)],
                     'alinear': pie.get('alinear') if pie.get('alinear') in alinear else 'centro',
                     'numero': bool(pie.get('numero', True))}}
@@ -614,7 +626,7 @@ def encabezado(request, a):
         r['Content-Disposition'] = 'inline; filename="muestra-encabezado.pdf"'
         return r
     datos = {'lineas': enc.filas, 'alinear': enc.alinear, 'logo_pos': enc.logo_pos, 'logo2_pos': enc.logo2_pos,
-             'borde': enc.borde, 'pie': enc.pie, 'color': enc.color}
+             'borde': enc.borde, 'pie': enc.pie, 'color': enc.color, 'por_area': enc.por_area}
     return render(request, 'materiales/encabezado.html', {'base': a.base, 'acceso': a, 'enc': enc, 'datos': datos,
                                                          'posiciones': EncabezadoDocente.POSICIONES, 'colores': B.COLORES})
 

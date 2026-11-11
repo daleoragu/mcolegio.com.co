@@ -4,7 +4,8 @@
 {{ max_opciones|json_script:"gm-max-opciones" }}
 <script>
 EditorPreguntas.montar({form: document.getElementById('gm-form'), texto: document.getElementById('gm-preguntas'), tipos: JSON.parse(document.getElementById('gm-max-opciones').textContent),
-                        banco: '{% url 'aula:banco_json' %}', planilla: '{% url 'aula:banco_planilla' %}', csrf: '{{ csrf_token }}'});
+                        banco: '{% url 'aula:banco_json' %}', planilla: '{% url 'aula:banco_planilla' %}', csrf: '{{ csrf_token }}',
+                        ia: '{% url 'materiales:ia' 'actividad' %}'});
 (function () {   // Animaplano: las preguntas son opcionales (la plataforma las arma con la figura)
   const caja = document.getElementById('gm-animaplano'), txt = document.getElementById('gm-preguntas');
   function ver() { const t = document.querySelector('input[name="tipo"]:checked'), es = t && t.value === 'animaplano';

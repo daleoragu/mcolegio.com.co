@@ -712,3 +712,21 @@ class Pago(models.Model):
 
     def __str__(self):
         return f'{self.referencia} · {self.get_concepto_display()} · ${self.monto}'
+
+
+class NotaPizarra(models.Model):
+    """Una nota adhesiva de la Pizarra del docente (pendientes, ideas, recordatorios). Se ordenan arrastrándolas."""
+    COLORES = [('amarillo', '#fef08a'), ('verde', '#bbf7d0'), ('azul', '#bfdbfe'), ('rosado', '#fbcfe8'), ('naranja', '#fed7aa'),
+               ('morado', '#ddd6fe')]
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notas_pizarra')
+    texto = models.CharField(max_length=400, blank=True)
+    color = models.CharField(max_length=10, default='amarillo')
+    hecha = models.BooleanField(default=False)
+    orden = models.PositiveIntegerField(default=0)
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['orden', '-creada']
+
+    def __str__(self):
+        return self.texto[:40]

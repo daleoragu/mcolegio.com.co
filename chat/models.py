@@ -220,6 +220,8 @@ class Publicacion(models.Model):
                                   related_name='en_muro', help_text='Recurso compartido desde Mis materiales.')
     pagina = models.ForeignKey('salon_digital.PaginaPublicada', on_delete=models.SET_NULL, null=True, blank=True,
                                related_name='en_muro', help_text='Actividad interactiva (HTML) para jugar desde el muro.')
+    juego = models.ForeignKey('materiales.JuegoMaterial', on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='en_muro', help_text='Juego con preguntas de «Mis juegos»: se prueba y se importa.')
     area = models.CharField(max_length=80, blank=True)
     grados = models.CharField(max_length=40, blank=True)
     modelo = models.CharField(max_length=40, blank=True, help_text='Modelo pedagógico: ABP, Escuela Nueva, aula invertida…')

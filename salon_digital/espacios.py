@@ -6,7 +6,7 @@ from django.urls import reverse
 
 ESPACIOS = [
     # id, nombre, icono, url
-    ('inicio', 'Inicio', 'fa-house', 'salon_digital:inicio'),
+    ('inicio', 'Pizarra', 'fa-chalkboard', 'salon_digital:inicio'),
     ('sala', 'Sala de Profesores', 'fa-comments', 'chat:muro'),
     ('espacio', 'Mi Espacio', 'fa-folder-open', 'salon_digital:mi_espacio'),
     ('estudiantes', 'Mis Estudiantes', 'fa-users', 'aula:inicio'),
@@ -47,7 +47,7 @@ def ubicar(request):
         return '', ''
     app, nombre = m.app_name, m.url_name
     if app == 'salon_digital':
-        if nombre == 'inicio':
+        if nombre in ('inicio', 'tablero'):
             return 'inicio', ''
         if nombre in ('grupos', 'nuevo_grupo', 'ver_grupo', 'editar_grupo', 'tarjetas_grupo', 'editar_integrante'):
             return 'estudiantes', 'grupos'

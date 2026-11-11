@@ -206,6 +206,20 @@ class EncabezadoDocente(models.Model):
         return color_valido((self.config or {}).get('color'))
 
     @property
+    def por_area(self):
+        return [x for x in (self.config or {}).get('por_area') or [] if x.get('area')]
+
+    def color_para(self, area='', grado=''):
+        """El color de un documento de esa área (o grado): la primera regla que coincida, o el color general."""
+        from .bloques import color_valido, comparable
+        texto = comparable(f'{area} {grado}')
+        for x in self.por_area:
+            clave = comparable(x['area'])
+            if clave and (clave in texto or (comparable(area) and comparable(area) in clave)):
+                return color_valido(x.get('color'))
+        return self.color
+
+    @property
     def tiene_algo(self):
         return bool(self.filas or self.logo or self.logo2)
 
