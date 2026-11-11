@@ -41,7 +41,8 @@
     <button class="btn btn-sm btn-primary">Filtrar</button>
     {% if gsel or gr or q %}<a href="?" class="btn btn-sm btn-link">Quitar filtros</a>{% endif %}
   </form>
-  {% if grab.trozos %}{% include 'aula/_nube_grabaciones.html' with pid='' total=grab.trozos en_nube=grab.en_nube %}{% endif %}
+  {% if grab.trozos %}{% include 'aula/_nube_grabaciones.html' with pid='' total=grab.trozos en_nube=grab.en_nube %}
+  <div class="mb-3"><a href="{% url 'aula:evento_grabaciones_colegios' ev.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-school me-1"></i>Capturas por colegio (para enviar a cada docente)</a></div>{% endif %}
   {% if podio %}
   <div class="au-tarjeta" style="border-top:5px solid #f2b632">
     <div class="d-flex flex-wrap align-items-center gap-2 mb-1">

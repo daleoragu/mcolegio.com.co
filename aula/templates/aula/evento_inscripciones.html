@@ -75,11 +75,23 @@
               <form method="post" class="d-flex gap-1">{% csrf_token %}<input type="hidden" name="accion" value="rechazar"><input type="hidden" name="pid" value="{{ p.pk }}">
                 <input name="motivo" class="form-control form-control-sm" style="width:140px" placeholder="Motivo (opcional)"><button class="btn btn-sm btn-outline-danger">Rechazar</button></form>
             {% endif %}
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#ed-{{ p.pk }}" title="Corregir los datos"><i class="fas fa-pen"></i></button>
               <form method="post" onsubmit="return confirm('¿Eliminar esta inscripción?')">{% csrf_token %}<input type="hidden" name="accion" value="eliminar"><input type="hidden" name="pid" value="{{ p.pk }}">
                 <button class="btn btn-sm btn-link text-danger p-0 px-1" title="Eliminar"><i class="fas fa-trash"></i></button></form>
             </div>
           </td>
         </tr>
+        <tr class="collapse" id="ed-{{ p.pk }}"><td colspan="6" class="bg-light">
+          <form method="post" class="row g-2 align-items-end">{% csrf_token %}<input type="hidden" name="accion" value="editar"><input type="hidden" name="pid" value="{{ p.pk }}">
+            <div class="col-md-3"><label class="small fw-bold">Nombre completo</label><input name="nombre" value="{{ p.nombre }}" class="form-control form-control-sm" required></div>
+            <div class="col-md-2"><label class="small fw-bold">Documento</label><input name="documento" value="{{ p.datos.documento }}" class="form-control form-control-sm" required></div>
+            <div class="col-md-3"><label class="small fw-bold">Institución</label><input name="institucion" value="{{ p.institucion }}" list="ins-colegios" class="form-control form-control-sm" required></div>
+            <div class="col-md-2"><label class="small fw-bold">Ciudad</label><input name="ciudad" value="{{ p.datos.ciudad }}" class="form-control form-control-sm"></div>
+            <div class="col-md-2"><label class="small fw-bold">Grado</label><select name="grado" class="form-select form-select-sm">{% for g, et in grados %}<option value="{{ g }}" {% if g == p.grado %}selected{% endif %}>{{ et }}</option>{% endfor %}</select></div>
+            <div class="col-md-3"><label class="small fw-bold">Contacto</label><input name="contacto" value="{{ p.datos.contacto }}" class="form-control form-control-sm"></div>
+            <div class="col-md-3"><label class="small fw-bold">Docente acompañante</label><input name="acompanante" value="{{ p.datos.acompanante }}" class="form-control form-control-sm"></div>
+            <div class="col-md-auto"><button class="btn btn-sm btn-primary"><i class="fas fa-floppy-disk me-1"></i>Guardar cambios</button></div>
+          </form></td></tr>
       {% empty %}
         <tr><td colspan="6" class="text-center text-muted py-3">No hay inscripciones {% if filtro == 'pendiente' %}pendientes{% elif filtro == 'aprobada' %}aprobadas{% elif filtro == 'rechazada' %}rechazadas{% endif %}.</td></tr>
       {% endfor %}
@@ -88,8 +100,18 @@
   </div>
 
   {% if resumen %}
+  <datalist id="ins-colegios">{% for r in resumen %}<option value="{{ r.nombre }}">{% endfor %}</datalist>
   <div class="au-tarjeta">
     <h6><i class="fas fa-school me-1"></i>Cupos por institución</h6>
+    {% if resumen|length > 1 %}
+    <details class="mb-2"><summary class="small fw-bold text-primary">Unificar instituciones mal escritas</summary>
+      <form method="post" class="mt-2">{% csrf_token %}<input type="hidden" name="accion" value="unificar">
+        <p class="small text-muted mb-1">Marque las que son el mismo colegio escrito de distintas formas y escriba el nombre correcto: se corrige en todas sus inscripciones (cupos, podio y capturas quedan juntos).</p>
+        <div class="d-flex flex-wrap gap-2 mb-2">{% for r in resumen %}<label class="form-check-label small border rounded px-2 py-1"><input type="checkbox" name="viejo" value="{{ r.nombre }}" class="form-check-input me-1">{{ r.nombre }} <span class="text-muted">({{ r.aprobada|add:r.pendiente|add:r.rechazada }})</span></label>{% endfor %}</div>
+        <div class="d-flex gap-2"><input name="nuevo" list="ins-colegios" class="form-control form-control-sm" style="max-width:360px" placeholder="Nombre correcto de la institución" required>
+          <button class="btn btn-sm btn-primary">Unificar</button></div>
+      </form></details>
+    {% endif %}
     <table class="table table-sm small mb-0">
       <thead><tr><th>Institución</th><th>Aprobadas</th><th>Pendientes</th><th>Rechazadas</th><th>Aprobadas por nivel</th></tr></thead>
       <tbody>{% for r in resumen %}

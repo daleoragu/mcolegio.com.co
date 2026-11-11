@@ -3,7 +3,7 @@
  * y la subida va directo de su navegador a su nube: el permiso no pasa por el servidor.
  * Quedan en «mcolegio · grabaciones / <evento> / <participante>». Opcional: borrarlas del servidor al terminar.
  *
- *   botones con data-nube="google|onedrive" y data-pid (vacío = todo el evento) dentro de .ng-panel
+ *   botones con data-nube="google|onedrive" y data-pid (vacío = todo el evento) o data-colegio dentro de .ng-panel
  */
 (function () {
   'use strict';
@@ -75,14 +75,15 @@
 
   async function copiar(boton) {
     const panel = boton.closest('.ng-panel'), estado = panel.querySelector('.ng-estado'), barra = panel.querySelector('.ng-barra');
-    const p = boton.dataset.nube, pid = boton.dataset.pid || '', borrar = (panel.querySelector('.ng-borrar') || {}).checked;
+    const p = boton.dataset.nube, pid = boton.dataset.pid || '', colegio = boton.dataset.colegio || '', borrar = (panel.querySelector('.ng-borrar') || {}).checked;
     const decir = (t, mal) => { estado.textContent = t; estado.className = 'ng-estado small mt-1 ' + (mal ? 'text-danger' : 'text-success'); };
     if (borrar && !confirm('Cuando cada trozo quede en ' + NOMBRE[p] + ' se borrará de la plataforma. ¿Seguir?')) return;
     panel.querySelectorAll('button').forEach(b => { b.disabled = true; });
     try {
       decir('Conectando ' + NOMBRE[p] + '…');
       await pedirPermiso(p);
-      const lista = await (await fetch(CFG.nube + (pid ? '?pid=' + pid : ''), {credentials: 'same-origin'})).json();
+      const q = pid ? '?pid=' + encodeURIComponent(pid) : (colegio ? '?colegio=' + encodeURIComponent(colegio) : '');
+      const lista = await (await fetch(CFG.nube + q, {credentials: 'same-origin'})).json();
       const todos = [];
       lista.personas.forEach(x => x.trozos.forEach(t => todos.push({x, t})));
       const faltan = todos.filter(o => o.t.nube !== p);
@@ -92,13 +93,14 @@
       for (const {x, t} of faltan) {
         decir(`Copiando ${hechos + 1} de ${faltan.length} a ${NOMBRE[p]}… (${x.nombre})`);
         const blob = await (await fetch(t.url, {credentials: 'same-origin'})).blob();
-        const ruta = [RAIZ, lista.evento, x.nombre + (x.de ? ' - ' + x.de : '')];
+        // Por colegio: una carpeta por institución (para enviarla a su docente) y adentro una por participante
+        const ruta = lista.colegio ? [RAIZ, lista.evento, lista.colegio, x.nombre] : [RAIZ, lista.evento, x.nombre + (x.de ? ' - ' + x.de : '')];
         if (p === 'google') await subirGoogle(ruta, t.archivo, blob); else await subirOneDrive(ruta, t.archivo, blob);
         await servidor({accion: 'marcar', nube: p, ids: [t.id]});
         listos.push(t.id); hechos += 1;
         if (barra) barra.firstElementChild.style.width = (100 * hechos / faltan.length) + '%';
       }
-      let fin = `Listo: ${todos.length} trozo(s) en ${NOMBRE[p]}, en la carpeta «${RAIZ} / ${lista.evento}».`;
+      let fin = `Listo: ${todos.length} trozo(s) en ${NOMBRE[p]}, en la carpeta «${RAIZ} / ${lista.evento}${lista.colegio ? ' / ' + lista.colegio : ''}».`;
       if (borrar && listos.length) {
         const r = await servidor({accion: 'borrar', ids: listos});
         fin += ` Se borraron ${r.n} de la plataforma.`;

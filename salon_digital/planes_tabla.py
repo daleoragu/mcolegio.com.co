@@ -19,6 +19,7 @@ def tabla():
         ('Resultados de estudiantes al mes', _lim(g['resultados_mes']), _lim(e['resultados_mes']), _lim(p['resultados_mes'])),
         ('Mis materiales (guías, ABP, trabajo en equipo)', f'Hasta {g["materiales"]}', _lim(e['materiales']), _lim(p['materiales'])),
         ('PDF y Word', 'Con pie «Hecho con mcolegio»', 'Sin marca', 'Sin marca'),
+        ('Tableros de clase guardados (pantalla infinita)', f'Hasta {g["tableros"]}', f'Hasta {e["tableros"]}', _lim(p.get('tableros', 0))),
         ('Juegos y gamificación', True, True, True),
         ('Exámenes con hoja de respuestas', g['examenes'], e['examenes'], p['examenes']),
         ('Eventos y olimpiadas (inscripciones, ranking, diplomas y supervisión)', g['eventos'], e['eventos'], p['eventos']),

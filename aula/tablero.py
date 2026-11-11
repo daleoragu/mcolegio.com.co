@@ -149,3 +149,72 @@ def estado(t, desde):
     if desde is not None and 0 <= desde < t.version and cambios and cambios[0][0] <= desde + 1:
         return dict(base, ops=[op for v, op in cambios if v > desde])
     return dict(base, objetos=t.objetos or [])
+
+
+def miniatura(t, url_imagen=None, ancho=320, alto=180, max_objetos=600, max_imagenes=4):
+    """Un SVG pequeño con lo que tiene el tablero, para la lista del repositorio (se arma al vuelo: no ocupa nube).
+    Encuadra todo lo dibujado; los trazos se simplifican. url_imagen(id) da la dirección de cada imagen pegada."""
+    from django.utils.html import escape
+    objetos = [o for o in (t.objetos or []) if isinstance(o, dict)][-max_objetos:]
+    fondo = '#1f3d2f' if t.fondo == 'verde' else '#ffffff'
+    cajas = []
+    for o in objetos:
+        if o.get('t') in ('trazo', 'linea') and o.get('p'):
+            xs, ys = [p[0] for p in o['p']], [p[1] for p in o['p']]
+            cajas.append((min(xs), min(ys), max(xs), max(ys)))
+        elif o.get('t') == 'texto':
+            lineas = str(o.get('texto', '')).split('\n')
+            g = o.get('g', 16)
+            cajas.append((o['x'], o['y'], o['x'] + max(len(x) for x in lineas) * g * .55, o['y'] + len(lineas) * g * 1.25))
+        elif o.get('t') == 'imagen':
+            cajas.append((o['x'], o['y'], o['x'] + o['w'], o['y'] + o['h']))
+    if not cajas:
+        return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {ancho} {alto}" class="tb-mini" role="img" aria-label="Tablero vacío">'
+                f'<rect width="{ancho}" height="{alto}" fill="{fondo}"/></svg>')
+    x0, y0 = min(c[0] for c in cajas), min(c[1] for c in cajas)
+    x1, y1 = max(c[2] for c in cajas), max(c[3] for c in cajas)
+    w, h = max(x1 - x0, 1), max(y1 - y0, 1)
+    # Margen y la misma proporción de la tarjeta
+    m = max(w, h) * .06 + 10
+    x0, y0, w, h = x0 - m, y0 - m, w + 2 * m, h + 2 * m
+    if w / h < ancho / alto:
+        x0, w = x0 - (h * ancho / alto - w) / 2, h * ancho / alto
+    else:
+        y0, h = y0 - (w * alto / ancho - h) / 2, w * alto / ancho
+    minimo = w / 220            # que las líneas delgadas se alcancen a ver en pequeño
+    r = lambda v: f'{v:.1f}'
+    partes, imagenes = [], 0
+    for o in objetos:
+        tipo, color = o.get('t'), escape(o.get('c', '#111827'))
+        if tipo in ('trazo', 'linea') and o.get('p'):
+            pts = o['p']
+            paso = max(1, len(pts) // 40)
+            elegidos = pts[::paso] + ([pts[-1]] if (len(pts) - 1) % paso else [])
+            d, nuevo = [], True
+            for p in elegidos:
+                if len(p) > 2 and p[2] == -1:
+                    nuevo = True
+                d.append(('M' if nuevo else 'L') + r(p[0]) + ' ' + r(p[1]))
+                nuevo = False
+            if len(d) == 1:
+                d.append('l0.1 0')
+            opacidad = ' stroke-opacity=".35"' if o.get('h') == 'resaltar' else ''
+            grosor = max(o.get('g', 3) * (3 if o.get('h') == 'resaltar' else 1), minimo)
+            partes.append(f'<path d="{"".join(d)}" fill="none" stroke="{color}" stroke-width="{r(grosor)}" '
+                          f'stroke-linecap="round" stroke-linejoin="round"{opacidad}/>')
+        elif tipo == 'texto':
+            g = o.get('g', 16)
+            for k, linea in enumerate(str(o.get('texto', '')).split('\n')[:12]):
+                if linea.strip():
+                    partes.append(f'<text x="{r(o["x"])}" y="{r(o["y"] + g * (k + .9))}" font-size="{r(g)}" fill="{color}" '
+                                  f'font-family="system-ui,sans-serif">{escape(linea[:80])}</text>')
+        elif tipo == 'imagen':
+            caja = f'x="{r(o["x"])}" y="{r(o["y"])}" width="{r(o["w"])}" height="{r(o["h"])}"'
+            if url_imagen and imagenes < max_imagenes:
+                imagenes += 1
+                partes.append(f'<image {caja} href="{escape(url_imagen(o["img"]))}" preserveAspectRatio="none"/>')
+            else:
+                partes.append(f'<rect {caja} fill="#e2e8f0" stroke="#94a3b8" stroke-width="{r(minimo)}"/>')
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{r(x0)} {r(y0)} {r(w)} {r(h)}" class="tb-mini" role="img" '
+            f'aria-label="Vista previa del tablero" preserveAspectRatio="xMidYMid meet">'
+            f'<rect x="{r(x0)}" y="{r(y0)}" width="{r(w)}" height="{r(h)}" fill="{fondo}"/>{"".join(partes)}</svg>')

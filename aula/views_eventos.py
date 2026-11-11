@@ -1375,6 +1375,47 @@ def inscripciones(request, eid):
                 correos += avisar_inscripcion(request, ev, p)
             messages.success(request, f'Se aprobaron {n} inscripción(es).' + (f' {saltadas} quedaron pendientes porque su institución ya llenó el cupo.' if saltadas else '')
                              + (f' Se avisó por correo a {correos}.' if correos else ''))
+        elif accion == 'unificar':
+            # «colegio san jose», «Col. San José»… → un solo nombre (los cupos, el podio y las capturas se agrupan por él)
+            nuevo = ' '.join((request.POST.get('nuevo') or '').split())[:120]
+            viejos = {normalizar(x) for x in request.POST.getlist('viejo') if x.strip()}
+            if not nuevo or not viejos:
+                messages.warning(request, 'Escoja las instituciones y escriba el nombre correcto.')
+            else:
+                n = 0
+                for p in ev.participaciones.filter(estudiante__isnull=True):
+                    if normalizar(p.institucion) in viejos and p.institucion != nuevo:
+                        p.institucion = nuevo
+                        p.save(update_fields=['institucion'])
+                        n += 1
+                messages.success(request, f'Se corrigió la institución de {n} inscripción(es): ahora dicen «{nuevo}».')
+        elif accion == 'editar':
+            p = get_object_or_404(externas, pk=request.POST.get('pid'))
+            limpio = lambda k, n: ' '.join((request.POST.get(k) or '').split())[:n]
+            nombre, institucion = limpio('nombre', 120), limpio('institucion', 120)
+            documento = documento_limpio(request.POST.get('documento'))
+            try:
+                grado = int(request.POST.get('grado'))
+            except (TypeError, ValueError):
+                grado = p.grado
+            g = next((x for x in grupos(c) if grado in x['grados']), None)
+            otro = inscrito_con(ev, documento) if documento else None
+            if len(nombre) < 3 or not institucion:
+                messages.warning(request, 'El nombre y la institución no pueden quedar vacíos.')
+            elif len(documento) < 5:
+                messages.warning(request, 'El documento debe tener al menos 5 caracteres.')
+            elif otro is not None and otro.pk != p.pk:
+                messages.warning(request, f'El documento {documento} ya es de otra inscripción ({otro.nombre}).')
+            elif g is None:
+                messages.warning(request, 'Ese grado no participa en ningún nivel del evento.')
+            else:
+                p.nombre, p.institucion, p.grado = nombre, institucion, grado
+                if g['id'] != p.ciclo and not p.puntos:          # si ya jugó, conserva el nivel en el que compitió
+                    p.ciclo = g['id']
+                p.datos.update(documento=documento, ciudad=limpio('ciudad', 80), contacto=limpio('contacto', 120),
+                               acompanante=limpio('acompanante', 120))
+                p.save(update_fields=['nombre', 'institucion', 'grado', 'ciclo', 'datos'])
+                messages.success(request, f'Se guardaron los datos de {p.nombre}.')
         else:
             p = get_object_or_404(externas, pk=request.POST.get('pid'))
             if accion == 'aprobar':
@@ -1430,6 +1471,7 @@ def inscripciones(request, eid):
         return r
     return render(request, 'aula/evento_inscripciones.html', {
         'ev': ev, 'lista': lista, 'filtro': filtro, 'cuenta': cuenta, 'ins': ins,
+        'grados': [(x, etiqueta_grado(x)) for x in sorted({g for gr in grupos(c) for g in gr['grados']})],
         'errores_planilla': request.session.pop(f'evento_planilla_{ev.pk}', None),
         'resumen': sorted(resumen.values(), key=lambda r: r['nombre'].lower()), 'base': _base(request)})
 
@@ -1785,8 +1827,13 @@ def grabaciones_nube(request, eid):
         else:
             n = 0
         return JsonResponse({'ok': True, 'n': n})
+    colegio = ''
     if request.GET.get('pid'):
         qs = qs.filter(participacion_id=request.GET['pid'])
+    elif request.GET.get('colegio'):
+        grupo = _colegios_con_capturas(ev).get(request.GET['colegio'])
+        qs = qs.filter(participacion_id__in=[x['p'].pk for x in grupo['personas']] if grupo else [])
+        colegio = _nombre_archivo(grupo['nombre'], 80) if grupo else ''
     personas = {}
     for g in qs.order_by('participacion_id', 'numero', 'pk'):
         p = g.participacion
@@ -1794,7 +1841,74 @@ def grabaciones_nube(request, eid):
         x['trozos'].append({'id': g.pk, 'n': g.numero, 'nube': g.nube, 'bytes': g.bytes,
                             'archivo': f"{x['nombre']} - trozo {g.numero:03d} - {timezone.localtime(g.creada):%Hh%Mm%Ss}.{ext_de(g.tipo)}",
                             'url': reverse('aula:evento_grabacion_archivo', args=[ev.pk, g.pk]) + '?bytes=1'})
-    return JsonResponse({'evento': _nombre_archivo(ev.titulo), 'personas': list(personas.values())})
+    return JsonResponse({'evento': _nombre_archivo(ev.titulo), 'colegio': colegio, 'personas': list(personas.values())})
+
+
+def _colegios_con_capturas(ev):
+    """{clave: {nombre, personas: [{p, n, fotos, mb}], n, mb, docentes}} de los participantes con capturas, agrupados por
+    institución (o por curso, si son del colegio). «Col. San José» y «colegio san jose» quedan juntos."""
+    from collections import Counter
+    from django.db.models import Count, Q, Sum
+    filas = (ParticipacionEvento.objects.filter(evento=ev, grabaciones__isnull=False)
+             .select_related('estudiante__user', 'estudiante__curso')
+             .annotate(n=Count('grabaciones'), fotos=Count('grabaciones', filter=Q(grabaciones__tipo__startswith='image/')),
+                       b=Sum('grabaciones__bytes')))
+    out, nombres = {}, {}
+    for p in filas:
+        clave = normalizar(p.de_donde) or 'sin institucion'
+        g = out.setdefault(clave, {'clave': clave, 'personas': [], 'n': 0, 'bytes': 0, 'docentes': set()})
+        nombres.setdefault(clave, Counter())[p.de_donde or 'Sin institución'] += 1
+        g['personas'].append({'p': p, 'n': p.n, 'fotos': p.fotos, 'mb': round((p.b or 0) / 1048576, 1)})
+        g['n'] += p.n
+        g['bytes'] += p.b or 0
+        if (p.datos or {}).get('acompanante'):
+            g['docentes'].add(p.datos['acompanante'])
+    for clave, g in out.items():
+        g['nombre'] = nombres[clave].most_common(1)[0][0]
+        g['mb'] = round(g['bytes'] / 1048576, 1)
+        g['docentes'] = sorted(g['docentes'])
+        g['personas'].sort(key=lambda x: x['p'].nombre_completo.lower())
+    return out
+
+
+@login_required
+def grabaciones_colegios(request, eid):
+    """Las capturas (video y pantallazos) agrupadas por institución, para enviarle a cada docente las de sus
+    estudiantes: un .zip por colegio (?zip=<clave>) con una carpeta por participante, o copiarlas a la nube."""
+    ev = _evento(request, eid)
+    if not es_organizador(request, ev):
+        return HttpResponseForbidden('Solo los organizadores ven las grabaciones.')
+    limpiar_grabaciones(ev)
+    colegios = _colegios_con_capturas(ev)
+    if request.GET.get('zip'):
+        g = colegios.get(request.GET['zip'])
+        if g is None:
+            raise Http404
+        import shutil
+        import tempfile
+        import zipfile
+        from django.http import FileResponse
+        tmp = tempfile.TemporaryFile()
+        with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_STORED) as z:        # el video y las fotos ya vienen comprimidos
+            usados = set()
+            for x in g['personas']:
+                p = x['p']
+                carpeta = _nombre_archivo(p.nombre_completo)
+                if carpeta in usados:
+                    carpeta = f'{carpeta} ({p.pk})'
+                usados.add(carpeta)
+                for t in p.grabaciones.all():
+                    tipo = 'pantallazo' if t.tipo.startswith('image/') else 'trozo'
+                    with t.archivo.open('rb') as f, z.open(f'{carpeta}/{tipo}-{t.numero:03d}-{timezone.localtime(t.creada):%H%M%S}.{ext_de(t.tipo)}', 'w') as dest:
+                        shutil.copyfileobj(f, dest, 1024 * 1024)       # por pedazos: no carga todo en memoria
+        tmp.seek(0)
+        return FileResponse(tmp, as_attachment=True, filename=f"capturas - {_nombre_archivo(ev.titulo, 40)} - {_nombre_archivo(g['nombre'])}.zip",
+                            content_type='application/zip')
+    q = normalizar(request.GET.get('q'))
+    lista = sorted((g for g in colegios.values() if not q or q in g['clave']), key=lambda g: g['nombre'].lower())
+    return render(request, 'aula/evento_capturas_colegios.html', {
+        'ev': ev, 'colegios': lista, 'total': len(colegios), 'q': request.GET.get('q', ''), 'base': _base(request),
+        'nubes': _nubes(), 'cfg_nube': _config_nube(request, ev)})
 
 
 @login_required

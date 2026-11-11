@@ -1,0 +1,45 @@
+{% extends base %}
+{% load static %}
+{% block page_title %}
+<h4 class="mb-0"><i class="fas fa-school me-2"></i>{{ ev.titulo }}</h4>
+<p class="text-muted small mb-0">Capturas de cámara y pantallazos agrupadas por colegio · para enviárselas a cada docente acompañante.</p>
+{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<div class="au" style="max-width:1100px;margin:0 auto">
+  <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+    <a href="{% url 'aula:evento_resultados' ev.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Resultados</a>
+    <a href="{% url 'aula:evento_inscripciones' ev.pk %}?estado=todas" class="btn btn-sm btn-outline-secondary"><i class="fas fa-pen me-1"></i>Corregir nombres de colegios</a>
+    <form method="get" class="d-flex gap-2 ms-md-auto">
+      <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Buscar colegio" style="width:220px">
+      <button class="btn btn-sm btn-primary">Filtrar</button>{% if q %}<a href="?" class="btn btn-sm btn-link">Quitar</a>{% endif %}
+    </form>
+  </div>
+  <p class="small text-muted">Se agrupan por el nombre de la institución que escribió cada participante (sin importar tildes ni mayúsculas).
+    Si un mismo colegio aparece dos veces con nombres distintos, unifíquelo en «Corregir nombres de colegios».
+    El .zip trae una carpeta por estudiante; en la nube quedan en «mcolegio · grabaciones / {{ ev.titulo }} / colegio / estudiante».</p>
+  {% for g in colegios %}
+  <div class="au-tarjeta ng-panel cc-colegio">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <h6 class="mb-0"><i class="fas fa-school me-1 text-primary"></i>{{ g.nombre }}</h6>
+      <span class="small text-muted">{{ g.personas|length }} participante(s) · {{ g.n }} captura(s) · {{ g.mb }} MB</span>
+      <div class="d-flex flex-wrap gap-2 ms-md-auto">
+        <a class="btn btn-sm btn-success" href="?zip={{ g.clave|urlencode }}"><i class="fas fa-file-zipper me-1"></i>Descargar (.zip)</a>
+        {% if nubes.google %}<button type="button" class="btn btn-sm btn-outline-primary" data-nube="google" data-colegio="{{ g.clave }}"><i class="fab fa-google-drive me-1"></i>Drive</button>{% endif %}
+        {% if nubes.onedrive %}<button type="button" class="btn btn-sm btn-outline-primary" data-nube="onedrive" data-colegio="{{ g.clave }}"><i class="fab fa-microsoft me-1"></i>OneDrive</button>{% endif %}
+      </div>
+    </div>
+    {% if g.docentes %}<div class="small mt-1"><i class="fas fa-chalkboard-user me-1 text-muted"></i>Docente(s) acompañante(s): <b>{{ g.docentes|join:", " }}</b></div>{% endif %}
+    <ul class="small mb-0 mt-2 ps-3">
+      {% for x in g.personas %}<li><a href="{% url 'aula:evento_grabaciones' ev.pk x.p.pk %}">{{ x.p.nombre_completo }}</a>
+        <span class="text-muted">· {{ x.n }} captura(s){% if x.fotos %} ({{ x.fotos }} pantallazo(s)){% endif %} · {{ x.mb }} MB</span></li>{% endfor %}
+    </ul>
+    <div class="ng-barra progress mt-2" style="height:6px" hidden><div class="progress-bar" style="width:0%"></div></div>
+    <div class="ng-estado small mt-1"></div>
+  </div>
+  {% empty %}
+  <div class="au-tarjeta text-center text-muted">{% if total %}Ningún colegio coincide con «{{ q }}».{% else %}Todavía no hay capturas en este evento.{% endif %}</div>
+  {% endfor %}
+</div>
+{{ cfg_nube|json_script:"ng-config" }}<script src="{% static 'aula/eventos/nube_grabaciones.js' %}" defer></script>
+{% endblock %}

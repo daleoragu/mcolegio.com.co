@@ -978,6 +978,7 @@ class TableroClase(models.Model):
     aula = models.ForeignKey(Aula, on_delete=models.SET_NULL, null=True, blank=True, related_name='tableros',
                              help_text='La clase con la que está compartido (vacío: solo lo ve el docente).')
     editan_estudiantes = models.BooleanField(default=False, help_text='Los estudiantes de la clase pueden escribir en él.')
+    carpeta = models.CharField(max_length=60, blank=True, default='', help_text='Para ordenar el repositorio: un grupo, un tema…')
     creado = models.DateTimeField(auto_now_add=True)
     actualizado = models.DateTimeField(auto_now=True)
 
@@ -993,4 +994,5 @@ class ImagenTablero(models.Model):
     archivo = models.FileField(upload_to=almacen.ruta_tablero, storage=almacen.privado)
     ancho = models.PositiveIntegerField(default=0)
     alto = models.PositiveIntegerField(default=0)
+    peso = models.PositiveIntegerField(default=0, help_text='Bytes: cuentan en la nube del docente.')
     creada = models.DateTimeField(auto_now_add=True)
