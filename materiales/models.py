@@ -103,6 +103,8 @@ class Imagen(models.Model):
     alto = models.PositiveIntegerField(default=0)
     peso = models.PositiveIntegerField(default=0, help_text='Bytes, para la nube del docente.')
     grafica = models.JSONField(null=True, blank=True, help_text='Si la hizo el graficador: su descripción, para volver a editarla.')
+    recorte = models.JSONField(null=True, blank=True,
+                               help_text='Si es un recorte: {origen: id de la imagen original, x, y, w, h (0..1), giro}, para volver a recortar.')
     creada = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

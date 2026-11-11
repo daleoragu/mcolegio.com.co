@@ -26,6 +26,7 @@ urlpatterns = [
     path('grafica/vista/', views.grafica_vista, name='grafica_vista'),
     path('grafica/guardar/', views.grafica_guardar, name='grafica_guardar'),
     path('imagen/<int:pk>/', views.imagen_ver, name='imagen'),
+    path('imagen/<int:pk>/recortar/', views.imagen_recortar, name='imagen_recortar'),
     path('banco/', views_banco.banco_pagina, name='banco_pagina'),
     path('banco/buscar/', views_banco.banco, name='banco'),
     path('banco/guardar/', views_banco.banco_guardar, name='banco_guardar'),

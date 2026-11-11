@@ -8,6 +8,7 @@
     var datos = JSON.parse(document.getElementById('mm-contenido').textContent || '{}');
     var IMAGENES = JSON.parse(document.getElementById('mm-imagenes').textContent || '{}');
     var GRAFICAS = JSON.parse((document.getElementById('mm-graficas') || {}).textContent || '{}');
+    var RECORTES = JSON.parse((document.getElementById('mm-recortes') || {}).textContent || '{}');
     var NUBE = JSON.parse(document.getElementById('mm-nube-config').textContent || '{}');
     datos.bloques = datos.bloques || [];
     datos.opciones = Object.assign({ columnas: 1, letra: 11, modo: 'normal', nombre_estudiante: true, datos: true }, datos.opciones || {});
@@ -458,15 +459,7 @@
                 campo(b.indicacion, 'Indicación corta (opcional)', function (v) { b.indicacion = v; }, 'form-control form-control-sm border-0 fst-italic')]);
         },
         texto: function (b) { return editable(b.html, 'Escriba aquí…', function (v) { b.html = v; }); },
-        imagen: function (b) {
-            var img = el('img', { src: IMAGENES[b.imagen] || '', alt: b.pie || 'Imagen', style: 'width:' + (b.ancho || 60) + '%' });
-            var rango = el('input', { type: 'range', min: '10', max: '100', step: '5', class: 'form-range', style: 'max-width:200px' });
-            rango.value = b.ancho || 60;
-            rango.addEventListener('input', function () { b.ancho = +rango.value; img.style.width = b.ancho + '%'; cambio(); });
-            return el('div', { class: 'mm-img text-center position-relative' }, [img, botonGrafica(b),
-                el('div', { class: 'd-flex gap-2 align-items-center justify-content-center mt-1 small text-muted' }, [el('span', { text: 'Tamaño' }), rango]),
-                campo(b.pie, 'Pie de imagen (opcional)', function (v) { b.pie = v; }, 'form-control form-control-sm border-0 text-center fst-italic')]);
-        },
+        imagen: function (b) { return bloqueImagen(b); },
         tabla: function (b) {
             var t = el('table', { class: 'mm-tabla mx-auto' + (b.privada ? ' mm-privada' : '') });
             b.filas.forEach(function (fila, i) {
@@ -546,6 +539,7 @@
             caja2.appendChild(editable(b.enunciado, b.modo === 'completar' ? 'Indicación (opcional): Completa con la palabra correcta' : 'Escriba la pregunta…', function (v) { b.enunciado = v; }, true));
             if (b.imagen && IMAGENES[b.imagen] && b.modo !== 'senalar') {
                 caja2.appendChild(el('div', { class: 'mm-img text-center' }, [el('img', { src: IMAGENES[b.imagen], alt: 'Imagen de la pregunta', style: 'width:45%' }),
+                    GRAFICAS[b.imagen] ? null : el('button', { type: 'button', class: 'btn btn-sm btn-link', html: '<i class="fas fa-crop-simple me-1"></i>Recortar', onclick: function () { recortarDe(b); } }),
                     el('button', { type: 'button', class: 'btn btn-sm btn-link text-danger', text: 'Quitar imagen', onclick: function () { b.imagen = null; cambio(); pintar(); } })]));
             }
             caja2.appendChild((CUERPO[b.modo] || CUERPO.abierta)(b));
@@ -578,6 +572,7 @@
                 rango.value = b.ancho || 70;
                 rango.addEventListener('input', function () { b.ancho = +rango.value; img.style.width = b.ancho + '%'; cambio(); });
                 hijos.push(el('div', { class: 'mm-img text-center' }, [img, el('div', {}, [rango]),
+                    GRAFICAS[b.imagen] ? null : el('button', { type: 'button', class: 'btn btn-sm btn-link', html: '<i class="fas fa-crop-simple me-1"></i>Recortar', onclick: function () { recortarDe(b); } }),
                     el('button', { type: 'button', class: 'btn btn-sm btn-link text-danger', text: 'Quitar imagen', onclick: function () { b.imagen = null; cambio(); pintar(); } })]));
             }
             hijos.push(editable(b.html, 'El texto, la receta, la biografía o la explicación de la gráfica…', function (v) { b.html = v; }));
@@ -607,7 +602,11 @@
         var n = 0;
         datos.bloques.forEach(function (b, i) {
             if (!DIBUJAR[b.tipo]) return;
-            var nodo = el('div', { class: 'mm-bloque' + (activo === b.id ? ' activo' : ''), 'data-id': b.id });
+            var nodo = el('div', { class: 'mm-bloque' + (activo === b.id ? ' activo' : ''), 'data-id': b.id, 'data-tipo': b.tipo });
+            if (b.tipo === 'imagen' && b.ajuste === 'cuadrado') {
+                nodo.classList.add(b.alinear === 'derecha' ? 'mm-flota-right' : 'mm-flota-left');
+                nodo.style.width = (b.ancho || 60) + '%';
+            } else if (b.tipo === 'imagen' && (b.ajuste === 'detras' || b.ajuste === 'delante')) nodo.classList.add('mm-libre');
             if (b.tipo === 'pregunta' && b.modo === 'hoja') nodo.appendChild(el('div', { class: 'small fw-bold text-primary', text: 'Hoja sobre el PDF' }));
             else if (b.tipo === 'pregunta') { n++; nodo.appendChild(el('div', { class: 'small fw-bold text-primary', text: 'Pregunta ' + n })); }
             nodo.appendChild(herramientas(b, i));
@@ -633,6 +632,86 @@
             insertar(nuevo(tipo));
         });
     });
+    // -------------------------------------------------------------------
+    // Imagen: recortar y dónde va (en línea, con el texto alrededor, detrás o delante del texto)
+    // -------------------------------------------------------------------
+    function recortarDe(b) {
+        if (!window.MMImg || !b.imagen) return;
+        window.MMImg.recortar({ id: b.imagen, url: IMAGENES[b.imagen], recorte: RECORTES[b.imagen] || null }, function (j) {
+            IMAGENES[j.id] = j.url;
+            if (j.recorte) RECORTES[j.id] = j.recorte;
+            b.imagen = j.id; pintar(); cambio(); estado('Imagen recortada');
+        });
+    }
+    var AJUSTES_IMG = [['linea', 'En línea con el texto'], ['cuadrado', 'Con el texto alrededor'], ['detras', 'Detrás del texto (fondo)'], ['delante', 'Delante del texto']];
+    function bloqueImagen(b) {
+        b.ajuste = b.ajuste || 'linea'; b.alinear = b.alinear || 'centro';
+        var libre = b.ajuste === 'detras' || b.ajuste === 'delante';
+        var img = el('img', { src: IMAGENES[b.imagen] || '', alt: b.pie || 'Imagen', draggable: 'false' });
+        var caja;
+        if (libre) {
+            img.style.cssText = 'left:' + (b.x || 0) + '%;top:' + (b.y || 0) + 'cqw;width:' + (b.ancho || 60) + '%;opacity:' + ((b.opacidad || 100) / 100) + ';z-index:' + (b.ajuste === 'detras' ? 0 : 5);
+            caja = el('div', { class: 'mm-libre-caja' }, [img]);
+            arrastrable(img, caja, b);
+        } else {
+            img.style.width = b.ajuste === 'cuadrado' ? '100%' : (b.ancho || 60) + '%';
+            caja = el('div', { class: 'mm-img position-relative', style: 'text-align:' + ({ izquierda: 'left', derecha: 'right' }[b.alinear] || 'center') }, [img, botonGrafica(b)]);
+        }
+        var rango = el('input', { type: 'range', min: '10', max: '100', step: '5', class: 'form-range', style: 'max-width:140px', title: 'Tamaño' });
+        rango.value = b.ancho || 60;
+        rango.addEventListener('input', function () {
+            b.ancho = +rango.value; cambio();
+            if (b.ajuste === 'cuadrado') { var n = caja.closest('.mm-bloque'); if (n) n.style.width = b.ancho + '%'; } else img.style.width = b.ancho + '%';
+        });
+        function botonAlinear(valor, icono, titulo) {
+            return el('button', { type: 'button', class: 'btn btn-outline-secondary' + (b.alinear === valor ? ' active' : ''), title: titulo, 'aria-label': titulo,
+                html: '<i class="fas ' + icono + '"></i>', onclick: function () { b.alinear = valor; cambio(); pintar(); } });
+        }
+        var ajuste = el('select', { class: 'form-select form-select-sm', style: 'width:auto', 'aria-label': 'Ajuste con el texto' });
+        AJUSTES_IMG.forEach(function (a) { ajuste.appendChild(el('option', { value: a[0], text: a[1] })); });
+        ajuste.value = b.ajuste;
+        ajuste.addEventListener('change', function () {
+            b.ajuste = ajuste.value;
+            if (b.ajuste === 'detras' && (!b.opacidad || b.opacidad >= 100)) b.opacidad = 35;     // de fondo, como marca de agua
+            if (b.ajuste === 'cuadrado' && b.alinear === 'centro') b.alinear = 'izquierda';
+            cambio(); pintar();
+        });
+        var controles = [el('span', { text: 'Tamaño' }), rango, ajuste];
+        if (!libre) controles.push(el('div', { class: 'btn-group btn-group-sm', role: 'group', 'aria-label': 'Alinear' }, [
+            botonAlinear('izquierda', 'fa-align-left', 'A la izquierda'), b.ajuste === 'cuadrado' ? null : botonAlinear('centro', 'fa-align-center', 'Centrada'),
+            botonAlinear('derecha', 'fa-align-right', 'A la derecha')]));
+        if (libre) {
+            var op = el('input', { type: 'range', min: '10', max: '100', step: '5', class: 'form-range', style: 'max-width:110px', title: 'Transparencia' });
+            op.value = b.opacidad || 100;
+            op.addEventListener('input', function () { b.opacidad = +op.value; img.style.opacity = b.opacidad / 100; cambio(); });
+            controles.push(el('span', { text: 'Opacidad' }), op, el('span', { class: 'text-muted', text: 'Arrástrela a donde la quiera.' }));
+        }
+        if (!GRAFICAS[b.imagen]) controles.push(el('button', { type: 'button', class: 'btn btn-sm btn-outline-primary py-0', html: '<i class="fas fa-crop-simple me-1"></i>Recortar',
+            onclick: function () { recortarDe(b); } }));
+        var hijos = [caja, el('div', { class: 'mm-img-ajustes' }, controles)];
+        if (!libre) hijos.push(campo(b.pie, 'Pie de imagen (opcional)', function (v) { b.pie = v; }, 'form-control form-control-sm border-0 text-center fst-italic'));
+        if (libre && GRAFICAS[b.imagen]) hijos.push(botonGrafica(b));
+        return el('div', {}, hijos);
+    }
+    function arrastrable(img, caja, b) {
+        var ini = null;
+        img.addEventListener('pointerdown', function (ev) {
+            ev.preventDefault(); marcar(b.id);
+            var w = caja.getBoundingClientRect().width;
+            ini = { px: ev.clientX, py: ev.clientY, x: b.x || 0, y: b.y || 0, w: w };
+            img.setPointerCapture(ev.pointerId); img.style.cursor = 'grabbing';
+        });
+        img.addEventListener('pointermove', function (ev) {
+            if (!ini) return;
+            b.x = Math.round(Math.max(-50, Math.min(100, ini.x + (ev.clientX - ini.px) / ini.w * 100)));
+            b.y = Math.round(Math.max(-150, Math.min(300, ini.y + (ev.clientY - ini.py) / ini.w * 100)));
+            img.style.left = b.x + '%'; img.style.top = b.y + 'cqw';
+        });
+        function fin() { if (ini) { ini = null; img.style.cursor = ''; cambio(); } }
+        img.addEventListener('pointerup', fin);
+        img.addEventListener('pointercancel', fin);
+    }
+
     // Graficador: una gráfica nueva (bloque de imagen o la de una pregunta) o editar la que ya está
     function abrirGrafica(b) {
         if (!window.MMGraf) { estado('No cargó el graficador.', true); return; }

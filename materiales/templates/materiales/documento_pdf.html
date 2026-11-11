@@ -45,6 +45,9 @@
     .img { text-align: center; break-inside: avoid; }
     .img img { max-width: 100%; max-height: {{ alto_imagen }}mm; }
     .img .pie { font-size: 8pt; font-style: italic; color: #444; }
+    .img-flota { break-inside: avoid; }
+    .img-libre { break-inside: auto; }
+    .seccion, h2.t1, h3.t2, .bloque-salto { clear: both; }
     table.tabla { border-collapse: collapse; width: 100%; break-inside: avoid; }
     table.tabla td, table.tabla th { border: 0.6px solid #555; padding: 2px 5px; font-size: 0.95em; vertical-align: top; }
     table.tabla th { background: {{ color_medio }}; }
@@ -147,7 +150,7 @@
             {{ b.html|safe|eq }}
         </div>
     {% elif b.tipo == 'imagen' %}
-        {% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="b img"><img src="{{ ruta }}" style="width:{{ b.ancho }}%">{% if b.pie %}<div class="pie">{{ b.pie }}</div>{% endif %}</div>{% endif %}{% endwith %}
+        {% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="b img {{ b.clase_img }}" style="{{ b.css_caja }}"><img src="{{ ruta }}" style="{{ b.css_img }}">{% if b.pie and b.ajuste != 'detras' and b.ajuste != 'delante' %}<div class="pie">{{ b.pie }}</div>{% endif %}</div>{% endif %}{% endwith %}
     {% elif b.tipo == 'tabla' %}
         <table class="b tabla{% if '' in b.filas.0 or '' in b.filas.1 %} llenar{% endif %}{% if not b.encabezado and b.filas.0|length == 2 %} campos{% endif %}">{% for fila in b.filas_estilo %}<tr>{% for c, e in fila %}{% if forloop.parentloop.first and b.encabezado %}<th{% if e %} style="{{ e }}"{% endif %}>{{ c|eq }}</th>{% else %}<td{% if e %} style="{{ e }}"{% endif %}>{{ c|eq }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</table>
     {% elif b.tipo == 'recuadro' %}

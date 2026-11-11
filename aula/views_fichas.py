@@ -21,7 +21,10 @@ MAX_AUDIO = 10 * 1024 * 1024
 def _bloques(tarea, semilla):
     """Los bloques listos para pintar: numerados, con los rangos de los contextos y lo mezclado."""
     bloques, total = X._numerar([dict(b) for b in (tarea.ficha or {}).get('bloques', [])])
+    from materiales.bloques import css_imagen
     for b in bloques:
+        if b['tipo'] == 'imagen':
+            b['clase_img'], b['css_caja'], b['css_img'] = css_imagen(b)
         if b['tipo'] != 'pregunta':
             continue
         X._preparar_pregunta(b, 'normal')
