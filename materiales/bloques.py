@@ -123,6 +123,25 @@ def _entero(v, defecto, minimo, maximo):
         return defecto
 
 
+COLOR_DEFECTO = '#1f3a68'
+COLORES = [('#1f3a68', 'Azul institucional'), ('#2563eb', 'Azul claro'), ('#0f766e', 'Verde azulado'), ('#15803d', 'Verde'),
+           ('#7c3aed', 'Morado'), ('#be185d', 'Fucsia'), ('#b91c1c', 'Rojo'), ('#c2410c', 'Naranja'), ('#a16207', 'Mostaza'),
+           ('#374151', 'Gris oscuro'), ('#000000', 'Negro (ahorra tinta de color)')]
+
+
+def color_valido(valor, defecto=COLOR_DEFECTO):
+    """Un color #rrggbb; si no es válido, el de siempre."""
+    v = str(valor or '').strip().lower()
+    return v if re.fullmatch(r'#[0-9a-f]{6}', v) else defecto
+
+
+def mezclar(color, blanco):
+    """El color aclarado con blanco (blanco = 0..1): para los fondos suaves de los recuadros."""
+    c = color_valido(color)
+    r, g, b = (int(c[i:i + 2], 16) for i in (1, 3, 5))
+    return '#%02x%02x%02x' % tuple(round(x + (255 - x) * blanco) for x in (r, g, b))
+
+
 def limpiar(contenido, imagenes_validas):
     """Devuelve el contenido limpio: solo tipos conocidos, textos acotados, imágenes del docente."""
     contenido = contenido if isinstance(contenido, dict) else {}
@@ -179,6 +198,8 @@ def limpiar(contenido, imagenes_validas):
         'horario': texto_plano(o.get('horario'), 80),
         'aviso': texto_plano(o.get('aviso'), 300),
         'fin': texto_plano(o.get('fin'), 200),
+        # Color de los títulos, las franjas de sección y los recuadros (antes siempre azul)
+        'color': color_valido(o.get('color')),
     }
     return {'bloques': bloques, 'opciones': opciones}
 

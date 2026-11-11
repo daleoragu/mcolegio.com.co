@@ -1,4 +1,5 @@
 {% extends base %}
+{% load static %}
 {% block page_title %}<h4 class="mb-0"><i class="fas fa-heading me-2"></i>Mi encabezado y pie de página</h4>
 <p class="text-muted small mb-0">Salen en cada guía, taller y evaluación que descargue en PDF o Word.</p>{% endblock %}
 {% block content %}
@@ -8,7 +9,8 @@
   .en-fila input[type=text]{flex:1 1 auto}
   .en-hoja{background:#fff;border:1px solid #cfd6e2;box-shadow:0 4px 14px rgba(0,0,0,.08);aspect-ratio:8.5/11;padding:6% 7%;position:relative;font-family:Arial,sans-serif;max-width:520px;margin:0 auto}
   .en-enc{display:flex;align-items:center;gap:8px;padding-bottom:6px}
-  .en-enc.borde{border-bottom:2px solid #1f3a68}
+  .en-enc.borde{border-bottom:2px solid var(--en-color,#1f3a68)}
+  .en-franja{background:var(--en-color,#1f3a68);color:#fff;font-weight:bold;font-size:11px;padding:3px 8px;margin:10px 0 4px}
   .en-lado{width:18%;text-align:center}
   .en-lado img,.en-arriba img{max-height:52px;max-width:100%}
   .en-centro{flex:1 1 auto}
@@ -44,7 +46,12 @@
       <div id="en-lineas"></div>
       <button type="button" class="btn btn-sm btn-outline-primary" id="en-mas"><i class="fas fa-plus me-1"></i>Agregar línea</button>
       <span class="small text-muted ms-2">Hasta 8 líneas.</span>
-      <div class="form-check small mt-2"><input class="form-check-input" type="checkbox" id="en-borde"><label class="form-check-label" for="en-borde">Línea azul debajo del encabezado</label></div>
+      <div class="form-check small mt-2"><input class="form-check-input" type="checkbox" id="en-borde"><label class="form-check-label" for="en-borde">Línea de color debajo del encabezado</label></div>
+    </div>
+    <div class="mm-tarjeta">
+      <h6 class="mb-1"><i class="fas fa-palette me-1"></i>Color de mis documentos</h6>
+      <p class="small text-muted mb-2">Para la línea del encabezado, los títulos, las franjas de cada sección y los recuadros. Los documentos nuevos salen con este color; en cada documento lo puede cambiar.</p>
+      {% include 'materiales/_colores.html' with id='en-colores' %}
     </div>
     <div class="mm-tarjeta">
       <div class="d-flex align-items-center mb-2"><h6 class="mb-0 flex-grow-1"><i class="fas fa-shoe-prints me-1"></i>Pie de página</h6>
@@ -74,6 +81,7 @@
 </form>
 </div>
 {{ datos|json_script:"en-datos" }}
+<script src="{% static 'materiales/colores.js' %}"></script>
 <script>
 (function () {
   var D = JSON.parse(document.getElementById('en-datos').textContent);
@@ -102,13 +110,15 @@
   (D.lineas.length ? D.lineas : [{texto: '', negrilla: true, tam: 'grande'}, {texto: '', tam: 'normal'}]).forEach(filaLinea);
   D.pie.lineas.forEach(filaPie);
   $('en-alinear').value = D.alinear; $('en-pos1').value = D.logo_pos; $('en-pos2').value = D.logo2_pos;
+  var COLOR = D.color || '#1f3a68';
+  MMColores.iniciar('en-colores', COLOR, function (c) { COLOR = c; pintar(); });
   $('en-borde').checked = D.borde; $('en-pie-alinear').value = D.pie.alinear; $('en-numero').checked = D.pie.numero;
   $('en-mas').onclick = function () { if ($('en-lineas').children.length < 8) { filaLinea({}); pintar(); } };
   $('en-pie-mas').onclick = function () { if ($('en-pie').children.length < 4) { filaPie(''); pintar(); } };
   function datos() {
     return {
       lineas: [].map.call($('en-lineas').children, function (d) { return {texto: d.querySelector('input[type=text]').value, negrilla: d.querySelector('input[type=checkbox]').checked, tam: d.querySelector('select').value}; }),
-      alinear: $('en-alinear').value, logo_pos: $('en-pos1').value, logo2_pos: $('en-pos2').value, borde: $('en-borde').checked,
+      alinear: $('en-alinear').value, logo_pos: $('en-pos1').value, logo2_pos: $('en-pos2').value, borde: $('en-borde').checked, color: COLOR,
       pie: {lineas: [].map.call($('en-pie').children, function (d) { return d.querySelector('input').value; }), alinear: $('en-pie-alinear').value, numero: $('en-numero').checked}
     };
   }
@@ -122,6 +132,8 @@
     var arriba = lado('arriba');
     var texto = c.lineas.filter(function (l) { return l.texto.trim(); }).map(function (l) { return '<div style="font-size:' + PX[l.tam] + 'px;font-weight:' + (l.negrilla ? 'bold' : 'normal') + '">' + esc(l.texto) + '</div>'; }).join('');
     $('v-enc').className = 'en-enc' + (c.borde ? ' borde' : '');
+    document.querySelector('.en-hoja').style.setProperty('--en-color', c.color);
+    var fr = document.querySelector('.en-franja'); if (!fr) { fr = document.createElement('div'); fr.className = 'en-franja'; fr.textContent = 'EXPLORACIÓN'; $('v-enc').after(fr); }
     $('v-enc').innerHTML = (hayLados ? '<div class="en-lado">' + lado('izquierda') + '</div>' : '') +
       '<div class="en-centro" style="text-align:' + alin[c.alinear] + '">' + (arriba ? '<div class="en-arriba">' + arriba + '</div>' : '') + (texto || '<span class="text-muted small">Escriba las líneas del encabezado</span>') + '</div>' +
       (hayLados ? '<div class="en-lado">' + lado('derecha') + '</div>' : '');

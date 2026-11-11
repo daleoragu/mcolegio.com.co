@@ -1,0 +1,14 @@
+{% load static %}
+{% include 'aula/_invertida_js.html' %}
+<script src="{% static 'aula/juegos/editor.js' %}"></script>
+{{ max_opciones|json_script:"gm-max-opciones" }}
+<script>
+EditorPreguntas.montar({form: document.getElementById('gm-form'), texto: document.getElementById('gm-preguntas'), tipos: JSON.parse(document.getElementById('gm-max-opciones').textContent),
+                        banco: '{% url 'aula:banco_json' %}', planilla: '{% url 'aula:banco_planilla' %}', csrf: '{{ csrf_token }}'});
+(function () {   // Animaplano: las preguntas son opcionales (la plataforma las arma con la figura)
+  const caja = document.getElementById('gm-animaplano'), txt = document.getElementById('gm-preguntas');
+  function ver() { const t = document.querySelector('input[name="tipo"]:checked'), es = t && t.value === 'animaplano';
+    caja.style.display = es ? '' : 'none'; txt.dataset.opcional = es ? '1' : ''; }
+  document.querySelectorAll('input[name="tipo"]').forEach(r => r.addEventListener('change', ver)); ver();
+})();
+</script>

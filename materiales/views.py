@@ -164,8 +164,18 @@ def nuevo(request, a):
     doc = Documento.objects.create(propietario=request.user, colegio=a.colegio, titulo=titulo, tipo=tipo,
                                    area=(request.POST.get('area') or (base.area if base else ''))[:80],
                                    grado=(request.POST.get('grado') or '')[:40],
-                                   contenido=plantillas.contenido_inicial(tipo, base))
+                                   contenido=_con_mi_color(request.user, plantillas.contenido_inicial(tipo, base), base))
     return redirect('materiales:editor', pk=doc.pk)
+
+
+def _con_mi_color(usuario, contenido, base=None):
+    """Un documento nuevo sale con el color que el docente escogió en «Mi encabezado» (el formato base manda su propio color)."""
+    if base is None:
+        enc = EncabezadoDocente.objects.filter(usuario=usuario).first()
+        if enc is not None and enc.color != B.COLOR_DEFECTO:
+            contenido = dict(contenido)
+            contenido['opciones'] = dict(contenido.get('opciones') or {}, color=enc.color)
+    return contenido
 
 
 @require_POST
@@ -387,7 +397,7 @@ def editor(request, a, pk):
         'rol': rol, 'solo_ver': rol == 'ver', 'dueno_nombre': nombre(doc.propietario),
         'base': a.base, 'acceso': a, 'doc': doc, 'contenido': doc.contenido, 'imagenes': imagenes,
         'aulas': a.aulas(), 'nube': _nube(a), 'tipos': Documento.TIPOS, 'nube_docente': _nube_docente(request),
-        'destinos': _destinos_examen(a), 'modos_pregunta': B.MODOS_PREGUNTA,
+        'destinos': _destinos_examen(a), 'modos_pregunta': B.MODOS_PREGUNTA, 'colores': B.COLORES,
         'examen': doc.examen if doc.examen_id else None, **_contexto_ia(request, a, doc)})
 
 
@@ -562,6 +572,7 @@ def _config_encabezado(texto):
             'logo_pos': cfg.get('logo_pos') if cfg.get('logo_pos') in pos else 'izquierda',
             'logo2_pos': cfg.get('logo2_pos') if cfg.get('logo2_pos') in pos else 'derecha',
             'borde': bool(cfg.get('borde', True)),
+            'color': B.color_valido(cfg.get('color')),
             'pie': {'lineas': [B.texto_plano(x, 150) for x in (pie.get('lineas') or [])[:E.MAX_PIE] if B.texto_plano(x, 150)],
                     'alinear': pie.get('alinear') if pie.get('alinear') in alinear else 'centro',
                     'numero': bool(pie.get('numero', True))}}
@@ -595,15 +606,17 @@ def encabezado(request, a):
         return redirect('materiales:encabezado')
     if request.GET.get('muestra'):
         muestra = Documento(propietario=request.user, colegio=None, titulo='Guía de muestra', tipo='guia', area='Área',
-                            grado='—', contenido={'bloques': [{'tipo': 'texto', 'html': '<p>Así se ven el encabezado y el pie '
-                                                               'de página en sus documentos.</p>'}]})
+                            grado='—', contenido={'bloques': [{'tipo': 'seccion', 'titulo': 'Exploración', 'indicacion': ''},
+                                                              {'tipo': 'texto', 'html': '<p>Así se ven el encabezado, el pie '
+                                                               'de página y el color de sus documentos.</p>'}],
+                                                  'opciones': {'color': enc.color}})
         r = HttpResponse(exportar.pdf(request, muestra, colegio=None, encabezado=enc, docente=a.docente()), content_type='application/pdf')
         r['Content-Disposition'] = 'inline; filename="muestra-encabezado.pdf"'
         return r
     datos = {'lineas': enc.filas, 'alinear': enc.alinear, 'logo_pos': enc.logo_pos, 'logo2_pos': enc.logo2_pos,
-             'borde': enc.borde, 'pie': enc.pie}
+             'borde': enc.borde, 'pie': enc.pie, 'color': enc.color}
     return render(request, 'materiales/encabezado.html', {'base': a.base, 'acceso': a, 'enc': enc, 'datos': datos,
-                                                         'posiciones': EncabezadoDocente.POSICIONES})
+                                                         'posiciones': EncabezadoDocente.POSICIONES, 'colores': B.COLORES})
 
 
 @vista

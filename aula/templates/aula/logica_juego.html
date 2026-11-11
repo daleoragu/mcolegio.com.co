@@ -2,7 +2,7 @@
 {% load static %}
 {% block page_title %}{% endblock %}
 {% block content %}
-{% include 'aula/_cabecera.html' %}
+{% if aula %}{% include 'aula/_cabecera.html' %}{% else %}{% include 'aula/_estilos.html' %}{% endif %}
 {% include 'aula/_instrucciones.html' %}
 <style>
   #lg-pantalla { max-width:1020px; margin:0 auto; background:#fff; border-radius:18px; padding:12px; }
@@ -34,13 +34,13 @@
 <div class="au">
 <div id="lg-pantalla" style="position:relative">
   <div class="lg-barra">
-    <a href="{% url 'aula:logica' aula.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Juegos de lógica</a>
+    <a href="{% if aula %}{% url 'aula:logica' aula.pk %}{% else %}{{ menu_url }}{% endif %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% if aula %}Juegos de lógica{% else %}Mis juegos{% endif %}</a>
     <h5 class="fw-bold mb-0 me-2">{{ nombre }}</h5>
     <span class="lg-datos" id="lg-nivel-titulo"></span>
     <span class="ms-auto lg-datos">Movimientos: <b id="lg-movs">0</b> · Tiempo: <b id="lg-tiempo">0:00</b></span>
   </div>
   {% if modos %}<div class="lg-barra" aria-label="Modo de juego"><span class="small fw-bold me-1">Modo:</span>
-    {% for m, etiqueta in modos %}<a href="{% url 'aula:logica_juego' aula.pk m %}" class="btn btn-sm {% if m == juego %}btn-success{% else %}btn-outline-success{% endif %}">{{ etiqueta }}</a>{% endfor %}
+    {% for m, etiqueta in modos %}<a href="{% if aula %}{% url 'aula:logica_juego' aula.pk m %}{% else %}{% url 'materiales:logica_probar' m %}{% endif %}" class="btn btn-sm {% if m == juego %}btn-success{% else %}btn-outline-success{% endif %}">{{ etiqueta }}</a>{% endfor %}
   </div>{% endif %}
   <div class="lg-barra">
     <div id="lg-niveles" aria-label="Niveles"></div>
@@ -75,7 +75,7 @@
 <script>
 Logica.pagina({id: '{{ juego|escapejs }}', datos: JSON.parse(document.getElementById('lg-datos').textContent), clave: '{{ clave|escapejs }}',
                servidor: JSON.parse(document.getElementById('lg-servidor').textContent),
-               urlAvance: {% if guarda %}'{% url 'aula:logica_avance' aula.pk juego %}'{% else %}''{% endif %}, csrf: '{{ csrf_token }}'});
+               urlAvance: {% if guarda and aula %}'{% url 'aula:logica_avance' aula.pk juego %}'{% else %}''{% endif %}, csrf: '{{ csrf_token }}'});
 // La primera vez que se abre cada juego, las instrucciones salen solas
 try {
   const k = 'mc-ins-visto:{{ juego|escapejs }}';

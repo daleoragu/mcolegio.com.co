@@ -687,6 +687,11 @@
     $$('#mm-modo [data-modo]').forEach(function (b) { b.addEventListener('click', function () { datos.opciones.modo = b.getAttribute('data-modo'); pintarOpciones(); cambio(); }); });
     $$('#mm-columnas [data-col]').forEach(function (b) { b.addEventListener('click', function () { datos.opciones.columnas = +b.getAttribute('data-col'); pintarOpciones(); cambio(); }); });
     $('#mm-letra').addEventListener('input', function () { datos.opciones.letra = +this.value; pintarOpciones(); cambio(); });
+    // Color de los títulos, franjas y recuadros del documento
+    if (window.MMColores) MMColores.iniciar('mm-colores', datos.opciones.color || '#1f3a68', function (c) {
+        datos.opciones.color = c; document.documentElement.style.setProperty('--mm-doc', c); cambio();
+    });
+    document.documentElement.style.setProperty('--mm-doc', datos.opciones.color || '#1f3a68');
     $('#mm-datos').addEventListener('change', function () { datos.opciones.datos = this.checked; cambio(); });
     // Cuadernillo: portada y datos de la sesión
     var CAMPOS_CUAD = ['sesion', 'duracion', 'horario', 'aviso', 'fin'];

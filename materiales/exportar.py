@@ -257,6 +257,8 @@ def contexto(doc, modo=None, docente='', respuestas=False):
         'letra': max(8.5, opciones['letra'] + m['dif']), 'margen': m['margen'], 'interlineado': m['linea'],
         'columnas': m['columnas'] or opciones['columnas'], 'alto_imagen': m['img'], 'separacion': m['sep'],
         'docente': docente, 'fecha': timezone.localdate(),
+        'color': B.color_valido(opciones.get('color')), 'color_claro': B.mezclar(opciones.get('color'), .93),
+        'color_medio': B.mezclar(opciones.get('color'), .86),
     }
 
 
@@ -560,7 +562,7 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=F
                 p = w.add_paragraph()
                 r = p.add_run(b['titulo'])
                 r.bold = True
-                r.font.color.rgb = RGBColor(0x1F, 0x3A, 0x68)
+                r.font.color.rgb = RGBColor.from_string(ctx["color"][1:].upper())
                 r.font.size = Pt(letra + 1.5)
                 if b['indicacion']:
                     q = w.add_paragraph()
@@ -612,7 +614,7 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=F
                     p = w.add_paragraph()
                     r = p.add_run(rango + ' de acuerdo con la siguiente información.')
                     r.bold = True
-                    r.font.color.rgb = RGBColor(0x1F, 0x3A, 0x68)
+                    r.font.color.rgb = RGBColor.from_string(ctx["color"][1:].upper())
                 if b['titulo']:
                     p = w.add_paragraph()
                     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -637,7 +639,7 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=F
             tabla = w.add_table(rows=1, cols=1)
             tabla.style = 'Table Grid'
             celda = tabla.cell(0, 0)
-            _sombrear(celda, '1F3A68')
+            _sombrear(celda, ctx['color'][1:].upper())
             r = celda.paragraphs[0].add_run(o['fin'] or 'FIN. Revisa que hayas marcado todas las respuestas en la hoja de respuestas.')
             r.bold = True
             r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)

@@ -1,0 +1,17 @@
+{% extends base %}
+{% block page_title %}
+<a href="{% url 'materiales:juegos' %}" class="btn btn-sm btn-outline-secondary mb-2"><i class="fas fa-arrow-left me-1"></i>Mis juegos</a>
+<h3 class="mb-0 fw-bold">Editar «{{ juego.titulo }}»</h3>
+<p class="text-muted small mb-0">Al guardar, los cambios también llegan a las clases donde lo envió, si nadie lo ha jugado todavía.</p>
+{% endblock %}
+{% block content %}
+{% include 'materiales/_estilos.html' %}
+<style>.mj-tipo:has(input:checked){border-color:#10b981!important;background:#ecfdf5}</style>
+<div class="mm" style="max-width:860px">
+  <form method="post" class="mm-tarjeta" id="gm-form">{% csrf_token %}
+    {% include 'materiales/_juego_form.html' with boton='Guardar cambios' %}
+  </form>
+  <a class="btn btn-success" href="{% url 'materiales:juego_probar' juego.pk %}"><i class="fas fa-play me-1"></i>Probar como está guardado</a>
+</div>
+{% include 'materiales/_juego_js.html' %}
+{% endblock %}

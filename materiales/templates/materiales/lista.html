@@ -22,6 +22,7 @@
   <form method="post" action="{% url 'materiales:nuevo' %}" class="m-0">{% csrf_token %}<input type="hidden" name="tipo" value="guia_momentos"><button class="btn ep-crear"><i class="fas fa-plus me-1"></i>Crear guía por momentos</button></form>
   <a class="btn ep-mas" href="{% url 'aula:instrumentos' %}"><i class="fas fa-plus me-1"></i>Rúbrica / Lista de chequeo</a>
   <a class="btn ep-mas" href="{% url 'puntoexacto:crear' %}"><i class="fas fa-plus me-1"></i>Examen PuntoExacto</a>
+  <a class="btn ep-mas" href="{% url 'materiales:juegos' %}"><i class="fas fa-gamepad me-1" style="color:#10b981"></i>Mis juegos</a>
   <div class="dropdown">
     <button class="btn ep-importar dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-file-import me-1"></i>Importar material (Biblioteca / Sala / HTML / Excel)</button>
     <ul class="dropdown-menu">

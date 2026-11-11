@@ -201,6 +201,11 @@ class EncabezadoDocente(models.Model):
                 'numero': p.get('numero', True)}
 
     @property
+    def color(self):
+        from .bloques import color_valido
+        return color_valido((self.config or {}).get('color'))
+
+    @property
     def tiene_algo(self):
         return bool(self.filas or self.logo or self.logo2)
 
@@ -328,3 +333,36 @@ class Reporte(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['material', 'usuario'], name='materiales_un_reporte')]
+
+
+# ---------------------------------------------------------------------------
+# Mis juegos: los juegos con preguntas viven en Planeación (sin grupo) y se envían a las clases
+# ---------------------------------------------------------------------------
+class JuegoMaterial(models.Model):
+    """Un juego del docente con sus preguntas (laberinto, tanques, penaltis…). Se prueba aquí mismo, sin grupo,
+    y se envía a una o varias clases: allá queda como juego del aula (JuegoAula) con sus resultados y su nota.
+
+    enviados = {'<aula_id>': <juego_aula_id>, …}: al editarlo, las copias que nadie ha jugado se actualizan.
+    """
+    propietario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='juegos_materiales')
+    tipo = models.CharField(max_length=10, default='laberinto')
+    titulo = models.CharField(max_length=60)
+    texto_preguntas = models.TextField(blank=True)
+    preguntas = models.JSONField(default=list, blank=True)
+    segundos = models.PositiveSmallIntegerField(default=20)
+    minutos = models.PositiveSmallIntegerField(default=5)
+    velocidad = models.CharField(max_length=6, default='normal')
+    enviados = models.JSONField(default=dict, blank=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-actualizado']
+
+    def __str__(self):
+        return self.titulo
+
+    @property
+    def nombre_tipo(self):
+        from aula.models import JuegoAula
+        return dict(JuegoAula.TIPOS).get(self.tipo, self.tipo)

@@ -27,6 +27,7 @@ SECCIONES = {
                     ('Grupos, PIN y tarjetas QR', 'fa-id-card', 'salon_digital:grupos', 'grupos'),
                     ('Escanear exámenes y notas (PuntoExacto)', 'fa-camera', 'puntoexacto:lista', 'examenes')],
     'planeacion': [('Mis materiales', 'fa-file-lines', 'materiales:lista', 'materiales'),
+                   ('Mis juegos', 'fa-gamepad', 'materiales:juegos', 'juegos'),
                    ('Rúbricas', 'fa-list-check', 'aula:instrumentos', 'rubricas'),
                    ('Banco de preguntas', 'fa-box-archive', 'aula:banco', 'banco'),
                    ('Exámenes PuntoExacto', 'fa-barcode', 'puntoexacto:lista', 'examenes'),
@@ -68,6 +69,8 @@ def ubicar(request):
             return 'sala', 'colegas'
         return 'sala', 'mensajes'
     if app in ('materiales',):
+        if nombre and (nombre.startswith('juego') or nombre == 'logica_probar'):
+            return 'planeacion', 'juegos'
         return 'planeacion', 'materiales'
     if app == 'puntoexacto':
         return 'planeacion', 'examenes'
