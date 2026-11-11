@@ -127,7 +127,7 @@ class Espacios(TestCase):
         self.assertEqual(self.client.post('/salon_digital/pizarra/nota/', {'accion': 'borrar', 'id': ajena.pk}).status_code, 404)
         self.client.post('/salon_digital/pizarra/nota/', {'accion': 'borrar', 'id': nid})
         self.assertFalse(NotaPizarra.objects.filter(pk=nid).exists())
-        self.assertContains(self.client.get('/salon_digital/pizarra/tablero/'), 'tb-lienzo')
+        self.assertContains(self.client.get('/salon_digital/pizarra/tablero/'), 'Mis tableros')
 
     def test_al_entrar_llega_al_inicio(self):
         self.client.logout()

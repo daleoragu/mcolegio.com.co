@@ -958,3 +958,39 @@ class CompartidoDocente(models.Model):
 
     def __str__(self):
         return f'{self.get_tipo_display()} «{self.titulo}» para {self.para}'
+
+
+# ---------------------------------------------------------------------------
+# Tablero de la clase (Pizarra): pantalla infinita con trazos, textos e imágenes; se comparte con un aula
+# ---------------------------------------------------------------------------
+class TableroClase(models.Model):
+    """Un tablero del docente. Los objetos están en coordenadas del «mundo» (la pantalla infinita).
+
+    objetos = [{'id', 't': 'trazo'|'linea'|'texto'|'imagen', 'a': autor ('d' docente o clave del estudiante), ...}]
+    cambios = [[version, operación], …] las últimas operaciones: así cada pantalla pide solo lo nuevo.
+    """
+    autor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tableros_clase')
+    titulo = models.CharField(max_length=80, default='Tablero de la clase')
+    fondo = models.CharField(max_length=10, default='cuadros')
+    objetos = models.JSONField(default=list, blank=True)
+    cambios = models.JSONField(default=list, blank=True)
+    version = models.PositiveIntegerField(default=0)
+    aula = models.ForeignKey(Aula, on_delete=models.SET_NULL, null=True, blank=True, related_name='tableros',
+                             help_text='La clase con la que está compartido (vacío: solo lo ve el docente).')
+    editan_estudiantes = models.BooleanField(default=False, help_text='Los estudiantes de la clase pueden escribir en él.')
+    creado = models.DateTimeField(auto_now_add=True)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-actualizado']
+
+    def __str__(self):
+        return self.titulo
+
+
+class ImagenTablero(models.Model):
+    tablero = models.ForeignKey(TableroClase, on_delete=models.CASCADE, related_name='imagenes')
+    archivo = models.FileField(upload_to=almacen.ruta_tablero, storage=almacen.privado)
+    ancho = models.PositiveIntegerField(default=0)
+    alto = models.PositiveIntegerField(default=0)
+    creada = models.DateTimeField(auto_now_add=True)

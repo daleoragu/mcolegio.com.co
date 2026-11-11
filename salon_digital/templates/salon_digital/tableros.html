@@ -1,0 +1,28 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}Mis tableros · Mi Salón Virtual{% endblock %}
+{% block contenido %}
+<div style="max-width:960px;margin:0 auto">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="flex-grow-1"><h3 class="fw-bold mb-0"><i class="fas fa-chalkboard me-2" style="color:#0f766e"></i>Mis tableros</h3>
+      <p class="text-muted small mb-0">Pantalla infinita para escribir, dibujar y pegar imágenes. Proyéctela en clase o compártala con un grupo: usted decide si los estudiantes pueden escribir.</p></div>
+    <form method="post" class="d-flex gap-2">{% csrf_token %}<input name="titulo" class="form-control form-control-sm" maxlength="80" placeholder="Título (opcional)"><button class="btn btn-sm btn-success text-nowrap"><i class="fas fa-plus me-1"></i>Nuevo tablero</button></form>
+  </div>
+  <div class="row g-3">
+    {% for t in tableros %}
+    <div class="col-sm-6 col-lg-4">
+      <div class="esp-card p-3 h-100 d-flex flex-column">
+        <a class="fw-bold text-reset text-decoration-none" href="{% url 'salon_digital:tablero_abrir' t.pk %}"><i class="fas fa-chalkboard me-1 text-success"></i>{{ t.titulo }}</a>
+        <div class="small text-muted mb-2">{{ t.objetos|length }} elemento{{ t.objetos|length|pluralize }} · {{ t.actualizado|date:"d/m/Y H:i" }}</div>
+        <div class="small mb-2">{% if t.aula %}<span class="badge text-bg-success"><i class="fas fa-users me-1"></i>Compartido con {{ t.aula.titulo }}</span>{% if t.editan_estudiantes %} <span class="badge text-bg-warning">Los estudiantes escriben</span>{% endif %}{% else %}<span class="badge text-bg-light border">Solo usted</span>{% endif %}</div>
+        <div class="mt-auto d-flex gap-2">
+          <a class="btn btn-sm btn-primary flex-grow-1" href="{% url 'salon_digital:tablero_abrir' t.pk %}">Abrir</a>
+          <form method="post" action="{% url 'salon_digital:tablero_eliminar' t.pk %}" onsubmit="return confirm('¿Eliminar este tablero y sus imágenes?')">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="far fa-trash-can"></i></button></form>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12"><div class="esp-card p-4 text-center text-muted">Todavía no tiene tableros. Cree el primero con <b>Nuevo tablero</b>.</div></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
