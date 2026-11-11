@@ -1,4 +1,4 @@
-{% load nota_filters %}<!DOCTYPE html>
+{% load nota_filters ecuaciones %}<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
 <title>{{ doc.titulo }}</title>
 <style>
@@ -134,36 +134,36 @@
 <div class="cuerpo{% if columnas == 2 %} dos{% endif %}">
 {% for b in bloques %}
     {% if b.tipo == 'titulo' %}
-        {% if b.nivel == 1 %}<h2 class="t1">{{ b.texto }}</h2>{% else %}<h3 class="t2">{{ b.texto }}</h3>{% endif %}
+        {% if b.nivel == 1 %}<h2 class="t1">{{ b.texto|eq }}</h2>{% else %}<h3 class="t2">{{ b.texto|eq }}</h3>{% endif %}
     {% elif b.tipo == 'seccion' %}
-        <div class="seccion">{{ b.titulo }}</div>{% if b.indicacion %}<div class="seccion-ind">{{ b.indicacion }}</div>{% endif %}
+        <div class="seccion">{{ b.titulo }}</div>{% if b.indicacion %}<div class="seccion-ind">{{ b.indicacion|eq }}</div>{% endif %}
     {% elif b.tipo == 'texto' %}
-        <div class="b texto">{{ b.html|safe }}</div>
+        <div class="b texto">{{ b.html|safe|eq }}</div>
     {% elif b.tipo == 'contexto' %}
         <div class="b contexto">
             {% if b.desde %}<div class="rango">Responde {% if b.hasta != b.desde %}las preguntas {{ b.desde }} a {{ b.hasta }}{% else %}la pregunta {{ b.desde }}{% endif %} de acuerdo con la siguiente información.</div>{% endif %}
             {% if b.titulo %}<div class="ctx-titulo">{{ b.titulo }}</div>{% endif %}
             {% if b.imagen %}{% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="img"><img src="{{ ruta }}" style="width:{{ b.ancho }}%"></div>{% endif %}{% endwith %}{% endif %}
-            {{ b.html|safe }}
+            {{ b.html|safe|eq }}
         </div>
     {% elif b.tipo == 'imagen' %}
         {% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="b img"><img src="{{ ruta }}" style="width:{{ b.ancho }}%">{% if b.pie %}<div class="pie">{{ b.pie }}</div>{% endif %}</div>{% endif %}{% endwith %}
     {% elif b.tipo == 'tabla' %}
-        <table class="b tabla{% if '' in b.filas.0 or '' in b.filas.1 %} llenar{% endif %}{% if not b.encabezado and b.filas.0|length == 2 %} campos{% endif %}">{% for fila in b.filas_estilo %}<tr>{% for c, e in fila %}{% if forloop.parentloop.first and b.encabezado %}<th{% if e %} style="{{ e }}"{% endif %}>{{ c }}</th>{% else %}<td{% if e %} style="{{ e }}"{% endif %}>{{ c }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</table>
+        <table class="b tabla{% if '' in b.filas.0 or '' in b.filas.1 %} llenar{% endif %}{% if not b.encabezado and b.filas.0|length == 2 %} campos{% endif %}">{% for fila in b.filas_estilo %}<tr>{% for c, e in fila %}{% if forloop.parentloop.first and b.encabezado %}<th{% if e %} style="{{ e }}"{% endif %}>{{ c|eq }}</th>{% else %}<td{% if e %} style="{{ e }}"{% endif %}>{{ c|eq }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</table>
     {% elif b.tipo == 'recuadro' %}
-        <div class="b recuadro {{ b.estilo }}"><div class="rt">{{ b.titulo }}</div>{{ b.html|safe }}</div>
+        <div class="b recuadro {{ b.estilo }}"><div class="rt">{{ b.titulo }}</div>{{ b.html|safe|eq }}</div>
     {% elif b.tipo == 'lineas' %}
         <div class="b">{% for _ in ''|center:b.n %}<div class="linea"></div>{% endfor %}</div>
     {% elif b.tipo == 'pregunta' and b.modo == 'hoja' %}
         <div class="b hoja">
-            {% if b.enunciado %}<div class="enun" style="text-align:left">{{ b.enunciado }}</div>{% endif %}
+            {% if b.enunciado %}<div class="enun" style="text-align:left">{{ b.enunciado|eq }}</div>{% endif %}
             {% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="lienzo"><img src="{{ ruta }}">{% if respuestas %}{% for c in b.campos %}<div class="campo" style="{{ c.css }}">{% if c.tipo == 'marca' %}{% if c.correcta %}X{% endif %}{% else %}{{ c.respuesta }}{% endif %}</div>{% endfor %}{% endif %}</div>{% endif %}{% endwith %}
         </div>
     {% elif b.tipo == 'pregunta' %}
         <div class="b pregunta">
-            <div class="enun"><b>{{ b.numero }}.</b> {% if b.modo == 'completar' %}{% for parte, resp in b.trozos %}{{ parte }}{% if resp is not None %}<span class="hueco">{% if respuestas %}<span class="ok">{{ resp }}</span>{% else %}&nbsp;{% endif %}</span>{% endif %}{% endfor %}{% else %}{{ b.enunciado }}{% endif %}
+            <div class="enun"><b>{{ b.numero }}.</b> {% if b.modo == 'completar' %}{% for parte, resp in b.trozos %}{{ parte|eq }}{% if resp is not None %}<span class="hueco">{% if respuestas %}<span class="ok">{{ resp }}</span>{% else %}&nbsp;{% endif %}</span>{% endif %}{% endfor %}{% else %}{{ b.enunciado|eq }}{% endif %}
                 {% if respuestas and b.control %}<span class="control">(pregunta de control)</span>{% endif %}</div>
-            {% if b.modo == 'completar' and b.enunciado %}<div style="margin-left:14px;font-style:italic">{{ b.enunciado }}</div>{% endif %}
+            {% if b.modo == 'completar' and b.enunciado %}<div style="margin-left:14px;font-style:italic">{{ b.enunciado|eq }}</div>{% endif %}
             {% if b.modo == 'senalar' %}
                 {% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="lienzo" style="width:{{ b.ancho }}%"><img src="{{ ruta }}">{% if respuestas %}{% for z in b.zonas %}<div class="zona" style="{{ z.css }}"></div>{% endfor %}{% endif %}</div>{% endif %}{% endwith %}
             {% elif b.imagen %}{% with ruta=rutas|get_item:b.imagen %}{% if ruta %}<div class="img"><img src="{{ ruta }}" style="width:45%"></div>{% endif %}{% endwith %}{% endif %}
@@ -177,7 +177,7 @@
             {% elif b.modo == 'archivo' %}
                 <div class="nota-archivo">Respuesta con {% if b.archivo == 'foto' %}una foto{% elif b.archivo == 'audio' %}un audio{% else %}una foto o un audio{% endif %}: se envía en el aula virtual.</div>
             {% elif b.modo == 'unica' or b.modo == 'varias' %}
-                <div class="ops {{ b.disposicion }}">{% for l, o, bien in b.letras %}<span{% if respuestas and bien %} class="ok"{% endif %}>{% if b.modo == 'varias' %}&#9744; {% endif %}<b>{{ l }}.</b> {{ o }}</span>{% endfor %}</div>
+                <div class="ops {{ b.disposicion }}">{% for l, o, bien in b.letras %}<span{% if respuestas and bien %} class="ok"{% endif %}>{% if b.modo == 'varias' %}&#9744; {% endif %}<b>{{ l }}.</b> {{ o|eq }}</span>{% endfor %}</div>
             {% elif b.modo == 'vf' %}
                 <div class="ops fila"><span{% if respuestas and b.valor %} class="ok"{% endif %}>( &nbsp; ) Verdadero</span><span{% if respuestas and not b.valor %} class="ok"{% endif %}>( &nbsp; ) Falso</span></div>
             {% elif b.modo == 'numerica' %}

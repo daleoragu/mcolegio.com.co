@@ -355,25 +355,60 @@ def _parrafos(html):
     return [x for x in p.parrafos if any(t.strip() for t, _ in x)]
 
 
-def _escribir(parrafo, trozos, tam=None):
+def _texto(parrafo, texto, tam=None):
+    """Escribe un texto que puede traer ecuaciones \\( … \\): cada ecuación entra como imagen del tamaño de la letra."""
+    return _escribir(parrafo, [(texto or '', frozenset())], tam)
+
+
+def _parrafo(w, texto, tam=None):
+    p = w.add_paragraph()
+    _texto(p, texto, tam)
+    return p
+
+
+def _ecuacion(parrafo, tex, tam):
     from docx.shared import Pt
+    from . import ecuaciones as E
+    r = E.png(tex, tam or 11)
+    if r is None:
+        return parrafo.add_run(E.normalizar(tex))
+    datos, alto = r
+    run = parrafo.add_run()
+    run.add_picture(io.BytesIO(datos), height=Pt(alto))
+    return run
+
+
+def _escribir(parrafo, trozos, tam=None):
+    from . import ecuaciones as E
+    corridas = []
     for texto, f in trozos:
-        r = parrafo.add_run(texto)
-        r.bold = 'b' in f or None
-        r.italic = 'i' in f or None
-        r.underline = 'u' in f or None
-        if 'sub' in f:
-            r.font.subscript = True
-        if 'sup' in f:
-            r.font.superscript = True
-        if tam:
-            r.font.size = Pt(tam)
-        for marca in sorted(x for x in f if x[:2] in ('c:', 'f:')):     # el último (el más interno) gana
-            if marca.startswith('c:'):
-                from docx.shared import RGBColor
-                r.font.color.rgb = RGBColor.from_string(marca[3:].upper())
+        for parte in E.partes(texto):
+            if isinstance(parte, tuple):
+                corridas.append(_ecuacion(parrafo, parte[1], tam))
             else:
-                _relleno_run(r, marca[3:].upper())
+                corridas.append(_run(parrafo, parte, f, tam))
+    return corridas
+
+
+def _run(parrafo, texto, f, tam):
+    from docx.shared import Pt
+    r = parrafo.add_run(texto)
+    r.bold = 'b' in f or None
+    r.italic = 'i' in f or None
+    r.underline = 'u' in f or None
+    if 'sub' in f:
+        r.font.subscript = True
+    if 'sup' in f:
+        r.font.superscript = True
+    if tam:
+        r.font.size = Pt(tam)
+    for marca in sorted(x for x in f if x[:2] in ('c:', 'f:')):     # el último (el más interno) gana
+        if marca.startswith('c:'):
+            from docx.shared import RGBColor
+            r.font.color.rgb = RGBColor.from_string(marca[3:].upper())
+        else:
+            _relleno_run(r, marca[3:].upper())
+    return r
 
 
 def _relleno_run(run, color):
@@ -409,7 +444,7 @@ def _pregunta_docx(w, b, ctx, rutas, util, Cm, RGBColor):
             p = w.add_paragraph()
             if b.get('numero'):
                 p.add_run(f'{b["numero"]}. ').bold = True
-            p.add_run(b['enunciado'] or '')
+            _texto(p, b['enunciado'] or '')
         ruta = rutas.get(b.get('imagen'))
         if ruta:
             datos = None
@@ -432,7 +467,7 @@ def _pregunta_docx(w, b, ctx, rutas, util, Cm, RGBColor):
     p = w.add_paragraph()
     r = p.add_run(f'{b["numero"]}. ')
     r.bold = True
-    p.add_run(b['enunciado'])
+    _texto(p, b['enunciado'])
     if b.get('imagen') in rutas:
         try:
             w.add_paragraph().add_run().add_picture(str(rutas[b['imagen']]), width=int(util * 0.4))
@@ -443,17 +478,17 @@ def _pregunta_docx(w, b, ctx, rutas, util, Cm, RGBColor):
     if m in ('unica', 'varias'):
         textos = [f'{marca} {l}. {o}' for l, o, _ in b['letras']]
         if b['disposicion'] == 'fila':
-            w.add_paragraph('     '.join(textos))
+            _parrafo(w, '     '.join(textos))
         elif b['disposicion'] == 'dos':
             for k in range(0, len(textos), 2):
-                w.add_paragraph('\t'.join(textos[k:k + 2]))
+                _parrafo(w, '\t'.join(textos[k:k + 2]))
         else:
             for x in textos:
-                w.add_paragraph(x).paragraph_format.left_indent = Cm(0.6)
+                _parrafo(w, x).paragraph_format.left_indent = Cm(0.6)
     elif m == 'vf':
         w.add_paragraph('(   ) Verdadero     (   ) Falso')
     elif m == 'completar':
-        w.add_paragraph(''.join(parte + ('__________' if resp is not None else '') for parte, resp in b['trozos']))
+        _parrafo(w, ''.join(parte + ('__________' if resp is not None else '') for parte, resp in b['trozos']))
     elif m == 'numerica':
         w.add_paragraph('Respuesta: ______________ ' + (b.get('unidad') or ''))
     elif m == 'emparejar':
@@ -629,7 +664,7 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=F
                 for i, fila in enumerate(b['filas']):
                     for j, valor in enumerate(fila):
                         celda = tabla.cell(i, j)
-                        celda.text = valor
+                        _texto(celda.paragraphs[0], valor)
                         e = (b.get('estilos') or {}).get(f'{i}-{j}') or {}
                         if i == 0 and b['encabezado']:
                             for r in celda.paragraphs[0].runs:
