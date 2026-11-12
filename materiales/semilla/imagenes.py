@@ -383,8 +383,141 @@ GRADO_2 = [
 ]
 
 
+def _gr(fn, grado):
+    def f(*a, **k):
+        return dict(fn(*a, **k), grado=grado)
+    return f
+
+
+def _oficial(id_, grado, dba, nombre, uso, fuente):
+    """Mapas: no se generan con IA (los inventan). Se descarga el oficial y se guarda con este nombre."""
+    return {'id': id_, 'area': 'Ciencias Sociales', 'grado': grado, 'dba': dba, 'origen': 'oficial', 'nombre': nombre, 'uso': uso,
+            'prompt': fuente, 'colorear': False}
+
+
+IGAC = ('Descárguelo del IGAC (igac.gov.co → Mapas de Colombia / mapas para colorear) o del Atlas de Colombia, y guárdelo como PNG '
+        'con este nombre. No lo genere con IA: los mapas inventados tienen fronteras equivocadas.')
+_m3, _l3, _n3, _s3 = (_gr(_a(x), 3) for x in ('Matemáticas', 'Lenguaje', 'Ciencias Naturales', 'Ciencias Sociales'))
+_m4, _l4, _n4, _s4 = (_gr(_a(x), 4) for x in ('Matemáticas', 'Lenguaje', 'Ciencias Naturales', 'Ciencias Sociales'))
+_m5, _l5, _n5, _s5 = (_gr(_a(x), 5) for x in ('Matemáticas', 'Lenguaje', 'Ciencias Naturales', 'Ciencias Sociales'))
+PERSONAJES_35 = ('Personajes: Sofi y Tomás ya de 9 años (los mismos niños de las guías de 1.º, más grandes), con uniforme escolar colombiano.')
+
+GRADOS_3_A_5 = [
+    # 3.º Matemáticas
+    _m3('m3-paleta-helados', 1, 'Carrito de helados', 'Combinaciones', 'Un carrito de paletas de helado con tres sabores (fresa, mango y '
+        'mora) y dos tipos de cubierta (chocolate y coco), sin letras.', ESCENA),
+    _m3('m3-pizza', 3, 'Pizza partida', 'Fracciones', 'Una pizza redonda vista desde arriba, partida en 8 porciones iguales, con 3 porciones '
+        'ya servidas en un plato aparte.'),
+    _m3('m3-baldosas', 4, 'Piso de baldosas', 'Área y perímetro', 'Un piso de baldosas cuadradas de colores visto desde arriba, con un tapete rectangular.', ESCENA),
+    _m3('m3-cajas-empacar', 5, 'Empacando cajas', 'Volumen y capacidad', 'Tomás metiendo cubos de madera en una caja de cartón abierta. ' + PERSONAJES_35, ESCENA),
+    _m3('m3-espejo-mariposa', 7, 'Mariposa simétrica', 'Reflexión (simetría)', 'Una mariposa con las alas abiertas perfectamente simétricas, de frente.'),
+    _m3('m3-ruleta', 11, 'Ruleta de colores', 'Más posible y menos posible', 'Una ruleta de cartulina con 8 partes iguales: 5 rojas, 2 azules y '
+        '1 amarilla, con una flecha en el centro.'),
+    # 3.º Lenguaje
+    _l3('l3-tira-comica', 2, 'Tira cómica sin texto', 'Leer imágenes', 'Una tira cómica de 4 viñetas sin palabras: un niño siembra una semilla, '
+        'la riega, sale una planta y el niño celebra con una flor.', 'Cuatro viñetas en fila horizontal, globos vacíos.'),
+    _l3('l3-pintura-baile', 2, 'Danza folclórica', 'Manifestaciones artísticas', 'Una pareja bailando bambuco con trajes típicos colombianos.', ESCENA),
+    _l3('l3-colibri', 3, 'Cuento: el colibrí y el incendio', 'Narrador y estructura narrativa', 'Un colibrí pequeño llevando una gota de agua en el '
+        'pico sobre un bosque con humo, mientras otros animales lo miran.', ESCENA),
+    _l3('l3-telefono', 5, 'Emisor y receptor', 'La comunicación', 'Sofi hablando por un teléfono de vasos y cuerda con Tomás. ' + PERSONAJES_35, ESCENA),
+    _l3('l3-afiche-rio', 8, 'Afiche para cuidar el río', 'Escribir para el entorno', 'Un afiche escolar con un río limpio, peces y una mano '
+        'sosteniendo una gota de agua, con un espacio en blanco arriba para el título.', 'Formato vertical de afiche, sin letras.'),
+    # 3.º Ciencias Naturales
+    _n3('n3-materiales-luz', 1, 'Opaco, transparente y translúcido', 'La luz atraviesa materiales', 'Una linterna alumbrando tres láminas en fila: '
+        'una de vidrio (pasa toda la luz), una de papel mantequilla (pasa poca luz) y una de madera (no pasa).', ESCENA),
+    _n3('n3-espejo', 1, 'Espejo', 'Materiales que reflejan', 'Un espejo de mano reflejando la luz del sol en una pared.'),
+    _n3('n3-instrumentos', 3, 'Instrumentos musicales', 'El sonido es vibración', 'Una guitarra, un tambor y una flauta dulce juntos.'),
+    _n3('n3-termometro', 4, 'Termómetro', 'Medir la temperatura', 'Un termómetro de laboratorio dentro de un vaso con agua y hielo.'),
+    _n3('n3-ciclo-agua', 4, 'Ciclo del agua', 'Cambios de estado en la naturaleza', 'El ciclo del agua: el sol calienta un río, sube vapor, se forman '
+        'nubes sobre las montañas, llueve y el agua vuelve al río, con flechas, sin letras.', ESCENA),
+    _n3('n3-ecosistema', 5, 'Ecosistema del bosque andino', 'Factores bióticos y abióticos', 'Un bosque andino colombiano con quebrada, sol, rocas, '
+        'árboles, una pava, una ardilla y musgo en los troncos.', ESCENA),
+    _n3('n3-camaleon', 6, 'Animal camuflado', 'Camuflaje', 'Un insecto palo casi invisible sobre una rama, camuflado.'),
+    _n3('n3-hormigas', 6, 'Hormigas arrieras', 'Relaciones entre seres vivos', 'Una fila de hormigas arrieras cargando pedazos de hojas.'),
+    # 3.º Ciencias Sociales
+    _oficial('s3-mapamundi', 3, 1, 'Planisferio: continentes y océanos', 'Continentes y océanos', IGAC),
+    _oficial('s3-mapa-colombia-fisico', 3, 2, 'Mapa físico de Colombia', 'Relieve, ríos y mares', IGAC),
+    _s3('s3-puerto', 1, 'Puerto en la costa', 'Actividades de las zonas costeras', 'Un puerto del Pacífico colombiano con lanchas de pescadores, '
+        'redes y un barco de carga al fondo.', ESCENA),
+    _s3('s3-mar-plastico', 1, 'Plástico en el mar', 'Problemas de los océanos', 'Una tortuga marina nadando entre bolsas de plástico en el mar.', ESCENA),
+    _s3('s3-mercado', 2, 'Plaza de mercado', 'Productos de cada clima', 'Una plaza de mercado colombiana con frutas de tierra caliente y '
+        'papas y verduras de tierra fría.', ESCENA),
+    _s3('s3-fiesta', 4, 'Fiesta del municipio', 'Tradiciones', 'Un desfile de fiestas de pueblo colombiano con comparsas, banda de música y '
+        'banderines de colores.', ESCENA),
+    _s3('s3-tejedora', 6, 'Tejedora wayuu', 'Diversidad cultural', 'Una mujer wayuu tejiendo una mochila de colores bajo una enramada.', ESCENA),
+    _s3('s3-votacion', 7, 'Elección del personero', 'Gobierno escolar', 'Estudiantes de primaria haciendo fila para votar en una urna de cartón '
+        'en el colegio; una niña deposita su voto.', ESCENA),
+    _s3('s3-gobernacion', 8, 'Edificio de la gobernación', 'Gobierno del departamento', 'El edificio colonial de una gobernación con la bandera '
+        'de Colombia en la plaza principal.', ESCENA),
+    # 4.º
+    _m4('m4-jugo-receta', 1, 'Receta de jugo', 'Fracciones como operador', 'Una jarra de jugo de lulo y tres vasos, con medio lulo partido al lado.'),
+    _m4('m4-tienda-decimales', 3, 'Precios con decimales', 'Comparar decimales', 'Una balanza digital de tienda con una bolsa de tomates, '
+        'pantalla en blanco.'),
+    _m4('m4-ampliacion', 7, 'Foto ampliada', 'Ampliación y reducción', 'Dos fotos del mismo paisaje: una pequeña y otra el doble de grande, '
+        'colgadas en una pared.', ESCENA),
+    _l4('l4-noticia-radio-tv', 1, 'La noticia en radio y televisión', 'Comparar medios', 'Una familia colombiana: el abuelo escucha la radio y la '
+        'niña ve el noticiero en la televisión, en la misma sala.', ESCENA),
+    _l4('l4-afiche-lectura', 2, 'Afiche de la feria del libro', 'Lo no verbal en los afiches', 'Un afiche colorido con un libro abierto del que '
+        'salen pájaros, estrellas y un barco, con espacio en blanco para el título.', 'Formato vertical, sin letras.'),
+    _l4('l4-luna-poema', 4, 'Paisaje para un poema', 'Figuras literarias', 'Una luna grande sobre un cafetal dormido, con luciérnagas.', ESCENA),
+    _l4('l4-tertulia', 7, 'Tertulia en el salón', 'Espacios de discusión', 'Niños de 10 años sentados en círculo discutiendo, uno levanta la '
+        'mano, una niña modera con un cuaderno.', ESCENA),
+    _n4('n4-friccion', 1, 'Fricción', 'Fuerza de fricción', 'Dos carritos de juguete en dos rampas: una de madera lisa y otra cubierta de lija.', ESCENA),
+    _n4('n4-maquinas', 2, 'Máquinas simples', 'Palanca, polea, plano inclinado', 'Una polea subiendo un balde a un segundo piso, una rampa con '
+        'una carretilla y unas tijeras.', ESCENA),
+    _n4('n4-filtrar', 5, 'Separar mezclas', 'Filtración y tamizado', 'Un embudo con papel filtro separando agua con arena, y al lado un colador '
+        'separando arroz de piedritas.', ESCENA),
+    _n4('n4-cadena', 6, 'Cadena alimenticia', 'Niveles tróficos', 'Pasto, un saltamontes, una rana y una garza, uno al lado del otro con '
+        'flechas que muestran quién se come a quién, sin letras.', 'Cuatro elementos en fila horizontal con flechas.'),
+    _n4('n4-paramo', 7, 'Páramo', 'Ecosistemas terrestres', 'Un páramo colombiano con frailejones, laguna, niebla y un oso de anteojos a lo lejos.', ESCENA),
+    _n4('n4-manglar', 7, 'Manglar', 'Ecosistemas acuáticos', 'Un manglar del Pacífico colombiano con raíces en el agua, cangrejos y garzas.', ESCENA),
+    _oficial('s4-mapa-colombia-politico', 4, 1, 'Mapa político de Colombia con países vecinos', 'Límites y fronteras', IGAC),
+    _s4('s4-ciudad-campo', 2, 'Ciudad y campo', 'Medio urbano y rural', 'Mitad izquierda: una ciudad colombiana con edificios y tráfico; '
+        'mitad derecha: el campo con cultivos y una finca.', ESCENA),
+    _s4('s4-sin-luz', 3, 'Antes de la luz eléctrica', 'Cambios por la tecnología', 'Una familia campesina de hace cien años cenando a la luz de '
+        'una vela, con un fogón de leña.', ESCENA),
+    _s4('s4-orfebreria', 4, 'Orfebrería prehispánica', 'Culturas ancestrales', 'Una pieza de orfebrería de oro de estilo quimbaya (un poporo) '
+        'en una vitrina de museo.'),
+    _s4('s4-congreso', 6, 'Congreso', 'Rama legislativa', 'El salón del Congreso de la República de Colombia con congresistas votando.', ESCENA),
+    _s4('s4-derechos-ninos', 7, 'Derechos de la niñez', 'Derechos', 'Niños colombianos de distintas regiones estudiando, jugando, comiendo y en una '
+        'consulta médica, en cuatro escenas pequeñas.', 'Cuatro escenas en una cuadrícula de 2 × 2.'),
+    # 5.º
+    _m5('m5-mapa-tesoro', 7, 'Mapa del tesoro', 'Plano cartesiano', 'Un mapa del tesoro de una isla dibujado sobre una cuadrícula, con una '
+        'palmera, una cueva y un cofre, sin letras ni números.'),
+    _m5('m5-encuesta', 10, 'Encuesta en el patio', 'Recolectar datos', 'Una niña de 10 años con una tabla anotando las respuestas de sus '
+        'compañeros en el patio del colegio.', ESCENA),
+    _l5('l5-mesa-redonda', 5, 'Mesa redonda', 'Espacios de expresión oral', 'Cinco estudiantes de 5.º en una mesa redonda con un moderador, '
+        'cada uno con una tarjeta.', ESCENA),
+    _l5('l5-mapa-mental', 8, 'Mapa mental', 'Organizar ideas', 'Un mapa mental dibujado en una cartulina con un círculo central y ramas de '
+        'colores con dibujitos, sin letras.'),
+    _l5('l5-mito', 4, 'Mito de Bachué', 'Géneros literarios: el mito', 'Una mujer muisca saliendo de la laguna de Iguaque con un niño en brazos, '
+        'al amanecer, en estilo de ilustración de cuento.', ESCENA),
+    _n5('n5-materiales-conductores', 2, 'Conductores y aislantes', 'Electricidad', 'Una mesa con una cuchara de metal, un clip, una moneda, un '
+        'borrador, un palito de madera y un pedazo de plástico.', ESCENA),
+    _n5('n5-celulas', 3, 'Células vistas al microscopio', 'Células y tejidos', 'Un microscopio escolar y, al lado, un círculo con células de '
+        'cebolla vistas en el microscopio.', ESCENA),
+    _n5('n5-digestivo', 4, 'Sistema digestivo', 'Nutrición', 'Ilustración del sistema digestivo de un niño (boca, esófago, estómago, intestinos) '
+        'en una silueta, sin letras.', 'Silueta de cuerpo entero de frente.'),
+    _n5('n5-ejercicio', 4, 'Después de correr', 'Respiración y circulación', 'Tomás después de correr, sudado, con la mano en el pecho sintiendo '
+        'el corazón. ' + PERSONAJES_35, ESCENA),
+    _oficial('s5-regiones-naturales', 5, 1, 'Mapa de las regiones naturales de Colombia', 'Regiones geográficas', IGAC),
+    _oficial('s5-mapa-coordenadas', 5, 2, 'Mapa de Colombia con paralelos y meridianos', 'Posición astronómica', IGAC),
+    _s5('s5-telegrafo', 3, 'Del telégrafo al celular', 'Cambios en la comunicación', 'Una línea con cuatro objetos: un telégrafo, un teléfono de '
+        'disco, un computador antiguo y un celular moderno.', 'Cuatro objetos en fila.'),
+    _s5('s5-colonia', 4, 'Ciudad colonial', 'La Colonia', 'Una plaza colonial de la Nueva Granada en el siglo XVIII con iglesia, casas de balcones '
+        'y personas de distintos grupos sociales.', ESCENA),
+    _s5('s5-independencia', 5, 'Batalla de Boyacá', 'Independencia', 'Ilustración histórica del Puente de Boyacá con tropas patriotas en 1819, '
+        'estilo de libro escolar, sin violencia explícita.', ESCENA),
+    _s5('s5-ferrocarril', 6, 'Ferrocarril', 'Siglo XX', 'Un tren de vapor antiguo cruzando un puente en las montañas colombianas.', ESCENA),
+    _s5('s5-constitucion', 7, 'Constitución de 1991', 'Derechos y deberes', 'Un libro grande de la Constitución Política de Colombia de 1991 sobre '
+        'una mesa, con la bandera de Colombia al lado, sin letras legibles.'),
+    _s5('s5-junta-accion', 8, 'Junta de acción comunal', 'Organizaciones sociales', 'Una reunión de la junta de acción comunal de un barrio, '
+        'con vecinos sentados y una mujer presidiendo.', ESCENA),
+]
+
+
 def catalogo():
-    return list(MATEMATICAS_1) + LENGUAJE_1 + NATURALES_1 + SOCIALES_1 + GRADO_2
+    return list(MATEMATICAS_1) + LENGUAJE_1 + NATURALES_1 + SOCIALES_1 + GRADO_2 + GRADOS_3_A_5
 
 
 def por_id(id_):

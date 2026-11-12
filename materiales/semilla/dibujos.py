@@ -496,6 +496,192 @@ def municipio():
     return _svg(680, 480, ''.join(p))
 
 
+# --- 3.º a 5.º: fracciones, multiplicación, ángulos, gráficos --------------------------------------------------------
+def fraccion(num, den, forma='barra'):
+    """Una fracción pintada: barra partida en «den» partes iguales (o círculo) con «num» partes coloreadas."""
+    if forma == 'circulo':
+        cx = cy = 110
+        r, p = 95, []
+        for k in range(den):
+            a1, a2 = math.radians(-90 + k * 360 / den), math.radians(-90 + (k + 1) * 360 / den)
+            x1, y1, x2, y2 = cx + r * math.cos(a1), cy + r * math.sin(a1), cx + r * math.cos(a2), cy + r * math.sin(a2)
+            grande = 1 if 360 / den > 180 else 0
+            p.append(f'<path d="M{cx} {cy}L{x1} {y1}A{r} {r} 0 {grande} 1 {x2} {y2}z" fill="{NARANJA if k < num else "#fff"}" stroke="{CONTORNO}" stroke-width="3"/>')
+        if den == 1:
+            p = [f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{NARANJA if num else "#fff"}" stroke="{CONTORNO}" stroke-width="3"/>']
+        return _svg(220, 220, ''.join(p))
+    ancho, alto, x0 = 480, 70, 20
+    w = ancho / den
+    p = [f'<rect x="{x0 + k * w}" y="20" width="{w}" height="{alto}" fill="{AZUL if k < num else "#fff"}" stroke="{CONTORNO}" stroke-width="3"/>'
+         for k in range(den)]
+    return _svg(ancho + 40, alto + 40, ''.join(p))
+
+
+def recta_fracciones(den, marcas=()):
+    """Recta del 0 al 1 (o al 2) partida en «den» partes; «marcas» = numeradores que se señalan con un punto rojo."""
+    hasta = 2 if any(m > den for m in marcas) else 1
+    L, x0, y = 560 * hasta / (hasta if hasta == 1 else 1.4), 30, 70
+    paso = L / (den * hasta)
+    p = [f'<path d="M{x0} {y}H{x0 + L}" stroke="{AZUL_OSC}" stroke-width="4"/>']
+    for k in range(den * hasta + 1):
+        x = x0 + k * paso
+        entero = k % den == 0
+        p.append(f'<path d="M{x} {y - (14 if entero else 9)}V{y + (14 if entero else 9)}" stroke="{AZUL_OSC}" stroke-width="{3 if entero else 2}"/>')
+        if entero:
+            p.append(_txt(x, y + 42, k // den, 22))
+    for m in marcas:
+        p.append(f'<circle cx="{x0 + m * paso}" cy="{y}" r="9" fill="{ROJO}" stroke="{CONTORNO}" stroke-width="2"/>')
+    return _svg(x0 * 2 + L, 125, ''.join(p))
+
+
+def arreglo(filas, cols):
+    """Arreglo rectangular de puntos (filas × columnas) para la multiplicación."""
+    c = 44
+    p = [f'<circle cx="{30 + j * c}" cy="{30 + i * c}" r="14" fill="{(ROJO, AZUL, VERDE, NARANJA)[i % 4]}" stroke="{CONTORNO}" stroke-width="2.5"/>'
+         for i in range(filas) for j in range(cols)]
+    return _svg(cols * c + 16, filas * c + 16, ''.join(p))
+
+
+def angulo(grados):
+    """Un ángulo con su arco (sin el número: se mide o se clasifica)."""
+    cx, cy, L = 60, 200, 210
+    a = math.radians(grados)
+    x2, y2 = cx + L * math.cos(a), cy - L * math.sin(a)
+    r = 48
+    arco_x, arco_y = cx + r * math.cos(a), cy - r * math.sin(a)
+    grande = 1 if grados > 180 else 0
+    p = [f'<path d="M{cx} {cy}H{cx + L}M{cx} {cy}L{x2} {y2}" stroke="{AZUL_OSC}" stroke-width="6" stroke-linecap="round"/>']
+    if grados == 90:
+        p.append(f'<path d="M{cx + 30} {cy}V{cy - 30}H{cx}" fill="none" stroke="{ROJO}" stroke-width="4"/>')
+    else:
+        p.append(f'<path d="M{cx + r} {cy}A{r} {r} 0 {grande} 0 {arco_x} {arco_y}" fill="none" stroke="{ROJO}" stroke-width="4"/>')
+    ancho = cx + max(L, x2 - cx if x2 > cx else L) + 20
+    izq = min(0, x2 - 20)
+    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{izq} 0 {ancho - izq} 230" width="{ancho - izq}" height="230"><rect x="{izq}" width="100%" height="100%" fill="#fff"/>{"".join(p)}</svg>'
+
+
+def desarrollo_cubo():
+    """Desarrollo plano del cubo (cruz de 6 cuadrados) con líneas de doblez."""
+    c, p = 80, []
+    for i, j in ((0, 1), (1, 0), (1, 1), (1, 2), (1, 3), (2, 1)):
+        p.append(f'<rect x="{20 + j * c}" y="{20 + i * c}" width="{c}" height="{c}" fill="{(AZUL, VERDE, AMARILLO, NARANJA, ROJO, "#90e0ef")[i * 2 + j % 3]}" '
+                 f'stroke="{CONTORNO}" stroke-width="3" stroke-dasharray="{"8 5" if (i, j) != (0, 1) else "0"}"/>')
+    return _svg(40 + 4 * c, 40 + 3 * c, ''.join(p))
+
+
+def circular(datos):
+    """Gráfico circular: datos = [(nombre, cantidad)] con su leyenda."""
+    total = sum(n for _, n in datos)
+    cx, cy, r, a0, p = 140, 140, 115, -90, []
+    colores = (ROJO, AZUL, VERDE, NARANJA, AMARILLO, '#9d4edd')
+    for k, (nombre, n) in enumerate(datos):
+        a1 = a0 + 360 * n / total
+        x1, y1 = cx + r * math.cos(math.radians(a0)), cy + r * math.sin(math.radians(a0))
+        x2, y2 = cx + r * math.cos(math.radians(a1)), cy + r * math.sin(math.radians(a1))
+        p.append(f'<path d="M{cx} {cy}L{x1} {y1}A{r} {r} 0 {1 if a1 - a0 > 180 else 0} 1 {x2} {y2}z" fill="{colores[k % 6]}" stroke="#fff" stroke-width="3"/>')
+        p.append(f'<rect x="290" y="{40 + k * 40}" width="26" height="26" rx="4" fill="{colores[k % 6]}"/>' + _txt(326, 60 + k * 40, f'{nombre} ({n})', 19, AZUL_OSC, 'start'))
+        a0 = a1
+    return _svg(520, 290, ''.join(p))
+
+
+# --- 3.º a 5.º: ciencias ---------------------------------------------------------------------------------------------------
+def sombra(distancia=1):
+    """Linterna, objeto y pared: la sombra crece cuando la linterna se acerca al objeto (distancia 1 cerca, 2 media, 3 lejos)."""
+    xl = {1: 190, 2: 120, 3: 50}[distancia]
+    alto_sombra = {1: 220, 2: 150, 3: 110}[distancia]
+    p = [f'<rect x="{xl - 40}" y="135" width="50" height="30" rx="6" fill="{GRIS}" stroke="{CONTORNO}" stroke-width="3"/>',
+         f'<path d="M{xl + 10} 150L560 {150 - alto_sombra / 2}M{xl + 10} 150L560 {150 + alto_sombra / 2}" stroke="{AMARILLO}" stroke-width="2" stroke-dasharray="6 4"/>',
+         f'<rect x="300" y="120" width="34" height="60" rx="4" fill="{VERDE}" stroke="{CONTORNO}" stroke-width="3"/>',
+         f'<rect x="560" y="10" width="20" height="280" fill="#e2e8f0" stroke="{CONTORNO}" stroke-width="2"/>',
+         f'<rect x="552" y="{150 - alto_sombra / 2}" width="8" height="{alto_sombra}" fill="#334155"/>',
+         _txt(xl - 15, 195, 'linterna', 16), _txt(317, 210, 'objeto', 16), _txt(570, 312, 'pared', 16)]
+    return _svg(620, 330, ''.join(p))
+
+
+def fases_luna():
+    """Las cuatro fases principales de la Luna vistas desde la Tierra: nueva, creciente, llena y menguante (A–D)."""
+    p = []
+    for k, (nombre, x) in enumerate((('nueva', 80), ('creciente', 230), ('llena', 380), ('menguante', 530))):
+        p.append(f'<circle cx="{x}" cy="90" r="55" fill="#1e293b" stroke="{CONTORNO}" stroke-width="3"/>')
+        if nombre == 'llena':
+            p.append(f'<circle cx="{x}" cy="90" r="55" fill="#fef3c7" stroke="{CONTORNO}" stroke-width="3"/>')
+        elif nombre == 'creciente':
+            p.append(f'<path d="M{x} 35A55 55 0 0 1 {x} 145A25 55 0 0 0 {x} 35z" fill="#fef3c7"/>')
+        elif nombre == 'menguante':
+            p.append(f'<path d="M{x} 35A55 55 0 0 0 {x} 145A25 55 0 0 1 {x} 35z" fill="#fef3c7"/>')
+        p.append(_txt(x, 180, 'ABCD'[k], 24, ROJO))
+    return _svg(610, 200, ''.join(p))
+
+
+def dia_noche():
+    """El Sol ilumina la mitad de la Tierra: un lado es de día y el otro de noche; la Tierra gira sobre su eje."""
+    p = [f'<circle cx="80" cy="150" r="60" fill="{AMARILLO}" stroke="{NARANJA}" stroke-width="5"/>' + _txt(80, 157, 'Sol', 20),
+         ''.join(f'<path d="M150 {150 + d}H330" stroke="{AMARILLO}" stroke-width="3" stroke-dasharray="8 6"/>' for d in (-60, -30, 0, 30, 60)),
+         f'<circle cx="430" cy="150" r="90" fill="#1e293b" stroke="{CONTORNO}" stroke-width="3"/>',
+         f'<path d="M430 60A90 90 0 0 0 430 240z" fill="{AZUL}"/>',
+         f'<path d="M405 70Q380 120 400 150T392 220" fill="none" stroke="{VERDE}" stroke-width="10" stroke-linecap="round"/>',
+         f'<path d="M450 40L410 260" stroke="{ROJO}" stroke-width="3" stroke-dasharray="6 4"/>',
+         _txt(370, 150, 'día', 20, '#fff'), _txt(480, 150, 'noche', 20, '#fff'),
+         f'<path d="M370 40A70 20 0 0 1 500 50" fill="none" stroke="{AZUL_OSC}" stroke-width="3"/><path d="M500 50l-14-2 6-10" fill="none" stroke="{AZUL_OSC}" stroke-width="3"/>']
+    return _svg(560, 290, ''.join(p))
+
+
+def palanca():
+    """Palanca: barra, punto de apoyo (triángulo), una piedra pesada y la fuerza que hace la persona."""
+    p = [f'<path d="M40 170L520 110" stroke="#8d5524" stroke-width="16" stroke-linecap="round"/>',
+         f'<path d="M190 210L230 150L270 210z" fill="{GRIS}" stroke="{CONTORNO}" stroke-width="3"/>' + _txt(230, 238, 'punto de apoyo', 16),
+         f'<ellipse cx="80" cy="140" rx="45" ry="32" fill="#94a3b8" stroke="{CONTORNO}" stroke-width="3"/>' + _txt(80, 146, 'carga', 16, '#fff'),
+         f'<path d="M500 30V95M488 82l12 14 12-14" stroke="{ROJO}" stroke-width="5" fill="none" stroke-linecap="round"/>' + _txt(500, 22, 'fuerza', 16, ROJO)]
+    return _svg(560, 255, ''.join(p))
+
+
+def circuito(cerrado=True):
+    """Circuito sencillo: pila, cables, interruptor y bombillo (encendido si el circuito está cerrado)."""
+    k = CONTORNO
+    p = [f'<path d="M120 80H420V250H120Z" fill="none" stroke="{ROJO}" stroke-width="6"/>',
+         f'<rect x="80" y="135" width="80" height="60" rx="8" fill="{AMARILLO}" stroke="{k}" stroke-width="3"/>' + _txt(120, 172, 'pila', 18),
+         _txt(120, 128, '+', 22, ROJO) + _txt(120, 215, '−', 22, AZUL_OSC),
+         f'<circle cx="420" cy="165" r="38" fill="{"#fff59d" if cerrado else "#f1f5f9"}" stroke="{k}" stroke-width="3"/>'
+         f'<path d="M408 175q12-30 24 0" fill="none" stroke="{k}" stroke-width="3"/>' + _txt(480, 170, 'bombillo', 16, AZUL_OSC, 'start'),
+         f'<rect x="230" y="70" width="90" height="20" fill="#fff"/>',
+         f'<circle cx="235" cy="80" r="7" fill="{k}"/><circle cx="315" cy="80" r="7" fill="{k}"/>',
+         f'<path d="M235 80L{315 if cerrado else 300} {80 if cerrado else 45}" stroke="{k}" stroke-width="6" stroke-linecap="round"/>' + _txt(275, 32, 'interruptor', 16)]
+    if cerrado:
+        p.append(''.join(f'<path d="M{420 + 52 * math.cos(math.radians(a))} {165 + 52 * math.sin(math.radians(a))}l{10 * math.cos(math.radians(a))} {10 * math.sin(math.radians(a))}" '
+                         f'stroke="{NARANJA}" stroke-width="4" stroke-linecap="round"/>' for a in range(-150, 151, 50)))
+    return _svg(600, 290, ''.join(p))
+
+
+# --- 3.º a 5.º: sociales -------------------------------------------------------------------------------------------------
+def ramas_poder():
+    """Las tres ramas del poder público en Colombia con quién las ejerce."""
+    k = CONTORNO
+    caja = lambda x, color, t1, t2, t3: (f'<rect x="{x}" y="130" width="220" height="150" rx="14" fill="{color}" stroke="{k}" stroke-width="3"/>'
+                                         + _txt(x + 110, 165, t1, 20) + _txt(x + 110, 205, t2, 16) + _txt(x + 110, 232, t3, 16))
+    p = [f'<rect x="250" y="20" width="240" height="60" rx="14" fill="{AZUL_OSC}"/>' + _txt(370, 58, 'Poder público', 22, '#fff'),
+         f'<path d="M370 80V105M130 105H610M130 105V130M370 105V130M610 105V130" stroke="{k}" stroke-width="3" fill="none"/>',
+         caja(20, '#cde7f0', 'Legislativa', 'Congreso', 'hace las leyes'),
+         caja(260, '#ffe8a3', 'Ejecutiva', 'Presidente', 'gobierna y ejecuta'),
+         caja(500, '#e9d8fd', 'Judicial', 'Jueces y cortes', 'imparte justicia')]
+    return _svg(740, 300, ''.join(p))
+
+
+def linea_tiempo(hitos):
+    """Línea de tiempo: hitos = [(año, texto)] ordenados."""
+    n = len(hitos)
+    ancho = max(700, n * 170)
+    p = [f'<path d="M30 120H{ancho - 30}" stroke="{AZUL_OSC}" stroke-width="6" stroke-linecap="round"/>'
+         f'<path d="M{ancho - 30} 120l-16-10v20z" fill="{AZUL_OSC}"/>']
+    paso = (ancho - 120) / max(1, n - 1)
+    for k, (anio, texto) in enumerate(hitos):
+        x = 60 + k * paso
+        arriba = k % 2 == 0
+        p.append(f'<circle cx="{x}" cy="120" r="12" fill="{ROJO}" stroke="{CONTORNO}" stroke-width="3"/>' + _txt(x, 95 if arriba else 160, anio, 20, ROJO))
+        for j, linea in enumerate(texto.split('|')):
+            p.append(_txt(x, (40 if arriba else 190) + j * 20, linea, 15))
+    return _svg(ancho, 240, ''.join(p))
+
+
 # Los dibujos que usan las guías: id → función y datos. scripts/semilla_png.js los convierte a PNG.
 def generar(id_):
     """«d-bloques-3-4» → SVG. Los números del id son los datos."""
@@ -564,6 +750,32 @@ def generar(id_):
         return arbol_genealogico()
     if nombre == 'municipio':
         return municipio()
+    if nombre == 'fraccion':                   # d-fraccion-3-4  ·  d-fraccion-3-4-circulo
+        return fraccion(int(args[0]), int(args[1]), args[2] if len(args) > 2 else 'barra')
+    if nombre == 'rectafr':                    # d-rectafr-4-m3-m6
+        return recta_fracciones(int(args[0]), [int(x[1:]) for x in args[1:]])
+    if nombre == 'arreglo':
+        return arreglo(*nums(args))
+    if nombre == 'angulo':
+        return angulo(int(args[0]))
+    if nombre == 'desarrollo':
+        return desarrollo_cubo()
+    if nombre == 'circular':                   # d-circular-futbol.8-baloncesto.4
+        return circular([(a.split('.')[0].replace('_', ' '), int(a.split('.')[1])) for a in args])
+    if nombre == 'sombra':
+        return sombra(int(args[0]) if args else 1)
+    if nombre == 'lunas':
+        return fases_luna()
+    if nombre == 'dianoche':
+        return dia_noche()
+    if nombre == 'palanca':
+        return palanca()
+    if nombre == 'circuito':
+        return circuito(not (args and args[0] == 'abierto'))
+    if nombre == 'ramas':
+        return ramas_poder()
+    if nombre == 'tiempo':                     # d-tiempo-1810.Grito_de|independencia-1819.Batalla_de|Boyacá
+        return linea_tiempo([(a.split('.', 1)[0], a.split('.', 1)[1].replace('_', ' ')) for a in args])
     if nombre == 'dias':                       # d-dias  ·  d-dias-v3-v5 (miércoles y viernes en blanco)
         return tira(DIAS, [int(x[1:]) for x in args if x.startswith('v')])
     if nombre == 'meses':

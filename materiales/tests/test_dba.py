@@ -214,3 +214,20 @@ class SemillaOtrasAreas(ColegioDePrueba):
         self.assertTrue(Documento.objects.filter(grado='2.º', titulo='Números hasta 999: comparo y ordeno').exists())
         self.assertIn('aplicación,', ' '.join(K.buscar('MAT-2-3')['evidencias']))
         self.assertIn('que éstas traen', ' '.join(K.buscar('SOC-2-5')['evidencias']))
+
+    def test_tercero_a_quinto(self):
+        esperado = {('MAT', 3): 22, ('LEN', 3): 16, ('NAT', 3): 12, ('SOC', 3): 16, ('MAT', 4): 22, ('LEN', 4): 16, ('NAT', 4): 14,
+                    ('SOC', 4): 16, ('MAT', 5): 24, ('LEN', 5): 16, ('NAT', 5): 8, ('SOC', 5): 16}
+        for (area, g), n in esperado.items():
+            self.assertEqual(len(armar.documentos(g, area)), n, (area, g))
+        antes = Documento.objects.count()
+        call_command('cargar_semilla', '--usuario', 'profe', '--area', 'MAT', '--grados', '5', '--colegio', 'a', stdout=StringIO())
+        self.assertEqual(Documento.objects.count() - antes, 24)
+        d = Documento.objects.get(titulo='El plano cartesiano y los mapas')
+        self.assertEqual(d.grado, '5.º')
+        self.assertNotIn('letra', {k: v for k, v in d.contenido['opciones'].items() if v == 14})   # letra normal desde 4.º
+        # Los mapas son oficiales (IGAC), no de IA
+        from materiales.semilla import imagenes as I
+        self.assertEqual(I.por_id('s5-regiones-naturales')['origen'], 'oficial')
+        self.assertIn('IGAC', I.por_id('s5-regiones-naturales')['prompt'])
+        self.assertIn('instrumentos', K.buscar('MAT-4-5')['enunciado'])

@@ -139,3 +139,8 @@ def taller(dba, tema, preguntas, indicacion='Lee con atención. En las de respue
         seccion('Preguntas' if dba['grado'] > 3 else 'Mi ficha', indicacion),
         *preguntas,
     ]
+
+
+def unidad(**k):
+    """Unidad de 4.º en adelante: momentos y taller con los nombres de siempre (Exploro, Aprendo, Practico, Taller)."""
+    return k
