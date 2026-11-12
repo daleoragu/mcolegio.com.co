@@ -884,6 +884,14 @@ class Olimpiada(ColegioDePrueba):
         isidro = next(c for c in lista if 'ISIDRO PARRA' in c['nombre'])
         self.assertTrue(isidro['oficial'])
         self.assertEqual(CD.buscar(isidro['dane'])['municipio'], '73411')
+        # Buscar por palabras (sin tildes ni mayúsculas), en todo el país o en el municipio; también por código DANE
+        b = lambda q, mun='': anon.get('/aula/eventos/colegios/', {'q': q, 'mun': mun}).json()['colegios']
+        r = b('isidro PARRA')
+        self.assertEqual([(c['dane'], c['lugar']) for c in r], [(isidro['dane'], 'Líbano, Tolima')])
+        self.assertTrue(all(c['municipio'] == '73411' for c in b('institucion educativa', '73411')))
+        self.assertEqual(len(b('san jose')), 30)                     # máximo 30 resultados
+        self.assertEqual(b(isidro['dane'])[0]['nombre'], isidro['nombre'])
+        self.assertEqual(b('x'), [])
         # Escoge el colegio: se guarda el nombre oficial, el municipio y el código DANE
         anon.post(f'/aula/eventos/c/{ev.codigo}/', {'nombre': 'Pedro Pérez', 'municipio_dane': '73411', 'colegio_dane': isidro['dane'],
                                                      'institucion': 'lo que sea', 'grado': '7', 'documento': '1000123', 'autoriza': 'on'})

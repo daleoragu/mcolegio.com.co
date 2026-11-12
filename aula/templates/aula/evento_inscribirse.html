@@ -26,6 +26,13 @@
     <div class="form-text mt-n1 mb-2">Cada documento se inscribe una sola vez. Con él y su código de seguridad vuelve a entrar.</div>
     <fieldset class="ins-colegio border rounded-3 p-2 mb-2" data-url="{% url 'aula:evento_colegios' %}" data-mun="{{ sugerido.municipio_dane }}" data-dane="{{ sugerido.colegio_dane }}">
       <legend class="form-label fw-bold small float-none w-auto px-1 mb-1">Su colegio</legend>
+      <div class="position-relative mb-2">
+        <label class="form-label small mb-0" for="ins-buscar"><i class="fas fa-magnifying-glass me-1"></i>Buscar su colegio por nombre</label>
+        <input id="ins-buscar" type="search" class="form-control form-control-sm" autocomplete="off" maxlength="80"
+               placeholder="Ej.: Isidro Parra, San José, Normal…" aria-controls="ins-resultados">
+        <div id="ins-resultados" class="list-group position-absolute w-100 shadow-sm" style="z-index:20;max-height:260px;overflow:auto" hidden></div>
+        <div class="form-text mt-0">O escójalo abajo por departamento y municipio.</div>
+      </div>
       <div class="row g-2">
         <div class="col-sm-6"><label class="form-label small mb-0" for="ins-dep">Departamento</label>
           <select id="ins-dep" class="form-select form-select-sm mb-1"><option value="">Escoja el departamento…</option>
@@ -109,6 +116,42 @@
       verOtro();
     }).catch(function () { col.innerHTML = ''; opcion(col, 'otro', 'No se pudo cargar la lista: escriba el nombre'); col.value = 'otro'; col.disabled = false; verOtro(); });
   }
+  /* Buscar por palabras: en el municipio escogido y, si no aparece, en todo el país. Al escoger, se llenan los tres menús. */
+  var buscar = document.getElementById('ins-buscar'), res = document.getElementById('ins-resultados'), espera = null, turno = 0;
+  function pedir(q, m) { return fetch(caja.dataset.url + '?q=' + encodeURIComponent(q) + (m ? '&mun=' + m : '')).then(function (r) { return r.json(); }); }
+  function mostrar(lista, q) {
+    res.innerHTML = '';
+    if (!lista.length) {
+      var n = document.createElement('div'); n.className = 'list-group-item small text-muted';
+      n.textContent = 'No encontramos «' + q + '». Pruebe con otra palabra o escoja «Mi colegio no está en la lista».';
+      res.appendChild(n);
+    }
+    lista.forEach(function (c) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'list-group-item list-group-item-action small py-1';
+      b.innerHTML = '<b></b><span class="d-block text-muted"></span>';
+      b.firstChild.textContent = c.nombre; b.lastChild.textContent = c.lugar + (c.oficial ? '' : ' · privado');
+      b.addEventListener('click', function () {
+        res.hidden = true; buscar.value = c.nombre;
+        dep.value = c.municipio.slice(0, 2); municipios(c.municipio, c.dane);
+      });
+      res.appendChild(b);
+    });
+    res.hidden = false;
+  }
+  buscar.addEventListener('input', function () {
+    clearTimeout(espera);
+    var q = buscar.value.trim();
+    if (q.length < 3) { res.hidden = true; return; }
+    espera = setTimeout(function () {
+      var mio = ++turno, m = mun.value;
+      pedir(q, m).then(function (d) {
+        if (d.colegios.length || !m) return d;
+        return pedir(q, '');                         // no está en el municipio: en todo el país
+      }).then(function (d) { if (mio === turno) mostrar(d.colegios, q); }).catch(function () {});
+    }, 300);
+  });
+  buscar.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var b = res.querySelector('button'); if (b && !res.hidden) b.click(); } });
+  document.addEventListener('click', function (e) { if (!caja.contains(e.target)) res.hidden = true; });
   dep.addEventListener('change', function () { municipios(); });
   mun.addEventListener('change', function () { colegios(); });
   col.addEventListener('change', verOtro);

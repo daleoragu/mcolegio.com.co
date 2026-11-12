@@ -34,3 +34,30 @@ def buscar(dane):
         return None
     c, mun = x
     return {'dane': c[0], 'nombre': c[1], 'oficial': c[2] == 'O', 'municipio': mun}
+
+
+@lru_cache(maxsize=1)
+def _indice():
+    """[(texto normalizado, colegio, municipio)] para buscar por palabras sin tildes ni mayúsculas."""
+    from salon_digital.regiones import normal
+    return [(normal(c[1]), c, mun) for mun, lista in _datos()[0]['municipios'].items() for c in lista]
+
+
+def buscar_texto(q, mun='', limite=30):
+    """Colegios cuyo nombre tiene todas las palabras de q (o su código DANE), en el municipio o en todo el país.
+    [{dane, nombre, oficial, municipio, lugar}] con los del municipio primero."""
+    from salon_digital.regiones import etiqueta, normal
+    q = (q or '').strip()
+    digitos = ''.join(ch for ch in q if ch.isdigit())
+    palabras = [p for p in normal(q).split() if len(p) >= 2 and not p.isdigit()]
+    if not palabras and len(digitos) < 5:
+        return []
+    salida = []
+    for texto, c, m in _indice():
+        if mun and m != mun:
+            continue
+        if (palabras and all(p in texto for p in palabras)) or (len(digitos) >= 5 and c[0].startswith(digitos)):
+            salida.append({'dane': c[0], 'nombre': c[1], 'oficial': c[2] == 'O', 'municipio': m, 'lugar': etiqueta(m)})
+            if len(salida) >= limite:
+                break
+    return salida

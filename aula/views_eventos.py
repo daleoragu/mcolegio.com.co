@@ -1657,6 +1657,8 @@ def colegios_municipio(request):
     """Los colegios de un municipio (?mun=73411) para el menú Departamento → Municipio → Colegio de la inscripción."""
     from . import colegios_dane as CD
     mun = ''.join(ch for ch in (request.GET.get('mun') or '') if ch.isdigit())[:5]
+    if request.GET.get('q'):                 # buscar por palabras: en el municipio o en todo el país
+        return JsonResponse({'colegios': CD.buscar_texto(request.GET['q'][:80], mun)})
     r = JsonResponse({'colegios': CD.de_municipio(mun)})
     r['Cache-Control'] = 'public, max-age=86400'
     return r
