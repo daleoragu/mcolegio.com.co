@@ -107,6 +107,18 @@
     <p class="small text-muted mb-2">Para que haya total transparencia: cada profesor (o un grupo de profesores) recibe un enlace con el que ve los
       resultados y el ranking en vivo, al mismo tiempo que usted, sin poder cambiar nada. No necesitan cuenta. No ven datos personales
       (documentos, contactos) ni grabaciones. Puede pausar o quitar un enlace cuando quiera.</p>
+    <form method="post" class="border rounded-3 p-2 mb-2" style="background:#f8f5ff">{% csrf_token %}<input type="hidden" name="accion" value="veedor_colegas">
+      <b class="small d-block mb-1"><i class="fas fa-user-group me-1"></i>Invitar desde «Mis colegas»</b>
+      {% if colegas %}
+      <p class="small text-muted mb-1">Los colegas que invite ven el evento en su <b>Sala de Profesores</b> (Eventos activos) con el ranking en vivo y los resultados, y les llega un aviso. Solo ellos lo ven allí.</p>
+      <div class="d-flex flex-wrap gap-2 mb-2" style="max-height:180px;overflow:auto">
+        {% for k in colegas %}<label class="border rounded-pill px-2 py-1 small {% if k.invitado %}opacity-50{% endif %}"><input type="checkbox" name="colegas" value="{{ k.id }}" class="me-1" {% if k.invitado %}disabled checked{% endif %}>{{ k.nombre }}{% if k.invitado %} ✓{% endif %}</label>{% endfor %}
+      </div>
+      <button class="btn btn-sm btn-primary">Invitar a los colegas escogidos</button>
+      {% else %}
+      <p class="small text-muted mb-0">Todavía no tiene colegas en la plataforma. Agréguelos en <a href="/chat/colegas/">Mis colegas</a> y aquí podrá invitarlos con un clic.</p>
+      {% endif %}
+    </form>
     <div class="row g-2">
       <div class="col-md-6">
         <form method="post" class="border rounded-3 p-2 h-100">{% csrf_token %}<input type="hidden" name="accion" value="veedor">
