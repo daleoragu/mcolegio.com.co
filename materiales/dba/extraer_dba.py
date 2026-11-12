@@ -115,7 +115,8 @@ _COLADO = re.compile(r'\s+(Fotos?\s+tomadas?\b|Fotografía\s+tomada\b|Machu Picc
                      r'No se espera en este nivel escolar\b|Las reglas de juego serán…).*$')
 # Renglones que el PDF trae con las letras en desorden (se dejan tal cual dicen las cartillas impresas)
 _REVUELTOS = {'C om para l a e st r uc t ura soc ial , po íl it c a y económica': 'Compara la estructura social, política y económica',
-              'ap licación ,': 'aplicación,', 'que é stas traen': 'que éstas traen', 'instrume n tos': 'instrumentos'}
+              'ap licación ,': 'aplicación,', 'que é stas traen': 'que éstas traen', 'instrume n tos': 'instrumentos', 'Co mprende': 'Comprende', 'Sur a mérica': 'Suramérica',
+              'bidimen- sionales': 'bidimensionales'}
 
 
 def pulir_evidencias(evidencias):

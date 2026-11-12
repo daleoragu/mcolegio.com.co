@@ -516,8 +516,45 @@ GRADOS_3_A_5 = [
 ]
 
 
+MAPAS_MUDOS = ('Use un mapa mudo de uso libre (por ejemplo, d-maps.com o un atlas escolar del IGAC) y guárdelo como PNG con este nombre. '
+               'No lo genere con IA.')
+HISTORICO = ('Es una imagen histórica de dominio público: búsquela en Wikimedia Commons (por ejemplo, «mapa T en O») y guárdela como PNG con este nombre.')
+_n6, _s6, _n7, _s7, _s8, _n9, _s9 = (_gr(_a(a), g) for a, g in (('Ciencias Naturales', 6), ('Ciencias Sociales', 6), ('Ciencias Naturales', 7),
+                                                             ('Ciencias Sociales', 7), ('Ciencias Sociales', 8), ('Ciencias Naturales', 9),
+                                                             ('Ciencias Sociales', 9)))
+DIDACTICO = ('Ilustración didáctica para un libro escolar de secundaria, estilo vectorial plano y limpio, colores claros, fondo blanco, sin texto ni '
+             'etiquetas (las etiquetas las pone la guía). Formato horizontal 3:2.')
+
+GRADOS_6_A_9 = [
+    _n6('n6-celula', 4, 'Célula animal y vegetal', 'Estructura de la célula',
+        'Dos células lado a lado: a la izquierda una célula animal redondeada con núcleo, mitocondrias y membrana; a la derecha una célula vegetal '
+        'rectangular con pared celular, cloroplastos verdes, núcleo y vacuola grande.', DIDACTICO),
+    _n7('n7-fotosintesis', 3, 'Fotosíntesis', 'Flujo de materia y energía', 'Una planta al sol con flechas: luz entrando a las hojas, CO₂ entrando del '
+        'aire, agua subiendo desde las raíces y oxígeno saliendo de las hojas (las flechas sin letras).', DIDACTICO),
+    _n9('n9-adn', 5, 'Doble hélice de ADN', 'Estructura del ADN', 'Una doble hélice de ADN con las bases apareadas en cuatro colores distintos.', DIDACTICO),
+    _s6('s6-sistema-solar', 1, 'Sistema solar', 'Componentes del sistema solar', 'El sistema solar en orden desde el Sol: Mercurio, Venus, Tierra, '
+        'Marte, cinturón de asteroides, Júpiter, Saturno con anillos, Urano y Neptuno, y un cometa con cola. Exactamente ocho planetas, en ese orden.', DIDACTICO),
+    _s6('s6-hominidos', 3, 'Evolución de los homínidos', 'Hominización', 'Cuatro homínidos de perfil caminando en fila, de izquierda a derecha: '
+        'Australopithecus, Homo habilis con una piedra, Homo erectus con una antorcha y Homo sapiens con una lanza, con rasgos científicamente correctos.', DIDACTICO),
+    _oficial('s6-rios-civilizaciones', 6, 4, 'Mapa de los ríos de las primeras civilizaciones', 'Nilo, Tigris, Éufrates, Indo, Ganges, Huang He y Yangtsé',
+             MAPAS_MUDOS),
+    _oficial('s7-mapa-to', 7, 1, 'Mapa medieval de T en O', 'Representaciones del mundo en la Edad Media', HISTORICO),
+    _s7('s7-acueducto', 3, 'Acueducto romano', 'Legado de Roma', 'Un acueducto romano de piedra con arcos en dos niveles atravesando un valle.', ESCENA),
+    _s8('s8-fabrica', 3, 'Fábrica de la Revolución Industrial', 'Capitalismo', 'Una fábrica textil del siglo XIX con chimeneas de humo, telares de '
+        'vapor y obreros trabajando, estilo ilustración histórica.', ESCENA),
+    _s9('s9-arrecife', 1, 'Arrecife de coral', 'Geosistemas biodiversos', 'Un arrecife de coral del Caribe colombiano con corales de colores, peces y una '
+        'tortuga marina, agua clara.', ESCENA),
+]
+
+
+for _x in GRADOS_6_A_9:          # secundaria: estilo de libro de texto, no el infantil
+    if _x['origen'] == 'ia':
+        _x['prompt'] = _x['prompt'].replace(' ' + ESTILO, '').replace(' ' + DIDACTICO, '').replace(' ' + ESCENA, '') + ' ' + DIDACTICO
+        _x['colorear'] = False
+
+
 def catalogo():
-    return list(MATEMATICAS_1) + LENGUAJE_1 + NATURALES_1 + SOCIALES_1 + GRADO_2 + GRADOS_3_A_5
+    return list(MATEMATICAS_1) + LENGUAJE_1 + NATURALES_1 + SOCIALES_1 + GRADO_2 + GRADOS_3_A_5 + GRADOS_6_A_9
 
 
 def por_id(id_):

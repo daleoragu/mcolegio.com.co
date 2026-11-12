@@ -682,6 +682,57 @@ def linea_tiempo(hitos):
     return _svg(ancho, 240, ''.join(p))
 
 
+# --- 6.º a 9.º ---------------------------------------------------------------------------------------------------------------
+def pitagoras(a=3, b=4):
+    """Triángulo rectángulo con los cuadrados sobre sus lados (a² + b² = c²), en cuadritos."""
+    u = 22
+    ox, oy = 40 + b * u, 40 + (b + a) * u
+    A, B, C = (ox, oy), (ox + b * u, oy), (ox, oy - a * u)       # ángulo recto en A
+    def cuad(p, q, color):
+        dx, dy = q[0] - p[0], q[1] - p[1]
+        r, s_ = (q[0] + dy, q[1] - dx), (p[0] + dy, p[1] - dx)
+        return f'<polygon points="{p[0]},{p[1]} {q[0]},{q[1]} {r[0]},{r[1]} {s_[0]},{s_[1]}" fill="{color}" fill-opacity=".55" stroke="{CONTORNO}" stroke-width="2.5"/>'
+    p = [cuad(B, A, AMARILLO), cuad(A, C, AZUL), cuad(C, B, VERDE),
+         f'<polygon points="{A[0]},{A[1]} {B[0]},{B[1]} {C[0]},{C[1]}" fill="#fff" stroke="{CONTORNO}" stroke-width="4"/>',
+         f'<path d="M{A[0] + 14} {A[1]}V{A[1] - 14}H{A[0]}" fill="none" stroke="{ROJO}" stroke-width="3"/>',
+         _txt(ox + b * u / 2, oy + b * u / 2 + 8, f'{b * b}', 22), _txt(ox - a * u / 2, oy - a * u / 2 + 8, f'{a * a}', 22),
+         _txt(ox + b * u / 2 + 40, oy - a * u / 2 - 40, f'{a * a + b * b}', 24)]
+    ancho = 80 + (a + 2 * b) * u + a * u
+    return _svg(int(ancho), int(80 + (a + 2 * b) * u + a * u * 0.4), ''.join(p))
+
+
+def caja(minimo, q1, mediana, q3, maximo, desde=0, hasta=100, paso=10):
+    """Diagrama de caja y bigotes sobre una escala."""
+    x0, L = 40, 600
+    X = lambda v: x0 + (v - desde) / (hasta - desde) * L
+    p = [f'<path d="M{x0} 150H{x0 + L}" stroke="{AZUL_OSC}" stroke-width="3"/>']
+    for v in range(desde, hasta + 1, paso):
+        p.append(f'<path d="M{X(v)} 144V156" stroke="{AZUL_OSC}" stroke-width="2"/>' + _txt(X(v), 180, v, 16))
+    p.append(f'<path d="M{X(minimo)} 80H{X(q1)}M{X(q3)} 80H{X(maximo)}M{X(minimo)} 60V100M{X(maximo)} 60V100" stroke="{CONTORNO}" stroke-width="3"/>')
+    p.append(f'<rect x="{X(q1)}" y="45" width="{X(q3) - X(q1)}" height="70" fill="{AZUL}" fill-opacity=".45" stroke="{CONTORNO}" stroke-width="3"/>')
+    p.append(f'<path d="M{X(mediana)} 45V115" stroke="{ROJO}" stroke-width="5"/>')
+    return _svg(x0 * 2 + L, 200, ''.join(p))
+
+
+def bohr(z):
+    """Modelo de Bohr: núcleo con Z protones y electrones repartidos en capas 2, 8, 8 (hasta Z = 18)."""
+    capas, resto = [], z
+    for cap in (2, 8, 8):
+        n = min(cap, resto)
+        if n:
+            capas.append(n)
+        resto -= n
+    cx = cy = 160
+    p = [f'<circle cx="{cx}" cy="{cy}" r="30" fill="{ROJO}" stroke="{CONTORNO}" stroke-width="3"/>' + _txt(cx, cy + 7, f'{z}p⁺', 18, '#fff')]
+    for k, n in enumerate(capas):
+        r = 62 + k * 45
+        p.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{GRIS}" stroke-width="2"/>')
+        for j in range(n):
+            a = math.radians(-90 + j * 360 / n + k * 15)
+            p.append(f'<circle cx="{cx + r * math.cos(a)}" cy="{cy + r * math.sin(a)}" r="9" fill="{AZUL}" stroke="{CONTORNO}" stroke-width="2"/>')
+    return _svg(320, 320, ''.join(p))
+
+
 def archivo(id_):
     """Nombre seguro del PNG: el id si es ASCII simple; si trae tildes, espacios o «|», una versión limpia + 8 cifras del hash."""
     import hashlib
@@ -788,6 +839,12 @@ def generar(id_):
         return ramas_poder()
     if nombre == 'tiempo':                     # d-tiempo-1810.Grito_de|independencia-1819.Batalla_de|Boyacá
         return linea_tiempo([(a.split('.', 1)[0], a.split('.', 1)[1].replace('_', ' ')) for a in args])
+    if nombre == 'pitagoras':
+        return pitagoras(*nums(args))
+    if nombre == 'caja':                       # d-caja-min-q1-me-q3-max[-desde-hasta-paso]
+        return caja(*nums(args))
+    if nombre == 'bohr':
+        return bohr(int(args[0]))
     if nombre == 'dias':                       # d-dias  ·  d-dias-v3-v5 (miércoles y viernes en blanco)
         return tira(DIAS, [int(x[1:]) for x in args if x.startswith('v')])
     if nombre == 'meses':

@@ -231,3 +231,15 @@ class SemillaOtrasAreas(ColegioDePrueba):
         self.assertEqual(I.por_id('s5-regiones-naturales')['origen'], 'oficial')
         self.assertIn('IGAC', I.por_id('s5-regiones-naturales')['prompt'])
         self.assertIn('instrumentos', K.buscar('MAT-4-5')['enunciado'])
+
+    def test_sexto_a_noveno(self):
+        for (area, g), n in {('MAT', 8): 24, ('MAT', 9): 22, ('LEN', 6): 16, ('LEN', 9): 16, ('NAT', 6): 10, ('NAT', 9): 12, ('SOC', 7): 16, ('SOC', 9): 16}.items():
+            self.assertEqual(len(armar.documentos(g, area)), n, (area, g))
+        antes = Documento.objects.count()
+        call_command('cargar_semilla', '--usuario', 'profe', '--area', 'NAT', '--grados', '9', '--colegio', 'a', stdout=StringIO())
+        self.assertEqual(Documento.objects.count() - antes, 12)
+        self.assertTrue(Documento.objects.filter(titulo='Genética mendeliana', area='Ciencias Naturales', grado='9.º').exists())
+        from materiales.semilla import imagenes as I
+        self.assertIn('secundaria', I.por_id('n9-adn')['prompt'])
+        self.assertNotIn('6 años', I.por_id('s7-acueducto')['prompt'])
+        self.assertIn('Comprende', K.buscar('SOC-7-7')['enunciado'])
