@@ -26,12 +26,13 @@ def lineas(pdf):
         for t in pagina.iter('text'):
             texto = ''.join(t.itertext())
             f = fuentes[t.get('font')]
-            filas.append({'top': int(t.get('top')), 'left': int(t.get('left')), 'texto': texto, 'size': int(f['size']),
+            filas.append({'top': int(t.get('top')), 'left': int(t.get('left')), 'width': int(t.get('width')), 'texto': texto, 'size': int(f['size']),
                           'family': f['family'], 'color': f['color'], 'pag': int(pagina.get('number'))})
         # columna izquierda y luego la derecha, cada una de arriba abajo
-        filas = [r for r in filas if not MARCAS.search(r['texto'])]
+        filas = [r for r in filas if not MARCAS.search(r['texto']) and r['color'].lower() != '#ffffff']
         for r in filas:
             r['col'] = r['left'] >= ancho * 0.47
+        filas = _unir_renglones(filas)
         # Una línea de texto abre una evidencia nueva si tiene una viñeta a su misma altura (±4 px) en su columna
         vinetas = [r for r in filas if 'Wingdings' in r['family']]
         for r in filas:
@@ -41,26 +42,72 @@ def lineas(pdf):
         yield int(pagina.get('number')), filas
 
 
+def _unir_renglones(filas):
+    """Algunas cartillas traen cada letra por separado: los pedazos del mismo renglón (misma columna, ±2 px de alto,
+    misma letra) se unen; con espacio solo si entre ellos queda un hueco."""
+    filas = sorted(filas, key=lambda r: (r['col'], r['top'], r['left']))
+    salida = []
+    for r in filas:
+        prev = salida[-1] if salida else None
+        if (prev and prev['col'] == r['col'] and abs(prev['top'] - r['top']) <= 2 and prev['family'] == r['family']
+                and prev['color'] == r['color'] and prev['size'] == r['size'] and 0 <= r['left'] - (prev['left'] + prev['width']) < 25):
+            hueco = r['left'] - (prev['left'] + prev['width'])
+            junto = prev['texto'].endswith(' ') or r['texto'].startswith(' ')
+            prev['texto'] += r['texto'] if (junto or hueco <= r['size'] * 0.12) else ' ' + r['texto']
+            prev['width'] = r['left'] + r['width'] - prev['left']
+        else:
+            salida.append(dict(r))
+    return salida
+
+
 def tipo(r):
     fam, color = r['family'], r['color'].lower()
     if 'Wingdings' in fam:
         return 'vineta'
-    verde = color not in ('#241f1f', '#000000', '#231f20', '#ffffff')
-    if verde and 'Medium' in fam and r['size'] >= 30:
+    color_area = color not in ('#241f1f', '#000000', '#231f20', '#ffffff', '#1d1d1b', '#222221')
+    if not color_area:
+        return 'texto'
+    if r['size'] < 16:
+        return 'nada'                      # textos de dibujos y tablas de los ejemplos (el enunciado va en 17)
+    if r['size'] >= 30:
         return 'numero'
-    if verde and 'Medium' in fam and r['size'] >= 18 and r['top'] < 140:
+    if r['size'] >= 18 and r['top'] < 140:
         return 'grado'
-    if verde and 'Medium' in fam:
-        return 'enunciado'
-    if verde:
+    t = limpio(r['texto']).lower()
+    if t.startswith('evidencias de') or t in ('evidencias', 'aprendizaje') or t.rstrip(':') in ('ejemplo', 'ejemplos'):
         return 'seccion'
-    if color == '#ffffff':
-        return 'nada'
-    return 'texto'
+    return 'enunciado'
+
+
+# «fi» y «fl» que la capa de texto de algunas cartillas pierde (queda un espacio): solo palabras conocidas
+_LIGADURAS = re.compile(r'\b(geográ|grá|signi|cientí|identi|clasi|especí|bene|modi|justi|cali|veri|plani|demográ|bibliográ|topográ|'
+                        r'cartográ|pací|super|su|de|o|a|di|in|con|re|con)\s(cos|cas|co|ca|ca[cn]i[oó]n|caciones|cado|cados|cada|cadas|'
+                        r'ciente|cientes|cial|ciales|cie|cies|nición|niciones|nir|nen|ne|cultad|cultades|cio|cios|exión|exiones|uye|uyen|'
+                        r'ujo|ujos|ctos?|car|cativo|cativa|cativos|cativas)\b')
+_RAICES_FL = ('re', 'in', 'con', 'super', 'a', 'di')
+
+
+def _ligaduras(t):
+    def cambio(m):
+        raiz, cola = m.group(1), m.group(2)
+        lig = 'fl' if raiz in _RAICES_FL and cola[:2] in ('ex', 'uy', 'uj', 'ct') else 'fi'
+        if raiz in ('de', 'o', 'a', 'di', 'in', 'con', 're', 'su') and lig == 'fi' and cola not in ('ne', 'nen', 'nir', 'nición', 'niciones', 'ciente', 'cientes', 'cio', 'cios', 'cultad', 'cultades', 'cial', 'ciales', 'cie', 'cies'):
+            return m.group(0)                      # «de cada», «o como»: palabras normales, no se tocan
+        return raiz + lig + cola
+    return _LIGADURAS.sub(cambio, t)
+
+
+# Errores de la capa de texto de las cartillas (la palabra está bien en el PDF impreso, pero sin espacios en el texto)
+CORRECCIONES = {
+    'Comprendelaimportanciadelasasociaciones,': 'Comprende la importancia de las asociaciones,',   # Sociales 8.º, DBA 8
+}
 
 
 def limpio(t):
-    return re.sub(r'\s+', ' ', t).strip()
+    t = re.sub(r'\s+', ' ', t).strip()
+    for mal, bien in CORRECCIONES.items():
+        t = t.replace(mal, bien)
+    return _ligaduras(re.sub(r'^[´`¨^~]+\s*', '', t))
 
 
 def extraer(pdf):

@@ -23,6 +23,7 @@ urlpatterns = [
     path('encabezado/logo/<str:cual>/', views.encabezado_logo, name='encabezado_logo'),
     path('imagen/', views.imagen_subir, name='imagen_subir'),
     path('ecuacion/', views.ecuacion, name='ecuacion'),
+    path('dba/', views.dba_lista, name='dba_lista'),
     path('grafica/vista/', views.grafica_vista, name='grafica_vista'),
     path('grafica/guardar/', views.grafica_guardar, name='grafica_guardar'),
     path('imagen/<int:pk>/', views.imagen_ver, name='imagen'),

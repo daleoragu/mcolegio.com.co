@@ -789,3 +789,14 @@ def grafica_guardar(request, a):
     img.save()
     return JsonResponse({'ok': True, 'id': img.pk, 'grafica': spec, 'errores': errores, 'nube': _nube(a),
                          'url': request.build_absolute_uri(f'/materiales/imagen/{img.pk}/') + f'?v={img.peso}'})
+
+
+@vista
+def dba_lista(request, a):
+    """Los DBA oficiales de un área y un grado (?area=Matemáticas&grado=6.º) para el selector; si el área no tiene
+    DBA (Ética, Artística…), «tiene» viene en falso y se pide la competencia o el desempeño en texto libre."""
+    from .dba import catalogo as K
+    lista = K.dbas(request.GET.get('area', ''), request.GET.get('grado', ''))
+    return JsonResponse({'tiene': bool(K.clave_area(request.GET.get('area', ''))), 'grado': K.grado_num(request.GET.get('grado', '')),
+                         'dbas': [{'codigo': d['codigo'], 'n': d['n'], 'enunciado': d['enunciado'], 'evidencias': d['evidencias']}
+                                  for d in lista]})

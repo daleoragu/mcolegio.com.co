@@ -22,6 +22,9 @@
   <div class="col-md-2"><label class="small fw-bold mb-1" for="bb-area">Área</label><input id="bb-area" name="area" value="{{ filtro.area }}" class="form-control form-control-sm"></div>
   <div class="col-md-2"><label class="small fw-bold mb-1" for="bb-grado">Grado</label><input id="bb-grado" name="grado" value="{{ filtro.grado }}" class="form-control form-control-sm"></div>
   <div class="col-md-2"><label class="small fw-bold mb-1" for="bb-tipo">Tipo</label><select id="bb-tipo" name="tipo" class="form-select form-select-sm"><option value="">Todos</option>{% for k, v in tipos %}{% if k != 'institucional' %}<option value="{{ k }}" {% if filtro.tipo == k %}selected{% endif %}>{{ v }}</option>{% endif %}{% endfor %}</select></div>
+  {% if dbas_filtro %}<div class="col-md-4"><label class="small fw-bold mb-1" for="bb-dba">DBA</label><select id="bb-dba" name="dba" class="form-select form-select-sm">
+    <option value="">Todos los DBA del grado</option>
+    {% for d in dbas_filtro %}<option value="{{ d.codigo }}" {% if filtro.dba == d.codigo %}selected{% endif %}>DBA {{ d.n }}: {{ d.enunciado|truncatechars:90 }}</option>{% endfor %}</select></div>{% endif %}
   <div class="col-md-2"><label class="small fw-bold mb-1" for="bb-region">Región</label><select id="bb-region" name="region" class="form-select form-select-sm">
     <option value="">Todo el país</option>
     {% if mi_lugar %}<option value="municipio" {% if filtro.region == 'municipio' %}selected{% endif %}>De mi municipio ({{ mi_lugar }})</option>
@@ -38,6 +41,7 @@
     <div class="t">{{ m.titulo }}</div>
     <div class="small text-muted">{{ m.get_tipo_display }}{% if m.area %} · {{ m.area }}{% endif %}{% if m.grado %} · Grado {{ m.grado }}{% endif %}{% if m.preguntas %} · {{ m.preguntas }} pregunta{{ m.preguntas|pluralize }}{% endif %}</div>
     {% if m.descripcion %}<div class="small mt-1">{{ m.descripcion|truncatechars:120 }}</div>{% endif %}
+    {% if m.dba_codigo %}<div class="small mt-1"><span class="badge text-bg-light border">{{ m.dba|truncatechars:70 }}</span></div>{% endif %}
     {% if m.lugar %}<div class="small mt-1 text-muted">📍 {{ m.lugar }}{% if m.regional %} · <span class="text-success fw-semibold">contexto regional</span>{% endif %}</div>{% endif %}
     <div class="small text-muted mt-auto pt-2 d-flex justify-content-between"><span>{% if m.alcance == 'libre' %}mcolegio{% else %}{{ m.autor.get_full_name|default:m.autor.username }}{% endif %}</span>
       <span>{% if m.estrellas %}<span class="mm-estrellas">★</span> {{ m.estrellas }} · {% endif %}{{ m.usos }} uso{{ m.usos|pluralize }}</span></div>

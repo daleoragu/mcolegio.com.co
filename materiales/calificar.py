@@ -26,7 +26,7 @@ def normal(texto, estricto=False):
 
 
 def numero(texto):
-    t = str(texto or '').strip().replace(' ', '')
+    t = str(texto or '').strip().replace(' ', '').replace('\u2212', '-').replace('\u2013', '-')
     if t.count(',') == 1 and '.' not in t:
         t = t.replace(',', '.')
     try:

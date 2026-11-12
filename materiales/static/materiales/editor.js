@@ -712,6 +712,32 @@
         img.addEventListener('pointercancel', fin);
     }
 
+    // DBA al compartir: si el área y el grado del documento tienen DBA oficiales, se escoge de la lista;
+    // si no (Ética, Artística…), se escribe la competencia o el desempeño.
+    var selDba = $('#mm-dba-sel'), txtDba = $('#mm-dba-txt'), ayudaDba = $('#mm-dba-ayuda'), esperaDba = null;
+    function cargarDba() {
+        if (!selDba || !CFG.dba) return;
+        var area = $('#mm-area').value, grado = $('#mm-grado').value;
+        fetch(CFG.dba + '?area=' + encodeURIComponent(area) + '&grado=' + encodeURIComponent(grado), { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); }).then(function (j) {
+                var antes = selDba.value;
+                selDba.innerHTML = '';
+                if (j.dbas && j.dbas.length) {
+                    selDba.appendChild(el('option', { value: '', text: 'DBA (escoja de la lista oficial)' }));
+                    j.dbas.forEach(function (d) { selDba.appendChild(el('option', { value: d.codigo, text: 'DBA ' + d.n + ': ' + d.enunciado.slice(0, 110) + (d.enunciado.length > 110 ? '…' : '') })); });
+                    selDba.value = antes;
+                }
+                var hay = !!(j.dbas && j.dbas.length);
+                selDba.classList.toggle('d-none', !hay);
+                txtDba.classList.toggle('d-none', hay);
+                ayudaDba.classList.toggle('d-none', hay || !j.tiene);
+                ayudaDba.textContent = j.tiene && !hay ? 'Escriba el grado del documento (arriba) para escoger el DBA de la lista.' : '';
+                txtDba.placeholder = j.tiene ? 'DBA o competencia (opcional)' : 'Competencia o desempeño (opcional; esta área no tiene DBA del MEN)';
+            }).catch(function () {});
+    }
+    ['#mm-area', '#mm-grado'].forEach(function (s) { $(s).addEventListener('input', function () { clearTimeout(esperaDba); esperaDba = setTimeout(cargarDba, 500); }); });
+    cargarDba();
+
     // Graficador: una gráfica nueva (bloque de imagen o la de una pregunta) o editar la que ya está
     function abrirGrafica(b) {
         if (!window.MMGraf) { estado('No cargó el graficador.', true); return; }
