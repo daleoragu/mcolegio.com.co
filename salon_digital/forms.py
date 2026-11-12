@@ -44,10 +44,67 @@ def _validar_usuario(slug, pk=None):
 
 
 # ---------------------------------------------------------------------------
+# Región: País → Departamento → Municipio (DANE · DIVIPOLA)
+# ---------------------------------------------------------------------------
+class RegionMixin:
+    """Agrega al formulario el menú encadenado de la región. En Colombia se escoge el municipio de la lista oficial
+    (se guarda su código DANE y el nombre oficial); de otro país se escriben el país y la ciudad."""
+    region_obligatoria = True
+
+    def _campos_region(self, cuenta=None):
+        from . import regiones as R
+        datos = self.data if self.is_bound else {}
+        pais = (datos.get('pais') if datos else None) or ('otro' if cuenta and cuenta.pais and cuenta.pais != R.PAIS else R.PAIS)
+        mun = (datos.get('municipio_dane') if datos else None) or (cuenta.municipio_dane if cuenta else '')
+        dep = (datos.get('departamento_dane') if datos else None) or (mun[:2] if mun else '')
+        self.fields['pais'] = forms.ChoiceField(label='País', choices=[(R.PAIS, 'Colombia'), ('otro', 'Otro país')], initial=pais,
+                                                widget=forms.Select(attrs={**CAJA, 'class': 'form-select mm-region-pais'}))
+        self.fields['departamento_dane'] = forms.ChoiceField(
+            label='Departamento', required=False, initial=dep,
+            choices=[('', 'Escoja el departamento…')] + [(c, n) for c, n in R.departamentos()],
+            widget=forms.Select(attrs={'class': 'form-select mm-region-dep'}))
+        self.fields['municipio_dane'] = forms.CharField(
+            label='Municipio', required=False, initial=mun,
+            widget=forms.Select(attrs={'class': 'form-select mm-region-mun'},
+                                choices=[('', 'Escoja primero el departamento' if not dep else 'Escoja el municipio…')]
+                                + [(m['codigo'], m['nombre']) for m in R.municipios(dep)]))
+        self.fields['pais_otro'] = forms.CharField(
+            label='País y ciudad', required=False, max_length=100, initial=(cuenta.municipio if cuenta and pais == 'otro' else ''),
+            widget=forms.TextInput(attrs={**CAJA, 'class': 'form-control mm-region-otro', 'placeholder': 'Ej.: Ecuador, Quito'}))
+
+    def _limpiar_region(self, datos):
+        from . import regiones as R
+        if datos.get('pais') == 'otro':
+            lugar = ' '.join((datos.get('pais_otro') or '').split())
+            if self.region_obligatoria and len(lugar) < 3:
+                self.add_error('pais_otro', 'Escriba su país y su ciudad.')
+            pais, _, ciudad = lugar.partition(',')
+            datos.update(region_pais=pais.strip()[:60] or 'Otro', region_mun='', region_nombre=(ciudad.strip() or lugar)[:100],
+                         region_dep='')
+            return datos
+        cod = datos.get('municipio_dane') or ''
+        m = R.municipio(cod)
+        if not m:
+            if self.region_obligatoria or cod:
+                self.add_error('municipio_dane', 'Escoja su municipio de la lista.')
+            datos.update(region_pais=R.PAIS, region_mun='', region_nombre='', region_dep='')
+            return datos
+        if datos.get('departamento_dane') and datos['departamento_dane'] != m['dep']:
+            self.add_error('municipio_dane', 'Ese municipio no es del departamento escogido.')
+        datos.update(region_pais=R.PAIS, region_mun=cod, region_nombre=m['nombre'], region_dep=R.nombre_departamento(cod))
+        return datos
+
+    def guardar_region(self, cuenta):
+        d = self.cleaned_data
+        cuenta.pais, cuenta.municipio_dane = d.get('region_pais', 'Colombia'), d.get('region_mun', '')
+        cuenta.municipio, cuenta.departamento = d.get('region_nombre', ''), d.get('region_dep', '')
+
+
+# ---------------------------------------------------------------------------
 # Cuentas
 # ---------------------------------------------------------------------------
 
-class RegistroForm(UserCreationForm):
+class RegistroForm(RegionMixin, UserCreationForm):
     nombre_publico = forms.CharField(
         label='Tu nombre', max_length=120, widget=forms.TextInput(attrs=CAJA))
     slug = forms.CharField(
@@ -58,8 +115,6 @@ class RegistroForm(UserCreationForm):
     institucion = forms.CharField(
         label='Institución donde trabajas', max_length=200, required=False,
         widget=forms.TextInput(attrs=CAJA))
-    municipio = forms.CharField(
-        label='Municipio', max_length=100, required=False, widget=forms.TextInput(attrs=CAJA))
 
     class Meta:
         model = User
@@ -71,6 +126,10 @@ class RegistroForm(UserCreationForm):
         for campo in ('username', 'password1', 'password2'):
             self.fields[campo].widget.attrs.update(CAJA)
         self.fields['username'].label = 'Usuario para entrar'
+        self._campos_region()
+
+    def clean(self):
+        return self._limpiar_region(super().clean())
 
     def clean_slug(self):
         return _validar_usuario(self.cleaned_data.get('slug'))
@@ -98,21 +157,35 @@ class EntrarForm(AuthenticationForm):
         self.fields['username'].label = 'Usuario o correo'
 
 
-class CuentaForm(forms.ModelForm):
+class CuentaForm(RegionMixin, forms.ModelForm):
     class Meta:
         model = Cuenta
-        fields = ['nombre_publico', 'slug', 'institucion', 'municipio', 'departamento', 'telefono']
+        fields = ['nombre_publico', 'slug', 'institucion', 'telefono']
         widgets = {
             'nombre_publico': forms.TextInput(attrs=CAJA),
             'slug': forms.TextInput(attrs=CAJA),
             'institucion': forms.TextInput(attrs=CAJA),
-            'municipio': forms.TextInput(attrs=CAJA),
-            'departamento': forms.TextInput(attrs=CAJA),
             'telefono': forms.TextInput(attrs=CAJA),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._campos_region(self.instance if self.instance.pk else None)
+        # el celular al final, después de la región
+        self.fields['telefono'] = self.fields.pop('telefono')
+
     def clean_slug(self):
         return _validar_usuario(self.cleaned_data.get('slug'), self.instance.pk)
+
+    def clean(self):
+        return self._limpiar_region(super().clean())
+
+    def save(self, commit=True):
+        cuenta = super().save(commit=False)
+        self.guardar_region(cuenta)
+        if commit:
+            cuenta.save()
+        return cuenta
 
 
 class VerificacionForm(forms.ModelForm):

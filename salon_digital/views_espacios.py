@@ -85,6 +85,7 @@ def inicio(request):
     from materiales.models import Documento
     return render(request, 'salon_digital/inicio.html', {
         'cuenta': cuenta, 'nombre': _primer_nombre(user, cuenta),
+        'falta_region': (cuenta.pais or 'Colombia') == 'Colombia' and not cuenta.municipio_dane,
         'fecha': f'{DIAS[hoy.weekday()].capitalize()}, {hoy.day} de {MESES[hoy.month - 1]}',
         'grupos': grupos, 'comunidad': _comunidad(user, 5), 'pendientes': pendientes(cuenta, user, grupos),
         'notas': [_nota_json(n) for n in NotaPizarra.objects.filter(usuario=user)], 'colores_nota': dict(NotaPizarra.COLORES),

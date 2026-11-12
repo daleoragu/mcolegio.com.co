@@ -1,0 +1,3 @@
+{% load static %}{# Menú encadenado País → Departamento → Municipio (DANE · DIVIPOLA) para los formularios con RegionMixin #}
+{{ regiones_menu|json_script:"mm-regiones" }}
+<script src="{% static 'salon_digital/region.js' %}" defer></script>

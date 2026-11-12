@@ -105,6 +105,9 @@ class Cuenta(models.Model):
     institucion = models.CharField(max_length=200, blank=True, verbose_name='Institución donde trabaja')
     municipio = models.CharField(max_length=100, blank=True)
     departamento = models.CharField(max_length=100, blank=True)
+    # Región (DANE · DIVIPOLA): el municipio en el menú de la inscripción; municipio y departamento quedan con el nombre oficial.
+    pais = models.CharField(max_length=60, default='Colombia', blank=True)
+    municipio_dane = models.CharField(max_length=5, blank=True, db_index=True, verbose_name='Municipio (código DANE)')
     telefono = models.CharField(max_length=30, blank=True, verbose_name='Celular (opcional)')
 
     # --- Verificación ---

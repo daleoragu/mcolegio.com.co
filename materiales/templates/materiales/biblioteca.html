@@ -22,8 +22,15 @@
   <div class="col-md-2"><label class="small fw-bold mb-1" for="bb-area">Área</label><input id="bb-area" name="area" value="{{ filtro.area }}" class="form-control form-control-sm"></div>
   <div class="col-md-2"><label class="small fw-bold mb-1" for="bb-grado">Grado</label><input id="bb-grado" name="grado" value="{{ filtro.grado }}" class="form-control form-control-sm"></div>
   <div class="col-md-2"><label class="small fw-bold mb-1" for="bb-tipo">Tipo</label><select id="bb-tipo" name="tipo" class="form-select form-select-sm"><option value="">Todos</option>{% for k, v in tipos %}{% if k != 'institucional' %}<option value="{{ k }}" {% if filtro.tipo == k %}selected{% endif %}>{{ v }}</option>{% endif %}{% endfor %}</select></div>
+  <div class="col-md-2"><label class="small fw-bold mb-1" for="bb-region">Región</label><select id="bb-region" name="region" class="form-select form-select-sm">
+    <option value="">Todo el país</option>
+    {% if mi_lugar %}<option value="municipio" {% if filtro.region == 'municipio' %}selected{% endif %}>De mi municipio ({{ mi_lugar }})</option>
+    <option value="departamento" {% if filtro.region == 'departamento' %}selected{% endif %}>De mi departamento ({{ mi_departamento }})</option>{% endif %}</select></div>
+  <div class="col-md-2 d-flex align-items-end"><div class="form-check small mb-1"><input class="form-check-input" type="checkbox" name="regional" value="1" id="bb-regional" {% if filtro.regional %}checked{% endif %}>
+    <label class="form-check-label" for="bb-regional">Con contexto regional</label></div></div>
   <div class="col-md-2 d-flex gap-1"><select name="orden" class="form-select form-select-sm" aria-label="Orden"><option value="">Recientes</option><option value="usados" {% if filtro.orden == 'usados' %}selected{% endif %}>Más usados</option><option value="estrellas" {% if filtro.orden == 'estrellas' %}selected{% endif %}>Mejor valorados</option></select><button class="btn btn-sm mm-oro">Buscar</button></div>
 </form>
+{% if not mi_lugar and acceso.es_individual %}<div class="alert alert-info small py-2">Para ver lo de su región, escoja su municipio en <a href="/salon_digital/panel/cuenta/">Mi cuenta</a>.</div>{% endif %}
 <div class="row g-2">
 {% for m in materiales %}
   <div class="col-md-6 col-xl-4"><a class="text-decoration-none text-reset" href="{% url 'materiales:material' m.pk %}"><div class="mm-ficha-bib">
@@ -31,6 +38,7 @@
     <div class="t">{{ m.titulo }}</div>
     <div class="small text-muted">{{ m.get_tipo_display }}{% if m.area %} · {{ m.area }}{% endif %}{% if m.grado %} · Grado {{ m.grado }}{% endif %}{% if m.preguntas %} · {{ m.preguntas }} pregunta{{ m.preguntas|pluralize }}{% endif %}</div>
     {% if m.descripcion %}<div class="small mt-1">{{ m.descripcion|truncatechars:120 }}</div>{% endif %}
+    {% if m.lugar %}<div class="small mt-1 text-muted">📍 {{ m.lugar }}{% if m.regional %} · <span class="text-success fw-semibold">contexto regional</span>{% endif %}</div>{% endif %}
     <div class="small text-muted mt-auto pt-2 d-flex justify-content-between"><span>{% if m.alcance == 'libre' %}mcolegio{% else %}{{ m.autor.get_full_name|default:m.autor.username }}{% endif %}</span>
       <span>{% if m.estrellas %}<span class="mm-estrellas">★</span> {{ m.estrellas }} · {% endif %}{{ m.usos }} uso{{ m.usos|pluralize }}</span></div>
   </div></a></div>
