@@ -372,6 +372,130 @@ def tira(nombres, vacios=(), por_fila=7):
     return _svg(15 + min(len(nombres), por_fila) * (w + 10) + 5, 15 + filas * (h + 14) + 1, ''.join(p))
 
 
+# --- 2.º: más matemáticas -------------------------------------------------------------------------------------------
+def billetes(*valores):
+    """Billetes genéricos (no son réplicas) de 1000, 2000, 5000, 10 000…, uno al lado del otro."""
+    color = {1000: '#fbd38d', 2000: '#90cdf4', 5000: '#c6f6d5', 10000: '#fed7e2', 20000: '#feebc8', 50000: '#e9d8fd'}
+    p, x = [], 15
+    for v in valores:
+        p.append(f'<rect x="{x}" y="20" width="200" height="100" rx="10" fill="{color.get(v, "#e2e8f0")}" stroke="{CONTORNO}" stroke-width="3"/>'
+                 f'<rect x="{x + 10}" y="30" width="180" height="80" rx="6" fill="none" stroke="{CONTORNO}" stroke-width="1.5" stroke-dasharray="4 3"/>'
+                 f'<circle cx="{x + 45}" cy="70" r="24" fill="#fff" stroke="{CONTORNO}" stroke-width="2"/>'
+                 + _txt(x + 130, 82, f'${v:,}'.replace(',', '.'), 26, CONTORNO))
+        x += 215
+    return _svg(x, 140, ''.join(p))
+
+
+def cuadros(ancho, alto, malla=8):
+    """Una figura de ancho × alto cuadritos pintada sobre una cuadrícula: su superficie se mide contando cuadritos."""
+    c, o = 40, 20
+    n = max(malla, ancho + 2)
+    filas = max(alto + 2, 4)
+    p = []
+    for f in range(filas):
+        for k in range(n):
+            dentro = 1 <= k <= ancho and 1 <= f <= alto
+            p.append(f'<rect x="{o + k * c}" y="{o + f * c}" width="{c}" height="{c}" fill="{AMARILLO if dentro else "#fff"}" '
+                     f'stroke="{GRIS if not dentro else CONTORNO}" stroke-width="{2.5 if dentro else 1.5}"/>')
+    return _svg(2 * o + n * c, 2 * o + filas * c, ''.join(p))
+
+
+def poligonos():
+    """Triángulo, cuadrado, pentágono y hexágono (A, B, C, D) para contar lados."""
+    def reg(cx, cy, r, n, color, giro=-90):
+        pts = ' '.join(f'{cx + r * math.cos(math.radians(giro + k * 360 / n))},{cy + r * math.sin(math.radians(giro + k * 360 / n))}' for k in range(n))
+        return f'<polygon points="{pts}" fill="{color}" stroke="{CONTORNO}" stroke-width="4" stroke-linejoin="round"/>'
+    p = [reg(85, 95, 62, 3, AMARILLO), reg(250, 95, 62, 4, AZUL, -45), reg(415, 95, 62, 5, VERDE), reg(580, 95, 62, 6, NARANJA, 0),
+         _txt(85, 190, 'A', 24, ROJO), _txt(250, 190, 'B', 24, ROJO), _txt(415, 190, 'C', 24, ROJO), _txt(580, 190, 'D', 24, ROJO)]
+    return _svg(665, 205, ''.join(p))
+
+
+def lineas_posicion():
+    """Línea horizontal (A), vertical (B), paralelas (C) y perpendiculares (D)."""
+    k = AZUL_OSC
+    p = [f'<path d="M30 100H170" stroke="{k}" stroke-width="6" stroke-linecap="round"/>',
+         f'<path d="M260 30V170" stroke="{k}" stroke-width="6" stroke-linecap="round"/>',
+         f'<path d="M340 60L480 110M340 110L480 160" stroke="{k}" stroke-width="6" stroke-linecap="round"/>',
+         f'<path d="M560 160H700M630 160V30" stroke="{k}" stroke-width="6" stroke-linecap="round"/><path d="M630 140h20v20" fill="none" stroke="{ROJO}" stroke-width="3"/>',
+         _txt(100, 205, 'A', 24, ROJO), _txt(260, 205, 'B', 24, ROJO), _txt(410, 205, 'C', 24, ROJO), _txt(630, 205, 'D', 24, ROJO)]
+    return _svg(730, 220, ''.join(p))
+
+
+def grafico_puntos(datos, titulo=''):
+    """Gráfico de puntos: datos = [(nombre, cantidad)], una columna de puntos sobre cada nombre."""
+    w, r, base = 120, 14, 330
+    p = [f'<path d="M20 {base}H{40 + len(datos) * w}" stroke="{AZUL_OSC}" stroke-width="4"/>']
+    for k, (nombre, n) in enumerate(datos):
+        x = 40 + k * w + w / 2
+        for j in range(n):
+            p.append(f'<circle cx="{x}" cy="{base - 22 - j * (2 * r + 6)}" r="{r}" fill="{(ROJO, AZUL, VERDE, NARANJA, AMARILLO)[k % 5]}" stroke="{CONTORNO}" stroke-width="2.5"/>')
+        p.append(_txt(x, base + 30, nombre, 19))
+    if titulo:
+        p.append(_txt(40 + len(datos) * w / 2, 28, titulo, 20))
+    return _svg(60 + len(datos) * w, base + 50, ''.join(p))
+
+
+# --- 2.º: señales y territorio ------------------------------------------------------------------------------------------
+def senales():
+    """Seis señales de uso común: PARE, paso peatonal, prohibido el paso, baño, reciclaje y salida de emergencia (A–F)."""
+    k = CONTORNO
+    oct_ = ' '.join(f'{90 + 62 * math.cos(math.radians(22.5 + i * 45))},{90 + 62 * math.sin(math.radians(22.5 + i * 45))}' for i in range(8))
+    p = [f'<polygon points="{oct_}" fill="{ROJO}" stroke="#fff" stroke-width="5"/><polygon points="{oct_}" fill="none" stroke="{k}" stroke-width="2"/>'
+         + _txt(90, 101, 'PARE', 30, '#fff'),
+         # paso peatonal (azul cuadrado con persona y cebra)
+         f'<rect x="200" y="28" width="124" height="124" rx="10" fill="{AZUL}" stroke="{k}" stroke-width="3"/>'
+         f'<path d="M222 132h80" stroke="#fff" stroke-width="0"/>' + ''.join(f'<rect x="{214 + i * 20}" y="122" width="12" height="20" fill="#fff"/>' for i in range(5))
+         + f'<circle cx="262" cy="56" r="10" fill="#fff"/><path d="M262 68v30M262 76l-14 14M262 76l14 12M262 98l-12 20M262 98l12 20" stroke="#fff" stroke-width="7" stroke-linecap="round"/>',
+         # prohibido el paso
+         f'<circle cx="420" cy="90" r="62" fill="#fff" stroke="{ROJO}" stroke-width="12"/><path d="M376 46L464 134" stroke="{ROJO}" stroke-width="12"/>'
+         f'<circle cx="420" cy="64" r="9" fill="{k}"/><path d="M420 74v28M420 82l-12 12M420 82l12 10M420 102l-10 18M420 102l10 18" stroke="{k}" stroke-width="6" stroke-linecap="round"/>',
+         # baño
+         f'<rect x="525" y="28" width="124" height="124" rx="10" fill="#fff" stroke="{k}" stroke-width="3"/><path d="M587 40v100" stroke="{k}" stroke-width="2"/>'
+         f'<circle cx="557" cy="60" r="9" fill="{AZUL}"/><rect x="547" y="72" width="20" height="38" rx="4" fill="{AZUL}"/><path d="M552 110v22M562 110v22" stroke="{AZUL}" stroke-width="6"/>'
+         f'<circle cx="617" cy="60" r="9" fill="{ROJO}"/><path d="M617 70l-16 42h32z" fill="{ROJO}"/><path d="M611 112v20M623 112v20" stroke="{ROJO}" stroke-width="6"/>',
+         # reciclaje
+         f'<rect x="690" y="28" width="124" height="124" rx="10" fill="{VERDE}" stroke="{k}" stroke-width="3"/>'
+         + ''.join(f'<path d="M752 90m{-30 * math.sin(math.radians(a))} {30 * math.cos(math.radians(a))}a30 30 0 0 1 {30 * math.sin(math.radians(a)) - 30 * math.sin(math.radians(a + 100))} '
+                   f'{-30 * math.cos(math.radians(a)) + 30 * math.cos(math.radians(a + 100))}" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/>' for a in (0, 120, 240)),
+         # salida de emergencia
+         f'<rect x="855" y="28" width="124" height="124" rx="10" fill="#2f9e44" stroke="{k}" stroke-width="3"/>'
+         f'<rect x="935" y="44" width="30" height="92" fill="#fff"/><circle cx="895" cy="58" r="9" fill="#fff"/>'
+         f'<path d="M895 70l-6 28 18 16M889 98l-18 26M893 80l20 4M893 80l-18 10" stroke="#fff" stroke-width="7" stroke-linecap="round" fill="none"/>'
+         f'<path d="M870 140h50l-12-10M920 140l-12 10" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round"/>']
+    for i, x in enumerate((90, 262, 420, 587, 752, 917)):
+        p.append(_txt(x, 190, 'ABCDEF'[i], 24, ROJO))
+    return _svg(1000, 205, ''.join(p))
+
+
+def arbol_genealogico():
+    """Árbol genealógico vacío para llenar: abuelos, padres y yo."""
+    k = CONTORNO
+    caja = lambda x, y, t, color: (f'<rect x="{x}" y="{y}" width="150" height="74" rx="12" fill="{color}" stroke="{k}" stroke-width="3"/>'
+                                   + _txt(x + 75, y + 96, t, 16))
+    p = [f'<path d="M95 107V150H265V107M455 107V150H625V107M180 150V190H540V150M360 190V230" stroke="{k}" stroke-width="3" fill="none"/>',
+         caja(20, 30, 'abuelo', '#fde2e4'), caja(190, 30, 'abuela', '#fde2e4'), caja(380, 30, 'abuelo', '#cde7f0'), caja(550, 30, 'abuela', '#cde7f0'),
+         caja(105, 176, 'papá', '#fde2e4'), caja(465, 176, 'mamá', '#cde7f0'),
+         f'<path d="M180 250v-24M540 250v-24" stroke="#fff" stroke-width="0"/>', caja(285, 300, 'yo', AMARILLO)]
+    p.insert(0, f'<path d="M180 250V280H540V250M360 280V300" stroke="{k}" stroke-width="3" fill="none"/>')
+    return _svg(720, 410, ''.join(p).replace('M180 150V190H540V150M360 190V230', ''))
+
+
+def municipio():
+    """Croquis de un municipio inventado: casco urbano con comunas, corregimiento, veredas, resguardo indígena y río; con el norte."""
+    k = CONTORNO
+    p = [f'<path d="M60 60L300 30L560 70L640 230L580 420L340 460L110 420L40 250z" fill="#eef6e9" stroke="{k}" stroke-width="5" stroke-linejoin="round"/>',
+         f'<path d="M40 250C160 230 250 300 340 280S520 320 640 230" fill="none" stroke="{AZUL}" stroke-width="10" stroke-linecap="round"/>',
+         _txt(160, 225, 'río', 16, AZUL_OSC),
+         f'<circle cx="340" cy="190" r="62" fill="#fde2e4" stroke="{k}" stroke-width="3"/><path d="M340 128V252M278 190H402" stroke="{k}" stroke-width="2" stroke-dasharray="5 4"/>'
+         + _txt(340, 182, 'Casco', 16) + _txt(340, 202, 'urbano', 16),
+         f'<rect x="440" y="90" width="120" height="70" rx="10" fill="#ffe8a3" stroke="{k}" stroke-width="3"/>' + _txt(500, 132, 'Corregimiento', 14),
+         f'<rect x="100" y="90" width="120" height="70" rx="10" fill="#c6f6d5" stroke="{k}" stroke-width="3"/>' + _txt(160, 132, 'Vereda El Alto', 14),
+         f'<rect x="130" y="320" width="130" height="70" rx="10" fill="#c6f6d5" stroke="{k}" stroke-width="3"/>' + _txt(195, 362, 'Vereda La Vega', 14),
+         f'<rect x="410" y="320" width="150" height="70" rx="10" fill="#e9d8fd" stroke="{k}" stroke-width="3"/>' + _txt(485, 352, 'Resguardo', 14) + _txt(485, 372, 'indígena', 14),
+         _norte(640, 40)]
+    return _svg(680, 480, ''.join(p))
+
+
 # Los dibujos que usan las guías: id → función y datos. scripts/semilla_png.js los convierte a PNG.
 def generar(id_):
     """«d-bloques-3-4» → SVG. Los números del id son los datos."""
@@ -424,6 +548,22 @@ def generar(id_):
         return plano_escuela()
     if nombre == 'barrio':
         return mapa_barrio()
+    if nombre == 'billetes':
+        return billetes(*nums(args))
+    if nombre == 'cuadros':
+        return cuadros(*nums(args))
+    if nombre == 'poligonos':
+        return poligonos()
+    if nombre == 'posiciones':
+        return lineas_posicion()
+    if nombre == 'puntos':                     # d-puntos-lunes.3-martes.5
+        return grafico_puntos([(a.split('.')[0].replace('_', ' '), int(a.split('.')[1])) for a in args])
+    if nombre == 'senales':
+        return senales()
+    if nombre == 'arbol':
+        return arbol_genealogico()
+    if nombre == 'municipio':
+        return municipio()
     if nombre == 'dias':                       # d-dias  ·  d-dias-v3-v5 (miércoles y viernes en blanco)
         return tira(DIAS, [int(x[1:]) for x in args if x.startswith('v')])
     if nombre == 'meses':

@@ -205,3 +205,12 @@ class SemillaOtrasAreas(ColegioDePrueba):
                if b['tipo'] == '_imagen' and not b['img'].startswith(('d-', 'pict:'))}
         self.assertTrue(all(I.por_id(i) and I.por_id(i)['prompt'] for i in ids))
         self.assertEqual(K.buscar('SOC-1-7')['evidencias'][-1], 'Reconoce la importancia del trabajo en equipo para el logro de las metas comunes.')
+
+    def test_segundo_grado(self):
+        for area, n in (('MAT', 22), ('LEN', 16), ('NAT', 8), ('SOC', 16)):
+            antes = Documento.objects.filter(propietario=self.u_docente).count()
+            call_command('cargar_semilla', '--usuario', 'profe', '--area', area, '--grados', '2', '--colegio', 'a', stdout=StringIO())
+            self.assertEqual(Documento.objects.filter(propietario=self.u_docente).count() - antes, n, area)
+        self.assertTrue(Documento.objects.filter(grado='2.º', titulo='Números hasta 999: comparo y ordeno').exists())
+        self.assertIn('aplicación,', ' '.join(K.buscar('MAT-2-3')['evidencias']))
+        self.assertIn('que éstas traen', ' '.join(K.buscar('SOC-2-5')['evidencias']))

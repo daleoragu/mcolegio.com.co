@@ -279,8 +279,112 @@ SOCIALES_1 = [
 ]
 
 
+def _g2(fn):
+    """Las de 2.º: mismo estilo, grado 2."""
+    def f(*a, **k):
+        return dict(fn(*a, **k), grado=2)
+    return f
+
+
+_m2, _l2, _n2, _s2 = _g2(_a('Matemáticas')), _g2(_l), _g2(_n), _g2(_s)
+
+GRADO_2 = [
+    # Matemáticas 2.º (los objetos para contar se reusan de 1.º: manzana, naranja, lápiz, balón…)
+    _m2('m2-bolsa-naranjas', 1, 'Bolsa de naranjas', 'Grupos iguales (multiplicar)', 'Una bolsa de malla con naranjas, cerrada con un nudo.'),
+    _m2('m2-tienda-dona', 1, 'Tienda de doña Rosa', 'Problemas de compra', 'Una tienda de barrio colombiana con una tendera sonriente detrás del '
+        'mostrador, con frascos de dulces, panes y frutas; letreros de precios en blanco.', ESCENA + ' Letreros vacíos.'),
+    _m2('m2-alcancia', 3, 'Alcancía', 'Ahorrar y comparar cantidades', 'Una alcancía de cerdito de barro pintada a mano.'),
+    _m2('m2-balanza-frutas', 4, 'Balanza de mercado', 'Peso', 'Una balanza de dos platos de plaza de mercado, con una piña en un plato y '
+        'tres mangos en el otro, en equilibrio.'),
+    _m2('m2-jarra', 4, 'Jarra de jugo', 'Capacidad', 'Una jarra transparente con jugo de mora.'),
+    _m2('m2-metro-costura', 5, 'Metro de costura', 'Medir con el metro', 'Una cinta métrica de costura amarilla, enrollada a medias, sin números legibles.'),
+    _m2('m2-rieles', 7, 'Rieles del tren', 'Líneas paralelas', 'Unos rieles de tren rectos que se pierden en el horizonte, sin tren, vistos desde arriba.', ESCENA),
+    _m2('m2-cruce-calles', 7, 'Cruce de calles', 'Líneas perpendiculares', 'Dos calles que se cruzan en ángulo recto vistas desde arriba, '
+        'con una cebra peatonal y árboles en las esquinas.', ESCENA),
+    _m2('m2-ventana', 7, 'Ventana con reja', 'Horizontal y vertical', 'Una ventana con reja de barrotes verticales y horizontales.'),
+    _m2('m2-collar', 8, 'Collar de cuentas', 'Patrones', 'Un collar de cuentas de colores que se repiten: rojo, azul, azul, rojo, azul, azul.'),
+    _m2('m2-bolsa-canicas', 11, 'Bolsa de canicas', 'Posible e imposible', 'Una bolsa de tela abierta con canicas rojas adentro, solo rojas.'),
+    _m2('m2-nubes', 11, 'Cielo nublado', '¿Va a llover?', 'Un cielo con nubes grises oscuras sobre un pueblo, a punto de llover.', ESCENA),
+    _m2('m2-moneda-aire', 11, 'Lanzar una moneda', 'Cara o sello', 'La mano de Tomás lanzando una moneda dorada al aire. ' + NINOS, ESCENA),
+    # Lenguaje 2.º
+    _l2('l2-noticiero', 1, 'Noticiero de televisión', 'Medios masivos', 'Una presentadora de noticias en un estudio de televisión, con una '
+        'pantalla detrás que muestra un mapa de Colombia sin letras.', ESCENA),
+    _l2('l2-etiqueta', 2, 'Etiqueta de un producto', 'Imágenes en etiquetas', 'Una caja de cereal con dibujos de frutas y un sol en la etiqueta, '
+        'sin letras.'),
+    _l2('l2-cartel', 2, 'Cartel del colegio', 'Imágenes en carteles', 'Un cartel en la pared del colegio con dibujos de niños lavándose las '
+        'manos, sin letras.'),
+    _l2('l2-ramon-1', 3, 'Cuento: El sombrero de don Ramón (1)', 'Personajes y lugar', 'Un abuelo campesino colombiano (don Ramón) con un '
+        'sombrero aguadeño grande, sentado frente a su casa de bahareque en la montaña, con su perro.', ESCENA + ' Don Ramón y el perro iguales en las 4 escenas.'),
+    _l2('l2-ramon-2', 3, 'Cuento: El sombrero de don Ramón (2)', 'El problema', 'Un viento fuerte se lleva volando el sombrero de don Ramón '
+        'montaña abajo; el abuelo y el perro miran sorprendidos.', ESCENA + ' Mismos personajes.'),
+    _l2('l2-ramon-3', 3, 'Cuento: El sombrero de don Ramón (3)', 'Las acciones', 'Una vaca, una gallina y un niño del pueblo (Tomás) ven el '
+        'sombrero colgado de un árbol de guayaba y tratan de bajarlo. ' + NINOS, ESCENA + ' Mismos personajes.'),
+    _l2('l2-ramon-4', 3, 'Cuento: El sombrero de don Ramón (4)', 'El final', 'Tomás le devuelve el sombrero a don Ramón, que le regala '
+        'guayabas; el perro mueve la cola. ' + NINOS, ESCENA + ' Mismos personajes.'),
+    _l2('l2-receta', 6, 'Receta de arepas', 'Textos instructivos', 'Ingredientes para hacer arepas sobre una mesa: harina de maíz, agua, sal, '
+        'mantequilla y un tazón.', ESCENA),
+    _l2('l2-carta', 8, 'Una carta', 'Escribir cartas e invitaciones', 'Un sobre abierto con una carta escrita a mano (rayitas en lugar de letras) '
+        'y un dibujo de corazón.'),
+    _l2('l2-perro-ruido', 5, 'Sonido del ambiente', 'Sonidos de la lengua y del ambiente', 'Un perro ladrando junto a una campana que suena y un '
+        'carro pitando, con líneas de sonido.', ESCENA),
+    _l2('l2-rr', 7, 'El perro en la carretera', 'Practicar r y rr', 'Un perro corriendo detrás de un carro rojo por una carretera de montaña.', ESCENA),
+    # Ciencias Naturales 2.º
+    _n2('n2-estirar', 1, 'Estirar un resorte', 'Fuerza: estirar', 'Dos manos estirando un resorte metálico.'),
+    _n2('n2-aplastar', 1, 'Aplastar plastilina', 'Fuerza: aplastar', 'Una mano aplastando una bola de plastilina verde sobre la mesa.'),
+    _n2('n2-doblar', 1, 'Doblar papel', 'Fuerza: doblar', 'Dos manos doblando una hoja de papel por la mitad.'),
+    _n2('n2-torcer', 1, 'Torcer un trapo', 'Fuerza: torcer', 'Dos manos torciendo un trapo mojado que suelta gotas.'),
+    _n2('n2-arrugar', 1, 'Arrugar papel', 'Fuerza: arrugar', 'Una hoja de papel arrugada en forma de bola.'),
+    _n2('n2-hielo', 2, 'Hielo', 'Estado sólido', 'Cubos de hielo en un plato.'),
+    _n2('n2-agua-vaso', 2, 'Agua', 'Estado líquido', 'Un vaso de vidrio con agua.'),
+    _n2('n2-vapor', 2, 'Vapor', 'Estado gaseoso', 'Una olla en la estufa hirviendo con vapor saliendo.'),
+    _n2('n2-liquidos', 2, 'Agua, aceite y miel', 'Comparar líquidos', 'Tres frascos transparentes en fila: agua, aceite amarillo y miel espesa.'),
+    _n2('n2-globo', 2, 'Globo inflado', 'El aire ocupa espacio', 'Un globo rojo inflado amarrado con una cinta.'),
+    _n2('n2-molino', 2, 'Molino de viento', 'El aire se mueve', 'Un molino de papel de colores girando con el viento.'),
+    _n2('n2-pato-patas', 3, 'Patas del pato', 'Adaptación al agua', 'Un pato nadando con las patas palmeadas visibles bajo el agua.'),
+    _n2('n2-frailejon', 3, 'Frailejón', 'Plantas del páramo', 'Un frailejón del páramo colombiano con hojas peludas, entre niebla.'),
+    _n2('n2-cactus', 3, 'Cactus', 'Plantas del desierto', 'Un cactus con espinas en el desierto de La Guajira.'),
+    _n2('n2-mono-cola', 3, 'Mono aullador', 'Adaptación a los árboles', 'Un mono aullador rojo colgado de una rama con la cola.'),
+    _n2('n2-chiguiro', 3, 'Chigüiro', 'Animales de los llanos', 'Un chigüiro (capibara) junto a un caño de los llanos.'),
+    _n2('n2-planta-sin-luz', 3, 'Planta sin luz', 'Necesidades de las plantas', 'Dos materas: una planta verde y sana al sol y otra amarilla y '
+        'débil dentro de una caja oscura.', ESCENA),
+    _n2('n2-oruga', 4, 'Oruga', 'Ciclo de la mariposa', 'Una oruga verde comiendo una hoja.'),
+    _n2('n2-crisalida', 4, 'Crisálida', 'Ciclo de la mariposa', 'Una crisálida verde colgada de una rama.'),
+    _n2('n2-huevos-mariposa', 4, 'Huevos de mariposa', 'Ciclo de la mariposa', 'Huevitos de mariposa sobre una hoja verde.'),
+    _n2('n2-flor-fruto', 4, 'De flor a fruto', 'Floración y fruto', 'Una rama de naranjo con flores blancas y una naranja pequeña verde creciendo.'),
+    # Ciencias Sociales 2.º
+    _s2('s2-antes-carretera', 1, 'El paisaje antes', 'El paisaje cambia', 'Un valle verde con un camino de herradura y una mula, sin casas.', ESCENA),
+    _s2('s2-despues-carretera', 1, 'El paisaje después', 'El paisaje cambia', 'El mismo valle con una carretera pavimentada, casas, cultivos y '
+        'postes de luz.', ESCENA + ' Mismo valle y mismas montañas de la imagen anterior.'),
+    _s2('s2-meseta', 1, 'Meseta', 'Formas del relieve', 'Una meseta alta y plana con paredes de roca, vista de lejos.', ESCENA),
+    _s2('s2-maqueta', 1, 'Maqueta del municipio', 'Representar el paisaje', 'Una maqueta escolar de plastilina con montañas, un río y casitas '
+        'sobre una tabla.', ESCENA),
+    _s2('s2-registro', 3, 'Registro civil', 'Fuentes de la historia familiar', 'Un documento de registro civil de nacimiento en una carpeta, con '
+        'rayitas en lugar de letras y una huella.', 'Objeto centrado.'),
+    _s2('s2-album', 3, 'Álbum de fotos', 'Memoria familiar', 'Sofi y su abuela mirando un álbum de fotos familiares antiguas. ' + NINOS, ESCENA),
+    _s2('s2-chiva', 4, 'Chiva', 'Transporte rural', 'Una chiva (bus escalera) colombiana de colores con carga en el techo.'),
+    _s2('s2-bus', 4, 'Bus', 'Transporte urbano', 'Un bus urbano moderno.'),
+    _s2('s2-moto', 4, 'Moto', 'Transporte', 'Una moto roja con casco colgado.'),
+    _s2('s2-bicicleta', 4, 'Bicicleta', 'Transporte', 'Una bicicleta azul.'),
+    _s2('s2-mula', 4, 'Mula de carga', 'Transporte de antes', 'Una mula cargada con bultos de café.'),
+    _s2('s2-canoa', 4, 'Canoa', 'Transporte por río', 'Una canoa de madera con un remo en un río.'),
+    _s2('s2-metrocable', 4, 'Cable aéreo', 'Transporte por cable', 'Una cabina de cable aéreo sobre un barrio de montaña.', ESCENA),
+    _s2('s2-campesino', 5, 'Campesino', 'Oficios', 'Un campesino colombiano recogiendo café con un canasto.', 'Personaje de cuerpo entero centrado.'),
+    _s2('s2-panadera', 5, 'Panadera', 'Oficios', 'Una panadera sacando pan del horno.', 'Personaje de cuerpo entero centrado.'),
+    _s2('s2-medica', 5, 'Médica', 'Oficios', 'Una médica con bata blanca y estetoscopio.', 'Personaje de cuerpo entero centrado.'),
+    _s2('s2-pescador', 5, 'Pescador', 'Oficios', 'Un pescador con una atarraya en la orilla del río.', 'Personaje de cuerpo entero centrado.'),
+    _s2('s2-conductor', 5, 'Conductor', 'Oficios', 'Un conductor de bus sonriente al volante.', 'Personaje de medio cuerpo centrado.'),
+    _s2('s2-nino-trabajando', 5, 'Un niño que trabaja', 'Rechazar el trabajo infantil', 'Un niño de 8 años cargando un bulto pesado en una plaza '
+        'de mercado, cansado, mientras otros niños pasan con morral hacia la escuela.', ESCENA),
+    _s2('s2-casa-rural', 6, 'Vivienda rural', 'Rural y urbana', 'Una finca cafetera con casa de tapia, corredor, huerta y gallinas.', ESCENA),
+    _s2('s2-tambo', 6, 'Tambo', 'Vivienda de grupos étnicos', 'Un tambo emberá de madera sobre pilotes con techo de palma, en la selva del Chocó.', ESCENA),
+    _s2('s2-excluido', 8, 'Dejar a alguien por fuera', 'Reconocer la discriminación', 'Un grupo de niños jugando y una niña afrocolombiana '
+        'sola mirando desde lejos, triste.', ESCENA),
+    _s2('s2-incluido', 8, 'Jugamos todos', 'Aceptar a todos', 'Los mismos niños jugando a la ronda con la niña afrocolombiana, todos felices.', ESCENA),
+]
+
+
 def catalogo():
-    return list(MATEMATICAS_1) + LENGUAJE_1 + NATURALES_1 + SOCIALES_1
+    return list(MATEMATICAS_1) + LENGUAJE_1 + NATURALES_1 + SOCIALES_1 + GRADO_2
 
 
 def por_id(id_):
