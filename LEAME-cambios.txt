@@ -1,4 +1,4 @@
-Versión 0021 · 2026-11-11 23:13
+Versión 0024 · 2026-11-12 12:36
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -275,19 +275,38 @@ CAMBIADO  config/settings.py
 CAMBIADO  config/urls.py
 CAMBIADO  elecciones/templates/elecciones/index.html
 CAMBIADO  materiales/bloques.py
+CAMBIADO  materiales/calificar.py
 CAMBIADO  materiales/creditos.py
+NUEVO     materiales/datos/dba/lenguaje.json
+NUEVO     materiales/datos/dba/matematicas.json
+NUEVO     materiales/datos/dba/naturales.json
+NUEVO     materiales/datos/dba/sociales.json
+NUEVO     materiales/dba/__init__.py
+NUEVO     materiales/dba/catalogo.py
+NUEVO     materiales/dba/extraer_dba.py
 NUEVO     materiales/ecuaciones.py
 CAMBIADO  materiales/exportar.py
 NUEVO     materiales/graficas.py
 CAMBIADO  materiales/ia.py
+NUEVO     materiales/management/__init__.py
+NUEVO     materiales/management/commands/__init__.py
+NUEVO     materiales/management/commands/cargar_semilla_matematicas.py
 NUEVO     materiales/migrations/0005_colaboradores_y_modelos.py
 NUEVO     materiales/migrations/0006_encabezado_libre.py
 NUEVO     materiales/migrations/0007_mis_juegos.py
 NUEVO     materiales/migrations/0008_formatos.py
 NUEVO     materiales/migrations/0009_graficas.py
 NUEVO     materiales/migrations/0010_recortes.py
+NUEVO     materiales/migrations/0011_region.py
+NUEVO     materiales/migrations/0012_dba_codigo.py
 CAMBIADO  materiales/models.py
 CAMBIADO  materiales/plantillas.py
+NUEVO     materiales/semilla/__init__.py
+NUEVO     materiales/semilla/armar.py
+NUEVO     materiales/semilla/banco.py
+NUEVO     materiales/semilla/base.py
+NUEVO     materiales/semilla/matematicas_6.py
+NUEVO     materiales/semilla/matematicas_7.py
 NUEVO     materiales/static/materiales/colores.js
 NUEVO     materiales/static/materiales/ecuaciones.js
 CAMBIADO  materiales/static/materiales/editor.js
@@ -300,6 +319,7 @@ NUEVO     materiales/templates/materiales/_enviar_campos.html
 CAMBIADO  materiales/templates/materiales/_estilos.html
 NUEVO     materiales/templates/materiales/_juego_form.html
 NUEVO     materiales/templates/materiales/_juego_js.html
+CAMBIADO  materiales/templates/materiales/biblioteca.html
 CAMBIADO  materiales/templates/materiales/creditos.html
 CAMBIADO  materiales/templates/materiales/documento_pdf.html
 CAMBIADO  materiales/templates/materiales/editor.html
@@ -309,6 +329,7 @@ NUEVO     materiales/templates/materiales/juegos.html
 CAMBIADO  materiales/templates/materiales/lista.html
 NUEVO     materiales/templatetags/__init__.py
 NUEVO     materiales/templatetags/ecuaciones.py
+NUEVO     materiales/tests/test_dba.py
 NUEVO     materiales/tests/test_ecuaciones.py
 NUEVO     materiales/tests/test_equipo.py
 NUEVO     materiales/tests/test_graficas.py
@@ -431,6 +452,7 @@ CAMBIADO  notas/views/sabana_views.py
 CAMBIADO  piar/logica.py
 CAMBIADO  prematricula/templates/prematricula/_base_publica.html
 CAMBIADO  puntoexacto/views.py
+NUEVO     salon_digital/datos/divipola.json
 NUEVO     salon_digital/espacios.py
 CAMBIADO  salon_digital/forms.py
 CAMBIADO  salon_digital/identidad.py
@@ -439,17 +461,22 @@ NUEVO     salon_digital/migrations/0004_grupo_pedir_pin.py
 NUEVO     salon_digital/migrations/0005_pagos.py
 NUEVO     salon_digital/migrations/0006_planes_gratis_estandar_premium.py
 NUEVO     salon_digital/migrations/0007_pizarra.py
+NUEVO     salon_digital/migrations/0008_region.py
 CAMBIADO  salon_digital/models.py
 NUEVO     salon_digital/pagos.py
 NUEVO     salon_digital/planes_tabla.py
+NUEVO     salon_digital/regiones.py
 NUEVO     salon_digital/static/salon_digital/app/apple-touch-icon.png
 NUEVO     salon_digital/static/salon_digital/app/icono-192.png
 NUEVO     salon_digital/static/salon_digital/app/icono-512-maskable.png
 NUEVO     salon_digital/static/salon_digital/app/icono-512.png
 NUEVO     salon_digital/static/salon_digital/app/icono-96.png
+NUEVO     salon_digital/static/salon_digital/region.js
 NUEVO     salon_digital/templates/salon_digital/_app.html
+NUEVO     salon_digital/templates/salon_digital/_region_js.html
 CAMBIADO  salon_digital/templates/salon_digital/bandeja.html
 CAMBIADO  salon_digital/templates/salon_digital/base_salon.html
+CAMBIADO  salon_digital/templates/salon_digital/crear_cuenta.html
 CAMBIADO  salon_digital/templates/salon_digital/identificarse.html
 NUEVO     salon_digital/templates/salon_digital/inicio.html
 NUEVO     salon_digital/templates/salon_digital/instalar_app.html
@@ -460,6 +487,7 @@ NUEVO     salon_digital/templates/salon_digital/pago.html
 NUEVO     salon_digital/templates/salon_digital/pagos_revisar.html
 CAMBIADO  salon_digital/templates/salon_digital/panel.html
 NUEVO     salon_digital/templates/salon_digital/planes.html
+CAMBIADO  salon_digital/templates/salon_digital/registro.html
 NUEVO     salon_digital/templates/salon_digital/tablero.html
 NUEVO     salon_digital/templates/salon_digital/tableros.html
 NUEVO     salon_digital/templates/salon_digital/tarjetas_grupo.html
@@ -468,6 +496,7 @@ NUEVO     salon_digital/test_app.py
 NUEVO     salon_digital/test_espacios.py
 NUEVO     salon_digital/test_pagos.py
 NUEVO     salon_digital/test_planes.py
+NUEVO     salon_digital/test_region.py
 CAMBIADO  salon_digital/urls.py
 CAMBIADO  salon_digital/views.py
 NUEVO     salon_digital/views_app.py
@@ -546,6 +575,9 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   chat/migrations/0011_editar_y_vaciar.py           (chat: mensajes editados y vaciar el chat)
   materiales/migrations/0009_graficas.py            (graficador: la imagen guarda su gráfica para editarla)
   materiales/migrations/0010_recortes.py            (imágenes recortadas: guardan la original)
+  salon_digital/migrations/0008_region.py            (región del docente: código DANE; reconoce los municipios ya escritos)
+  materiales/migrations/0011_region.py               (biblioteca: región del autor y contexto regional)
+  materiales/migrations/0012_dba_codigo.py           (biblioteca: DBA oficial de cada material)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

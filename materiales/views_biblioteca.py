@@ -82,10 +82,29 @@ def biblioteca(request, a):
         qs = qs.filter(grado__iexact=B.texto_plano(request.GET['grado'], 40))
     if request.GET.get('tipo') in dict(Documento.TIPOS):
         qs = qs.filter(tipo=request.GET['tipo'])
+    # Por región: de mi municipio o de mi departamento (DANE), y los que usan contexto regional
+    from salon_digital import regiones as RG
+    mi_mun = RG.de_usuario(request.user, a.colegio)
+    region = request.GET.get('region')
+    if region == 'municipio' and mi_mun:
+        qs = qs.filter(municipio_dane=mi_mun)
+    elif region == 'departamento' and mi_mun:
+        qs = qs.filter(municipio_dane__startswith=mi_mun[:2])
+    if request.GET.get('regional'):
+        qs = qs.filter(regional=True)
+    # Por DBA (cuando el área y el grado buscados tienen catálogo)
+    from .dba import catalogo as K
+    dbas_filtro = K.dbas(request.GET.get('area', ''), request.GET.get('grado', ''))
+    if request.GET.get('dba') and any(d['codigo'] == request.GET['dba'] for d in dbas_filtro):
+        qs = qs.filter(dba_codigo=request.GET['dba'])
     orden = {'usados': '-usos', 'estrellas': '-estrellas_suma'}.get(request.GET.get('orden'), '-actualizado')
     qs = qs.select_related('autor', 'colegio').order_by(orden)
+    materiales = list(qs[:POR_PAGINA])
+    for m in materiales:
+        m.lugar = RG.etiqueta(m.municipio_dane)
     return render(request, 'materiales/biblioteca.html', {
-        'base': a.base, 'acceso': a, 'materiales': qs[:POR_PAGINA], 'total': qs.count(), 'filtro': request.GET,
+        'mi_lugar': RG.etiqueta(mi_mun), 'mi_departamento': RG.nombre_departamento(mi_mun), 'dbas_filtro': dbas_filtro,
+        'base': a.base, 'acceso': a, 'materiales': materiales, 'total': qs.count(), 'filtro': request.GET,
         'pestana': pestana, 'tipos': Documento.TIPOS,
         'en_revision': MaterialCompartido.objects.filter(estado__in=('revision', 'oculto')).count()
         if request.user.is_superuser else 0})
@@ -231,6 +250,14 @@ def compartir(request, a, pk):
                  preguntas=len([b for b in C.preguntas(contenido) if b.get('modo') != 'hoja']))
     if m is None:
         m = MaterialCompartido(documento=doc, autor=request.user, colegio=a.colegio, alcance=alcance)
+    from salon_digital.regiones import de_usuario
+    from .dba import catalogo as K
+    datos.update(municipio_dane=de_usuario(request.user, a.colegio), regional=request.POST.get('regional') == 'on')
+    codigo = request.POST.get('dba_codigo') or ''
+    if K.buscar(codigo):
+        datos.update(dba_codigo=codigo, dba=K.etiqueta(codigo))
+    else:
+        datos['dba_codigo'] = ''
     for k, v in datos.items():
         setattr(m, k, v)
     if m.estado != 'oculto':

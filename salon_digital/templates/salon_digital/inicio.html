@@ -55,6 +55,12 @@
     </div>
     <span class="ini-fecha"><i class="far fa-calendar me-2"></i>{{ fecha }}</span>
   </div>
+  {% if falta_region %}
+  <div class="alert alert-info d-flex flex-wrap align-items-center gap-2 py-2 small">
+    <span class="flex-grow-1"><i class="fas fa-location-dot me-1"></i><b>¿De qué municipio es?</b> Escójalo de la lista para ver en la biblioteca los materiales de su región y encontrar colegas cerca.</span>
+    <a class="btn btn-sm btn-primary" href="{% url 'salon_digital:mi_cuenta' %}#id_departamento_dane">Escoger mi municipio</a>
+  </div>
+  {% endif %}
 
   <div class="ini-hoy mb-3">
     <div class="d-flex align-items-center mb-2"><b class="flex-grow-1"><i class="fas fa-list-check me-2" style="color:#4f46e5"></i>Para hoy</b>{% if pendientes %}<span class="small text-muted">{{ pendientes|length }} pendiente{{ pendientes|pluralize }}</span>{% endif %}</div>

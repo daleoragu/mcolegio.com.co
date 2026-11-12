@@ -1,6 +1,8 @@
 """Eventos: la olimpiada de matemáticas (apagada hasta que el organizador la activa; el servidor cuenta)."""
 import json
 
+from django.contrib.auth.models import User
+
 from aula.models import Evento, ParticipacionEvento
 from notas.models import Curso
 from notas.tests.base import ColegioDePrueba
@@ -860,6 +862,37 @@ class Olimpiada(ColegioDePrueba):
         self.admin.post(conf, {'accion': 'veedor_quitar', 'token': tok})
         self.assertEqual(luis.get(f'/aula/eventos/v/{tok}/').status_code, 404)
         self.assertEqual(luis.get('/aula/eventos/v/inventado1234567890/').status_code, 404)
+
+    def test_veedor_sin_plan_ni_modulo(self):
+        """El enlace del veedor abre siempre: sin cuenta, con una cuenta sin plan y aunque el colegio no tenga
+        Mi Salón Virtual (Premium) activo."""
+        from django.test import Client
+        from salon_digital.models import Cuenta
+        ev = self.crear('Olimpiada abierta')
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        self.admin.post(conf, {'accion': 'activar'})
+        self.post(self.cliente(self.ana.user), f'/aula/eventos/{ev.pk}/registro/', {'eventos': [{'seq': 1, 'tipo': 'punto', 'juego': 'tangram', 'nivel': 0, 't': 9}]})
+        self.admin.post(conf, {'accion': 'veedor', 'nombre': 'Rector invitado'})
+        ev.refresh_from_db()
+        tok = ev.config['veedores'][0]['token']
+        self.a.modulos_activos = [m for m in self.a.modulos_activos if m != 'salon']
+        self.a.save(update_fields=['modulos_activos'])
+        gratis = User.objects.create_user('profe_gratis', password='x')
+        Cuenta.objects.create(usuario=gratis, slug='gratis', nombre_publico='Gratis', estado='verificada', plan='gratis')
+        for host in ('a.localhost', 'b.localhost', 'testserver'):
+            for quien in (None, gratis, self.u_docente):
+                c = Client(HTTP_HOST=host)
+                if quien:
+                    c.force_login(quien)
+                r = c.get(f'/aula/eventos/v/{tok}/')
+                self.assertContains(r, 'Vista de veedor', msg_prefix=f'{host} {quien}')
+                self.assertContains(r, 'Ana Prueba')
+                r = c.get(f'/aula/eventos/v/{tok}/en-vivo/')
+                self.assertContains(r, 'vista de veedor')
+                j = c.get(f'/aula/eventos/v/{tok}/en-vivo/?json=1').json()
+                self.assertIn('Ana Prueba', [f['nombre'] for t in j['tablas'] for f in t['filas']])
+        # El resto de Mi Salón Virtual sigue cerrado en ese colegio
+        self.assertEqual(self.cliente(self.rectora).get(f'/aula/eventos/{ev.pk}/resultados/').status_code, 403)
 
     def test_podio_de_colegios(self):
         """De cada colegio cuenta solo su mejor estudiante de cada nivel; el colegio suma esos puntos (con el peso del nivel)."""

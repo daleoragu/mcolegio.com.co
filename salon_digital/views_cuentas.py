@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 
 from .decoradores import cuenta_requerida, staff_requerido
 from .forms import CuentaForm, EntrarForm, RegistroForm, VerificacionForm
+from .regiones import menu as menu_regiones
 from .models import LIMITES, Cuenta
 
 
@@ -44,13 +45,14 @@ def registro(request):
     form = RegistroForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         usuario = form.save()
-        Cuenta.objects.create(
+        cuenta = Cuenta(
             usuario=usuario,
             nombre_publico=form.cleaned_data['nombre_publico'],
             slug=form.cleaned_data['slug'],
             institucion=form.cleaned_data.get('institucion', ''),
-            municipio=form.cleaned_data.get('municipio', ''),
         )
+        form.guardar_region(cuenta)
+        cuenta.save()
         login(request, usuario)
         messages.success(
             request,
@@ -60,7 +62,7 @@ def registro(request):
         return redirect('salon_digital:mi_cuenta')
 
     from . import social
-    return render(request, 'salon_digital/registro.html', {'form': form, 'proveedores': social.disponibles()})
+    return render(request, 'salon_digital/registro.html', {'form': form, 'proveedores': social.disponibles(), 'regiones_menu': menu_regiones()})
 
 
 @login_required
@@ -81,7 +83,7 @@ def crear_cuenta(request):
                                   'que acredita que eres docente.')
         return redirect('salon_digital:mi_cuenta')
 
-    return render(request, 'salon_digital/crear_cuenta.html', {'form': form})
+    return render(request, 'salon_digital/crear_cuenta.html', {'form': form, 'regiones_menu': menu_regiones()})
 
 
 @cuenta_requerida
@@ -100,6 +102,7 @@ def mi_cuenta(request):
         'form': form,
         'verificacion': verificacion,
         'limites': LIMITES[cuenta.nivel],
+        'regiones_menu': menu_regiones(),
     })
 
 
