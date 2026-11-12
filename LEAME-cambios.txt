@@ -1,4 +1,4 @@
-Versión 0024 · 2026-11-12 12:36
+Versión 0025 · 2026-11-12 13:51
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
