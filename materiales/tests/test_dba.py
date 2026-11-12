@@ -189,3 +189,19 @@ class PdfConEmojis(SimpleTestCase):
         from weasyprint import HTML
         from materiales.exportar import escribir_pdf
         self.assertTrue(escribir_pdf(HTML(string='<p>Imagen 🖼 y corazón 🫶</p>')).startswith(b'%PDF'))
+
+
+class SemillaOtrasAreas(ColegioDePrueba):
+    def test_lenguaje_naturales_sociales_1(self):
+        from materiales.semilla import imagenes as I
+        for area, n, nombre in (('LEN', 16, 'Lenguaje'), ('NAT', 8, 'Ciencias Naturales'), ('SOC', 16, 'Ciencias Sociales')):
+            call_command('cargar_semilla', '--usuario', 'profe', '--area', area, '--grados', '1', '--colegio', 'a', stdout=StringIO())
+            docs = Documento.objects.filter(propietario=self.u_docente, area=nombre)
+            self.assertEqual(docs.count(), n, area)
+            guia = docs.filter(tipo='guia_momentos').first()
+            self.assertIn(f'(MEN, {nombre})', str(guia.contenido))
+        # Toda imagen que piden las guías está en el catálogo con su prompt
+        ids = {b['img'].split('×')[0] for (a, g) in armar.MODULOS if g == 1 for d in armar.documentos(g, a) for b in d['bloques']
+               if b['tipo'] == '_imagen' and not b['img'].startswith(('d-', 'pict:'))}
+        self.assertTrue(all(I.por_id(i) and I.por_id(i)['prompt'] for i in ids))
+        self.assertEqual(K.buscar('SOC-1-7')['evidencias'][-1], 'Reconoce la importancia del trabajo en equipo para el logro de las metas comunes.')

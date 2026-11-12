@@ -14,9 +14,10 @@ from pathlib import Path
 from django.core.files.base import ContentFile
 
 from ..dba import catalogo as K
-from . import banco, base, matematicas_1, matematicas_6, matematicas_7
+from . import banco, base, lenguaje_1, matematicas_1, matematicas_6, matematicas_7, naturales_1, sociales_1
 
-MODULOS = {('MAT', 1): matematicas_1, ('MAT', 6): matematicas_6, ('MAT', 7): matematicas_7}
+MODULOS = {('MAT', 1): matematicas_1, ('MAT', 6): matematicas_6, ('MAT', 7): matematicas_7,
+           ('LEN', 1): lenguaje_1, ('NAT', 1): naturales_1, ('SOC', 1): sociales_1}
 CARPETA_DIBUJOS = Path(__file__).resolve().parent / 'img'
 PENDIENTE = 'Imagen pendiente: '
 

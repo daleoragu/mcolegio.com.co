@@ -127,8 +127,160 @@ MATEMATICAS_1 = [
 ]
 
 
+def _a(area):
+    """Atajo para las demás áreas: _a('Lenguaje')(id, dba, nombre, uso, prompt, extra)."""
+    def f(id_, dba, nombre, uso, prompt, extra=OBJETO, colorear=True):
+        return dict(_ia(id_, dba, nombre, uso, prompt, extra, colorear), area=area)
+    return f
+
+
+_l, _n, _s = _a('Lenguaje'), _a('Ciencias Naturales'), _a('Ciencias Sociales')
+CARA = 'Primer plano de la cara y los hombros, centrado.'
+
+LENGUAJE_1 = [
+    # DBA 1 · Medios de comunicación
+    _l('l1-radio', 1, 'Radio', 'Medios de comunicación', 'Un radio antiguo de mesa con antena.'),
+    _l('l1-televisor', 1, 'Televisor', 'Medios de comunicación', 'Un televisor con la pantalla mostrando un paisaje de montañas.'),
+    _l('l1-periodico', 1, 'Periódico', 'Medios de comunicación', 'Un periódico doblado con columnas de rayitas grises en lugar de letras y una foto.'),
+    _l('l1-celular', 1, 'Celular', 'Medios de comunicación (internet)', 'Un teléfono celular con la pantalla encendida mostrando íconos de colores sin letras.'),
+    _l('l1-valla', 1, 'Valla publicitaria', 'Medios de comunicación', 'Una valla publicitaria grande junto a una carretera, con el dibujo de un vaso de jugo y sin letras.', ESCENA),
+    _l('l1-afiche', 1, 'Afiche', 'Medios de comunicación', 'Un afiche pegado en una pared, con el dibujo de un balón y estrellas, sin letras.'),
+    _l('l1-locutor', 1, 'Locutor de radio', 'Tipos de voz en la radio', 'Un locutor de radio colombiano hablando con emoción frente a un micrófono, con audífonos.', ESCENA),
+    # DBA 2 · Gestos y lenguaje del cuerpo
+    _l('l1-cara-feliz', 2, 'Tomás feliz', 'Gestos del rostro', 'Tomás sonriendo muy feliz. ' + NINOS, CARA),
+    _l('l1-cara-triste', 2, 'Tomás triste', 'Gestos del rostro', 'Tomás triste, con una lágrima. ' + NINOS, CARA),
+    _l('l1-cara-enojada', 2, 'Sofi enojada', 'Gestos del rostro', 'Sofi enojada, con el ceño fruncido. ' + NINOS, CARA),
+    _l('l1-cara-sorpresa', 2, 'Sofi sorprendida', 'Gestos del rostro', 'Sofi sorprendida, con la boca abierta y los ojos grandes. ' + NINOS, CARA),
+    _l('l1-gesto-silencio', 2, 'Gesto de silencio', 'Gestos de las manos', 'Sofi con el dedo índice sobre los labios pidiendo silencio. ' + NINOS, CARA),
+    _l('l1-gesto-pulgar', 2, 'Pulgar arriba', 'Gestos de las manos', 'Tomás mostrando el pulgar arriba, contento. ' + NINOS, CARA),
+    _l('l1-gesto-ven', 2, 'Gesto de «ven»', 'Gestos de las manos', 'Una mano haciendo el gesto de «ven aquí» con los dedos.'),
+    # DBA 3 y 4 · Adivinanzas, rimas y un cuento
+    _l('l1-luna', 3, 'Luna', 'Adivinanza', 'Una luna llena amarilla y sonriente con dos estrellas.'),
+    _l('l1-gallo', 3, 'Gallo', 'Adivinanza', 'Un gallo de colores cantando, de lado.'),
+    _l('l1-paraguas', 3, 'Paraguas', 'Adivinanza', 'Un paraguas rojo abierto con gotas de lluvia.'),
+    _l('l1-tita-1', 4, 'Cuento: Tita y el río (1)', 'Cuento «Tita, la tortuga» · inicio', 'Una tortuga pequeña con una pañoleta roja caminando feliz '
+       'a la orilla de un río de montaña colombiano, con un sol brillante.', ESCENA + ' La tortuga se llama Tita y aparece igual en las 4 escenas.'),
+    _l('l1-tita-2', 4, 'Cuento: Tita y el río (2)', 'Cuento «Tita, la tortuga» · problema', 'La tortuga pequeña con pañoleta roja, asustada, '
+       'porque un aguacero hizo crecer el río y la corriente se lleva su casita de hojas.', ESCENA + ' Misma tortuga de la escena anterior.'),
+    _l('l1-tita-3', 4, 'Cuento: Tita y el río (3)', 'Cuento «Tita, la tortuga» · ayuda', 'Una garza blanca, un sapo verde y una ardilla ayudan a la '
+       'tortuga pequeña con pañoleta roja a cargar ramas para hacer una casa nueva.', ESCENA + ' Misma tortuga de las escenas anteriores.'),
+    _l('l1-tita-4', 4, 'Cuento: Tita y el río (4)', 'Cuento «Tita, la tortuga» · final', 'La tortuga pequeña con pañoleta roja celebrando con la '
+       'garza, el sapo y la ardilla frente a su casita nueva en lo alto de una loma, con un arcoíris.', ESCENA + ' Misma tortuga de las escenas anteriores.'),
+    # DBA 5, 6 y 8 · Sonidos, palabras sencillas y palabras parecidas
+    _l('l1-mesa', 5, 'Mesa', 'Sonido inicial m', 'Una mesa de madera de cuatro patas.'),
+    _l('l1-mano', 5, 'Mano', 'Sonido inicial m', 'Una mano abierta de niño, la palma de frente.'),
+    _l('l1-pato', 5, 'Pato', 'Sonido inicial p', 'Un pato amarillo de lado.'),
+    _l('l1-sapo', 5, 'Sapo', 'Sonido inicial s', 'Un sapo verde sentado, de frente.'),
+    _l('l1-sol', 5, 'Sol', 'Sonido inicial s', 'Un sol amarillo sonriente con rayos.'),
+    _l('l1-oso', 6, 'Oso', 'Leer palabras sencillas', 'Un oso de anteojos (oso andino) sentado, tierno.'),
+    _l('l1-uva', 6, 'Uvas', 'Leer palabras sencillas', 'Un racimo de uvas moradas.'),
+    _l('l1-mapa', 6, 'Mapa', 'Leer palabras sencillas', 'Un mapa del tesoro enrollado a medias, con una equis roja, sin letras.'),
+    _l('l1-mono', 6, 'Mono', 'Leer palabras sencillas', 'Un mono tití colgado de una rama con la cola.'),
+    _l('l1-lupa', 8, 'Lupa', 'Palabras parecidas (luna, lupa)', 'Una lupa con mango azul.'),
+    _l('l1-casa', 8, 'Casa', 'Palabras parecidas (casa, taza)', 'Una casa campesina colombiana de colores con techo de teja.'),
+    _l('l1-taza', 8, 'Taza', 'Palabras parecidas (casa, taza)', 'Una taza de chocolate caliente humeante.'),
+    _l('l1-perro', 8, 'Perro', 'Palabras parecidas (perro, pera)', 'Un perro criollo café, sentado y contento.'),
+    _l('l1-pera', 8, 'Pera', 'Palabras parecidas (perro, pera)', 'Una pera verde con una hoja.'),
+    # DBA 7 · Hablar
+    _l('l1-ronda', 7, 'Conversación en ronda', 'Hablar y escuchar por turnos', 'Seis niños colombianos sentados en círculo en el piso del salón; '
+       'una niña habla con un peluche en la mano y los demás escuchan con atención.', ESCENA),
+    _l('l1-biblioteca', 7, 'Voz baja en la biblioteca', 'Volumen de la voz (lugar cerrado)', 'Sofi y Tomás susurrando dentro de una biblioteca '
+       'escolar con libros de colores.', ESCENA + ' ' + NINOS),
+    _l('l1-patio', 7, 'Voz alta en el patio', 'Volumen de la voz (lugar abierto)', 'Tomás llamando con las manos alrededor de la boca a Sofi, '
+       'que está lejos en el patio del colegio.', ESCENA + ' ' + NINOS),
+]
+
+NATURALES_1 = [
+    # DBA 1 · Los sentidos
+    _n('n1-ojo', 1, 'Ojo', 'La vista', 'Un ojo grande y expresivo de niño con pestañas.'),
+    _n('n1-oreja', 1, 'Oreja', 'El oído', 'Una oreja de niño vista de lado.'),
+    _n('n1-nariz', 1, 'Nariz', 'El olfato', 'Una nariz de niño de perfil oliendo una flor.'),
+    _n('n1-lengua', 1, 'Boca y lengua', 'El gusto', 'Una boca de niño sacando la lengua, divertida.'),
+    _n('n1-mano-tacto', 1, 'Mano que toca', 'El tacto', 'Una mano de niño tocando una mota de algodón.'),
+    _n('n1-limon', 1, 'Limón', 'Sabor ácido', 'Un limón verde partido por la mitad.'),
+    _n('n1-helado', 1, 'Helado', 'Frío y dulce', 'Un helado de fresa en cono.'),
+    _n('n1-campana', 1, 'Campana', 'Sonido', 'Una campana dorada sonando, con líneas de sonido.'),
+    _n('n1-piedra', 2, 'Piedra', 'Duro · objeto inerte', 'Una piedra gris de río.'),
+    _n('n1-algodon', 1, 'Algodón', 'Suave', 'Una mota de algodón blanco esponjosa.'),
+    # DBA 2 · Materiales
+    _n('n1-silla-madera', 2, 'Silla de madera', 'Madera', 'Una silla de madera sencilla.'),
+    _n('n1-botella-vidrio', 2, 'Botella de vidrio', 'Vidrio (transparente)', 'Una botella de vidrio transparente vacía.'),
+    _n('n1-cuchara', 2, 'Cuchara de metal', 'Metal', 'Una cuchara de metal plateada.'),
+    _n('n1-balde-plastico', 2, 'Balde de plástico', 'Plástico', 'Un balde de plástico verde vacío.'),
+    _n('n1-esponja', 2, 'Esponja', 'Absorbe el agua', 'Una esponja amarilla de cocina mojada con gotas.'),
+    _n('n1-impermeable', 2, 'Niña con impermeable', 'No deja pasar el agua', 'Sofi con impermeable amarillo y botas, bajo la lluvia, '
+       'seca y contenta. ' + NINOS, 'Personaje de cuerpo entero centrado.'),
+    _n('n1-caucho', 2, 'Banda de caucho', 'Flexible', 'Una banda de caucho de colores estirada entre dos dedos.'),
+    # DBA 3 · Seres vivos
+    _n('n1-planta-partes', 3, 'Planta completa', 'Partes de la planta', 'Una planta de frijol completa con raíz visible bajo la tierra '
+       '(corte de la tierra), tallo, hojas, una flor y una vaina, sin letras.', 'Planta completa centrada, vista de frente.'),
+    _n('n1-pollito', 3, 'Pollito', 'Ciclo de vida', 'Un pollito amarillo recién salido del cascarón.'),
+    _n('n1-renacuajo', 3, 'Renacuajo', 'Ciclo de vida de la rana', 'Un renacuajo negro nadando en agua clara.'),
+    _n('n1-rana', 3, 'Rana', 'Ciclo de vida de la rana', 'Una rana verde adulta sentada.'),
+    _n('n1-arbol-guayacan', 3, 'Guayacán', 'Planta del entorno', 'Un árbol de guayacán amarillo florecido.'),
+    _n('n1-regando', 3, 'Niños regando una planta', 'Cuidar los seres vivos', 'Sofi y Tomás regando una matera con una regadera '
+       'en la huerta escolar.', ESCENA + ' ' + NINOS),
+    # DBA 4 · Mi cuerpo cambia
+    _n('n1-bebe', 4, 'Bebé', 'Etapas de la vida', 'Un bebé colombiano gateando y sonriendo.', 'Personaje de cuerpo entero centrado.'),
+    _n('n1-nino', 4, 'Niño', 'Etapas de la vida', 'Un niño colombiano de 6 años de pie, sonriendo.', 'Personaje de cuerpo entero centrado.'),
+    _n('n1-joven', 4, 'Joven', 'Etapas de la vida', 'Una joven colombiana de 16 años con morral, sonriendo.', 'Personaje de cuerpo entero centrado.'),
+    _n('n1-adulto', 4, 'Adulto', 'Etapas de la vida', 'Un hombre colombiano adulto de 35 años, sonriendo.', 'Personaje de cuerpo entero centrado.'),
+    _n('n1-abuela', 4, 'Abuela', 'Etapas de la vida', 'Una abuela colombiana de cabello blanco con bastón, sonriendo.', 'Personaje de cuerpo entero centrado.'),
+    _n('n1-sofi-mama', 4, 'Sofi y su mamá', 'Parecidos de familia', 'Sofi abrazada con su mamá: las dos tienen el mismo cabello negro, '
+       'la misma piel trigueña y la misma sonrisa. ' + NINOS, ESCENA),
+    _n('n1-midiendo-estatura', 4, 'Midiendo la estatura', 'Registrar cómo crezco', 'Tomás de espaldas contra la pared mientras la profe '
+       'le marca la estatura con un lápiz. ' + NINOS, ESCENA),
+]
+
+SOCIALES_1 = [
+    # DBA 1 · Me ubico
+    _s('s1-sol-sale', 1, 'Por donde sale el sol', 'El oriente (este)', 'Tomás señalando con el brazo derecho el sol que sale detrás de las '
+       'montañas en la mañana. ' + NINOS, ESCENA),
+    _s('s1-camino-escuela', 1, 'Camino a la escuela', 'Recorrido de la casa a la escuela', 'Sofi caminando con su morral por una calle de '
+       'pueblo colombiano hacia la escuela, pasando por una tienda y un parque. ' + NINOS, ESCENA),
+    # DBA 2 · El paisaje y el tiempo
+    _s('s1-montana', 2, 'Montaña', 'Formas del relieve', 'Montañas verdes de los Andes colombianos con cultivos de café.', ESCENA),
+    _s('s1-valle', 2, 'Valle con río', 'Formas del relieve', 'Un valle plano y verde con un río que lo atraviesa, entre dos montañas.', ESCENA),
+    _s('s1-llanura', 2, 'Llanura', 'Formas del relieve', 'Una llanura de los Llanos Orientales con pasto, palmas de moriche y ganado a lo lejos.', ESCENA),
+    _s('s1-costa', 2, 'Costa', 'Formas del relieve', 'Una playa del mar Caribe con palmeras de coco y olas.', ESCENA),
+    _s('s1-isla', 2, 'Isla', 'Formas del relieve', 'Una isla pequeña con palmeras rodeada de mar azul.', ESCENA),
+    _s('s1-lluvia', 2, 'Día de lluvia', 'Tiempo atmosférico', 'Un pueblo colombiano bajo un aguacero con charcos y nubes grises.', ESCENA),
+    _s('s1-sequia', 2, 'Tiempo seco', 'Tiempo atmosférico', 'Un campo seco con la tierra agrietada y un sol muy fuerte.', ESCENA),
+    _s('s1-rio-basura', 2, 'Río con basura', 'Problema ambiental', 'Un río con botellas y bolsas de plástico flotando y un pez triste.', ESCENA),
+    _s('s1-puente', 2, 'Puente nuevo', 'Obras de la comunidad', 'Un puente de concreto nuevo sobre una quebrada, con gente pasando.', ESCENA),
+    # DBA 3 y 4 · Mi tiempo y los cambios
+    _s('s1-familia', 3, 'La familia', 'Quién nació antes y después', 'Una familia colombiana: abuelo, abuela, papá, mamá, un niño de 6 años '
+       'y una bebé, de pie en fila del mayor al menor.', ESCENA),
+    _s('s1-cumpleanos', 3, 'Cumpleaños', 'Fechas importantes', 'Sofi soplando las velas de una torta de cumpleaños con sus amigos. ' + NINOS, ESCENA),
+    _s('s1-izada', 4, 'Izada de bandera', 'Acontecimientos del colegio', 'Niños en formación en el patio del colegio mientras se iza la '
+       'bandera de Colombia (amarillo, azul y rojo).', ESCENA),
+    _s('s1-primer-dia', 4, 'Primer día de clases', 'Antes y ahora', 'Tomás con morral nuevo de la mano de su mamá entrando por primera vez '
+       'al colegio, un poco nervioso. ' + NINOS, ESCENA),
+    # DBA 5 · Soy único
+    _s('s1-diversidad', 5, 'Niños diferentes', 'Todos somos únicos', 'Cinco niños colombianos de diferentes regiones y rasgos (afro, indígena, '
+       'mestizo, campesino con sombrero, niña en silla de ruedas) tomados de la mano y sonriendo.', ESCENA),
+    _s('s1-abuelo-cuenta', 5, 'El abuelo cuenta historias', 'Costumbres y tradiciones', 'Un abuelo campesino con sombrero vueltiao contando '
+       'una historia a Sofi y Tomás sentados en el corredor de una casa. ' + NINOS, ESCENA),
+    # DBA 6 · Las viviendas
+    _s('s1-casa-bahareque', 6, 'Casa de bahareque', 'Tipos de vivienda', 'Una casa campesina de bahareque y tejas de barro con corredor y matas.', ESCENA),
+    _s('s1-edificio', 6, 'Edificio de apartamentos', 'Tipos de vivienda', 'Un edificio de apartamentos de ladrillo en una ciudad.', ESCENA),
+    _s('s1-casa-ladrillo', 6, 'Casa de ladrillo', 'Tipos de vivienda', 'Una casa de ladrillo de dos pisos en un barrio de pueblo.', ESCENA),
+    _s('s1-palafito', 6, 'Palafito', 'Tipos de vivienda', 'Una casa de madera sobre pilotes (palafito) en una ciénaga, con una canoa.', ESCENA),
+    _s('s1-maloca', 6, 'Maloca', 'Tipos de vivienda', 'Una maloca indígena amazónica de techo de palma, en la selva.', ESCENA),
+    # DBA 7 y 8 · Acuerdos y convivencia
+    _s('s1-acuerdos', 7, 'Haciendo acuerdos', 'Normas del salón', 'Niños sentados en mesa redonda levantando la mano para opinar, con la '
+       'profe escuchando y una cartelera en blanco en la pared.', ESCENA),
+    _s('s1-equipo', 7, 'Trabajo en equipo', 'Metas comunes', 'Cuatro niños cargando juntos una caja grande para la huerta escolar.', ESCENA),
+    _s('s1-turno', 7, 'Esperar el turno', 'Normas del juego', 'Niños haciendo fila para subir al rodadero del parque, esperando su turno.', ESCENA),
+    _s('s1-compartir', 8, 'Compartir', 'Convivencia', 'Sofi compartiendo sus colores con un compañero en el salón. ' + NINOS, ESCENA),
+    _s('s1-invitar', 8, 'Invitar a jugar', 'Respeto e inclusión', 'Tomás invitando a jugar a un niño que estaba solo y triste en el patio. ' + NINOS, ESCENA),
+    _s('s1-pedir-ayuda', 8, 'Pedir ayuda', 'A quién acudir', 'Una niña contándole algo importante a su profesora, que la escucha agachada a su '
+       'altura con cariño.', ESCENA),
+]
+
+
 def catalogo():
-    return list(MATEMATICAS_1)
+    return list(MATEMATICAS_1) + LENGUAJE_1 + NATURALES_1 + SOCIALES_1
 
 
 def por_id(id_):

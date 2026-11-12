@@ -289,6 +289,89 @@ def monedas(*valores):
     return _svg(x + 4, 140, ''.join(p))
 
 
+# --- Sociales: orientación y tiempo --------------------------------------------------------------------------------
+def rosa_vientos(letras=True):
+    """Rosa de los vientos: Norte, Sur, Este (por donde sale el sol) y Oeste."""
+    cx = cy = 150
+    p = [f'<circle cx="{cx}" cy="{cy}" r="96" fill="#f8fafc" stroke="{GRIS}" stroke-width="3" stroke-dasharray="6 5"/>']
+    for ang, color in ((0, ROJO), (90, AZUL_OSC), (180, AZUL_OSC), (270, AZUL_OSC)):
+        a = math.radians(ang - 90)
+        x, y = cx + 108 * math.cos(a), cy + 108 * math.sin(a)
+        l1 = (cx + 18 * math.cos(a + math.pi / 2), cy + 18 * math.sin(a + math.pi / 2))
+        l2 = (cx + 18 * math.cos(a - math.pi / 2), cy + 18 * math.sin(a - math.pi / 2))
+        p.append(f'<path d="M{x} {y}L{l1[0]} {l1[1]}L{cx} {cy}z" fill="{color}" stroke="{CONTORNO}" stroke-width="2"/>'
+                 f'<path d="M{x} {y}L{l2[0]} {l2[1]}L{cx} {cy}z" fill="#fff" stroke="{CONTORNO}" stroke-width="2"/>')
+    if letras:
+        p += [_txt(cx, 26, 'N', 30, ROJO), _txt(cx, 298, 'S', 30), _txt(287, cy + 10, 'E', 30), _txt(13, cy + 10, 'O', 30)]
+    p.append(f'<circle cx="{cx}" cy="{cy}" r="9" fill="{AMARILLO}" stroke="{CONTORNO}" stroke-width="3"/>')
+    return _svg(300, 310, ''.join(p))
+
+
+def _norte(x, y):
+    return (f'<path d="M{x} {y + 34}L{x} {y}M{x - 9} {y + 12}L{x} {y}L{x + 9} {y + 12}" stroke="{ROJO}" stroke-width="4" fill="none" '
+            f'stroke-linecap="round" stroke-linejoin="round"/>' + _txt(x, y - 6, 'N', 20, ROJO))
+
+
+def plano_escuela():
+    """Plano de la escuela visto desde arriba, con la flecha del norte: rectoría, coordinación, sala de profesores,
+    cafetería, patio de recreo, salones y la entrada."""
+    k = CONTORNO
+    caja = lambda x, y, w, h, color, t, tam=16: (f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="6" fill="{color}" stroke="{k}" stroke-width="3"/>'
+                                                  + _txt(x + w / 2, y + h / 2 + 6, t, tam))
+    p = [f'<rect x="20" y="40" width="640" height="420" rx="10" fill="#fdf6e3" stroke="{k}" stroke-width="5"/>',
+         caja(40, 60, 150, 80, '#cde7f0', 'Rectoría'), caja(200, 60, 160, 80, '#cde7f0', 'Coordinación'),
+         caja(370, 60, 270, 80, '#e9d8fd', 'Sala de profesores'),
+         caja(40, 160, 150, 170, '#ffe8a3', 'Cafetería'),
+         f'<rect x="210" y="160" width="270" height="170" rx="6" fill="#b7e4c7" stroke="{k}" stroke-width="3"/>'
+         + _txt(345, 250, 'Patio de recreo', 18),
+         caja(500, 160, 140, 80, '#fde2e4', 'Salón 1.º'), caja(500, 250, 140, 80, '#fde2e4', 'Salón 2.º'),
+         caja(40, 350, 150, 90, '#fde2e4', 'Biblioteca'), caja(210, 350, 270, 90, '#e2e8f0', 'Baños'),
+         f'<path d="M520 460h100" stroke="#fff" stroke-width="10"/>' + _txt(570, 488, 'Entrada', 17),
+         _norte(695, 70)]
+    return _svg(725, 500, ''.join(p))
+
+
+def mapa_barrio():
+    """Mapa sencillo del barrio con calles, la flecha del norte y lugares: casa, escuela, tienda, iglesia, parque y puesto de salud."""
+    k = CONTORNO
+    p = [f'<rect x="0" y="0" width="700" height="480" fill="#eef6e9"/>',
+         f'<path d="M0 230H700M330 0V480" stroke="#cbd5e1" stroke-width="44"/>',
+         f'<path d="M0 230H700M330 0V480" stroke="#fff" stroke-width="3" stroke-dasharray="16 12"/>']
+
+    def lugar(x, y, color, t, techo=True):
+        r = (f'<path d="M{x - 10} {y + 32}L{x + 45} {y - 8}L{x + 100} {y + 32}z" fill="{ROJO}" stroke="{k}" stroke-width="3" stroke-linejoin="round"/>'
+             if techo else '')
+        return r + (f'<rect x="{x}" y="{y + 30}" width="90" height="62" rx="4" fill="{color}" stroke="{k}" stroke-width="3"/>'
+                    + _txt(x + 45, y + 125, t, 18))
+    p += [lugar(60, 40, '#f4e3c1', 'Mi casa'), lugar(470, 40, '#cde7f0', 'Escuela'), lugar(60, 300, '#ffe8a3', 'Tienda'),
+          lugar(470, 300, '#e9d8fd', 'Iglesia'),
+          f'<circle cx="230" cy="380" r="34" fill="{VERDE}" stroke="{k}" stroke-width="3"/><circle cx="270" cy="355" r="24" fill="{VERDE}" stroke="{k}" stroke-width="3"/>'
+          + _txt(245, 445, 'Parque', 18),
+          f'<rect x="200" y="70" width="80" height="62" rx="4" fill="#fff" stroke="{k}" stroke-width="3"/><path d="M240 84v34M223 101h34" stroke="{ROJO}" stroke-width="8"/>'
+          + _txt(240, 160, 'Puesto de salud', 16),
+          _norte(660, 30)]
+    return _svg(700, 480, ''.join(p))
+
+
+DIAS = ('lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo')
+MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre')
+
+
+def tira(nombres, vacios=(), por_fila=7):
+    """Tira de días o meses en orden; los de «vacios» (índices desde 1) quedan en blanco para completar."""
+    w, h, p = 120, 56, []
+    colores = (ROJO, NARANJA, AMARILLO, VERDE, AZUL, '#9d4edd', '#ff70a6')
+    for k, n in enumerate(nombres):
+        f, c = divmod(k, por_fila)
+        x, y = 15 + c * (w + 10), 15 + f * (h + 14)
+        color = colores[k % len(colores)]
+        p.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="10" fill="#fff" stroke="{color}" stroke-width="4"/>')
+        if k + 1 not in vacios:
+            p.append(_txt(x + w / 2, y + 36, n, 19))
+    filas = -(-len(nombres) // por_fila)
+    return _svg(15 + min(len(nombres), por_fila) * (w + 10) + 5, 15 + filas * (h + 14) + 1, ''.join(p))
+
+
 # Los dibujos que usan las guías: id → función y datos. scripts/semilla_png.js los convierte a PNG.
 def generar(id_):
     """«d-bloques-3-4» → SVG. Los números del id son los datos."""
@@ -335,4 +418,14 @@ def generar(id_):
         return tabla_conteo([(a.split('.')[0].replace('_', ' ').capitalize(), int(a.split('.')[1])) for a in args])
     if nombre == 'monedas':
         return monedas(*nums(args))
+    if nombre == 'rosa':
+        return rosa_vientos(not (args and args[0] == 'sin'))
+    if nombre == 'escuela':
+        return plano_escuela()
+    if nombre == 'barrio':
+        return mapa_barrio()
+    if nombre == 'dias':                       # d-dias  ·  d-dias-v3-v5 (miércoles y viernes en blanco)
+        return tira(DIAS, [int(x[1:]) for x in args if x.startswith('v')])
+    if nombre == 'meses':
+        return tira(MESES, [int(x[1:]) for x in args if x.startswith('v')], por_fila=6)
     raise ValueError(f'dibujo desconocido: {id_}')
