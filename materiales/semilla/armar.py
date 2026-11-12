@@ -86,6 +86,10 @@ def _imagen_grafica(usuario, b):
 
 
 def _buscar(id_img, carpetas):
+    if id_img.startswith('d-'):
+        from .dibujos import archivo
+        p = CARPETA_DIBUJOS / archivo(id_img)
+        return p if p.exists() else None
     for c in [CARPETA_DIBUJOS, *carpetas]:
         for ext in ('.png', '.jpg', '.jpeg', '.webp'):
             p = Path(c) / f'{id_img}{ext}'

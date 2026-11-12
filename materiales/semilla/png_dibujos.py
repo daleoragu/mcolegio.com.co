@@ -48,7 +48,7 @@ def main():
     carpeta = RAIZ / 'materiales' / 'semilla' / 'img'
     carpeta.mkdir(exist_ok=True)
     todos = '--todos' in sys.argv
-    trabajos = [[str(carpeta / f'{i}.png'), D.generar(i)] for i in ids_usados() if todos or not (carpeta / f'{i}.png').exists()]
+    trabajos = [[str(carpeta / D.archivo(i)), D.generar(i)] for i in ids_usados() if todos or not (carpeta / D.archivo(i)).exists()]
     if not trabajos:
         print('Nada que generar.')
         return

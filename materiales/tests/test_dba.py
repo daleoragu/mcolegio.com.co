@@ -140,7 +140,7 @@ class SemillaPrimero(ColegioDePrueba):
         ids = {b['img'] for d in armar.documentos(1) for b in d['bloques'] if b['tipo'] == '_imagen' and b['img'].startswith('d-')}
         self.assertGreater(len(ids), 20)
         for i in ids:
-            self.assertTrue((Path(armar.CARPETA_DIBUJOS) / f'{i}.png').exists(), f'falta el PNG de {i}: corra png_dibujos.py')
+            self.assertTrue((Path(armar.CARPETA_DIBUJOS) / D.archivo(i)).exists(), f'falta el PNG de {i}: corra png_dibujos.py')
             self.assertIn('<svg', D.generar(i))
 
     def test_cargar_con_imagenes_pendientes_y_ponerlas(self):

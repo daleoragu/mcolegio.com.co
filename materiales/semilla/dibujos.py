@@ -682,6 +682,18 @@ def linea_tiempo(hitos):
     return _svg(ancho, 240, ''.join(p))
 
 
+def archivo(id_):
+    """Nombre seguro del PNG: el id si es ASCII simple; si trae tildes, espacios o «|», una versión limpia + 8 cifras del hash."""
+    import hashlib
+    import re
+    import unicodedata
+    if re.fullmatch(r'[A-Za-z0-9._+-]+', id_):
+        return f'{id_}.png'
+    limpio = unicodedata.normalize('NFKD', id_).encode('ascii', 'ignore').decode()
+    limpio = re.sub(r'[^A-Za-z0-9._+-]+', '_', limpio)[:60].strip('_')
+    return f'{limpio}-{hashlib.sha1(id_.encode()).hexdigest()[:8]}.png'
+
+
 # Los dibujos que usan las guías: id → función y datos. scripts/semilla_png.js los convierte a PNG.
 def generar(id_):
     """«d-bloques-3-4» → SVG. Los números del id son los datos."""
