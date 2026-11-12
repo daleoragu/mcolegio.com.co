@@ -48,6 +48,25 @@ class Espacios(TestCase):
         for texto in ('Navegación', 'Filtros', 'Eventos activos', 'Guía pedagógica', 'Juego o actividad interactiva'):
             self.assertContains(r, texto)
 
+    def test_eventos_activos_llevan_al_ranking_en_vivo(self):
+        """«Ver ranking en vivo» en la Sala de Profesores abre el ranking del organizador, no la inscripción."""
+        from django.utils import timezone
+        from aula.models import Evento
+        from chat.views_colegas import perfil_de
+        p = perfil_de(self.u)
+        p.normas_aceptadas = timezone.now()
+        p.save()
+        self.client.post('/aula/eventos/', {'titulo': 'Olimpiada nodo norte'})
+        ev = Evento.objects.get(titulo='Olimpiada nodo norte')
+        Evento.objects.filter(pk=ev.pk).update(activo=True)
+        r = self.client.get('/chat/colegas/muro/')
+        self.assertContains(r, f'href="/aula/eventos/{ev.pk}/en-vivo/"')
+        self.assertContains(r, f'href="/aula/eventos/{ev.pk}/resultados/"')
+        self.assertNotContains(r, f'href="/aula/eventos/{ev.pk}/"')
+        vivo = self.client.get(f'/aula/eventos/{ev.pk}/en-vivo/')
+        self.assertEqual(vivo.status_code, 200)
+        self.assertContains(vivo, 'Olimpiada nodo norte')
+
     def test_mi_espacio_perfil_qr_y_paginas(self):
         r = self.client.get('/salon_digital/mi-espacio/')
         self.assertContains(r, 'Prof. David Leonardo')
