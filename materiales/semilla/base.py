@@ -94,27 +94,48 @@ def grafica(spec, ancho=60, pie=''):
     return {'id': _id('g'), 'tipo': '_grafica', 'grafica': spec, 'ancho': ancho, 'pie': pie}
 
 
+def imagen(id_img, ancho=40, pie=''):
+    """Imagen del banco (la genera el docente con IA o la dibuja mcolegio): mientras no exista queda un recuadro
+    «Imagen pendiente» que se cambia solo cuando llega el archivo."""
+    return {'id': _id('i'), 'tipo': '_imagen', 'img': id_img, 'ancho': ancho, 'pie': pie}
+
+
+def coleccion(id_img, cantidad, por_fila=5, ancho=None, pie=''):
+    """Una colección exacta: el mismo objeto repetido «cantidad» veces (7 manzanas), armada con la imagen suelta."""
+    filas = -(-cantidad // por_fila) or 1
+    return {'id': _id('i'), 'tipo': '_imagen', 'img': f'{id_img}×{cantidad}/{por_fila}',
+            'ancho': ancho or min(95, 14 * min(cantidad, por_fila) + 6 * (filas > 1)), 'pie': pie}
+
+
+def pictograma(datos, ancho=80, pie=''):
+    """Pictograma sin escala: datos = [(id_img, cantidad)], una fila por dato, un dibujo por cada uno."""
+    return {'id': _id('i'), 'tipo': '_imagen', 'img': 'pict:' + ','.join(f'{i}.{n}' for i, n in datos), 'ancho': ancho, 'pie': pie}
+
+
 # ---------------------------------------------------------------------------
 # Una unidad: guía + taller alrededor de un DBA
 # ---------------------------------------------------------------------------
-def guia(dba, tema, objetivo, explora, aprende, recuerda, practica):
+def guia(dba, tema, objetivo, explora, aprende, recuerda, practica, momentos=None):
     """dba: el del catálogo (n, enunciado, evidencias). El resto, bloques escritos para la unidad. El título va en el
-    encabezado del documento (Documento.titulo), no se repite como bloque."""
+    encabezado del documento (Documento.titulo), no se repite como bloque. «momentos» cambia los nombres de las
+    secciones (en 1.º: Miro y cuento, Aprendo con Sofi y Tomás, Juego y practico)."""
+    m1, m2, m3 = momentos or (('1. Exploro', 'Lee la situación y responde con tus palabras.'), ('2. Aprendo', ''),
+                              ('3. Practico', 'Resuelve en tu cuaderno y marca o escribe la respuesta.'))
     return [
-        texto(f'<b>Matemáticas · Grado {dba["grado"]}.º · Guía de aprendizaje</b>'),
-        recuadro(f'DBA {dba["n"]} (MEN, Matemáticas V.2)', f'<p><i>{dba["enunciado"]}</i></p>',
+        texto(f'<b>{dba["area"]} · Grado {dba["grado"]}.º · Guía de aprendizaje</b>'),
+        recuadro(f'DBA {dba["n"]} (MEN, {dba["area"]})', f'<p><i>{dba["enunciado"]}</i></p>',
                  '<p><b>Evidencias de aprendizaje:</b></p>' + lista(*dba['evidencias']), estilo='nota'),
         recuadro('Lo que vas a lograr', objetivo, estilo='reto'),
-        seccion('1. Exploro', 'Lee la situación y responde con tus palabras.'), *explora,
-        seccion('2. Aprendo'), *aprende,
+        seccion(*m1), *explora,
+        seccion(*m2), *aprende,
         recuadro('Recuerda', *recuerda),
-        seccion('3. Practico', 'Resuelve en tu cuaderno y marca o escribe la respuesta.'), *practica,
+        seccion(*m3), *practica,
     ]
 
 
-def taller(dba, tema, preguntas):
+def taller(dba, tema, preguntas, indicacion='Lee con atención. En las de respuesta numérica escribe solo el número.'):
     return [
-        texto(f'<b>Matemáticas · Grado {dba["grado"]}.º</b> · DBA {dba["n"]}: {dba["enunciado"]}'),
-        seccion('Preguntas', 'Lee con atención. En las de respuesta numérica escribe solo el número.'),
+        texto(f'<b>{dba["area"]} · Grado {dba["grado"]}.º</b> · DBA {dba["n"]}: {dba["enunciado"]}'),
+        seccion('Preguntas' if dba['grado'] > 3 else 'Mi ficha', indicacion),
         *preguntas,
     ]

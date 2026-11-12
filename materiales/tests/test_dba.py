@@ -116,3 +116,76 @@ class EnLaPlataforma(ColegioDePrueba):
         pub = MaterialCompartido.objects.filter(alcance='libre', estado='publicado')
         self.assertEqual(pub.count(), 24)
         self.assertEqual(sorted({m.dba_codigo for m in pub}), sorted(f'MAT-6-{n}' for n in range(1, 13)))
+
+
+class SemillaPrimero(ColegioDePrueba):
+    """Matemáticas 1.º: imágenes del banco (pendientes, colecciones exactas, pictogramas) y los dibujos de mcolegio."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.a.modulos_activos = list(cls.a.modulos_activos) + ['salon']
+        cls.a.save(update_fields=['modulos_activos'])
+
+    def _banco(self, carpeta, ids):
+        from PIL import Image as PILImage, ImageDraw
+        for i in ids:
+            im = PILImage.new('RGB', (400, 400), 'white')
+            ImageDraw.Draw(im).ellipse([100, 100, 300, 300], fill=(230, 57, 70))
+            im.save(f'{carpeta}/{i}.png')
+
+    def test_dibujos_exactos_en_png(self):
+        from pathlib import Path
+        from materiales.semilla import dibujos as D
+        ids = {b['img'] for d in armar.documentos(1) for b in d['bloques'] if b['tipo'] == '_imagen' and b['img'].startswith('d-')}
+        self.assertGreater(len(ids), 20)
+        for i in ids:
+            self.assertTrue((Path(armar.CARPETA_DIBUJOS) / f'{i}.png').exists(), f'falta el PNG de {i}: corra png_dibujos.py')
+            self.assertIn('<svg', D.generar(i))
+
+    def test_cargar_con_imagenes_pendientes_y_ponerlas(self):
+        import tempfile
+        from materiales.semilla import imagenes as I
+        from PIL import Image as PILImage
+        with tempfile.TemporaryDirectory() as tmp:
+            self._banco(tmp, ['m1-manzana', 'm1-mango', 'm1-banano'])           # solo algunas
+            call_command('cargar_semilla', '--usuario', 'profe', '--area', 'MAT', '--grados', '1', '--colegio', 'a',
+                         '--imagenes', tmp, stdout=StringIO())
+            docs = Documento.objects.filter(propietario=self.u_docente, grado='1.º')
+            self.assertEqual(docs.count(), 20)
+            guia = docs.get(titulo='Los números están en todas partes')
+            self.assertEqual(guia.contenido['opciones']['letra'], 14)             # letra grande en 1.º
+            tipos = [b['tipo'] for b in guia.contenido['bloques']]
+            self.assertIn('imagen', tipos)                                         # dibujos de mcolegio y la colección de manzanas
+            pendientes = [b for b in guia.contenido['bloques'] if b['tipo'] == 'recuadro' and b['titulo'].startswith('Imagen pendiente: ')]
+            self.assertTrue(any(b['titulo'] == 'Imagen pendiente: m1-uso-tienda' for b in pendientes))
+            # La colección de 4 manzanas es exacta: una imagen con 4 manzanas en fila
+            proporciones = []
+            for b in guia.contenido['bloques']:
+                if b['tipo'] == 'imagen':
+                    with PILImage.open(Imagen.objects.get(pk=b['imagen']).archivo) as im:
+                        proporciones.append(round(im.width / im.height, 1))
+            self.assertIn(3.6, proporciones)                                       # 4 manzanas en una fila
+            # Llegan las demás imágenes: se ponen solas
+            self._banco(tmp, [x['id'] for x in I.catalogo() if x['origen'] == 'ia'])
+            out = StringIO()
+            call_command('poner_imagenes_semilla', '--imagenes', tmp, stdout=out)
+            self.assertIn('Quedan 0 pendientes', out.getvalue())
+            guia.refresh_from_db()
+            self.assertFalse(any(b['tipo'] == 'recuadro' and b['titulo'].startswith('Imagen pendiente') for b in guia.contenido['bloques']))
+            c = self.cliente(self.u_docente)
+            self.assertEqual(c.get(f'/materiales/{guia.pk}/pdf/').status_code, 200)
+
+    def test_catalogos_dba_activos(self):
+        for area, n in (('Lengua Castellana', 8), ('Ciencias Naturales', 4), ('Ciencias Sociales', 8), ('Matemáticas', 10)):
+            self.assertEqual(len(K.dbas(area, '1.º')), n, area)
+        ev = K.buscar('MAT-1-10')['evidencias']
+        self.assertEqual(ev[0], 'Identifica en fichas u objetos reales los valores de la variable en estudio.')
+        self.assertTrue(K.buscar('SOC-6-5')['evidencias'][2].startswith('Compara la estructura social, política y económica'))
+
+
+class PdfConEmojis(SimpleTestCase):
+    def test_emoji_nuevo_no_tumba_el_pdf(self):
+        from weasyprint import HTML
+        from materiales.exportar import escribir_pdf
+        self.assertTrue(escribir_pdf(HTML(string='<p>Imagen 🖼 y corazón 🫶</p>')).startswith(b'%PDF'))

@@ -17,8 +17,11 @@ CARPETA = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datos', 'dba
 SINONIMOS = {
     'MAT': ('matematica', 'matematicas', 'geometria', 'estadistica', 'aritmetica', 'algebra', 'trigonometria', 'calculo',
             'pensamiento matematico', 'pre calculo', 'precalculo'),
+    'LEN': ('lenguaje', 'castellano', 'espanol', 'lengua castellana', 'lectura', 'lectoescritura', 'comunicacion'),
+    'NAT': ('naturales', 'ciencias naturales', 'biologia', 'quimica', 'fisica', 'ciencias naturales y educacion ambiental'),
+    'SOC': ('sociales', 'ciencias sociales', 'historia', 'geografia', 'democracia', 'catedra de la paz'),
 }
-ARCHIVOS = {'MAT': 'matematicas.json'}
+ARCHIVOS = {'MAT': 'matematicas.json', 'LEN': 'lenguaje.json', 'NAT': 'naturales.json', 'SOC': 'sociales.json'}
 GRADOS_TEXTO = {'primero': 1, 'segundo': 2, 'tercero': 3, 'cuarto': 4, 'quinto': 5, 'sexto': 6, 'septimo': 7, 'octavo': 8,
                 'noveno': 9, 'decimo': 10, 'once': 11, 'undecimo': 11, 'onceavo': 11}
 

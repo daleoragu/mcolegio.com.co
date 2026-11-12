@@ -109,14 +109,10 @@
     "n": 10,
     "enunciado": "Clasifica y organiza datos, los representa utilizando tablas de conteo y pictogramas sin escalas, y comunica los resultados obtenidos para responder preguntas sencillas.",
     "evidencias": [
-     "Identifica en fichas u objetos reales los valores",
-     "de la variable en estudio.",
-     "Organiza los datos en tablas de conteo y/o en",
-     "pictogramas sin escala.",
-     "Lee la información presentada en tablas de",
-     "conteo y/o pictogramas sin escala (1 a 1).",
-     "Comunica los resultados respondiendo preguntas",
-     "tales como: ¿cuántos hay en total?, ¿cuántos hay de cada dato?, ¿cuál es el dato que más se repite?, ¿cuál es el dato que menos aparece?"
+     "Identifica en fichas u objetos reales los valores de la variable en estudio.",
+     "Organiza los datos en tablas de conteo y/o en pictogramas sin escala.",
+     "Lee la información presentada en tablas de conteo y/o pictogramas sin escala (1 a 1).",
+     "Comunica los resultados respondiendo preguntas tales como: ¿cuántos hay en total?, ¿cuántos hay de cada dato?, ¿cuál es el dato que más se repite?, ¿cuál es el dato que menos aparece?"
     ],
     "pagina": 13
    }
@@ -369,10 +365,8 @@
     "n": 2,
     "enunciado": "Describe y justifica diferentes estrategias para representar, operar y hacer estimaciones con números naturales y números racionales (fraccionarios) , expresados como fracción o como decimal",
     "evidencias": [
-     "Utiliza el sistema de numeración decimal para",
-     "representar, comparar y operar con números mayores o iguales a 10 . 000.",
-     "Describe y desarrolla estrategias para calcular",
-     "sumas y restas basadas en descomposiciones aditivas y multiplicativas. No se espera en este nivel escolar un estudio profundo de los números racionales como sistema numérico, sino una primera aproximación a las cantidades -generalmente llamada en los grados de primaria como fraccionarios- que expresan una razón entre otras dos cantidades, y cuyo resultado no siempre da un número exacto de unidades. Aunque estrictamente hablando los conceptos representados por estas expresiones no son coincidentes se acompañará la palabra “racionales” de la palabra “fraccionario” escrita entre paréntesis.",
+     "Utiliza el sistema de numeración decimal para representar, comparar y operar con números mayores o iguales a 10 . 000.",
+     "Describe y desarrolla estrategias para calcular sumas y restas basadas en descomposiciones aditivas y multiplicativas.",
      "Utiliza y justifica algoritmos estandarizados y no estandarizados para realizar operaciones aditivas con representaciones decimales provenientes de fraccionarios cuyas expresiones tengan denominador 10, 100, etc.",
      "Identifica y construye fracciones equivalentes a una fracción dada.",
      "Propone estrategias para calcular sumas y restas de algunos fraccionarios."
