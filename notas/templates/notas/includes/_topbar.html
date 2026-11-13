@@ -165,8 +165,8 @@
         
         <div class="user-info dropdown ms-3">
             <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
-                {% if user.docente.ficha and user.docente.ficha.foto %}
-                    <img src="{{ user.docente.ficha.foto.url }}" alt="Foto de Perfil" class="user-photo">
+                {% if user|foto_perfil %}
+                    <img src="{{ user|foto_perfil }}" alt="Foto de Perfil" class="user-photo">
                 {% elif user|has_group:"Estudiantes" and user.estudiante.ficha and user.estudiante.ficha.foto %}
                     <img src="{{ user.estudiante.ficha.foto.url }}" alt="Foto de Perfil" class="user-photo">
                 {% else %}
