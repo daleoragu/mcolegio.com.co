@@ -113,3 +113,11 @@ def aplicar(pdf, impresion):
     if impresion == 'folleto':
         return folleto(pdf)
     return pdf
+
+
+def contar(pdf):
+    """Cuántas páginas tiene un PDF."""
+    try:
+        return len(PdfReader(io.BytesIO(pdf)).pages)
+    except Exception:
+        return 0

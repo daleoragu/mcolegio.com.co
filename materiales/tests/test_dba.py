@@ -413,4 +413,10 @@ class ImprimirVariasPorHoja(ColegioDePrueba):
         self.assertEqual(len(folleto), -(-len(normal) // 4) * 2)
         r = c.get(f'/materiales/{doc.pk}/pdf/', {'impresion': '2', 'descargar': '1'})
         self.assertIn('-2-por-hoja.pdf', r['Content-Disposition'])
-        self.assertContains(c.get(f'/materiales/{doc.pk}/'), '4 guías por hoja')
+        r = c.get(f'/materiales/{doc.pk}/')
+        self.assertContains(r, '4 guías por hoja')
+        self.assertContains(r, 'Copias por hoja')                            # la vista previa con el selector
+        self.assertContains(r, '¿Cuántos estudiantes?')
+        r = c.get(f'/materiales/{doc.pk}/pdf/', {'impresion': 'folleto'})
+        self.assertEqual(r['X-Paginas'], str(len(normal)))
+        self.assertEqual(r['X-Caras'], str(len(folleto)))
