@@ -289,7 +289,18 @@ def pdf(request, doc, colegio=None, encabezado=None, docente='', modo=None, resp
     from weasyprint import HTML
     with imagenes_en_disco(doc, encabezado) as rutas:
         html = _html(request, doc, modo, docente, colegio, encabezado, rutas, respuestas)
-        return HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+        return escribir_pdf(HTML(string=html, base_url=request.build_absolute_uri('/')))
+
+
+def escribir_pdf(documento):
+    """write_pdf a prueba de emojis: algunos emojis nuevos (🖼, 🫶…) hacen fallar el recorte de fuentes de
+    fontTools («expected 0 <= int <= 122»); en ese caso se insertan las fuentes completas."""
+    try:
+        return documento.write_pdf()
+    except ValueError as e:
+        if 'expected 0 <= int <= 122' not in str(e):
+            raise
+        return documento.write_pdf(full_fonts=True)
 
 
 def paginas(request, doc, colegio=None, encabezado=None, docente=''):

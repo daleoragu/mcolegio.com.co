@@ -110,6 +110,33 @@ def limpio(t):
     return _ligaduras(re.sub(r'^[´`¨^~]+\s*', '', t))
 
 
+# Lo que se cuela de la página en la última evidencia: créditos de fotos, notas al pie y la contraportada
+_COLADO = re.compile(r'\s+(Fotos?\s+tomadas?\b|Fotografía\s+tomada\b|Machu Picchu \(|Centro Administrativo Nacional\b|'
+                     r'No se espera en este nivel escolar\b|Las reglas de juego serán…|Para el debate es importante:).*$')
+# Renglones que el PDF trae con las letras en desorden (se dejan tal cual dicen las cartillas impresas)
+_REVUELTOS = {'C om para l a e st r uc t ura soc ial , po íl it c a y económica': 'Compara la estructura social, política y económica',
+              'ap licación ,': 'aplicación,', 'que é stas traen': 'que éstas traen', 'instrume n tos': 'instrumentos', 'Co mprende': 'Comprende', 'Sur a mérica': 'Suramérica',
+              'bidimen- sionales': 'bidimensionales'}
+
+
+def pulir_evidencias(evidencias):
+    """Une los renglones que quedaron partidos (el siguiente empieza en minúscula) y quita lo que se coló de la página."""
+    salida = []
+    for e in evidencias:
+        if salida and (e[:1].islower() or (len(salida[-1]) < 12 and not salida[-1].endswith('.'))):
+            salida[-1] += ' ' + e
+        else:
+            salida.append(e)
+    limpias = []
+    for e in salida:
+        for mal, bien in _REVUELTOS.items():
+            e = e.replace(mal, bien)
+        e = _COLADO.sub('', e).strip()
+        if e:
+            limpias.append(e)
+    return limpias
+
+
 def extraer(pdf):
     dbas, actual, modo, grado = [], None, None, None
     for pag, filas in lineas(pdf):
@@ -158,7 +185,7 @@ def extraer(pdf):
     salida = []
     for d in dbas:
         d['enunciado'] = limpio(d['enunciado'])
-        d['evidencias'] = [limpio(e) for e in d['evidencias'] if limpio(e)]
+        d['evidencias'] = pulir_evidencias([limpio(e) for e in d['evidencias'] if limpio(e)])
         if d['enunciado'] and d['grado'] and d['numero']:
             salida.append(d)
     return salida

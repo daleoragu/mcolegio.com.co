@@ -367,7 +367,15 @@ def muro(request):
     convocatorias = visibles(user).filter(tipo='convocatoria', fecha_limite__gte=hoy, oculta=False).order_by('fecha_limite')[:4]
     perfil = perfil_de(user)
     from aula.models import Evento
-    eventos = list(Evento.objects.filter(Q(creador=user) | Q(organizadores=user), activo=True).distinct().order_by('-creado')[:3])
+    # Eventos activos: los que organiza y a los que lo invitaron desde «Mis colegas» (solo ellos los ven aquí)
+    from django.urls import reverse
+    from aula.views_eventos import eventos_invitado
+    eventos = [{'titulo': e.titulo, 'tipo': e.get_tipo_display(), 'invitado': False,
+                'vivo': reverse('aula:evento_en_vivo', args=[e.pk]), 'resultados': reverse('aula:evento_resultados', args=[e.pk])}
+               for e in Evento.objects.filter(Q(creador=user) | Q(organizadores=user), activo=True).distinct().order_by('-creado')[:3]]
+    eventos += [{'titulo': e.titulo, 'tipo': e.get_tipo_display(), 'invitado': True,
+                 'vivo': reverse('aula:evento_veedor_en_vivo', args=[v['token']]), 'resultados': reverse('aula:evento_veedor', args=[v['token']])}
+                for e, v in eventos_invitado(user)[:3]]
     filtros = {k: v for k, v in (('tipo', tipo), ('area', area), ('grado', grado), ('de', de), ('q', q), ('ver', ver)) if v}
     from urllib.parse import urlencode
     return render(request, 'chat/muro.html', {

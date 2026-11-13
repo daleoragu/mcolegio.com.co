@@ -71,7 +71,7 @@ PLANES = OrderedDict([
 # verificación pública de un certificado ya entregado no puede dejar de servir.
 # Direcciones públicas que no dependen de los módulos del colegio: verificar certificados y el enlace de los veedores
 # de un evento (ven puntajes y ranking en vivo sin cuenta ni plan, aunque el colegio no tenga Mi Salón Virtual).
-SIEMPRE_ABIERTAS = ('/certificados/verificar/', '/aula/eventos/v/')
+SIEMPRE_ABIERTAS = ('/certificados/verificar/', '/aula/eventos/v/', '/aula/eventos/colegios/')
 
 
 def activos(colegio):

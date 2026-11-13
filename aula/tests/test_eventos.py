@@ -863,6 +863,53 @@ class Olimpiada(ColegioDePrueba):
         self.assertEqual(luis.get(f'/aula/eventos/v/{tok}/').status_code, 404)
         self.assertEqual(luis.get('/aula/eventos/v/inventado1234567890/').status_code, 404)
 
+    def test_inscripcion_escoge_colegio_de_la_lista_nacional(self):
+        """Departamento → Municipio → Colegio con el directorio del MEN; si no está, se escribe el nombre."""
+        from django.test import Client
+        from salon_digital.models import Cuenta
+        from aula import colegios_dane as CD
+        u = User.objects.create_user('lina', password='x', first_name='Lina')
+        Cuenta.objects.create(usuario=u, slug='lina', nombre_publico='Lina', municipio_dane='73411')
+        docente = Client(HTTP_HOST='testserver'); docente.force_login(u)
+        docente.post('/aula/eventos/', {'titulo': 'Olimpiada del norte'})
+        ev = Evento.objects.get(titulo='Olimpiada del norte')
+        docente.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'inscripciones_abrir', 'abrir': '1'})
+        anon = Client(HTTP_HOST='testserver')
+        r = anon.get(f'/aula/eventos/c/{ev.codigo}/')
+        self.assertContains(r, 'Departamento'); self.assertContains(r, '>Tolima<')
+        self.assertContains(r, 'data-mun="73411"')                     # arranca en el municipio del organizador
+        # La lista de colegios del municipio (pública, también en el subdominio de un colegio sin Mi Salón)
+        lista = Client(HTTP_HOST='b.localhost').get('/aula/eventos/colegios/?mun=73411').json()['colegios']
+        self.assertGreater(len(lista), 10)
+        isidro = next(c for c in lista if 'ISIDRO PARRA' in c['nombre'])
+        self.assertTrue(isidro['oficial'])
+        self.assertEqual(CD.buscar(isidro['dane'])['municipio'], '73411')
+        # Buscar por palabras (sin tildes ni mayúsculas), en todo el país o en el municipio; también por código DANE
+        b = lambda q, mun='': anon.get('/aula/eventos/colegios/', {'q': q, 'mun': mun}).json()['colegios']
+        r = b('isidro PARRA')
+        self.assertEqual([(c['dane'], c['lugar']) for c in r], [(isidro['dane'], 'Líbano, Tolima')])
+        self.assertTrue(all(c['municipio'] == '73411' for c in b('institucion educativa', '73411')))
+        self.assertEqual(len(b('san jose')), 30)                     # máximo 30 resultados
+        self.assertEqual(b(isidro['dane'])[0]['nombre'], isidro['nombre'])
+        self.assertEqual(b('x'), [])
+        # Escoge el colegio: se guarda el nombre oficial, el municipio y el código DANE
+        anon.post(f'/aula/eventos/c/{ev.codigo}/', {'nombre': 'Pedro Pérez', 'municipio_dane': '73411', 'colegio_dane': isidro['dane'],
+                                                     'institucion': 'lo que sea', 'grado': '7', 'documento': '1000123', 'autoriza': 'on'})
+        p = ParticipacionEvento.objects.get(evento=ev, datos__documento='1000123')
+        self.assertEqual(p.institucion, isidro['nombre'])
+        self.assertEqual((p.datos['ciudad'], p.datos['dane'], p.datos['municipio_dane']), ('Líbano, Tolima', isidro['dane'], '73411'))
+        # No está en la lista: escribe el nombre
+        Client(HTTP_HOST='testserver').post(f'/aula/eventos/c/{ev.codigo}/', {
+            'nombre': 'Sara Gómez', 'municipio_dane': '73411', 'colegio_dane': 'otro', 'institucion': 'Escuela Rural La Plata',
+            'grado': '8', 'documento': '1000456', 'autoriza': 'on'})
+        p = ParticipacionEvento.objects.get(evento=ev, datos__documento='1000456')
+        self.assertEqual((p.institucion, p.datos['ciudad'], p.datos['dane']), ('Escuela Rural La Plata', 'Líbano, Tolima', ''))
+        # «otro» sin nombre: no se inscribe
+        r = Client(HTTP_HOST='testserver').post(f'/aula/eventos/c/{ev.codigo}/', {
+            'nombre': 'Juan Díaz', 'municipio_dane': '73411', 'colegio_dane': 'otro', 'institucion': '', 'grado': '8',
+            'documento': '1000789', 'autoriza': 'on'})
+        self.assertContains(r, 'su institución')
+
     def test_veedor_sin_plan_ni_modulo(self):
         """El enlace del veedor abre siempre: sin cuenta, con una cuenta sin plan y aunque el colegio no tenga
         Mi Salón Virtual (Premium) activo."""

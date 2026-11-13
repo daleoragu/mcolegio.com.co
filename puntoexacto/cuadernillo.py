@@ -392,7 +392,8 @@ def generar_pdf(request, examen, contenido, imagenes, lista_versiones):
             'examen': examen, 'colegio': examen.colegio, 'contenido': contenido, 'versiones': hojas,
             'instrucciones_html': a_html(contenido['instrucciones']),
         }, request=request)
-        return HTML(string=html_doc, base_url=request.build_absolute_uri('/')).write_pdf()
+        from materiales.exportar import escribir_pdf
+        return escribir_pdf(HTML(string=html_doc, base_url=request.build_absolute_uri('/')))
 
 
 # ---------------------------------------------------------------------------

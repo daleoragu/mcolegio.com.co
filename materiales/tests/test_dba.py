@@ -116,3 +116,143 @@ class EnLaPlataforma(ColegioDePrueba):
         pub = MaterialCompartido.objects.filter(alcance='libre', estado='publicado')
         self.assertEqual(pub.count(), 24)
         self.assertEqual(sorted({m.dba_codigo for m in pub}), sorted(f'MAT-6-{n}' for n in range(1, 13)))
+
+
+class SemillaPrimero(ColegioDePrueba):
+    """Matemáticas 1.º: imágenes del banco (pendientes, colecciones exactas, pictogramas) y los dibujos de mcolegio."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.a.modulos_activos = list(cls.a.modulos_activos) + ['salon']
+        cls.a.save(update_fields=['modulos_activos'])
+
+    def _banco(self, carpeta, ids):
+        from PIL import Image as PILImage, ImageDraw
+        for i in ids:
+            im = PILImage.new('RGB', (400, 400), 'white')
+            ImageDraw.Draw(im).ellipse([100, 100, 300, 300], fill=(230, 57, 70))
+            im.save(f'{carpeta}/{i}.png')
+
+    def test_dibujos_exactos_en_png(self):
+        from pathlib import Path
+        from materiales.semilla import dibujos as D
+        ids = {b['img'] for d in armar.documentos(1) for b in d['bloques'] if b['tipo'] == '_imagen' and b['img'].startswith('d-')}
+        self.assertGreater(len(ids), 20)
+        for i in ids:
+            self.assertTrue((Path(armar.CARPETA_DIBUJOS) / D.archivo(i)).exists(), f'falta el PNG de {i}: corra png_dibujos.py')
+            self.assertIn('<svg', D.generar(i))
+
+    def test_cargar_con_imagenes_pendientes_y_ponerlas(self):
+        import tempfile
+        from materiales.semilla import imagenes as I
+        from PIL import Image as PILImage
+        with tempfile.TemporaryDirectory() as tmp:
+            self._banco(tmp, ['m1-manzana', 'm1-mango', 'm1-banano'])           # solo algunas
+            call_command('cargar_semilla', '--usuario', 'profe', '--area', 'MAT', '--grados', '1', '--colegio', 'a',
+                         '--imagenes', tmp, stdout=StringIO())
+            docs = Documento.objects.filter(propietario=self.u_docente, grado='1.º')
+            self.assertEqual(docs.count(), 20)
+            guia = docs.get(titulo='Los números están en todas partes')
+            self.assertEqual(guia.contenido['opciones']['letra'], 14)             # letra grande en 1.º
+            tipos = [b['tipo'] for b in guia.contenido['bloques']]
+            self.assertIn('imagen', tipos)                                         # dibujos de mcolegio y la colección de manzanas
+            pendientes = [b for b in guia.contenido['bloques'] if b['tipo'] == 'recuadro' and b['titulo'].startswith('Imagen pendiente: ')]
+            self.assertTrue(any(b['titulo'] == 'Imagen pendiente: m1-uso-tienda' for b in pendientes))
+            # La colección de 4 manzanas es exacta: una imagen con 4 manzanas en fila
+            proporciones = []
+            for b in guia.contenido['bloques']:
+                if b['tipo'] == 'imagen':
+                    with PILImage.open(Imagen.objects.get(pk=b['imagen']).archivo) as im:
+                        proporciones.append(round(im.width / im.height, 1))
+            self.assertIn(3.6, proporciones)                                       # 4 manzanas en una fila
+            # Llegan las demás imágenes: se ponen solas
+            self._banco(tmp, [x['id'] for x in I.catalogo() if x['origen'] == 'ia'])
+            out = StringIO()
+            call_command('poner_imagenes_semilla', '--imagenes', tmp, stdout=out)
+            self.assertIn('Quedan 0 pendientes', out.getvalue())
+            guia.refresh_from_db()
+            self.assertFalse(any(b['tipo'] == 'recuadro' and b['titulo'].startswith('Imagen pendiente') for b in guia.contenido['bloques']))
+            c = self.cliente(self.u_docente)
+            self.assertEqual(c.get(f'/materiales/{guia.pk}/pdf/').status_code, 200)
+
+    def test_catalogos_dba_activos(self):
+        for area, n in (('Lengua Castellana', 8), ('Ciencias Naturales', 4), ('Ciencias Sociales', 8), ('Matemáticas', 10)):
+            self.assertEqual(len(K.dbas(area, '1.º')), n, area)
+        ev = K.buscar('MAT-1-10')['evidencias']
+        self.assertEqual(ev[0], 'Identifica en fichas u objetos reales los valores de la variable en estudio.')
+        self.assertTrue(K.buscar('SOC-6-5')['evidencias'][2].startswith('Compara la estructura social, política y económica'))
+
+
+class PdfConEmojis(SimpleTestCase):
+    def test_emoji_nuevo_no_tumba_el_pdf(self):
+        from weasyprint import HTML
+        from materiales.exportar import escribir_pdf
+        self.assertTrue(escribir_pdf(HTML(string='<p>Imagen 🖼 y corazón 🫶</p>')).startswith(b'%PDF'))
+
+
+class SemillaOtrasAreas(ColegioDePrueba):
+    def test_lenguaje_naturales_sociales_1(self):
+        from materiales.semilla import imagenes as I
+        for area, n, nombre in (('LEN', 16, 'Lenguaje'), ('NAT', 8, 'Ciencias Naturales'), ('SOC', 16, 'Ciencias Sociales')):
+            call_command('cargar_semilla', '--usuario', 'profe', '--area', area, '--grados', '1', '--colegio', 'a', stdout=StringIO())
+            docs = Documento.objects.filter(propietario=self.u_docente, area=nombre)
+            self.assertEqual(docs.count(), n, area)
+            guia = docs.filter(tipo='guia_momentos').first()
+            self.assertIn(f'(MEN, {nombre})', str(guia.contenido))
+        # Toda imagen que piden las guías está en el catálogo con su prompt
+        ids = {b['img'].split('×')[0] for (a, g) in armar.MODULOS if g == 1 for d in armar.documentos(g, a) for b in d['bloques']
+               if b['tipo'] == '_imagen' and not b['img'].startswith(('d-', 'pict:'))}
+        self.assertTrue(all(I.por_id(i) and I.por_id(i)['prompt'] for i in ids))
+        self.assertEqual(K.buscar('SOC-1-7')['evidencias'][-1], 'Reconoce la importancia del trabajo en equipo para el logro de las metas comunes.')
+
+    def test_segundo_grado(self):
+        for area, n in (('MAT', 22), ('LEN', 16), ('NAT', 8), ('SOC', 16)):
+            antes = Documento.objects.filter(propietario=self.u_docente).count()
+            call_command('cargar_semilla', '--usuario', 'profe', '--area', area, '--grados', '2', '--colegio', 'a', stdout=StringIO())
+            self.assertEqual(Documento.objects.filter(propietario=self.u_docente).count() - antes, n, area)
+        self.assertTrue(Documento.objects.filter(grado='2.º', titulo='Números hasta 999: comparo y ordeno').exists())
+        self.assertIn('aplicación,', ' '.join(K.buscar('MAT-2-3')['evidencias']))
+        self.assertIn('que éstas traen', ' '.join(K.buscar('SOC-2-5')['evidencias']))
+
+    def test_tercero_a_quinto(self):
+        esperado = {('MAT', 3): 22, ('LEN', 3): 16, ('NAT', 3): 12, ('SOC', 3): 16, ('MAT', 4): 22, ('LEN', 4): 16, ('NAT', 4): 14,
+                    ('SOC', 4): 16, ('MAT', 5): 24, ('LEN', 5): 16, ('NAT', 5): 8, ('SOC', 5): 16}
+        for (area, g), n in esperado.items():
+            self.assertEqual(len(armar.documentos(g, area)), n, (area, g))
+        antes = Documento.objects.count()
+        call_command('cargar_semilla', '--usuario', 'profe', '--area', 'MAT', '--grados', '5', '--colegio', 'a', stdout=StringIO())
+        self.assertEqual(Documento.objects.count() - antes, 24)
+        d = Documento.objects.get(titulo='El plano cartesiano y los mapas')
+        self.assertEqual(d.grado, '5.º')
+        self.assertNotIn('letra', {k: v for k, v in d.contenido['opciones'].items() if v == 14})   # letra normal desde 4.º
+        # Los mapas son oficiales (IGAC), no de IA
+        from materiales.semilla import imagenes as I
+        self.assertEqual(I.por_id('s5-regiones-naturales')['origen'], 'oficial')
+        self.assertIn('IGAC', I.por_id('s5-regiones-naturales')['prompt'])
+        self.assertIn('instrumentos', K.buscar('MAT-4-5')['enunciado'])
+
+    def test_sexto_a_noveno(self):
+        for (area, g), n in {('MAT', 8): 24, ('MAT', 9): 22, ('LEN', 6): 16, ('LEN', 9): 16, ('NAT', 6): 10, ('NAT', 9): 12, ('SOC', 7): 16, ('SOC', 9): 16}.items():
+            self.assertEqual(len(armar.documentos(g, area)), n, (area, g))
+        antes = Documento.objects.count()
+        call_command('cargar_semilla', '--usuario', 'profe', '--area', 'NAT', '--grados', '9', '--colegio', 'a', stdout=StringIO())
+        self.assertEqual(Documento.objects.count() - antes, 12)
+        self.assertTrue(Documento.objects.filter(titulo='Genética mendeliana', area='Ciencias Naturales', grado='9.º').exists())
+        from materiales.semilla import imagenes as I
+        self.assertIn('secundaria', I.por_id('n9-adn')['prompt'])
+        self.assertNotIn('6 años', I.por_id('s7-acueducto')['prompt'])
+        self.assertIn('Comprende', K.buscar('SOC-7-7')['enunciado'])
+
+    def test_decimo_once(self):
+        for (area, g), n in {('MAT', 10): 20, ('MAT', 11): 20, ('LEN', 10): 16, ('LEN', 11): 16, ('NAT', 10): 8, ('NAT', 11): 10,
+                             ('SOC', 10): 10, ('SOC', 11): 10}.items():
+            self.assertEqual(len(armar.documentos(g, area)), n, (area, g))
+        antes = Documento.objects.count()
+        call_command('cargar_semilla', '--usuario', 'profe', '--area', 'MAT', '--grados', '11', '--colegio', 'a', stdout=StringIO())
+        self.assertEqual(Documento.objects.count() - antes, 20)
+        self.assertTrue(Documento.objects.filter(titulo='La derivada: pendiente de la tangente', grado='11.º').exists())
+        from materiales.semilla import imagenes as I
+        self.assertEqual(I.por_id('l10-caminante')['origen'], 'oficial')
+        self.assertIn('secundaria', I.por_id('n11-invernadero')['prompt'])
+        self.assertNotIn('Para el debate', ' '.join(K.buscar('LEN-10-5')['evidencias']))

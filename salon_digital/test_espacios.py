@@ -45,8 +45,51 @@ class Espacios(TestCase):
         p.normas_aceptadas = timezone.now()
         p.save()
         r = self.client.get('/chat/colegas/muro/')
-        for texto in ('Navegación', 'Filtros', 'Eventos activos', 'Guía pedagógica', 'Juego o actividad interactiva'):
+        for texto in ('Navegación', 'Filtros', 'Guía pedagógica', 'Juego o actividad interactiva'):
             self.assertContains(r, texto)
+        self.assertNotContains(r, 'Eventos activos')             # sin eventos propios ni invitaciones, no sale
+
+    def test_colegas_invitados_al_evento(self):
+        """El organizador invita desde «Mis colegas»: solo ellos ven el evento en su Sala de Profesores, con acceso al ranking."""
+        from django.test import Client
+        from django.utils import timezone
+        from aula.models import Evento
+        from chat.models import Colega
+        from chat.views_colegas import perfil_de
+        from notas.models import Notificacion
+        invitado = User.objects.create_user('ana_profe', password='x', first_name='Ana', last_name='Ruiz')
+        otro = User.objects.create_user('otro_profe', password='x', first_name='Otro')
+        for u, slug in ((invitado, 'ana'), (otro, 'otro')):
+            Cuenta.objects.create(usuario=u, slug=slug, nombre_publico=u.first_name, estado='verificada')
+            perfil = perfil_de(u); perfil.normas_aceptadas = timezone.now(); perfil.save()
+        Colega.objects.create(de=self.u, para=invitado, estado='aceptada')
+        Colega.objects.create(de=self.u, para=otro, estado='aceptada')
+        extrano = User.objects.create_user('extrano', password='x')     # no es colega: no se puede invitar
+        self.client.post('/aula/eventos/', {'titulo': 'Olimpiada nodo norte'})
+        ev = Evento.objects.get(titulo='Olimpiada nodo norte')
+        Evento.objects.filter(pk=ev.pk).update(activo=True)
+        conf = f'/aula/eventos/{ev.pk}/configurar/'
+        self.assertContains(self.client.get(conf), 'Invitar desde «Mis colegas»')
+        self.client.post(conf, {'accion': 'veedor_colegas', 'colegas': [str(invitado.pk), str(extrano.pk)]})
+        ev.refresh_from_db()
+        vs = ev.config['veedores']
+        self.assertEqual([v['usuario'] for v in vs], [invitado.pk])
+        self.assertTrue(Notificacion.objects.filter(destinatario=invitado, mensaje__contains='Olimpiada nodo norte').exists())
+        # Invitarlo otra vez no lo duplica
+        self.client.post(conf, {'accion': 'veedor_colegas', 'colegas': [str(invitado.pk)]})
+        ev.refresh_from_db(); self.assertEqual(len(ev.config['veedores']), 1)
+        tok = vs[0]['token']
+        ana = Client(); ana.force_login(invitado)
+        r = ana.get('/chat/colegas/muro/')
+        self.assertContains(r, 'Eventos activos'); self.assertContains(r, 'Olimpiada nodo norte')
+        self.assertContains(r, f'href="/aula/eventos/v/{tok}/en-vivo/"')
+        self.assertContains(ana.get(f'/aula/eventos/v/{tok}/en-vivo/'), 'vista de veedor')
+        # El colega no invitado no lo ve
+        o = Client(); o.force_login(otro)
+        self.assertNotContains(o.get('/chat/colegas/muro/'), 'Olimpiada nodo norte')
+        # Si el organizador lo quita, desaparece de su Sala de Profesores
+        self.client.post(conf, {'accion': 'veedor_quitar', 'token': tok})
+        self.assertNotContains(ana.get('/chat/colegas/muro/'), 'Olimpiada nodo norte')
 
     def test_eventos_activos_llevan_al_ranking_en_vivo(self):
         """«Ver ranking en vivo» en la Sala de Profesores abre el ranking del organizador, no la inscripción."""

@@ -2,7 +2,7 @@
  "area": "Ciencias Sociales",
  "clave": "SOC",
  "version": "V.1",
- "revisado": false,
+ "revisado": true,
  "fuente": "Ministerio de Educación Nacional · Derechos Básicos de Aprendizaje de Ciencias Sociales V.1 (Colombia Aprende)",
  "url": "https://www.colombiaaprende.edu.co/sites/default/files/files_public/2022-06/DBA_C.Sociales-V2.pdf",
  "grados": {
@@ -80,7 +80,7 @@
      "Presenta sus ideas, intereses y sentimientos frente a las normas establecidas en la familia, en el salón de clase y otros espacios.",
      "Expresa sus opiniones y colabora activamente en la construcción de los acuerdos grupales para la convivencia.",
      "Plantea alternativas de solución frente a situaciones conflictivas en su familia y salón de clase.",
-     "Reconoce la importancia del trabajo en equipo para el logro de las metas comunes. Las reglas de juego serán…"
+     "Reconoce la importancia del trabajo en equipo para el logro de las metas comunes."
     ],
     "pagina": 10
    },
@@ -146,7 +146,7 @@
     "enunciado": "Analiza las actividades económicas de su entorno y el impacto de estas en la comunidad.",
     "evidencias": [
      "Identifica los trabajos u oficios que las personas de su comunidad realizan para obtener su sustento y el de la familia.",
-     "Describe las actividades económicas que realizan los adultos en su hogar y los beneficios que é stas traen para todos los integrantes de la familia.",
+     "Describe las actividades económicas que realizan los adultos en su hogar y los beneficios que éstas traen para todos los integrantes de la familia.",
      "Compara los oficios que los abuelos realizaban anteriormente respecto de cómo se realizan hoy y diferencia los trabajos característicos de las zonas urbanas y rurales.",
      "Reconoce experiencias donde algunos niños son explotados laboralmente y expresa razones para rechazar estas situaciones."
     ],
@@ -271,7 +271,7 @@
      "Diferencia los órganos y las funciones del poder público que tiene el departamento (gobernador, diputados y jueces) de los que tiene el municipio y los resguardos.",
      "Explica la importancia del gobierno departamental en el mejoramiento de las condiciones de vida de los ciudadanos, en cuanto a educación, obras públicas, salud y recreación.",
      "Emite sus opiniones frente a las problemáticas observadas en los procesos de elección de cargos políticos en la región.",
-     "Propone acciones que pueden desarrollar las instituciones departamentales para fortalecer la convivencia y la paz en las comunidades. Foto tomada de www.asamblea-boyaca.gov.co (Entidad Territorial) en: goo.gl/unKVYV"
+     "Propone acciones que pueden desarrollar las instituciones departamentales para fortalecer la convivencia y la paz en las comunidades."
     ],
     "pagina": 20
    }
@@ -407,7 +407,7 @@
      "Compara el papel de las organizaciones políticas y administrativas como el Consejo Supremo de Indias, la Casa de Contratación de Sevilla, la Real Audiencia, los Cabildos, la Real Hacienda y el Virreinato con las actuales instituciones en Colombia.",
      "Diferencia las formas organizativas del trabajo en la Colonia (la encomienda, la mita y el resguardo) y sus transformaciones en el sistema económico actual en Colombia.",
      "Explica las diferencias entre los grupos sociales existentes en la Nueva Granada durante el periodo colonial y las implicaciones que tuvo en la estratificación de la población colombiana.",
-     "Examina el papel de la religión católica y su impacto en la vida cotidiana de las personas durante la época colonial a través del uso de diversas fuentes de información. Fotografía tomada por Toro Vásquez, J. 2015"
+     "Examina el papel de la religión católica y su impacto en la vida cotidiana de las personas durante la época colonial a través del uso de diversas fuentes de información."
     ],
     "pagina": 26
    },
@@ -507,15 +507,8 @@
     "evidencias": [
      "Representa y sitúa en un mapa los espacios geográficos en que se desarrollaron sociedades prehispánicas como mayas, aztecas, incas, chibchas u otros grupos ancestrales.",
      "Describe los aportes tecnológicos y culturales de las sociedades prehispánicas como el calendario maya, la arquitectura, los aspectos religiosos, la astronomía y las técnicas de cultivo.",
-     "C",
-     "om",
-     "para l a e",
-     "st r uc",
-     "t ura soc",
-     "ial , po íl it c",
-     "a",
-     "y económica de las sociedades prehispánicas, con las sociedades actuales del continente americano, y establece similitudes y diferencias en sus procesos históricos.",
-     "Explica la importancia de alimentos domesticados en América como el maíz, el tomate y la papa, en la gastronomía del mundo contemporáneo. Machu Picchu (Perú). Fotografía tomada de: www.pixabay.com (banco de imágenes) en: goo.gl/BFM3xO Teotihuacán (Méxic o). Fotografía tomada de: www.pixabay.com (banco de imágenes) en: goo.gl/BFM3xO"
+     "Compara la estructura social, política y económica de las sociedades prehispánicas, con las sociedades actuales del continente americano, y establece similitudes y diferencias en sus procesos históricos.",
+     "Explica la importancia de alimentos domesticados en América como el maíz, el tomate y la papa, en la gastronomía del mundo contemporáneo."
     ],
     "pagina": 31
    },
@@ -594,7 +587,7 @@
      "Describe los principales eventos que identificaron las sociedades europeas en la Edad Media (lucha entre imperios, modelo económico feudal, poder económico y político de la iglesia, desigualdad social).",
      "Reconoce la organización social de las culturas precolombinas en los períodos clásico y posclásico y señala similitudes y diferencias con las sociedades medievales de Europa.",
      "Compara características sociales, culturales y económicas de ciudades del año 1000 en el mundo como: París (Europa), Teotihuacán y Tikal (Centroamérica), Damasco (Asia) y El Cairo (Africa).",
-     "Argumenta las continuidades del ordenamiento político y social instaurado durante la Edad Media y las discontinuidades en el desarrollo de las culturas precolombinas con la llegada de los europeos a América. Fotografía tomada de: www.pixabay.com (banco de imágenes) en: goo.gl/kOCkHy"
+     "Argumenta las continuidades del ordenamiento político y social instaurado durante la Edad Media y las discontinuidades en el desarrollo de las culturas precolombinas con la llegada de los europeos a América."
     ],
     "pagina": 35
    },
@@ -605,7 +598,7 @@
      "Describe algunos acontecimientos que dieron paso a la Modernidad e incidieron en un nuevo pensamiento político, social, económico e intelectual.",
      "Interpreta mapas temáticos en los que reconoce ciudades estratégicas de Europa en el contexto del Renacimiento, por su importancia económica y cultural.",
      "Explica las implicaciones políticas y económicas que tuvo la Reforma protestante para Europa y América.",
-     "Reconoce en las expresiones artísticas del Renacimiento (pintura, escultura y literatura) la vida cotidiana y la organización social de los pueblos. Fotografía tomada de: www.pixabay.com (banco de imágenes) en: goo.gl/dx9gOg"
+     "Reconoce en las expresiones artísticas del Renacimiento (pintura, escultura y literatura) la vida cotidiana y la organización social de los pueblos."
     ],
     "pagina": 35
    },
@@ -622,7 +615,7 @@
    },
    {
     "n": 7,
-    "enunciado": "Co mprende la responsabilidad que tiene una sociedad democrática para evitar la violación de los derechos fundamentales de sus ciudadanos.",
+    "enunciado": "Comprende la responsabilidad que tiene una sociedad democrática para evitar la violación de los derechos fundamentales de sus ciudadanos.",
     "evidencias": [
      "Compara la Declaración Universal de los Derechos Humanos con los derechos fundamentales enunciados en la Constitución.",
      "Plantea soluciones alternativas a las problemáticas de discriminación que se evidencian en Colombia.",
@@ -649,7 +642,7 @@
     "enunciado": "Evalúa la influencia de los procesos de cooperación económica y política entre los Estados Nacionales en la actualidad.",
     "evidencias": [
      "Reconoce la constitución de la Unión Europea como un ejemplo de cooperación entre países, sus objetivos, integrantes y su influencia en el orden mundial.",
-     "Describe diversas alianzas de cooperación dadas entre países: MERCOSUR (Sur a mérica), OTAN (Europa-América), NEPAD (Nueva Alianza para el desarrollo de África) y APEC (Foro de Cooperación Económica Asia-Pacífico).",
+     "Describe diversas alianzas de cooperación dadas entre países: MERCOSUR (Suramérica), OTAN (Europa-América), NEPAD (Nueva Alianza para el desarrollo de África) y APEC (Foro de Cooperación Económica Asia-Pacífico).",
      "Formula preguntas sobre cómo lograr el bienestar colectivo desde la cooperación y las alianzas internacionales.",
      "Explica las relaciones económicas y políticas que Colombia sostiene hoy con otros países de la región y el resto del mundo."
     ],
@@ -796,7 +789,7 @@
      "Identifica la participación de las mujeres en la historia de Colombia en el ámbito político, académico, cultural, industrial y financiero.",
      "Caracteriza formas de violencia contra las mujeres en el país y en el mundo (psicológica, sexual, económica, doméstica, laboral, mediática y física) y propone alternativas para cambiarlas.",
      "Explica las contribuciones de las mujeres en la construcción de una sociedad justa y creadora de una cultura de paz.",
-     "Propone acciones para que las diversas formas de identidad de género sean respetadas en el contexto del desarrollo de todas las potencialidades humanas. Foto tomadas de www.rcnradio.com (Cadena Radial) en: goo.gl/C7pPfw; www.agenciadenoticias.unal. edu.co (Página Universitaria) en goo.gl/IJTDbA; www. semana.com (Diario Nacional) en goo.gl/y8UANp; www. elcolombiano.com (Diario Local) en goo.gl/GYHvlg; www.eluniversal.com.co (Diario Local) en goo.gl/CU4Lfu; www.banrepcultural.org (Banco Central) goo.gl/YPzwOB; www.eluniversal.com.co (Diario Local) goo.gl/CM8nt2; www.elpais.com (Diario Nacional) goo.gl/ oLa9EW"
+     "Propone acciones para que las diversas formas de identidad de género sean respetadas en el contexto del desarrollo de todas las potencialidades humanas."
     ],
     "pagina": 44
    },
@@ -932,7 +925,7 @@
      "Reconoce las características de la globalización económica y política en el mundo contemporáneo y las tensiones que ha generado en las comunidades nacionales.",
      "Explica y sitúa los bloques económicos y los tratados de integración que se han configurado en los últimos años, así como las consecuencias que estos han traído para Colombia y América Latina.",
      "Describe las ventajas y desventajas económicas, políticas y sociales que tiene el proceso de globalización en las sociedades actuales.",
-     "Argumenta acerca del papel de las organizaciones políticas y económicas en la integración de los países latinoamericanos (Mercosur, El Alba, Alianza del Pacífico y Unasur, entre otros). Centro Administrativo Nacional, CAN Conmutador: (+571) 2222800 Línea gratuita fuera de Bogotá Línea gratuita Bogotá (+571) 2220206 www.mineducacion.gov.co Ministerio de Educación Nacional Calle 43 No 57-14 Bogotá D.C. – Colombia Fax: (+571) 2222800 018000910122 @Mineducación"
+     "Argumenta acerca del papel de las organizaciones políticas y económicas en la integración de los países latinoamericanos (Mercosur, El Alba, Alianza del Pacífico y Unasur, entre otros)."
     ],
     "pagina": 51
    }

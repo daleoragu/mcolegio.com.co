@@ -109,14 +109,10 @@
     "n": 10,
     "enunciado": "Clasifica y organiza datos, los representa utilizando tablas de conteo y pictogramas sin escalas, y comunica los resultados obtenidos para responder preguntas sencillas.",
     "evidencias": [
-     "Identifica en fichas u objetos reales los valores",
-     "de la variable en estudio.",
-     "Organiza los datos en tablas de conteo y/o en",
-     "pictogramas sin escala.",
-     "Lee la información presentada en tablas de",
-     "conteo y/o pictogramas sin escala (1 a 1).",
-     "Comunica los resultados respondiendo preguntas",
-     "tales como: ¿cuántos hay en total?, ¿cuántos hay de cada dato?, ¿cuál es el dato que más se repite?, ¿cuál es el dato que menos aparece?"
+     "Identifica en fichas u objetos reales los valores de la variable en estudio.",
+     "Organiza los datos en tablas de conteo y/o en pictogramas sin escala.",
+     "Lee la información presentada en tablas de conteo y/o pictogramas sin escala (1 a 1).",
+     "Comunica los resultados respondiendo preguntas tales como: ¿cuántos hay en total?, ¿cuántos hay de cada dato?, ¿cuál es el dato que más se repite?, ¿cuál es el dato que menos aparece?"
     ],
     "pagina": 13
    }
@@ -145,7 +141,7 @@
     "n": 3,
     "enunciado": "Utiliza el Sistema de Numeración Decimal para comparar, ordenar y establecer diferentes relaciones entre dos o más secuencias de números con ayuda de diferentes recursos.",
     "evidencias": [
-     "Compara y ordena números de menor a mayor y viceversa a través de recursos como la calculadora, ap licación , material gráfico que represente billetes, diagramas de colecciones, etc.",
+     "Compara y ordena números de menor a mayor y viceversa a través de recursos como la calculadora, aplicación, material gráfico que represente billetes, diagramas de colecciones, etc.",
      "Propone ejemplos y comunica de forma oral y escrita las condiciones que puede establecer para conservar una relación (mayor que, menor que) cuando se aplican algunas operaciones a ellos.",
      "Reconoce y establece relaciones entre expresiones numéricas (hay más, hay menos, hay la misma cantidad ) y describe el tipo de operaciones que debe realizarse para que a pesar de cambiar los valores numéricos, la relación se conserve."
     ],
@@ -369,10 +365,8 @@
     "n": 2,
     "enunciado": "Describe y justifica diferentes estrategias para representar, operar y hacer estimaciones con números naturales y números racionales (fraccionarios) , expresados como fracción o como decimal",
     "evidencias": [
-     "Utiliza el sistema de numeración decimal para",
-     "representar, comparar y operar con números mayores o iguales a 10 . 000.",
-     "Describe y desarrolla estrategias para calcular",
-     "sumas y restas basadas en descomposiciones aditivas y multiplicativas. No se espera en este nivel escolar un estudio profundo de los números racionales como sistema numérico, sino una primera aproximación a las cantidades -generalmente llamada en los grados de primaria como fraccionarios- que expresan una razón entre otras dos cantidades, y cuyo resultado no siempre da un número exacto de unidades. Aunque estrictamente hablando los conceptos representados por estas expresiones no son coincidentes se acompañará la palabra “racionales” de la palabra “fraccionario” escrita entre paréntesis.",
+     "Utiliza el sistema de numeración decimal para representar, comparar y operar con números mayores o iguales a 10 . 000.",
+     "Describe y desarrolla estrategias para calcular sumas y restas basadas en descomposiciones aditivas y multiplicativas.",
      "Utiliza y justifica algoritmos estandarizados y no estandarizados para realizar operaciones aditivas con representaciones decimales provenientes de fraccionarios cuyas expresiones tengan denominador 10, 100, etc.",
      "Identifica y construye fracciones equivalentes a una fracción dada.",
      "Propone estrategias para calcular sumas y restas de algunos fraccionarios."
@@ -403,7 +397,7 @@
    },
    {
     "n": 5,
-    "enunciado": "Elige instrume n tos y unidades estandarizadas y no estandarizadas para estimar y medir longitud, área, volumen, capacidad, peso y masa, duración, rapidez, temperatura, y a partir de ellos hace los cálculos necesarios para resolver problemas.",
+    "enunciado": "Elige instrumentos y unidades estandarizadas y no estandarizadas para estimar y medir longitud, área, volumen, capacidad, peso y masa, duración, rapidez, temperatura, y a partir de ellos hace los cálculos necesarios para resolver problemas.",
     "evidencias": [
      "Expresa una misma medida en diferentes unidades, establece equivalencias entre ellas y toma decisiones de la unidad más conveniente según las necesidades de la situación.",
      "Propone diferentes procedimientos para realizar cálculos (suma y resta de medidas, multiplicación y división de una medida y un número) que aparecen al resolver problemas en diferentes contextos.",
@@ -1023,7 +1017,7 @@
     "n": 6,
     "enunciado": "Conjetura acerca de las regularidades de las formas bidimensionales y tridimensionales y realiza inferencias a partir de los criterios de semejanza, congruencia y teoremas básicos.",
     "evidencias": [
-     "Reconoce regularidades en formas bidimen- sionales y tridimensionales.",
+     "Reconoce regularidades en formas bidimensionales y tridimensionales.",
      "Explica criterios de semejanza y congruencia a partir del teorema de Thales.",
      "Compara figuras geométricas y conjetura sobre posibles regularidades.",
      "Redacta y argumenta procesos llevados a cabo para resolver situaciones de semejanza y congruencia de figuras."

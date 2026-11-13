@@ -15,6 +15,7 @@ urlpatterns = [
     path('eventos/', ve.eventos, name='eventos'),
     path('eventos/<int:eid>/', ve.jugar, name='evento'),
     path('eventos/entrar/', ve.entrar_codigo, name='evento_entrar'),
+    path('eventos/colegios/', ve.colegios_municipio, name='evento_colegios'),
     path('eventos/v/<str:token>/', ve.veedor_resultados, name='evento_veedor'),
     path('eventos/v/<str:token>/en-vivo/', ve.veedor_en_vivo, name='evento_veedor_en_vivo'),
     path('eventos/c/<str:codigo>/', ve.inscribirse, name='evento_inscribirse'),

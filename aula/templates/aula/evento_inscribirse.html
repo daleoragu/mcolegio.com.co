@@ -24,11 +24,33 @@
     <label class="form-label fw-bold small">Número de documento</label>
     <input name="documento" class="form-control mb-2" maxlength="20" required inputmode="numeric" value="{{ sugerido.documento }}" placeholder="Tarjeta de identidad o registro civil">
     <div class="form-text mt-n1 mb-2">Cada documento se inscribe una sola vez. Con él y su código de seguridad vuelve a entrar.</div>
-    <label class="form-label fw-bold small">Colegio o institución</label>
-    <input name="institucion" class="form-control mb-2" maxlength="120" required value="{{ sugerido.institucion }}">
+    <fieldset class="ins-colegio border rounded-3 p-2 mb-2" data-url="{% url 'aula:evento_colegios' %}" data-mun="{{ sugerido.municipio_dane }}" data-dane="{{ sugerido.colegio_dane }}">
+      <legend class="form-label fw-bold small float-none w-auto px-1 mb-1">Su colegio</legend>
+      <div class="position-relative mb-2">
+        <label class="form-label small mb-0" for="ins-buscar"><i class="fas fa-magnifying-glass me-1"></i>Buscar su colegio por nombre</label>
+        <input id="ins-buscar" type="search" class="form-control form-control-sm" autocomplete="off" maxlength="80"
+               placeholder="Ej.: Isidro Parra, San José, Normal…" aria-controls="ins-resultados">
+        <div id="ins-resultados" class="list-group position-absolute w-100 shadow-sm" style="z-index:20;max-height:260px;overflow:auto" hidden></div>
+        <div class="form-text mt-0">O escójalo abajo por departamento y municipio.</div>
+      </div>
+      <div class="row g-2">
+        <div class="col-sm-6"><label class="form-label small mb-0" for="ins-dep">Departamento</label>
+          <select id="ins-dep" class="form-select form-select-sm mb-1"><option value="">Escoja el departamento…</option>
+            {% for d in regiones_menu.departamentos %}<option value="{{ d.0 }}">{{ d.1 }}</option>{% endfor %}</select></div>
+        <div class="col-sm-6"><label class="form-label small mb-0" for="ins-mun">Municipio</label>
+          <select id="ins-mun" name="municipio_dane" class="form-select form-select-sm mb-1" disabled><option value="">Escoja primero el departamento</option></select></div>
+      </div>
+      <label class="form-label small mb-0" for="ins-col">Colegio</label>
+      <select id="ins-col" name="colegio_dane" class="form-select form-select-sm mb-1" disabled><option value="">Escoja primero el municipio</option></select>
+      <div class="ins-otro" {% if not sugerido.institucion or sugerido.colegio_dane %}hidden{% endif %}>
+        <label class="form-label small mb-0" for="ins-inst">Nombre del colegio o institución</label>
+        <input id="ins-inst" name="institucion" class="form-control form-control-sm mb-1" maxlength="120" value="{{ sugerido.institucion }}" placeholder="Escriba el nombre completo">
+      </div>
+      <input type="hidden" name="ciudad" value="{{ sugerido.ciudad }}">
+      <div class="form-text mt-0">Lista oficial del Ministerio de Educación (2025). Si su colegio no aparece, escoja «Mi colegio no está en la lista».</div>
+    </fieldset>
+    {{ regiones_menu|json_script:"ins-regiones" }}
     <div class="row g-2">
-      <div class="col-sm-6"><label class="form-label fw-bold small">Municipio o ciudad</label>
-        <input name="ciudad" class="form-control mb-2" maxlength="80" {% if ins.aprobacion %}required{% endif %} value="{{ sugerido.ciudad }}"></div>
       <div class="col-sm-6"><label class="form-label fw-bold small">Grado</label>
         <select name="grado" class="form-select mb-2" required>
           <option value="">— Escoja su grado —</option>
@@ -56,4 +78,91 @@
     <p class="small text-muted mt-2 mb-0">Al enviar le damos un <b>código de seguridad</b>. Guárdelo: con su documento y ese código vuelve a entrar desde cualquier equipo sin perder lo que lleva.</p>
   </form>{% endif %}
 </div>
+<script>
+/* Departamento → Municipio → Colegio (directorio del MEN), como en «Quiero Ser, Quiero Saber» */
+(function () {
+  var caja = document.querySelector('.ins-colegio'), nodo = document.getElementById('ins-regiones');
+  if (!caja || !nodo) return;
+  var R = JSON.parse(nodo.textContent), dep = document.getElementById('ins-dep'), mun = document.getElementById('ins-mun'),
+      col = document.getElementById('ins-col'), otro = caja.querySelector('.ins-otro'), inst = document.getElementById('ins-inst'),
+      ciudad = caja.querySelector('input[name=ciudad]');
+  function opcion(sel, v, t) { var o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); return o; }
+  function verOtro() {
+    var es = col.value === 'otro' || (!col.value && inst.value && col.disabled);
+    otro.hidden = !es; inst.required = es;
+    if (!es && col.value) inst.value = '';
+  }
+  function municipios(elegido, dane) {
+    var lista = R.municipios[dep.value] || [];
+    mun.innerHTML = ''; opcion(mun, '', dep.value ? 'Escoja el municipio…' : 'Escoja primero el departamento');
+    lista.forEach(function (m) { opcion(mun, m[0], m[1]); });
+    mun.disabled = !dep.value;
+    if (lista.length === 1) mun.value = lista[0][0];
+    else if (elegido && lista.some(function (m) { return m[0] === elegido; })) mun.value = elegido;
+    colegios(dane);
+  }
+  function colegios(elegido) {
+    col.innerHTML = '';
+    var m = mun.options[mun.selectedIndex];
+    ciudad.value = mun.value ? m.textContent + ', ' + dep.options[dep.selectedIndex].textContent : '';
+    if (!mun.value) { opcion(col, '', 'Escoja primero el municipio'); col.disabled = true; verOtro(); return; }
+    opcion(col, '', 'Cargando colegios…'); col.disabled = true;
+    fetch(caja.dataset.url + '?mun=' + encodeURIComponent(mun.value)).then(function (r) { return r.json(); }).then(function (d) {
+      col.innerHTML = ''; opcion(col, '', d.colegios.length ? 'Escoja su colegio (' + d.colegios.length + ')…' : 'No hay colegios en la lista para este municipio');
+      d.colegios.forEach(function (c) { opcion(col, c.dane, c.nombre + (c.oficial ? '' : ' · privado')); });
+      opcion(col, 'otro', '➕ Mi colegio no está en la lista');
+      col.disabled = false;
+      if (elegido) col.value = elegido;
+      verOtro();
+    }).catch(function () { col.innerHTML = ''; opcion(col, 'otro', 'No se pudo cargar la lista: escriba el nombre'); col.value = 'otro'; col.disabled = false; verOtro(); });
+  }
+  /* Buscar por palabras: en el municipio escogido y, si no aparece, en todo el país. Al escoger, se llenan los tres menús. */
+  var buscar = document.getElementById('ins-buscar'), res = document.getElementById('ins-resultados'), espera = null, turno = 0;
+  function pedir(q, m) { return fetch(caja.dataset.url + '?q=' + encodeURIComponent(q) + (m ? '&mun=' + m : '')).then(function (r) { return r.json(); }); }
+  function mostrar(lista, q) {
+    res.innerHTML = '';
+    if (!lista.length) {
+      var n = document.createElement('div'); n.className = 'list-group-item small text-muted';
+      n.textContent = 'No encontramos «' + q + '». Pruebe con otra palabra o escoja «Mi colegio no está en la lista».';
+      res.appendChild(n);
+    }
+    lista.forEach(function (c) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'list-group-item list-group-item-action small py-1';
+      b.innerHTML = '<b></b><span class="d-block text-muted"></span>';
+      b.firstChild.textContent = c.nombre; b.lastChild.textContent = c.lugar + (c.oficial ? '' : ' · privado');
+      b.addEventListener('click', function () {
+        res.hidden = true; buscar.value = c.nombre;
+        dep.value = c.municipio.slice(0, 2); municipios(c.municipio, c.dane);
+      });
+      res.appendChild(b);
+    });
+    res.hidden = false;
+  }
+  buscar.addEventListener('input', function () {
+    clearTimeout(espera);
+    var q = buscar.value.trim();
+    if (q.length < 3) { res.hidden = true; return; }
+    espera = setTimeout(function () {
+      var mio = ++turno, m = mun.value;
+      pedir(q, m).then(function (d) {
+        if (d.colegios.length || !m) return d;
+        return pedir(q, '');                         // no está en el municipio: en todo el país
+      }).then(function (d) { if (mio === turno) mostrar(d.colegios, q); }).catch(function () {});
+    }, 300);
+  });
+  buscar.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var b = res.querySelector('button'); if (b && !res.hidden) b.click(); } });
+  document.addEventListener('click', function (e) { if (!caja.contains(e.target)) res.hidden = true; });
+  dep.addEventListener('change', function () { municipios(); });
+  mun.addEventListener('change', function () { colegios(); });
+  col.addEventListener('change', verOtro);
+  caja.closest('form').addEventListener('submit', function (e) {
+    if (!col.value || (col.value === 'otro' && !inst.value.trim())) {
+      e.preventDefault(); (col.disabled ? (mun.disabled ? dep : mun) : (col.value ? inst : col)).focus();
+      alert('Escoja su departamento, su municipio y su colegio (o escriba el nombre si no está en la lista).');
+    }
+  });
+  var mun0 = caja.dataset.mun, dane0 = caja.dataset.dane;
+  if (mun0) { dep.value = mun0.slice(0, 2); municipios(mun0, dane0); }
+})();
+</script>
 {% endblock %}

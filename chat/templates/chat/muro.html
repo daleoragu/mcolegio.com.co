@@ -149,17 +149,16 @@
       <a class="small d-block mt-2" href="/chat/colegas/?tab=buscar">Buscar más docentes</a>
     </div>
     {% endif %}
+    {% if eventos %}
     <div class="mu-lado sp-caja">
       <a href="{% url 'aula:eventos' %}" class="d-flex align-items-center text-reset text-decoration-none mb-2"><h6 class="sp-tit flex-grow-1 mb-0">Eventos activos</h6><i class="fas fa-chevron-right" style="color:#f59e0b"></i></a>
       {% for e in eventos %}
-      <div class="sp-evento mb-2"><b class="d-block">{{ e.titulo }}</b><span class="small">{{ e.get_tipo_display }}</span>
-        <a class="btn btn-sm sp-unirse mt-2 d-inline-block" href="{% url 'aula:evento_en_vivo' e.pk %}" target="_blank" rel="noopener">Ver ranking en vivo</a>
-        <a class="small ms-2 d-inline-block mt-2" href="{% url 'aula:evento_resultados' e.pk %}">Resultados</a></div>
-      {% empty %}
-      <div class="sp-evento"><b class="d-block">Olimpiadas y eventos</b><span class="small">Organice una olimpiada intercolegiada con ranking en vivo y veedores.</span>
-        <a class="btn btn-sm sp-unirse mt-2 d-inline-block" href="{% url 'aula:eventos' %}">Ver eventos</a></div>
+      <div class="sp-evento mb-2"><b class="d-block">{{ e.titulo }}</b><span class="small">{{ e.tipo }}{% if e.invitado %} · <i class="fas fa-eye"></i> invitado{% endif %}</span>
+        <a class="btn btn-sm sp-unirse mt-2 d-inline-block" href="{{ e.vivo }}" target="_blank" rel="noopener">Ver ranking en vivo</a>
+        <a class="small ms-2 d-inline-block mt-2" href="{{ e.resultados }}">Resultados</a></div>
       {% endfor %}
     </div>
+    {% endif %}
     {% if destacados %}
     <div class="mu-lado">
       <h6 class="sp-tit">Recursos en tendencia</h6>

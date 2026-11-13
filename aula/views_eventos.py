@@ -19,6 +19,7 @@ import random
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.contrib.auth.views import redirect_to_login
 from django.shortcuts import get_object_or_404, redirect, render
@@ -854,7 +855,7 @@ def configurar(request, eid):
             ev.config = dict(ev.config or {}, inscripcion=c['inscripcion'])
             ev.save(update_fields=['config'])
             messages.success(request, 'Inscripción guardada.')
-        elif accion in ('veedor', 'veedores', 'veedor_grupo', 'veedor_quitar', 'veedor_activo', 'veedor_reenviar'):
+        elif accion in ('veedor', 'veedores', 'veedor_grupo', 'veedor_quitar', 'veedor_activo', 'veedor_reenviar', 'veedor_colegas'):
             import secrets
             c = config_de(ev)
             lista = list(c['veedores'])
@@ -877,6 +878,15 @@ def configurar(request, eid):
                     correo = next((x for x in partes if '@' in x), '')
                     nombre = ' '.join(x for x in partes if x != correo)[:80]
                     agregados.append(nuevo(nombre, correo[:120]))
+            elif accion == 'veedor_colegas':     # docentes de «Mis colegas»: lo ven en su Sala de Profesores
+                from chat.views_colegas import mis_colegas, nombre_de
+                ya = {v.get('usuario') for v in lista}
+                grupo = grupo or 'Colegas invitados'
+                for u in mis_colegas(request.user).filter(pk__in=[x for x in request.POST.getlist('colegas') if x.isdigit()]):
+                    if u.pk not in ya:
+                        agregados.append(dict(nuevo(nombre_de(u), u.email or '', 'colega'), usuario=u.pk))
+                if not agregados:
+                    messages.warning(request, 'Escoja uno o más colegas que todavía no estén invitados.')
             elif accion == 'veedor_grupo':
                 if not grupo:
                     messages.warning(request, 'Escriba el nombre del grupo de profesores.')
@@ -893,6 +903,7 @@ def configurar(request, eid):
                     messages.success(request, 'Invitación enviada por correo.' if _invitar_veedor(request, ev, v) else 'No se pudo enviar (¿tiene correo?).')
             if agregados:
                 lista += agregados
+                _avisar_colegas(request, ev, [v for v in agregados if v.get('usuario')])
                 enviados = sum(_invitar_veedor(request, ev, v) for v in agregados) if request.POST.get('enviar') else 0
                 messages.success(request, f'{len(agregados)} veedor(es) invitado(s).' + (f' Se envió el enlace por correo a {enviados}.' if enviados else ' Copie y envíe el enlace de cada uno.'))
             ev.config = dict(ev.config or {}, veedores=lista)
@@ -1033,7 +1044,17 @@ def configurar(request, eid):
         'veedores': _veedores_por_grupo(request, c),
         'docentes': Docente.objects.filter(colegio=ev.colegio).select_related('user').order_by('user__last_name') if ev.colegio_id else [],
         'enlace': request.build_absolute_uri(reverse('aula:evento_inscribirse', args=[ev.codigo])),
-        'organizadores': set(ev.organizadores.values_list('pk', flat=True)), 'base': _base(request)})
+        'organizadores': set(ev.organizadores.values_list('pk', flat=True)), 'base': _base(request),
+        'colegas': _colegas_para_invitar(request.user, c)})
+
+
+def _colegas_para_invitar(user, c):
+    try:
+        from chat.views_colegas import mis_colegas, nombre_de
+    except Exception:
+        return []
+    ya = {v.get('usuario') for v in c['veedores']}
+    return [{'id': u.pk, 'nombre': nombre_de(u), 'invitado': u.pk in ya} for u in mis_colegas(user).order_by('first_name', 'last_name')]
 
 
 def _preguntas_arcade(ev, c, grado, grupo):
@@ -1232,6 +1253,15 @@ def inscribirse(request, codigo):
     elif request.method == 'POST':
         limpio = lambda k, n: ' '.join((request.POST.get(k) or '').split())[:n]
         nombre, institucion, ciudad = limpio('nombre', 120), limpio('institucion', 120), limpio('ciudad', 80)
+        # Colegio escogido de la lista nacional (DANE): se guarda el nombre oficial y su municipio
+        from salon_digital import regiones as RG
+        from . import colegios_dane as CD
+        oficial = CD.buscar(request.POST.get('colegio_dane')) if request.POST.get('colegio_dane') not in (None, '', 'otro') else None
+        mun_dane = ''.join(ch for ch in (request.POST.get('municipio_dane') or '') if ch.isdigit())[:5]
+        if oficial:
+            institucion, mun_dane = oficial['nombre'][:120], oficial['municipio']
+        if RG.municipio(mun_dane):
+            ciudad = RG.etiqueta(mun_dane)[:80]
         documento, contacto, acompanante = documento_limpio(request.POST.get('documento')), limpio('contacto', 120), limpio('acompanante', 120)
         try:
             grado = int(request.POST.get('grado'))
@@ -1267,7 +1297,8 @@ def inscribirse(request, codigo):
             p = ParticipacionEvento.objects.create(
                 evento=ev, nombre=nombre, institucion=institucion, grado=grado, ciclo=g['id'], token=secrets.token_urlsafe(24),
                 estado='pendiente' if ins['aprobacion'] else 'aprobada',
-                datos={'documento': documento, 'ciudad': ciudad, 'contacto': contacto, 'acompanante': acompanante, 'clave': clave,
+                datos={'documento': documento, 'ciudad': ciudad, 'contacto': contacto,
+                       'dane': oficial['dane'] if oficial else '', 'municipio_dane': mun_dane if RG.municipio(mun_dane) else '', 'acompanante': acompanante, 'clave': clave,
                        # Ley 1581 de 2012: quién autorizó el tratamiento de los datos, cuándo y desde dónde
                        'autorizacion': {'acudiente': acudiente, 'fecha': timezone.now().isoformat(timespec='seconds'), 'ip': ip,
                                         'grabacion': graba(c['vigilancia']),
@@ -1275,12 +1306,17 @@ def inscribirse(request, codigo):
             request.session[clave_sesion(ev)] = p.token
             request.session[f'evento_{ev.pk}_recien'] = True      # para mostrarle su código de seguridad
             return redirect('aula:evento_inscribirse', codigo=ev.codigo)
-    sugerido = {'nombre': '', 'institucion': '', 'grado': None, 'ciudad': '', 'documento': '', 'contacto': '', 'acompanante': '', 'acudiente': ''}
+    sugerido = {'nombre': '', 'institucion': '', 'grado': None, 'ciudad': '', 'documento': '', 'contacto': '', 'acompanante': '', 'acudiente': '',
+                'colegio_dane': '', 'municipio_dane': ''}
+    if ev.creador_id:                                # el menú arranca en el municipio de quien organiza
+        from salon_digital.regiones import de_usuario
+        sugerido['municipio_dane'] = de_usuario(ev.creador, ev.colegio) or ''
     est = _estudiante(request)
     if est is not None:
         sugerido.update({'nombre': est.user.get_full_name(), 'institucion': est.colegio.nombre, 'grado': est.curso.grado if est.curso_id else None})
     if request.method == 'POST' and request.POST.get('accion') != 'recuperar':
-        sugerido.update({k: request.POST.get(k, '') for k in ('nombre', 'institucion', 'ciudad', 'documento', 'contacto', 'acompanante', 'acudiente')})
+        sugerido.update({k: request.POST.get(k, '') for k in ('nombre', 'institucion', 'ciudad', 'documento', 'contacto', 'acompanante', 'acudiente',
+                                                                 'colegio_dane', 'municipio_dane')})
         try:
             sugerido['grado'] = int(request.POST.get('grado'))
         except (TypeError, ValueError):
@@ -1288,7 +1324,12 @@ def inscribirse(request, codigo):
     return render(request, 'aula/evento_inscribirse.html', {
         'ev': ev, 'grados': [(x, etiqueta_grado(x)) for x in grados], 'error': error, 'sugerido': sugerido, 'post': request.POST,
         'ins': ins, 'recibe': recibe, 'niveles': grupos(c), 'vigilancia': c['vigilancia'] if c['vigilancia']['activa'] else None, 'supervision': texto_supervision(c['vigilancia']), 'vent': vent,
-        'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
+        'base': _base(request), 'hide_cuenta': not request.user.is_authenticated, 'regiones_menu': _menu_regiones()})
+
+
+def _menu_regiones():
+    from salon_digital.regiones import menu
+    return menu()
 
 
 def avisar_inscripcion(request, ev, p):
@@ -1612,9 +1653,44 @@ def veedor_resultados(request, token):
     return _resultados(request, ev, veedor=v)
 
 
+def colegios_municipio(request):
+    """Los colegios de un municipio (?mun=73411) para el menú Departamento → Municipio → Colegio de la inscripción."""
+    from . import colegios_dane as CD
+    mun = ''.join(ch for ch in (request.GET.get('mun') or '') if ch.isdigit())[:5]
+    if request.GET.get('q'):                 # buscar por palabras: en el municipio o en todo el país
+        return JsonResponse({'colegios': CD.buscar_texto(request.GET['q'][:80], mun)})
+    r = JsonResponse({'colegios': CD.de_municipio(mun)})
+    r['Cache-Control'] = 'public, max-age=86400'
+    return r
+
+
 def veedor_en_vivo(request, token):
     ev, v = _veedor(token)
     return _en_vivo(request, ev, veedor=v)
+
+
+def _avisar_colegas(request, ev, invitados):
+    """Aviso en la campanita a los colegas invitados (también ven el evento en su Sala de Profesores)."""
+    if not invitados:
+        return
+    from chat.views_colegas import avisar, nombre_de
+    for v in invitados:
+        u = User.objects.filter(pk=v['usuario']).first()
+        if u:
+            avisar(u, f'{nombre_de(request.user)} lo invitó al evento «{ev.titulo}»: vea el ranking en vivo.'[:255],
+                   url=reverse('aula:evento_veedor_en_vivo', args=[v['token']]))
+
+
+def eventos_invitado(user):
+    """[(evento, veedor)] activos a los que invitaron a este docente desde «Mis colegas»."""
+    if not getattr(user, 'is_authenticated', False):
+        return []
+    salida = []
+    for ev in Evento.objects.filter(activo=True, config__veedores__icontains='usuario').order_by('-creado')[:200]:
+        v = next((v for v in config_de(ev)['veedores'] if v.get('usuario') == user.pk and v.get('activo', True)), None)
+        if v:
+            salida.append((ev, v))
+    return salida
 
 
 def _invitar_veedor(request, ev, v):
