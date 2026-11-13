@@ -1140,6 +1140,26 @@ def _test_corregir_datos(self):
     for p in ParticipacionEvento.objects.filter(evento=ev):
         self.assertEqual((p.institucion, p.datos['dane'], p.datos['municipio_dane']), ('COLEGIO SAN JOSE DE LA SALLE', '305001003599', '05001'))
         self.assertEqual(p.datos['documento'][:3], '100')                  # lo demás de la inscripción no se toca
+    # Buscar y filtrar la lista: por palabras (sin tildes ni mayúsculas), por institución y por nivel
+    nombres = lambda **g: [x.nombre for x in self.admin.get(url, dict(estado='todas', **g)).context['lista']]
+    self.assertEqual(nombres(q='maria gomez'), ['María Gómez'])
+    self.assertEqual(nombres(q='100003'), ['Luis Mora'])
+    self.assertEqual(len(nombres(inst='colegio san jose de la salle')), 3)
+    self.assertEqual(nombres(q='nadie'), [])
+    # Corregir varios a la vez: solo cambian los que se tocaron; un documento repetido no se guarda
+    r = self.admin.get(url, {'estado': 'todas', 'varios': '1'})
+    self.assertContains(r, 'Corregir nombres, documentos e instituciones')
+    self.admin.post(url + '?estado=todas&varios=1', {'accion': 'editar_varios', 'pids': [a.pk, b.pk, c.pk],
+                    f'nombre_{a.pk}': 'Pedro Pérez Rojas', f'documento_{a.pk}': '100001', f'institucion_{a.pk}': 'COLEGIO SAN JOSE DE LA SALLE',
+                    f'nombre_{b.pk}': 'María Gómez', f'documento_{b.pk}': '100003', f'institucion_{b.pk}': 'COLEGIO SAN JOSE DE LA SALLE',
+                    f'nombre_{c.pk}': 'luis', f'documento_{c.pk}': '100003', f'institucion_{c.pk}': 'COLEGIO SAN JOSE DE LA SALLE'})
+    a.refresh_from_db(); b.refresh_from_db(); c.refresh_from_db()
+    self.assertEqual(a.nombre, 'Pedro Pérez Rojas')
+    self.assertEqual(b.datos['documento'], '100002')                     # el 100003 ya era de Luis
+    self.assertEqual(c.nombre, 'luis')                                   # «luis» tiene 4 letras: sí se guarda
+    # Desde los resultados, el lápiz lleva a corregir a esa persona
+    r = self.admin.get(f'/aula/eventos/{ev.pk}/resultados/')
+    self.assertContains(r, f'abrir={a.pk}')
     # Solo el organizador
     self.assertEqual(self.cliente(self.ana.user).post(url, {'accion': 'editar', 'pid': b.pk, 'nombre': 'Hack'}).status_code, 403)
 

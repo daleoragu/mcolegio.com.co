@@ -1440,6 +1440,32 @@ def inscripciones(request, eid):
                         n += 1
                 messages.success(request, f'Se corrigió la institución de {n} inscripción(es): ahora dicen «{nuevo}»'
                                  + (' (colegio oficial, con su código DANE).' if oficial else '.'))
+        elif accion == 'editar_varios':
+            # Corregir varios a la vez (nombres mal escritos, documentos, institución): solo se guardan los que cambiaron
+            limpio = lambda t, n: ' '.join((t or '').split())[:n]
+            ids = [int(x) for x in request.POST.getlist('pids') if x.isdigit()][:500]
+            cambiados, problemas = 0, []
+            for p in externas.filter(pk__in=ids):
+                nombre = limpio(request.POST.get(f'nombre_{p.pk}'), 120) or p.nombre
+                institucion = limpio(request.POST.get(f'institucion_{p.pk}'), 120) or p.institucion
+                documento = documento_limpio(request.POST.get(f'documento_{p.pk}')) or p.datos.get('documento', '')
+                if (nombre, institucion, documento) == (p.nombre, p.institucion, p.datos.get('documento', '')):
+                    continue
+                otro = inscrito_con(ev, documento) if documento != p.datos.get('documento', '') else None
+                if len(nombre) < 3:
+                    problemas.append(f'{p.nombre}: el nombre quedó muy corto.')
+                elif documento and len(documento) < 5:
+                    problemas.append(f'{p.nombre}: el documento debe tener al menos 5 caracteres.')
+                elif otro is not None and otro.pk != p.pk:
+                    problemas.append(f'{p.nombre}: el documento {documento} ya es de {otro.nombre}.')
+                else:
+                    p.nombre, p.institucion = nombre, institucion
+                    p.datos['documento'] = documento
+                    p.save(update_fields=['nombre', 'institucion', 'datos'])
+                    cambiados += 1
+            messages.success(request, f'Se corrigieron {cambiados} inscripción(es).' if cambiados else 'No había cambios para guardar.')
+            if problemas:
+                messages.warning(request, 'No se guardaron: ' + ' · '.join(problemas[:10]))
         elif accion == 'editar':
             p = get_object_or_404(externas, pk=request.POST.get('pid'))
             limpio = lambda k, n: ' '.join((request.POST.get(k) or '').split())[:n]
@@ -1509,6 +1535,18 @@ def inscripciones(request, eid):
     cuenta = {e: sum(1 for p in lista if p.estado == e) for e, _ in ParticipacionEvento.ESTADOS}
     if filtro in cuenta:
         lista = [p for p in lista if p.estado == filtro]
+    # Buscar por nombre, documento, institución, contacto o docente; filtrar por institución y por nivel
+    q = ' '.join((request.GET.get('q') or '').split())[:80]
+    inst, nivel = request.GET.get('inst') or '', request.GET.get('nivel') or ''
+    if q:
+        nq = normalizar(q)
+        lista = [p for p in lista if all(t in normalizar(' '.join(str(x) for x in (p.nombre, p.institucion, p.datos.get('documento', ''),
+                 p.datos.get('contacto', ''), p.datos.get('acompanante', ''), p.datos.get('ciudad', ''))))
+                 for t in nq.split())]
+    if inst:
+        lista = [p for p in lista if normalizar(p.institucion) == inst]
+    if nivel:
+        lista = [p for p in lista if p.ciclo == nivel]
     if request.GET.get('csv'):
         r = HttpResponse(content_type='text/csv; charset=utf-8')
         r['Content-Disposition'] = f'attachment; filename="inscripciones-evento-{ev.pk}.csv"'
@@ -1525,7 +1563,10 @@ def inscripciones(request, eid):
         'grados': [(x, etiqueta_grado(x)) for x in sorted({g for gr in grupos(c) for g in gr['grados']})],
         'errores_planilla': request.session.pop(f'evento_planilla_{ev.pk}', None),
         'resumen': sorted(resumen.values(), key=lambda r: r['nombre'].lower()), 'base': _base(request),
-        'regiones_menu': _menu_regiones()})
+        'regiones_menu': _menu_regiones(), 'q': q, 'inst': inst, 'nivel': nivel, 'varios': bool(request.GET.get('varios')),
+        'instituciones': sorted(((k, r['nombre']) for k, r in resumen.items()), key=lambda t: t[1].lower()),
+        'niveles': [(g['id'], g['nombre']) for g in grupos(c)], 'buscando': bool(q or inst or nivel),
+        'abrir': ''.join(ch for ch in request.GET.get('abrir', '') if ch.isdigit())[:12]})
 
 
 @login_required
