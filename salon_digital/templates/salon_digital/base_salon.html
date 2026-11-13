@@ -1,4 +1,4 @@
-{% load static %}<!DOCTYPE html>
+{% load static auth_extras %}<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
@@ -89,7 +89,7 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
       <a class="esp-ico" href="/chat/colegas/" id="nav-colegas" title="Mensajes y colegas"><i class="fas fa-comment-dots"></i><span class="badge rounded-pill text-bg-danger position-absolute top-0 end-0 d-none" id="nav-colegas-n" style="font-size:.6rem"></span></a>
       <div class="dropdown">
         <a class="esp-yo dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-          <span class="esp-av">{{ request.user.cuenta_salon.nombre_publico|default:request.user.username|slice:":1"|upper }}</span><span class="d-none d-md-inline text-truncate" style="max-width:160px">{{ request.user.cuenta_salon.nombre_publico|default:"Mi cuenta" }}</span>
+          {% with foto=request.user|foto_perfil %}{% if foto %}<img class="esp-av" src="{{ foto }}" alt="" width="32" height="32">{% else %}<span class="esp-av">{{ request.user.cuenta_salon.nombre_publico|default:request.user.username|slice:":1"|upper }}</span>{% endif %}{% endwith %}<span class="d-none d-md-inline text-truncate" style="max-width:160px">{{ request.user.cuenta_salon.nombre_publico|default:"Mi cuenta" }}</span>
         </a>
         <ul class="dropdown-menu dropdown-menu-end">
           <li><a class="dropdown-item" href="{% url 'salon_digital:mi_espacio' %}">👤 Mi Espacio de Profe</a></li>

@@ -1,4 +1,4 @@
-Versión 0037 · 2026-11-13 14:08
+Versión 0038 · 2026-11-13 14:51
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -569,6 +569,7 @@ CAMBIADO  notas/templates/notas/planillas/planilla_notas_pdf.html
 CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial.html
 CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial_pdf.html
 NUEVO     notas/templatetags/asesoria_tags.py
+CAMBIADO  notas/templatetags/auth_extras.py
 CAMBIADO  notas/templatetags/nota_filters.py
 NUEVO     notas/templatetags/pases_tags.py
 NUEVO     notas/tests/test_asesoria.py

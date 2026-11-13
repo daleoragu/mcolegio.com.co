@@ -27,6 +27,17 @@ class Espacios(TestCase):
         self.assertContains(r, 'class="esp-abajo"')                 # barra de abajo en el celular
         self.assertContains(r, 'aria-current="page">Pizarra</a>')
 
+    def test_el_menu_del_nombre_muestra_la_foto_de_perfil(self):
+        r = self.client.get('/salon_digital/inicio/')
+        self.assertContains(r, '<span class="esp-av">P</span>', html=False)         # sin foto: la inicial
+        from chat.views_colegas import perfil_de
+        p = perfil_de(self.u)
+        p.foto = 'colegas/david.jpg'
+        p.save(update_fields=['foto'])
+        r = self.client.get('/salon_digital/inicio/')
+        self.assertContains(r, '<img class="esp-av" src="/media/colegas/david.jpg"', html=False)
+        self.assertNotContains(r, '<span class="esp-av">P</span>', html=False)
+
     def test_el_menu_marca_el_espacio_de_cada_pagina(self):
         casos = [('/chat/colegas/muro/', 'Sala de Profesores'), ('/salon_digital/mi-espacio/', 'Mi Espacio'),
                  ('/salon_digital/panel/', 'Mi Espacio'), ('/chat/colegas/muro/?ver=guardados', 'Mi Espacio'),
