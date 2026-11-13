@@ -155,6 +155,7 @@ footer.pie{color:var(--tenue);font-size:.86rem;padding:28px 0;border-top:1px sol
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 {% block extra_js %}{% endblock %}
+{% load asesoria_tags %}{% asesoria_docente %}
 {% if request.user.cuenta_salon %}{% include 'copias/_recordatorio.html' %}{% endif %}
 {% if request.user.is_authenticated and request.user.cuenta_salon %}<script>
 (function () {   // número de mensajes y solicitudes de colegas sin ver

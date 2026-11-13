@@ -1,0 +1,61 @@
+/* Asesoría docente: botón lateral, panel, recorrido guiado y modo «¿Qué es esto?» */
+.as-boton { position:fixed; right:0; top:42%; z-index:1045; display:flex; align-items:center; gap:8px; border:0;
+            background:#1e2a78; color:#fff; font-weight:700; font-size:.85rem; padding:10px 12px; border-radius:12px 0 0 12px;
+            box-shadow:0 4px 16px rgba(15,23,42,.25); writing-mode:vertical-rl; transform:rotate(180deg); cursor:pointer; }
+.as-boton i { transform:rotate(90deg); font-size:1rem; }
+.as-boton:hover, .as-boton:focus-visible { background:#151f5c; outline:3px solid #fcd34d; outline-offset:2px; }
+.as-boton.as-nuevo::after { content:''; position:absolute; top:-4px; left:-4px; width:12px; height:12px; border-radius:50%; background:#f59f00;
+                            box-shadow:0 0 0 0 rgba(245,159,0,.7); animation:as-pulso 1.8s infinite; }
+@keyframes as-pulso { 70% { box-shadow:0 0 0 12px rgba(245,159,0,0); } 100% { box-shadow:0 0 0 0 rgba(245,159,0,0); } }
+@media (prefers-reduced-motion: reduce) { .as-boton.as-nuevo::after { animation:none; } }
+
+.as-panel { position:fixed; right:16px; top:50%; transform:translateY(-50%); z-index:1060; width:min(360px, calc(100vw - 32px));
+            max-height:calc(100vh - 32px); overflow:auto; background:#fff; color:#0f172a; border-radius:16px; padding:14px;
+            box-shadow:0 12px 40px rgba(15,23,42,.3); font-size:.9rem; }
+.as-cab { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px; }
+.as-cab small { display:block; color:#1e2a78; font-weight:700; text-transform:uppercase; letter-spacing:.04em; font-size:.7rem; }
+.as-cab b { font-size:1.05rem; }
+.as-x { border:0; background:none; font-size:1.6rem; line-height:1; color:#64748b; padding:0 4px; }
+.as-resumen { color:#334155; margin-bottom:10px; }
+.as-op { display:flex; gap:10px; align-items:center; width:100%; text-align:left; border:2px solid #e2e8f0; background:#fff; border-radius:12px;
+         padding:9px 11px; margin-bottom:8px; color:inherit; }
+.as-op:hover, .as-op:focus-visible { border-color:#1e2a78; background:#eef2ff; }
+.as-op i { font-size:1.3rem; color:#1e2a78; width:26px; text-align:center; }
+.as-op small { display:block; color:#64748b; }
+.as-op.as-principal { background:#1e2a78; color:#fff; border-color:#1e2a78; }
+.as-op.as-principal i, .as-op.as-principal small { color:#fff; }
+.as-op.as-principal:hover { background:#151f5c; }
+.as-op[disabled] { opacity:.5; }
+.as-mapa summary { cursor:pointer; font-weight:700; color:#1e2a78; padding:6px 0; }
+.as-mapa ol { padding-left:0; list-style:none; margin:6px 0 0; }
+.as-mapa li { border-left:4px solid #a5b4fc; padding:4px 0 4px 10px; margin-bottom:8px; }
+.as-mapa li b { display:block; }
+.as-mapa li a { font-size:.8rem; font-weight:700; }
+
+/* Recorrido: un recuadro que resalta el elemento y una tarjeta con la explicación */
+.as-foco { position:fixed; z-index:1070; border-radius:10px; box-shadow:0 0 0 4px #fcd34d, 0 0 0 9999px rgba(15,23,42,.55);
+           pointer-events:none; transition:all .25s ease; }
+.as-burbuja { position:fixed; z-index:1080; width:min(330px, calc(100vw - 24px)); background:#fff; color:#0f172a; border-radius:14px;
+              padding:12px 14px; box-shadow:0 10px 30px rgba(15,23,42,.35); font-size:.9rem; }
+.as-burbuja b { display:block; font-size:1rem; margin-bottom:4px; color:#1e2a78; }
+.as-burbuja p { margin:0 0 10px; color:#334155; }
+.as-burbuja .as-nav { display:flex; align-items:center; gap:6px; }
+.as-burbuja .as-nav span { flex:1; color:#64748b; font-size:.8rem; }
+.as-burbuja button { border:0; border-radius:8px; padding:6px 12px; font-weight:700; }
+.as-burbuja .as-sig { background:#1e2a78; color:#fff; }
+.as-burbuja .as-ant, .as-burbuja .as-fin { background:#e2e8f0; color:#0f172a; }
+
+/* Modo «¿Qué es esto?» */
+body.as-quees, body.as-quees * { cursor:help !important; }
+.as-quees-aviso { position:fixed; left:50%; top:12px; transform:translateX(-50%); z-index:1080; background:#1e2a78; color:#fff;
+                  padding:8px 14px; border-radius:99px; font-weight:700; font-size:.85rem; box-shadow:0 6px 18px rgba(0,0,0,.25);
+                  display:flex; gap:10px; align-items:center; max-width:calc(100vw - 24px); }
+.as-quees-aviso button { border:0; background:#fcd34d; color:#0f172a; border-radius:99px; padding:2px 10px; font-weight:700; }
+.as-marco { position:fixed; z-index:1075; border:3px solid #fcd34d; border-radius:8px; pointer-events:none; transition:all .1s; }
+
+@media print { .as-boton, .as-panel, .as-foco, .as-burbuja, .as-quees-aviso, .as-marco { display:none !important; } }
+/* En el celular la pestaña es solo el ícono, para no tapar el contenido */
+@media (max-width: 575px) {
+  .as-boton { padding:10px 7px; top:auto; bottom:96px; }
+  .as-boton span { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+}
