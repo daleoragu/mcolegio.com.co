@@ -256,3 +256,54 @@ class SemillaOtrasAreas(ColegioDePrueba):
         self.assertEqual(I.por_id('l10-caminante')['origen'], 'oficial')
         self.assertIn('secundaria', I.por_id('n11-invernadero')['prompt'])
         self.assertNotIn('Para el debate', ' '.join(K.buscar('LEN-10-5')['evidencias']))
+
+
+class MisDocumentosOrdenados(ColegioDePrueba):
+    """«Mis materiales» por área, grado, tipo y búsqueda, con páginas: con cientos de guías semilla hay que poder encontrar."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.a.modulos_activos = list(cls.a.modulos_activos) + ['salon']
+        cls.a.save(update_fields=['modulos_activos'])
+
+    def setUp(self):
+        self.c = self.cliente(self.u_docente)
+        crear = lambda t, area, grado, tipo='guia_momentos': Documento.objects.create(
+            propietario=self.u_docente, colegio=self.a, titulo=t, tipo=tipo, area=area, grado=grado, contenido={'bloques': []})
+        for g in ('1.º', '7.º', '10.º'):
+            crear(f'Fracciones {g}', 'Matemáticas', g)
+        crear('Taller de cuentos', 'Lenguaje', '7.º', 'taller')
+        crear('Sin clasificar', '', '')
+
+    def filas(self, **par):
+        r = self.c.get('/materiales/', par)
+        self.assertEqual(r.status_code, 200)
+        return r, [d.titulo for d in r.context['documentos']]
+
+    def test_filtra_por_area_grado_tipo_y_busqueda(self):
+        r, todos = self.filas()
+        self.assertEqual(len(todos), 5)
+        f = r.context['filtro']
+        self.assertEqual([(n, k) for n, k, _, _ in f['areas']], [('Lenguaje', 1), ('Matemáticas', 3), ('Sin área', 1)])
+        r, mat = self.filas(area='Matemáticas')
+        self.assertEqual(sorted(mat), ['Fracciones 1.º', 'Fracciones 10.º', 'Fracciones 7.º'])
+        # Los grados salen en orden numérico (1.º, 7.º, 10.º), no alfabético
+        self.assertEqual([n for n, _, _, _ in r.context['filtro']['grados']], ['1.º', '7.º', '10.º'])
+        self.assertEqual(self.filas(area='Matemáticas', grado='7.º')[1], ['Fracciones 7.º'])
+        self.assertEqual(self.filas(tipo='taller')[1], ['Taller de cuentos'])
+        self.assertEqual(self.filas(q='cuent')[1], ['Taller de cuentos'])
+        self.assertEqual(self.filas(area='')[1], ['Sin clasificar'])
+        r, _ = self.filas(area='Matemáticas', grado='7.º')
+        self.assertContains(r, 'Quitar filtros')
+        self.assertContains(r, 'Mis documentos')
+
+    def test_un_filtro_que_no_existe_se_ignora_y_hay_paginas(self):
+        self.assertEqual(len(self.filas(area='Química')[1]), 5)
+        for k in range(45):
+            Documento.objects.create(propietario=self.u_docente, colegio=self.a, titulo=f'Guía {k}', tipo='taller',
+                                     area='Ciencias', grado='5.º', contenido={'bloques': []})
+        r, pag1 = self.filas()
+        self.assertEqual(len(pag1), 40)
+        self.assertContains(r, 'Página 1 de 2')
+        self.assertEqual(len(self.filas(p=2)[1]), 10)

@@ -119,18 +119,70 @@
     </div>
     {% endif %}
 
+    <div class="mm-tarjeta mm-filtros" id="mis-documentos">
+      <style>
+        .mm-filtros .mf-fila { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; scrollbar-width:thin; }
+        .mm-filtros .mf-chip { flex:0 0 auto; border:1px solid #cbd5e1; background:#fff; color:#0f172a; border-radius:99px; padding:5px 12px;
+                               font-size:.85rem; font-weight:600; text-decoration:none; white-space:nowrap; }
+        .mm-filtros .mf-chip span { color:#64748b; font-weight:500; margin-left:4px; }
+        .mm-filtros .mf-chip:hover { border-color:#1e2a78; }
+        .mm-filtros .mf-chip.on { background:#1e2a78; border-color:#1e2a78; color:#fff; }
+        .mm-filtros .mf-chip.on span { color:#c7d2fe; }
+        .mm-filtros .mf-grados .mf-chip { font-size:.8rem; padding:4px 10px; }
+        .mm-filtros .mf-titulo { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#64748b; margin:8px 0 4px; }
+      </style>
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+        <h6 class="mb-0 flex-grow-1"><i class="fas fa-folder-tree me-1"></i>Mis documentos <span class="text-muted fw-normal small">({{ filtro.total }})</span></h6>
+        <form method="get" class="d-flex gap-1" role="search" action="#mis-documentos">
+          {% if filtro.area is not None %}<input type="hidden" name="area" value="{{ filtro.area }}">{% endif %}
+          {% if filtro.grado is not None %}<input type="hidden" name="grado" value="{{ filtro.grado }}">{% endif %}
+          {% if filtro.tipo %}<input type="hidden" name="tipo" value="{{ filtro.tipo }}">{% endif %}
+          <input type="search" name="q" value="{{ filtro.q }}" class="form-control form-control-sm" placeholder="Buscar por título…" aria-label="Buscar en mis documentos" style="min-width:180px">
+          <button class="btn btn-sm btn-outline-primary" aria-label="Buscar"><i class="fas fa-magnifying-glass"></i></button>
+        </form>
+      </div>
+      {% if filtro.areas|length > 1 or filtro.area is not None %}
+      <div class="mf-titulo">Área</div>
+      <div class="mf-fila" aria-label="Filtrar por área">
+        <a class="mf-chip {% if filtro.area is None %}on{% endif %}" href="{{ filtro.url_todas }}#mis-documentos">Todas<span>{{ filtro.total }}</span></a>
+        {% for nombre, n, url, activo in filtro.areas %}<a class="mf-chip {% if activo %}on{% endif %}" href="{{ url }}#mis-documentos" {% if activo %}aria-current="true"{% endif %}>{{ nombre }}<span>{{ n }}</span></a>{% endfor %}
+      </div>
+      {% endif %}
+      {% if filtro.grados|length > 1 or filtro.grado is not None %}
+      <div class="mf-titulo">Grado</div>
+      <div class="mf-fila mf-grados" aria-label="Filtrar por grado">
+        <a class="mf-chip {% if filtro.grado is None %}on{% endif %}" href="{{ filtro.url_todos_grados }}#mis-documentos">Todos<span>{{ filtro.en_area }}</span></a>
+        {% for nombre, n, url, activo in filtro.grados %}<a class="mf-chip {% if activo %}on{% endif %}" href="{{ url }}#mis-documentos" {% if activo %}aria-current="true"{% endif %}>{{ nombre }}<span>{{ n }}</span></a>{% endfor %}
+      </div>
+      {% endif %}
+      {% if filtro.tipos|length > 1 or filtro.tipo %}
+      <form method="get" class="d-flex align-items-center gap-2 mt-2" action="#mis-documentos">
+        {% if filtro.area is not None %}<input type="hidden" name="area" value="{{ filtro.area }}">{% endif %}
+        {% if filtro.grado is not None %}<input type="hidden" name="grado" value="{{ filtro.grado }}">{% endif %}
+        {% if filtro.q %}<input type="hidden" name="q" value="{{ filtro.q }}">{% endif %}
+        <label for="mf-tipo" class="small text-muted mb-0">Tipo</label>
+        <select id="mf-tipo" name="tipo" class="form-select form-select-sm" style="max-width:260px" onchange="this.form.submit()">
+          <option value="">Todos los tipos</option>
+          {% for k, nombre, n in filtro.tipos %}<option value="{{ k }}" {% if k == filtro.tipo %}selected{% endif %}>{{ nombre }} ({{ n }})</option>{% endfor %}
+        </select>
+        <noscript><button class="btn btn-sm btn-outline-secondary">Filtrar</button></noscript>
+      </form>
+      {% endif %}
+      {% if filtro.filtrando %}<div class="small mt-2">Mostrando <b>{{ filtro.hallados }}</b> de {{ filtro.total }} · <a href="?#mis-documentos">Quitar filtros</a></div>{% endif %}
+    </div>
+
     <div class="mm-tarjeta p-0">
       <div class="table-responsive"><table class="table align-middle mb-0">
-        <thead class="table-light"><tr><th>Documento</th><th>Tipo</th><th>Modificado</th><th></th></tr></thead>
+        <thead class="table-light"><tr><th>Documento</th><th class="d-none d-md-table-cell">Tipo</th><th class="d-none d-md-table-cell">Modificado</th><th></th></tr></thead>
         <tbody>
         {% for d in documentos %}
         <tr>
           <td><a href="{% url 'materiales:editor' d.pk %}" class="fw-semibold text-decoration-none">{{ d.titulo }}</a>
               {% if d.plantilla_colegio %}<span class="badge text-bg-warning ms-1"><i class="fas fa-star"></i> formato</span>{% endif %}
               {% with n=d.colaboradores.all|length %}{% if n %}<span class="badge text-bg-info ms-1" title="Docentes en el equipo"><i class="fas fa-user-group"></i> {{ n }}</span>{% endif %}{% endwith %}
-              <div class="small text-muted">{{ d.area }}{% if d.grado %} · Grado {{ d.grado }}{% endif %}</div></td>
-          <td class="small">{{ d.get_tipo_display }}</td>
-          <td class="small text-muted">{{ d.actualizado|date:"d M, h:i a" }}</td>
+              <div class="small text-muted">{{ d.area }}{% if d.grado %} · Grado {{ d.grado }}{% endif %}<span class="d-md-none"> · {{ d.get_tipo_display }}</span></div></td>
+          <td class="small d-none d-md-table-cell">{{ d.get_tipo_display }}</td>
+          <td class="small text-muted d-none d-md-table-cell">{{ d.actualizado|date:"d M, h:i a" }}</td>
           <td class="text-end text-nowrap">
             <button type="button" class="btn btn-sm btn-outline-primary mm-enviar" data-url="{% url 'materiales:accion' d.pk %}" data-titulo="{{ d.titulo }}" title="Enviar a mis grupos"><i class="fas fa-paper-plane"></i></button>
             <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:pdf' d.pk %}?descargar=1" title="Descargar PDF"><i class="far fa-file-pdf"></i></a>
@@ -145,10 +197,17 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="4" class="text-center text-muted py-4">Todavía no tiene materiales. Escoja arriba qué quiere crear.</td></tr>
+        <tr><td colspan="4" class="text-center text-muted py-4">{% if filtro.filtrando %}No hay documentos con esos filtros. <a href="?#mis-documentos">Quitar filtros</a>{% else %}Todavía no tiene materiales. Escoja arriba qué quiere crear.{% endif %}</td></tr>
         {% endfor %}
         </tbody>
       </table></div>
+      {% if filtro.pagina.has_other_pages %}
+      <nav class="d-flex justify-content-between align-items-center px-3 py-2 border-top small" aria-label="Páginas de mis documentos">
+        {% if filtro.url_anterior %}<a class="btn btn-sm btn-outline-secondary" href="{{ filtro.url_anterior }}#mis-documentos"><i class="fas fa-chevron-left me-1"></i>Anteriores</a>{% else %}<span></span>{% endif %}
+        <span class="text-muted">Página {{ filtro.pagina.number }} de {{ filtro.pagina.paginator.num_pages }}</span>
+        {% if filtro.url_siguiente %}<a class="btn btn-sm btn-outline-secondary" href="{{ filtro.url_siguiente }}#mis-documentos">Siguientes<i class="fas fa-chevron-right ms-1"></i></a>{% else %}<span></span>{% endif %}
+      </nav>
+      {% endif %}
     </div>
 
     {% if conmigo %}

@@ -150,13 +150,71 @@ def lista(request, a):
     conmigo = [(c, nombre(c.documento.propietario)) for c in Colaborador.objects.filter(
         usuario=request.user, estado='aceptada', documento__colegio=a.colegio).select_related('documento__propietario')
         .order_by('-documento__actualizado')]
+    filtro = _filtrar_documentos(request, a.documentos())
     return render(request, 'materiales/lista.html', {
-        'base': a.base, 'acceso': a, 'documentos': a.documentos().prefetch_related('colaboradores'), 'nube': _nube(a),
+        'base': a.base, 'acceso': a, 'documentos': filtro['pagina'], 'filtro': filtro, 'nube': _nube(a),
         'formatos': a.plantillas_formato().select_related('propietario'),
         'tipos': [t for t in Documento.TIPOS if t[0] not in MODELOS and t[0] not in plantillas.FORMATOS],
         'modelos': [t for t in Documento.TIPOS if t[0] in MODELOS],
         'formatos_tipos': [t for t in Documento.TIPOS if t[0] in plantillas.FORMATOS],
         'invitaciones': invitaciones, 'conmigo': conmigo, 'aulas': a.aulas(), **_contexto_ia(request, a)})
+
+
+POR_PAGINA = 40
+
+
+def _orden_grado(grado):
+    """Para ordenar los grados: Transición, 1.º, 2.º… 11.º y al final lo que no tenga número."""
+    import re
+    g = (grado or '').lower()
+    if 'trans' in g or 'jard' in g or 'pre' in g:
+        return (0, g)
+    m = re.search(r'\d+', g)
+    return (int(m.group()), g) if m else (99, g)
+
+
+def _filtrar_documentos(request, docs):
+    """«Mis materiales» por área, grado, tipo y búsqueda, con cuántos hay de cada cosa y páginas de 40."""
+    from django.core.paginator import Paginator
+    from django.db.models import Count
+    area, grado = request.GET.get('area'), request.GET.get('grado')
+    tipo, q = request.GET.get('tipo') or '', (request.GET.get('q') or '').strip()[:80]
+    todos = docs.order_by()
+    areas = sorted(((x['area'] or '', x['n']) for x in todos.values('area').annotate(n=Count('id'))),
+                   key=lambda t: (t[0] == '', t[0].lower()))
+    if area is not None and area not in {x for x, _ in areas}:
+        area = None
+    en_area = todos if area is None else todos.filter(area=area)
+    grados = sorted(((x['grado'] or '', x['n']) for x in en_area.values('grado').annotate(n=Count('id'))),
+                    key=lambda t: _orden_grado(t[0]) if t[0] else (100, ''))
+    if grado is not None and grado not in {x for x, _ in grados}:
+        grado = None
+    lista = en_area if grado is None else en_area.filter(grado=grado)
+    tipos_hay = dict(Documento.TIPOS)
+    tipos = [(k, tipos_hay.get(k, k), x) for k, x in
+             sorted(((y['tipo'], y['n']) for y in lista.values('tipo').annotate(n=Count('id'))), key=lambda t: tipos_hay.get(t[0], t[0]))]
+    if tipo:
+        lista = lista.filter(tipo=tipo)
+    if q:
+        lista = lista.filter(Q(titulo__icontains=q) | Q(area__icontains=q) | Q(grado__icontains=q))
+    lista = lista.order_by('-actualizado').prefetch_related('colaboradores')
+    pagina = Paginator(lista, POR_PAGINA).get_page(request.GET.get('p'))
+    from urllib.parse import urlencode
+
+    def url(**cambios):
+        actual = {'area': area, 'grado': grado, 'tipo': tipo or None, 'q': q or None}
+        actual.update(cambios)
+        par = {k: v for k, v in actual.items() if v is not None}
+        return '?' + urlencode(par) if par else '?'
+    return {'area': area, 'grado': grado, 'tipo': tipo, 'q': q, 'tipos': tipos,
+            'areas': [(x or 'Sin área', n, url(area=x, grado=None, tipo=None, p=None), x == area) for x, n in areas],
+            'grados': [(x or 'Sin grado', n, url(grado=x, tipo=None), x == grado) for x, n in grados],
+            'url_todas': url(area=None, grado=None, tipo=None), 'url_todos_grados': url(grado=None, tipo=None),
+            'url_anterior': url(p=pagina.previous_page_number()) if pagina.has_previous() else '',
+            'url_siguiente': url(p=pagina.next_page_number()) if pagina.has_next() else '',
+            'total': sum(n for _, n in areas), 'hallados': pagina.paginator.count, 'pagina': pagina,
+            'en_area': sum(n for _, n in grados),
+            'filtrando': area is not None or grado is not None or bool(tipo) or bool(q)}
 
 
 @require_POST
