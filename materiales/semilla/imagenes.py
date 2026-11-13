@@ -547,14 +547,25 @@ GRADOS_6_A_9 = [
 ]
 
 
-for _x in GRADOS_6_A_9:          # secundaria: estilo de libro de texto, no el infantil
+_n11 = _gr(_a('Ciencias Naturales'), 11)
+GRADOS_10_11 = [
+    _n11('n11-invernadero', 5, 'Efecto invernadero', 'Calentamiento global', 'La Tierra vista de lado con su atmósfera como una capa transparente: rayos de sol '
+         'amarillos entrando, parte del calor rojo rebotando hacia el espacio y parte atrapado por la capa y devuelto a la superficie; abajo, chimeneas de fábricas, '
+         'carros y un bosque talado.', DIDACTICO),
+    dict(_oficial('l10-caminante', 10, 4, 'El caminante sobre el mar de nubes (Friedrich)', 'Romanticismo: literatura y pintura',
+                  'Es una pintura de dominio público (Caspar David Friedrich, hacia 1818): búsquela en Wikimedia Commons («Wanderer above the Sea of Fog») '
+                  'y guárdela como PNG con este nombre.'), area='Lenguaje'),
+]
+
+
+for _x in GRADOS_6_A_9 + GRADOS_10_11:          # secundaria: estilo de libro de texto, no el infantil
     if _x['origen'] == 'ia':
         _x['prompt'] = _x['prompt'].replace(' ' + ESTILO, '').replace(' ' + DIDACTICO, '').replace(' ' + ESCENA, '') + ' ' + DIDACTICO
         _x['colorear'] = False
 
 
 def catalogo():
-    return list(MATEMATICAS_1) + LENGUAJE_1 + NATURALES_1 + SOCIALES_1 + GRADO_2 + GRADOS_3_A_5 + GRADOS_6_A_9
+    return list(MATEMATICAS_1) + LENGUAJE_1 + NATURALES_1 + SOCIALES_1 + GRADO_2 + GRADOS_3_A_5 + GRADOS_6_A_9 + GRADOS_10_11
 
 
 def por_id(id_):

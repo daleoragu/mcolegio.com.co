@@ -243,3 +243,16 @@ class SemillaOtrasAreas(ColegioDePrueba):
         self.assertIn('secundaria', I.por_id('n9-adn')['prompt'])
         self.assertNotIn('6 años', I.por_id('s7-acueducto')['prompt'])
         self.assertIn('Comprende', K.buscar('SOC-7-7')['enunciado'])
+
+    def test_decimo_once(self):
+        for (area, g), n in {('MAT', 10): 20, ('MAT', 11): 20, ('LEN', 10): 16, ('LEN', 11): 16, ('NAT', 10): 8, ('NAT', 11): 10,
+                             ('SOC', 10): 10, ('SOC', 11): 10}.items():
+            self.assertEqual(len(armar.documentos(g, area)), n, (area, g))
+        antes = Documento.objects.count()
+        call_command('cargar_semilla', '--usuario', 'profe', '--area', 'MAT', '--grados', '11', '--colegio', 'a', stdout=StringIO())
+        self.assertEqual(Documento.objects.count() - antes, 20)
+        self.assertTrue(Documento.objects.filter(titulo='La derivada: pendiente de la tangente', grado='11.º').exists())
+        from materiales.semilla import imagenes as I
+        self.assertEqual(I.por_id('l10-caminante')['origen'], 'oficial')
+        self.assertIn('secundaria', I.por_id('n11-invernadero')['prompt'])
+        self.assertNotIn('Para el debate', ' '.join(K.buscar('LEN-10-5')['evidencias']))

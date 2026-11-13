@@ -17,7 +17,7 @@ from ..dba import catalogo as K
 from . import banco, base
 
 AREAS = {'MAT': 'matematicas', 'LEN': 'lenguaje', 'NAT': 'naturales', 'SOC': 'sociales'}
-GRADOS = {'MAT': tuple(range(1, 10)), 'LEN': tuple(range(1, 10)), 'NAT': tuple(range(1, 10)), 'SOC': tuple(range(1, 10))}
+GRADOS = {'MAT': tuple(range(1, 12)), 'LEN': tuple(range(1, 12)), 'NAT': tuple(range(1, 12)), 'SOC': tuple(range(1, 12))}
 
 
 def _modulos():
