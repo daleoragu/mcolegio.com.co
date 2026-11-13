@@ -635,7 +635,7 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=F
     if ctx['cuadernillo'] and o['portada']:
         for texto, tam, negrilla in ((doc.titulo, 28, True), (doc.grado and f'Grado {doc.grado}', 22, True),
                                      (o['sesion'] and f'Cuadernillo de la {o["sesion"]}', 16, True),
-                                     (' y '.join(ctx['areas']) if ctx['areas'] else doc.area, 15, True),
+                                     (' y '.join(ctx['areas']) if ctx['areas'] else (doc.asignatura or doc.area), 15, True),
                                      (' · '.join(x for x in (f'{ctx["total_preguntas"]} preguntas', o['duracion']) if x), 13, False),
                                      (o['horario'], 13, True)):
             if texto:
@@ -658,7 +658,7 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=F
     r.bold = True
     r.font.size = Pt(letra + 3)
     if ctx['opciones']['datos']:
-        datos = [x for x in (doc.area, doc.grado and f'Grado {doc.grado}', doc.periodo, docente and f'Docente: {docente}') if x]
+        datos = [x for x in (doc.asignatura or doc.area, doc.grado and f'Grado {doc.grado}', doc.periodo, docente and f'Docente: {docente}') if x]
         if datos:
             p = w.add_paragraph(' · '.join(datos))
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER

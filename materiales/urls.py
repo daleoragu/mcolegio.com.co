@@ -6,6 +6,7 @@ app_name = 'materiales'
 
 urlpatterns = [
     path('', views.lista, name='lista'),
+    path('clasificar/', views.clasificar, name='clasificar'),
     # Mis juegos: crear, editar y probar sin grupo; enviar a las clases
     path('juegos/', vjg.juegos, name='juegos'),
     path('juegos/<int:pk>/', vjg.juego_editar, name='juego_editar'),

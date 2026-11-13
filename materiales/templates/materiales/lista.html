@@ -135,6 +135,7 @@
         <h6 class="mb-0 flex-grow-1"><i class="fas fa-folder-tree me-1"></i>Mis documentos <span class="text-muted fw-normal small">({{ filtro.total }})</span></h6>
         <form method="get" class="d-flex gap-1" role="search" action="#mis-documentos">
           {% if filtro.area is not None %}<input type="hidden" name="area" value="{{ filtro.area }}">{% endif %}
+          {% if filtro.asig is not None %}<input type="hidden" name="asig" value="{{ filtro.asig }}">{% endif %}
           {% if filtro.grado is not None %}<input type="hidden" name="grado" value="{{ filtro.grado }}">{% endif %}
           {% if filtro.tipo %}<input type="hidden" name="tipo" value="{{ filtro.tipo }}">{% endif %}
           <input type="search" name="q" value="{{ filtro.q }}" class="form-control form-control-sm" placeholder="Buscar por título…" aria-label="Buscar en mis documentos" style="min-width:180px">
@@ -148,16 +149,24 @@
         {% for nombre, n, url, activo in filtro.areas %}<a class="mf-chip {% if activo %}on{% endif %}" href="{{ url }}#mis-documentos" {% if activo %}aria-current="true"{% endif %}>{{ nombre }}<span>{{ n }}</span></a>{% endfor %}
       </div>
       {% endif %}
+      {% if filtro.asignaturas %}
+      <div class="mf-titulo">Asignatura</div>
+      <div class="mf-fila mf-grados" aria-label="Filtrar por asignatura">
+        <a class="mf-chip {% if filtro.asig is None %}on{% endif %}" href="{{ filtro.url_todas_asig }}#mis-documentos">Todas<span>{{ filtro.en_area }}</span></a>
+        {% for nombre, n, url, activo in filtro.asignaturas %}<a class="mf-chip {% if activo %}on{% endif %}" href="{{ url }}#mis-documentos" {% if activo %}aria-current="true"{% endif %}>{{ nombre }}<span>{{ n }}</span></a>{% endfor %}
+      </div>
+      {% endif %}
       {% if filtro.grados|length > 1 or filtro.grado is not None %}
       <div class="mf-titulo">Grado</div>
       <div class="mf-fila mf-grados" aria-label="Filtrar por grado">
-        <a class="mf-chip {% if filtro.grado is None %}on{% endif %}" href="{{ filtro.url_todos_grados }}#mis-documentos">Todos<span>{{ filtro.en_area }}</span></a>
+        <a class="mf-chip {% if filtro.grado is None %}on{% endif %}" href="{{ filtro.url_todos_grados }}#mis-documentos">Todos<span>{{ filtro.en_asig }}</span></a>
         {% for nombre, n, url, activo in filtro.grados %}<a class="mf-chip {% if activo %}on{% endif %}" href="{{ url }}#mis-documentos" {% if activo %}aria-current="true"{% endif %}>{{ nombre }}<span>{{ n }}</span></a>{% endfor %}
       </div>
       {% endif %}
       {% if filtro.tipos|length > 1 or filtro.tipo %}
       <form method="get" class="d-flex align-items-center gap-2 mt-2" action="#mis-documentos">
         {% if filtro.area is not None %}<input type="hidden" name="area" value="{{ filtro.area }}">{% endif %}
+        {% if filtro.asig is not None %}<input type="hidden" name="asig" value="{{ filtro.asig }}">{% endif %}
         {% if filtro.grado is not None %}<input type="hidden" name="grado" value="{{ filtro.grado }}">{% endif %}
         {% if filtro.q %}<input type="hidden" name="q" value="{{ filtro.q }}">{% endif %}
         <label for="mf-tipo" class="small text-muted mb-0">Tipo</label>
@@ -169,18 +178,33 @@
       </form>
       {% endif %}
       {% if filtro.filtrando %}<div class="small mt-2">Mostrando <b>{{ filtro.hallados }}</b> de {{ filtro.total }} · <a href="?#mis-documentos">Quitar filtros</a></div>{% endif %}
+      {% if filtro.sin_clasificar %}<div class="small mt-2 text-warning-emphasis"><i class="fas fa-circle-info me-1"></i>Tiene <b>{{ filtro.sin_clasificar }}</b> documento(s) sin área. Ábralos con la ficha «Sin clasificar», márquelos y use «Clasificar marcados».</div>{% endif %}
+      <form method="post" action="{% url 'materiales:clasificar' %}" id="mm-lote" class="mm-lote mt-2" hidden>{% csrf_token %}
+        <input type="hidden" name="volver" value="?{{ volver }}">
+        <div class="d-flex flex-wrap align-items-center gap-2 p-2 rounded" style="background:#eef2ff">
+          <b class="small"><span id="mm-lote-n">0</span> marcado(s):</b>
+          <select name="area" class="form-select form-select-sm" style="max-width:260px" aria-label="Área para los marcados" required>
+            <option value="">— Área —</option>
+            {% for k, oficial in areas_lista %}<option value="{{ k }}">{{ oficial }}</option>{% endfor %}
+          </select>
+          <input name="asignatura" class="form-control form-control-sm" style="max-width:200px" maxlength="80" list="mm-lote-asig" placeholder="Asignatura (opcional)" aria-label="Asignatura para los marcados">
+          <datalist id="mm-lote-asig">{% for x in asignaturas %}<option value="{{ x.nombre }}"></option>{% endfor %}</datalist>
+          <button class="btn btn-sm btn-primary"><i class="fas fa-folder-tree me-1"></i>Clasificar marcados</button>
+        </div>
+      </form>
     </div>
 
     <div class="mm-tarjeta p-0">
       <div class="table-responsive"><table class="table align-middle mb-0">
-        <thead class="table-light"><tr><th>Documento</th><th class="d-none d-md-table-cell">Tipo</th><th class="d-none d-md-table-cell">Modificado</th><th></th></tr></thead>
+        <thead class="table-light"><tr><th style="width:28px"><input type="checkbox" class="form-check-input" id="mm-marcar-todos" aria-label="Marcar todos los de esta página"></th><th>Documento</th><th class="d-none d-md-table-cell">Tipo</th><th class="d-none d-md-table-cell">Modificado</th><th></th></tr></thead>
         <tbody>
         {% for d in documentos %}
         <tr>
+          <td><input type="checkbox" class="form-check-input mm-marca" name="docs" value="{{ d.pk }}" form="mm-lote" aria-label="Marcar {{ d.titulo }}"></td>
           <td><a href="{% url 'materiales:editor' d.pk %}" class="fw-semibold text-decoration-none">{{ d.titulo }}</a>
               {% if d.plantilla_colegio %}<span class="badge text-bg-warning ms-1"><i class="fas fa-star"></i> formato</span>{% endif %}
               {% with n=d.colaboradores.all|length %}{% if n %}<span class="badge text-bg-info ms-1" title="Docentes en el equipo"><i class="fas fa-user-group"></i> {{ n }}</span>{% endif %}{% endwith %}
-              <div class="small text-muted">{{ d.area }}{% if d.grado %} · Grado {{ d.grado }}{% endif %}<span class="d-md-none"> · {{ d.get_tipo_display }}</span></div></td>
+              <div class="small text-muted">{{ d.area|default:"Sin área" }}{% if d.asignatura %} · {{ d.asignatura }}{% endif %}{% if d.grado %} · Grado {{ d.grado }}{% endif %}<span class="d-md-none"> · {{ d.get_tipo_display }}</span></div></td>
           <td class="small d-none d-md-table-cell">{{ d.get_tipo_display }}</td>
           <td class="small text-muted d-none d-md-table-cell">{{ d.actualizado|date:"d M, h:i a" }}</td>
           <td class="text-end text-nowrap">
@@ -197,7 +221,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="4" class="text-center text-muted py-4">{% if filtro.filtrando %}No hay documentos con esos filtros. <a href="?#mis-documentos">Quitar filtros</a>{% else %}Todavía no tiene materiales. Escoja arriba qué quiere crear.{% endif %}</td></tr>
+        <tr><td colspan="5" class="text-center text-muted py-4">{% if filtro.filtrando %}No hay documentos con esos filtros. <a href="?#mis-documentos">Quitar filtros</a>{% else %}Todavía no tiene materiales. Escoja arriba qué quiere crear.{% endif %}</td></tr>
         {% endfor %}
         </tbody>
       </table></div>
@@ -273,5 +297,18 @@ document.querySelectorAll('.mm-enviar').forEach(function (b) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('mm-enviar-modal')).show();
   });
 });
+</script>
+<script>
+// La ficha escogida queda a la vista aunque la fila tenga que desplazarse
+document.querySelectorAll('.mm-filtros .mf-fila').forEach(function (f) {
+  var on = f.querySelector('.mf-chip.on'); if (on && on.offsetLeft + on.offsetWidth > f.clientWidth) f.scrollLeft = on.offsetLeft - 40;
+});
+(function () {
+  var lote = document.getElementById('mm-lote'); if (!lote) return;
+  var marcas = [].slice.call(document.querySelectorAll('.mm-marca')), todos = document.getElementById('mm-marcar-todos');
+  function contar() { var n = marcas.filter(function (m) { return m.checked; }).length; document.getElementById('mm-lote-n').textContent = n; lote.hidden = !n; }
+  marcas.forEach(function (m) { m.addEventListener('change', contar); });
+  if (todos) todos.addEventListener('change', function () { marcas.forEach(function (m) { m.checked = todos.checked; }); contar(); });
+})();
 </script>
 {% endblock %}

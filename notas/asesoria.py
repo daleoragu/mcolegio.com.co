@@ -56,7 +56,8 @@ GUIAS = {
             P('Plantillas', 'Escoja el tipo de documento: guía, taller, evaluación, ficha, cuadernillo… Se abre el editor con la estructura lista.', s='.mm-tipos'),
             P('Formatos para llenar', 'Planeación, plan de aula, PIAR y DUA. Puede cambiarles filas y columnas y llenarlos a mano o con IA.', c='Formatos para llenar'),
             P('Modelos pedagógicos', 'Plantillas para ABP, aprendizaje por retos, estudio de caso, aula invertida y trabajo cooperativo.', c='Modelos pedagógicos'),
-            P('Mis documentos por área y grado', 'Escoja un área y luego un grado para ver solo esos documentos. El número dice cuántos hay. También puede buscar por título o filtrar por tipo.', s='#mis-documentos'),
+            P('Mis documentos por área, asignatura y grado', 'Las áreas son las de la Ley 115; dentro de cada una aparecen sus asignaturas (Danzas, Química…) y luego los grados. El número dice cuántos hay. También puede buscar por título o filtrar por tipo.', s='#mis-documentos'),
+            P('Clasificar varios a la vez', 'Marque los documentos con la casilla de la izquierda y aparece una barra para ponerles área y asignatura de una vez.', s='#mm-marcar-todos'),
             P('Sus documentos', 'Los documentos del filtro que escogió, del más reciente al más antiguo. Haga clic en el título para editarlo.', s='.mm-tarjeta table'),
             P('Enviar a mis grupos', 'El avión lleva el documento a la pestaña Material de las clases que escoja. Desde ese momento lo ven sus estudiantes.', s='.mm-enviar'),
             P('Las demás acciones', 'Descargar en PDF, duplicar (para hacer una versión nueva), marcar con estrella como formato y eliminar.', s='.mm-tarjeta table td.text-end'),
@@ -68,6 +69,7 @@ GUIAS = {
         'resumen': 'Aquí arma la guía por bloques: texto, títulos, tablas, imágenes, ecuaciones, gráficas y preguntas. Se guarda solo.',
         'pasos': [
             P('Deshacer y rehacer', 'Si se equivoca, deshaga con Ctrl+Z y rehaga con Ctrl+Y.', s='[title^="Deshacer"]'),
+            P('Área y asignatura', 'El área sale de la lista oficial; en Asignatura escriba el nombre que usted usa (Danzas, Química, Geometría…). Así sus documentos quedan bien agrupados.', s='#mm-area'),
             P('Formato del texto', 'Negrilla, cursiva, subrayado, exponentes, subíndices, viñetas y numeración.', s='[title="Negrilla"]'),
             P('Ecuaciones', 'Escriba fórmulas matemáticas como en un libro (atajo Alt+=).', s='[title^="Insertar una ecuación"]'),
             P('Gráficas', 'Grafique funciones, puntos, segmentos y polígonos en un plano cartesiano.', s='[title^="Insertar una gráfica"]'),

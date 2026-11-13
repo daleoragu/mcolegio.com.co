@@ -230,6 +230,6 @@ class BancoDePreguntas(ColegioDePrueba):
         doc.save()
         j = self._post(profe, '/materiales/banco/guardar/', {'documento': doc.pk, 'tema': 'célula'})
         self.assertIn('2 preguntas', j['mensaje'])
-        self.assertEqual(PreguntaBanco.objects.filter(area='Ciencias').count(), 2)
+        self.assertEqual(PreguntaBanco.objects.filter(area='Ciencias Naturales').count(), 2)          # «Ciencias» se guarda con el nombre de la lista
         # Un estudiante no entra al banco
         self.assertEqual(self.cliente(self.estudiantes[0].user).get('/materiales/banco/').status_code, 403)

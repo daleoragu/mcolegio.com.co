@@ -377,7 +377,7 @@
         guardando = true;
         estado('Guardando…');
         var cuerpo = {
-            titulo: $('#mm-titulo').value, area: $('#mm-area').value, grado: $('#mm-grado').value,
+            titulo: $('#mm-titulo').value, area: $('#mm-area').value, asignatura: ($('#mm-asignatura') || {}).value || '', grado: $('#mm-grado').value,
             periodo: $('#mm-periodo').value, contenido: datos, version: CFG.version
         };
         return fetch(CFG.guardar, {
@@ -396,7 +396,12 @@
                 if (pendiente) { pendiente = false; setTimeout(guardar, 800); }
             });
     }
-    ['#mm-titulo', '#mm-area', '#mm-grado', '#mm-periodo'].forEach(function (s) { $(s).addEventListener('input', cambio); });
+    ['#mm-titulo', '#mm-area', '#mm-asignatura', '#mm-grado', '#mm-periodo'].forEach(function (s) { if ($(s)) { $(s).addEventListener('input', cambio); $(s).addEventListener('change', cambio); } });
+    // Al escoger una asignatura conocida (Danzas, Química…), el área se llena sola si estaba vacía
+    if ($('#mm-asignatura')) $('#mm-asignatura').addEventListener('change', function () {
+        var v = this.value.trim().toLowerCase(), op = [].find.call(document.querySelectorAll('#mm-asignaturas option'), function (o) { return o.value.toLowerCase() === v; });
+        if (op && op.dataset.area && !$('#mm-area').value) { $('#mm-area').value = op.dataset.area; $('#mm-area').dispatchEvent(new Event('input')); }
+    });
     window.addEventListener('beforeunload', function (e) {
         if (CFG.soloVer || CFG.bloqueado) return;
         if ($('#mm-estado').textContent.indexOf('Todo guardado') !== 0) { e.preventDefault(); e.returnValue = ''; }
