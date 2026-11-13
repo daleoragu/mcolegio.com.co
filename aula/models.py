@@ -829,6 +829,9 @@ class MascotaAula(models.Model):
     hambre = models.FloatField(default=80)      # 100 = llena, 0 = muerta de hambre
     sueno = models.FloatField(default=80)       # 100 = descansada
     higiene = models.FloatField(default=80)     # 100 = limpia
+    diversion = models.FloatField(default=80)   # 100 = feliz de tanto jugar; 0 = aburrida
+    ultimo_juego = models.DateTimeField(null=True, blank=True, help_text='Última partida que le subió el ánimo (para no abusar).')
+    juego_reciente = models.CharField(max_length=80, blank=True, help_text='Con qué jugó la última vez (para el mensaje).')
     actualizada = models.DateTimeField(default=timezone.now)
     nacida = models.DateTimeField(default=timezone.now, help_text='Desde cuándo lleva viva (la racha).')
     mejor_racha = models.PositiveIntegerField(default=0)

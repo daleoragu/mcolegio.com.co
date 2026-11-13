@@ -103,15 +103,83 @@
   <datalist id="ins-colegios">{% for r in resumen %}<option value="{{ r.nombre }}">{% endfor %}</datalist>
   <div class="au-tarjeta">
     <h6><i class="fas fa-school me-1"></i>Cupos por institución</h6>
-    {% if resumen|length > 1 %}
-    <details class="mb-2"><summary class="small fw-bold text-primary">Unificar instituciones mal escritas</summary>
+    <details class="mb-2"><summary class="small fw-bold text-primary">Unificar o corregir instituciones mal escritas</summary>
       <form method="post" class="mt-2">{% csrf_token %}<input type="hidden" name="accion" value="unificar">
-        <p class="small text-muted mb-1">Marque las que son el mismo colegio escrito de distintas formas y escriba el nombre correcto: se corrige en todas sus inscripciones (cupos, podio y capturas quedan juntos).</p>
+        <p class="small text-muted mb-1">Marque las que son el mismo colegio escrito de distintas formas (o una sola, para corregirla) y busque el nombre correcto en la lista oficial o escríbalo: se corrige en todas sus inscripciones (cupos, podio y capturas quedan juntos).</p>
         <div class="d-flex flex-wrap gap-2 mb-2">{% for r in resumen %}<label class="form-check-label small border rounded px-2 py-1"><input type="checkbox" name="viejo" value="{{ r.nombre }}" class="form-check-input me-1">{{ r.nombre }} <span class="text-muted">({{ r.aprobada|add:r.pendiente|add:r.rechazada }})</span></label>{% endfor %}</div>
-        <div class="d-flex gap-2"><input name="nuevo" list="ins-colegios" class="form-control form-control-sm" style="max-width:360px" placeholder="Nombre correcto de la institución" required>
+        <div class="un-oficial border rounded-3 p-2 mb-2" data-url="{% url 'aula:evento_colegios' %}">
+          <div class="small fw-bold mb-1"><i class="fas fa-magnifying-glass me-1"></i>Buscar el nombre correcto en la lista oficial de colegios</div>
+          <div class="position-relative mb-1">
+            <input type="search" class="form-control form-control-sm un-buscar" autocomplete="off" maxlength="80" placeholder="Escriba palabras del nombre: «san jose ibague»" aria-label="Buscar colegio en la lista oficial">
+            <div class="list-group position-absolute w-100 shadow-sm un-resultados" style="z-index:10;max-height:260px;overflow:auto" hidden></div>
+          </div>
+          <div class="row g-1">
+            <div class="col-sm-4"><select class="form-select form-select-sm un-dep" aria-label="Departamento"><option value="">Departamento…</option>
+              {% for d in regiones_menu.departamentos %}<option value="{{ d.0 }}">{{ d.1 }}</option>{% endfor %}</select></div>
+            <div class="col-sm-4"><select class="form-select form-select-sm un-mun" aria-label="Municipio" disabled><option value="">Municipio…</option></select></div>
+            <div class="col-sm-4"><select class="form-select form-select-sm un-col" aria-label="Colegio" disabled><option value="">Colegio…</option></select></div>
+          </div>
+          <div class="small text-success fw-semibold mt-1 un-elegido" hidden></div>
+        </div>
+        <input type="hidden" name="dane" class="un-dane">
+        <div class="d-flex gap-2"><input name="nuevo" list="ins-colegios" class="form-control form-control-sm un-nuevo" style="max-width:360px" placeholder="…o escriba el nombre correcto" required>
           <button class="btn btn-sm btn-primary">Unificar</button></div>
       </form></details>
-    {% endif %}
+      {{ regiones_menu|json_script:"un-regiones" }}
+      <script>
+      (function () {
+        var caja = document.querySelector('.un-oficial'), R = JSON.parse(document.getElementById('un-regiones').textContent);
+        var q = caja.querySelector('.un-buscar'), res = caja.querySelector('.un-resultados'), dep = caja.querySelector('.un-dep'),
+            mun = caja.querySelector('.un-mun'), col = caja.querySelector('.un-col'), ok = caja.querySelector('.un-elegido'),
+            dane = document.querySelector('.un-dane'), nuevo = document.querySelector('.un-nuevo'), espera = null, turno = 0, nombres = {};
+        function op(sel, v, t) { var o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); }
+        function elegir(c) {
+          dane.value = c.dane; nuevo.value = c.nombre; ok.hidden = false;
+          ok.textContent = '✓ Colegio oficial: ' + c.nombre + (c.lugar ? ' · ' + c.lugar : '') + ' (código DANE ' + c.dane + ')';
+        }
+        nuevo.addEventListener('input', function () { dane.value = ''; ok.hidden = true; });     // si lo escribe a mano, ya no es el oficial
+        function municipios(elegido, colElegido) {
+          mun.innerHTML = ''; op(mun, '', dep.value ? 'Municipio…' : 'Escoja el departamento');
+          (R.municipios[dep.value] || []).forEach(function (m) { op(mun, m[0], m[1]); });
+          mun.disabled = !dep.value; if (elegido) mun.value = elegido; colegios(colElegido);
+        }
+        function colegios(elegido) {
+          col.innerHTML = ''; op(col, '', mun.value ? 'Cargando…' : 'Escoja el municipio'); col.disabled = true;
+          if (!mun.value) return;
+          fetch(caja.dataset.url + '?mun=' + mun.value).then(function (r) { return r.json(); }).then(function (d) {
+            col.innerHTML = ''; op(col, '', 'Colegio (' + d.colegios.length + ')…'); nombres = {};
+            d.colegios.forEach(function (c) { nombres[c.dane] = c; op(col, c.dane, c.nombre + (c.oficial ? '' : ' · privado')); });
+            col.disabled = false; if (elegido) col.value = elegido;
+          });
+        }
+        dep.addEventListener('change', function () { municipios(); });
+        mun.addEventListener('change', function () { colegios(); });
+        col.addEventListener('change', function () {
+          var c = nombres[col.value]; if (!c) return;
+          elegir({dane: c.dane, nombre: c.nombre, lugar: mun.options[mun.selectedIndex].textContent + ', ' + dep.options[dep.selectedIndex].textContent});
+        });
+        q.addEventListener('input', function () {
+          clearTimeout(espera); var t = q.value.trim();
+          if (t.length < 3) { res.hidden = true; return; }
+          espera = setTimeout(function () {
+            var mio = ++turno;
+            fetch(caja.dataset.url + '?q=' + encodeURIComponent(t) + (mun.value ? '&mun=' + mun.value : '')).then(function (r) { return r.json(); }).then(function (d) {
+              if (mio !== turno) return;
+              res.innerHTML = '';
+              if (!d.colegios.length) { var n = document.createElement('div'); n.className = 'list-group-item small text-muted'; n.textContent = 'No aparece «' + t + '». Pruebe otra palabra.'; res.appendChild(n); }
+              d.colegios.forEach(function (c) {
+                var b = document.createElement('button'); b.type = 'button'; b.className = 'list-group-item list-group-item-action small py-1';
+                b.innerHTML = '<b></b><span class="d-block text-muted"></span>'; b.firstChild.textContent = c.nombre; b.lastChild.textContent = c.lugar + (c.oficial ? '' : ' · privado');
+                b.addEventListener('click', function () { res.hidden = true; q.value = c.nombre; elegir(c); dep.value = c.municipio.slice(0, 2); municipios(c.municipio, c.dane); });
+                res.appendChild(b);
+              });
+              res.hidden = false;
+            });
+          }, 300);
+        });
+        q.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var b = res.querySelector('button'); if (b && !res.hidden) b.click(); } });
+      })();
+      </script>
     <table class="table table-sm small mb-0">
       <thead><tr><th>Institución</th><th>Aprobadas</th><th>Pendientes</th><th>Rechazadas</th><th>Aprobadas por nivel</th></tr></thead>
       <tbody>{% for r in resumen %}

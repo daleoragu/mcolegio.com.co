@@ -29,6 +29,16 @@
   .ms-especie:has(input:checked) { border-color:#7048e8; background:#f3f0ff; }
   .ms-especie input { position:absolute; opacity:0; }
   .ms-especie canvas { width:84px; height:84px; image-rendering:pixelated; }
+  .ms-humor { margin-top:6px; font-size:.8rem; color:#212529; }
+  .ms-humor b { font-family:"Press Start 2P", monospace; font-size:9px; display:inline-block; padding:4px 6px; border-radius:6px; background:#fff; margin-bottom:3px; }
+  .ms-humor b.feliz, .ms-humor b.euforica { color:#2b8a3e; } .ms-humor b.contenta { color:#1971c2; }
+  .ms-humor b.aburrida, .ms-humor b.triste { color:#9c36b5; } .ms-humor b.desmayada, .ms-humor b.hambre, .ms-humor b.sueno, .ms-humor b.higiene { color:#c92a2a; }
+  .ms-juego-op { display:flex; gap:12px; align-items:center; border:2px solid #e3e7ef; border-radius:14px; padding:10px 12px; background:#fff; width:100%; text-align:left; margin-bottom:8px; color:inherit; text-decoration:none; }
+  .ms-juego-op:hover { border-color:#ae3ec9; background:#f8f0fc; }
+  .ms-juego-op i { font-size:1.6rem; color:#ae3ec9; width:34px; text-align:center; }
+  .ms-arcade { position:relative; max-width:340px; margin:0 auto; }
+  .ms-arcade canvas { width:100%; border-radius:14px; border:4px solid #343a40; background:#1b1f3b; touch-action:none; display:block; }
+  .ms-marcador { display:flex; justify-content:space-between; font-family:"Press Start 2P", monospace; font-size:10px; margin-bottom:6px; }
 </style>
 <div class="au">
 <div class="row g-3">
@@ -36,16 +46,16 @@
   <div class="col-lg-7">
     <div class="au-tarjeta">
       <h6><i class="fas fa-paw me-1"></i>Mascotas de la clase ({{ tablero|length }})</h6>
-      <p class="small text-muted">Cada estudiante cuida su mascota respondiendo preguntas: comida, sueño y baño bajan con las horas. Si se le acaban dos, se desmaya y su racha vuelve a cero.</p>
+      <p class="small text-muted">Cada estudiante cuida su mascota respondiendo preguntas: comida, sueño, baño y ánimo bajan con las horas. El ánimo sube jugando (minijuego con preguntas o niveles de los juegos de lógica). Si se le acaban dos, se desmaya y su racha vuelve a cero.</p>
       <div class="table-responsive"><table class="table table-sm align-middle mb-0">
-        <thead><tr><th></th><th>Estudiante</th><th>Mascota</th><th class="text-center">Días viva</th><th class="text-center">Mejor racha</th><th class="text-center">Aciertos</th><th>Cómo está</th></tr></thead>
+        <thead><tr><th></th><th>Estudiante</th><th>Mascota</th><th class="text-center">Días viva</th><th class="text-center">Mejor racha</th><th class="text-center">Aciertos</th><th>Estado de ánimo</th></tr></thead>
         <tbody>
         {% for f in tablero %}<tr>
           <td><canvas width="40" height="40" data-especie="{{ f.mascota.especie }}" data-animo="{{ f.animo }}" style="width:40px;height:40px;image-rendering:pixelated"></canvas></td>
           <td>{{ f.dueno }}</td><td>{{ f.mascota.nombre }} <span class="text-muted small">· {{ f.mascota.get_especie_display }}</span></td>
           <td class="text-center fw-bold">{{ f.dias }}</td><td class="text-center">{{ f.mascota.mejor_racha }}</td>
           <td class="text-center">{{ f.mascota.aciertos }}/{{ f.mascota.respondidas }}</td>
-          <td class="small">{% if f.animo == 'desmayada' %}<span class="au-chip mal">Desmayada</span>{% elif f.animo == 'mal' %}<span class="au-chip pend">Necesita atención</span>{% else %}<span class="au-chip ok">Bien</span>{% endif %}</td>
+          <td class="small">{% if f.animo == 'desmayada' %}<span class="au-chip mal">{{ f.humor }}</span>{% elif f.animo == 'mal' %}<span class="au-chip pend">{{ f.humor }}</span>{% else %}<span class="au-chip ok">{{ f.humor }}</span>{% endif %}</td>
         </tr>{% empty %}<tr><td colspan="7" class="text-muted">Ningún estudiante ha adoptado mascota todavía.</td></tr>{% endfor %}
         </tbody>
       </table></div>
@@ -84,16 +94,19 @@
       <div class="ms-pantalla">
         <div class="ms-nombre">{{ m.nombre|upper }}</div>
         <canvas id="ms-lienzo" width="256" height="256" aria-label="{{ m.nombre }}, su mascota"></canvas>
+        <div class="ms-humor" id="ms-humor" role="status" aria-live="polite"></div>
       </div>
       <div class="ms-barras">
         <span><i class="fas fa-drumstick-bite me-1"></i>Comida</span><div class="ms-barra" role="progressbar" aria-label="Comida" aria-valuemin="0" aria-valuemax="100"><span id="ms-hambre"></span></div>
         <span><i class="fas fa-moon me-1"></i>Sueño</span><div class="ms-barra" role="progressbar" aria-label="Sueño" aria-valuemin="0" aria-valuemax="100"><span id="ms-sueno"></span></div>
         <span><i class="fas fa-soap me-1"></i>Baño</span><div class="ms-barra" role="progressbar" aria-label="Baño" aria-valuemin="0" aria-valuemax="100"><span id="ms-higiene"></span></div>
+        <span><i class="fas fa-face-smile me-1"></i>Ánimo</span><div class="ms-barra" role="progressbar" aria-label="Ánimo" aria-valuemin="0" aria-valuemax="100"><span id="ms-diversion"></span></div>
       </div>
       <div class="ms-botones">
         <button type="button" data-accion="comer" style="background:#e8590c"><i class="fas fa-drumstick-bite"></i>Comer</button>
         <button type="button" data-accion="dormir" style="background:#1c7ed6"><i class="fas fa-moon"></i>Dormir</button>
         <button type="button" data-accion="banar" style="background:#0ca678"><i class="fas fa-soap"></i>Bañar</button>
+        <button type="button" id="ms-jugar" style="background:#ae3ec9"><i class="fas fa-gamepad"></i>Jugar</button>
         <button type="button" data-accion="reanimar" class="d-none" style="background:#e03131;width:120px;border-radius:99px"><i class="fas fa-heart-pulse"></i>Reanimar</button>
       </div>
       <div class="ms-aviso" id="ms-aviso" role="status" aria-live="polite"></div>
@@ -106,6 +119,20 @@
     </div>
   </div>
   <div class="col-lg-6">
+    <div class="au-tarjeta" id="ms-juegos" hidden>
+      <div class="d-flex justify-content-between align-items-center mb-2"><h6 class="mb-0"><i class="fas fa-gamepad me-1"></i>¿A qué jugamos?</h6>
+        <button type="button" class="btn-close" id="ms-juegos-cerrar" aria-label="Cerrar"></button></div>
+      <button type="button" class="ms-juego-op" id="ms-arcade-ir"><i class="fas fa-star"></i>
+        <span><b>Atrapa estrellas</b><br><span class="small text-muted">40 segundos. Mueva a {{ m.nombre }} y atrape estrellas; esquive las nubes de tormenta. Las burbujas <b>?</b> son preguntas que dan +5 estrellas y mucho ánimo.</span></span></button>
+      <a class="ms-juego-op" id="ms-logica-ir" href="#"><i class="fas fa-puzzle-piece"></i>
+        <span><b>Juegos de lógica</b><br><span class="small text-muted">Tangram, Empuja cajas, Trancón… Cada nivel nuevo que supere juega con {{ m.nombre }} y le sube el ánimo.</span></span></a>
+      {% if m.juego_reciente %}<p class="small text-muted mb-0">Lo último que jugaron: <b>{{ m.juego_reciente }}</b>.</p>{% endif %}
+    </div>
+    <div class="au-tarjeta" id="ms-arcade" hidden>
+      <div class="ms-marcador"><span>★ <span id="ms-puntos">0</span></span><span id="ms-tiempo">40</span></div>
+      <div class="ms-arcade"><canvas id="ms-arcade-lienzo" width="320" height="420" aria-label="Minijuego Atrapa estrellas: mueva la mascota con el dedo, el mouse o las flechas"></canvas></div>
+      <p class="small text-muted text-center mt-2 mb-0">Arrastre con el dedo o el mouse, o use las flechas ← →.</p>
+    </div>
     <div class="au-tarjeta" id="ms-pregunta" hidden aria-live="polite"></div>
     <div class="au-tarjeta">
       <h6><i class="fas fa-trophy me-1"></i>Mascotas de la clase con más días</h6>

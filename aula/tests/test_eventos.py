@@ -1121,7 +1121,7 @@ def _test_corregir_datos(self):
     c = nueva('Luis Mora', 'Colegio San José', '100003')
     url = f'/aula/eventos/{ev.pk}/inscripciones/'
     r = self.admin.get(url + '?estado=todas')
-    self.assertContains(r, 'id="ed-%d"' % a.pk); self.assertContains(r, 'Unificar instituciones')
+    self.assertContains(r, 'id="ed-%d"' % a.pk); self.assertContains(r, 'Unificar o corregir instituciones')
     self.admin.post(url, {'accion': 'editar', 'pid': a.pk, 'nombre': 'Pedro  Pérez', 'documento': '1.000.01', 'institucion': 'Colegio San José',
                           'ciudad': 'Ibagué', 'grado': '7', 'contacto': '3001234567', 'acompanante': 'Prof. Rosa'})
     a.refresh_from_db()
@@ -1134,6 +1134,12 @@ def _test_corregir_datos(self):
     # Unificar: «colegio sanjose» pasa a llamarse como los demás
     self.admin.post(url, {'accion': 'unificar', 'viejo': ['colegio sanjose', 'Colegio San José'], 'nuevo': 'I.E. Colegio San José'})
     self.assertEqual(set(ParticipacionEvento.objects.filter(evento=ev).values_list('institucion', flat=True)), {'I.E. Colegio San José'})
+    # Unificar escogiendo de la lista oficial: queda el nombre oficial con su código DANE y su municipio
+    self.assertContains(self.admin.get(url + '?estado=todas'), 'lista oficial de colegios')
+    self.admin.post(url, {'accion': 'unificar', 'viejo': ['I.E. Colegio San José'], 'nuevo': 'lo que sea', 'dane': '305001003599'})
+    for p in ParticipacionEvento.objects.filter(evento=ev):
+        self.assertEqual((p.institucion, p.datos['dane'], p.datos['municipio_dane']), ('COLEGIO SAN JOSE DE LA SALLE', '305001003599', '05001'))
+        self.assertEqual(p.datos['documento'][:3], '100')                  # lo demás de la inscripción no se toca
     # Solo el organizador
     self.assertEqual(self.cliente(self.ana.user).post(url, {'accion': 'editar', 'pid': b.pk, 'nombre': 'Hack'}).status_code, 403)
 

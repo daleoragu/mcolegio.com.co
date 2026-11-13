@@ -116,7 +116,7 @@
     <h1>{{ doc.titulo }}</h1>
     {% if doc.grado %}<div class="grado">Grado {{ doc.grado }}</div>{% endif %}
     {% if opciones.sesion %}<div class="sesion">Cuadernillo de la {{ opciones.sesion }}</div>{% endif %}
-    {% if areas %}<div class="areas">{{ areas|join:" y " }}</div>{% elif doc.area %}<div class="areas">{{ doc.area }}</div>{% endif %}
+    {% if areas %}<div class="areas">{{ areas|join:" y " }}</div>{% elif doc.area or doc.asignatura %}<div class="areas">{{ doc.asignatura|default:doc.area }}</div>{% endif %}
     <div class="info">{{ total_preguntas }} pregunta{{ total_preguntas|pluralize }}{% if opciones.duracion %} · {{ opciones.duracion }}{% endif %}</div>
     {% if opciones.horario %}<div class="horario">{{ opciones.horario }}</div>{% endif %}
     {% if opciones.aviso %}<div class="aviso">{{ opciones.aviso }}</div>{% endif %}
@@ -129,7 +129,7 @@
     {% include 'materiales/_encabezado_docente.html' %}
 {% endif %}
 <h1 class="titulo">{{ doc.titulo }}</h1>
-{% if opciones.datos %}<div class="datos">{% if doc.area %}{{ doc.area }}{% endif %}{% if doc.grado %} · Grado {{ doc.grado }}{% endif %}{% if doc.periodo %} · {{ doc.periodo }}{% endif %}{% if docente %} · Docente: {{ docente }}{% endif %}</div>{% endif %}
+{% if opciones.datos %}<div class="datos">{% if doc.area or doc.asignatura %}{{ doc.asignatura|default:doc.area }}{% endif %}{% if doc.grado %} · Grado {{ doc.grado }}{% endif %}{% if doc.periodo %} · {{ doc.periodo }}{% endif %}{% if docente %} · Docente: {{ docente }}{% endif %}</div>{% endif %}
 {% endif %}
 {% if respuestas %}<div class="clave-docente">VERSIÓN DEL DOCENTE · CON LAS RESPUESTAS</div>{% endif %}
 {% if opciones.nombre_estudiante and not cuadernillo %}<div class="nombre"><b>Nombre:</b> <span class="l">&nbsp;</span> &nbsp; <b>Curso:</b> <span class="c">&nbsp;</span> &nbsp; <b>Fecha:</b> <span class="c">&nbsp;</span></div>{% endif %}

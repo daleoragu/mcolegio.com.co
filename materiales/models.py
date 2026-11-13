@@ -50,7 +50,9 @@ class Documento(models.Model):
                                 related_name='materiales')
     titulo = models.CharField(max_length=150)
     tipo = models.CharField(max_length=16, choices=TIPOS, default='libre')
-    area = models.CharField(max_length=80, blank=True, verbose_name='Área o asignatura')
+    area = models.CharField(max_length=80, blank=True, verbose_name='Área',
+                            help_text='Una de la lista fija (materiales/areas.py); lo que el docente escriba se clasifica solo.')
+    asignatura = models.CharField(max_length=80, blank=True, help_text='Con el nombre que quiera el docente: Danzas, Química, Geometría…')
     grado = models.CharField(max_length=40, blank=True)
     periodo = models.CharField(max_length=40, blank=True)
     contenido = models.JSONField(default=dict, blank=True)
@@ -71,6 +73,17 @@ class Documento(models.Model):
 
     def __str__(self):
         return self.titulo
+
+    def save(self, *args, **kwargs):
+        """El área siempre queda en la lista fija: «artistica» o «Danzas» pasan a Educación Artística y lo
+        específico («Danzas») se conserva como asignatura."""
+        from .areas import NOMBRES, clasificar
+        if self.area and self.area not in NOMBRES:
+            area, asignatura = clasificar(self.area)
+            self.area = area
+            if asignatura and not self.asignatura:
+                self.asignatura = asignatura[:80]
+        super().save(*args, **kwargs)
 
     def equipo_ids(self):
         """El dueño y los colaboradores que aceptaron (sus imágenes pueden ir en el documento)."""

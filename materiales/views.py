@@ -9,11 +9,14 @@ from django.core.files.base import ContentFile
 from django.db.models import Q, Sum
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from . import bloques as B
 from . import exportar, plantillas
+from .areas import AREAS as AREAS_LISTA
+from .areas import NOMBRES as AREAS_NOMBRES
 from .models import Documento, EncabezadoDocente, Imagen
 
 MB = 1024 * 1024
@@ -150,13 +153,131 @@ def lista(request, a):
     conmigo = [(c, nombre(c.documento.propietario)) for c in Colaborador.objects.filter(
         usuario=request.user, estado='aceptada', documento__colegio=a.colegio).select_related('documento__propietario')
         .order_by('-documento__actualizado')]
+    filtro = _filtrar_documentos(request, a.documentos())
     return render(request, 'materiales/lista.html', {
-        'base': a.base, 'acceso': a, 'documentos': a.documentos().prefetch_related('colaboradores'), 'nube': _nube(a),
+        'base': a.base, 'acceso': a, 'documentos': filtro['pagina'], 'filtro': filtro, 'nube': _nube(a),
+        'areas_lista': AREAS_LISTA, 'asignaturas': sugerencias_asignatura(request, a), 'volver': request.GET.urlencode(),
         'formatos': a.plantillas_formato().select_related('propietario'),
         'tipos': [t for t in Documento.TIPOS if t[0] not in MODELOS and t[0] not in plantillas.FORMATOS],
         'modelos': [t for t in Documento.TIPOS if t[0] in MODELOS],
         'formatos_tipos': [t for t in Documento.TIPOS if t[0] in plantillas.FORMATOS],
         'invitaciones': invitaciones, 'conmigo': conmigo, 'aulas': a.aulas(), **_contexto_ia(request, a)})
+
+
+POR_PAGINA = 40
+
+
+def sugerencias_asignatura(request, a):
+    """Para el campo «Asignatura»: las que el docente ya usó y, en el colegio, las materias que tiene asignadas,
+    cada una con el área a la que pertenece (para llenar el área sola al escogerla)."""
+    from .areas import clasificar
+    vistas, salida = set(), []
+    nombres = list(a.documentos().exclude(asignatura='').values_list('asignatura', 'area').distinct()[:200])
+    try:
+        from notas.models import AsignacionDocente
+        nombres += [(m, '') for m in AsignacionDocente.objects.filter(docente__user=request.user)
+                    .values_list('materia__nombre', flat=True).distinct()[:100]]
+    except Exception:
+        pass
+    for nombre, area in nombres:
+        clave = (nombre or '').strip().lower()
+        if clave and clave not in vistas:
+            vistas.add(clave)
+            salida.append({'nombre': nombre.strip(), 'area': area or clasificar(nombre)[0]})
+    return sorted(salida, key=lambda x: x['nombre'].lower())
+
+
+def _orden_grado(grado):
+    """Para ordenar los grados: Transición, 1.º, 2.º… 11.º y al final lo que no tenga número."""
+    import re
+    g = (grado or '').lower()
+    if 'trans' in g or 'jard' in g or 'pre' in g:
+        return (0, g)
+    m = re.search(r'\d+', g)
+    return (int(m.group()), g) if m else (99, g)
+
+
+def _filtrar_documentos(request, docs):
+    """«Mis materiales» por área → asignatura → grado, tipo y búsqueda, con cuántos hay de cada cosa y páginas de 40."""
+    from urllib.parse import urlencode
+
+    from django.core.paginator import Paginator
+    from django.db.models import Count
+    g = request.GET
+    area, asig, grado = g.get('area'), g.get('asig'), g.get('grado')
+    tipo, q = g.get('tipo') or '', (g.get('q') or '').strip()[:80]
+    todos = docs.order_by()
+    orden = {n: k for k, n in enumerate(AREAS_NOMBRES)}
+    areas = sorted(((x['area'] or '', x['n']) for x in todos.values('area').annotate(n=Count('id'))),
+                   key=lambda t: (t[0] == '', orden.get(t[0], 99), t[0].lower()))
+    if area is not None and area not in {x for x, _ in areas}:
+        area = None
+    en_area = todos if area is None else todos.filter(area=area)
+    asigs = []
+    if area is not None:
+        asigs = sorted(((x['asignatura'] or '', x['n']) for x in en_area.values('asignatura').annotate(n=Count('id'))),
+                       key=lambda t: (t[0] == '', t[0].lower()))
+        if not any(x for x, _ in asigs):
+            asigs = []
+    if asig is not None and asig not in {x for x, _ in asigs}:
+        asig = None
+    en_asig = en_area if asig is None else en_area.filter(asignatura=asig)
+    grados = sorted(((x['grado'] or '', x['n']) for x in en_asig.values('grado').annotate(n=Count('id'))),
+                    key=lambda t: _orden_grado(t[0]) if t[0] else (100, ''))
+    if grado is not None and grado not in {x for x, _ in grados}:
+        grado = None
+    lista = en_asig if grado is None else en_asig.filter(grado=grado)
+    tipos_hay = dict(Documento.TIPOS)
+    tipos = [(k, tipos_hay.get(k, k), x) for k, x in
+             sorted(((y['tipo'], y['n']) for y in lista.values('tipo').annotate(n=Count('id'))), key=lambda t: tipos_hay.get(t[0], t[0]))]
+    if tipo:
+        lista = lista.filter(tipo=tipo)
+    if q:
+        lista = lista.filter(Q(titulo__icontains=q) | Q(area__icontains=q) | Q(asignatura__icontains=q) | Q(grado__icontains=q))
+    lista = lista.order_by('-actualizado').prefetch_related('colaboradores')
+    pagina = Paginator(lista, POR_PAGINA).get_page(g.get('p'))
+
+    def url(**cambios):
+        actual = {'area': area, 'asig': asig, 'grado': grado, 'tipo': tipo or None, 'q': q or None}
+        actual.update(cambios)
+        par = {k: v for k, v in actual.items() if v is not None}
+        return '?' + urlencode(par) if par else '?'
+    return {'area': area, 'asig': asig, 'grado': grado, 'tipo': tipo, 'q': q, 'tipos': tipos,
+            'areas': [(x or 'Sin clasificar', n, url(area=x, asig=None, grado=None, tipo=None), x == area) for x, n in areas],
+            'asignaturas': [(x or 'Sin asignatura', n, url(asig=x, grado=None, tipo=None), x == asig) for x, n in asigs],
+            'grados': [(x or 'Sin grado', n, url(grado=x, tipo=None), x == grado) for x, n in grados],
+            'url_todas': url(area=None, asig=None, grado=None, tipo=None), 'url_todas_asig': url(asig=None, grado=None, tipo=None),
+            'url_todos_grados': url(grado=None, tipo=None),
+            'url_anterior': url(p=pagina.previous_page_number()) if pagina.has_previous() else '',
+            'url_siguiente': url(p=pagina.next_page_number()) if pagina.has_next() else '',
+            'total': sum(n for _, n in areas), 'hallados': pagina.paginator.count, 'pagina': pagina,
+            'en_area': sum(n for _, n in grados) if asig is None else en_area.count(),
+            'en_asig': sum(n for _, n in grados), 'sin_clasificar': dict(areas).get('', 0),
+            'filtrando': any(x is not None for x in (area, asig, grado)) or bool(tipo) or bool(q)}
+
+
+@require_POST
+@vista
+def clasificar(request, a):
+    """Clasificar en lote: a los documentos marcados se les pone el área (y la asignatura, si se escribe)."""
+    from .areas import NOMBRES
+    volver = request.POST.get('volver') or ''
+    destino = reverse('materiales:lista') + (volver if volver.startswith('?') else '') + '#mis-documentos'
+    ids = [int(x) for x in request.POST.getlist('docs') if x.isdigit()][:500]
+    area = request.POST.get('area') or ''
+    if area not in NOMBRES:
+        messages.warning(request, 'Escoja un área de la lista.')
+        return redirect(destino)
+    if not ids:
+        messages.warning(request, 'Marque primero los documentos que quiere clasificar.')
+        return redirect(destino)
+    cambios = {'area': area}
+    asignatura = B.texto_plano(request.POST.get('asignatura'), 80)
+    if asignatura:
+        cambios['asignatura'] = asignatura
+    n = a.documentos().filter(pk__in=ids).update(**cambios)
+    messages.success(request, f'{n} documento(s) quedaron en {area}' + (f' · {asignatura}.' if asignatura else '.'))
+    return redirect(destino)
 
 
 @require_POST
@@ -426,6 +547,7 @@ def editor(request, a, pk):
         'aulas': a.aulas(), 'nube': _nube(a), 'tipos': Documento.TIPOS, 'nube_docente': _nube_docente(request),
         'destinos': _destinos_examen(a), 'modos_pregunta': B.MODOS_PREGUNTA, 'colores': B.COLORES,
         'es_formato': doc.tipo in plantillas.FORMATOS,
+        'areas_lista': AREAS_LISTA, 'asignaturas': sugerencias_asignatura(request, a),
         'colores_texto': [('c', 'Color de letra'), ('f', 'Relleno')],
         # (color de letra, color de relleno suave) para las paletas
         'paleta': [('#000000', '#fef08a'), ('#1f3a68', '#bbf7d0'), ('#2563eb', '#bfdbfe'), ('#0f766e', '#99f6e4'),
@@ -472,6 +594,8 @@ def guardar(request, a, pk):
     doc.contenido = B.limpiar(datos.get('contenido'), validas)
     doc.titulo = B.texto_plano(datos.get('titulo'), 150) or doc.titulo
     doc.area = B.texto_plano(datos.get('area'), 80)
+    if 'asignatura' in datos:
+        doc.asignatura = B.texto_plano(datos.get('asignatura'), 80)
     doc.grado = B.texto_plano(datos.get('grado'), 40)
     doc.periodo = B.texto_plano(datos.get('periodo'), 40)
     doc.version += 1

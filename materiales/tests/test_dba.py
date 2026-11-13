@@ -256,3 +256,128 @@ class SemillaOtrasAreas(ColegioDePrueba):
         self.assertEqual(I.por_id('l10-caminante')['origen'], 'oficial')
         self.assertIn('secundaria', I.por_id('n11-invernadero')['prompt'])
         self.assertNotIn('Para el debate', ' '.join(K.buscar('LEN-10-5')['evidencias']))
+
+
+class MisDocumentosOrdenados(ColegioDePrueba):
+    """«Mis materiales» por área, grado, tipo y búsqueda, con páginas: con cientos de guías semilla hay que poder encontrar."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.a.modulos_activos = list(cls.a.modulos_activos) + ['salon']
+        cls.a.save(update_fields=['modulos_activos'])
+
+    def setUp(self):
+        self.c = self.cliente(self.u_docente)
+        crear = lambda t, area, grado, tipo='guia_momentos': Documento.objects.create(
+            propietario=self.u_docente, colegio=self.a, titulo=t, tipo=tipo, area=area, grado=grado, contenido={'bloques': []})
+        for g in ('1.º', '7.º', '10.º'):
+            crear(f'Fracciones {g}', 'Matemáticas', g)
+        crear('Taller de cuentos', 'Lenguaje', '7.º', 'taller')
+        crear('Sin clasificar', '', '')
+
+    def filas(self, **par):
+        r = self.c.get('/materiales/', par)
+        self.assertEqual(r.status_code, 200)
+        return r, [d.titulo for d in r.context['documentos']]
+
+    def test_filtra_por_area_grado_tipo_y_busqueda(self):
+        r, todos = self.filas()
+        self.assertEqual(len(todos), 5)
+        f = r.context['filtro']
+        self.assertEqual([(n, k) for n, k, _, _ in f['areas']], [('Matemáticas', 3), ('Lenguaje', 1), ('Sin clasificar', 1)])
+        r, mat = self.filas(area='Matemáticas')
+        self.assertEqual(sorted(mat), ['Fracciones 1.º', 'Fracciones 10.º', 'Fracciones 7.º'])
+        # Los grados salen en orden numérico (1.º, 7.º, 10.º), no alfabético
+        self.assertEqual([n for n, _, _, _ in r.context['filtro']['grados']], ['1.º', '7.º', '10.º'])
+        self.assertEqual(self.filas(area='Matemáticas', grado='7.º')[1], ['Fracciones 7.º'])
+        self.assertEqual(self.filas(tipo='taller')[1], ['Taller de cuentos'])
+        self.assertEqual(self.filas(q='cuent')[1], ['Taller de cuentos'])
+        self.assertEqual(self.filas(area='')[1], ['Sin clasificar'])
+        r, _ = self.filas(area='Matemáticas', grado='7.º')
+        self.assertContains(r, 'Quitar filtros')
+        self.assertContains(r, 'Mis documentos')
+
+    def test_un_filtro_que_no_existe_se_ignora_y_hay_paginas(self):
+        self.assertEqual(len(self.filas(area='Química')[1]), 5)
+        for k in range(45):
+            Documento.objects.create(propietario=self.u_docente, colegio=self.a, titulo=f'Guía {k}', tipo='taller',
+                                     area='Ciencias', grado='5.º', contenido={'bloques': []})
+        r, pag1 = self.filas()
+        self.assertEqual(len(pag1), 40)
+        self.assertContains(r, 'Página 1 de 2')
+        self.assertEqual(len(self.filas(p=2)[1]), 10)
+
+
+class AreasYAsignaturas(ColegioDePrueba):
+    """Las áreas salen de una lista fija (Ley 115) y la asignatura la nombra el docente: así se agrupa aunque cada uno escriba distinto."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.a.modulos_activos = list(cls.a.modulos_activos) + ['salon']
+        cls.a.save(update_fields=['modulos_activos'])
+
+    def nuevo(self, area, **k):
+        return Documento.objects.create(propietario=self.u_docente, colegio=self.a, titulo=k.pop('titulo', area or 'x'), tipo='taller',
+                                        area=area, contenido={'bloques': []}, **k)
+
+    def test_lo_escrito_a_mano_se_clasifica_solo(self):
+        from materiales.areas import clasificar
+        self.assertEqual(clasificar('artistica'), ('Educación Artística', ''))
+        self.assertEqual(clasificar('Danzas'), ('Educación Artística', 'Danzas'))
+        self.assertEqual(clasificar('Educación física'), ('Educación Física', ''))
+        self.assertEqual(clasificar('Química'), ('Ciencias Naturales', 'Química'))
+        self.assertEqual(clasificar('Ajedrez'), ('', 'Ajedrez'))
+        d = self.nuevo('danzas')
+        self.assertEqual((d.area, d.asignatura), ('Educación Artística', 'danzas'))
+        self.assertEqual(self.nuevo('Matemáticas').area, 'Matemáticas')
+
+    def test_filtro_por_asignatura_y_clasificar_en_lote(self):
+        for t in ('Cumbia', 'Mapalé'):
+            self.nuevo('Danzas', titulo=t, grado='6.º')
+        self.nuevo('Música', titulo='Ritmo', grado='6.º')
+        suelto = self.nuevo('Ajedrez', titulo='Aperturas')
+        c = self.cliente(self.u_docente)
+        r = c.get('/materiales/', {'area': 'Educación Artística'})
+        self.assertEqual([(n, k) for n, k, _, _ in r.context['filtro']['asignaturas']], [('Danzas', 2), ('Música', 1)])
+        r = c.get('/materiales/', {'area': 'Educación Artística', 'asig': 'Danzas'})
+        self.assertEqual(sorted(d.titulo for d in r.context['documentos']), ['Cumbia', 'Mapalé'])
+        r = c.get('/materiales/')
+        self.assertEqual(r.context['filtro']['sin_clasificar'], 1)
+        self.assertContains(r, 'Clasificar marcados')
+        # Clasificar en lote: el ajedrez pasa a Educación Física sin perder su asignatura
+        r = c.post('/materiales/clasificar/', {'docs': [suelto.pk], 'area': 'Educación Física', 'volver': '?area='})
+        self.assertEqual(r.status_code, 302)
+        suelto.refresh_from_db()
+        self.assertEqual((suelto.area, suelto.asignatura), ('Educación Física', 'Ajedrez'))
+        # No se pueden clasificar documentos ajenos ni con un área inventada
+        ajeno = Documento.objects.create(propietario=self.super, colegio=self.a, titulo='Ajeno', tipo='taller', area='Inglés', contenido={'bloques': []})
+        c.post('/materiales/clasificar/', {'docs': [ajeno.pk], 'area': 'Matemáticas'})
+        c.post('/materiales/clasificar/', {'docs': [suelto.pk], 'area': 'Cocina'})
+        ajeno.refresh_from_db(); suelto.refresh_from_db()
+        self.assertEqual(ajeno.area, 'Inglés')
+        self.assertEqual(suelto.area, 'Educación Física')
+
+    def test_el_editor_guarda_la_asignatura_y_la_muestra_en_el_pdf(self):
+        import json
+        d = self.nuevo('Educación Artística')
+        c = self.cliente(self.u_docente)
+        r = c.get(f'/materiales/{d.pk}/')
+        self.assertContains(r, 'id="mm-asignatura"')
+        self.assertContains(r, 'Educación Artística y Cultural')
+        guardar = [u for u in ('/materiales/%d/guardar/' % d.pk,)][0]
+        r = c.post(guardar, json.dumps({'titulo': 'Danza folclórica', 'area': 'Educación Artística', 'asignatura': 'Danzas',
+                                        'grado': '6.º', 'contenido': {'bloques': []}, 'version': d.version}), content_type='application/json')
+        self.assertTrue(r.json()['ok'])
+        d.refresh_from_db()
+        self.assertEqual((d.area, d.asignatura), ('Educación Artística', 'Danzas'))
+
+    def test_migracion_de_los_existentes(self):
+        import importlib
+        from django.apps import apps
+        d = self.nuevo('Matemáticas')
+        Documento.objects.filter(pk=d.pk).update(area='Danzas', asignatura='')
+        importlib.import_module('materiales.migrations.0013_documento_asignatura').clasificar_existentes(apps, None)
+        d.refresh_from_db()
+        self.assertEqual((d.area, d.asignatura), ('Educación Artística', 'Danzas'))

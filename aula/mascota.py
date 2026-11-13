@@ -5,6 +5,9 @@
 * Si dos necesidades llegan a cero, la mascota se desmaya: la racha vuelve a cero y se
   reanima con 3 respuestas correctas. Nunca «se muere».
 * Las preguntas salen del servidor y aquí se califican: el celular no sabe cuál es la correcta.
+* La diversión (el ánimo) también baja con las horas, pero no la desmaya: si se aburre, se pone triste.
+  Sube jugando: en el minijuego «Atrapa estrellas» (cada burbuja ? es una pregunta) o cuando el
+  estudiante supera niveles de los juegos de lógica («jugó con usted»).
 """
 import random
 
@@ -14,7 +17,13 @@ from . import bancos_juegos
 
 # Puntos que pierde cada necesidad por hora
 POR_HORA = {'hambre': 4.0, 'sueno': 3.0, 'higiene': 2.5}
-ACCIONES = {'comer': 'hambre', 'dormir': 'sueno', 'banar': 'higiene'}
+DIVERSION_POR_HORA = 3.5
+ACCIONES = {'comer': 'hambre', 'dormir': 'sueno', 'banar': 'higiene', 'jugar': 'diversion'}
+# Premio por terminar una partida del minijuego (el puntaje lo cuenta el navegador: por eso es poco y con espera)
+PREMIO_PARTIDA_MAX = 15
+ESPERA_PARTIDA_MIN = 5
+# Premio por cada nivel nuevo de un juego de lógica (máximo 3 niveles por envío)
+PREMIO_NIVEL = 20
 LLENA = 34
 ACIERTOS_PARA_REANIMAR = 3
 
@@ -26,6 +35,7 @@ def actualizar(mascota, ahora=None, guardar=True):
     if horas and not mascota.debil:
         for campo, tasa in POR_HORA.items():
             setattr(mascota, campo, max(0.0, getattr(mascota, campo) - tasa * horas))
+        mascota.diversion = max(0.0, mascota.diversion - DIVERSION_POR_HORA * horas)
         if sum(1 for c in POR_HORA if getattr(mascota, c) <= 0) >= 2:
             mascota.debil, mascota.reanimar = True, 0
     mascota.actualizada = ahora
@@ -45,7 +55,7 @@ def animo(mascota):
     """Cómo se siente, para la cara y el mensaje."""
     if mascota.debil:
         return 'desmayada'
-    minimo = min(mascota.hambre, mascota.sueno, mascota.higiene)
+    minimo = min(mascota.hambre, mascota.sueno, mascota.higiene, mascota.diversion + 10)   # aburrirse pesa un poco menos
     if minimo < 15:
         return 'mal'
     if minimo < 40:
@@ -53,11 +63,50 @@ def animo(mascota):
     return 'feliz'
 
 
+# Estado de ánimo: qué siente y por qué (lo que más le falta), con una frase para el estudiante
+HUMORES = {
+    'desmayada': ('Desmayada', '{n} se desmayó. Responda bien para reanimarla.'),
+    'hambre': ('Hambrienta', '{n} tiene mucha hambre. ¡Déle de comer!'),
+    'sueno': ('Cansada', '{n} se está quedando dormida de pie.'),
+    'higiene': ('Sucia', '{n} necesita un buen baño.'),
+    'triste': ('Triste', '{n} está triste: hace rato nadie juega con ella.'),
+    'aburrida': ('Aburrida', '{n} se aburre. ¿Jugamos un rato?'),
+    'contenta': ('Contenta', '{n} está bien, aunque algo le falta.'),
+    'feliz': ('Feliz', '¡{n} está feliz!'),
+    'euforica': ('Emocionada', '¡{n} está emocionadísima! Todo está al máximo.'),
+}
+
+
+def humor(mascota):
+    """El estado de ánimo detallado: (clave, nombre, frase)."""
+    n = mascota.nombre
+    if mascota.debil:
+        clave = 'desmayada'
+    else:
+        fisicas = {'hambre': mascota.hambre, 'sueno': mascota.sueno, 'higiene': mascota.higiene}
+        peor = min(fisicas, key=fisicas.get)
+        if fisicas[peor] < 25:
+            clave = peor
+        elif mascota.diversion < 15:
+            clave = 'triste'
+        elif mascota.diversion < 40:
+            clave = 'aburrida'
+        elif min(fisicas[peor], mascota.diversion) >= 85:
+            clave = 'euforica'
+        elif min(fisicas[peor], mascota.diversion) >= 55:
+            clave = 'feliz'
+        else:
+            clave = 'contenta'
+    nombre, frase = HUMORES[clave]
+    return clave, nombre, frase.format(n=n)
+
+
 def estado(mascota):
     return {
         'nombre': mascota.nombre, 'especie': mascota.especie, 'especie_nombre': mascota.get_especie_display(),
         'hambre': round(mascota.hambre), 'sueno': round(mascota.sueno), 'higiene': round(mascota.higiene),
-        'animo': animo(mascota), 'debil': mascota.debil, 'reanimar': mascota.reanimar, 'para_reanimar': ACIERTOS_PARA_REANIMAR,
+        'diversion': round(mascota.diversion), 'animo': animo(mascota),
+        'humor': dict(zip(('clave', 'nombre', 'frase'), humor(mascota))), 'juego_reciente': mascota.juego_reciente, 'debil': mascota.debil, 'reanimar': mascota.reanimar, 'para_reanimar': ACIERTOS_PARA_REANIMAR,
         'dias': dias_vivo(mascota), 'mejor_racha': mascota.mejor_racha,
         'respondidas': mascota.respondidas, 'aciertos': mascota.aciertos,
     }
@@ -115,7 +164,7 @@ def pedir(mascota, accion, persona_clave=None):
     elif accion in ACCIONES:
         if mascota.debil:
             return None, f'{mascota.nombre} está desmayada: primero reanímela.'
-        if getattr(mascota, ACCIONES[accion]) >= 95:
+        if accion != 'jugar' and getattr(mascota, ACCIONES[accion]) >= 95:
             return None, {'comer': f'{mascota.nombre} no tiene hambre.', 'dormir': f'{mascota.nombre} no tiene sueño.',
                           'banar': f'{mascota.nombre} ya está limpia.'}[accion]
     else:
@@ -149,7 +198,7 @@ def responder(mascota, opcion):
             mascota.reanimar += 1
             if mascota.reanimar >= ACIERTOS_PARA_REANIMAR:
                 mascota.debil, mascota.reanimar = False, 0
-                mascota.hambre = mascota.sueno = mascota.higiene = 50
+                mascota.hambre = mascota.sueno = mascota.higiene = mascota.diversion = 50
                 mascota.nacida = timezone.now()
                 mensaje = f'¡{mascota.nombre} despertó! Empieza una racha nueva.'
             else:
@@ -157,7 +206,8 @@ def responder(mascota, opcion):
         else:
             campo = ACCIONES[accion]
             setattr(mascota, campo, min(100.0, getattr(mascota, campo) + LLENA))
-            mensaje = {'comer': '¡Ñam! Qué rico.', 'dormir': '¡Zzz… qué buen descanso!', 'banar': '¡Brilla de limpio!'}[accion]
+            mensaje = {'comer': '¡Ñam! Qué rico.', 'dormir': '¡Zzz… qué buen descanso!', 'banar': '¡Brilla de limpio!',
+                       'jugar': '¡Bien! +5 estrellas y más ánimo.'}[accion]
     else:
         mensaje = 'Esa no era. ' + ('Siga intentando.' if accion == 'reanimar' else f'{mascota.nombre} se quedó esperando.')
     correcta = p['correcta']
@@ -193,7 +243,44 @@ def ranking(aula, n=10):
         actualizar(m, guardar=False)
         persona = m.estudiante or m.integrante
         from .logica import nombre_de
-        lista.append({'mascota': m, 'dueno': nombre_de(persona), 'dias': dias_vivo(m), 'animo': animo(m)})
+        lista.append({'mascota': m, 'dueno': nombre_de(persona), 'dias': dias_vivo(m), 'animo': animo(m), 'humor': humor(m)[1]})
     lista.sort(key=lambda x: (-x['dias'], -x['mascota'].mejor_racha, -x['mascota'].aciertos))
     return lista[:n] if n else lista
 
+
+
+def terminar_partida(mascota, estrellas, ahora=None):
+    """Fin de una partida de «Atrapa estrellas». El puntaje lo manda el navegador, así que el premio es
+    pequeño y solo cuenta una partida cada ESPERA_PARTIDA_MIN minutos. Devuelve (subió, mensaje)."""
+    ahora = ahora or timezone.now()
+    actualizar(mascota, ahora, guardar=False)
+    if mascota.debil:
+        return 0, f'{mascota.nombre} está desmayada: primero reanímela.'
+    try:
+        estrellas = max(0, min(200, int(estrellas)))
+    except (TypeError, ValueError):
+        estrellas = 0
+    if mascota.ultimo_juego and (ahora - mascota.ultimo_juego).total_seconds() < ESPERA_PARTIDA_MIN * 60:
+        mascota.save()
+        return 0, f'¡{estrellas} estrellas! {mascota.nombre} quedó cansada de correr: la próxima partida le sube el ánimo en unos minutos.'
+    sube = min(PREMIO_PARTIDA_MAX, 5 + estrellas // 4) if estrellas else 0
+    antes = mascota.diversion
+    mascota.diversion = min(100.0, mascota.diversion + sube)
+    mascota.ultimo_juego, mascota.juego_reciente = ahora, 'Atrapa estrellas'
+    mascota.save()
+    return round(mascota.diversion - antes), f'¡{estrellas} estrellas! {mascota.nombre} se divirtió mucho.'
+
+
+def jugo_logica(aula, persona, nombre_juego, niveles_nuevos):
+    """Un nivel nuevo superado en un juego de lógica también anima a la mascota del estudiante."""
+    if not niveles_nuevos or persona is None:
+        return None
+    m = de_persona(aula, persona)
+    if m is None:
+        return None
+    actualizar(m, guardar=False)
+    if not m.debil:
+        m.diversion = min(100.0, m.diversion + PREMIO_NIVEL * min(3, niveles_nuevos))
+    m.juego_reciente = nombre_juego[:80]
+    m.save()
+    return m

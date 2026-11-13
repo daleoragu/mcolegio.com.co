@@ -212,6 +212,17 @@
     }
 
     /* La página: barra de niveles, contador, tiempo, botones y el mensaje de victoria. */
+    // Si el estudiante tiene mascota, superar niveles la anima: se le cuenta con un aviso flotante
+    function avisoMascota(texto) {
+        const d = document.createElement('div');
+        d.setAttribute('role', 'status');
+        d.textContent = '🐾 ' + texto;
+        d.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:3000;background:#7048e8;color:#fff;'
+            + 'padding:10px 18px;border-radius:99px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.25);max-width:90vw;text-align:center';
+        document.body.appendChild(d);
+        setTimeout(() => d.remove(), 4500);
+    }
+
     function pagina(cfg) {
         const def = JUEGOS[cfg.id], datos = cfg.datos, total = def.total(datos);
         const $ = s => document.querySelector(s);
@@ -227,7 +238,9 @@
         function subir(lista) {
             if (!cfg.urlAvance || !Object.keys(lista).length) return;
             fetch(cfg.urlAvance, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRFToken': cfg.csrf || ''},
-                                  body: JSON.stringify({total, niveles: lista})}).catch(() => { /* queda en el navegador y se sube la próxima vez */ });
+                                  body: JSON.stringify({total, niveles: lista})})
+                .then(r => r.json()).then(j => { if (j && j.mascota) avisoMascota(j.mascota); })
+                .catch(() => { /* queda en el navegador y se sube la próxima vez */ });
         }
         // Lo que solo estaba en este navegador (o con más estrellas) se sube
         const faltan = {};

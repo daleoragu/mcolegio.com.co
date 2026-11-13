@@ -62,7 +62,8 @@ def mascota(request, pk):
     if m is not None:
         config = {'estado': MA.estado(m), 'csrf': get_token(request),
                   'urlPedir': reverse('aula:mascota_pedir', args=[pk]), 'urlResponder': reverse('aula:mascota_responder', args=[pk]),
-                  'urlEstado': reverse('aula:mascota_estado', args=[pk])}
+                  'urlEstado': reverse('aula:mascota_estado', args=[pk]), 'urlPartida': reverse('aula:mascota_partida', args=[pk]),
+                  'urlLogica': reverse('aula:logica', args=[pk])}
     return _render(request, c, 'aula/mascota.html', {
         'm': m, 'ms_config': config, 'especies': MascotaAula.ESPECIES,
         'tablero': MA.ranking(aula, n=10)}, 'gamificacion')
@@ -103,3 +104,15 @@ def mascota_estado(request, pk):
         return JsonResponse({'ok': False})
     MA.actualizar(m)
     return JsonResponse({'ok': True, 'estado': MA.estado(m)})
+
+
+@require_POST
+@vista_aula
+def mascota_partida(request, pk):
+    """Fin de una partida del minijuego «Atrapa estrellas»."""
+    c = _ctx(request, pk)
+    m = _mia(c)
+    if m is None:
+        return JsonResponse({'ok': False})
+    subio, mensaje = MA.terminar_partida(m, request.POST.get('estrellas'))
+    return JsonResponse({'ok': True, 'subio': subio, 'mensaje': mensaje, 'estado': MA.estado(m)})

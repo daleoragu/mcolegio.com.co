@@ -1418,18 +1418,28 @@ def inscripciones(request, eid):
                              + (f' Se avisó por correo a {correos}.' if correos else ''))
         elif accion == 'unificar':
             # «colegio san jose», «Col. San José»… → un solo nombre (los cupos, el podio y las capturas se agrupan por él)
-            nuevo = ' '.join((request.POST.get('nuevo') or '').split())[:120]
+            # Si se escogió de la lista oficial (DANE), el nombre es el oficial y queda su código y su municipio
+            from . import colegios_dane as CD
+            oficial = CD.buscar(request.POST.get('dane')) if request.POST.get('dane') else None
+            nuevo = oficial['nombre'] if oficial else ' '.join((request.POST.get('nuevo') or '').split())[:120]
             viejos = {normalizar(x) for x in request.POST.getlist('viejo') if x.strip()}
             if not nuevo or not viejos:
-                messages.warning(request, 'Escoja las instituciones y escriba el nombre correcto.')
+                messages.warning(request, 'Escoja las instituciones y escriba o busque el nombre correcto.')
             else:
                 n = 0
                 for p in ev.participaciones.filter(estudiante__isnull=True):
-                    if normalizar(p.institucion) in viejos and p.institucion != nuevo:
-                        p.institucion = nuevo
-                        p.save(update_fields=['institucion'])
+                    if normalizar(p.institucion) not in viejos:
+                        continue
+                    cambia = p.institucion != nuevo
+                    p.institucion = nuevo
+                    if oficial:
+                        cambia = cambia or (p.datos or {}).get('dane') != oficial['dane']
+                        p.datos = dict(p.datos or {}, dane=oficial['dane'], municipio_dane=oficial['municipio'])
+                    if cambia:
+                        p.save(update_fields=['institucion', 'datos'])
                         n += 1
-                messages.success(request, f'Se corrigió la institución de {n} inscripción(es): ahora dicen «{nuevo}».')
+                messages.success(request, f'Se corrigió la institución de {n} inscripción(es): ahora dicen «{nuevo}»'
+                                 + (' (colegio oficial, con su código DANE).' if oficial else '.'))
         elif accion == 'editar':
             p = get_object_or_404(externas, pk=request.POST.get('pid'))
             limpio = lambda k, n: ' '.join((request.POST.get(k) or '').split())[:n]
@@ -1514,7 +1524,8 @@ def inscripciones(request, eid):
         'ev': ev, 'lista': lista, 'filtro': filtro, 'cuenta': cuenta, 'ins': ins,
         'grados': [(x, etiqueta_grado(x)) for x in sorted({g for gr in grupos(c) for g in gr['grados']})],
         'errores_planilla': request.session.pop(f'evento_planilla_{ev.pk}', None),
-        'resumen': sorted(resumen.values(), key=lambda r: r['nombre'].lower()), 'base': _base(request)})
+        'resumen': sorted(resumen.values(), key=lambda r: r['nombre'].lower()), 'base': _base(request),
+        'regiones_menu': _menu_regiones()})
 
 
 @login_required

@@ -1,4 +1,4 @@
-Versión 0032 · 2026-11-13 00:18
+Versión 0036 · 2026-11-13 12:50
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -59,6 +59,7 @@ NUEVO     aula/migrations/0025_compartir_con_colegas.py
 NUEVO     aula/migrations/0026_compartir_de_la_comunidad.py
 NUEVO     aula/migrations/0027_tableros.py
 NUEVO     aula/migrations/0028_tableros_carpeta.py
+NUEVO     aula/migrations/0029_mascota_diversion.py
 CAMBIADO  aula/models.py
 NUEVO     aula/planilla_eventos.py
 NUEVO     aula/planilla_preguntas.py
@@ -276,6 +277,7 @@ CAMBIADO  chat/views_salon.py
 CAMBIADO  config/settings.py
 CAMBIADO  config/urls.py
 CAMBIADO  elecciones/templates/elecciones/index.html
+NUEVO     materiales/areas.py
 CAMBIADO  materiales/bloques.py
 CAMBIADO  materiales/calificar.py
 CAMBIADO  materiales/creditos.py
@@ -303,6 +305,7 @@ NUEVO     materiales/migrations/0009_graficas.py
 NUEVO     materiales/migrations/0010_recortes.py
 NUEVO     materiales/migrations/0011_region.py
 NUEVO     materiales/migrations/0012_dba_codigo.py
+NUEVO     materiales/migrations/0013_documento_asignatura.py
 CAMBIADO  materiales/models.py
 CAMBIADO  materiales/plantillas.py
 NUEVO     materiales/semilla/__init__.py
@@ -473,6 +476,7 @@ NUEVO     materiales/templatetags/ecuaciones.py
 NUEVO     materiales/tests/test_dba.py
 NUEVO     materiales/tests/test_ecuaciones.py
 NUEVO     materiales/tests/test_equipo.py
+CAMBIADO  materiales/tests/test_fase3.py
 NUEVO     materiales/tests/test_graficas.py
 NUEVO     materiales/tests/test_imagenes.py
 NUEVO     materiales/tests/test_juegos_colores.py
@@ -484,6 +488,7 @@ CAMBIADO  materiales/views_biblioteca.py
 NUEVO     materiales/views_equipo.py
 CAMBIADO  materiales/views_ia.py
 NUEVO     materiales/views_juegos.py
+NUEVO     notas/asesoria.py
 CAMBIADO  notas/boletin/logic.py
 NUEVO     notas/colores.py
 CAMBIADO  notas/context_processors.py
@@ -550,6 +555,7 @@ NUEVO     notas/templates/notas/excusas/excusa.html
 NUEVO     notas/templates/notas/fichas/historial.html
 NUEVO     notas/templates/notas/fichas/solicitud.html
 NUEVO     notas/templates/notas/fichas/solicitudes.html
+NUEVO     notas/templates/notas/includes/_asesoria.html
 CAMBIADO  notas/templates/notas/includes/_head.html
 CAMBIADO  notas/templates/notas/includes/_topbar.html
 CAMBIADO  notas/templates/notas/login.html
@@ -562,8 +568,10 @@ NUEVO     notas/templates/notas/permisos/verificacion.html
 CAMBIADO  notas/templates/notas/planillas/planilla_notas_pdf.html
 CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial.html
 CAMBIADO  notas/templates/notas/reportes/sabana_reporte_parcial_pdf.html
+NUEVO     notas/templatetags/asesoria_tags.py
 CAMBIADO  notas/templatetags/nota_filters.py
 NUEVO     notas/templatetags/pases_tags.py
+NUEVO     notas/tests/test_asesoria.py
 NUEVO     notas/tests/test_colores_iconos.py
 NUEVO     notas/tests/test_excusas.py
 NUEVO     notas/tests/test_kiosko_carnet.py
@@ -646,6 +654,8 @@ CAMBIADO  salon_digital/views_cuentas.py
 NUEVO     salon_digital/views_espacios.py
 CAMBIADO  salon_digital/views_grupos.py
 NUEVO     salon_digital/views_pagos.py
+NUEVO     static/css/asesoria.css
+NUEVO     static/js/asesoria.js
 CAMBIADO  templates/base.html
 NUEVO     votaciones/cabinas.py
 CAMBIADO  votaciones/logica.py
@@ -720,6 +730,8 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   salon_digital/migrations/0008_region.py            (región del docente: código DANE; reconoce los municipios ya escritos)
   materiales/migrations/0011_region.py               (biblioteca: región del autor y contexto regional)
   materiales/migrations/0012_dba_codigo.py           (biblioteca: DBA oficial de cada material)
+  aula/migrations/0029_mascota_diversion.py          (mascota: ánimo y juegos)
+  materiales/migrations/0013_documento_asignatura.py  (áreas oficiales y asignatura; clasifica los existentes)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.
