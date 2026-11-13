@@ -104,6 +104,7 @@ urlpatterns = [
     path('<int:pk>/mascota/pedir/', vm.mascota_pedir, name='mascota_pedir'),
     path('<int:pk>/mascota/responder/', vm.mascota_responder, name='mascota_responder'),
     path('<int:pk>/mascota/estado/', vm.mascota_estado, name='mascota_estado'),
+    path('<int:pk>/mascota/partida/', vm.mascota_partida, name='mascota_partida'),
     path('<int:pk>/gamificacion/<int:jid>/', vg.juego, name='juego'),
     path('<int:pk>/gamificacion/<int:jid>/resultado/', vg.juego_resultado, name='juego_resultado'),
     path('<int:pk>/gamificacion/<int:jid>/analisis/', vg.juego_analisis, name='juego_analisis'),

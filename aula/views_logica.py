@@ -108,6 +108,7 @@ def logica_avance(request, pk, juego):
         p.total = max(0, min(2000, int(json.loads(request.body or b'{}').get('total') or p.total)))
     except (TypeError, ValueError, AttributeError):
         pass
+    nuevos = 0
     for k, v in list(lista.items())[:500]:
         try:
             n, est = int(k), max(1, min(3, int(v.get('estrellas') or 1)))
@@ -119,11 +120,15 @@ def logica_avance(request, pk, juego):
         if n < 0 or n > 2000:
             continue
         antes = p.niveles.get(str(n))
+        nuevos += not antes
         if not antes or est > antes.get('estrellas', 0) or (est == antes.get('estrellas', 0) and seg and seg < (antes.get('segundos') or 10 ** 9)):
             p.niveles[str(n)] = {'estrellas': est, 'movs': movs, 'segundos': seg, 'ayudas': ayudas,
                                  'fecha': timezone.now().isoformat(timespec='minutes')}
     p.save()
-    return JsonResponse({'ok': True, 'niveles': p.niveles})
+    from . import mascota as MA
+    m = MA.jugo_logica(c.aula, _persona(c), DATOS[juego][1], nuevos)
+    return JsonResponse({'ok': True, 'niveles': p.niveles,
+                         'mascota': f'¡{m.nombre} jugó con usted y está más animada!' if m and nuevos and not m.debil else ''})
 
 
 @vista_aula

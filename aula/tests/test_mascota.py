@@ -120,6 +120,51 @@ class Mascota(ColegioDePrueba):
         self.assertContains(r, 'Mascotas de la clase (1)')
         self.assertContains(r, 'Michi')
 
+    def test_animo_baja_y_jugar_lo_sube_con_preguntas(self):
+        m = self.adoptar()
+        MascotaAula.objects.filter(pk=m.pk).update(diversion=60, actualizada=timezone.now() - timedelta(hours=10))
+        m.refresh_from_db()
+        MA.actualizar(m)
+        self.assertAlmostEqual(m.diversion, 25, delta=1)            # 60 - 3,5 × 10 h
+        self.assertFalse(m.debil)                                    # aburrirse no la desmaya
+        j = self.yo.get(f'{self.base}/estado/').json()
+        self.assertEqual(j['estado']['humor']['clave'], 'aburrida')
+        self.assertIn('Jugamos', j['estado']['humor']['frase'])
+        # La burbuja de pregunta del minijuego: aunque esté llena, se puede jugar
+        MascotaAula.objects.filter(pk=m.pk).update(diversion=99)
+        self.assertTrue(self.yo.post(f'{self.base}/pedir/', {'accion': 'jugar'}).json()['ok'])
+        MascotaAula.objects.filter(pk=m.pk).update(diversion=20)
+        j = self.yo.post(f'{self.base}/responder/', {'opcion': self.correcta(m)}).json()
+        self.assertTrue(j['bien'])
+        self.assertGreaterEqual(j['estado']['diversion'], 53)
+
+    def test_partida_sube_poco_y_con_espera(self):
+        m = self.adoptar()
+        MascotaAula.objects.filter(pk=m.pk).update(diversion=30)
+        j = self.yo.post(f'{self.base}/partida/', {'estrellas': '9999'}).json()
+        self.assertEqual(j['subio'], MA.PREMIO_PARTIDA_MAX)          # un puntaje inflado no da más
+        self.assertEqual(j['estado']['juego_reciente'], 'Atrapa estrellas')
+        j = self.yo.post(f'{self.base}/partida/', {'estrellas': '20'}).json()
+        self.assertEqual(j['subio'], 0)                              # otra enseguida no cuenta
+        MascotaAula.objects.filter(pk=m.pk).update(ultimo_juego=timezone.now() - timedelta(minutes=MA.ESPERA_PARTIDA_MIN + 1))
+        self.assertEqual(self.yo.post(f'{self.base}/partida/', {'estrellas': '20'}).json()['subio'], 10)
+
+    def test_niveles_de_logica_animan_a_la_mascota(self):
+        import json
+        m = self.adoptar()
+        MascotaAula.objects.filter(pk=m.pk).update(diversion=10)
+        url = f'/aula/{self.aula.pk}/logica/hanoi/avance/'
+        j = self.yo.post(url, json.dumps({'total': 10, 'niveles': {'0': {'estrellas': 3, 'segundos': 30}}}), content_type='application/json').json()
+        self.assertIn('Michi', j['mascota'])
+        m.refresh_from_db()
+        self.assertAlmostEqual(m.diversion, 10 + MA.PREMIO_NIVEL, delta=1)
+        self.assertEqual(m.juego_reciente, 'Torres de Hanói')
+        # Repetir el mismo nivel no vuelve a premiar
+        j = self.yo.post(url, json.dumps({'niveles': {'0': {'estrellas': 3, 'segundos': 20}}}), content_type='application/json').json()
+        self.assertEqual(j['mascota'], '')
+        self.assertContains(self.yo.get(f'{self.base}/'), 'Atrapa estrellas')
+        self.assertContains(self.profe.get(f'{self.base}/'), 'Estado de ánimo')
+
     def test_en_el_menu_de_juegos(self):
         self.assertContains(self.yo.get(f'/aula/{self.aula.pk}/gamificacion/'), 'MI MASCOTA')
 
