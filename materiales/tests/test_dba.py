@@ -381,3 +381,36 @@ class AreasYAsignaturas(ColegioDePrueba):
         importlib.import_module('materiales.migrations.0013_documento_asignatura').clasificar_existentes(apps, None)
         d.refresh_from_db()
         self.assertEqual((d.area, d.asignatura), ('Educación Artística', 'Danzas'))
+
+
+class ImprimirVariasPorHoja(ColegioDePrueba):
+    """2 o 4 guías por hoja (para cortar) y folleto (para doblar), sobre el PDF ya armado."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.a.modulos_activos = list(cls.a.modulos_activos) + ['salon']
+        cls.a.save(update_fields=['modulos_activos'])
+
+    def test_orden_del_folleto(self):
+        from materiales.imposicion import orden_folleto
+        self.assertEqual(orden_folleto(8), [(8, 1), (2, 7), (6, 3), (4, 5)])
+        self.assertEqual(orden_folleto(2), [(None, 1), (2, None)])            # se completa con páginas en blanco
+        self.assertEqual(len(orden_folleto(5)), 4)                            # 5 páginas → 8 (2 hojas)
+
+    def test_pdf_por_hoja_y_folleto(self):
+        import io
+        from pypdf import PdfReader
+        doc = Documento.objects.create(propietario=self.u_docente, colegio=self.a, titulo='Guía de prueba', tipo='taller', area='Matemáticas',
+                                       contenido={'bloques': [{'id': 'x1', 'tipo': 'texto', 'html': '<p>Hola</p>'}]})
+        c = self.cliente(self.u_docente)
+        paginas = lambda imp: PdfReader(io.BytesIO(c.get(f'/materiales/{doc.pk}/pdf/', {'impresion': imp}).content)).pages
+        normal = paginas('')
+        dos, cuatro, folleto = paginas('2'), paginas('4'), paginas('folleto')
+        self.assertEqual(len(dos), len(normal))                               # una hoja por cada página, con 2 copias
+        self.assertGreater(float(dos[0].mediabox.width), float(dos[0].mediabox.height))        # horizontal
+        self.assertEqual(float(cuatro[0].mediabox.width), float(normal[0].mediabox.width))      # vertical, 4 cuartos
+        self.assertEqual(len(folleto), -(-len(normal) // 4) * 2)
+        r = c.get(f'/materiales/{doc.pk}/pdf/', {'impresion': '2', 'descargar': '1'})
+        self.assertIn('-2-por-hoja.pdf', r['Content-Disposition'])
+        self.assertContains(c.get(f'/materiales/{doc.pk}/'), '4 guías por hoja')

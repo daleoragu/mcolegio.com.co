@@ -119,7 +119,21 @@
       </div>
     </div>
     <button type="button" class="btn btn-sm btn-outline-secondary" id="mm-ver"><i class="far fa-eye me-1"></i>Vista previa</button>
-    <a class="btn btn-sm btn-outline-danger" id="mm-pdf" href="{% url 'materiales:pdf' doc.pk %}?descargar=1"><i class="far fa-file-pdf me-1"></i>PDF</a>
+    <div class="btn-group btn-group-sm">
+      <a class="btn btn-outline-danger" id="mm-pdf" href="{% url 'materiales:pdf' doc.pk %}?descargar=1"><i class="far fa-file-pdf me-1"></i>PDF</a>
+      <button type="button" class="btn btn-outline-danger dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false"
+              title="Cuántas guías por hoja o folleto" aria-label="Opciones de impresión"><span class="visually-hidden">Opciones de impresión</span></button>
+      <div class="dropdown-menu" style="min-width:290px">
+        <h6 class="dropdown-header">¿Cómo la imprime?</h6>
+        <a class="dropdown-item mm-guardar-antes" href="{% url 'materiales:pdf' doc.pk %}?descargar=1"><i class="far fa-file me-2"></i>1 guía por hoja</a>
+        <a class="dropdown-item mm-guardar-antes" href="{% url 'materiales:pdf' doc.pk %}?descargar=1&impresion=2"><i class="fas fa-table-columns me-2"></i>2 guías por hoja <span class="small text-muted">· media carta</span></a>
+        <a class="dropdown-item mm-guardar-antes" href="{% url 'materiales:pdf' doc.pk %}?descargar=1&impresion=4"><i class="fas fa-table-cells-large me-2"></i>4 guías por hoja <span class="small text-muted">· un cuarto</span></a>
+        <a class="dropdown-item mm-guardar-antes" href="{% url 'materiales:pdf' doc.pk %}?descargar=1&impresion=folleto"><i class="fas fa-book-open me-2"></i>Folleto <span class="small text-muted">· doblar y grapar</span></a>
+        <div class="dropdown-divider"></div>
+        <div class="px-3 small text-muted" style="max-width:290px">Con 2 o 4 por hoja, cada hoja repite la misma página: imprima a doble cara y corte por la línea punteada.
+          En folleto, imprima a doble cara <b>volteando por el borde corto</b>, doble por la mitad y grape.</div>
+      </div>
+    </div>
     <a class="btn btn-sm btn-outline-primary" id="mm-word" href="{% url 'materiales:word' doc.pk %}"><i class="far fa-file-word me-1"></i>Word</a>
     <div class="dropdown">
       <button class="btn btn-sm btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" type="button" title="Versión del docente con las respuestas"><i class="fas fa-key me-1"></i>Con respuestas</button>

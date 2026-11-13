@@ -740,9 +740,16 @@ def pdf(request, a, pk):
     respuestas = request.GET.get('respuestas') == '1'
     datos = exportar.pdf(request, doc, colegio=a.colegio, encabezado=a.encabezado(), docente=a.docente(),
                          modo=request.GET.get('modo'), respuestas=respuestas)
+    # Impresión: 2 o 4 guías por hoja (para cortar) o folleto (para doblar y grapar)
+    impresion = request.GET.get('impresion') or ''
+    nombre = exportar.nombre_archivo(doc, 'pdf')
+    if impresion in ('2', '4', 'folleto'):
+        from . import imposicion
+        datos = imposicion.aplicar(datos, impresion)
+        nombre = nombre[:-4] + ('-folleto.pdf' if impresion == 'folleto' else f'-{impresion}-por-hoja.pdf')
     r = HttpResponse(datos, content_type='application/pdf')
     disp = 'attachment' if request.GET.get('descargar') else 'inline'
-    r['Content-Disposition'] = f'{disp}; filename="{exportar.nombre_archivo(doc, "pdf")}"'
+    r['Content-Disposition'] = f'{disp}; filename="{nombre}"'
     return r
 
 
