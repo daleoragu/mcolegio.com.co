@@ -169,14 +169,14 @@ def por_asignacion(request, asignacion_id):
     if c is None:
         raise _Prohibido('Esta aula es solo para el docente y los estudiantes de la clase.')
     aula = logica.aula_de_asignacion(asig)
-    return redirect('aula:muro' if c.es_docente else 'aula:portada', pk=aula.pk)      # el estudiante llega a su Inicio
+    return redirect('aula:portada', pk=aula.pk)                                       # docente y estudiante llegan a su Inicio
 
 
 @login_required
 def por_grupo(request, grupo_id):
     from salon_digital.models import Grupo
     grupo = get_object_or_404(Grupo, pk=grupo_id, propietario__usuario=request.user)
-    return redirect('aula:muro', pk=logica.aula_de_grupo(grupo).pk)
+    return redirect('aula:portada', pk=logica.aula_de_grupo(grupo).pk)          # el docente llega a su Inicio
 
 
 def entrar(request, pk):
@@ -224,7 +224,7 @@ def portada(request, pk):
     con lo nuevo de cada una, lo último del muro y las próximas entregas. El docente va a su muro de siempre."""
     c = _ctx(request, pk)
     if c.es_docente:
-        return redirect('aula:muro', pk=pk)
+        return _portada_docente(request, c)
     aula = c.aula
     from .models import SesionVivo
     vivos = list(SesionVivo.objects.filter(cuestionario__aula=aula, creada__gte=timezone.now() - timedelta(hours=3))
@@ -235,6 +235,37 @@ def portada(request, pk):
     return _render(request, c, 'aula/portada.html', {
         'vivos': vivos, 'tableros': list(aula.tableros.all()), 'horario': logica.horario_de(aula),
         'ultimas': ultimas, 'proximas': proximas}, 'inicio')
+
+
+def _portada_docente(request, c):
+    """El Inicio del docente: tarjetas con lo que necesita atención (entregas por calificar, estudiantes que no han
+    entrado, mascotas descuidadas) y acceso a cada parte de la clase."""
+    from . import mascota as MA
+    from .models import Entrega, SesionVivo, Visto
+    aula = c.aula
+    personas = logica.estudiantes(aula)
+    # Quién ha abierto la clase alguna vez (cada visita a una sección queda en Visto): 'e12' estudiante, 'i7' integrante
+    con_visita = {f'e{v.estudiante_id}' if v.estudiante_id else f'i{v.integrante_id}'
+                  for v in Visto.objects.filter(aula=aula).only('estudiante_id', 'integrante_id')}
+    sin_entrar = [p for p in personas if logica.clave_de(p) not in con_visita]
+    sin_clave = 0
+    if aula.grupo_id and aula.grupo.ingreso == 'clave':
+        sin_clave = aula.grupo.integrantes.filter(activo=True, clave='').count()
+    mascotas = MA.ranking(aula, n=None)
+    vivos = list(SesionVivo.objects.filter(cuestionario__aula=aula, creada__gte=timezone.now() - timedelta(hours=3))
+                 .exclude(estado='fin').select_related('cuestionario'))
+    datos = {
+        'por_calificar': Entrega.objects.filter(tarea__aula=aula, estado='entregada').count(),
+        'tareas_abiertas': aula.tareas.filter(publicada=True, fecha_limite__gte=timezone.now()).count(),
+        'n_material': aula.materiales.count() + aula.invertidas.count() + aula.actividades.count(),
+        'n_juegos': aula.juegos.filter(publicado=True).count(),
+        'n_cuestionarios': aula.cuestionarios.count(),
+        'n_estudiantes': len(personas), 'sin_entrar': len(sin_entrar), 'sin_clave': sin_clave,
+        'mascotas': len(mascotas), 'mascotas_mal': sum(1 for m in mascotas if m['animo'] in ('mal', 'desmayada')),
+        'ultimas': list(aula.publicaciones.filter(tarea__isnull=True).select_related('autor')[:2]),
+        'tableros': list(aula.tableros.all()), 'vivos': vivos,
+    }
+    return _render(request, c, 'aula/portada_docente.html', datos, 'inicio')
 
 
 @vista_aula

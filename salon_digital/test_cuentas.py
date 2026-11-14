@@ -118,6 +118,11 @@ class CuentasDeEstudiantes(TestCase):
         est = Client(HTTP_HOST='localhost')
         self.assertRedirects(self.entrar(est, rosa), f'/aula/{self.aula.pk}/inicio/')
         self.assertNotContains(est.get(f'/aula/{self.aula.pk}/inicio/'), 'Cambiar mi contraseña')
-        # El docente sigue llegando a su muro de siempre
-        self.assertRedirects(self.profe.get(f'/aula/{self.aula.pk}/inicio/'), f'/aula/{self.aula.pk}/')
+        # El docente tiene su propio Inicio con tarjetas: lo que hay por calificar, sus estudiantes (quién no ha entrado)…
+        r = self.profe.get(f'/aula/{self.aula.pk}/inicio/')
+        for texto in ('Por calificar', 'Contenido', 'Juegos y práctica', 'Evaluaciones', 'Planilla', 'Estudiantes',
+                      'Publicar algo para la clase', 'Todo lo de la clase', self.grupo.codigo):
+            self.assertContains(r, texto)
+        self.assertEqual(r.context['n_estudiantes'], 1)
+        self.assertEqual(r.context['sin_entrar'], 0)                       # Rosa ya entró a su Inicio
         self.assertContains(self.profe.get(self.g + 'carta-padres/'), 'Ley 1581')

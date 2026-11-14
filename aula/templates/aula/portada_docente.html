@@ -1,0 +1,88 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<style>
+  .pd-vivo { background: #ecfdf5; border: 2px solid #6ee7b7; border-radius: 18px; padding: 10px 14px; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .pd-publicar { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 12px 14px; margin-bottom: 12px; }
+  .pd-publicar summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 700; color: #334155; }
+  .pd-publicar summary::-webkit-details-marker { display: none; }
+  .pd-publicar summary .falso { flex: 1; background: #f1f5f9; border-radius: 99px; padding: 9px 14px; font-weight: 500; color: #64748b; }
+  .pd-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+  @media (min-width: 992px) { .pd-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .pd-tile { position: relative; display: flex; flex-direction: column; gap: 6px; border-radius: 18px; padding: 14px; text-decoration: none; color: #0f172a; border: 2px solid; min-height: 118px; transition: transform .15s; }
+  .pd-tile:hover { transform: translateY(-2px); color: #0f172a; }
+  .pd-tile .ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 1.15rem; color: #fff; }
+  .pd-tile b { font-size: 1.08rem; line-height: 1.2; padding-right: 24px; overflow-wrap: anywhere; }
+  .pd-tile small { color: #334155; line-height: 1.3; }
+  .pd-tile .n { position: absolute; top: 10px; right: 10px; min-width: 26px; height: 26px; border-radius: 99px; background: #e03131; color: #fff; font-weight: 800; font-size: .8rem; display: grid; place-items: center; padding: 0 7px; }
+  .pd-tile .ok { position: absolute; top: 10px; right: 12px; color: #2f9e44; }
+  .t-calificar { background: #fee2e2; border-color: #fca5a5; } .t-calificar .ic { background: #dc2626; }
+  .t-contenido { background: #dbeafe; border-color: #93c5fd; } .t-contenido .ic { background: #2563eb; }
+  .t-practica { background: #fef3c7; border-color: #fcd34d; } .t-practica .ic { background: #d97706; }
+  .t-evaluar { background: #ede9fe; border-color: #c4b5fd; } .t-evaluar .ic { background: #7c3aed; }
+  .t-notas { background: #dcfce7; border-color: #86efac; } .t-notas .ic { background: #16a34a; }
+  .t-estudiantes { background: #e0f2fe; border-color: #7dd3fc; } .t-estudiantes .ic { background: #0284c7; }
+  .pd-caja { display: flex; gap: 10px; align-items: center; background: #fff; border-radius: 18px; padding: 14px 16px; margin-bottom: 12px; border: 1px solid #e2e8f0; text-decoration: none; color: #0f172a; }
+  .pd-caja:hover { border-color: #94a3b8; color: #0f172a; }
+  .pd-caja h2 { font-size: 1.02rem; font-weight: 800; margin: 0 0 2px; }
+</style>
+<div class="au">
+  {% for tb in tableros %}
+  <div class="pd-vivo"><span style="font-size:1.3rem" aria-hidden="true">📋</span><div class="flex-grow-1"><b>Tablero abierto: {{ tb.titulo }}</b></div>
+    <a class="btn btn-sm btn-success fw-bold" href="{% url 'aula:tablero_ver' aula.pk tb.pk %}">Abrir el tablero</a></div>
+  {% endfor %}
+  {% for s in vivos %}
+  <div class="pd-vivo" style="background:#fef9c3;border-color:#fde047"><span style="font-size:1.3rem" aria-hidden="true">⚡</span><div class="flex-grow-1"><b>Juego en vivo: {{ s.cuestionario.titulo }}</b></div>
+    <a class="btn btn-sm btn-warning fw-bold" href="{% url 'aula:vivo' aula.pk s.pk %}">Volver al juego</a></div>
+  {% endfor %}
+
+  <details class="pd-publicar">
+    <summary><span class="au-avatar">{{ request.user.first_name|first|default:"D" }}</span><span class="falso">Publicar algo para la clase…</span></summary>
+    <form method="post" action="{% url 'aula:muro' aula.pk %}" enctype="multipart/form-data" class="mt-3">{% csrf_token %}
+      <textarea name="texto" rows="3" class="form-control mb-2" placeholder="Un anuncio, una indicación o una guía…" aria-label="Texto de la publicación"></textarea>
+      <div class="row g-2"><div class="col-md-6"><input type="url" name="enlace" class="form-control form-control-sm" placeholder="Enlace (opcional)" aria-label="Enlace"></div>
+        <div class="col-md-6"><input type="file" name="archivo" class="form-control form-control-sm" aria-label="Archivo"></div></div>
+      <div class="text-end mt-2"><button class="btn au-oro btn-sm px-3 fw-bold">Publicar en el muro</button></div>
+    </form>
+  </details>
+
+  <div class="pd-tiles">
+    <a class="pd-tile t-calificar" href="{% url 'aula:tareas' aula.pk %}"><span class="ic"><i class="fas fa-clipboard-check"></i></span>
+      <b>Por calificar</b><small>{% if por_calificar %}{{ por_calificar }} entrega{{ por_calificar|pluralize }} esperando nota{% else %}Todo al día{% endif %}{% if tareas_abiertas %} · {{ tareas_abiertas }} tarea{{ tareas_abiertas|pluralize }} abierta{{ tareas_abiertas|pluralize }}{% endif %}</small>
+      {% if por_calificar %}<span class="n">{{ por_calificar }}</span>{% else %}<i class="fas fa-circle-check ok" aria-hidden="true"></i>{% endif %}</a>
+    <a class="pd-tile t-contenido" href="{% url 'aula:material' aula.pk %}"><span class="ic"><i class="fas fa-book-open-reader"></i></span>
+      <b>Contenido</b><small>Material, aula invertida y actividades · {{ n_material }} publicado{{ n_material|pluralize }}</small></a>
+    <a class="pd-tile t-practica" href="{% url 'aula:gamificacion' aula.pk %}"><span class="ic"><i class="fas fa-gamepad"></i></span>
+      <b>Juegos y práctica</b><small>{{ n_juegos }} juego{{ n_juegos|pluralize }}{% if mascotas %} · {{ mascotas }} mascota{{ mascotas|pluralize }}{% endif %}{% if mascotas_mal %} · {{ mascotas_mal }} necesita{{ mascotas_mal|pluralize:"n" }} atención{% endif %}</small>
+      {% if mascotas_mal %}<span class="n" title="Mascotas que necesitan atención">{{ mascotas_mal }}</span>{% endif %}</a>
+    <a class="pd-tile t-evaluar" href="{% url 'aula:cuestionarios' aula.pk %}"><span class="ic"><i class="fas fa-list-check"></i></span>
+      <b>Evaluaciones</b><small>{{ n_cuestionarios }} cuestionario{{ n_cuestionarios|pluralize }}{% if pe_activo %} · exámenes PuntoExacto{% endif %} · clase en vivo</small></a>
+    <a class="pd-tile t-notas" href="{% url 'aula:calificaciones' aula.pk %}"><span class="ic"><i class="fas fa-table"></i></span>
+      <b>{% if aula.es_salon %}Planilla{% else %}Calificaciones{% endif %}</b><small>Las notas de la clase</small></a>
+    <a class="pd-tile t-estudiantes" href="{% if aula.grupo_id %}{% url 'salon_digital:ver_grupo' aula.grupo_id %}{% else %}{% url 'aula:calificaciones' aula.pk %}{% endif %}"><span class="ic"><i class="fas fa-users"></i></span>
+      <b>Estudiantes</b><small>{{ n_estudiantes }} en la clase{% if sin_entrar %} · {{ sin_entrar }} no ha{{ sin_entrar|pluralize:"n" }} entrado{% endif %}{% if sin_clave %} · {{ sin_clave }} sin contraseña{% endif %}</small>
+      {% if sin_clave %}<span class="n" title="Sin contraseña">{{ sin_clave }}</span>{% endif %}</a>
+  </div>
+
+  <div class="pd-todo d-lg-none mb-3" aria-label="Todas las secciones de la clase">
+    <div class="small fw-bold text-muted mb-2">Todo lo de la clase</div>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-sm btn-light border" href="{% url 'aula:material' aula.pk %}"><i class="far fa-folder-open me-1"></i>Material</a>
+      <a class="btn btn-sm btn-light border" href="{% url 'aula:invertidas' aula.pk %}"><i class="fab fa-youtube me-1"></i>Aula invertida</a>
+      <a class="btn btn-sm btn-light border" href="{% url 'aula:actividades' aula.pk %}"><i class="fas fa-puzzle-piece me-1"></i>Actividades</a>
+      <a class="btn btn-sm btn-light border" href="{% url 'aula:gamificacion' aula.pk %}"><i class="fas fa-gamepad me-1"></i>Gamificación</a>
+      <a class="btn btn-sm btn-light border" href="{% url 'aula:cuestionarios' aula.pk %}"><i class="fas fa-bolt me-1"></i>Cuestionarios</a>
+      {% if pe_activo %}<a class="btn btn-sm btn-light border" href="{% url 'aula:examenes' aula.pk %}"><i class="fas fa-camera me-1"></i>Exámenes</a>{% endif %}
+      <a class="btn btn-sm btn-light border" href="{% url 'aula:clase' aula.pk %}"><i class="fas fa-video me-1"></i>Clase en vivo</a>
+      {% if aula.es_salon %}<a class="btn btn-sm btn-light border" href="{% url 'aula:chat' aula.pk %}"><i class="fas fa-comment-dots me-1"></i>Chat</a>{% endif %}
+    </div>
+  </div>
+
+  <a class="pd-caja" href="{% url 'aula:muro' aula.pk %}">
+    <div class="flex-grow-1" style="min-width:0"><h2>Muro de la clase</h2>
+      {% for p in ultimas %}<div class="small text-truncate"><b>{{ p.creada|date:"d M" }}:</b> {{ p.texto|default:"archivo o enlace" }}</div>
+      {% empty %}<div class="small text-muted">Todavía no ha publicado nada. Use «Publicar algo para la clase».</div>{% endfor %}</div>
+    <i class="far fa-comments fs-3 text-secondary" aria-hidden="true"></i></a>
+</div>
+{% endblock %}

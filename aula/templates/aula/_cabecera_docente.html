@@ -1,0 +1,43 @@
+{% comment %}Encabezado del docente dentro de su clase: tarjeta de la clase (con el código en el Salón Virtual) y, en el celular,
+la barra Inicio · Muro · Calificar · Estudiantes. En el computador sigue la fila de pestañas de _cabecera.html.{% endcomment %}
+<style>
+  .ad-cab { display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #0f1f3d, #1e2a78); color: #fff; border-radius: 20px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 6px 18px rgba(15,31,61,.18); }
+  .ad-cab .ico { width: 48px; height: 48px; border-radius: 14px; background: rgba(255,255,255,.12); display: grid; place-items: center; font-size: 1.3rem; flex: none; }
+  .ad-cab h1 { font-size: 1.35rem; margin: 0; font-weight: 800; color: #fcd34d; line-height: 1.15; }
+  .ad-cab .sub { font-size: .85rem; color: #cbd5e1; }
+  .ad-cab .codigo { font-family: ui-monospace, Consolas, monospace; letter-spacing: .12em; background: rgba(255,255,255,.12); border-radius: 8px; padding: 2px 8px; color: #fff; }
+  .ad-cab .mas { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.14); color: #fff; border: 0; flex: none; }
+  .ad-nav { display: none; }
+  @media (max-width: 991px) {
+    .ad-nav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1030; background: #fff; border-top: 1px solid #e2e8f0; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 14px rgba(15,23,42,.06); }
+    .ad-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; text-decoration: none; color: #475569; font-weight: 700; font-size: .72rem; padding: 6px 2px; position: relative; }
+    .ad-nav a i { font-size: 1.25rem; }
+    .ad-nav a.on { color: #1e2a78; }
+    .ad-nav .globo { position: absolute; top: 0; right: 22%; min-width: 18px; height: 18px; border-radius: 99px; background: #e03131; color: #fff; font-size: .7rem; display: grid; place-items: center; padding: 0 4px; }
+    body { padding-bottom: 78px; }
+    .esp-abajo { display: none !important; }
+  }
+</style>
+<div class="ad-cab">
+  <div class="ico" aria-hidden="true"><i class="fas fa-chalkboard-user"></i></div>
+  <div class="flex-grow-1" style="min-width:0">
+    <h1>{{ aula.titulo }}</h1>
+    <div class="sub">{{ aula.subtitulo }}{% if aula.grupo_id %}<span class="d-inline-block mt-1 ms-md-1">Código <span class="codigo">{{ aula.grupo.codigo }}</span></span>{% endif %}</div>
+  </div>
+  <div class="dropdown">
+    <button class="mas" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Más opciones de la clase"><i class="fas fa-ellipsis-vertical"></i></button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      {% if aula.grupo_id %}<li><a class="dropdown-item" href="{% url 'salon_digital:ver_grupo' aula.grupo_id %}"><i class="fas fa-users fa-fw me-2"></i>Estudiantes y contraseñas</a></li>
+      <li><a class="dropdown-item" href="{% url 'salon_digital:tarjetas_grupo' aula.grupo_id %}" target="_blank"><i class="fas fa-id-card fa-fw me-2"></i>Tarjetas de acceso</a></li>{% endif %}
+      <li><a class="dropdown-item" href="{% url 'aula:instrumentos' %}"><i class="fas fa-list-check fa-fw me-2"></i>Mis rúbricas</a></li>
+      <li><a class="dropdown-item" href="{% url 'aula:banco' %}"><i class="fas fa-box-archive fa-fw me-2"></i>Banco de preguntas</a></li>
+      {% if not aula.es_salon %}<li><hr class="dropdown-divider"></li><li><a class="dropdown-item" href="{% url 'aula:inicio' %}"><i class="fas fa-grip fa-fw me-2"></i>Mis clases</a></li>{% endif %}
+    </ul>
+  </div>
+</div>
+<nav class="ad-nav" aria-label="Secciones de la clase">
+  <a href="{% url 'aula:portada' aula.pk %}" class="{% if pestana == 'inicio' %}on{% endif %}" {% if pestana == 'inicio' %}aria-current="page"{% endif %}><i class="fas fa-house"></i><span>Inicio</span></a>
+  <a href="{% url 'aula:muro' aula.pk %}" class="{% if pestana == 'muro' %}on{% endif %}" {% if pestana == 'muro' %}aria-current="page"{% endif %}><i class="far fa-newspaper"></i><span>Muro</span></a>
+  <a href="{% url 'aula:tareas' aula.pk %}" class="{% if pestana == 'tareas' %}on{% endif %}" {% if pestana == 'tareas' %}aria-current="page"{% endif %}><i class="fas fa-clipboard-check"></i><span>Calificar</span>{% if por_calificar %}<span class="globo">{{ por_calificar }}</span>{% endif %}</a>
+  <a href="{% if aula.grupo_id %}{% url 'salon_digital:ver_grupo' aula.grupo_id %}{% else %}{% url 'aula:calificaciones' aula.pk %}{% endif %}" class="{% if pestana == 'calificaciones' %}on{% endif %}"><i class="fas fa-users"></i><span>Estudiantes</span></a>
+</nav>

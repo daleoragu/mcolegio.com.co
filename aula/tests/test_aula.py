@@ -224,7 +224,7 @@ class AulaSalonDigital(ColegioDePrueba):
         self.assertContains(profe.get('/aula/'), '7-01')
         r = profe.get(f'/aula/grupo/{grupo.pk}/')
         aula = Aula.objects.get(grupo=grupo)
-        self.assertEqual(r.url, f'/aula/{aula.pk}/')
+        self.assertEqual(r.url, f'/aula/{aula.pk}/inicio/')                   # el docente llega a su Inicio con tarjetas
         tarea = Tarea.objects.create(aula=aula, titulo='Lectura')
 
         est = Client(HTTP_HOST='localhost')
