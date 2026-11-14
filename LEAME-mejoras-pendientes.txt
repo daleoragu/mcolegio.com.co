@@ -28,3 +28,21 @@ MEJORAS PENDIENTES (ideas acordadas para hacer más adelante)
      · mensajes directos entre colegas y grupos de docentes (con fotos, notas de voz y documentos);
        moderadores, «solo moderadores escriben», agregar todos mis colegas de una vez.
    Falta: compartir materiales/juegos, coorganizar eventos y proyectos cooperativos.
+
+
+2. Ofrecer la plataforma (notas) a colegios privados de Ibagué — PARA EL PRÓXIMO AÑO
+   -----------------------------------------------------------------------------------
+   Cuándo: cuando mcolegio tenga de nuevo el registro certificado.
+   Qué: armar un Excel con los colegios privados de Ibagué y sus datos de contacto, para que el
+   dueño de la plataforma decida a quiénes escribir (la plataforma no envía nada sola).
+   De dónde: Directorio de establecimientos educativos del MEN (datos.gov.co, conjunto cfw5-qzt5).
+     · La plataforma ya tiene la lista (aula/datos/colegios_dane.json): en Ibagué (73001) hay 205
+       establecimientos, 145 privados (incluye jardines y preescolar) y 60 oficiales.
+     · Los correos, teléfonos, direcciones y rectores NO están guardados: hay que descargarlos del
+       mismo conjunto del MEN.
+   Cuidados:
+     · Muchos correos del directorio están desactualizados: confirmar por teléfono los más importantes.
+     · Ley 1581: son datos públicos, pero un correo con nombre propio es dato personal; usarlo solo
+       para presentar la plataforma.
+     · Enviar desde un correo de mcolegio, con nombre y teléfono, de a pocos y con una forma clara de
+       pedir que no le escriban más.
