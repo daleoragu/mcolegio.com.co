@@ -165,10 +165,11 @@ def por_asignacion(request, asignacion_id):
     from notas.models import AsignacionDocente
     asig = get_object_or_404(AsignacionDocente, pk=asignacion_id, colegio=getattr(request, 'colegio', None))
     aula = Aula.objects.filter(asignacion=asig).first() or Aula(asignacion=asig, colegio=asig.colegio)
-    if logica.contexto(request, aula) is None:
+    c = logica.contexto(request, aula)
+    if c is None:
         raise _Prohibido('Esta aula es solo para el docente y los estudiantes de la clase.')
     aula = logica.aula_de_asignacion(asig)
-    return redirect('aula:muro', pk=aula.pk)
+    return redirect('aula:muro' if c.es_docente else 'aula:portada', pk=aula.pk)      # el estudiante llega a su Inicio
 
 
 @login_required
@@ -179,10 +180,11 @@ def por_grupo(request, grupo_id):
 
 
 def entrar(request, pk):
-    """Salón Digital: el estudiante escribe el código del grupo y escoge su nombre."""
+    """Salón Digital: el estudiante escribe el código del grupo (o llega con el enlace o el QR), toca su nombre y escribe
+    su contraseña o su PIN, según cómo entre el grupo. Con «Recordarme» queda abierto en ese celular."""
     aula = get_object_or_404(Aula, pk=pk, grupo__isnull=False)
     if logica.contexto(request, aula) is not None:
-        return redirect('aula:muro', pk=aula.pk)
+        return redirect('aula:portada', pk=aula.pk)
     grupo = aula.grupo
     codigo = (request.POST.get('codigo') or request.GET.get('codigo') or '').strip().upper()
     valido = codigo == grupo.codigo and grupo.activo
@@ -193,17 +195,17 @@ def entrar(request, pk):
         integrante = grupo.integrantes.filter(pk=request.POST['integrante'], activo=True).first()
         if integrante:
             from salon_digital import identidad
-            ok, error = identidad.pin_valido(request, integrante, request.POST.get('pin'))
+            ok, error = identidad.acceso_valido(request, integrante, request.POST.get('pin'))
             if ok:
-                identidad.guardar(request, integrante)
-                return redirect('aula:muro', pk=aula.pk)
+                identidad.guardar(request, integrante, recordar=bool(request.POST.get('recordar')))
+                return redirect('aula:portada', pk=aula.pk)
         else:
             error = 'No encontramos ese nombre en la clase.'
     return render(request, 'aula/entrar.html', {
-        'aula': aula, 'codigo': codigo, 'valido': valido, 'error': error, 'base': 'aula/base_salon.html',
+        'aula': aula, 'grupo': grupo, 'codigo': codigo, 'valido': valido, 'error': error, 'base': 'aula/base_salon.html',
         'hide_cuenta': True,
         'integrantes': grupo.integrantes.filter(activo=True) if valido else [],
-        'pedir_pin': grupo.pedir_pin, 'elegido': request.POST.get('integrante', ''),
+        'ingreso': grupo.ingreso, 'pedir_pin': grupo.ingreso != 'nombre', 'elegido': request.POST.get('integrante', ''),
     })
 
 
@@ -211,6 +213,62 @@ def salir(request, pk):
     from salon_digital import identidad
     identidad.olvidar(request)
     return redirect('aula:entrar', pk=pk)
+
+
+# ---------------------------------------------------------------------------
+# Espacio del estudiante: Inicio con tarjetas, Trabajo de clase y su contraseña
+# ---------------------------------------------------------------------------
+@vista_aula
+def portada(request, pk):
+    """El Inicio del estudiante: lo que está en vivo, cuatro tarjetas (Aprender, Practicar, Tareas, Evaluaciones)
+    con lo nuevo de cada una, lo último del muro y las próximas entregas. El docente va a su muro de siempre."""
+    c = _ctx(request, pk)
+    if c.es_docente:
+        return redirect('aula:muro', pk=pk)
+    aula = c.aula
+    from .models import SesionVivo
+    vivos = list(SesionVivo.objects.filter(cuestionario__aula=aula, creada__gte=timezone.now() - timedelta(hours=3))
+                 .exclude(estado='fin').select_related('cuestionario'))
+    ultimas = list(aula.publicaciones.filter(tarea__isnull=True).select_related('autor')[:2])
+    proximas = [t for t in aula.tareas.filter(publicada=True, fecha_limite__gte=timezone.now())
+                .order_by('fecha_limite') if logica.para_c(t, c)][:4]
+    return _render(request, c, 'aula/portada.html', {
+        'vivos': vivos, 'tableros': list(aula.tableros.all()), 'horario': logica.horario_de(aula),
+        'ultimas': ultimas, 'proximas': proximas}, 'inicio')
+
+
+@vista_aula
+def trabajo(request, pk):
+    """Trabajo de clase: todo ordenado en tres grupos (Aprender, Practicar, Evaluar) con lo nuevo de cada cosa."""
+    c = _ctx(request, pk)
+    if c.es_docente:
+        return redirect('aula:muro', pk=pk)
+    return _render(request, c, 'aula/trabajo.html', {}, 'trabajo')
+
+
+@vista_aula
+def mi_clave(request, pk):
+    """El estudiante cambia su contraseña por una suya (si su grupo entra con contraseña)."""
+    from salon_digital import claves
+    c = _ctx(request, pk)
+    i = c.integrante
+    if c.es_docente or i is None or i.grupo.ingreso != 'clave':
+        return redirect('aula:portada', pk=pk)
+    error = ''
+    if request.method == 'POST':
+        actual, nueva, otra = (request.POST.get(k) or '' for k in ('actual', 'nueva', 'otra'))
+        if i.clave and not i.clave_correcta(actual):
+            error = 'La contraseña actual no es esa.'
+        elif nueva != otra:
+            error = 'Las dos contraseñas nuevas no coinciden.'
+        else:
+            error = claves.problema(nueva, i.completo)
+        if not error:
+            i.poner_clave(nueva.strip(), propia=True)
+            i.save(update_fields=['clave', 'clave_propia'])
+            messages.success(request, '¡Listo! Ya tiene su propia contraseña. No se la preste a nadie.')
+            return redirect('aula:portada', pk=pk)
+    return _render(request, c, 'aula/mi_clave.html', {'error': error, 'minimo': claves.MINIMO}, 'clave')
 
 
 # ---------------------------------------------------------------------------

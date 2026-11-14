@@ -1,0 +1,36 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<style>
+  .tr-sec { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 6px 14px 10px; margin-bottom: 12px; scroll-margin-top: 80px; }
+  .tr-sec h2 { display: flex; align-items: center; gap: 10px; font-size: 1.1rem; font-weight: 800; margin: 8px 0 6px; }
+  .tr-sec h2 .ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: #fff; font-size: 1rem; }
+  .tr-item { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-top: 1px solid #f1f5f9; text-decoration: none; color: #0f172a; }
+  .tr-item:hover { background: #f8fafc; color: #0f172a; }
+  .tr-item > i { width: 26px; text-align: center; color: #475569; font-size: 1.1rem; }
+  .tr-item b { display: block; }
+  .tr-item small { color: #64748b; }
+  .tr-item .n { margin-left: auto; min-width: 24px; height: 24px; border-radius: 99px; background: #e03131; color: #fff; font-weight: 800; font-size: .8rem; display: grid; place-items: center; padding: 0 6px; }
+  .tr-item .flecha { margin-left: auto; color: #94a3b8; }
+  .tr-item .n + .flecha { margin-left: 8px; }
+</style>
+<div class="au">
+  <section class="tr-sec" id="aprender"><h2><span class="ic" style="background:#2563eb"><i class="fas fa-book-open-reader"></i></span>Aprender</h2>
+    <a class="tr-item" href="{% url 'aula:material' aula.pk %}"><i class="far fa-folder-open"></i><span><b>Material</b><small>Guías, talleres y archivos de la clase</small></span>{% if nuevos.material %}<span class="n">{{ nuevos.material }}</span>{% endif %}<i class="fas fa-chevron-right flecha"></i></a>
+    <a class="tr-item" href="{% url 'aula:invertidas' aula.pk %}"><i class="fab fa-youtube"></i><span><b>Aula invertida</b><small>Videos con preguntas para ver antes de clase</small></span>{% if nuevos.invertida %}<span class="n">{{ nuevos.invertida }}</span>{% endif %}<i class="fas fa-chevron-right flecha"></i></a>
+  </section>
+  <section class="tr-sec" id="practicar"><h2><span class="ic" style="background:#d97706"><i class="fas fa-gamepad"></i></span>Practicar</h2>
+    <a class="tr-item" href="{% url 'aula:gamificacion' aula.pk %}"><i class="fas fa-gamepad"></i><span><b>Juegos de la clase</b><small>Con las preguntas de su profe</small></span>{% if nuevos.gamificacion %}<span class="n">{{ nuevos.gamificacion }}</span>{% endif %}<i class="fas fa-chevron-right flecha"></i></a>
+    <a class="tr-item" href="{% url 'aula:mascota' aula.pk %}"><i class="fas fa-paw"></i><span><b>Mi mascota</b><small>Cuídela respondiendo preguntas</small></span><i class="fas fa-chevron-right flecha"></i></a>
+    <a class="tr-item" href="{% url 'aula:logica' aula.pk %}"><i class="fas fa-puzzle-piece"></i><span><b>Juegos de lógica</b><small>Tangram, Empuja cajas, Trancón…</small></span><i class="fas fa-chevron-right flecha"></i></a>
+    <a class="tr-item" href="{% url 'aula:actividades' aula.pk %}"><i class="fas fa-shapes"></i><span><b>Actividades interactivas</b><small>Páginas y juegos que publica su profe</small></span>{% if nuevos.actividades %}<span class="n">{{ nuevos.actividades }}</span>{% endif %}<i class="fas fa-chevron-right flecha"></i></a>
+  </section>
+  <section class="tr-sec" id="evaluar"><h2><span class="ic" style="background:#7c3aed"><i class="fas fa-list-check"></i></span>Tareas y evaluaciones</h2>
+    <a class="tr-item" href="{% url 'aula:tareas' aula.pk %}"><i class="fas fa-clipboard-check"></i><span><b>Tareas</b><small>Lo que tiene que entregar y sus notas</small></span>{% if nuevos.tareas %}<span class="n">{{ nuevos.tareas }}</span>{% endif %}<i class="fas fa-chevron-right flecha"></i></a>
+    <a class="tr-item" href="{% url 'aula:cuestionarios' aula.pk %}"><i class="fas fa-bolt"></i><span><b>Cuestionarios</b><small>Preguntas que se califican solas</small></span>{% if nuevos.cuestionarios %}<span class="n">{{ nuevos.cuestionarios }}</span>{% endif %}<i class="fas fa-chevron-right flecha"></i></a>
+    {% if pe_activo %}<a class="tr-item" href="{% url 'aula:examenes' aula.pk %}"><i class="fas fa-camera"></i><span><b>Exámenes</b><small>Sus resultados de PuntoExacto</small></span><i class="fas fa-chevron-right flecha"></i></a>{% endif %}
+    <a class="tr-item" href="{% url 'aula:clase' aula.pk %}"><i class="fas fa-video"></i><span><b>Clase en vivo</b><small>Preguntas en vivo con toda la clase</small></span><i class="fas fa-chevron-right flecha"></i></a>
+  </section>
+</div>
+{% endblock %}

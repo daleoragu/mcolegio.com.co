@@ -273,6 +273,10 @@ class Grupo(models.Model):
         default=False, verbose_name='Pedir el PIN al entrar',
         help_text='Además del código del grupo y su nombre, cada estudiante escribe su PIN de 4 cifras: '
                   'así nadie entra con el nombre de otro.')
+    INGRESOS = [('clave', 'Con contraseña (recomendado desde 3.º)'), ('pin', 'Con PIN de 4 cifras (primaria)'),
+                ('nombre', 'Solo tocando su nombre (los más pequeños)')]
+    ingreso = models.CharField(max_length=8, choices=INGRESOS, default='nombre', verbose_name='Cómo entran los estudiantes',
+                               help_text='Después del código del grupo, cada estudiante toca su nombre y escribe su contraseña o su PIN.')
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -284,13 +288,18 @@ class Grupo(models.Model):
     def __str__(self):
         return self.nombre
 
+    def save(self, *args, **kwargs):
+        self.pedir_pin = self.ingreso == 'pin'          # el campo viejo sigue al nuevo (lo usan las actividades)
+        super().save(*args, **kwargs)
+
     @property
     def total_integrantes(self):
         return self.integrantes.filter(activo=True).count()
 
 
 class Integrante(models.Model):
-    """Un estudiante dentro de un grupo. Sin cuenta ni contraseña."""
+    """Un estudiante dentro de un grupo. No tiene usuario: entra con el código del grupo, su nombre y su contraseña
+    (o su PIN). La contraseña se guarda cifrada: el docente la ve solo al crearla o al restablecerla."""
 
     grupo = models.ForeignKey(Grupo, on_delete=models.CASCADE, related_name='integrantes')
     apellidos = models.CharField(max_length=120)
@@ -298,8 +307,23 @@ class Integrante(models.Model):
     completo = models.CharField(max_length=240, blank=True, editable=False)
     pin_chat = models.CharField(max_length=4, default=pin_chat, verbose_name='PIN',
                                 help_text='Lo necesita el estudiante para el chat y, si el grupo lo pide, para entrar.')
+    clave = models.CharField(max_length=128, blank=True, help_text='Contraseña cifrada (vacía: todavía no tiene).')
+    clave_propia = models.BooleanField(default=False, help_text='El estudiante ya la cambió por una suya.')
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
+
+    def poner_clave(self, texto, propia=False):
+        from django.contrib.auth.hashers import make_password
+        self.clave, self.clave_propia = make_password(texto), propia
+
+    def clave_correcta(self, texto):
+        from django.contrib.auth.hashers import check_password
+        return bool(self.clave) and check_password(texto or '', self.clave)
+
+    @property
+    def iniciales(self):
+        partes = (self.completo or f'{self.apellidos} {self.nombres}').split()[:2]
+        return ''.join(p[0] for p in partes).upper() or '?'
 
     class Meta:
         ordering = ['apellidos', 'nombres']

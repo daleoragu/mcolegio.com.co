@@ -137,6 +137,19 @@ GUIAS = {
             P('Crear grupo', 'Cree un grupo nuevo y comparta el PIN o QR para que entren los estudiantes.', c='Crear grupo'),
         ],
     },
+    'salon_digital:ver_grupo': {
+        'titulo': 'Su grupo y las cuentas de sus estudiantes',
+        'resumen': 'Aquí crea las cuentas de sus estudiantes (solo con su nombre y una contraseña fácil), imprime sus tarjetas de acceso '
+                   'y les restablece la contraseña si la olvidan.',
+        'pasos': [
+            P('Código para entrar', 'Sus estudiantes lo escriben la primera vez (o escanean el QR de su tarjeta, que ya lo trae).', c='Código para entrar'),
+            P('Cómo entran', 'Paso a paso de cómo entran sus estudiantes. Puede escoger si entran con contraseña, con PIN o solo tocando su nombre en «Datos del grupo».', c='Cómo entran sus estudiantes'),
+            P('Tarjetas de acceso', 'Imprímalas y recórtelas: cada una trae el QR de la clase, el código y la contraseña o el PIN del estudiante.', c='Imprimir tarjetas de acceso'),
+            P('Crear cuentas', 'Escriba o pegue los nombres; la plataforma propone una contraseña fácil para cada uno y usted la puede cambiar.', c='Crear cuentas de estudiantes'),
+            P('Sus estudiantes', 'La lista con el estado de su contraseña. Si alguno la olvida, toque «Restablecer contraseña» y le mostramos la nueva.', c='Estudiantes', s='.card-header'),
+            P('Datos del grupo', 'El nombre del grupo y cómo entran: con contraseña (desde 3.º), con PIN (primaria) o solo con el nombre (los más pequeños).', c='Datos del grupo'),
+        ],
+    },
     'aula:mascota': {
         'titulo': 'Mascota académica',
         'resumen': 'Cada estudiante cuida una mascota respondiendo preguntas: comida, sueño, baño y ánimo bajan con las horas. '

@@ -1,0 +1,82 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}Agregar estudiantes · {{ grupo.nombre }}{% endblock %}
+{% block extra_css %}
+<style>
+  .ae { max-width: 760px; margin: 0 auto; }
+  .ae h1 { font-size: 1.6rem; font-weight: 800; }
+  .ae .pasos { display: flex; gap: 8px; font-size: .85rem; margin-bottom: 14px; }
+  .ae .pasos span { padding: 4px 12px; border-radius: 99px; background: #e2e8f0; color: #475569; font-weight: 600; }
+  .ae .pasos span.on { background: #1e2a78; color: #fff; }
+  .ae table { width: 100%; }
+  .ae th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: #475569; padding: 8px 6px; border-bottom: 2px solid #e2e8f0; }
+  .ae td { padding: 6px; border-bottom: 1px solid #eef2f7; vertical-align: top; }
+  .ae .clave { font-family: ui-monospace, Consolas, monospace; letter-spacing: .04em; }
+  .ae .pie { position: sticky; bottom: 0; background: #fff; border-top: 1px solid #e2e8f0; padding: 12px 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; z-index: 5; }
+  .ae .aviso { font-size: .85rem; color: #475569; }
+</style>
+{% endblock %}
+{% block contenido %}
+<div class="ae">
+  <a href="{% url 'salon_digital:ver_grupo' grupo.pk %}" class="small text-decoration-none">&larr; {{ grupo.nombre }}</a>
+  <h1 class="mt-1">{% if paso == 1 %}Crear cuentas para sus estudiantes{% else %}Revise las contraseñas{% endif %}</h1>
+  <div class="pasos"><span class="{% if paso == 1 %}on{% endif %}">1. Nombres</span><span class="{% if paso == 2 %}on{% endif %}">2. Contraseñas</span></div>
+
+  {% if paso == 1 %}
+  <p class="text-muted">Escriba el nombre de cada estudiante (Enter agrega otra fila) o pegue la lista completa. No hace falta nombre de usuario:
+    cada estudiante entra con el código del grupo, tocando su nombre y escribiendo su contraseña.</p>
+  <form method="post" id="ae-form">{% csrf_token %}<input type="hidden" name="paso" value="revisar">
+    <table>
+      <thead><tr><th>Nombre del estudiante</th><th style="width:40px"></th></tr></thead>
+      <tbody id="ae-filas">
+        <tr><td><input name="nombre" class="form-control" placeholder="ej.: Rosa Salazar" maxlength="200" autocomplete="off" aria-label="Nombre del estudiante 1" autofocus></td>
+            <td><button type="button" class="btn btn-link text-secondary ae-quitar" aria-label="Quitar fila">&times;</button></td></tr>
+      </tbody>
+    </table>
+    <button type="button" class="btn btn-link px-0" id="ae-mas">+ Agregar otra fila</button> <span class="small text-muted">(o use la tecla Enter)</span>
+    <details class="mt-2"><summary class="fw-semibold text-primary" style="cursor:pointer">O pegue la lista completa</summary>
+      <textarea name="lista" rows="8" class="form-control mt-2" placeholder="Un estudiante por renglón, como la copia del Excel o de la planilla:&#10;Cano Valentina&#10;Ramos Gutiérrez, David Leonardo"></textarea>
+    </details>
+    <div class="pie"><a class="btn btn-link" href="{% url 'salon_digital:ver_grupo' grupo.pk %}">Cancelar</a>
+      <button class="btn btn-primary px-4">Siguiente</button></div>
+  </form>
+  <script>
+  (function () {
+    var filas = document.getElementById('ae-filas');
+    function fila(foco) {
+      var tr = filas.rows[0].cloneNode(true), i = tr.querySelector('input');
+      i.value = ''; i.removeAttribute('autofocus'); i.setAttribute('aria-label', 'Nombre del estudiante ' + (filas.rows.length + 1));
+      filas.appendChild(tr); if (foco) i.focus();
+    }
+    document.getElementById('ae-mas').addEventListener('click', function () { fila(true); });
+    filas.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && e.target.name === 'nombre') { e.preventDefault(); fila(true); }
+    });
+    filas.addEventListener('click', function (e) {
+      if (!e.target.closest('.ae-quitar')) return;
+      if (filas.rows.length > 1) e.target.closest('tr').remove(); else filas.querySelector('input').value = '';
+    });
+  })();
+  </script>
+
+  {% else %}
+  <p class="text-muted">Le proponemos una contraseña fácil para cada uno (una palabra y tres números). Puede cambiarla: debe tener al menos 8 caracteres
+    y no ser de las comunes. <b>Después de crear las cuentas las podrá ver e imprimir en tarjetas</b>; luego quedan guardadas cifradas y solo se pueden restablecer.</p>
+  {% if ya %}<div class="alert alert-info small py-2">Ya estaban en el grupo (no se repiten): {{ ya|join:", " }}.</div>{% endif %}
+  <form method="post">{% csrf_token %}<input type="hidden" name="paso" value="crear">
+    <table>
+      <thead><tr><th>Nombre del estudiante</th><th>Contraseña</th></tr></thead>
+      <tbody>{% for f in filas %}
+        <tr><td><input name="nombre" value="{{ f.nombre }}" class="form-control" maxlength="200" aria-label="Nombre"></td>
+            <td><input name="clave" value="{{ f.clave }}" class="form-control clave {% if f.error %}is-invalid{% endif %}" maxlength="40" autocomplete="off" aria-label="Contraseña de {{ f.nombre }}">
+              {% if f.error %}<div class="invalid-feedback">{{ f.error }}</div>{% endif %}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+    <div class="form-check mt-3"><input class="form-check-input" type="checkbox" name="permiso" id="ae-permiso" required>
+      <label class="form-check-label aviso" for="ae-permiso">Tengo el permiso de los padres o acudientes de estos estudiantes para crearles una cuenta en la plataforma
+        (Ley 1581 de 2012). <a href="{% url 'salon_digital:carta_padres' grupo.pk %}" target="_blank">Descargar la carta modelo para las familias</a>.</label></div>
+    <div class="pie"><a class="btn btn-link" href="{% url 'salon_digital:agregar_estudiantes' grupo.pk %}">Atrás</a>
+      <button class="btn btn-primary px-4">Crear {{ filas|length }} cuenta{{ filas|length|pluralize }}</button></div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

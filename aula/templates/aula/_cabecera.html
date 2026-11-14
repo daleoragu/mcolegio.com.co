@@ -1,4 +1,5 @@
 {% include 'aula/_estilos.html' %}
+{% if not c.es_docente %}<div class="au">{% include 'aula/_cabecera_estudiante.html' %}</div>{% else %}
 <div class="au">
 <div class="au-cabecera">
     <div class="au-icono"><i class="fas fa-chalkboard-user"></i></div>
@@ -28,3 +29,4 @@
     {% if c.es_docente %}<a href="{% url 'aula:calificaciones' aula.pk %}" class="{% if pestana == 'calificaciones' %}activa{% endif %}"><i class="fas fa-table me-1"></i>{% if aula.es_salon %}Planilla{% else %}Calificaciones{% endif %}</a>{% endif %}
 </nav>
 </div>
+{% endif %}

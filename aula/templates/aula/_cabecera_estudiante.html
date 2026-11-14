@@ -1,0 +1,50 @@
+{% comment %}Encabezado del estudiante: tarjeta de la clase con su menú y la barra Inicio · Muro · Trabajo · Chat
+   (abajo en el celular, arriba en el computador). Lo usa _cabecera.html cuando quien mira no es el docente.{% endcomment %}
+<style>
+  .ae-cab { display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #0f1f3d, #1e2a78); color: #fff; border-radius: 20px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 6px 18px rgba(15,31,61,.18); }
+  .ae-cab .ico { width: 48px; height: 48px; border-radius: 14px; background: rgba(255,255,255,.12); display: grid; place-items: center; font-size: 1.3rem; flex: none; }
+  .ae-cab h1 { font-size: 1.35rem; margin: 0; font-weight: 800; color: #fcd34d; line-height: 1.15; }
+  .ae-cab .sub { font-size: .85rem; color: #cbd5e1; }
+  .ae-cab .yo { width: 40px; height: 40px; border-radius: 50%; background: #fcd34d; color: #0f1f3d; font-weight: 800; display: grid; place-items: center; border: 0; flex: none; }
+  .ae-nav { display: flex; gap: 6px; margin-bottom: 14px; }
+  .ae-nav a { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 10px; border-radius: 999px; background: #fff; color: #334155; font-weight: 700; text-decoration: none; font-size: .92rem; border: 1px solid #e2e8f0; position: relative; }
+  .ae-nav a.on { background: #0f1f3d; color: #fff; border-color: #0f1f3d; }
+  .ae-nav .globo { position: absolute; top: -4px; right: 8px; min-width: 18px; height: 18px; border-radius: 99px; background: #e03131; color: #fff; font-size: .7rem; display: grid; place-items: center; padding: 0 4px; }
+  @media (max-width: 991px) {
+    .ae-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1030; margin: 0; background: #fff; border-top: 1px solid #e2e8f0; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); gap: 0; box-shadow: 0 -4px 14px rgba(15,23,42,.06); }
+    .ae-nav a { flex-direction: column; gap: 2px; border: 0; border-radius: 12px; font-size: .72rem; padding: 6px 2px; background: transparent; }
+    .ae-nav a i { font-size: 1.25rem; }
+    .ae-nav a.on { background: transparent; color: #1e2a78; }
+    .ae-nav a.on i { color: #1e2a78; }
+    .ae-nav .globo { right: 22%; top: 0; }
+    body { padding-bottom: 78px; }
+    .esp-abajo { display: none !important; }
+  }
+</style>
+<div class="ae-cab">
+  <div class="ico" aria-hidden="true"><i class="fas fa-chalkboard-user"></i></div>
+  <div class="flex-grow-1" style="min-width:0">
+    <h1>{{ aula.titulo }}</h1>
+    <div class="sub text-truncate">{{ aula.subtitulo }}{% if c.nombre %} · {{ c.nombre }}{% endif %}</div>
+  </div>
+  <div class="dropdown">
+    <button class="yo" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Mi menú">{% if c.integrante %}{{ c.integrante.iniciales }}{% else %}<i class="fas fa-user"></i>{% endif %}</button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li><h6 class="dropdown-header">{{ c.nombre }}</h6></li>
+      {% if c.integrante and c.integrante.grupo.ingreso == 'clave' %}<li><a class="dropdown-item" href="{% url 'aula:mi_clave' aula.pk %}"><i class="fas fa-key fa-fw me-2"></i>Cambiar mi contraseña</a></li>{% endif %}
+      <li><a class="dropdown-item" href="{% url 'aula:mascota' aula.pk %}"><i class="fas fa-paw fa-fw me-2"></i>Mi mascota</a></li>
+      {% if not aula.es_salon %}<li><a class="dropdown-item" href="{% url 'aula:inicio' %}"><i class="fas fa-grip fa-fw me-2"></i>Mis clases</a></li>{% endif %}
+      {% if c.integrante %}<li><hr class="dropdown-divider"></li>
+      <li><a class="dropdown-item text-danger" href="{% url 'aula:salir' aula.pk %}"><i class="fas fa-right-from-bracket fa-fw me-2"></i>Salir (no soy {{ c.integrante.completo }})</a></li>{% endif %}
+    </ul>
+  </div>
+</div>
+{% with n_trabajo=nuevos.material|add:nuevos.invertida|add:nuevos.gamificacion|add:nuevos.actividades|add:nuevos.tareas|add:nuevos.cuestionarios %}
+<nav class="ae-nav" aria-label="Secciones de la clase">
+  <a href="{% url 'aula:portada' aula.pk %}" class="{% if pestana == 'inicio' %}on{% endif %}" {% if pestana == 'inicio' %}aria-current="page"{% endif %}><i class="fas fa-house"></i><span>Inicio</span></a>
+  <a href="{% url 'aula:muro' aula.pk %}" class="{% if pestana == 'muro' %}on{% endif %}" {% if pestana == 'muro' %}aria-current="page"{% endif %}><i class="far fa-newspaper"></i><span>Muro</span>{% if nuevos.muro %}<span class="globo">{{ nuevos.muro }}</span>{% endif %}</a>
+  <a href="{% url 'aula:trabajo' aula.pk %}" class="{% if pestana != 'inicio' and pestana != 'muro' and pestana != 'clave' %}on{% endif %}"><i class="fas fa-list-check"></i><span>Trabajo</span>{% if n_trabajo %}<span class="globo">{{ n_trabajo }}</span>{% endif %}</a>
+  {% if aula.es_salon %}<a href="{% url 'aula:chat' aula.pk %}"><i class="far fa-comments"></i><span>Chat</span></a>
+  {% else %}<a href="{% url 'aula:mascota' aula.pk %}" class="{% if pestana == 'gamificacion_mascota' %}on{% endif %}"><i class="fas fa-paw"></i><span>Mascota</span></a>{% endif %}
+</nav>
+{% endwith %}
