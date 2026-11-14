@@ -740,10 +740,30 @@ def pdf(request, a, pk):
     respuestas = request.GET.get('respuestas') == '1'
     datos = exportar.pdf(request, doc, colegio=a.colegio, encabezado=a.encabezado(), docente=a.docente(),
                          modo=request.GET.get('modo'), respuestas=respuestas)
+    # Impresión: 2 o 4 guías por hoja (para cortar) o folleto (para doblar y grapar)
+    impresion = request.GET.get('impresion') or ''
+    nombre = exportar.nombre_archivo(doc, 'pdf')
+    from . import imposicion
+    paginas = imposicion.contar(datos)
+    if impresion in ('2', '4', 'folleto'):
+        datos = imposicion.aplicar(datos, impresion)
+        nombre = nombre[:-4] + ('-folleto.pdf' if impresion == 'folleto' else f'-{impresion}-por-hoja.pdf')
     r = HttpResponse(datos, content_type='application/pdf')
+    # Para la vista previa de impresión: cuántas páginas tiene la guía y cuántas caras salen
+    r['X-Paginas'], r['X-Caras'] = str(paginas), str(imposicion.contar(datos))
     disp = 'attachment' if request.GET.get('descargar') else 'inline'
-    r['Content-Disposition'] = f'{disp}; filename="{exportar.nombre_archivo(doc, "pdf")}"'
+    r['Content-Disposition'] = f'{disp}; filename="{nombre}"'
     return r
+
+
+@vista
+def imprimir(request, a, pk):
+    """La vista previa de impresión desde Mis materiales (sin abrir el editor): copias por hoja, folleto y cuántas hojas."""
+    from .views_equipo import doc_equipo
+    doc, _ = doc_equipo(a, pk)
+    imp = request.GET.get('impresion') or ''
+    return render(request, 'materiales/imprimir.html', {'base': a.base, 'acceso': a, 'doc': doc,
+                                                         'imp': imp if imp in ('2', '4', 'folleto') else ''})
 
 
 @vista

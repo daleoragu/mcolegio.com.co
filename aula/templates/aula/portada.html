@@ -1,0 +1,70 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<style>
+  .po-vivo { background: #ecfdf5; border: 2px solid #6ee7b7; border-radius: 18px; padding: 12px 14px; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .po-vivo b { font-size: 1.05rem; }
+  .po-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .po-tile { position: relative; display: flex; gap: 10px; align-items: flex-start; border-radius: 18px; padding: 14px; text-decoration: none; color: #0f172a; border: 2px solid; min-height: 104px; transition: transform .15s; }
+  .po-tile:hover { transform: translateY(-2px); color: #0f172a; }
+  .po-tile .ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 1.25rem; flex: none; color: #fff; }
+  .po-tile > span:not(.ic):not(.n) { min-width: 0; }
+  .po-tile b { display: block; font-size: 1.12rem; line-height: 1.2; padding-right: 22px; overflow-wrap: anywhere; }
+  .po-tile small { display: block; color: #334155; margin-top: 2px; line-height: 1.3; }
+  .po-tile .n { position: absolute; top: 8px; right: 10px; min-width: 24px; height: 24px; border-radius: 99px; background: #e03131; color: #fff; font-weight: 800; font-size: .8rem; display: grid; place-items: center; padding: 0 6px; }
+  .po-aprender { background: #dbeafe; border-color: #93c5fd; } .po-aprender .ic { background: #2563eb; }
+  .po-practicar { background: #fef3c7; border-color: #fcd34d; } .po-practicar .ic { background: #d97706; }
+  .po-tareas { background: #fee2e2; border-color: #fca5a5; } .po-tareas .ic { background: #dc2626; }
+  .po-evaluar { background: #ede9fe; border-color: #c4b5fd; } .po-evaluar .ic { background: #7c3aed; }
+  .po-caja { display: flex; gap: 10px; align-items: center; background: #fff; border-radius: 18px; padding: 14px 16px; margin-bottom: 12px; border: 1px solid #e2e8f0; text-decoration: none; color: #0f172a; }
+  .po-caja:hover { border-color: #94a3b8; color: #0f172a; }
+  .po-caja h2 { font-size: 1.05rem; font-weight: 800; margin: 0 0 2px; }
+  .po-caja .der { margin-left: auto; font-size: 1.6rem; color: #334155; }
+  @media (max-width: 480px) { .po-tile { flex-direction: column; gap: 6px; padding: 12px; } .po-tile b { font-size: 1.05rem; } .po-tile .ic { width: 38px; height: 38px; } }
+</style>
+<div class="au">
+  {% if aula.bienvenida %}<div class="au-tarjeta py-2 mb-3"><i class="fas fa-hand-sparkles me-2 text-warning"></i>{{ aula.bienvenida }}</div>{% endif %}
+
+  {% for tb in tableros %}
+  <div class="po-vivo"><span style="font-size:1.4rem" aria-hidden="true">📋</span>
+    <div class="flex-grow-1"><b>En vivo: {{ tb.titulo }}</b><div class="small text-muted">{% if tb.editan_estudiantes %}Puede escribir, dibujar y pegar imágenes.{% else %}Véalo mientras su profe escribe.{% endif %}</div></div>
+    <a class="btn btn-success fw-bold" href="{% url 'aula:tablero_ver' aula.pk tb.pk %}"><i class="fas fa-chalkboard me-1"></i>Entrar al tablero</a></div>
+  {% endfor %}
+  {% for s in vivos %}
+  <div class="po-vivo" style="background:#fef9c3;border-color:#fde047"><span style="font-size:1.4rem" aria-hidden="true">⚡</span>
+    <div class="flex-grow-1"><b>Juego en vivo: {{ s.cuestionario.titulo }}</b></div>
+    <a class="btn btn-warning fw-bold" href="{% url 'aula:vivo' aula.pk s.pk %}">¡Unirme!</a></div>
+  {% endfor %}
+  {% if aula.enlace_clase %}
+  <div class="po-vivo" style="background:#eef2ff;border-color:#a5b4fc"><span style="font-size:1.4rem" aria-hidden="true">🎥</span>
+    <div class="flex-grow-1"><b>Clase en vivo</b><div class="small text-muted">{{ aula.plataforma_nombre }}{% for h in horario %}{% if h.hoy %} · Hoy {{ h.texto }}{% endif %}{% endfor %}</div></div>
+    <a class="btn btn-primary fw-bold" href="{{ aula.enlace_clase }}" target="_blank" rel="noopener"><i class="fas fa-video me-1"></i>Unirme</a></div>
+  {% endif %}
+
+  <div class="po-tiles">
+    {% with n=nuevos.material|add:nuevos.invertida %}
+    <a class="po-tile po-aprender" href="{% url 'aula:trabajo' aula.pk %}#aprender"><span class="ic"><i class="fas fa-book-open-reader"></i></span>
+      <span><b>Aprender</b><small>Material y aula invertida</small></span>{% if n %}<span class="n">{{ n }}</span>{% endif %}</a>{% endwith %}
+    {% with n=nuevos.gamificacion|add:nuevos.actividades %}
+    <a class="po-tile po-practicar" href="{% url 'aula:trabajo' aula.pk %}#practicar"><span class="ic"><i class="fas fa-gamepad"></i></span>
+      <span><b>Practicar</b><small>Juegos, mascota y actividades</small></span>{% if n %}<span class="n">{{ n }}</span>{% endif %}</a>{% endwith %}
+    <a class="po-tile po-tareas" href="{% url 'aula:tareas' aula.pk %}"><span class="ic"><i class="fas fa-clipboard-check"></i></span>
+      <span><b>Tareas</b><small>{% if proximas %}{{ proximas|length }} por entregar{% else %}Entregas y notas{% endif %}</small></span>{% if nuevos.tareas %}<span class="n">{{ nuevos.tareas }}</span>{% endif %}</a>
+    <a class="po-tile po-evaluar" href="{% url 'aula:trabajo' aula.pk %}#evaluar"><span class="ic"><i class="fas fa-list-check"></i></span>
+      <span><b>Evaluaciones</b><small>Cuestionarios{% if pe_activo %} y exámenes{% endif %}</small></span>{% if nuevos.cuestionarios %}<span class="n">{{ nuevos.cuestionarios }}</span>{% endif %}</a>
+  </div>
+
+  <a class="po-caja" href="{% url 'aula:muro' aula.pk %}">
+    <div class="flex-grow-1" style="min-width:0"><h2>Muro de la clase{% if nuevos.muro %} <span class="badge text-bg-danger">{{ nuevos.muro }} nuevo{{ nuevos.muro|pluralize }}</span>{% endif %}</h2>
+      {% for p in ultimas %}<div class="small text-truncate"><b>{{ p.autor.first_name|default:"Su profe" }}:</b> {{ p.texto|default:"compartió un archivo o un enlace" }}</div>
+      {% empty %}<div class="small text-muted">Su profe todavía no ha publicado nada.</div>{% endfor %}</div>
+    <span class="der" aria-hidden="true"><i class="far fa-comments"></i></span></a>
+
+  <a class="po-caja" href="{% url 'aula:tareas' aula.pk %}">
+    <div class="flex-grow-1"><h2>Próximas entregas</h2>
+      {% for t in proximas %}<div class="small"><b>{{ t.titulo }}</b> · {{ t.fecha_limite|date:"D d M, h:i a" }}</div>
+      {% empty %}<div class="small text-muted">No hay entregas pendientes. 🎉</div>{% endfor %}</div>
+    <span class="der" aria-hidden="true"><i class="far fa-calendar-check"></i></span></a>
+</div>
+{% endblock %}

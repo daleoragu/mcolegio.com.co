@@ -46,7 +46,11 @@ class Asesoria(ColegioDePrueba):
 
     def test_todas_las_guias_estan_bien_formadas(self):
         for vista, g in asesoria.GUIAS.items():
-            reverse(vista, args=[1]) if vista in ('materiales:editor', 'aula:mascota') else reverse(vista)
+            from django.urls import NoReverseMatch
+            try:
+                reverse(vista)
+            except NoReverseMatch:
+                reverse(vista, args=[1])                 # páginas de un documento, un aula o un grupo
             self.assertTrue(g['titulo'] and g['resumen'] and g['pasos'], vista)
             for p in g['pasos']:
                 self.assertTrue(p['t'] and p['x'] and (p.get('c') or p.get('s')), (vista, p))

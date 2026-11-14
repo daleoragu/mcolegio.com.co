@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carta para las familias · {{ grupo.nombre }}</title>
+<style>
+  @page { size: letter; margin: 20mm; }
+  body { font-family: system-ui, 'Segoe UI', Arial, sans-serif; color: #1d2433; max-width: 720px; margin: 0 auto; padding: 24px; line-height: 1.55; }
+  .barra { background: #1f3a68; color: #fff; padding: 10px 16px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .barra button { background: #f2b632; border: 0; border-radius: 8px; padding: 7px 14px; font-weight: 700; cursor: pointer; }
+  [contenteditable] { outline: 1px dashed #c7d2fe; outline-offset: 2px; }
+  .firma { margin-top: 36px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .firma div { border-top: 1px solid #333; padding-top: 4px; font-size: .9rem; }
+  @media print { .barra { display: none; } [contenteditable] { outline: 0; } }
+</style></head>
+<body>
+<div class="barra"><b>Carta modelo para las familias</b><span style="opacity:.85;font-size:.9rem">Puede editar el texto antes de imprimir.</span>
+  <button type="button" onclick="window.print()">Imprimir</button></div>
+<div contenteditable="true">
+<p>Estimada familia:</p>
+<p>En la clase <b>{{ grupo.nombre }}</b>{% if grupo.descripcion %} ({{ grupo.descripcion }}){% endif %} vamos a usar <b>Mi Salón Virtual de mcolegio</b>,
+  una plataforma donde su hijo o hija encontrará el material de la clase, sus tareas, juegos de práctica y evaluaciones.</p>
+<p>Para entrar, cada estudiante tendrá una <b>tarjeta de acceso</b> con el código de la clase y una contraseña. No usa correo electrónico
+  ni nombre de usuario: se identifica con su nombre dentro de la clase. Puede cambiar su contraseña por una suya y, si la olvida,
+  el docente se la restablece.</p>
+<p><b>Qué datos usamos:</b> solo el nombre del estudiante y lo que hace en las actividades de la clase (entregas, respuestas y resultados).
+  Se usan únicamente con fines pedagógicos, no se publican ni se comparten con terceros, y usted puede pedir que se corrijan o se eliminen
+  en cualquier momento (Ley 1581 de 2012 de protección de datos personales).</p>
+{% if enlace %}<p>La clase se abre en: <b>{{ enlace }}</b></p>{% endif %}
+<p>Con su firma autoriza la creación de la cuenta de su hijo o hija en la plataforma con estos fines.</p>
+<p>Cordialmente,</p>
+<p><b>{{ cuenta.nombre_publico|default:request.user.get_full_name }}</b><br>Docente</p>
+</div>
+<div class="firma"><div>Nombre del estudiante</div><div>Firma del padre, madre o acudiente</div></div>
+</body></html>

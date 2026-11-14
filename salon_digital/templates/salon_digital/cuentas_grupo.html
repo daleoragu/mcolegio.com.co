@@ -1,0 +1,33 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}Cuentas · {{ grupo.nombre }}{% endblock %}
+{% block contenido %}
+<div style="max-width:760px;margin:0 auto">
+  <a href="{% url 'salon_digital:ver_grupo' grupo.pk %}" class="small text-decoration-none">&larr; {{ grupo.nombre }}</a>
+  <h1 class="h3 fw-bold mt-1">Contraseñas de sus estudiantes</h1>
+  {% if filas %}
+  <div class="alert alert-warning small"><i class="fas fa-lock me-1"></i>Por seguridad estas contraseñas se muestran solo ahora (durante {{ horas }} horas en este equipo).
+    Después quedan cifradas: si un estudiante la olvida, la restablece desde la lista del grupo.</div>
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-primary" href="{% url 'salon_digital:tarjetas_grupo' grupo.pk %}?recientes=1" target="_blank"><i class="fas fa-id-card me-1"></i>Imprimir tarjetas de acceso</a>
+    <button type="button" class="btn btn-outline-secondary" id="cg-copiar"><i class="far fa-copy me-1"></i>Copiar la lista</button>
+    <a class="btn btn-outline-secondary" href="{% url 'salon_digital:carta_padres' grupo.pk %}" target="_blank"><i class="far fa-envelope me-1"></i>Carta para las familias</a>
+  </div>
+  <div class="card"><div class="table-responsive"><table class="table align-middle mb-0" id="cg-tabla">
+    <thead class="small"><tr><th>Estudiante</th><th>Contraseña</th></tr></thead>
+    <tbody>{% for i, clave in filas %}<tr><td>{{ i.completo }}</td><td><code style="font-size:1.05rem">{{ clave }}</code></td></tr>{% endfor %}</tbody>
+  </table></div></div>
+  <p class="small text-muted mt-3">Para entrar: abren el enlace de la clase (o escanean el QR de la tarjeta), escriben el código <b>{{ grupo.codigo }}</b>,
+    tocan su nombre y escriben su contraseña. Cada uno puede cambiarla después por una suya.</p>
+  <script>
+  document.getElementById('cg-copiar').addEventListener('click', function () {
+    var t = [].map.call(document.querySelectorAll('#cg-tabla tbody tr'), function (r) { return r.cells[0].innerText + '\t' + r.cells[1].innerText; }).join('\n');
+    if (navigator.clipboard) navigator.clipboard.writeText(t); this.textContent = '¡Copiada!';
+  });
+  </script>
+  {% else %}
+  <p class="text-muted">No hay contraseñas recientes para mostrar. Por seguridad solo se ven al crearlas o restablecerlas.
+    Desde la lista del grupo puede restablecer la de un estudiante o darles contraseña a todos.</p>
+  <a class="btn btn-outline-primary" href="{% url 'salon_digital:ver_grupo' grupo.pk %}">Volver al grupo</a>
+  {% endif %}
+</div>
+{% endblock %}

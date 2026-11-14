@@ -60,7 +60,7 @@ GUIAS = {
             P('Clasificar varios a la vez', 'Marque los documentos con la casilla de la izquierda y aparece una barra para ponerles área y asignatura de una vez.', s='#mm-marcar-todos'),
             P('Sus documentos', 'Los documentos del filtro que escogió, del más reciente al más antiguo. Haga clic en el título para editarlo.', s='.mm-tarjeta table'),
             P('Enviar a mis grupos', 'El avión lleva el documento a la pestaña Material de las clases que escoja. Desde ese momento lo ven sus estudiantes.', s='.mm-enviar'),
-            P('Las demás acciones', 'Descargar en PDF, duplicar (para hacer una versión nueva), marcar con estrella como formato y eliminar.', s='.mm-tarjeta table td.text-end'),
+            P('Las demás acciones', 'PDF e impresión (con 2 o 4 guías por hoja o en folleto), duplicar (para hacer una versión nueva), marcar con estrella como formato y eliminar.', s='.mm-tarjeta table td.text-end'),
             P('Taller y aula', 'Recuerde la diferencia: aquí es su taller; en cada clase, la pestaña Material es lo que ven los estudiantes.', c='Mis materiales y Material del aula'),
         ],
     },
@@ -137,6 +137,19 @@ GUIAS = {
             P('Crear grupo', 'Cree un grupo nuevo y comparta el PIN o QR para que entren los estudiantes.', c='Crear grupo'),
         ],
     },
+    'salon_digital:ver_grupo': {
+        'titulo': 'Su grupo y las cuentas de sus estudiantes',
+        'resumen': 'Aquí crea las cuentas de sus estudiantes (solo con su nombre y una contraseña fácil), imprime sus tarjetas de acceso '
+                   'y les restablece la contraseña si la olvidan.',
+        'pasos': [
+            P('Código para entrar', 'Sus estudiantes lo escriben la primera vez (o escanean el QR de su tarjeta, que ya lo trae).', c='Código para entrar'),
+            P('Cómo entran', 'Paso a paso de cómo entran sus estudiantes. Puede escoger si entran con contraseña, con PIN o solo tocando su nombre en «Datos del grupo».', c='Cómo entran sus estudiantes'),
+            P('Tarjetas de acceso', 'Imprímalas y recórtelas: cada una trae el QR de la clase, el código y la contraseña o el PIN del estudiante.', c='Imprimir tarjetas de acceso'),
+            P('Crear cuentas', 'Escriba o pegue los nombres; la plataforma propone una contraseña fácil para cada uno y usted la puede cambiar.', c='Crear cuentas de estudiantes'),
+            P('Sus estudiantes', 'La lista con el estado de su contraseña. Si alguno la olvida, toque «Restablecer contraseña» y le mostramos la nueva.', c='Estudiantes', s='.card-header'),
+            P('Datos del grupo', 'El nombre del grupo y cómo entran: con contraseña (desde 3.º), con PIN (primaria) o solo con el nombre (los más pequeños).', c='Datos del grupo'),
+        ],
+    },
     'aula:mascota': {
         'titulo': 'Mascota académica',
         'resumen': 'Cada estudiante cuida una mascota respondiendo preguntas: comida, sueño, baño y ánimo bajan con las horas. '
@@ -159,6 +172,7 @@ GUIA_AULA = {
 GLOSARIO = {
     'enviar a mis grupos': 'Lleva el documento a la pestaña Material de las clases que escoja. Desde ese momento lo ven sus estudiantes.',
     'descargar pdf': 'Descarga el documento en PDF para imprimirlo o enviarlo.',
+    'pdf e impresión': 'Abre la vista previa de impresión: escoja 1, 2 o 4 guías por hoja o folleto, mire cómo queda, calcule cuántas hojas gasta y descárguelo.',
     'duplicar': 'Hace una copia para que arme otra versión sin dañar la original.',
     'usar como formato': 'Lo marca como formato: aparecerá en «Con el formato del colegio» para crear documentos con esa misma estructura.',
     'eliminar': 'Lo borra. Pida confirmación antes: no se puede deshacer.',

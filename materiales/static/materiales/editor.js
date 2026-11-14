@@ -950,12 +950,16 @@
     // -------------------------------------------------------------------
     // Vista previa, descargas y nube del docente
     // -------------------------------------------------------------------
-    $('#mm-ver').addEventListener('click', function () {
+    // Vista previa e impresión (materiales/impresion.js): primero se guarda y luego se arma el PDF
+    var IMP = window.ImpresionMM({ pdf: CFG.pdf });
+    function abrirPrevia(imp) {
         guardar().then(function () {
-            $('#mm-previa-marco').src = CFG.pdf + '?t=' + Date.now();
-            if (window.bootstrap) new bootstrap.Modal($('#mm-previa')).show(); else window.open(CFG.pdf, '_blank');
+            IMP.cargar(imp);
+            if (window.bootstrap) bootstrap.Modal.getOrCreateInstance($('#mm-previa')).show(); else window.open(CFG.pdf, '_blank');
         });
-    });
+    }
+    $('#mm-ver').addEventListener('click', function () { abrirPrevia(IMP.actual()); });
+    $$('.mm-pv-abre').forEach(function (b) { b.addEventListener('click', function () { abrirPrevia(b.dataset.imp); }); });
     ['#mm-pdf', '#mm-word'].forEach(function (s) {
         $(s).addEventListener('click', function (e) {
             e.preventDefault();

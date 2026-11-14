@@ -62,6 +62,7 @@ urlpatterns = [
     path('<int:pk>/guardar/', views.guardar, name='guardar'),
     path('<int:pk>/accion/', views.accion, name='accion'),
     path('<int:pk>/pdf/', views.pdf, name='pdf'),
+    path('<int:pk>/imprimir/', views.imprimir, name='imprimir'),
     path('<int:pk>/word/', views.word, name='word'),
     path('<int:pk>/paginas/', views.paginas, name='paginas'),
 ]

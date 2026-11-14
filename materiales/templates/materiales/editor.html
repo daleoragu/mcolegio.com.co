@@ -119,7 +119,20 @@
       </div>
     </div>
     <button type="button" class="btn btn-sm btn-outline-secondary" id="mm-ver"><i class="far fa-eye me-1"></i>Vista previa</button>
-    <a class="btn btn-sm btn-outline-danger" id="mm-pdf" href="{% url 'materiales:pdf' doc.pk %}?descargar=1"><i class="far fa-file-pdf me-1"></i>PDF</a>
+    <div class="btn-group btn-group-sm">
+      <a class="btn btn-outline-danger" id="mm-pdf" href="{% url 'materiales:pdf' doc.pk %}?descargar=1"><i class="far fa-file-pdf me-1"></i>PDF</a>
+      <button type="button" class="btn btn-outline-danger dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false"
+              title="Cuántas guías por hoja o folleto" aria-label="Opciones de impresión"><span class="visually-hidden">Opciones de impresión</span></button>
+      <div class="dropdown-menu" style="min-width:290px">
+        <h6 class="dropdown-header">Vista previa e impresión</h6>
+        <button type="button" class="dropdown-item mm-pv-abre" data-imp=""><i class="far fa-file me-2"></i>1 guía por hoja</button>
+        <button type="button" class="dropdown-item mm-pv-abre" data-imp="2"><i class="fas fa-table-columns me-2"></i>2 guías por hoja <span class="small text-muted">· media carta</span></button>
+        <button type="button" class="dropdown-item mm-pv-abre" data-imp="4"><i class="fas fa-table-cells-large me-2"></i>4 guías por hoja <span class="small text-muted">· un cuarto</span></button>
+        <button type="button" class="dropdown-item mm-pv-abre" data-imp="folleto"><i class="fas fa-book-open me-2"></i>Folleto <span class="small text-muted">· doblar y grapar</span></button>
+        <div class="dropdown-divider"></div>
+        <div class="px-3 small text-muted" style="max-width:290px">Se abre la vista previa: allí cambia las copias por hoja, ve cómo queda y lo descarga.</div>
+      </div>
+    </div>
     <a class="btn btn-sm btn-outline-primary" id="mm-word" href="{% url 'materiales:word' doc.pk %}"><i class="far fa-file-word me-1"></i>Word</a>
     <div class="dropdown">
       <button class="btn btn-sm btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" type="button" title="Versión del docente con las respuestas"><i class="fas fa-key me-1"></i>Con respuestas</button>
@@ -420,9 +433,9 @@
     </div>
 </div></div></div>
 
-<div class="modal fade" id="mm-previa" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
-    <div class="modal-header py-2"><h6 class="modal-title">Vista previa</h6><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
-    <div class="modal-body p-0"><iframe id="mm-previa-marco" title="Vista previa" style="width:100%;height:78vh;border:0"></iframe></div>
+<div class="modal fade" id="mm-previa" tabindex="-1" aria-hidden="true" aria-labelledby="mm-previa-titulo"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header py-2"><h6 class="modal-title" id="mm-previa-titulo"><i class="fas fa-print me-1"></i>Vista previa e impresión</h6><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+    <div class="modal-body p-0">{% include 'materiales/_impresion_panel.html' %}</div>
 </div></div></div>
 </div>
 {{ contenido|json_script:"mm-contenido" }}
@@ -462,6 +475,7 @@ window.MM = {
 <script src="{% static 'materiales/ecuaciones.js' %}"></script>
 <script src="{% static 'materiales/graficador.js' %}"></script>
 <script src="{% static 'materiales/imagenes.js' %}"></script>
+<script src="{% static 'materiales/impresion.js' %}"></script>
 <script src="{% static 'materiales/editor.js' %}"></script>
 <script src="{% static 'materiales/equipo.js' %}"></script>
 {% endblock %}

@@ -1,4 +1,4 @@
-Versión 0038 · 2026-11-13 14:51
+Versión 0042 · 2026-11-14 21:55
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -164,6 +164,7 @@ NUEVO     aula/static/aula/vendor/katex/katex.min.css
 NUEVO     aula/static/aula/vendor/katex/katex.min.js
 NUEVO     aula/tablero.py
 CAMBIADO  aula/templates/aula/_cabecera.html
+NUEVO     aula/templates/aula/_cabecera_estudiante.html
 NUEVO     aula/templates/aula/_compartir.html
 CAMBIADO  aula/templates/aula/_estilos.html
 NUEVO     aula/templates/aula/_instrucciones.html
@@ -210,7 +211,10 @@ NUEVO     aula/templates/aula/logica_juego.html
 NUEVO     aula/templates/aula/logica_menu.html
 NUEVO     aula/templates/aula/mascota.html
 CAMBIADO  aula/templates/aula/material.html
+NUEVO     aula/templates/aula/mi_clave.html
 CAMBIADO  aula/templates/aula/muro.html
+NUEVO     aula/templates/aula/portada.html
+NUEVO     aula/templates/aula/trabajo.html
 CAMBIADO  aula/templates/aula/vivo_docente.html
 CAMBIADO  aula/templates/aula/vivo_estudiante.html
 CAMBIADO  aula/tests/test_aula.py
@@ -292,6 +296,7 @@ NUEVO     materiales/ecuaciones.py
 CAMBIADO  materiales/exportar.py
 NUEVO     materiales/graficas.py
 CAMBIADO  materiales/ia.py
+NUEVO     materiales/imposicion.py
 NUEVO     materiales/management/__init__.py
 NUEVO     materiales/management/commands/__init__.py
 NUEVO     materiales/management/commands/cargar_semilla.py
@@ -457,10 +462,12 @@ CAMBIADO  materiales/static/materiales/editor.js
 NUEVO     materiales/static/materiales/equipo.js
 NUEVO     materiales/static/materiales/graficador.js
 NUEVO     materiales/static/materiales/imagenes.js
+NUEVO     materiales/static/materiales/impresion.js
 NUEVO     materiales/templates/materiales/_colores.html
 NUEVO     materiales/templates/materiales/_encabezado_docente.html
 NUEVO     materiales/templates/materiales/_enviar_campos.html
 CAMBIADO  materiales/templates/materiales/_estilos.html
+NUEVO     materiales/templates/materiales/_impresion_panel.html
 NUEVO     materiales/templates/materiales/_juego_form.html
 NUEVO     materiales/templates/materiales/_juego_js.html
 CAMBIADO  materiales/templates/materiales/biblioteca.html
@@ -468,6 +475,7 @@ CAMBIADO  materiales/templates/materiales/creditos.html
 CAMBIADO  materiales/templates/materiales/documento_pdf.html
 CAMBIADO  materiales/templates/materiales/editor.html
 CAMBIADO  materiales/templates/materiales/encabezado.html
+NUEVO     materiales/templates/materiales/imprimir.html
 NUEVO     materiales/templates/materiales/juego_editar.html
 NUEVO     materiales/templates/materiales/juegos.html
 CAMBIADO  materiales/templates/materiales/lista.html
@@ -603,6 +611,8 @@ CAMBIADO  piar/logica.py
 CAMBIADO  prematricula/templates/prematricula/_base_publica.html
 CAMBIADO  puntoexacto/cuadernillo.py
 CAMBIADO  puntoexacto/views.py
+CAMBIADO  requirements.txt
+NUEVO     salon_digital/claves.py
 NUEVO     salon_digital/datos/divipola.json
 NUEVO     salon_digital/espacios.py
 CAMBIADO  salon_digital/forms.py
@@ -613,6 +623,7 @@ NUEVO     salon_digital/migrations/0005_pagos.py
 NUEVO     salon_digital/migrations/0006_planes_gratis_estandar_premium.py
 NUEVO     salon_digital/migrations/0007_pizarra.py
 NUEVO     salon_digital/migrations/0008_region.py
+NUEVO     salon_digital/migrations/0009_cuentas_estudiantes.py
 CAMBIADO  salon_digital/models.py
 NUEVO     salon_digital/pagos.py
 NUEVO     salon_digital/planes_tabla.py
@@ -625,9 +636,12 @@ NUEVO     salon_digital/static/salon_digital/app/icono-96.png
 NUEVO     salon_digital/static/salon_digital/region.js
 NUEVO     salon_digital/templates/salon_digital/_app.html
 NUEVO     salon_digital/templates/salon_digital/_region_js.html
+NUEVO     salon_digital/templates/salon_digital/agregar_estudiantes.html
 CAMBIADO  salon_digital/templates/salon_digital/bandeja.html
 CAMBIADO  salon_digital/templates/salon_digital/base_salon.html
+NUEVO     salon_digital/templates/salon_digital/carta_padres.html
 CAMBIADO  salon_digital/templates/salon_digital/crear_cuenta.html
+NUEVO     salon_digital/templates/salon_digital/cuentas_grupo.html
 CAMBIADO  salon_digital/templates/salon_digital/identificarse.html
 NUEVO     salon_digital/templates/salon_digital/inicio.html
 NUEVO     salon_digital/templates/salon_digital/instalar_app.html
@@ -644,6 +658,7 @@ NUEVO     salon_digital/templates/salon_digital/tableros.html
 NUEVO     salon_digital/templates/salon_digital/tarjetas_grupo.html
 CAMBIADO  salon_digital/templates/salon_digital/ver_grupo.html
 NUEVO     salon_digital/test_app.py
+NUEVO     salon_digital/test_cuentas.py
 NUEVO     salon_digital/test_espacios.py
 NUEVO     salon_digital/test_pagos.py
 NUEVO     salon_digital/test_planes.py
@@ -733,6 +748,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   materiales/migrations/0012_dba_codigo.py           (biblioteca: DBA oficial de cada material)
   aula/migrations/0029_mascota_diversion.py          (mascota: ánimo y juegos)
   materiales/migrations/0013_documento_asignatura.py  (áreas oficiales y asignatura; clasifica los existentes)
+  salon_digital/migrations/0009_cuentas_estudiantes.py (contraseñas de estudiantes y forma de entrar)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

@@ -47,6 +47,9 @@ urlpatterns = [
     path('tablero/<int:tid>/imagen/<int:iid>/', vtb.imagen, name='tablero_imagen'),
     path('<int:pk>/entrar/', views.entrar, name='entrar'),
     path('<int:pk>/salir/', views.salir, name='salir'),
+    path('<int:pk>/inicio/', views.portada, name='portada'),
+    path('<int:pk>/trabajo/', views.trabajo, name='trabajo'),
+    path('<int:pk>/mi-clave/', views.mi_clave, name='mi_clave'),
     # Chat de Mi Salón Virtual (los colegios usan el chat del colegio en /chat/)
     path('<int:pk>/chat/', chs.inicio, name='chat'),
     path('<int:pk>/chat/pin/', chs.pin, name='chat_pin'),

@@ -209,7 +209,7 @@
           <td class="small text-muted d-none d-md-table-cell">{{ d.actualizado|date:"d M, h:i a" }}</td>
           <td class="text-end text-nowrap">
             <button type="button" class="btn btn-sm btn-outline-primary mm-enviar" data-url="{% url 'materiales:accion' d.pk %}" data-titulo="{{ d.titulo }}" title="Enviar a mis grupos"><i class="fas fa-paper-plane"></i></button>
-            <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:pdf' d.pk %}?descargar=1" title="Descargar PDF"><i class="far fa-file-pdf"></i></a>
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:imprimir' d.pk %}" title="PDF e impresión: copias por hoja y folleto" aria-label="PDF e impresión de {{ d.titulo }}"><i class="far fa-file-pdf"></i></a>
             <form method="post" action="{% url 'materiales:accion' d.pk %}" class="d-inline">{% csrf_token %}
               <input type="hidden" name="accion" value="duplicar"><button class="btn btn-sm btn-outline-secondary" title="Duplicar"><i class="far fa-copy"></i></button></form>
             {% if acceso.es_individual or acceso.admin %}
@@ -248,7 +248,7 @@
           <td class="small text-muted">{{ c.documento.actualizado|date:"d M, h:i a" }}</td>
           <td class="text-end text-nowrap">
             <button type="button" class="btn btn-sm btn-outline-primary mm-enviar" data-url="{% url 'materiales:accion' c.documento.pk %}" data-titulo="{{ c.documento.titulo }}" title="Enviar a mis grupos"><i class="fas fa-paper-plane"></i></button>
-            <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:pdf' c.documento.pk %}?descargar=1" title="Descargar PDF"><i class="far fa-file-pdf"></i></a>
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:imprimir' c.documento.pk %}" title="PDF e impresión: copias por hoja y folleto"><i class="far fa-file-pdf"></i></a>
             <form method="post" action="{% url 'materiales:accion' c.documento.pk %}" class="d-inline">{% csrf_token %}
               <input type="hidden" name="accion" value="duplicar"><button class="btn btn-sm btn-outline-secondary" title="Hacer mi propia copia"><i class="far fa-copy"></i></button></form>
             <form method="post" action="{% url 'materiales:invitacion' c.pk %}" class="d-inline" onsubmit="return confirm('¿Salir de este material? Ya no lo verá.')">{% csrf_token %}

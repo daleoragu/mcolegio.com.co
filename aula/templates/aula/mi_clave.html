@@ -1,0 +1,20 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_cabecera.html' %}
+<div class="au" style="max-width:480px;margin:0 auto">
+  <form method="post" class="au-tarjeta">{% csrf_token %}
+    <h5 class="fw-bold"><i class="fas fa-key me-1"></i>Cambiar mi contraseña</h5>
+    <p class="small text-muted">Escoja una que usted recuerde y que nadie más sepa: al menos {{ minimo }} caracteres. Por ejemplo, una palabra que le guste y unos números.</p>
+    {% if error %}<div class="alert alert-danger py-2" role="alert">{{ error }}</div>{% endif %}
+    {% if c.integrante.clave %}<label class="form-label fw-semibold" for="mc-actual">Contraseña actual</label>
+    <input id="mc-actual" name="actual" type="password" class="form-control mb-2" autocomplete="current-password" required>{% endif %}
+    <label class="form-label fw-semibold" for="mc-nueva">Contraseña nueva</label>
+    <input id="mc-nueva" name="nueva" type="password" class="form-control mb-2" autocomplete="new-password" minlength="{{ minimo }}" maxlength="40" required>
+    <label class="form-label fw-semibold" for="mc-otra">Escríbala otra vez</label>
+    <input id="mc-otra" name="otra" type="password" class="form-control mb-3" autocomplete="new-password" minlength="{{ minimo }}" maxlength="40" required>
+    <div class="d-flex gap-2"><a class="btn btn-light" href="{% url 'aula:portada' aula.pk %}">Cancelar</a>
+      <button class="btn au-oro flex-grow-1 fw-bold">Guardar mi contraseña</button></div>
+  </form>
+</div>
+{% endblock %}

@@ -331,12 +331,28 @@ class ClaveForm(forms.Form):
 class GrupoForm(forms.ModelForm):
     class Meta:
         model = Grupo
-        fields = ['nombre', 'descripcion', 'activo', 'pedir_pin']
+        fields = ['nombre', 'descripcion', 'activo', 'ingreso']
         widgets = {
+            'ingreso': forms.RadioSelect,
             'nombre': forms.TextInput(attrs={**CAJA, 'placeholder': '7-01'}),
             'descripcion': forms.TextInput(
                 attrs={**CAJA, 'placeholder': 'Matemáticas · jornada mañana'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['ingreso'].required = False
+        if not self.instance.pk:                      # los grupos nuevos entran con contraseña
+            self.initial.setdefault('ingreso', 'clave')
+
+    def clean_ingreso(self):
+        """Si no llega (formularios viejos), se respeta «pedir el PIN»; si no, el de antes o contraseña si es nuevo."""
+        valor = self.cleaned_data.get('ingreso')
+        if valor:
+            return valor
+        if self.data.get('pedir_pin'):
+            return 'pin'
+        return self.instance.ingreso if self.instance.pk else 'clave'
 
 
 class ListaIntegrantesForm(forms.Form):

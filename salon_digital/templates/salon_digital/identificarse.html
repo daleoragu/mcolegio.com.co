@@ -59,9 +59,12 @@ button:hover{background:var(--os)}
         {% if i.activo %}<option value="{{ i.pk }}" {% if elegido == i.pk|stringformat:"s" %}selected{% endif %}>{{ i.completo }}</option>{% endif %}
       {% endfor %}
     </select>
-    {% if grupo.pedir_pin %}
+    {% if grupo.ingreso == 'pin' %}
     <label for="pin">Tu PIN</label>
     <input id="pin" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required placeholder="4 cifras" style="letter-spacing:.4em;text-align:center">
+    {% elif grupo.ingreso == 'clave' %}
+    <label for="pin">Tu contraseña</label>
+    <input id="pin" name="pin" type="password" maxlength="40" autocomplete="current-password" required style="text-align:center">
     {% endif %}
     <button type="submit">Entrar a la actividad</button>
   {% endif %}

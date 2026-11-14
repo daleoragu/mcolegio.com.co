@@ -155,7 +155,7 @@ class AulaInvertida(_BaseInvertida):
         self.assertTrue(ClaseInvertida.objects.exists())
 
     def test_pestana_en_el_aula(self):
-        r = self.cliente(self.ana.user).get(f'/aula/{self.aula.pk}/')
+        r = self.cliente(self.ana.user).get(f'/aula/{self.aula.pk}/trabajo/')      # el estudiante la encuentra en «Trabajo»
         self.assertContains(r, 'Aula invertida')
 
 
