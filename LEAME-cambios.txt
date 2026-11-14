@@ -1,4 +1,4 @@
-Versión 0042 · 2026-11-14 21:55
+Versión 0043 · 2026-11-14 23:47
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -164,6 +164,7 @@ NUEVO     aula/static/aula/vendor/katex/katex.min.css
 NUEVO     aula/static/aula/vendor/katex/katex.min.js
 NUEVO     aula/tablero.py
 CAMBIADO  aula/templates/aula/_cabecera.html
+NUEVO     aula/templates/aula/_cabecera_docente.html
 NUEVO     aula/templates/aula/_cabecera_estudiante.html
 NUEVO     aula/templates/aula/_compartir.html
 CAMBIADO  aula/templates/aula/_estilos.html
@@ -214,6 +215,7 @@ CAMBIADO  aula/templates/aula/material.html
 NUEVO     aula/templates/aula/mi_clave.html
 CAMBIADO  aula/templates/aula/muro.html
 NUEVO     aula/templates/aula/portada.html
+NUEVO     aula/templates/aula/portada_docente.html
 NUEVO     aula/templates/aula/trabajo.html
 CAMBIADO  aula/templates/aula/vivo_docente.html
 CAMBIADO  aula/templates/aula/vivo_estudiante.html

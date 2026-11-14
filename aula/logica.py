@@ -154,7 +154,7 @@ def nombres_para(obj, aula):
 # ---------------------------------------------------------------------------
 # Novedades: el globo rojo con lo que el estudiante no ha visto
 # ---------------------------------------------------------------------------
-SECCIONES = ('muro', 'material', 'tareas', 'actividades', 'cuestionarios', 'invertida', 'gamificacion')
+SECCIONES = ('muro', 'material', 'tareas', 'actividades', 'cuestionarios', 'invertida', 'gamificacion', 'inicio')
 
 
 def _visto(aula, persona, crear=False):

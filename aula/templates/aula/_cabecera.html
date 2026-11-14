@@ -1,21 +1,9 @@
 {% include 'aula/_estilos.html' %}
 {% if not c.es_docente %}<div class="au">{% include 'aula/_cabecera_estudiante.html' %}</div>{% else %}
 <div class="au">
-<div class="au-cabecera">
-    <div class="au-icono"><i class="fas fa-chalkboard-user"></i></div>
-    <div class="flex-grow-1">
-        <h4>{{ aula.titulo }}</h4>
-        <div class="sub">{{ aula.subtitulo }}{% if not c.es_docente %} · {{ c.nombre }}{% endif %}</div>
-    </div>
-    {% if c.es_docente %}
-        <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:instrumentos' %}"><i class="fas fa-list-check me-1"></i>Mis rúbricas</a>
-        <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:banco' %}"><i class="fas fa-box-archive me-1"></i>Banco de preguntas</a>
-    {% elif c.integrante %}
-        <a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:salir' aula.pk %}">No soy {{ c.integrante.nombres }}</a>
-    {% endif %}
-    {% if not aula.es_salon %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'aula:inicio' %}"><i class="fas fa-grip me-1"></i>Mis clases</a>{% endif %}
-</div>
-<nav class="au-pestanas">
+{% include 'aula/_cabecera_docente.html' %}
+<nav class="au-pestanas d-none d-lg-flex">
+    <a href="{% url 'aula:portada' aula.pk %}" class="{% if pestana == 'inicio' %}activa{% endif %}"><i class="fas fa-house me-1"></i>Inicio</a>
     <a href="{% url 'aula:muro' aula.pk %}" class="{% if pestana == 'muro' %}activa{% endif %}"><i class="far fa-comments me-1"></i>Muro{% if nuevos and nuevos.muro %}<span class="au-globo">{{ nuevos.muro }}</span>{% endif %}</a>
     {% if aula.es_salon %}<a href="{% url 'aula:chat' aula.pk %}"><i class="fas fa-comment-dots me-1"></i>Chat</a>{% endif %}
     <a href="{% url 'aula:clase' aula.pk %}" class="{% if pestana == 'clase' %}activa{% endif %}"><i class="fas fa-video me-1"></i>Clase en vivo</a>
