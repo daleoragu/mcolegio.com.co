@@ -60,7 +60,7 @@ GUIAS = {
             P('Clasificar varios a la vez', 'Marque los documentos con la casilla de la izquierda y aparece una barra para ponerles área y asignatura de una vez.', s='#mm-marcar-todos'),
             P('Sus documentos', 'Los documentos del filtro que escogió, del más reciente al más antiguo. Haga clic en el título para editarlo.', s='.mm-tarjeta table'),
             P('Enviar a mis grupos', 'El avión lleva el documento a la pestaña Material de las clases que escoja. Desde ese momento lo ven sus estudiantes.', s='.mm-enviar'),
-            P('Las demás acciones', 'Descargar en PDF, duplicar (para hacer una versión nueva), marcar con estrella como formato y eliminar.', s='.mm-tarjeta table td.text-end'),
+            P('Las demás acciones', 'PDF e impresión (con 2 o 4 guías por hoja o en folleto), duplicar (para hacer una versión nueva), marcar con estrella como formato y eliminar.', s='.mm-tarjeta table td.text-end'),
             P('Taller y aula', 'Recuerde la diferencia: aquí es su taller; en cada clase, la pestaña Material es lo que ven los estudiantes.', c='Mis materiales y Material del aula'),
         ],
     },
@@ -159,6 +159,7 @@ GUIA_AULA = {
 GLOSARIO = {
     'enviar a mis grupos': 'Lleva el documento a la pestaña Material de las clases que escoja. Desde ese momento lo ven sus estudiantes.',
     'descargar pdf': 'Descarga el documento en PDF para imprimirlo o enviarlo.',
+    'pdf e impresión': 'Abre la vista previa de impresión: escoja 1, 2 o 4 guías por hoja o folleto, mire cómo queda, calcule cuántas hojas gasta y descárguelo.',
     'duplicar': 'Hace una copia para que arme otra versión sin dañar la original.',
     'usar como formato': 'Lo marca como formato: aparecerá en «Con el formato del colegio» para crear documentos con esa misma estructura.',
     'eliminar': 'Lo borra. Pida confirmación antes: no se puede deshacer.',

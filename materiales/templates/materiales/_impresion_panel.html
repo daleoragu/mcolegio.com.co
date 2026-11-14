@@ -1,0 +1,37 @@
+{# Panel de impresión: copias por hoja (1, 2, 4, folleto), con respuestas, cuántas hojas y la vista previa.
+   Lo usan la ventana del editor y la página «Imprimir» de Mis materiales (materiales/impresion.js). #}
+<div class="row g-0">
+      <div class="col-lg-3 border-end p-3 small" style="background:#f8fafc">
+        <style>
+          .mm-ph { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+          .mm-ph button { border:2px solid #cbd5e1; background:#fff; border-radius:12px; padding:8px 4px 6px; font-weight:700; font-size:.78rem; color:#0f172a; }
+          .mm-ph button.on { border-color:#1e2a78; background:#eef2ff; color:#1e2a78; }
+          .mm-ph svg { display:block; margin:0 auto 4px; }
+        </style>
+        <div class="fw-bold mb-2">Copias por hoja</div>
+        <div class="mm-ph" role="radiogroup" aria-label="Copias por hoja">
+          <button type="button" data-imp="" role="radio" aria-checked="true" class="on"><svg width="34" height="42" viewBox="0 0 34 42" aria-hidden="true"><rect x="2" y="2" width="30" height="38" rx="2" fill="#fff" stroke="#64748b" stroke-width="2"/><rect x="7" y="8" width="20" height="3" fill="#94a3b8"/><rect x="7" y="14" width="20" height="2" fill="#cbd5e1"/><rect x="7" y="19" width="20" height="2" fill="#cbd5e1"/></svg>1 por hoja</button>
+          <button type="button" data-imp="2" role="radio" aria-checked="false"><svg width="46" height="36" viewBox="0 0 46 36" aria-hidden="true"><rect x="2" y="2" width="42" height="32" rx="2" fill="#fff" stroke="#64748b" stroke-width="2"/><line x1="23" y1="4" x2="23" y2="32" stroke="#94a3b8" stroke-dasharray="3 2"/><rect x="6" y="7" width="13" height="3" fill="#94a3b8"/><rect x="27" y="7" width="13" height="3" fill="#94a3b8"/></svg>2 por hoja</button>
+          <button type="button" data-imp="4" role="radio" aria-checked="false"><svg width="34" height="42" viewBox="0 0 34 42" aria-hidden="true"><rect x="2" y="2" width="30" height="38" rx="2" fill="#fff" stroke="#64748b" stroke-width="2"/><line x1="17" y1="4" x2="17" y2="38" stroke="#94a3b8" stroke-dasharray="3 2"/><line x1="4" y1="21" x2="30" y2="21" stroke="#94a3b8" stroke-dasharray="3 2"/><rect x="5" y="6" width="9" height="2" fill="#94a3b8"/><rect x="20" y="6" width="9" height="2" fill="#94a3b8"/><rect x="5" y="25" width="9" height="2" fill="#94a3b8"/><rect x="20" y="25" width="9" height="2" fill="#94a3b8"/></svg>4 por hoja</button>
+          <button type="button" data-imp="folleto" role="radio" aria-checked="false"><svg width="46" height="36" viewBox="0 0 46 36" aria-hidden="true"><path d="M23 6 C16 3 8 3 3 5 V32 C8 30 16 30 23 33 Z" fill="#fff" stroke="#64748b" stroke-width="2"/><path d="M23 6 C30 3 38 3 43 5 V32 C38 30 30 30 23 33 Z" fill="#fff" stroke="#64748b" stroke-width="2"/></svg>Folleto</button>
+        </div>
+        <div class="form-check mt-3"><input class="form-check-input" type="checkbox" id="mm-pv-resp"><label class="form-check-label" for="mm-pv-resp">Versión del docente (con respuestas)</label></div>
+        <div class="mt-3 p-2 rounded bg-white border">
+          <label class="fw-bold" for="mm-pv-est">¿Cuántos estudiantes?</label>
+          <input type="number" id="mm-pv-est" class="form-control form-control-sm mt-1" min="1" max="999" value="30">
+          <div class="mt-2" id="mm-pv-cuenta" aria-live="polite">Calculando…</div>
+        </div>
+        <div class="mt-3 text-muted" id="mm-pv-ayuda"></div>
+        <div class="d-grid gap-2 mt-3">
+          <a class="btn btn-danger btn-sm" id="mm-pv-descargar" href="#"><i class="fas fa-download me-1"></i>Descargar este PDF</a>
+          <a class="btn btn-outline-secondary btn-sm" id="mm-pv-abrir" href="#" target="_blank" rel="noopener"><i class="fas fa-print me-1"></i>Abrir para imprimir</a>
+        </div>
+      </div>
+      <div class="col-lg-9 position-relative">
+        <div class="position-absolute top-50 start-50 translate-middle text-muted small" id="mm-pv-cargando"><i class="fas fa-spinner fa-spin me-1"></i>Armando el PDF…</div>
+        <div class="p-4 text-center" id="mm-pv-sinvisor" hidden><i class="far fa-file-pdf fa-3x text-danger mb-2"></i>
+          <p class="mb-2">Este navegador no muestra el PDF dentro de la página.</p>
+          <a class="btn btn-sm btn-outline-danger mm-pv-ver" href="#" target="_blank" rel="noopener">Ver el PDF en otra pestaña</a></div>
+        <iframe id="mm-previa-marco" title="Vista previa del PDF" style="width:100%;height:78vh;border:0;position:relative"></iframe>
+      </div>
+    </div>

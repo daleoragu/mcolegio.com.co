@@ -417,6 +417,14 @@ class ImprimirVariasPorHoja(ColegioDePrueba):
         self.assertContains(r, '4 guías por hoja')
         self.assertContains(r, 'Copias por hoja')                            # la vista previa con el selector
         self.assertContains(r, '¿Cuántos estudiantes?')
+        # Desde Mis materiales: la página de impresión, sin abrir el editor
+        self.assertContains(c.get('/materiales/'), f'/materiales/{doc.pk}/imprimir/')
+        r = c.get(f'/materiales/{doc.pk}/imprimir/', {'impresion': 'folleto'})
+        self.assertContains(r, 'Copias por hoja')
+        self.assertContains(r, 'materiales/impresion.js')
+        self.assertContains(r, '.cargar("folleto")')
+        otro = self.cliente(self.super)
+        self.assertNotEqual(otro.get(f'/materiales/{doc.pk}/imprimir/').status_code, 200)     # la guía de otro no
         r = c.get(f'/materiales/{doc.pk}/pdf/', {'impresion': 'folleto'})
         self.assertEqual(r['X-Paginas'], str(len(normal)))
         self.assertEqual(r['X-Caras'], str(len(folleto)))

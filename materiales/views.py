@@ -757,6 +757,16 @@ def pdf(request, a, pk):
 
 
 @vista
+def imprimir(request, a, pk):
+    """La vista previa de impresión desde Mis materiales (sin abrir el editor): copias por hoja, folleto y cuántas hojas."""
+    from .views_equipo import doc_equipo
+    doc, _ = doc_equipo(a, pk)
+    imp = request.GET.get('impresion') or ''
+    return render(request, 'materiales/imprimir.html', {'base': a.base, 'acceso': a, 'doc': doc,
+                                                         'imp': imp if imp in ('2', '4', 'folleto') else ''})
+
+
+@vista
 def word(request, a, pk):
     from .views_equipo import doc_equipo
     doc, _ = doc_equipo(a, pk)
