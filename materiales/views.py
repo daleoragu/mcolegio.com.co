@@ -154,7 +154,18 @@ def lista(request, a):
         usuario=request.user, estado='aceptada', documento__colegio=a.colegio).select_related('documento__propietario')
         .order_by('-documento__actualizado')]
     filtro = _filtrar_documentos(request, a.documentos())
+    # Pestañas: «Crear» (plantillas) y «Mi banco de materiales» (lo mío, en miniatura o en lista)
+    ver = request.GET.get('ver')
+    if ver not in ('crear', 'banco'):
+        ver = 'banco' if filtro['total'] or filtro['filtrando'] or conmigo else 'crear'
+    vista = request.GET.get('vista')
+    if vista in ('mini', 'lista'):
+        request.session['mm_vista'] = vista
+    vista = request.session.get('mm_vista', 'mini')
+    for d in filtro['pagina']:
+        d.miniatura = _primera_imagen(d)
     return render(request, 'materiales/lista.html', {
+        'ver': ver, 'vista': vista,
         'base': a.base, 'acceso': a, 'documentos': filtro['pagina'], 'filtro': filtro, 'nube': _nube(a),
         'areas_lista': AREAS_LISTA, 'asignaturas': sugerencias_asignatura(request, a), 'volver': request.GET.urlencode(),
         'formatos': a.plantillas_formato().select_related('propietario'),
@@ -165,6 +176,15 @@ def lista(request, a):
 
 
 POR_PAGINA = 40
+
+
+def _primera_imagen(doc):
+    """El id de la primera imagen del documento (para la miniatura), o None."""
+    import json
+    import re
+    texto = json.dumps(doc.contenido or {})
+    m = re.search(r'"imagen":\s*(\d+)|/materiales/imagen/(\d+)/', texto)
+    return int(m.group(1) or m.group(2)) if m else None
 
 
 def sugerencias_asignatura(request, a):
@@ -238,7 +258,7 @@ def _filtrar_documentos(request, docs):
     pagina = Paginator(lista, POR_PAGINA).get_page(g.get('p'))
 
     def url(**cambios):
-        actual = {'area': area, 'asig': asig, 'grado': grado, 'tipo': tipo or None, 'q': q or None}
+        actual = {'ver': 'banco', 'area': area, 'asig': asig, 'grado': grado, 'tipo': tipo or None, 'q': q or None}
         actual.update(cambios)
         par = {k: v for k, v in actual.items() if v is not None}
         return '?' + urlencode(par) if par else '?'

@@ -6,8 +6,8 @@
 {% block content %}
 {% include 'materiales/_estilos.html' %}
 <div class="mm">
+{% include 'materiales/_pestanas.html' with activa='biblioteca' %}
 <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-  <a href="{% url 'materiales:lista' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Mis materiales</a>
   <div class="btn-group btn-group-sm" role="group" aria-label="Qué ver">
     <a class="btn {% if pestana == 'todo' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?ver=todo">Todo</a>
     <a class="btn {% if pestana == 'libre' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?ver=libre">Banco libre</a>

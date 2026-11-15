@@ -165,7 +165,14 @@ class EnElColegio(ColegioDePrueba):
         doc.refresh_from_db()
         self.assertFalse(doc.plantilla_colegio)
         rectora.post(f'/materiales/{modelo.pk}/accion/', {'accion': 'formato'})
-        self.assertContains(self.profe.get('/materiales/'), 'Formato institucional')
+        self.assertContains(self.profe.get('/materiales/?ver=crear'), 'Formato institucional')
+        # Pestañas: «Mi banco» (por defecto si hay documentos) en miniatura o en lista; «Crear» con las plantillas
+        r = self.profe.get('/materiales/')
+        self.assertEqual(r.context['ver'], 'banco'); self.assertContains(r, 'class="mm-carta"')
+        r = self.profe.get('/materiales/?vista=lista')
+        self.assertContains(r, 'class="mm-fila"'); self.assertNotContains(r, 'class="mm-carta"')
+        self.assertEqual(self.profe.get('/materiales/').context['vista'], 'lista')      # se recuerda
+        self.assertContains(self.profe.get('/materiales/biblioteca/'), 'Mi banco')
         nuevo = self.crear('institucional', base=modelo.pk)
         self.assertEqual(nuevo.tipo, 'institucional')
         self.assertEqual([b['tipo'] for b in nuevo.contenido['bloques']], [b['tipo'] for b in modelo.contenido['bloques']])

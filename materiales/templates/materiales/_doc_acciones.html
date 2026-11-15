@@ -1,0 +1,20 @@
+{% comment %}Botón «Enviar» + menú ⋯ de un documento (PDF, duplicar, formato, eliminar). Uso: {% include 'materiales/_doc_acciones.html' with d=d %}{% endcomment %}
+<div class="mm-acc">
+  <button type="button" class="btn btn-sm btn-primary mm-enviar" data-url="{% url 'materiales:accion' d.pk %}" data-titulo="{{ d.titulo }}" title="Enviar a mis grupos" aria-label="Enviar «{{ d.titulo }}» a mis grupos"><i class="fas fa-paper-plane"></i></button>
+  <div class="dropdown">
+    <button type="button" class="btn btn-sm btn-light border" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Más opciones de «{{ d.titulo }}»"><i class="fas fa-ellipsis"></i></button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li><a class="dropdown-item" href="{% url 'materiales:editor' d.pk %}"><i class="fas fa-pen fa-fw me-2 text-muted"></i>Abrir y editar</a></li>
+      <li><a class="dropdown-item" href="{% url 'materiales:imprimir' d.pk %}"><i class="far fa-file-pdf fa-fw me-2 text-muted"></i>PDF e impresión</a></li>
+      <li><form method="post" action="{% url 'materiales:accion' d.pk %}">{% csrf_token %}<input type="hidden" name="accion" value="duplicar">
+        <button class="dropdown-item"><i class="far fa-copy fa-fw me-2 text-muted"></i>Duplicar</button></form></li>
+      {% if acceso.es_individual or acceso.admin %}
+      <li><form method="post" action="{% url 'materiales:accion' d.pk %}">{% csrf_token %}<input type="hidden" name="accion" value="formato">
+        <button class="dropdown-item"><i class="{% if d.plantilla_colegio %}fas{% else %}far{% endif %} fa-star fa-fw me-2 text-warning"></i>{% if d.plantilla_colegio %}Dejar de usar como formato{% else %}Usar como formato{% endif %}</button></form></li>
+      {% endif %}
+      <li><hr class="dropdown-divider"></li>
+      <li><form method="post" action="{% url 'materiales:accion' d.pk %}" onsubmit="return confirm('¿Eliminar «{{ d.titulo|escapejs }}»?')">{% csrf_token %}<input type="hidden" name="accion" value="eliminar">
+        <button class="dropdown-item text-danger"><i class="far fa-trash-can fa-fw me-2"></i>Eliminar</button></form></li>
+    </ul>
+  </div>
+</div>

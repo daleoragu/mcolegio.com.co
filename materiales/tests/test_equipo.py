@@ -150,7 +150,7 @@ class Equipo(ColegioDePrueba):
         self.profe.post('/materiales/nuevo/', {'tipo': 'taller', 'titulo': 'Taller de fracciones'})
         doc = Documento.objects.latest('pk')
         lista = self.profe.get('/materiales/')
-        self.assertContains(lista, 'Enviar a mis grupos'); self.assertContains(lista, 'no</b> lo ven')
+        self.assertContains(lista, 'Enviar a mis grupos'); self.assertContains(self.profe.get('/materiales/?ver=crear'), 'no</b> lo ven')
         # A los dos grupos de una vez, como PDF y como tarea
         r = self.profe.post(f'/materiales/{doc.pk}/accion/', {'accion': 'enviar', 'aula': [aula1.pk, aula2.pk],
                                                                'como': ['pdf', 'tarea'], 'unidad': 'Unidad 2', 'volver': '/materiales/'})
