@@ -5,10 +5,13 @@
   .qe { max-width: 520px; margin: 0 auto; }
   .qe h1 { font-size: 1.6rem; font-weight: 800; text-align: center; }
   .qe-roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
-  .qe-rol { display: flex; flex-direction: column; align-items: center; gap: 6px; border: 2px solid #e2e8f0; border-radius: 16px; padding: 12px 6px; text-decoration: none; color: #334155; font-weight: 700; background: #fff; text-align: center; font-size: .9rem; }
-  .qe-rol i { font-size: 1.6rem; }
-  .qe-rol:hover { border-color: #94a3b8; color: #0f172a; }
-  .qe-rol.on { border-color: #1e2a78; background: #eef2ff; color: #1e2a78; }
+  .qe-rol { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; border: 2px solid #e2e8f0; border-radius: 18px; padding: 10px 4px 10px; text-decoration: none; color: #94a3b8; font-weight: 700; background: #fff; text-align: center; font-size: .92rem; line-height: 1.15; transition: transform .15s, box-shadow .15s; }
+  .qe-rol svg { width: 100%; max-width: 104px; height: auto; filter: grayscale(1); opacity: .45; transition: filter .2s, opacity .2s; }
+  .qe-rol:hover { border-color: #94a3b8; color: #475569; }
+  .qe-rol:hover svg { opacity: .7; }
+  .qe-rol.on { border-color: #3b5bdb; background: #eef2ff; color: #0f172a; font-weight: 800; box-shadow: 0 6px 16px rgba(59,91,219,.18); transform: translateY(-2px); }
+  .qe-rol.on svg { filter: none; opacity: 1; }
+  .qe-rol span { min-height: 2.3em; display: flex; align-items: center; }
   .qe-caja { background: #fff; border-radius: 18px; padding: 18px; box-shadow: 0 1px 3px rgba(15,23,42,.08); }
 </style>
 {% endblock %}
@@ -17,9 +20,9 @@
 <div class="qe">
   <h1>¿Quién eres?</h1>
   <nav class="qe-roles" aria-label="Tipo de usuario">
-    <a class="qe-rol {% if rol == 'docente' %}on{% endif %}" href="?rol=docente" {% if rol == 'docente' %}aria-current="page"{% endif %}><i class="fas fa-chalkboard-user"></i>Docente</a>
-    <a class="qe-rol {% if rol == 'estudiante' %}on{% endif %}" href="?rol=estudiante" {% if rol == 'estudiante' %}aria-current="page"{% endif %}><i class="fas fa-user-graduate"></i>Estudiante</a>
-    <a class="qe-rol {% if rol == 'familia' %}on{% endif %}" href="?rol=familia" {% if rol == 'familia' %}aria-current="page"{% endif %}><i class="fas fa-people-roof"></i>Padre de familia</a>
+    <a class="qe-rol {% if rol == 'docente' %}on{% endif %}" href="?rol=docente" {% if rol == 'docente' %}aria-current="page"{% endif %}>{% include "salon_digital/_rol_dibujo.html" with r="docente" %}<span>Docente</span></a>
+    <a class="qe-rol {% if rol == 'estudiante' %}on{% endif %}" href="?rol=estudiante" {% if rol == 'estudiante' %}aria-current="page"{% endif %}>{% include "salon_digital/_rol_dibujo.html" with r="estudiante" %}<span>Estudiante</span></a>
+    <a class="qe-rol {% if rol == 'familia' %}on{% endif %}" href="?rol=familia" {% if rol == 'familia' %}aria-current="page"{% endif %}>{% include "salon_digital/_rol_dibujo.html" with r="familia" %}<span>Padre de familia</span></a>
   </nav>
 
   {% if rol == 'estudiante' %}
