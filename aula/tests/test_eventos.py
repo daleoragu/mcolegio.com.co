@@ -295,6 +295,21 @@ class Olimpiada(ColegioDePrueba):
         self.assertEqual(len(self.admin.get(url + '?grupo=todos').context['tablas']), 1)
         csv = self.admin.get(url + '?grado=7&csv=1').content.decode()
         self.assertIn('Sofia Prueba', csv); self.assertNotIn('Ana Prueba', csv)
+        # Excel completo: un estudiante por fila con filtros, y hojas de resumen
+        import io
+        from openpyxl import load_workbook
+        r = self.admin.get(url + '?excel=1')
+        self.assertIn('spreadsheetml', r['Content-Type'])
+        wb = load_workbook(io.BytesIO(r.content))
+        self.assertEqual(wb.sheetnames[:3], ['Resultados', 'Por colegio', 'Por grado'])
+        ws = wb['Resultados']
+        self.assertIn('Resultados', ws.tables)
+        nombres = [ws.cell(row=i, column=3).value for i in range(6, ws.max_row + 1)]
+        self.assertIn('Ana Prueba', nombres); self.assertIn('Sofia Prueba', nombres)
+        # Con filtros solo sale lo filtrado
+        ws = load_workbook(io.BytesIO(self.admin.get(url + '?grado=7&excel=1').content))['Resultados']
+        self.assertEqual([ws.cell(row=i, column=3).value for i in range(6, ws.max_row + 1)], ['Sofia Prueba'])
+        self.assertIn('Grado', ws['A3'].value)
         # Velocidad por juego en el evento
         self.admin.post(f'/aula/eventos/{ev.pk}/configurar/', {'accion': 'config', 'titulo': ev.titulo, 'g_a_ovejas': ['6'], 'v_a_ovejas': 'lenta'})
         d = self.cliente(self.ana.user).get(f'/aula/eventos/{ev.pk}/').context['datos']
@@ -851,6 +866,10 @@ class Olimpiada(ColegioDePrueba):
         j = luis.get(f'/aula/eventos/v/{tok}/en-vivo/?json=1').json()
         self.assertIn('Ana Prueba', [f['nombre'] for t in j['tablas'] for f in t['filas']])
         self.assertIn('text/csv', luis.get(f'/aula/eventos/v/{tok}/?csv=1')['Content-Type'])
+        import io
+        from openpyxl import load_workbook
+        enc = [c.value for c in load_workbook(io.BytesIO(luis.get(f'/aula/eventos/v/{tok}/?excel=1').content))['Resultados'][5]]
+        self.assertIn('Estudiante', enc); self.assertNotIn('Documento', enc)    # el veedor no ve documentos
         # Pero no puede configurar ni ver las grabaciones o las inscripciones
         self.assertEqual(luis.get(conf).status_code, 302)
         self.assertEqual(luis.get(f'/aula/eventos/{ev.pk}/inscripciones/').status_code, 302)

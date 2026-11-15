@@ -22,7 +22,8 @@
     <a href="{% url 'aula:evento_en_vivo' ev.pk %}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="fas fa-tower-broadcast me-1"></i>Ranking en vivo</a>
     <a href="{% url 'aula:evento_diplomas' ev.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-award me-1"></i>Diplomas</a>
     {% endif %}
-    <a href="?{{ consulta }}{% if consulta %}&{% endif %}csv=1" class="btn btn-sm btn-outline-success"><i class="fas fa-file-csv me-1"></i>Descargar lo que se ve (Excel/CSV)</a>
+    <a href="?{{ consulta }}{% if consulta %}&{% endif %}excel=1" class="btn btn-sm btn-success fw-bold" title="Un estudiante por fila, con filtros en cada columna, resumen por colegio y por grado{% if podio %} y podio{% endif %}"><i class="fas fa-file-excel me-1"></i>Descargar Excel{% if gsel or gr or q %} (con los filtros){% else %} completo{% endif %}</a>
+    <a href="?{{ consulta }}{% if consulta %}&{% endif %}csv=1" class="btn btn-sm btn-outline-secondary"><i class="fas fa-file-csv me-1"></i>CSV</a>
   </div>
   <form method="get" class="au-tarjeta d-flex flex-wrap gap-2 align-items-end">
     <div><label class="small fw-bold d-block">Grupo</label>

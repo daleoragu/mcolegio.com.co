@@ -1,4 +1,4 @@
-Versión 0046 · 2026-11-15 03:55
+Versión 0047 · 2026-11-15 21:02
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -19,6 +19,7 @@ NUEVO     aula/bancos_juegos.py
 NUEVO     aula/colegios_dane.py
 NUEVO     aula/compartir.py
 NUEVO     aula/datos/colegios_dane.json
+NUEVO     aula/excel_resultados.py
 CAMBIADO  aula/importar.py
 NUEVO     aula/instrucciones.py
 NUEVO     aula/invertida.py
