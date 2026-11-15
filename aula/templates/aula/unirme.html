@@ -1,0 +1,56 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<style>
+  .un { max-width: 560px; margin: 0 auto; }
+  .un-caja { background: #fff; border-radius: 18px; padding: 18px; box-shadow: 0 1px 3px rgba(15,23,42,.08); margin-bottom: 12px; }
+  .un-caja h1 { font-size: 1.35rem; font-weight: 800; }
+  .un-nombres { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; max-height: 46vh; overflow: auto; padding: 2px; }
+  .un-nombre { display: flex; align-items: center; gap: 8px; border: 2px solid #e2e8f0; background: #fff; border-radius: 14px; padding: 8px 10px; text-align: left; font-weight: 600; font-size: .92rem; min-height: 50px; }
+  .un-nombre:has(input:checked) { border-color: #1e2a78; background: #eef2ff; }
+  .un-nombre input { position: absolute; opacity: 0; }
+  .un-av { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: .78rem; flex: none; background: #1e2a78; }
+  .un-oro { background: #f2b632; border: 0; font-weight: 800; color: #1d2433; }
+</style>
+<div class="un">
+  <a href="{% url 'aula:mis_clases_estudiante' %}" class="small text-decoration-none">&larr; Mis clases</a>
+  {% if error %}<div class="alert alert-danger py-2 mt-2" role="alert">{{ error }}</div>{% endif %}
+
+  {% if not grupo %}
+  <form method="get" class="un-caja mt-2 text-center">
+    <h1>Unirme a una clase</h1>
+    <p class="text-muted">Escriba el código que le dio su otro profe. Con su misma cuenta y su misma contraseña tendrá todas sus clases juntas.</p>
+    <input name="codigo" class="form-control form-control-lg text-center text-uppercase mb-2" maxlength="8" value="{{ codigo }}" required autofocus
+           autocomplete="off" aria-label="Código de la clase" style="letter-spacing:.2em;font-weight:700">
+    <button class="btn un-oro btn-lg w-100">Buscar la clase</button>
+  </form>
+
+  {% else %}
+  <div class="un-caja mt-2">
+    <h1>{{ grupo.nombre }}</h1>
+    <p class="text-muted mb-0">{{ grupo.propietario.nombre_publico }}{% if grupo.descripcion %} · {{ grupo.descripcion }}{% endif %}</p>
+  </div>
+  {% if lista %}
+  <form method="post" class="un-caja">{% csrf_token %}<input type="hidden" name="codigo" value="{{ codigo }}"><input type="hidden" name="accion" value="soy">
+    <h2 class="h6 fw-bold">¿Su profe ya lo agregó? Toque su nombre</h2>
+    <div class="un-nombres mb-3" role="radiogroup" aria-label="Su nombre en esta clase">
+      {% for i in lista %}<label class="un-nombre"><input type="radio" name="integrante" value="{{ i.pk }}" {% if elegido == i.pk|stringformat:"s" %}checked{% endif %} required>
+        <span class="un-av">{{ i.iniciales }}</span><span>{{ i.completo }}</span></label>{% endfor %}
+    </div>
+    {% if grupo.ingreso != 'nombre' %}
+    <label class="form-label fw-bold" for="un-pin">La contraseña (o el PIN) que le dio este profe</label>
+    <input id="un-pin" name="pin" type="password" class="form-control form-control-lg text-center mb-2" maxlength="40" autocomplete="off" required>
+    <p class="small text-muted">Es para comprobar que es usted. Después entra a esta clase con su contraseña de siempre.</p>
+    {% endif %}
+    <button class="btn un-oro btn-lg w-100">Unirme a {{ grupo.nombre }}</button>
+  </form>
+  {% endif %}
+  <form method="post" class="un-caja">{% csrf_token %}<input type="hidden" name="codigo" value="{{ codigo }}"><input type="hidden" name="accion" value="solicitar">
+    <h2 class="h6 fw-bold">{% if lista %}¿No está en la lista?{% else %}Su profe todavía no ha agregado estudiantes{% endif %}</h2>
+    <p class="small text-muted">Envíe una solicitud con su nombre, <b>{{ actual.completo }}</b>. Cuando su profe la apruebe, la clase aparece en Mis clases.</p>
+    <button class="btn btn-outline-primary w-100">Pedir que me agreguen</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

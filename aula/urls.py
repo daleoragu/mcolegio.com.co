@@ -8,6 +8,9 @@ app_name = 'aula'
 
 urlpatterns = [
     path('', views.inicio, name='inicio'),
+    path('codigo/', views.ir_con_codigo, name='ir_con_codigo'),
+    path('unirme/', views.unirme, name='unirme'),
+    path('mis-clases/', views.mis_clases_estudiante, name='mis_clases_estudiante'),
     path('compartir/<str:tipo>/<int:oid>/', vcp.compartir, name='compartir'),
     path('compartir/clase/<int:pk>/estudiantes/', vcp.estudiantes, name='compartir_estudiantes'),
     path('compartidos/', vcp.compartidos, name='compartidos'),

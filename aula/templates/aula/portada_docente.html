@@ -61,8 +61,8 @@
     <a class="pd-tile t-notas" href="{% url 'aula:calificaciones' aula.pk %}"><span class="ic"><i class="fas fa-table"></i></span>
       <b>{% if aula.es_salon %}Planilla{% else %}Calificaciones{% endif %}</b><small>Las notas de la clase</small></a>
     <a class="pd-tile t-estudiantes" href="{% if aula.grupo_id %}{% url 'salon_digital:ver_grupo' aula.grupo_id %}{% else %}{% url 'aula:calificaciones' aula.pk %}{% endif %}"><span class="ic"><i class="fas fa-users"></i></span>
-      <b>Estudiantes</b><small>{{ n_estudiantes }} en la clase{% if sin_entrar %} · {{ sin_entrar }} no ha{{ sin_entrar|pluralize:"n" }} entrado{% endif %}{% if sin_clave %} · {{ sin_clave }} sin contraseña{% endif %}</small>
-      {% if sin_clave %}<span class="n" title="Sin contraseña">{{ sin_clave }}</span>{% endif %}</a>
+      <b>Estudiantes</b><small>{% if solicitudes %}<b class="d-inline text-danger" style="font-size:inherit">{{ solicitudes }} pide{{ solicitudes|pluralize:"n" }} unirse</b> · {% endif %}{{ n_estudiantes }} en la clase{% if sin_entrar %} · {{ sin_entrar }} no ha{{ sin_entrar|pluralize:"n" }} entrado{% endif %}{% if sin_clave %} · {{ sin_clave }} sin contraseña{% endif %}</small>
+      {% if solicitudes %}<span class="n" title="Piden unirse">{{ solicitudes }}</span>{% elif sin_clave %}<span class="n" title="Sin contraseña">{{ sin_clave }}</span>{% endif %}</a>
   </div>
 
   <div class="pd-todo d-lg-none mb-3" aria-label="Todas las secciones de la clase">

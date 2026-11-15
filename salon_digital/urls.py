@@ -59,6 +59,7 @@ urlpatterns = [
     path('grupos/<int:pk>/claves/', views_grupos.claves_para_todos, name='claves_para_todos'),
     path('grupos/<int:pk>/carta-padres/', views_grupos.carta_padres, name='carta_padres'),
     path('grupos/<int:pk>/estudiante/<int:integrante_pk>/clave/', views_grupos.restablecer_clave, name='restablecer_clave'),
+    path('grupos/<int:pk>/estudiante/<int:integrante_pk>/solicitud/', views_grupos.responder_solicitud, name='responder_solicitud'),
     path('grupos/<int:pk>/estudiante/<int:integrante_pk>/editar/', views_grupos.editar_integrante, name='editar_integrante'),
     path('grupos/<int:pk>/estudiante/<int:integrante_pk>/pin/', views_grupos.nuevo_pin, name='nuevo_pin'),
     path('grupos/<int:pk>/estudiante/<int:integrante_pk>/volver/', views_grupos.reactivar_integrante, name='reactivar_integrante'),

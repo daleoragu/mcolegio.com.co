@@ -11,6 +11,7 @@ def guardar(request, integrante, recordar=False):
         'grupo': integrante.grupo_id,
         'nombre': integrante.completo,
         'grupo_nombre': integrante.grupo.nombre,
+        'cuenta': integrante.cuenta_id,                 # con cuenta, entra a todas sus clases unidas sin volver a escribirla
     }
     usuario = getattr(request, 'user', None)
     if recordar and not (usuario and usuario.is_authenticated):     # no se alarga la sesión de un docente
@@ -67,6 +68,9 @@ def integrante_de(request, pagina):
         pk=datos.get('integrante'), activo=True,
         grupo__propietario=pagina.propietario,
     ).select_related('grupo').first()
+    if integrante is None and datos.get('cuenta'):          # su cuenta tiene una clase con el docente de la actividad
+        integrante = Integrante.objects.filter(cuenta_id=datos['cuenta'], activo=True,
+                                               grupo__propietario=pagina.propietario).select_related('grupo').first()
 
     permitidos = pagina.grupos.all()
     if integrante and permitidos.exists() and integrante.grupo_id not in {g.pk for g in permitidos}:

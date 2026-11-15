@@ -32,6 +32,8 @@
     <ul class="dropdown-menu dropdown-menu-end">
       <li><h6 class="dropdown-header">{{ c.nombre }}</h6></li>
       {% if c.integrante and c.integrante.grupo.ingreso == 'clave' %}<li><a class="dropdown-item" href="{% url 'aula:mi_clave' aula.pk %}"><i class="fas fa-key fa-fw me-2"></i>Cambiar mi contraseña</a></li>{% endif %}
+      {% if c.integrante %}<li><a class="dropdown-item" href="{% url 'aula:mis_clases_estudiante' %}"><i class="fas fa-grip fa-fw me-2"></i>Mis clases</a></li>
+      <li><a class="dropdown-item" href="{% url 'aula:unirme' %}"><i class="fas fa-plus fa-fw me-2"></i>Unirme a otra clase</a></li>{% endif %}
       <li><a class="dropdown-item" href="{% url 'aula:mascota' aula.pk %}"><i class="fas fa-paw fa-fw me-2"></i>Mi mascota</a></li>
       {% if not aula.es_salon %}<li><a class="dropdown-item" href="{% url 'aula:inicio' %}"><i class="fas fa-grip fa-fw me-2"></i>Mis clases</a></li>{% endif %}
       {% if c.integrante %}<li><hr class="dropdown-divider"></li>

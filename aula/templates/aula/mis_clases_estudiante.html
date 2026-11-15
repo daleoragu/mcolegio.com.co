@@ -1,0 +1,37 @@
+{% extends base %}
+{% block page_title %}{% endblock %}
+{% block content %}
+{% include 'aula/_estilos.html' %}
+<style>
+  .mc { max-width: 720px; margin: 0 auto; }
+  .mc-cab { display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #0f1f3d, #1e2a78); color: #fff; border-radius: 20px; padding: 16px; margin-bottom: 14px; }
+  .mc-cab .yo { width: 46px; height: 46px; border-radius: 50%; background: #fcd34d; color: #0f1f3d; font-weight: 800; display: grid; place-items: center; flex: none; }
+  .mc-cab h1 { font-size: 1.3rem; margin: 0; font-weight: 800; color: #fcd34d; }
+  .mc-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .mc-clase { position: relative; display: block; border-radius: 18px; padding: 16px; text-decoration: none; color: #0f172a; border: 2px solid #c7d2fe; background: #eef2ff; min-height: 110px; }
+  .mc-clase:hover { border-color: #1e2a78; color: #0f172a; }
+  .mc-clase b { display: block; font-size: 1.2rem; padding-right: 30px; }
+  .mc-clase small { color: #475569; }
+  .mc-clase .n { position: absolute; top: 12px; right: 12px; min-width: 26px; height: 26px; border-radius: 99px; background: #e03131; color: #fff; font-weight: 800; font-size: .8rem; display: grid; place-items: center; padding: 0 7px; }
+  .mc-clase.espera { background: #f8fafc; border-style: dashed; border-color: #cbd5e1; }
+  .mc-unirme { display: grid; place-items: center; text-align: center; border: 2px dashed #94a3b8; border-radius: 18px; padding: 16px; color: #1e2a78; font-weight: 800; text-decoration: none; min-height: 110px; }
+  .mc-unirme:hover { background: #fff; color: #1e2a78; }
+</style>
+<div class="mc">
+  <div class="mc-cab"><div class="yo">{{ actual.iniciales }}</div>
+    <div class="flex-grow-1"><h1>Mis clases</h1><div class="small" style="color:#cbd5e1">{{ actual.completo }}</div></div>
+    <a class="btn btn-sm btn-light" href="{% url 'aula:salir' clases.0.aula.pk|default:0 %}" aria-label="Salir">Salir</a></div>
+  <div class="mc-lista">
+    {% for x in clases %}
+      {% if x.aula %}
+      <a class="mc-clase" href="{% url 'aula:portada' x.aula.pk %}"><b>{{ x.i.grupo.nombre }}</b><small>{{ x.profe }}{% if x.i.grupo.descripcion %} · {{ x.i.grupo.descripcion }}{% endif %}</small>
+        {% if x.nuevas %}<span class="n" title="Cosas nuevas">{{ x.nuevas }}</span>{% endif %}</a>
+      {% else %}
+      <div class="mc-clase espera"><b>{{ x.i.grupo.nombre }}</b><small>{{ x.profe }}</small>
+        <div class="small mt-2"><i class="far fa-clock me-1"></i>Esperando que su profe lo apruebe</div></div>
+      {% endif %}
+    {% endfor %}
+    <a class="mc-unirme" href="{% url 'aula:unirme' %}"><span><i class="fas fa-plus fa-lg d-block mb-2"></i>Unirme a una clase<br><small class="fw-normal text-muted">con el código de otro profe</small></span></a>
+  </div>
+</div>
+{% endblock %}
