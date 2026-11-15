@@ -24,6 +24,8 @@
   table.pl td.def { font-weight: bold; }
   tr { page-break-inside: avoid; }
   thead { display: table-header-group; }
+  .conv { margin-top: 6px; font-size: 7.5pt; line-height: 1.5; page-break-inside: avoid; }
+  .conv span { display: inline-block; margin-right: 12px; }
 </style></head>
 <body>
 {% if pie_lineas %}<div class="pie-doc">{% for l in pie_lineas %}<div>{{ l }}</div>{% endfor %}</div>{% endif %}
@@ -33,7 +35,7 @@
 <table class="pl">
   <thead>
     {% if grupos %}<tr><th class="grupo" colspan="2"></th>{% for g in grupos %}<th class="grupo{% if g.totales %} totales{% endif %}" colspan="{{ g.span }}">{{ g.nombre }}{% if g.porcentaje is not None %} ({{ g.pct }} %){% endif %}</th>{% endfor %}<th class="grupo" colspan="2"></th></tr>{% endif %}
-    <tr><th>N.º</th><th>Estudiante</th>{% for t, x in orden %}<th{% if t == 'prom' %} class="totales"{% endif %}>{% if t == 'col' %}{{ x.titulo }}{% else %}Prom. {{ x.nombre }}{% endif %}</th>{% endfor %}<th>Definitiva</th><th>Desempeño</th></tr>
+    <tr><th>N.º</th><th>Estudiante</th>{% for t, x in orden %}<th{% if t == 'prom' %} class="totales"{% endif %}>{% if t == 'col' %}{{ x.corto }}{% else %}Prom. {{ x.nombre }}{% endif %}</th>{% endfor %}<th>Definitiva</th><th>Desempeño</th></tr>
     <tr class="peso"><td></td><td style="text-align:right">Peso</td>{% for t, x in orden %}<td>{% if t == 'col' %}{{ x.porcentaje }} %{% else %}{{ x.pct }} %{% endif %}</td>{% endfor %}<td></td><td></td></tr>
   </thead>
   <tbody>
@@ -43,4 +45,8 @@
   {% endfor %}
   </tbody>
 </table>
+{% if convenciones %}
+<div class="conv"><b>Convenciones:</b>
+  {% for x in convenciones %}<span><b>{{ x.corto }}</b>: {{ x.titulo }} <i>({{ x.tipo|lower }}{% if x.componente %} · {{ x.componente }}{% endif %})</i></span>{% endfor %}
+</div>{% endif %}
 </body></html>

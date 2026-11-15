@@ -82,6 +82,15 @@ def leer_archivo(archivo=None, texto=None, hoja=0):
             filas.append(celdas)
         if len(filas) >= MAX_FILAS:
             break
+    if 'Convenciones' in nombres and hoja != nombres.index('Convenciones'):
+        conv = {}
+        for fila in libro['Convenciones'].iter_rows(min_row=2, values_only=True):
+            if fila and fila[0] and len(fila) > 1 and fila[1]:
+                conv[str(fila[0]).strip().upper()] = str(fila[1]).strip()[:60]
+        for f in filas[:15]:                     # en el encabezado, «N1» vuelve a ser «Evaluación de regla de 3»
+            for j, v in enumerate(f):
+                if v.strip().upper() in conv:
+                    f[j] = conv[v.strip().upper()]
     return _parejas(filas), nombres
 
 
