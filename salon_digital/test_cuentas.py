@@ -126,3 +126,99 @@ class CuentasDeEstudiantes(TestCase):
         self.assertEqual(r.context['n_estudiantes'], 1)
         self.assertEqual(r.context['sin_entrar'], 0)                       # Rosa ya entró a su Inicio
         self.assertContains(self.profe.get(self.g + 'carta-padres/'), 'Ley 1581')
+
+
+class UnirClasesDeVariosProfes(TestCase):
+    """Un mismo estudiante en las clases de varios docentes: una sola cuenta, una sola contraseña y «Mis clases»."""
+
+    def profe(self, usuario):
+        u = User.objects.create_user(usuario, password='x', first_name=usuario.title())
+        Cuenta.objects.create(usuario=u, slug=usuario, nombre_publico=f'Prof. {usuario.title()}', estado='verificada', plan='ilimitado')
+        c = Client(HTTP_HOST='localhost')
+        c.force_login(u)
+        c.post('/salon_digital/grupos/nuevo/', {'nombre': f'Grupo {usuario}', 'activo': 'on'})
+        g = Grupo.objects.get(nombre=f'Grupo {usuario}')
+        c.get(f'/aula/grupo/{g.pk}/')
+        return c, g, Aula.objects.get(grupo=g)
+
+    def alumna(self, grupo, clave):
+        i = Integrante.objects.create(grupo=grupo, apellidos='Rosa', nombres='Salazar')
+        i.poner_clave(clave)
+        i.save()
+        return i
+
+    def setUp(self):
+        self.pa, self.ga, self.aa = self.profe('ana')
+        self.pb, self.gb, self.ab = self.profe('beto')
+        self.pc, self.gc, self.ac = self.profe('carla')
+        self.rosa_a = self.alumna(self.ga, 'luna-482')
+        self.rosa_b = self.alumna(self.gb, 'tigre-917')
+        self.est = Client(HTTP_HOST='localhost')
+        self.est.post(f'/aula/{self.aa.pk}/entrar/', {'codigo': self.ga.codigo, 'integrante': self.rosa_a.pk, 'pin': 'luna-482'})
+
+    def test_entrar_pregunta_quien_es(self):
+        r = Client(HTTP_HOST='localhost').get('/salon_digital/entrar/')
+        self.assertContains(r, '¿Quién eres?')
+        for rol in ('Docente', 'Estudiante', 'Padre de familia'):
+            self.assertContains(r, rol)
+        self.assertContains(Client(HTTP_HOST='localhost').get('/salon_digital/entrar/?rol=estudiante'), 'código de su clase')
+        self.assertContains(Client(HTTP_HOST='localhost').get('/salon_digital/entrar/?rol=familia'), 'Mi familia')
+        r = Client(HTTP_HOST='localhost').get('/aula/codigo/', {'codigo': self.gb.codigo.lower()})
+        self.assertRedirects(r, f'/aula/{self.ab.pk}/entrar/?codigo={self.gb.codigo}', fetch_redirect_response=False)
+        # Sin haber entrado a una clase no puede unirse a otras
+        self.assertRedirects(Client(HTTP_HOST='localhost').get('/aula/unirme/'), '/salon_digital/entrar/?rol=estudiante',
+                             fetch_redirect_response=False)
+
+    def test_unirse_a_una_clase_donde_ya_estaba(self):
+        url = '/aula/unirme/'
+        r = self.est.get(url, {'codigo': self.gb.codigo})
+        self.assertContains(r, 'Grupo beto')
+        self.assertContains(r, 'Rosa Salazar')
+        r = self.est.post(url, {'codigo': self.gb.codigo, 'accion': 'soy', 'integrante': self.rosa_b.pk, 'pin': 'mala-111'})
+        self.assertContains(r, 'Esa contraseña no es')
+        r = self.est.post(url, {'codigo': self.gb.codigo, 'accion': 'soy', 'integrante': self.rosa_b.pk, 'pin': 'tigre-917'})
+        self.assertRedirects(r, f'/aula/{self.ab.pk}/inicio/')
+        self.rosa_a.refresh_from_db(); self.rosa_b.refresh_from_db()
+        self.assertEqual(self.rosa_a.cuenta_id, self.rosa_b.cuenta_id)
+        # Una sola contraseña: la que ya usaba
+        self.assertTrue(self.rosa_b.clave_correcta('luna-482'))
+        self.assertFalse(self.rosa_b.clave_correcta('tigre-917'))
+        # Pasa de una clase a otra sin volver a entrar, y las ve todas en Mis clases
+        self.assertEqual(self.est.get(f'/aula/{self.aa.pk}/inicio/').status_code, 200)
+        self.assertEqual(self.est.get(f'/aula/{self.ab.pk}/inicio/').status_code, 200)
+        r = self.est.get('/aula/mis-clases/')
+        self.assertContains(r, 'Grupo ana')
+        self.assertContains(r, 'Grupo beto')
+        # Cambia la contraseña en una clase y sirve en todas
+        self.est.post(f'/aula/{self.ab.pk}/mi-clave/', {'actual': 'luna-482', 'nueva': 'mi-gato-77', 'otra': 'mi-gato-77'})
+        self.rosa_a.refresh_from_db()
+        self.assertTrue(self.rosa_a.clave_correcta('mi-gato-77'))
+        nuevo = Client(HTTP_HOST='localhost')
+        r = nuevo.post(f'/aula/{self.ab.pk}/entrar/', {'codigo': self.gb.codigo, 'integrante': self.rosa_b.pk, 'pin': 'mi-gato-77'})
+        self.assertRedirects(r, f'/aula/{self.ab.pk}/inicio/')
+        self.assertEqual(nuevo.get(f'/aula/{self.aa.pk}/inicio/').status_code, 200)      # y entra también a la otra
+        # Cada profe sigue viendo solo su clase
+        self.assertNotEqual(self.pa.get(f'/aula/{self.ab.pk}/inicio/').status_code, 200)
+
+    def test_pedir_unirse_y_el_profe_aprueba_o_rechaza(self):
+        url = '/aula/unirme/'
+        r = self.est.get(url, {'codigo': self.gc.codigo})
+        self.assertContains(r, 'Pedir que me agreguen')
+        r = self.est.post(url, {'codigo': self.gc.codigo, 'accion': 'solicitar'})
+        self.assertRedirects(r, '/aula/mis-clases/')
+        pedido = Integrante.objects.get(grupo=self.gc)
+        self.assertTrue(pedido.solicitud and not pedido.activo)
+        self.assertContains(self.est.get('/aula/mis-clases/'), 'Esperando que su profe lo apruebe')
+        self.assertNotEqual(self.est.get(f'/aula/{self.ac.pk}/inicio/').status_code, 200)     # todavía no entra
+        r = self.pc.get(f'/salon_digital/grupos/{self.gc.pk}/')
+        self.assertContains(r, 'Piden unirse')
+        self.assertContains(self.pc.get(f'/aula/{self.ac.pk}/inicio/'), 'pide unirse')
+        self.pc.post(f'/salon_digital/grupos/{self.gc.pk}/estudiante/{pedido.pk}/solicitud/', {'accion': 'aprobar'})
+        self.assertEqual(self.est.get(f'/aula/{self.ac.pk}/inicio/').status_code, 200)
+        pedido.refresh_from_db()
+        self.assertTrue(pedido.clave_correcta('luna-482'))
+        # Rechazar borra la solicitud
+        self.est.post(url, {'codigo': self.gb.codigo, 'accion': 'solicitar'})
+        otro = Integrante.objects.get(grupo=self.gb, solicitud=True)
+        self.pb.post(f'/salon_digital/grupos/{self.gb.pk}/estudiante/{otro.pk}/solicitud/', {'accion': 'rechazar'})
+        self.assertFalse(Integrante.objects.filter(pk=otro.pk).exists())

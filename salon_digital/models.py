@@ -297,6 +297,17 @@ class Grupo(models.Model):
         return self.integrantes.filter(activo=True).count()
 
 
+class CuentaEstudiante(models.Model):
+    """Une al mismo estudiante en las clases de varios docentes (como Google Classroom): una sola contraseña y
+    «Mis clases» con todas. Cada docente sigue viendo solo a su integrante."""
+    nombre = models.CharField(max_length=240)
+    clave = models.CharField(max_length=128, blank=True)
+    creada = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.nombre
+
+
 class Integrante(models.Model):
     """Un estudiante dentro de un grupo. No tiene usuario: entra con el código del grupo, su nombre y su contraseña
     (o su PIN). La contraseña se guarda cifrada: el docente la ve solo al crearla o al restablecerla."""
@@ -309,12 +320,19 @@ class Integrante(models.Model):
                                 help_text='Lo necesita el estudiante para el chat y, si el grupo lo pide, para entrar.')
     clave = models.CharField(max_length=128, blank=True, help_text='Contraseña cifrada (vacía: todavía no tiene).')
     clave_propia = models.BooleanField(default=False, help_text='El estudiante ya la cambió por una suya.')
+    cuenta = models.ForeignKey(CuentaEstudiante, on_delete=models.SET_NULL, null=True, blank=True, related_name='integrantes',
+                               help_text='Si el estudiante unió varias clases: todas comparten la contraseña.')
+    solicitud = models.BooleanField(default=False, help_text='Pidió unirse con el código; espera que el docente lo apruebe.')
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
 
     def poner_clave(self, texto, propia=False):
+        """Cifra la contraseña. Si el estudiante tiene varias clases unidas, la cambia en todas (es una sola)."""
         from django.contrib.auth.hashers import make_password
         self.clave, self.clave_propia = make_password(texto), propia
+        if self.cuenta_id:
+            CuentaEstudiante.objects.filter(pk=self.cuenta_id).update(clave=self.clave)
+            Integrante.objects.filter(cuenta_id=self.cuenta_id).exclude(pk=self.pk).update(clave=self.clave, clave_propia=propia)
 
     def clave_correcta(self, texto):
         from django.contrib.auth.hashers import check_password

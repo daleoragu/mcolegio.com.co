@@ -1,4 +1,4 @@
-Versión 0043 · 2026-11-14 23:47
+Versión 0046 · 2026-11-15 03:55
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -213,10 +213,12 @@ NUEVO     aula/templates/aula/logica_menu.html
 NUEVO     aula/templates/aula/mascota.html
 CAMBIADO  aula/templates/aula/material.html
 NUEVO     aula/templates/aula/mi_clave.html
+NUEVO     aula/templates/aula/mis_clases_estudiante.html
 CAMBIADO  aula/templates/aula/muro.html
 NUEVO     aula/templates/aula/portada.html
 NUEVO     aula/templates/aula/portada_docente.html
 NUEVO     aula/templates/aula/trabajo.html
+NUEVO     aula/templates/aula/unirme.html
 CAMBIADO  aula/templates/aula/vivo_docente.html
 CAMBIADO  aula/templates/aula/vivo_estudiante.html
 CAMBIADO  aula/tests/test_aula.py
@@ -626,6 +628,7 @@ NUEVO     salon_digital/migrations/0006_planes_gratis_estandar_premium.py
 NUEVO     salon_digital/migrations/0007_pizarra.py
 NUEVO     salon_digital/migrations/0008_region.py
 NUEVO     salon_digital/migrations/0009_cuentas_estudiantes.py
+NUEVO     salon_digital/migrations/0010_cuenta_estudiante.py
 CAMBIADO  salon_digital/models.py
 NUEVO     salon_digital/pagos.py
 NUEVO     salon_digital/planes_tabla.py
@@ -636,6 +639,9 @@ NUEVO     salon_digital/static/salon_digital/app/icono-512-maskable.png
 NUEVO     salon_digital/static/salon_digital/app/icono-512.png
 NUEVO     salon_digital/static/salon_digital/app/icono-96.png
 NUEVO     salon_digital/static/salon_digital/region.js
+NUEVO     salon_digital/static/salon_digital/roles/docente.webp
+NUEVO     salon_digital/static/salon_digital/roles/estudiante.webp
+NUEVO     salon_digital/static/salon_digital/roles/familia.webp
 NUEVO     salon_digital/templates/salon_digital/_app.html
 NUEVO     salon_digital/templates/salon_digital/_region_js.html
 NUEVO     salon_digital/templates/salon_digital/agregar_estudiantes.html
@@ -644,6 +650,7 @@ CAMBIADO  salon_digital/templates/salon_digital/base_salon.html
 NUEVO     salon_digital/templates/salon_digital/carta_padres.html
 CAMBIADO  salon_digital/templates/salon_digital/crear_cuenta.html
 NUEVO     salon_digital/templates/salon_digital/cuentas_grupo.html
+CAMBIADO  salon_digital/templates/salon_digital/entrar.html
 CAMBIADO  salon_digital/templates/salon_digital/identificarse.html
 NUEVO     salon_digital/templates/salon_digital/inicio.html
 NUEVO     salon_digital/templates/salon_digital/instalar_app.html
@@ -665,6 +672,7 @@ NUEVO     salon_digital/test_espacios.py
 NUEVO     salon_digital/test_pagos.py
 NUEVO     salon_digital/test_planes.py
 NUEVO     salon_digital/test_region.py
+NUEVO     salon_digital/unir.py
 CAMBIADO  salon_digital/urls.py
 CAMBIADO  salon_digital/views.py
 NUEVO     salon_digital/views_app.py
@@ -751,6 +759,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   aula/migrations/0029_mascota_diversion.py          (mascota: ánimo y juegos)
   materiales/migrations/0013_documento_asignatura.py  (áreas oficiales y asignatura; clasifica los existentes)
   salon_digital/migrations/0009_cuentas_estudiantes.py (contraseñas de estudiantes y forma de entrar)
+  salon_digital/migrations/0010_cuenta_estudiante.py  (estudiante con varias clases: cuenta única y solicitudes)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

@@ -1,21 +1,70 @@
 {% extends "salon_digital/base_salon.html" %}
+{% load static %}
 {% block titulo %}Entrar · Mi Salón Virtual{% endblock %}
+{% block extra_css %}
+<style>
+  .qe { max-width: 520px; margin: 0 auto; }
+  .qe h1 { font-size: 1.6rem; font-weight: 800; text-align: center; }
+  .qe-roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
+  .qe-rol { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; border: 2px solid #e2e8f0; border-radius: 18px; padding: 10px 4px 10px; text-decoration: none; color: #94a3b8; font-weight: 700; background: #fff; text-align: center; font-size: .92rem; line-height: 1.15; transition: transform .15s, box-shadow .15s; }
+  .qe-rol img { width: 100%; max-width: 116px; height: 116px; object-fit: contain; object-position: bottom; filter: grayscale(1); opacity: .45; transition: filter .2s, opacity .2s; }
+  .qe-rol:hover { border-color: #94a3b8; color: #475569; }
+  .qe-rol:hover img { opacity: .7; }
+  .qe-rol.on { border-color: #3b5bdb; background: #eef2ff; color: #0f172a; font-weight: 800; box-shadow: 0 6px 16px rgba(59,91,219,.18); transform: translateY(-2px); }
+  .qe-rol.on img { filter: none; opacity: 1; }
+  .qe-rol span { min-height: 2.3em; display: flex; align-items: center; }
+  .qe-caja { background: #fff; border-radius: 18px; padding: 18px; box-shadow: 0 1px 3px rgba(15,23,42,.08); }
+</style>
+{% endblock %}
 {% block contenido %}
-<div class="row justify-content-center">
-  <div class="col-lg-4">
-    <h1 class="h3 mb-4">Entrar</h1>
-    <div class="card"><div class="card-body">
-      {% include "salon_digital/_social.html" %}
-      <form method="post" novalidate>
-        {% csrf_token %}
-        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-        {% include "salon_digital/_campos.html" %}
-        <button class="btn btn-primary w-100">Entrar</button>
-      </form>
-    </div></div>
-    <p class="text-center text-muted small mt-3">
-      ¿No tienes cuenta? <a href="{% url 'salon_digital:registro' %}">Créala gratis</a>
-    </p>
+{% with rol=request.GET.rol|default:"docente" %}
+<div class="qe">
+  <h1>¿Quién eres?</h1>
+  <nav class="qe-roles" aria-label="Tipo de usuario">
+    <a class="qe-rol {% if rol == 'docente' %}on{% endif %}" href="?rol=docente{% if request.GET.siguiente %}&amp;siguiente={{ request.GET.siguiente|urlencode }}{% endif %}" {% if rol == 'docente' %}aria-current="page"{% endif %}><img src="{% static 'salon_digital/roles/docente.webp' %}" alt="" width="120" height="120"><span>Docente</span></a>
+    <a class="qe-rol {% if rol == 'estudiante' %}on{% endif %}" href="?rol=estudiante{% if request.GET.siguiente %}&amp;siguiente={{ request.GET.siguiente|urlencode }}{% endif %}" {% if rol == 'estudiante' %}aria-current="page"{% endif %}><img src="{% static 'salon_digital/roles/estudiante.webp' %}" alt="" width="120" height="120"><span>Estudiante</span></a>
+    <a class="qe-rol {% if rol == 'familia' %}on{% endif %}" href="?rol=familia{% if request.GET.siguiente %}&amp;siguiente={{ request.GET.siguiente|urlencode }}{% endif %}" {% if rol == 'familia' %}aria-current="page"{% endif %}><img src="{% static 'salon_digital/roles/familia.webp' %}" alt="" width="120" height="120"><span>Padre de familia</span></a>
+  </nav>
+
+  {% if rol == 'estudiante' %}
+  <div class="qe-caja">
+    {% if request.session.salon_identidad %}
+    <div class="alert alert-success d-flex align-items-center gap-2 py-2"><i class="fas fa-user-check"></i>
+      <span class="flex-grow-1">Ya entró como <b>{{ request.session.salon_identidad.nombre }}</b>.</span>
+      <a class="btn btn-sm btn-success" href="{% url 'aula:mis_clases_estudiante' %}">Mis clases</a></div>
+    {% endif %}
+    <form method="get" action="{% url 'aula:ir_con_codigo' %}" class="text-center">
+      <label class="form-label fw-bold" for="qe-codigo">Escriba el código de su clase</label>
+      <input id="qe-codigo" name="codigo" class="form-control form-control-lg text-center text-uppercase mb-2" maxlength="8" required autocomplete="off"
+             style="letter-spacing:.2em;font-weight:700" {% if not request.session.salon_identidad %}autofocus{% endif %}>
+      <button class="btn btn-warning btn-lg w-100 fw-bold">Continuar</button>
+    </form>
+    <p class="small text-muted mt-3 mb-0">Está en su tarjeta de acceso (o escanee el QR de la tarjeta). Después toca su nombre y escribe su contraseña.
+      Si otro profe le da un código, entre a una de sus clases y use <b>«Unirme a otra clase»</b>: tendrá todas juntas con la misma contraseña.</p>
+    <p class="small text-muted mt-2 mb-0">¿Estudia en un colegio que usa mcolegio? Entre con el usuario y la contraseña que le dio su colegio, en la página de su colegio.</p>
   </div>
+
+  {% elif rol == 'familia' %}
+  <div class="qe-caja">
+    <h2 class="h6 fw-bold">Padres, madres y acudientes</h2>
+    <p>Si su hijo o hija estudia en un <b>colegio que usa mcolegio</b>, entre en la página de su colegio con el usuario y la contraseña que le entregó
+      el colegio: allí está <b>«Mi familia»</b>, con las notas, el observador, las circulares y los avisos.</p>
+    <p class="mb-0">En <b>Mi Salón Virtual</b> (las clases que arma un docente por su cuenta) todavía no hay cuentas para las familias:
+      su hijo puede mostrarle su avance entrando a su clase desde su celular. Si tiene dudas sobre los datos de su hijo, escríbale al docente.</p>
+  </div>
+
+  {% else %}
+  <div class="qe-caja">
+    {% include "salon_digital/_social.html" %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+      {% include "salon_digital/_campos.html" %}
+      <button class="btn btn-primary w-100">Entrar</button>
+    </form>
+  </div>
+  <p class="text-center text-muted small mt-3">¿No tiene cuenta? <a href="{% url 'salon_digital:registro' %}">Créela gratis</a></p>
+  {% endif %}
 </div>
+{% endwith %}
 {% endblock %}

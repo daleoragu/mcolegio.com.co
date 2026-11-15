@@ -77,6 +77,10 @@ def contexto(request, aula):
                                                    activo=True).first()
             if integrante:
                 return Contexto(aula, 'estudiante', integrante=integrante)
+        if datos and datos.get('cuenta'):              # el mismo estudiante en otra de sus clases unidas
+            integrante = Integrante.objects.filter(cuenta_id=datos['cuenta'], grupo=aula.grupo, activo=True).first()
+            if integrante:
+                return Contexto(aula, 'estudiante', integrante=integrante)
     return None
 
 

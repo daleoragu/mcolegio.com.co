@@ -113,7 +113,8 @@ def ver_grupo(request, pk):
         'form': form,
         'lista': lista,
         'integrantes': grupo.integrantes.filter(activo=True),
-        'retirados': grupo.integrantes.filter(activo=False),
+        'retirados': grupo.integrantes.filter(activo=False, solicitud=False),
+        'solicitudes': grupo.integrantes.filter(solicitud=True),
         'sin_clave': grupo.integrantes.filter(activo=True, clave='').count(),
         'aula': aula,
         'enlace': _enlace_entrada(request, grupo),
@@ -362,3 +363,21 @@ def carta_padres(request, pk):
     grupo = get_object_or_404(Grupo, pk=pk, propietario=request.cuenta)
     return render(request, 'salon_digital/carta_padres.html', {'grupo': grupo, 'cuenta': request.cuenta,
                                                                 'enlace': _enlace_entrada(request, grupo)})
+
+
+@cuenta_requerida
+@require_POST
+def responder_solicitud(request, pk, integrante_pk):
+    """Un estudiante de otra clase pidió unirse con el código: el docente lo aprueba (queda en la lista con su misma
+    cuenta y contraseña) o lo rechaza (la solicitud se borra)."""
+    grupo = get_object_or_404(Grupo, pk=pk, propietario=request.cuenta)
+    pedido = get_object_or_404(Integrante, pk=integrante_pk, grupo=grupo, solicitud=True)
+    if request.POST.get('accion') == 'aprobar':
+        pedido.activo, pedido.solicitud = True, False
+        pedido.save(update_fields=['activo', 'solicitud'])
+        messages.success(request, f'{pedido.completo} ya está en {grupo.nombre}. Entra con su misma contraseña de siempre.')
+    else:
+        nombre = pedido.completo
+        pedido.delete()
+        messages.info(request, f'Se rechazó la solicitud de {nombre}.')
+    return redirect('salon_digital:ver_grupo', pk=pk)

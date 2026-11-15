@@ -248,9 +248,11 @@ def _portada_docente(request, c):
     con_visita = {f'e{v.estudiante_id}' if v.estudiante_id else f'i{v.integrante_id}'
                   for v in Visto.objects.filter(aula=aula).only('estudiante_id', 'integrante_id')}
     sin_entrar = [p for p in personas if logica.clave_de(p) not in con_visita]
-    sin_clave = 0
-    if aula.grupo_id and aula.grupo.ingreso == 'clave':
-        sin_clave = aula.grupo.integrantes.filter(activo=True, clave='').count()
+    sin_clave = solicitudes = 0
+    if aula.grupo_id:
+        solicitudes = aula.grupo.integrantes.filter(solicitud=True).count()
+        if aula.grupo.ingreso == 'clave':
+            sin_clave = aula.grupo.integrantes.filter(activo=True, clave='').count()
     mascotas = MA.ranking(aula, n=None)
     vivos = list(SesionVivo.objects.filter(cuestionario__aula=aula, creada__gte=timezone.now() - timedelta(hours=3))
                  .exclude(estado='fin').select_related('cuestionario'))
@@ -260,7 +262,7 @@ def _portada_docente(request, c):
         'n_material': aula.materiales.count() + aula.invertidas.count() + aula.actividades.count(),
         'n_juegos': aula.juegos.filter(publicado=True).count(),
         'n_cuestionarios': aula.cuestionarios.count(),
-        'n_estudiantes': len(personas), 'sin_entrar': len(sin_entrar), 'sin_clave': sin_clave,
+        'n_estudiantes': len(personas), 'sin_entrar': len(sin_entrar), 'sin_clave': sin_clave, 'solicitudes': solicitudes,
         'mascotas': len(mascotas), 'mascotas_mal': sum(1 for m in mascotas if m['animo'] in ('mal', 'desmayada')),
         'ultimas': list(aula.publicaciones.filter(tarea__isnull=True).select_related('autor')[:2]),
         'tableros': list(aula.tableros.all()), 'vivos': vivos,
@@ -1054,3 +1056,94 @@ def escala(request):
     filas = list(niveles) + [('', None, None)] * max(0, 6 - len(niveles))
     return render(request, 'aula/escala.html', {'filas': filas, 'errores': errores, 'base': 'aula/base_salon.html'})
 
+
+
+# ---------------------------------------------------------------------------
+# Un estudiante, varias clases: «Unirme a una clase» y «Mis clases» (Salón Virtual)
+# ---------------------------------------------------------------------------
+def _integrante_actual(request):
+    from salon_digital import identidad
+    from salon_digital.models import Integrante
+    datos = identidad.leer(request) or {}
+    return Integrante.objects.filter(pk=datos.get('integrante'), activo=True).select_related('grupo').first()
+
+
+def ir_con_codigo(request):
+    """Desde «Entrar → Soy estudiante»: con el código se llega a la clase (allí toca su nombre)."""
+    from salon_digital.models import Grupo
+    codigo = (request.GET.get('codigo') or '').strip().upper()
+    grupo = Grupo.objects.filter(codigo=codigo, activo=True).first() if codigo else None
+    if grupo is None:
+        messages.warning(request, 'Ese código no corresponde a ninguna clase. Revíselo en su tarjeta.')
+        return redirect(reverse('salon_digital:entrar') + '?rol=estudiante')
+    aula = logica.aula_de_grupo(grupo)
+    return redirect(reverse('aula:entrar', args=[aula.pk]) + f'?codigo={grupo.codigo}')
+
+
+def unirme(request):
+    """El estudiante que ya tiene cuenta se une a la clase de otro docente con el código. Si su nombre está en la lista,
+    lo confirma con la contraseña o el PIN de esa clase; si no, envía una solicitud que ese docente aprueba."""
+    from salon_digital import identidad, unir as U
+    from salon_digital.models import Grupo
+    actual = _integrante_actual(request)
+    if actual is None:
+        messages.info(request, 'Primero entre a una de sus clases; después puede unirse a las demás.')
+        return redirect(reverse('salon_digital:entrar') + '?rol=estudiante')
+    codigo = (request.POST.get('codigo') or request.GET.get('codigo') or '').strip().upper()
+    grupo = Grupo.objects.filter(codigo=codigo, activo=True).select_related('propietario').first() if codigo else None
+    error = 'Ese código no corresponde a ninguna clase. Revíselo con su profe.' if codigo and grupo is None else ''
+    mias = U.clases_de(actual)
+    lista = []
+    if grupo is not None:
+        ya = next((i for i in mias if i.grupo_id == grupo.pk), None)
+        if ya is not None:
+            if ya.solicitud:
+                messages.info(request, f'Ya pidió entrar a {grupo.nombre}: falta que su profe lo apruebe.')
+                return redirect('aula:mis_clases_estudiante')
+            return redirect('aula:portada', pk=logica.aula_de_grupo(grupo).pk)
+        lista = grupo.integrantes.filter(activo=True)
+        if request.method == 'POST' and request.POST.get('accion') == 'soy':
+            otro = lista.filter(pk=request.POST.get('integrante')).first()
+            if otro is None:
+                error = 'Escoja su nombre en la lista.'
+            elif otro.cuenta_id and otro.cuenta_id != actual.cuenta_id:
+                error = 'Ese nombre ya está unido a otra cuenta. Si es usted, pídale a su profe que lo revise.'
+            else:
+                ok, error = identidad.acceso_valido(request, otro, request.POST.get('pin'))
+                if ok:
+                    U.unir(actual, otro)
+                    actual.refresh_from_db()
+                    identidad.guardar(request, actual)
+                    messages.success(request, f'¡Listo! {grupo.nombre} ya está en Mis clases. Entre con su contraseña de siempre.')
+                    return redirect('aula:portada', pk=logica.aula_de_grupo(grupo).pk)
+        elif request.method == 'POST' and request.POST.get('accion') == 'solicitar':
+            U.solicitar(actual, grupo)
+            actual.refresh_from_db()
+            identidad.guardar(request, actual)
+            try:
+                from chat.views_colegas import avisar
+                avisar(grupo.propietario.usuario, f'{actual.completo} pidió unirse a {grupo.nombre}.'[:255],
+                       url=reverse('salon_digital:ver_grupo', args=[grupo.pk]))
+            except Exception:
+                pass
+            messages.success(request, f'Solicitud enviada. Cuando su profe la apruebe, {grupo.nombre} aparecerá en Mis clases.')
+            return redirect('aula:mis_clases_estudiante')
+    return render(request, 'aula/unirme.html', {
+        'base': 'aula/base_salon.html', 'hide_cuenta': True, 'actual': actual, 'codigo': codigo, 'grupo': grupo,
+        'lista': lista, 'error': error, 'elegido': request.POST.get('integrante', '')})
+
+
+def mis_clases_estudiante(request):
+    """Todas las clases del estudiante (de uno o varios docentes) con lo nuevo de cada una."""
+    from salon_digital import unir as U
+    actual = _integrante_actual(request)
+    if actual is None:
+        return redirect(reverse('salon_digital:entrar') + '?rol=estudiante')
+    clases = []
+    for i in U.clases_de(actual):
+        aula = None if i.solicitud else logica.aula_de_grupo(i.grupo)
+        nuevas = sum(logica.novedades(aula, i).values()) if aula else 0
+        clases.append({'i': i, 'aula': aula, 'nuevas': nuevas,
+                       'profe': i.grupo.propietario.nombre_publico or i.grupo.propietario.usuario.get_full_name()})
+    return render(request, 'aula/mis_clases_estudiante.html', {
+        'base': 'aula/base_salon.html', 'hide_cuenta': True, 'actual': actual, 'clases': clases})
