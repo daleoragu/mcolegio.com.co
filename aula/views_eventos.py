@@ -1613,6 +1613,22 @@ def _resultados(request, ev, veedor=None):
             g = grado_de(p)
             p.grado_txt = etiqueta_grado(g) if g is not None else ''
     salidas_on = bool(c['vigilancia']['activa'] and c['vigilancia'].get('salidas')) or any(p.salidas for _, _, f in tablas for p in f)
+    if request.GET.get('excel'):
+        from django.utils.text import slugify
+        from . import excel_resultados
+        partes = []
+        if gsel:
+            partes.append('Grupo: ' + ('todos juntos' if gsel == 'todos' else nombres.get(gsel, gsel)))
+        if gr.lstrip('-').isdigit():
+            partes.append('Grado: ' + etiqueta_grado(int(gr)))
+        if q:
+            partes.append(f'Búsqueda: «{request.GET.get("q", "").strip()}»')
+        datos = excel_resultados.libro(
+            ev, tablas, podio=podio_colegios(ev, c) if c['podio_colegios']['activo'] and not partes else None,
+            niveles=[g['nombre'] for g in grupos(c)], salidas=salidas_on, veedor=bool(veedor), filtros=' · '.join(partes))
+        r = HttpResponse(datos, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        r['Content-Disposition'] = f'attachment; filename="resultados-{slugify(ev.titulo)[:40] or ev.pk}.xlsx"'
+        return r
     if request.GET.get('csv') == 'colegios':
         r = HttpResponse(content_type='text/csv; charset=utf-8')
         r['Content-Disposition'] = f'attachment; filename="podio-colegios-evento-{ev.pk}.csv"'
