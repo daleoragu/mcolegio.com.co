@@ -305,6 +305,16 @@ def _entero(v):
         return None
 
 
+def aprobacion(aula):
+    """La nota mínima para aprobar: el piso del segundo desempeño (Básico) de la escala del colegio o del docente."""
+    if aula.colegio_id:
+        from notas import escalas
+        asig = aula.asignacion
+        return Decimal(escalas.de(aula.colegio).aprobacion(asig.materia_id, asig.curso.grado))
+    escala = escala_docente(aula.docente_usuario)
+    return Decimal(escala[1][1]) if len(escala) >= 2 else Decimal(escala[0][1])
+
+
 def desempeno(aula, nota):
     if nota is None:
         return ''
@@ -770,6 +780,7 @@ def tabla_calificaciones(aula):
     else:
         orden = [('col', c) for c in columnas]
     suma_pct = sum(c['porcentaje'] for c in comps)
+    aprueba = aprobacion(aula)
     filas = []
     for p in estudiantes(aula):
         fila = [c['notas'].get(p.id) for c in columnas]
@@ -787,14 +798,18 @@ def tabla_calificaciones(aula):
             prom = _promedio([(n, c['peso']) for c, n in zip(columnas, fila)], faltantes_minima, minima)
         vista = [{'tipo': 'col', 'col': x, 'n': nota_de[x['clave']]} if t == 'col' else
                  {'tipo': 'prom', 'comp': x, 'n': proms.get(x['id'])} for t, x in orden]
+        for v in vista:
+            v['pierde'] = v['n'] is not None and Decimal(v['n']) < aprueba
         filas.append({'persona': p, 'clave': clave_de(p), 'nombre': nombre_de(p), 'notas': fila,
                       'celdas': list(zip(columnas, fila)), 'vista': vista, 'comp_proms': [proms.get(c['id']) for c in comps],
-                      'promedio': prom, 'desempeno': desempeno(aula, prom) if prom is not None else ''})
+                      'promedio': prom, 'desempeno': desempeno(aula, prom) if prom is not None else '',
+                      'pierde': prom is not None and Decimal(prom) < aprueba})
     nombre_comp = {c['id']: c['nombre'] for c in comps}
     convenciones = [{'corto': c['corto'], 'titulo': c['titulo'], 'tipo': c['tipo'], 'url': c.get('url'),
                      'manual_pk': c['manual'].pk if c.get('manual') else None,
                      'componente': nombre_comp.get(c.get('comp'), ''), 'porcentaje': c['porcentaje']} for c in columnas]
     return {'columnas': columnas, 'filas': filas, 'faltantes_minima': faltantes_minima, 'componentes': comps, 'convenciones': convenciones,
+            'aprobacion': aprueba, 'perdiendo': sum(1 for f in filas if f['pierde']),
             'estilo': estilo, 'orden': orden, 'grupos': grupos, 'suma_porcentajes': suma_pct,
             'plantillas_componentes': PLANTILLAS_COMPONENTES}
 
@@ -932,7 +947,8 @@ def excel_calificaciones(aula):
     ws.title = 'Planilla'
     ws.append([f'{aula.titulo} · {aula.subtitulo}'])
     ws['A1'].font = Font(bold=True, size=13)
-    ws.append([])
+    ws.append([f"Nota mínima para aprobar: {datos['aprobacion']} (en rojo lo que no la alcanza)"])
+    ws['A2'].font = Font(italic=True, color='B42318')
     azul, gris, crema = PatternFill('solid', start_color='1F3A68'), PatternFill('solid', start_color='E9EDF3'), PatternFill('solid', start_color='FFF4D6')
     fino = Side(style='thin', color='B7C1D3')
     fila_grupo = 3
@@ -961,10 +977,12 @@ def excel_calificaciones(aula):
         ws.append([i, f['nombre']] + [float(v['n']) if v['n'] is not None else None for v in f['vista']]
                   + [float(f['promedio']) if f['promedio'] is not None else None, f['desempeno']])
         for k, v in enumerate(f['vista'], 3):
+            celda = ws.cell(row=ws.max_row, column=k)
             if v['tipo'] == 'prom':
-                celda = ws.cell(row=ws.max_row, column=k)
-                celda.font, celda.fill = Font(bold=True), crema
-        ws.cell(row=ws.max_row, column=len(f['vista']) + 3).font = Font(bold=True)
+                celda.font, celda.fill = Font(bold=True, color='B42318' if v['pierde'] else '000000'), crema
+            elif v['pierde']:
+                celda.font = Font(color='B42318')
+        ws.cell(row=ws.max_row, column=len(f['vista']) + 3).font = Font(bold=True, color='B42318' if f['pierde'] else '000000')
     for fila in ws.iter_rows(min_row=fila_titulos, max_row=ws.max_row, max_col=len(titulos)):
         for c in fila:
             c.border = Border(left=fino, right=fino, top=fino, bottom=fino)

@@ -33,6 +33,19 @@
   .tb-enlace { margin-top:8px; font-size:.78rem; word-break:break-all; background:#f1f5f9; border-radius:8px; padding:6px 8px; display:none; }
   .tb-aviso { position:fixed; left:50%; top:62px; transform:translateX(-50%); z-index:7; background:#0f172a; color:#fff; padding:8px 14px; border-radius:10px; font-size:.88rem; display:none; max-width:92vw; text-align:center; }
   .tb-texto { position:fixed; z-index:6; min-width:140px; background:rgba(255,255,255,.92); border:2px dashed #38bdf8; outline:none; padding:2px 4px; font-family:system-ui, sans-serif; resize:both; -webkit-user-select:text; user-select:text; }
+  .tb-color-libre { width:26px!important; height:26px!important; border-radius:50%!important; background:conic-gradient(red, yellow, lime, cyan, blue, magenta, red)!important; border:2px solid rgba(255,255,255,.7)!important; overflow:hidden; }
+  .tb-color-libre input { opacity:0; width:100%; height:100%; cursor:pointer; }
+  .tb-color-libre.on { box-shadow:0 0 0 3px #38bdf8; }
+  .tb-atajos { position:fixed; z-index:9; left:50%; top:50%; transform:translate(-50%,-50%); width:min(760px,calc(100vw - 20px)); max-height:calc(100vh - 40px); overflow:auto;
+               background:#fff; color:#0f172a; border-radius:16px; padding:18px 20px; box-shadow:0 20px 60px rgba(0,0,0,.45); display:none; font-size:.88rem; }
+  .tb-atajos.abierto { display:block; }
+  .tb-atajos .cerrar { position:absolute; right:10px; top:6px; border:0; background:none; font-size:1.6rem; line-height:1; color:#64748b; cursor:pointer; }
+  .tb-atajos .cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:12px; }
+  .tb-atajos dl { display:grid; grid-template-columns:auto 1fr; gap:4px 8px; margin:6px 0 0; }
+  .tb-atajos dt { background:#f1f5f9; border:1px solid #cbd5e1; border-bottom-width:3px; border-radius:6px; padding:0 6px; font-family:ui-monospace,monospace; font-size:.8rem; text-align:center; min-width:26px; }
+  .tb-atajos dd { margin:0; }
+  .tb-atajos .lapiz { margin-top:12px; background:#f8fafc; border-radius:10px; padding:10px 12px; }
+  .tb-atajos .lapiz ul { margin:6px 0 0; padding-left:18px; }
   .tb-zoom { position:fixed; right:10px; bottom:76px; z-index:5; display:flex; flex-direction:column; gap:4px; }
   .tb-zoom button { width:38px; height:38px; border:0; border-radius:10px; background:rgba(15,23,42,.88); color:#fff; font-size:1rem; cursor:pointer; }
   .tb-zoom span { color:#fff; font-size:.7rem; text-align:center; background:rgba(15,23,42,.7); border-radius:6px; }
@@ -99,6 +112,7 @@
   <label class="tb-esc" title="Pegar o subir una imagen (también Ctrl+V o arrastrándola)"><i class="far fa-image"></i><input type="file" accept="image/*" id="tb-archivo" hidden></label>
   <span class="tb-sep"></span>
   <span id="tb-colores" style="display:flex;gap:3px"></span>
+  <label class="tb-esc tb-color-libre" id="tb-libre" title="Cualquier color (O)"><input type="color" id="tb-color-libre" value="#0ea5e9" aria-label="Escoger cualquier color"></label>
   <button type="button" id="tb-grosor" class="tb-esc" title="Grosor"><i class="fas fa-circle" style="font-size:.6rem"></i></button>
   <span class="tb-sep"></span>
   <button type="button" id="tb-deshacer" class="tb-esc" title="Deshacer lo último que hice (Ctrl+Z)"><i class="fas fa-rotate-left"></i></button>
@@ -108,6 +122,26 @@
   <span class="tb-sep"></span>
   <button type="button" id="tb-guardar" title="Descargar lo que se ve como imagen"><i class="fas fa-download"></i></button>
   <button type="button" id="tb-completa" title="Pantalla completa"><i class="fas fa-expand"></i></button>
+  <button type="button" id="tb-ayuda" title="Atajos de teclado y lápiz (?)"><i class="far fa-keyboard"></i></button>
+</div>
+<div class="tb-atajos" id="tb-atajos" role="dialog" aria-label="Atajos de teclado">
+  <button type="button" class="cerrar" id="tb-atajos-x" aria-label="Cerrar">×</button>
+  <h6>Atajos de teclado</h6>
+  <div class="cols">
+    <div><b>Herramientas</b>
+      <dl><dt>P</dt><dd>Lápiz</dd><dt>B</dt><dd>Borrador</dd><dt>H</dt><dd>Resaltador</dd><dt>L</dt><dd>Línea recta</dd>
+        <dt>A</dt><dd>Texto</dd><dt>V</dt><dd>Seleccionar y mover</dd><dt>M</dt><dd>Mover la vista (o mantener Espacio)</dd><dt>F</dt><dd>Formas</dd></dl></div>
+    <div><b>Geometría</b> <small>(la misma tecla lo quita)</small>
+      <dl><dt>R</dt><dd>Regla</dd><dt>E</dt><dd>Escuadra 45°</dd><dt>S</dt><dd>Escuadra 30°-60°</dd><dt>T</dt><dd>Transportador</dd><dt>C</dt><dd>Compás</dd></dl></div>
+    <div><b>Color y trazo</b>
+      <dl><dt>1 … 7</dt><dd>Colores de la barra</dd><dt>O</dt><dd>Cualquier color</dd><dt>[ ]</dt><dd>Más delgado / más grueso</dd><dt>G</dt><dd>Cambiar el grosor</dd></dl></div>
+    <div><b>Vista y edición</b>
+      <dl><dt>+ −</dt><dd>Acercar / alejar</dd><dt>0</dt><dd>Ver todo</dd><dt>Ctrl+Z</dt><dd>Deshacer</dd><dt>Supr</dt><dd>Quitar lo seleccionado</dd><dt>Esc</dt><dd>Cerrar menús</dd><dt>?</dt><dd>Esta ayuda</dd></dl></div>
+  </div>
+  <div class="lapiz"><b><i class="fas fa-pen-nib me-1"></i>Tableta y lápiz (XP-Pen, Wacom, Huion…)</b>
+    <ul><li>El trazo sigue la <b>presión</b> del lápiz.</li>
+      <li>El <b>botón lateral</b> del lápiz que hace «clic derecho» <b>borra</b> mientras lo tiene oprimido; el que hace «clic del medio» <b>mueve la vista</b>.</li>
+      <li>En el programa de la tableta (en la XP-Pen: <i>PenTablet</i> → <i>Teclas rápidas</i>) ponga a cada tecla de la tableta una de las letras de arriba: por ejemplo P, B, E, S, T, Ctrl+Z, y la rueda en <b>[</b> y <b>]</b> para el grosor o en <b>+</b> y <b>−</b> para acercar.</li></ul></div>
 </div>
 {{ cfg|json_script:"tb-cfg" }}
 <script>
@@ -374,18 +408,52 @@
     if (CFG.docente) { e.innerHTML = compartido ? '<i class="fas fa-signal"></i>En vivo con la clase' : '<i class="fas fa-lock"></i>Solo usted'; e.className = 'tb-pildora' + (compartido ? ' verde' : ''); }
     else { e.innerHTML = editar ? '<i class="fas fa-pen"></i>Puede escribir' : '<i class="fas fa-eye"></i>Solo ver'; e.className = 'tb-pildora ' + (editar ? 'verde' : 'ambar'); }
   }
+  // Cursor como en los programas de dibujo: un lápiz del color escogido, un resaltador o un borrador
+  function svgCursor(svg, x, y, resto) { return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '") ' + x + ' ' + y + ', ' + resto; }
+  function ponerCursor() {
+    const c = /^#[0-9a-f]{3,8}$/i.test(color) ? color : '#111827', claro = ['#ffffff', '#fff'].includes(color.toLowerCase());
+    const borde = claro ? '#475569' : '#0f172a';
+    let cur;
+    if (herramienta === 'lapiz') cur = svgCursor("<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><g transform='translate(-13 -2) rotate(45 16 31)'>"
+      + "<rect x='12.5' y='4' width='7' height='20' rx='1' fill='" + c + "' stroke='" + borde + "' stroke-width='1.3'/>"
+      + "<rect x='12.5' y='1.5' width='7' height='3.5' rx='1' fill='#f9a8d4' stroke='" + borde + "' stroke-width='1.3'/>"
+      + "<path d='M12.5 24 L19.5 24 L16 31 Z' fill='#f5d0a9' stroke='" + borde + "' stroke-width='1.3' stroke-linejoin='round'/>"
+      + "<path d='M14.6 28 L17.4 28 L16 31 Z' fill='" + c + "'/></g></svg>", 3, 29, 'crosshair');
+    else if (herramienta === 'resaltar') cur = svgCursor("<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><g transform='translate(-13 -2) rotate(45 16 31)'>"
+      + "<rect x='11' y='3' width='10' height='19' rx='2' fill='#334155' stroke='#0f172a' stroke-width='1.2'/>"
+      + "<path d='M11.5 22 L20.5 22 L19 27 L13 27 Z' fill='#e2e8f0' stroke='#0f172a' stroke-width='1.2'/>"
+      + "<path d='M13 27 L19 27 L18 31 L14 31 Z' fill='" + c + "' stroke='#0f172a' stroke-width='1'/></g></svg>", 3, 29, 'crosshair');
+    else if (herramienta === 'borrar') cur = svgCursor("<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><g transform='rotate(-35 16 16)'>"
+      + "<rect x='5' y='10' width='22' height='12' rx='2.5' fill='#fff' stroke='#0f172a' stroke-width='1.4'/>"
+      + "<rect x='5' y='10' width='9' height='12' rx='2.5' fill='#f472b6' stroke='#0f172a' stroke-width='1.4'/></g>"
+      + "<circle cx='16' cy='16' r='1.6' fill='#0f172a'/></svg>", 16, 16, 'cell');
+    else if (herramienta === 'mano') cur = 'grab';
+    else if (herramienta === 'mover') cur = 'default';
+    else if (herramienta === 'texto') cur = 'text';
+    else cur = 'crosshair';
+    capa.style.cursor = cur;
+  }
   function elegir(h) {
     herramienta = h; compas = h === 'compas' ? compas : null;
     document.querySelectorAll('[data-h]').forEach(x => x.classList.toggle('on', x.dataset.h === h));
     document.getElementById('tb-formas').classList.toggle('on', h === 'forma');
-    seleccionar(null); capa.style.cursor = h === 'mano' ? 'grab' : h === 'mover' ? 'default' : 'crosshair';
+    seleccionar(null); ponerCursor();
     if (h === 'compas') { menuInst.classList.remove('abierto'); aviso('Compás: toque el centro y arrastre para abrirlo; luego dibuje alrededor. Toque el centro de nuevo para cambiar el radio.', 5000); }
   }
   document.querySelectorAll('[data-h]').forEach(b => b.addEventListener('click', () => elegir(b.dataset.h)));
   const zonaColores = document.getElementById('tb-colores');
-  COLORES.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'tb-color tb-esc' + (i ? '' : ' on'); b.style.background = c; b.title = 'Color';
-    b.onclick = () => { color = c; zonaColores.querySelectorAll('.tb-color').forEach(x => x.classList.toggle('on', x === b)); if (seleccion && esMio(seleccion) && seleccion.t !== 'imagen') { seleccion.c = c; enviar({op: 'reemplazar', obj: seleccion}); pintar(); } if (['borrar', 'mano', 'mover'].includes(herramienta)) elegir('lapiz'); };
-    zonaColores.appendChild(b); });
+  const libre = document.getElementById('tb-libre'), inputLibre = document.getElementById('tb-color-libre');
+  function ponerColor(c, boton) {
+    color = c;
+    zonaColores.querySelectorAll('.tb-color').forEach(x => x.classList.toggle('on', x === boton));
+    libre.classList.toggle('on', boton === libre); if (boton === libre) libre.style.boxShadow = '0 0 0 3px ' + c;
+    else libre.style.boxShadow = '';
+    if (seleccion && esMio(seleccion) && seleccion.t !== 'imagen') { seleccion.c = c; enviar({op: 'reemplazar', obj: seleccion}); pintar(); }
+    if (['borrar', 'mano', 'mover'].includes(herramienta)) elegir('lapiz'); else ponerCursor();
+  }
+  COLORES.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'tb-color tb-esc' + (i ? '' : ' on'); b.style.background = c; b.title = 'Color (' + (i + 1) + ')';
+    b.onclick = () => ponerColor(c, b); zonaColores.appendChild(b); });
+  inputLibre.addEventListener('input', () => ponerColor(inputLibre.value, libre));
   document.getElementById('tb-grosor').onclick = function () { grosor = GROSORES[(GROSORES.indexOf(grosor) + 1) % GROSORES.length]; this.querySelector('i').style.fontSize = ['.6rem', '.9rem', '1.25rem'][GROSORES.indexOf(grosor)]; };
   function seleccionar(o) { seleccion = o; document.getElementById('tb-quitar').disabled = !(o && editar && esMio(o)); pedirCapa(); }
   function quitar(ids) { if (!ids.length) return; objetos = objetos.filter(o => !ids.includes(o.id)); seleccion = null; document.getElementById('tb-quitar').disabled = true; pintar(); enviar({op: 'borrar', ids: ids}); }
@@ -443,6 +511,7 @@
     const v = Math.hypot(ev.clientX - ultimo.sx, ev.clientY - ultimo.sy) / Math.max(1, ev.timeStamp - ultimo.t);
     return Math.max(.3, Math.min(1, 1.05 - v * .35));
   }
+  capa.addEventListener('contextmenu', ev => ev.preventDefault());     // el clic derecho (botón del lápiz) borra, no abre menú
   capa.addEventListener('pointerdown', ev => {
     capa.setPointerCapture(ev.pointerId);
     menuInst.classList.remove('abierto'); menuFormas.classList.remove('abierto');
@@ -464,7 +533,7 @@
     if (navegar) { accion = {tipo: 'vista', sx: ev.clientX, sy: ev.clientY, vx: vista.x, vy: vista.y}; capa.style.cursor = 'grabbing'; return; }
     if (!editar) return;
     if (herramienta === 'texto') { ev.preventDefault(); ponerTexto(ev.clientX, ev.clientY); return; }
-    if (herramienta === 'borrar') { accion = {tipo: 'borrar'}; borrarEn(wx, wy); return; }
+    if (herramienta === 'borrar' || (editar && (ev.buttons & 34) && ev.pointerType !== 'touch')) { accion = {tipo: 'borrar'}; borrarEn(wx, wy); return; }
     if (herramienta === 'mover') {
       if (seleccion && seleccion.t === 'imagen') {
         const [x, y, w, h] = caja(seleccion), s = 16 / vista.z;
@@ -570,7 +639,7 @@
       if (o.p) o.p = o.p.map(p => p.length > 2 ? [r1(p[0]), r1(p[1]), p[2]] : [r1(p[0]), r1(p[1])]);
       if (JSON.stringify(o) !== JSON.stringify(accion.copia || {})) enviar({op: 'reemplazar', obj: o});
     }
-    if (accion.tipo === 'vista') capa.style.cursor = herramienta === 'mano' ? 'grab' : 'crosshair';
+    if (accion.tipo === 'vista') ponerCursor();
     if (accion.tipo === 'radio' && compas.r < 4 / vista.z) compas = null;
     if (accion.tipo === 'forma' && accion.e && actual) { const o = actual; actual = null; agregar(o); }
     if (['tinta', 'guia', 'arco'].includes(accion.tipo) && actual) {
@@ -620,13 +689,39 @@
   addEventListener('drop', e => { e.preventDefault(); capaSoltar.style.display = 'none'; [...e.dataTransfer.files].slice(0, 5).forEach(subir); });
 
   // ================================================================= teclado, descargar, pantalla completa
+  const ayuda = document.getElementById('tb-atajos');
+  const verAyuda = () => ayuda.classList.toggle('abierto');
+  document.getElementById('tb-ayuda').onclick = verAyuda;
+  document.getElementById('tb-atajos-x').onclick = () => ayuda.classList.remove('abierto');
+  function instrumento(tipo) { const b = menuInst.querySelector('[data-inst="' + tipo + '"]'); if (b) b.click(); }
+  const TECLAS = {p: 'lapiz', b: 'borrar', h: 'resaltar', l: 'linea', a: 'texto', v: 'mover', m: 'mano', c: 'compas'};
+  const INSTR = {r: 'regla', e: 'escuadra45', s: 'escuadra60', t: 'transportador'};
   document.addEventListener('keydown', e => {
     if (['TEXTAREA', 'INPUT', 'SELECT'].includes(document.activeElement.tagName)) return;
     if (e.code === 'Space') { espacio = true; capa.style.cursor = 'grab'; e.preventDefault(); }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); deshacer(); }
-    if ((e.key === 'Delete' || e.key === 'Backspace') && seleccion && esMio(seleccion) && editar) { e.preventDefault(); quitar([seleccion.id]); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); deshacer(); return; }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && seleccion && esMio(seleccion) && editar) { e.preventDefault(); quitar([seleccion.id]); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey || accion) return;
+    const k = e.key.toLowerCase();
+    if (e.key === 'Escape') { menuInst.classList.remove('abierto'); menuFormas.classList.remove('abierto'); ayuda.classList.remove('abierto'); seleccionar(null); return; }
+    if (e.key === '?') { verAyuda(); return; }
+    if (e.key === '+' || e.key === '=') { acercar(1.25, innerWidth / 2, innerHeight / 2); return; }
+    if (e.key === '-' || e.key === '_') { acercar(.8, innerWidth / 2, innerHeight / 2); return; }
+    if (e.key === '0') { verTodo(); return; }
+    if (k === 'm') { elegir('mano'); return; }
+    if (INSTR[k]) { e.preventDefault(); instrumento(INSTR[k]); return; }
+    if (!editar) return;                                         // lo demás es para escribir
+    if (TECLAS[k]) { e.preventDefault(); if (k === 'c') { if (herramienta === 'compas') { compas = null; elegir('lapiz'); } else elegir('compas'); } else elegir(TECLAS[k]); return; }
+    if (k === 'f') { abrirMenu(menuFormas, menuInst); return; }
+    if (k === 'o') { inputLibre.click(); return; }
+    if (k === 'g') { document.getElementById('tb-grosor').click(); return; }
+    if (e.key === '[' || e.key === ']') {
+      const i = Math.max(0, Math.min(GROSORES.length - 1, GROSORES.indexOf(grosor) + (e.key === ']' ? 1 : -1)));
+      grosor = GROSORES[i]; document.querySelector('#tb-grosor i').style.fontSize = ['.6rem', '.9rem', '1.25rem'][i]; aviso('Grosor: ' + ['delgado', 'medio', 'grueso'][i], 1200); return;
+    }
+    if (/^[1-7]$/.test(e.key)) { const b = zonaColores.querySelectorAll('.tb-color')[+e.key - 1]; if (b) b.click(); return; }
   });
-  document.addEventListener('keyup', e => { if (e.code === 'Space') { espacio = false; capa.style.cursor = herramienta === 'mano' ? 'grab' : 'crosshair'; } });
+  document.addEventListener('keyup', e => { if (e.code === 'Space') { espacio = false; ponerCursor(); } });
   document.getElementById('tb-guardar').onclick = () => {
     const c = document.createElement('canvas'); c.width = base.width; c.height = base.height;
     const x = c.getContext('2d'); x.drawImage(base, 0, 0); const s = seleccion; seleccion = null; pintarCapa(); x.drawImage(capa, 0, 0); seleccion = s; pedirCapa();

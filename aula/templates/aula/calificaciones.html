@@ -44,7 +44,11 @@
       </form>
     </details>{% endif %}
 
-    <style>.au-ncod{font-weight:800;font-size:.95rem;color:#1f3a68;text-decoration:none}.au-conv{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px}.au-conv li{padding:2px 0;font-size:.9rem}.au-conv .au-ncod{display:inline-block;min-width:34px}.au-planilla .au-grupo{background:#e9edf3!important;color:#1f3a68}.au-planilla .au-tot{background:#fff4d6!important}</style>
+    <style>.au-aprueba{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}.au-aprueba-n{background:#fff1f0;border:1px solid #fecaca;color:#7f1d1d;border-radius:99px;padding:3px 12px;font-size:.9rem}.au-pierde{color:#b42318!important;font-weight:700}input.au-pierde{background:#fff1f0;border-color:#f5a3a3}.au-ncod{font-weight:800;font-size:.95rem;color:#1f3a68;text-decoration:none}.au-conv{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px}.au-conv li{padding:2px 0;font-size:.9rem}.au-conv .au-ncod{display:inline-block;min-width:34px}.au-planilla .au-grupo{background:#e9edf3!important;color:#1f3a68}.au-planilla .au-tot{background:#fff4d6!important}</style>
+    <div class="au-aprueba mb-2" data-aprueba="{{ aprobacion }}">
+      <span class="au-aprueba-n"><i class="fas fa-flag-checkered me-1"></i>Nota mínima para aprobar: <b>{{ aprobacion|floatformat:"-2" }}</b></span>
+      <span class="small text-muted">Lo que no la alcanza sale en <b class="text-danger">rojo</b>{% if perdiendo %} · <b class="text-danger">{{ perdiendo }}</b> estudiante{{ perdiendo|pluralize }} va{{ perdiendo|pluralize:"n" }} perdiendo{% endif %}{% if aula.es_salon %} · <a href="{% url 'aula:escala' %}">cambiar mi escala</a>{% endif %}</span>
+    </div>
     <div class="table-responsive"><table class="table table-sm table-bordered align-middle mb-0 au-planilla">
         <thead class="table-light">
         {% if grupos %}<tr><th colspan="2"></th>{% for g in grupos %}<th class="text-center small {% if g.totales %}au-tot{% else %}au-grupo{% endif %}" colspan="{{ g.span }}">{{ g.nombre }}{% if g.porcentaje is not None %} <span class="fw-normal">({{ g.pct }} %)</span>{% endif %}</th>{% endfor %}<th colspan="2"></th></tr>{% endif %}
@@ -70,10 +74,10 @@
         <tbody>{% for f in filas %}<tr>
             <td class="text-muted">{{ forloop.counter }}</td><td class="text-nowrap">{{ f.nombre }}</td>
             {% for v in f.vista %}{% if v.tipo == 'col' %}<td class="text-center">
-                {% if v.col.manual %}<input name="n-{{ v.col.manual.pk }}-{{ f.clave }}" form="planilla" value="{% if v.n is not None %}{{ v.n|floatformat:'-2' }}{% endif %}" class="form-control form-control-sm text-center mx-auto au-nota" style="width:64px" inputmode="decimal">
-                {% elif v.n is not None %}{{ v.n|floatformat:1 }}{% endif %}</td>
-            {% else %}<td class="text-center fw-semibold au-tot">{% if v.n is not None %}{{ v.n|floatformat:1 }}{% endif %}</td>{% endif %}{% endfor %}
-            <td class="text-center fw-bold">{% if f.promedio is not None %}{{ f.promedio|floatformat:1 }}{% endif %}</td>
+                {% if v.col.manual %}<input name="n-{{ v.col.manual.pk }}-{{ f.clave }}" form="planilla" value="{% if v.n is not None %}{{ v.n|floatformat:'-2' }}{% endif %}" class="form-control form-control-sm text-center mx-auto au-nota{% if v.pierde %} au-pierde{% endif %}" style="width:64px" inputmode="decimal">
+                {% elif v.n is not None %}<span class="{% if v.pierde %}au-pierde{% endif %}">{{ v.n|floatformat:1 }}</span>{% endif %}</td>
+            {% else %}<td class="text-center fw-semibold au-tot">{% if v.n is not None %}<span class="{% if v.pierde %}au-pierde{% endif %}">{{ v.n|floatformat:1 }}</span>{% endif %}</td>{% endif %}{% endfor %}
+            <td class="text-center fw-bold">{% if f.promedio is not None %}<span class="{% if f.pierde %}au-pierde{% endif %}">{{ f.promedio|floatformat:1 }}</span>{% endif %}</td>
             <td class="small">{{ f.desempeno }}</td>
         </tr>{% empty %}<tr><td colspan="3" class="text-muted text-center py-3">No hay estudiantes.</td></tr>{% endfor %}</tbody>
     </table></div>
@@ -97,6 +101,17 @@
     </form>
     <form method="post" id="renombrar-col" class="d-none">{% csrf_token %}<input type="hidden" name="accion" value="renombrar"><input type="hidden" name="columna"><input type="hidden" name="titulo"></form>
     <script>
+    // Al escribir una nota, sale en rojo si no alcanza la mínima para aprobar
+    (function () {
+      var caja = document.querySelector('.au-aprueba'); if (!caja) return;
+      var min = parseFloat(String(caja.dataset.aprueba).replace(',', '.'));
+      document.querySelectorAll('.au-nota').forEach(function (i) {
+        i.addEventListener('input', function () {
+          var v = parseFloat(i.value.replace(',', '.'));
+          i.classList.toggle('au-pierde', !isNaN(v) && v < min);
+        });
+      });
+    })();
     function auRenombrar(pk, actual) {
       var nuevo = prompt('Nuevo nombre de la columna:', actual);
       if (nuevo === null) return;
