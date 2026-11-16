@@ -792,6 +792,7 @@ def tabla_calificaciones(aula):
                       'promedio': prom, 'desempeno': desempeno(aula, prom) if prom is not None else ''})
     nombre_comp = {c['id']: c['nombre'] for c in comps}
     convenciones = [{'corto': c['corto'], 'titulo': c['titulo'], 'tipo': c['tipo'], 'url': c.get('url'),
+                     'manual_pk': c['manual'].pk if c.get('manual') else None,
                      'componente': nombre_comp.get(c.get('comp'), ''), 'porcentaje': c['porcentaje']} for c in columnas]
     return {'columnas': columnas, 'filas': filas, 'faltantes_minima': faltantes_minima, 'componentes': comps, 'convenciones': convenciones,
             'estilo': estilo, 'orden': orden, 'grupos': grupos, 'suma_porcentajes': suma_pct,
