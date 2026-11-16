@@ -75,6 +75,15 @@ class PlanillaIndividual(ColegioDePrueba):
         filas_x, _ = importar.leer_archivo(SimpleUploadedFile('planilla.xlsx', r.content))
         self.assertIn('Quiz en papel', [c for f in filas_x[:5] for c in f])
 
+        # Cambiar el nombre de una columna a mano (si el profe se equivocó): el lápiz y las convenciones
+        self.assertContains(profe.get(url), f'auRenombrar({col.pk}')
+        profe.post(url, {'accion': 'renombrar', 'columna': col.pk, 'titulo': 'Quiz oral de fracciones'})
+        col.refresh_from_db()
+        self.assertEqual(col.titulo, 'Quiz oral de fracciones')
+        self.assertContains(profe.get(url), 'Quiz oral de fracciones')
+        profe.post(url, {'accion': 'renombrar', 'columna': col.pk, 'titulo': '   '})     # vacío: no cambia
+        col.refresh_from_db()
+        self.assertEqual(col.titulo, 'Quiz oral de fracciones')
         # Borrar la columna
         profe.post(url, {'accion': 'eliminar', 'columna': col.pk})
         self.assertFalse(ColumnaManual.objects.exists())
