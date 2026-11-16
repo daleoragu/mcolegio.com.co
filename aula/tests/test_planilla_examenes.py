@@ -66,8 +66,14 @@ class PlanillaIndividual(ColegioDePrueba):
 
         r = profe.get(url + '?formato=excel')
         ws = openpyxl.load_workbook(io.BytesIO(r.content)).active
-        self.assertEqual(ws['D3'].value, 'Quiz en papel')
+        self.assertEqual(ws['D3'].value, 'N2'); self.assertEqual(ws.parent['Convenciones']['B3'].value, 'Quiz en papel')
         self.assertEqual(ws['D4'].value, '0 %')
+        # La planilla tiene N1, N2… y las convenciones; al volverla a subir, cada N recupera su nombre
+        self.assertContains(profe.get(url), 'Convenciones')
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from aula import importar
+        filas_x, _ = importar.leer_archivo(SimpleUploadedFile('planilla.xlsx', r.content))
+        self.assertIn('Quiz en papel', [c for f in filas_x[:5] for c in f])
 
         # Borrar la columna
         profe.post(url, {'accion': 'eliminar', 'columna': col.pk})

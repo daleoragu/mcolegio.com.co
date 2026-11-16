@@ -1,4 +1,4 @@
-Versión 0047 · 2026-11-15 21:02
+Versión 0048 · 2026-11-16 00:05
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -316,8 +316,10 @@ NUEVO     materiales/migrations/0010_recortes.py
 NUEVO     materiales/migrations/0011_region.py
 NUEVO     materiales/migrations/0012_dba_codigo.py
 NUEVO     materiales/migrations/0013_documento_asignatura.py
+NUEVO     materiales/migrations/0014_puntos_y_comentarios.py
 CAMBIADO  materiales/models.py
 CAMBIADO  materiales/plantillas.py
+NUEVO     materiales/reputacion.py
 NUEVO     materiales/semilla/__init__.py
 NUEVO     materiales/semilla/armar.py
 NUEVO     materiales/semilla/banco.py
@@ -469,12 +471,16 @@ NUEVO     materiales/static/materiales/graficador.js
 NUEVO     materiales/static/materiales/imagenes.js
 NUEVO     materiales/static/materiales/impresion.js
 NUEVO     materiales/templates/materiales/_colores.html
+NUEVO     materiales/templates/materiales/_doc_acciones.html
 NUEVO     materiales/templates/materiales/_encabezado_docente.html
 NUEVO     materiales/templates/materiales/_enviar_campos.html
 CAMBIADO  materiales/templates/materiales/_estilos.html
+NUEVO     materiales/templates/materiales/_estrellas.html
 NUEVO     materiales/templates/materiales/_impresion_panel.html
 NUEVO     materiales/templates/materiales/_juego_form.html
 NUEVO     materiales/templates/materiales/_juego_js.html
+NUEVO     materiales/templates/materiales/_pestanas.html
+CAMBIADO  materiales/templates/materiales/autor.html
 CAMBIADO  materiales/templates/materiales/biblioteca.html
 CAMBIADO  materiales/templates/materiales/creditos.html
 CAMBIADO  materiales/templates/materiales/documento_pdf.html
@@ -484,6 +490,7 @@ NUEVO     materiales/templates/materiales/imprimir.html
 NUEVO     materiales/templates/materiales/juego_editar.html
 NUEVO     materiales/templates/materiales/juegos.html
 CAMBIADO  materiales/templates/materiales/lista.html
+CAMBIADO  materiales/templates/materiales/material.html
 NUEVO     materiales/templatetags/__init__.py
 NUEVO     materiales/templatetags/ecuaciones.py
 NUEVO     materiales/tests/test_dba.py
@@ -494,6 +501,7 @@ NUEVO     materiales/tests/test_graficas.py
 NUEVO     materiales/tests/test_imagenes.py
 NUEVO     materiales/tests/test_juegos_colores.py
 CAMBIADO  materiales/tests/test_materiales.py
+NUEVO     materiales/tests/test_reputacion.py
 CAMBIADO  materiales/urls.py
 CAMBIADO  materiales/views.py
 CAMBIADO  materiales/views_banco.py
@@ -761,6 +769,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   materiales/migrations/0013_documento_asignatura.py  (áreas oficiales y asignatura; clasifica los existentes)
   salon_digital/migrations/0009_cuentas_estudiantes.py (contraseñas de estudiantes y forma de entrar)
   salon_digital/migrations/0010_cuenta_estudiante.py  (estudiante con varias clases: cuenta única y solicitudes)
+  materiales/migrations/0014_puntos_y_comentarios.py  (biblioteca: puntos de cada material y comentarios de docentes)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

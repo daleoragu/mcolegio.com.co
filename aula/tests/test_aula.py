@@ -161,7 +161,7 @@ class AulaDelColegio(ColegioDePrueba):
         self.assertEqual(Entrega.objects.get(tarea=t2).nota, Decimal('4.2'))
         r = self.docente_c.get(f'/aula/{aula.pk}/calificaciones/?formato=excel')
         ws = openpyxl.load_workbook(io.BytesIO(r.content)).active
-        self.assertEqual(ws['C3'].value, 'Cuaderno')
+        self.assertEqual(ws['C3'].value, 'N1'); self.assertEqual(ws.parent['Convenciones']['B2'].value, 'Cuaderno')
 
     def test_importar_rubistar_y_editar(self):
         pegado = ('CATEGORY\tPeso\t4\t3\t2\t1\n'

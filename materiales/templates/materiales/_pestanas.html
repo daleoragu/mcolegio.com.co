@@ -1,0 +1,17 @@
+{% comment %}Pestañas de Planeación: Crear · Mi banco de materiales · Biblioteca comunitaria. Uso: {% include 'materiales/_pestanas.html' with activa='banco' %}{% endcomment %}
+<style>
+  .mm-pest { display: flex; gap: 6px; overflow-x: auto; border-bottom: 2px solid #e2e8f0; margin-bottom: 14px; scrollbar-width: none; }
+  .mm-pest::-webkit-scrollbar { display: none; }
+  .mm-pest a { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; padding: 10px 12px; font-weight: 700; color: #475569; text-decoration: none;
+               border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; }
+  .mm-pest a:hover { color: #0f172a; }
+  .mm-pest a.on { color: #1e2a78; border-bottom-color: #1e2a78; }
+  .mm-pest .n { background: #e2e8f0; color: #334155; border-radius: 99px; font-size: .75rem; padding: 1px 8px; }
+  @media (max-width: 420px) { .mm-pest { gap: 0; } .mm-pest a { padding: 10px 8px; gap: 5px; font-size: .93rem; } }
+  .mm-pest a.on .n { background: #1e2a78; color: #fff; }
+</style>
+<nav class="mm-pest" aria-label="Materiales">
+  <a href="{% url 'materiales:lista' %}?ver=crear" class="{% if activa == 'crear' %}on{% endif %}" {% if activa == 'crear' %}aria-current="page"{% endif %}><i class="fas fa-wand-magic-sparkles"></i>Crear</a>
+  <a href="{% url 'materiales:lista' %}?ver=banco" class="{% if activa == 'banco' %}on{% endif %}" {% if activa == 'banco' %}aria-current="page"{% endif %}><i class="fas fa-folder-open"></i>Mi banco<span class="d-none d-sm-inline">&nbsp;de materiales</span>{% if total_mios is not None %}<span class="n">{{ total_mios }}</span>{% endif %}</a>
+  <a href="{% url 'materiales:biblioteca' %}" class="{% if activa == 'biblioteca' %}on{% endif %}" {% if activa == 'biblioteca' %}aria-current="page"{% endif %}><i class="fas fa-book-bookmark"></i>Biblioteca<span class="d-none d-sm-inline">&nbsp;comunitaria</span></a>
+</nav>

@@ -743,6 +743,8 @@ def tabla_calificaciones(aula):
         for c in columnas:
             c['comp'] = asignacion.get(c['clave']) if asignacion.get(c['clave']) in ids else ids[0]
         columnas.sort(key=lambda c: ids.index(c['comp']))          # agrupadas por componente (orden estable)
+    for i, c in enumerate(columnas, 1):              # encabezado corto: N1, N2… (el nombre va en las convenciones)
+        c['corto'] = f'N{i}'
     total_pesos = sum(c['peso'] for c in columnas)
     for c in columnas:
         if comps:
@@ -788,7 +790,10 @@ def tabla_calificaciones(aula):
         filas.append({'persona': p, 'clave': clave_de(p), 'nombre': nombre_de(p), 'notas': fila,
                       'celdas': list(zip(columnas, fila)), 'vista': vista, 'comp_proms': [proms.get(c['id']) for c in comps],
                       'promedio': prom, 'desempeno': desempeno(aula, prom) if prom is not None else ''})
-    return {'columnas': columnas, 'filas': filas, 'faltantes_minima': faltantes_minima, 'componentes': comps,
+    nombre_comp = {c['id']: c['nombre'] for c in comps}
+    convenciones = [{'corto': c['corto'], 'titulo': c['titulo'], 'tipo': c['tipo'], 'url': c.get('url'),
+                     'componente': nombre_comp.get(c.get('comp'), ''), 'porcentaje': c['porcentaje']} for c in columnas]
+    return {'columnas': columnas, 'filas': filas, 'faltantes_minima': faltantes_minima, 'componentes': comps, 'convenciones': convenciones,
             'estilo': estilo, 'orden': orden, 'grupos': grupos, 'suma_porcentajes': suma_pct,
             'plantillas_componentes': PLANTILLAS_COMPONENTES}
 
@@ -943,7 +948,7 @@ def excel_calificaciones(aula):
         fila_titulos = 4
     else:
         fila_titulos = 3
-    titulos = ['N.º', 'Estudiante'] + [x['titulo'] if t == 'col' else f"Prom. {x['nombre']}" for t, x in datos['orden']] + ['Definitiva', 'Desempeño']
+    titulos = ['N.º', 'Estudiante'] + [x['corto'] if t == 'col' else f"Prom. {x['nombre']}" for t, x in datos['orden']] + ['Definitiva', 'Desempeño']
     ws.append(titulos)
     for c in ws[fila_titulos]:
         c.font, c.fill = Font(bold=True, color='FFFFFF'), azul
@@ -969,6 +974,19 @@ def excel_calificaciones(aula):
     for k in range(3, len(titulos) + 1):
         ws.column_dimensions[get_column_letter(k)].width = 12
     ws.freeze_panes = ws.cell(row=fila_titulos + 2, column=3)
+    for k, (t, x) in enumerate(datos['orden'], 3):           # el nombre completo, como nota de la celda
+        if t == 'col':
+            from openpyxl.comments import Comment
+            ws.cell(row=fila_titulos, column=k).comment = Comment(f"{x['titulo']} ({x['tipo']})", 'mcolegio')
+    # Convenciones: qué es cada N (al subir el Excel con «Importar notas», N1, N2… se leen con su nombre)
+    wc = wb.create_sheet('Convenciones')
+    wc.append(['Columna', 'Qué es', 'Tipo'] + (['Componente'] if datos['componentes'] else []) + ['Peso'])
+    for c in wc[1]:
+        c.font, c.fill = Font(bold=True, color='FFFFFF'), azul
+    for x in datos['convenciones']:
+        wc.append([x['corto'], x['titulo'], x['tipo']] + ([x['componente']] if datos['componentes'] else []) + [f"{x['porcentaje']} %"])
+    for letra, ancho in zip('ABCDE', (10, 46, 14, 20, 10)):
+        wc.column_dimensions[letra].width = ancho
     salida = io.BytesIO()
     wb.save(salida)
     return salida.getvalue()

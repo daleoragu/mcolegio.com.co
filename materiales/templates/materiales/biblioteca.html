@@ -6,14 +6,15 @@
 {% block content %}
 {% include 'materiales/_estilos.html' %}
 <div class="mm">
+{% include 'materiales/_pestanas.html' with activa='biblioteca' %}
 <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-  <a href="{% url 'materiales:lista' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Mis materiales</a>
   <div class="btn-group btn-group-sm" role="group" aria-label="Qué ver">
     <a class="btn {% if pestana == 'todo' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?ver=todo">Todo</a>
     <a class="btn {% if pestana == 'libre' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?ver=libre">Banco libre</a>
     <a class="btn {% if pestana == 'comunidad' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?ver=comunidad">Comunidad</a>
     {% if not acceso.es_individual %}<a class="btn {% if pestana == 'colegio' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?ver=colegio">Mi colegio</a>{% endif %}
     <a class="btn {% if pestana == 'mios' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?ver=mios">Lo que compartí</a>
+    <a class="btn btn-outline-warning" href="{% url 'materiales:autor' request.user.pk %}" title="Mis puntos, nivel y premios"><i class="fas fa-medal me-1"></i>Mi nivel</a>
   </div>
   {% if user.is_superuser %}<a href="{% url 'materiales:revision' %}" class="btn btn-sm btn-outline-dark ms-auto">Revisión{% if en_revision %} <span class="badge text-bg-danger">{{ en_revision }}</span>{% endif %}</a>{% endif %}
 </div>
@@ -31,7 +32,7 @@
     <option value="departamento" {% if filtro.region == 'departamento' %}selected{% endif %}>De mi departamento ({{ mi_departamento }})</option>{% endif %}</select></div>
   <div class="col-md-2 d-flex align-items-end"><div class="form-check small mb-1"><input class="form-check-input" type="checkbox" name="regional" value="1" id="bb-regional" {% if filtro.regional %}checked{% endif %}>
     <label class="form-check-label" for="bb-regional">Con contexto regional</label></div></div>
-  <div class="col-md-2 d-flex gap-1"><select name="orden" class="form-select form-select-sm" aria-label="Orden"><option value="">Recientes</option><option value="usados" {% if filtro.orden == 'usados' %}selected{% endif %}>Más usados</option><option value="estrellas" {% if filtro.orden == 'estrellas' %}selected{% endif %}>Mejor valorados</option></select><button class="btn btn-sm mm-oro">Buscar</button></div>
+  <div class="col-md-2 d-flex gap-1"><select name="orden" class="form-select form-select-sm" aria-label="Orden"><option value="">Recientes</option><option value="puntos" {% if filtro.orden == 'puntos' %}selected{% endif %}>Más puntos</option><option value="estrellas" {% if filtro.orden == 'estrellas' %}selected{% endif %}>Mejor calificados</option><option value="usados" {% if filtro.orden == 'usados' %}selected{% endif %}>Más usados</option></select><button class="btn btn-sm mm-oro">Buscar</button></div>
 </form>
 {% if not mi_lugar and acceso.es_individual %}<div class="alert alert-info small py-2">Para ver lo de su región, escoja su municipio en <a href="/salon_digital/panel/cuenta/">Mi cuenta</a>.</div>{% endif %}
 <div class="row g-2">
@@ -44,7 +45,7 @@
     {% if m.dba_codigo %}<div class="small mt-1"><span class="badge text-bg-light border">{{ m.dba|truncatechars:70 }}</span></div>{% endif %}
     {% if m.lugar %}<div class="small mt-1 text-muted">📍 {{ m.lugar }}{% if m.regional %} · <span class="text-success fw-semibold">contexto regional</span>{% endif %}</div>{% endif %}
     <div class="small text-muted mt-auto pt-2 d-flex justify-content-between"><span>{% if m.alcance == 'libre' %}mcolegio{% else %}{{ m.autor.get_full_name|default:m.autor.username }}{% endif %}</span>
-      <span>{% if m.estrellas %}<span class="mm-estrellas">★</span> {{ m.estrellas }} · {% endif %}{{ m.usos }} uso{{ m.usos|pluralize }}</span></div>
+      <span title="{{ m.puntos }} punto{{ m.puntos|pluralize }} · {{ m.usos }} uso{{ m.usos|pluralize }}">{% if m.estrellas %}{% include 'materiales/_estrellas.html' with valor=m.estrellas %} {{ m.estrellas }} <span class="text-muted">({{ m.estrellas_n }})</span> · {% endif %}{{ m.usos }} uso{{ m.usos|pluralize }}{% if m.puntos %} · <b class="text-dark">{{ m.puntos }} pts</b>{% endif %}</span></div>
   </div></a></div>
 {% empty %}
   <div class="col-12"><div class="mm-tarjeta text-center text-muted">No hay materiales {% if pestana == 'mios' %}compartidos por usted todavía. Abra un documento y use «Compartir».{% else %}con esa búsqueda.{% endif %}</div></div>

@@ -2,7 +2,7 @@
 {% block page_title %}
 {% if espacios_menu %}
 <style>
-.ep-acciones{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.ep-acciones{display:flex;flex-wrap:wrap;gap:10px}
 .ep-acciones .btn{border-radius:10px;font-weight:600;padding:8px 14px}
 .ep-crear{background:#1e2a78;color:#fff}.ep-crear:hover{background:#151f5c;color:#fff}
 .ep-mas{background:#fff;border:1px solid #cbd5e1;color:#0f172a}.ep-mas:hover{border-color:#64748b}
@@ -18,7 +18,20 @@
 </style>
 <h3 class="mb-0 fw-bold">Estudio de Planeación</h3>
 <p class="text-muted small mb-0">Cree desde plantillas, importe material y envíelo a sus grupos.</p>
-<div class="ep-acciones">
+{% else %}
+<h4 class="mb-0"><i class="fas fa-book-open-reader me-2"></i>Mis materiales</h4>
+<p class="text-muted small mb-0">Guías, talleres, evaluaciones y fichas con {% if acceso.es_individual %}su encabezado{% else %}el encabezado del colegio{% endif %}, listos para imprimir o publicar en el aula.</p>
+{% endif %}
+{% endblock %}
+{% block content %}
+{% include 'materiales/_estilos.html' %}
+<div class="mm">
+{% include 'materiales/_pestanas.html' with activa=ver total_mios=filtro.total %}
+<div class="mb-2">{% include 'materiales/_medidor.html' %}</div>
+<div class="row g-3">
+  <div class="{% if ver == 'crear' %}col-lg-8{% else %}col-12{% endif %}">
+    {% if ver == 'crear' %}
+    {% if espacios_menu %}<div class="mb-3"><div class="ep-acciones">
   <form method="post" action="{% url 'materiales:nuevo' %}" class="m-0">{% csrf_token %}<input type="hidden" name="tipo" value="guia_momentos"><button class="btn ep-crear"><i class="fas fa-plus me-1"></i>Crear guía por momentos</button></form>
   <a class="btn ep-mas" href="{% url 'aula:instrumentos' %}"><i class="fas fa-plus me-1"></i>Rúbrica / Lista de chequeo</a>
   <a class="btn ep-mas" href="{% url 'puntoexacto:crear' %}"><i class="fas fa-plus me-1"></i>Examen PuntoExacto</a>
@@ -35,18 +48,7 @@
       <li><a class="dropdown-item" href="{% url 'materiales:banco_pagina' %}"><i class="fas fa-file-excel me-2 text-muted"></i>Preguntas desde Excel (Banco de preguntas)</a></li>
     </ul>
   </div>
-</div>
-{% else %}
-<h4 class="mb-0"><i class="fas fa-book-open-reader me-2"></i>Mis materiales</h4>
-<p class="text-muted small mb-0">Guías, talleres, evaluaciones y fichas con {% if acceso.es_individual %}su encabezado{% else %}el encabezado del colegio{% endif %}, listos para imprimir o publicar en el aula.</p>
-{% endif %}
-{% endblock %}
-{% block content %}
-{% include 'materiales/_estilos.html' %}
-<div class="mm">
-<div class="mb-2">{% include 'materiales/_medidor.html' %}</div>
-<div class="row g-3">
-  <div class="col-lg-8">
+</div></div>{% endif %}
     <div class="mm-tarjeta">
       <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
         <h6 class="mb-0 flex-grow-1">{% if espacios_menu %}Plantillas{% else %}Crear{% endif %}</h6>
@@ -105,6 +107,7 @@
         {% endif %}
       </div>
     </div>
+    {% endif %}
 
     {% if invitaciones %}
     <div class="mm-tarjeta" style="border-left:5px solid var(--bs-primary)">
@@ -119,6 +122,7 @@
     </div>
     {% endif %}
 
+    {% if ver == 'banco' %}
     <div class="mm-tarjeta mm-filtros" id="mis-documentos">
       <style>
         .mm-filtros .mf-fila { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; scrollbar-width:thin; }
@@ -133,7 +137,7 @@
       </style>
       <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
         <h6 class="mb-0 flex-grow-1"><i class="fas fa-folder-tree me-1"></i>Mis documentos <span class="text-muted fw-normal small">({{ filtro.total }})</span></h6>
-        <form method="get" class="d-flex gap-1" role="search" action="#mis-documentos">
+        <form method="get" class="d-flex gap-1" role="search" action="#mis-documentos"><input type="hidden" name="ver" value="banco">
           {% if filtro.area is not None %}<input type="hidden" name="area" value="{{ filtro.area }}">{% endif %}
           {% if filtro.asig is not None %}<input type="hidden" name="asig" value="{{ filtro.asig }}">{% endif %}
           {% if filtro.grado is not None %}<input type="hidden" name="grado" value="{{ filtro.grado }}">{% endif %}
@@ -164,7 +168,7 @@
       </div>
       {% endif %}
       {% if filtro.tipos|length > 1 or filtro.tipo %}
-      <form method="get" class="d-flex align-items-center gap-2 mt-2" action="#mis-documentos">
+      <form method="get" class="d-flex align-items-center gap-2 mt-2" action="#mis-documentos"><input type="hidden" name="ver" value="banco">
         {% if filtro.area is not None %}<input type="hidden" name="area" value="{{ filtro.area }}">{% endif %}
         {% if filtro.asig is not None %}<input type="hidden" name="asig" value="{{ filtro.asig }}">{% endif %}
         {% if filtro.grado is not None %}<input type="hidden" name="grado" value="{{ filtro.grado }}">{% endif %}
@@ -177,7 +181,7 @@
         <noscript><button class="btn btn-sm btn-outline-secondary">Filtrar</button></noscript>
       </form>
       {% endif %}
-      {% if filtro.filtrando %}<div class="small mt-2">Mostrando <b>{{ filtro.hallados }}</b> de {{ filtro.total }} · <a href="?#mis-documentos">Quitar filtros</a></div>{% endif %}
+      {% if filtro.filtrando %}<div class="small mt-2">Mostrando <b>{{ filtro.hallados }}</b> de {{ filtro.total }} · <a href="?ver=banco#mis-documentos">Quitar filtros</a></div>{% endif %}
       {% if filtro.sin_clasificar %}<div class="small mt-2 text-warning-emphasis"><i class="fas fa-circle-info me-1"></i>Tiene <b>{{ filtro.sin_clasificar }}</b> documento(s) sin área. Ábralos con la ficha «Sin clasificar», márquelos y use «Clasificar marcados».</div>{% endif %}
       <form method="post" action="{% url 'materiales:clasificar' %}" id="mm-lote" class="mm-lote mt-2" hidden>{% csrf_token %}
         <input type="hidden" name="volver" value="?{{ volver }}">
@@ -194,47 +198,82 @@
       </form>
     </div>
 
-    <div class="mm-tarjeta p-0">
-      <div class="table-responsive"><table class="table align-middle mb-0">
-        <thead class="table-light"><tr><th style="width:28px"><input type="checkbox" class="form-check-input" id="mm-marcar-todos" aria-label="Marcar todos los de esta página"></th><th>Documento</th><th class="d-none d-md-table-cell">Tipo</th><th class="d-none d-md-table-cell">Modificado</th><th></th></tr></thead>
-        <tbody>
-        {% for d in documentos %}
-        <tr>
-          <td><input type="checkbox" class="form-check-input mm-marca" name="docs" value="{{ d.pk }}" form="mm-lote" aria-label="Marcar {{ d.titulo }}"></td>
-          <td><a href="{% url 'materiales:editor' d.pk %}" class="fw-semibold text-decoration-none">{{ d.titulo }}</a>
-              {% if d.plantilla_colegio %}<span class="badge text-bg-warning ms-1"><i class="fas fa-star"></i> formato</span>{% endif %}
-              {% with n=d.colaboradores.all|length %}{% if n %}<span class="badge text-bg-info ms-1" title="Docentes en el equipo"><i class="fas fa-user-group"></i> {{ n }}</span>{% endif %}{% endwith %}
-              <div class="small text-muted">{{ d.area|default:"Sin área" }}{% if d.asignatura %} · {{ d.asignatura }}{% endif %}{% if d.grado %} · Grado {{ d.grado }}{% endif %}<span class="d-md-none"> · {{ d.get_tipo_display }}</span></div></td>
-          <td class="small d-none d-md-table-cell">{{ d.get_tipo_display }}</td>
-          <td class="small text-muted d-none d-md-table-cell">{{ d.actualizado|date:"d M, h:i a" }}</td>
-          <td class="text-end text-nowrap">
-            <button type="button" class="btn btn-sm btn-outline-primary mm-enviar" data-url="{% url 'materiales:accion' d.pk %}" data-titulo="{{ d.titulo }}" title="Enviar a mis grupos"><i class="fas fa-paper-plane"></i></button>
-            <a class="btn btn-sm btn-outline-secondary" href="{% url 'materiales:imprimir' d.pk %}" title="PDF e impresión: copias por hoja y folleto" aria-label="PDF e impresión de {{ d.titulo }}"><i class="far fa-file-pdf"></i></a>
-            <form method="post" action="{% url 'materiales:accion' d.pk %}" class="d-inline">{% csrf_token %}
-              <input type="hidden" name="accion" value="duplicar"><button class="btn btn-sm btn-outline-secondary" title="Duplicar"><i class="far fa-copy"></i></button></form>
-            {% if acceso.es_individual or acceso.admin %}
-            <form method="post" action="{% url 'materiales:accion' d.pk %}" class="d-inline">{% csrf_token %}
-              <input type="hidden" name="accion" value="formato"><button class="btn btn-sm btn-outline-secondary" title="Usar como formato"><i class="{% if d.plantilla_colegio %}fas{% else %}far{% endif %} fa-star"></i></button></form>
-            {% endif %}
-            <form method="post" action="{% url 'materiales:accion' d.pk %}" class="d-inline" onsubmit="return confirm('¿Eliminar «{{ d.titulo|escapejs }}»?')">{% csrf_token %}
-              <input type="hidden" name="accion" value="eliminar"><button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="far fa-trash-can"></i></button></form>
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="5" class="text-center text-muted py-4">{% if filtro.filtrando %}No hay documentos con esos filtros. <a href="?#mis-documentos">Quitar filtros</a>{% else %}Todavía no tiene materiales. Escoja arriba qué quiere crear.{% endif %}</td></tr>
-        {% endfor %}
-        </tbody>
-      </table></div>
-      {% if filtro.pagina.has_other_pages %}
-      <nav class="d-flex justify-content-between align-items-center px-3 py-2 border-top small" aria-label="Páginas de mis documentos">
-        {% if filtro.url_anterior %}<a class="btn btn-sm btn-outline-secondary" href="{{ filtro.url_anterior }}#mis-documentos"><i class="fas fa-chevron-left me-1"></i>Anteriores</a>{% else %}<span></span>{% endif %}
-        <span class="text-muted">Página {{ filtro.pagina.number }} de {{ filtro.pagina.paginator.num_pages }}</span>
-        {% if filtro.url_siguiente %}<a class="btn btn-sm btn-outline-secondary" href="{{ filtro.url_siguiente }}#mis-documentos">Siguientes<i class="fas fa-chevron-right ms-1"></i></a>{% else %}<span></span>{% endif %}
-      </nav>
-      {% endif %}
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+      <label class="small d-flex align-items-center gap-2 mb-0 text-muted"><input type="checkbox" class="form-check-input m-0" id="mm-marcar-todos">Marcar todos</label>
+      <div class="btn-group btn-group-sm ms-auto" role="group" aria-label="Cómo ver mis materiales">
+        <a class="btn {% if vista == 'mini' %}btn-dark{% else %}btn-outline-secondary{% endif %}" href="?{{ volver }}{% if volver %}&{% endif %}vista=mini#mis-documentos" {% if vista == 'mini' %}aria-current="true"{% endif %}><i class="fas fa-grip me-1"></i>Miniatura</a>
+        <a class="btn {% if vista == 'lista' %}btn-dark{% else %}btn-outline-secondary{% endif %}" href="?{{ volver }}{% if volver %}&{% endif %}vista=lista#mis-documentos" {% if vista == 'lista' %}aria-current="true"{% endif %}><i class="fas fa-list me-1"></i>Lista</a>
+      </div>
     </div>
+    {% if vista == 'mini' %}
+    <div class="mm-mini">
+      {% for d in documentos %}
+      <div class="mm-carta">
+        <a href="{% url 'materiales:editor' d.pk %}" class="mm-prev t-{{ d.tipo }}" aria-hidden="true" tabindex="-1">
+          {% if d.miniatura %}<img src="{% url 'materiales:imagen' d.miniatura %}" alt="" loading="lazy">{% else %}<i class="fas {% if d.tipo == 'guia_momentos' %}fa-stairs{% elif d.tipo == 'taller' %}fa-pencil{% elif d.tipo == 'evaluacion' %}fa-list-check{% elif d.tipo == 'ficha' %}fa-book-open{% elif d.tipo == 'cuadernillo' %}fa-book{% elif d.tipo == 'ficha_pdf' %}fa-file-pdf{% elif d.tipo == 'planeacion' or d.tipo == 'plan_aula' %}fa-calendar-check{% elif d.tipo == 'piar' %}fa-hands-holding-child{% elif d.tipo == 'abp' %}fa-diagram-project{% else %}fa-file-lines{% endif %}"></i>{% endif %}
+          <span class="tipo">{{ d.get_tipo_display }}</span>
+        </a>
+        <input type="checkbox" class="form-check-input mm-marca" name="docs" value="{{ d.pk }}" form="mm-lote" aria-label="Marcar {{ d.titulo }}">
+        {% if d.plantilla_colegio %}<span class="mm-formato" title="Formato"><i class="fas fa-star"></i></span>{% endif %}
+        <div class="mm-carta-cuerpo">
+          <a href="{% url 'materiales:editor' d.pk %}" class="mm-carta-titulo">{{ d.titulo }}</a>
+          <div class="small text-muted text-truncate">{% if d.grado %}{{ d.grado }}{% if d.area or d.asignatura %} · {% endif %}{% endif %}{{ d.asignatura|default:d.area|default:"Sin área" }}</div>
+          <div class="d-flex align-items-center gap-1 mt-2"><span class="small text-muted flex-grow-1">{{ d.actualizado|date:"d M" }}{% with n=d.colaboradores.all|length %}{% if n %} · <i class="fas fa-user-group"></i> {{ n }}{% endif %}{% endwith %}</span>
+            {% include 'materiales/_doc_acciones.html' %}</div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="mm-tarjeta text-center text-muted py-4" style="grid-column:1/-1">{% if filtro.filtrando %}No hay documentos con esos filtros. <a href="?ver=banco#mis-documentos">Quitar filtros</a>{% else %}Todavía no tiene materiales. <a href="?ver=crear">Créelos en «Crear»</a>.{% endif %}</div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="mm-tarjeta p-0 mm-filas">
+      {% for d in documentos %}
+      <div class="mm-fila">
+        <input type="checkbox" class="form-check-input mm-marca" name="docs" value="{{ d.pk }}" form="mm-lote" aria-label="Marcar {{ d.titulo }}">
+        <div class="flex-grow-1" style="min-width:0">
+          <a href="{% url 'materiales:editor' d.pk %}" class="fw-semibold text-decoration-none d-block text-truncate">{{ d.titulo }}{% if d.plantilla_colegio %} <i class="fas fa-star text-warning" title="Formato"></i>{% endif %}</a>
+          <div class="small text-muted text-truncate">{{ d.get_tipo_display }} · {{ d.area|default:"Sin área" }}{% if d.asignatura %} · {{ d.asignatura }}{% endif %}{% if d.grado %} · {{ d.grado }}{% endif %}<span class="d-none d-md-inline"> · {{ d.actualizado|date:"d M, h:i a" }}</span></div>
+        </div>
+        {% include 'materiales/_doc_acciones.html' %}
+      </div>
+      {% empty %}
+      <div class="text-center text-muted py-4">{% if filtro.filtrando %}No hay documentos con esos filtros. <a href="?ver=banco#mis-documentos">Quitar filtros</a>{% else %}Todavía no tiene materiales. <a href="?ver=crear">Créelos en «Crear»</a>.{% endif %}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if filtro.pagina.has_other_pages %}
+    <nav class="d-flex justify-content-between align-items-center py-2 small" aria-label="Páginas de mis documentos">
+      {% if filtro.url_anterior %}<a class="btn btn-sm btn-outline-secondary" href="{{ filtro.url_anterior }}#mis-documentos"><i class="fas fa-chevron-left me-1"></i>Anteriores</a>{% else %}<span></span>{% endif %}
+      <span class="text-muted">Página {{ filtro.pagina.number }} de {{ filtro.pagina.paginator.num_pages }}</span>
+      {% if filtro.url_siguiente %}<a class="btn btn-sm btn-outline-secondary" href="{{ filtro.url_siguiente }}#mis-documentos">Siguientes<i class="fas fa-chevron-right ms-1"></i></a>{% else %}<span></span>{% endif %}
+    </nav>
+    {% endif %}
+    <style>
+      .mm-mini { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; margin-bottom: 12px; }
+      @media (max-width: 400px) { .mm-mini { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+      .mm-carta { position: relative; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 3px rgba(15,23,42,.05); }
+      .mm-carta:hover { box-shadow: 0 6px 16px rgba(15,23,42,.10); }
+      .mm-prev { display: grid; place-items: center; aspect-ratio: 4/3; background: linear-gradient(135deg, #c7d2fe, #a5f3fc); color: #fff; font-size: 2.2rem; position: relative; overflow: hidden; }
+      .mm-prev img { width: 100%; height: 100%; object-fit: cover; }
+      .mm-prev .tipo { position: absolute; left: 8px; bottom: 8px; background: rgba(15,23,42,.72); color: #fff; font-size: .7rem; font-weight: 700; border-radius: 99px; padding: 2px 8px; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .mm-prev.t-taller { background: linear-gradient(135deg, #fcd34d, #fb923c); }
+      .mm-prev.t-evaluacion { background: linear-gradient(135deg, #c4b5fd, #f0abfc); }
+      .mm-prev.t-guia_momentos { background: linear-gradient(135deg, #5eead4, #60a5fa); }
+      .mm-prev.t-ficha, .mm-prev.t-ficha_pdf { background: linear-gradient(135deg, #86efac, #5eead4); }
+      .mm-prev.t-planeacion, .mm-prev.t-plan_aula, .mm-prev.t-piar, .mm-prev.t-dua { background: linear-gradient(135deg, #94a3b8, #64748b); }
+      .mm-carta > .mm-marca { position: absolute; top: 8px; left: 8px; width: 1.25em; height: 1.25em; box-shadow: 0 0 0 2px #fff; }
+      .mm-formato { position: absolute; top: 6px; right: 8px; color: #f59e0b; text-shadow: 0 0 3px #fff; }
+      .mm-carta-cuerpo { padding: 10px 10px 10px; display: flex; flex-direction: column; flex: 1; }
+      .mm-carta-titulo { font-weight: 700; color: #0f172a; text-decoration: none; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.5em; }
+      .mm-carta-titulo:hover { color: #1e2a78; }
+      .mm-acc { display: flex; gap: 4px; flex: none; }
+      .mm-filas .mm-fila { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #eef2f7; }
+      .mm-filas .mm-fila:last-child { border-bottom: 0; }
+    </style>
+    {% endif %}
 
-    {% if conmigo %}
+    {% if conmigo and ver == 'banco' %}
     <div class="mm-tarjeta p-0">
       <div class="px-3 pt-3"><h6><i class="fas fa-user-group me-1"></i>Construyo con otros docentes</h6></div>
       <div class="table-responsive"><table class="table align-middle mb-0">
@@ -261,7 +300,7 @@
     </div>
     {% endif %}
   </div>
-  <div class="col-lg-4">
+  {% if ver == 'crear' %}<div class="col-lg-4">
     {% include 'materiales/_nube.html' %}
     <div class="mm-tarjeta small">
       <h6>Cómo funciona</h6>
@@ -279,7 +318,7 @@
         <i class="fas fa-paper-plane"></i>, o desde el aula con «Traer de Mis materiales».</p>
       {% if aulas %}<div class="d-flex flex-wrap gap-1">{% for x in aulas|slice:":8" %}<a class="btn btn-sm btn-outline-secondary" href="/aula/{{ x.pk }}/material/"><i class="fas fa-folder-open me-1"></i>{{ x.titulo }}</a>{% endfor %}</div>{% endif %}
     </div>
-  </div>
+  </div>{% endif %}
 </div>
 </div>
 <div class="modal fade mm" id="mm-enviar-modal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">

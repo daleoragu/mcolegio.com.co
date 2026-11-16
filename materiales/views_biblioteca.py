@@ -15,6 +15,7 @@ from django.db import transaction
 from django.db.models import F, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
@@ -49,19 +50,8 @@ def _puede_ver(a, m):
 
 
 def _insignias(autor):
-    publicados = MaterialCompartido.objects.filter(autor=autor, estado='publicado')
-    n = publicados.count()
-    usos = sum(publicados.values_list('usos', flat=True))
-    salida = []
-    if n >= 1:
-        salida.append('Primer material compartido')
-    if n >= 10:
-        salida.append('10 materiales compartidos')
-    if n >= 25:
-        salida.append('25 materiales compartidos')
-    if usos >= 50:
-        salida.append('Sus materiales se usaron 50 veces')
-    return salida
+    from . import reputacion as R
+    return R.insignias(autor)
 
 
 @vista
@@ -97,8 +87,15 @@ def biblioteca(request, a):
     dbas_filtro = K.dbas(request.GET.get('area', ''), request.GET.get('grado', ''))
     if request.GET.get('dba') and any(d['codigo'] == request.GET['dba'] for d in dbas_filtro):
         qs = qs.filter(dba_codigo=request.GET['dba'])
-    orden = {'usados': '-usos', 'estrellas': '-estrellas_suma'}.get(request.GET.get('orden'), '-actualizado')
-    qs = qs.select_related('autor', 'colegio').order_by(orden)
+    qs = qs.select_related('autor', 'colegio')
+    orden = request.GET.get('orden')
+    if orden == 'estrellas':       # promedio de estrellas (los que no tienen calificación van al final)
+        from django.db.models import FloatField
+        from django.db.models.functions import Cast, NullIf
+        qs = qs.annotate(prom=Cast('estrellas_suma', FloatField()) / NullIf(Cast('estrellas_n', FloatField()), 0.0)) \
+            .order_by(F('prom').desc(nulls_last=True), '-estrellas_n', '-actualizado')
+    else:
+        qs = qs.order_by({'usados': '-usos', 'puntos': '-puntos'}.get(orden, '-actualizado'), '-actualizado')
     materiales = list(qs[:POR_PAGINA])
     for m in materiales:
         m.lugar = RG.etiqueta(m.municipio_dane)
@@ -115,9 +112,12 @@ def material(request, a, pk):
     m = get_object_or_404(MaterialCompartido.objects.select_related('autor', 'colegio'), pk=pk)
     if not _puede_ver(a, m):
         raise Http404
+    from . import reputacion as R
     mia = Valoracion.objects.filter(material=m, usuario=request.user).values_list('estrellas', flat=True).first()
     return render(request, 'materiales/material.html', {
         'base': a.base, 'acceso': a, 'm': m, 'mia': mia, 'es_autor': m.autor_id == request.user.pk,
+        'comentarios': m.comentarios.select_related('usuario')[:100], 'nivel_autor': R.nivel(R.reputacion(m.autor)),
+        'etiquetas_estrellas': ['No me sirvió', 'Le falta bastante', 'Sirve con ajustes', 'Muy bueno', 'Excelente, lo usaría tal cual'],
         'reportado': Reporte.objects.filter(material=m, usuario=request.user).exists(),
         'autor_nombre': m.autor.get_full_name() or m.autor.username})
 
@@ -176,6 +176,9 @@ def usar(request, a, pk):
     doc = Documento.objects.create(propietario=request.user, colegio=a.colegio, titulo=m.titulo, tipo=m.tipo,
                                    area=m.area, grado=m.grado, contenido=B.limpiar(contenido, validas))
     MaterialCompartido.objects.filter(pk=m.pk).update(usos=F('usos') + 1)
+    if m.autor_id != request.user.pk:
+        from . import reputacion as R
+        R.actualizar(m)
     messages.success(request, f'«{m.titulo}» quedó en sus documentos, con su encabezado. Ajústelo a su gusto.')
     return redirect('materiales:editor', pk=doc.pk)
 
@@ -200,8 +203,47 @@ def valorar(request, a, pk):
             Valoracion.objects.create(material=m, usuario=request.user, estrellas=estrellas)
             MaterialCompartido.objects.filter(pk=m.pk).update(estrellas_suma=F('estrellas_suma') + estrellas,
                                                               estrellas_n=F('estrellas_n') + 1)
-    messages.success(request, 'Gracias por valorar el material.')
+    from . import reputacion as R
+    R.actualizar(m)
+    messages.success(request, 'Gracias por calificar el material: su autor gana puntos con su calificación.')
     return redirect('materiales:material', pk=pk)
+
+
+@require_POST
+@vista
+def comentar(request, a, pk):
+    """Un comentario de otro docente: cómo le fue en clase, qué ajustó, para qué grado le sirvió…"""
+    from . import reputacion as R
+    from .models import ComentarioMaterial
+    m = get_object_or_404(MaterialCompartido, pk=pk)
+    if not _puede_ver(a, m) or m.estado != 'publicado':
+        raise Http404
+    texto = B.texto_plano(request.POST.get('texto'), 500)
+    if not texto:
+        messages.error(request, 'Escriba su comentario.')
+    elif ComentarioMaterial.objects.filter(material=m, usuario=request.user).count() >= 5:
+        messages.warning(request, 'Ya dejó 5 comentarios en este material.')
+    else:
+        ComentarioMaterial.objects.create(material=m, usuario=request.user, texto=texto)
+        if m.autor_id != request.user.pk:
+            R.actualizar(m)
+        messages.success(request, 'Comentario publicado.')
+    return redirect(reverse('materiales:material', args=[pk]) + '#comentarios')
+
+
+@require_POST
+@vista
+def borrar_comentario(request, a, pk, cid):
+    """Lo borra quien lo escribió, el autor del material o el equipo de mcolegio."""
+    from . import reputacion as R
+    from .models import ComentarioMaterial
+    c = get_object_or_404(ComentarioMaterial.objects.select_related('material'), pk=cid, material_id=pk)
+    if request.user.pk not in (c.usuario_id, c.material.autor_id) and not request.user.is_superuser:
+        raise Http404
+    c.delete()
+    R.actualizar(c.material)
+    messages.info(request, 'Comentario borrado.')
+    return redirect(reverse('materiales:material', args=[pk]) + '#comentarios')
 
 
 @require_POST
@@ -281,13 +323,20 @@ def retirar(request, a, pk):
     return redirect('materiales:biblioteca')
 
 
+def _nivel_de(u):
+    from . import reputacion as R
+    return R.nivel(R.reputacion(u))
+
+
 @vista
 def autor(request, a, uid):
+    from . import reputacion as R
     u = get_object_or_404(User, pk=uid)
     materiales = [m for m in MaterialCompartido.objects.filter(autor=u, estado='publicado').order_by('-usos')
                   if _puede_ver(a, m)]
     return render(request, 'materiales/autor.html', {'base': a.base, 'acceso': a, 'autor': u, 'materiales': materiales,
-                                                     'insignias': _insignias(u),
+                                                     'insignias': _insignias(u), 'nivel': _nivel_de(u), 'es_yo': u.pk == request.user.pk,
+                                                     'niveles': R.NIVELES,
                                                      'usos': sum(m.usos for m in materiales)})
 
 
@@ -306,6 +355,8 @@ def revision(request):
                 m.regalo_dado = True
             m.reportes.all().delete()
             m.save()
+            from . import reputacion as R
+            R.actualizar(m)
             messages.success(request, f'«{m.titulo}» publicado.')
         elif que == 'rechazar':
             m.estado = 'rechazado'

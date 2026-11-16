@@ -339,6 +339,8 @@ class MaterialCompartido(models.Model):
     usos = models.PositiveIntegerField(default=0)
     estrellas_suma = models.PositiveIntegerField(default=0)
     estrellas_n = models.PositiveIntegerField(default=0)
+    puntos = models.PositiveIntegerField(default=0, db_index=True,
+                                         help_text='Usos × 3 + estrellas recibidas + comentarios (ver materiales/reputacion.py).')
     regalo_dado = models.BooleanField(default=False)
     creado = models.DateTimeField(auto_now_add=True)
     actualizado = models.DateTimeField(auto_now=True)
@@ -361,6 +363,20 @@ class Valoracion(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['material', 'usuario'], name='materiales_una_valoracion')]
+
+
+class ComentarioMaterial(models.Model):
+    """Lo que otros docentes dicen del material de la biblioteca (cómo les fue en clase, qué ajustaron…)."""
+    material = models.ForeignKey(MaterialCompartido, on_delete=models.CASCADE, related_name='comentarios')
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='+')
+    texto = models.CharField(max_length=500)
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado']
+
+    def __str__(self):
+        return self.texto[:40]
 
 
 class Reporte(models.Model):
