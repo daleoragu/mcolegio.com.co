@@ -46,3 +46,17 @@ MEJORAS PENDIENTES (ideas acordadas para hacer más adelante)
        para presentar la plataforma.
      · Enviar desde un correo de mcolegio, con nombre y teléfono, de a pocos y con una forma clara de
        pedir que no le escriban más.
+
+
+3. Lanzamiento oficial — PRÓXIMO AÑO (sin afán)
+   ---------------------------------------------
+   Estado: la plataforma está lista en lo técnico; falta lo de afuera.
+   · Legal: registro en Cámara de Comercio (persona natural o S.A.S.), RUT en la DIAN, facturación
+     electrónica si aplica, y revisar con abogado/contador los Términos, la Política de tratamiento de
+     datos (Ley 1581) y si hay que inscribir las bases de datos en el RNBD.
+   · Contenido: imágenes del material semilla por lotes (Excel «imagenes-por-lotes.xlsx»: Lote 1 = 12
+     imágenes de 6.º a 11.º, Lote 2 = 64 de 3.º a 5.º, Lote 3 = 68 de 2.º, Lote 4 = 141 de 1.º) y pasar ese
+     material al Banco libre de la Biblioteca.
+   · Videos tutoriales cortos (1–3 min, grabados en el celular) de lo más usado.
+   · Marketing: página de inicio, redes, docentes «embajadores» que prueben y cuenten, y luego la base
+     de colegios privados de Ibagué (punto 2).
