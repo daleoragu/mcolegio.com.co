@@ -24,6 +24,7 @@
   table.pl td.def { font-weight: bold; }
   tr { page-break-inside: avoid; }
   thead { display: table-header-group; }
+  table.pl td.pierde { color: #b42318; font-weight: bold; }
   .conv { margin-top: 6px; font-size: 7.5pt; line-height: 1.5; page-break-inside: avoid; }
   .conv span { display: inline-block; margin-right: 12px; }
 </style></head>
@@ -31,7 +32,7 @@
 {% if pie_lineas %}<div class="pie-doc">{% for l in pie_lineas %}<div>{{ l }}</div>{% endfor %}</div>{% endif %}
 {% if encabezado and encabezado.tiene_algo %}{% include 'materiales/_encabezado_docente.html' %}{% endif %}
 <h1>Planilla de calificaciones · {{ aula.titulo }}</h1>
-<div class="datos">{{ aula.subtitulo }} · Docente: {{ docente }} · {{ hoy|date:"j \d\e F \d\e Y"|lower }}{% if componentes %} · {% for c in componentes %}{{ c.nombre }} {{ c.pct }} %{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</div>
+<div class="datos">{{ aula.subtitulo }} · Docente: {{ docente }} · Nota mínima para aprobar: <b>{{ aprobacion|floatformat:"-2" }}</b> (en rojo lo que no la alcanza) · {{ hoy|date:"j \d\e F \d\e Y"|lower }}{% if componentes %} · {% for c in componentes %}{{ c.nombre }} {{ c.pct }} %{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</div>
 <table class="pl">
   <thead>
     {% if grupos %}<tr><th class="grupo" colspan="2"></th>{% for g in grupos %}<th class="grupo{% if g.totales %} totales{% endif %}" colspan="{{ g.span }}">{{ g.nombre }}{% if g.porcentaje is not None %} ({{ g.pct }} %){% endif %}</th>{% endfor %}<th class="grupo" colspan="2"></th></tr>{% endif %}
@@ -40,8 +41,8 @@
   </thead>
   <tbody>
   {% for f in filas %}<tr><td>{{ forloop.counter }}</td><td class="nombre">{{ f.nombre }}</td>
-    {% for v in f.vista %}<td{% if v.tipo == 'prom' %} class="prom"{% endif %}>{% if v.n is not None %}{{ v.n|floatformat:1 }}{% endif %}</td>{% endfor %}
-    <td class="def">{% if f.promedio is not None %}{{ f.promedio|floatformat:1 }}{% endif %}</td><td>{{ f.desempeno }}</td></tr>
+    {% for v in f.vista %}<td class="{% if v.tipo == 'prom' %}prom{% endif %}{% if v.pierde %} pierde{% endif %}">{% if v.n is not None %}{{ v.n|floatformat:1 }}{% endif %}</td>{% endfor %}
+    <td class="def{% if f.pierde %} pierde{% endif %}">{% if f.promedio is not None %}{{ f.promedio|floatformat:1 }}{% endif %}</td><td>{{ f.desempeno }}</td></tr>
   {% endfor %}
   </tbody>
 </table>

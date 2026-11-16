@@ -75,6 +75,14 @@ class PlanillaIndividual(ColegioDePrueba):
         filas_x, _ = importar.leer_archivo(SimpleUploadedFile('planilla.xlsx', r.content))
         self.assertIn('Quiz en papel', [c for f in filas_x[:5] for c in f])
 
+        # La nota mínima para aprobar se ve y lo que no la alcanza sale en rojo
+        r = profe.get(url)
+        self.assertContains(r, 'Nota mínima para aprobar')
+        self.assertEqual(r.context['aprobacion'], logica.aprobacion(aula))
+        self.assertEqual(logica.aprobacion(aula), Decimal('3.0'))          # escala nacional: Básico desde 3,0
+        for f in r.context['filas']:
+            self.assertEqual(f['pierde'], f['promedio'] is not None and f['promedio'] < Decimal('3.0'))
+        self.assertEqual(r.context['perdiendo'], sum(1 for f in r.context['filas'] if f['pierde']))
         # Cambiar el nombre de una columna a mano (si el profe se equivocó): el lápiz y las convenciones
         self.assertContains(profe.get(url), f'auRenombrar({col.pk}')
         profe.post(url, {'accion': 'renombrar', 'columna': col.pk, 'titulo': 'Quiz oral de fracciones'})
