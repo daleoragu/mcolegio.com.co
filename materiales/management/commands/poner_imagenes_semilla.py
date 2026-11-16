@@ -1,5 +1,6 @@
 """Pone las imágenes del banco en los recuadros «Imagen pendiente» de las guías semilla (borradores y banco libre).
 
+    python manage.py poner_imagenes_semilla                      (usa las de materiales/semilla/img_ia)
     python manage.py poner_imagenes_semilla --imagenes /ruta/banco-imagenes
     python manage.py poner_imagenes_semilla --imagenes /ruta/banco-imagenes --usuario luis
 """
@@ -14,7 +15,8 @@ class Command(BaseCommand):
     help = 'Cambia los recuadros «Imagen pendiente» por las imágenes que ya están en la carpeta.'
 
     def add_arguments(self, parser):
-        parser.add_argument('--imagenes', nargs='+', required=True, help='Carpeta(s) con las imágenes (m1-manzana.png…).')
+        parser.add_argument('--imagenes', nargs='+', default=[],
+                            help='Carpeta(s) extra con imágenes (m1-manzana.png…). Siempre se usan las de materiales/semilla/img_ia.')
         parser.add_argument('--usuario', help='Solo los documentos de este docente.')
 
     def handle(self, *args, **o):

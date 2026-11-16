@@ -27,6 +27,7 @@ def _modulos():
 
 MODULOS = _modulos()
 CARPETA_DIBUJOS = Path(__file__).resolve().parent / 'img'
+CARPETA_IA = Path(__file__).resolve().parent / 'img_ia'      # las de IA ya cargadas (id.jpg), viajan con el código
 PENDIENTE = 'Imagen pendiente: '
 
 
@@ -90,7 +91,7 @@ def _buscar(id_img, carpetas):
         from .dibujos import archivo
         p = CARPETA_DIBUJOS / archivo(id_img)
         return p if p.exists() else None
-    for c in [CARPETA_DIBUJOS, *carpetas]:
+    for c in [CARPETA_DIBUJOS, CARPETA_IA, *carpetas]:
         for ext in ('.png', '.jpg', '.jpeg', '.webp'):
             p = Path(c) / f'{id_img}{ext}'
             if p.exists():
