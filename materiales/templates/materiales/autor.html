@@ -5,11 +5,26 @@
 {% include 'materiales/_estilos.html' %}
 <div class="mm">
 <a href="{% url 'materiales:biblioteca' %}" class="btn btn-sm btn-outline-secondary mb-2"><i class="fas fa-arrow-left me-1"></i>Biblioteca</a>
+<div class="mm-tarjeta mb-2" style="border-left:5px solid {{ nivel.color }}">
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <span class="fs-3" style="color:{{ nivel.color }}"><i class="fas fa-medal"></i></span>
+    <div class="flex-grow-1"><div class="fw-bold">Nivel {{ nivel.nombre }}</div><div class="small text-muted">{{ nivel.puntos }} punto{{ nivel.puntos|pluralize }} de reputación en la Biblioteca</div></div>
+  </div>
+  {% if nivel.siguiente %}
+  <div class="progress mt-2" style="height:10px" role="progressbar" aria-label="Avance al siguiente nivel" aria-valuenow="{{ nivel.pct }}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" style="width:{{ nivel.pct }}%;background:{{ nivel.color }}"></div></div>
+  <div class="small mt-1">Le faltan <b>{{ nivel.faltan }}</b> punto{{ nivel.faltan|pluralize }} para <b>{{ nivel.siguiente.nombre }}</b>{% if nivel.siguiente.premio %} · premio: <b>{{ nivel.siguiente.premio }} créditos de IA</b>{% endif %}.</div>
+  {% else %}<div class="small mt-1">¡Llegó al nivel más alto!</div>{% endif %}
+  {% if es_yo %}<details class="small mt-2"><summary class="text-muted">¿Cómo se ganan puntos?</summary>
+    <ul class="mb-0 mt-1"><li>Cada vez que otro docente usa una copia de su material: <b>3 puntos</b>.</li>
+      <li>Cada calificación: <b>las estrellas que le dieron</b> (1 a 5).</li><li>Cada comentario de otro docente: <b>1 punto</b>.</li>
+      <li>Premios al llegar a cada nivel (una sola vez, llegan solos a «Mis créditos»):
+        {% for desde, nombre, color, premio in niveles %}{% if premio %}{{ nombre }} ({{ desde }} pts): <b>{{ premio }} créditos</b>{% if not forloop.last %} · {% endif %}{% endif %}{% endfor %}.</li></ul></details>{% endif %}
+</div>
 {% if insignias %}<div class="mb-2">{% for i in insignias %}<span class="badge text-bg-warning me-1"><i class="fas fa-award me-1"></i>{{ i }}</span>{% endfor %}</div>{% endif %}
 <div class="row g-2">{% for m in materiales %}
   <div class="col-md-6 col-xl-4"><a class="text-decoration-none text-reset" href="{% url 'materiales:material' m.pk %}"><div class="mm-ficha-bib">
     <div class="t">{{ m.titulo }}</div><div class="small text-muted">{{ m.get_tipo_display }}{% if m.area %} · {{ m.area }}{% endif %}{% if m.grado %} · Grado {{ m.grado }}{% endif %}</div>
-    <div class="small text-muted mt-auto pt-2">{{ m.usos }} uso{{ m.usos|pluralize }}{% if m.estrellas %} · <span class="mm-estrellas">★</span> {{ m.estrellas }}{% endif %}</div></div></a></div>
+    <div class="small text-muted mt-auto pt-2">{% if m.estrellas %}{% include 'materiales/_estrellas.html' with valor=m.estrellas %} {{ m.estrellas }} · {% endif %}{{ m.usos }} uso{{ m.usos|pluralize }} · <b class="text-dark">{{ m.puntos }} pts</b></div></div></a></div>
 {% empty %}<div class="col-12 text-muted">Todavía no ha compartido materiales.</div>{% endfor %}</div>
 </div>
 {% endblock %}

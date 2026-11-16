@@ -16,7 +16,13 @@
       {% if m.tema %}<div class="small"><b>Tema:</b> {{ m.tema }}</div>{% endif %}
       {% if m.dba %}<div class="small"><b>DBA o competencia:</b> {{ m.dba }}</div>{% endif %}
       {% if m.descripcion %}<p class="small mt-2 mb-2">{{ m.descripcion }}</p>{% endif %}
-      <div class="small mb-2">{% if m.alcance == 'libre' %}Hecho por <b>mcolegio</b>{% else %}Compartido por <a href="{% url 'materiales:autor' m.autor_id %}">{{ autor_nombre }}</a>{% endif %} · {{ m.usos }} uso{{ m.usos|pluralize }}{% if m.estrellas %} · <span class="mm-estrellas">★</span> {{ m.estrellas }} ({{ m.estrellas_n }}){% endif %}</div>
+      <div class="small mb-1">{% if m.alcance == 'libre' %}Hecho por <b>mcolegio</b>{% else %}Compartido por <a href="{% url 'materiales:autor' m.autor_id %}">{{ autor_nombre }}</a>
+        <span class="mm-nivel" style="--c:{{ nivel_autor.color }}" title="{{ nivel_autor.puntos }} puntos de reputación"><i class="fas fa-medal"></i> {{ nivel_autor.nombre }}</span>{% endif %}</div>
+      <div class="mm-calif mb-2">
+        {% include 'materiales/_estrellas.html' with valor=m.estrellas %}
+        <span class="small text-muted">{% if m.estrellas %}{{ m.estrellas }} · {{ m.estrellas_n }} calificaci{{ m.estrellas_n|pluralize:"ón,ones" }}{% else %}Sin calificaciones{% endif %}</span>
+        <span class="small text-muted">· {{ m.usos }} uso{{ m.usos|pluralize }} · <b class="text-dark">{{ m.puntos }}</b> punto{{ m.puntos|pluralize }}</span>
+      </div>
       {% if m.alcance != 'colegio' %}<div class="small text-muted mb-2">Licencia Creative Commons BY-NC: se puede usar y adaptar en clase, citando al autor y sin fines comerciales.</div>{% endif %}
       {% if m.estado == 'rechazado' and es_autor %}<div class="alert alert-warning small py-2">No se publicó: {{ m.motivo }}</div>{% endif %}
       {% if m.estado == 'publicado' or es_autor %}
@@ -26,9 +32,10 @@
       <form method="post" action="{% url 'materiales:retirar' m.pk %}" class="mt-2" onsubmit="return confirm('¿Retirar este material de la biblioteca? Su documento no cambia.')">{% csrf_token %}<button class="btn btn-sm btn-outline-danger w-100">Retirar de la biblioteca</button></form>
       {% if m.documento_id %}<a class="btn btn-sm btn-link w-100" href="{% url 'materiales:editor' m.documento_id %}">Abrir mi documento</a>{% endif %}
       {% else %}
-      <form method="post" action="{% url 'materiales:valorar' m.pk %}" class="mt-3">{% csrf_token %}
-        <div class="small fw-bold mb-1">¿Le sirvió?</div>
-        <div class="d-flex gap-1">{% for n in "12345" %}<button name="estrellas" value="{{ n }}" class="btn btn-sm {% if mia and n|add:0 <= mia %}btn-warning{% else %}btn-outline-warning{% endif %}" title="{{ n }} estrella{{ n|pluralize }}">★</button>{% endfor %}</div>
+      <form method="post" action="{% url 'materiales:valorar' m.pk %}" class="mt-3 mm-votar">{% csrf_token %}
+        <div class="small fw-bold mb-1">{% if mia %}Su calificación (puede cambiarla){% else %}¿Le sirvió? Califíquelo{% endif %}</div>
+        <div class="d-flex gap-1" role="radiogroup" aria-label="Calificación de 1 a 5 estrellas">{% for t in etiquetas_estrellas %}<button name="estrellas" value="{{ forloop.counter }}" class="mm-voto {% if mia and forloop.counter <= mia %}on{% endif %}" title="{{ forloop.counter }} · {{ t }}" aria-label="{{ forloop.counter }} estrella{{ forloop.counter|pluralize }}: {{ t }}" data-texto="{{ t }}">★</button>{% endfor %}</div>
+        <div class="small text-muted mt-1 mm-voto-texto">{% if mia %}{% for t in etiquetas_estrellas %}{% if forloop.counter == mia %}{{ t }}{% endif %}{% endfor %}{% else %}Pase el dedo o el mouse por las estrellas{% endif %}</div>
       </form>
       {% if not reportado %}
       <details class="mt-3 small"><summary class="text-muted">Reportar un problema</summary>
@@ -40,7 +47,50 @@
       {% endif %}
     </div>
   </div>
-  <div class="col-lg-8"><div class="mm-tarjeta p-0 overflow-hidden"><iframe src="{% url 'materiales:material_pdf' m.pk %}" title="Vista previa del material" style="width:100%;height:80vh;border:0"></iframe></div></div>
+  <div class="col-lg-8"><div class="mm-tarjeta p-0 overflow-hidden"><iframe src="{% url 'materiales:material_pdf' m.pk %}" title="Vista previa del material" style="width:100%;height:80vh;border:0"></iframe></div>
+    <div class="mm-tarjeta mt-3" id="comentarios">
+      <h6 class="fw-bold"><i class="far fa-comments me-1"></i>Comentarios de docentes <span class="text-muted fw-normal">({{ comentarios|length }})</span></h6>
+      {% if m.estado == 'publicado' %}
+      <form method="post" action="{% url 'materiales:comentar' m.pk %}" class="mb-3">{% csrf_token %}
+        <textarea name="texto" rows="2" maxlength="500" class="form-control mb-2" required
+                  placeholder="{% if es_autor %}Responda o cuente cómo usarlo mejor…{% else %}¿Cómo le fue en clase? ¿Qué le ajustó? ¿Para qué grado le sirvió?{% endif %}" aria-label="Escribir un comentario"></textarea>
+        <div class="text-end"><button class="btn btn-sm btn-primary px-3">Comentar</button></div>
+      </form>{% endif %}
+      {% for c in comentarios %}
+      <div class="mm-coment">
+        <div class="av">{{ c.usuario.first_name|first|default:c.usuario.username|first|upper }}</div>
+        <div class="flex-grow-1" style="min-width:0">
+          <div class="small"><b>{{ c.usuario.get_full_name|default:c.usuario.username }}</b>{% if c.usuario_id == m.autor_id %} <span class="badge text-bg-primary">Autor</span>{% endif %} <span class="text-muted">· {{ c.creado|timesince }}</span></div>
+          <div style="white-space:pre-line">{{ c.texto }}</div>
+        </div>
+        {% if c.usuario_id == request.user.pk or es_autor or request.user.is_superuser %}
+        <form method="post" action="{% url 'materiales:borrar_comentario' m.pk c.pk %}" onsubmit="return confirm('¿Borrar este comentario?')">{% csrf_token %}
+          <button class="btn btn-sm btn-link text-muted p-0" title="Borrar comentario" aria-label="Borrar comentario"><i class="far fa-trash-can"></i></button></form>{% endif %}
+      </div>
+      {% empty %}<div class="small text-muted">Todavía nadie ha comentado. {% if not es_autor %}Sea el primero: a los demás docentes les sirve saber cómo le fue.{% endif %}</div>
+      {% endfor %}
+    </div>
+  </div>
 </div>
+<style>
+  .mm-calif { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .mm-nivel { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--c); color: var(--c); border-radius: 99px; padding: 0 8px; font-weight: 700; font-size: .75rem; }
+  .mm-voto { border: 0; background: none; font-size: 2rem; line-height: 1; color: #cbd5e1; padding: 0 2px; cursor: pointer; transition: transform .1s; }
+  .mm-voto.on, .mm-voto.hover { color: #f59e0b; }
+  .mm-voto:hover { transform: scale(1.15); }
+  .mm-votar.probando .mm-voto.on:not(.hover) { color: #cbd5e1; }
+  .mm-coment { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid #eef2f7; }
+  .mm-coment .av { width: 34px; height: 34px; border-radius: 50%; background: #e0e7ff; color: #1e2a78; font-weight: 800; display: grid; place-items: center; flex: none; }
+</style>
+<script>
+document.querySelectorAll('.mm-votar').forEach(function (f) {
+  var b = [].slice.call(f.querySelectorAll('.mm-voto')), t = f.querySelector('.mm-voto-texto'), orig = t.textContent;
+  b.forEach(function (x, i) {
+    x.addEventListener('mouseenter', function () { f.classList.add('probando'); b.forEach(function (y, j) { y.classList.toggle('hover', j <= i); }); t.textContent = x.dataset.texto; });
+    x.addEventListener('focus', function () { t.textContent = x.dataset.texto; });
+  });
+  f.addEventListener('mouseleave', function () { f.classList.remove('probando'); b.forEach(function (y) { y.classList.remove('hover'); }); t.textContent = orig; });
+});
+</script>
 </div>
 {% endblock %}
