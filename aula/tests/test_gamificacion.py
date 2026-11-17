@@ -250,6 +250,27 @@ class Gamificacion(ColegioDePrueba):
             self.assertEqual(len(set(celdas)), 35)
             self.assertNotIn(((n - 1) // 6, (n - 1) % 6), celdas)
 
+    def test_familia_sudoku(self):
+        """Las 17 variantes del sudoku: cada nivel es coherente (los dados están en la solución y la solución cumple
+        filas, columnas y regiones) y los primeros de cada variante tienen una sola solución con las pistas del archivo."""
+        from aula import instrucciones
+        from aula.logica_generadores import sudoku as S
+        from aula.views_logica import MODOS, niveles
+        self.assertEqual(len(MODOS['sudoku']), 17)
+        for var in S.VARIANTES:
+            lista = niveles(var)
+            self.assertGreaterEqual(len(lista), 24, var)
+            self.assertTrue(instrucciones.logica(var, 'sudoku'), var)
+            for nv in lista:
+                n, sol, dados = nv['n'], nv['sol'], nv['dados']
+                self.assertTrue(all(d in ('0', s) for d, s in zip(dados, sol)), var)
+                R = S.reglas_de_nivel(var, nv)
+                for g in R.grupos[:3 * n]:
+                    self.assertEqual(sorted(int(sol[i]) for i in g), list(range(1, n + 1)), var)
+            primero = lista[0]
+            sols = S.resolver(S.reglas_de_nivel(var, primero), [int(c) for c in primero['dados']], limite=2, tope=2000000)
+            self.assertEqual([''.join(map(str, x)) for x in sols], [primero['sol']], var)
+
     def test_escape_de_la_selva(self):
         """Escape de la selva: niveles propios 7×7 (no los del Safari), del fácil al difícil, cada uno con solución."""
         import random

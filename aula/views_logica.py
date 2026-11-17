@@ -39,10 +39,33 @@ JUEGOS = [
     ('caperucita', 'Caperucita', 'Ponga las piezas de camino para llevar a Caperucita donde la abuela, esquivando al lobo.', 'caperucita'),
     ('ladron', 'Atrapa al ladrón', 'Encierre el carro del ladrón con los edificios antes de que escape.', 'ladron'),
     ('fijas', 'Picas y fijas con figuras', 'Adivine el orden secreto: solo sabrá cuántas están exactas y cuántas en otro sitio. Solo o entre dos.', 'fijas'),
+    # Familia Sudoku: una tarjeta con 17 variantes (cada una con sus niveles verificados de solución única)
+    ('sudoku', 'Sudoku', 'Clásico y 16 variantes: mini, figuras, en X, ventanas, irregular, par e impar, flechas, termómetro, asesino…', 'sudoku'),
+    ('sudoku_mini', 'Sudoku mini', 'Tableros de 4×4 y 6×6 para empezar.', 'sudoku'),
+    ('sudoku_figuras', 'Sudoku de figuras', 'Con figuras de colores en vez de números (4×4 y 6×6).', 'sudoku'),
+    ('sudoku_x', 'Sudoku en X', 'Las dos diagonales tampoco repiten.', 'sudoku'),
+    ('sudoku_hiper', 'Sudoku de ventanas', 'Cuatro ventanas extra de 3×3 que no repiten.', 'sudoku'),
+    ('sudoku_irregular', 'Sudoku irregular', 'Regiones de formas libres en vez de cajas.', 'sudoku'),
+    ('sudoku_parimpar', 'Sudoku par e impar', 'Círculos para pares y cuadrados para impares.', 'sudoku'),
+    ('sudoku_consecutivo', 'Sudoku consecutivo', 'Barras entre números seguidos.', 'sudoku'),
+    ('sudoku_mayor', 'Sudoku mayor que', 'Signos < y > dentro de cada caja.', 'sudoku'),
+    ('sudoku_kropki', 'Sudoku de puntos', 'Punto blanco: seguidos. Punto negro: el doble.', 'sudoku'),
+    ('sudoku_xv', 'Sudoku de sumas', 'La suma de las dos casillas está en la línea que las separa.', 'sudoku'),
+    ('sudoku_termo', 'Sudoku termómetro', 'Los números suben por cada termómetro.', 'sudoku'),
+    ('sudoku_flechas', 'Sudoku de flechas', 'El círculo es la suma de su flecha.', 'sudoku'),
+    ('sudoku_sandwich', 'Sudoku sándwich', 'Sumas entre el 1 y el número más alto.', 'sudoku'),
+    ('sudoku_caballo', 'Sudoku sin caballo', 'Ni a un salto de caballo se repite un número.', 'sudoku'),
+    ('sudoku_rey', 'Sudoku sin rey', 'Ni en diagonal pegada se repite un número.', 'sudoku'),
+    ('sudoku_killer', 'Sudoku asesino', 'Jaulas que suman y no repiten.', 'sudoku'),
 ]
 DATOS = {j[0]: j for j in JUEGOS}
 # Juegos con varios modos: en el menú sale una sola tarjeta y en el juego se cambia de modo (cada modo guarda su avance)
-MODOS = {'selva': [('selva', 'Clásico'), ('selva_fijo', 'Jeep grande · lodo fijo'), ('selva_movil', 'Jeep grande · lodo móvil')]}
+MODOS = {'selva': [('selva', 'Clásico'), ('selva_fijo', 'Jeep grande · lodo fijo'), ('selva_movil', 'Jeep grande · lodo móvil')],
+         'sudoku': [('sudoku', 'Clásico'), ('sudoku_mini', 'Mini'), ('sudoku_figuras', 'Figuras'), ('sudoku_x', 'En X'), ('sudoku_hiper', 'Ventanas'),
+                    ('sudoku_irregular', 'Irregular'), ('sudoku_parimpar', 'Par e impar'), ('sudoku_consecutivo', 'Consecutivo'),
+                    ('sudoku_mayor', 'Mayor que'), ('sudoku_kropki', 'Puntos'), ('sudoku_xv', 'Sumas'), ('sudoku_termo', 'Termómetro'),
+                    ('sudoku_flechas', 'Flechas'), ('sudoku_sandwich', 'Sándwich'), ('sudoku_caballo', 'Sin caballo'), ('sudoku_rey', 'Sin rey'),
+                    ('sudoku_killer', 'Asesino')]}
 MODO_DE = {m: grupo for grupo, lista in MODOS.items() for m, _ in lista}
 NIVELES = os.path.join(os.path.dirname(__file__), 'static', 'aula', 'logica', 'niveles')
 
