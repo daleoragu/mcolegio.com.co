@@ -11,3 +11,4 @@ así todos tienen solución y se ordenan por dificultad. Los niveles quedan en a
   conejos.py       Conejos saltarines: conejos, zorros y hongos resueltos con búsqueda en anchura
   perrito.py       Perrito a su casita: caminos armados, revueltos y resueltos con búsqueda en anchura
   kadogemo.py      Kadogemo: tablero con puntos fijos; tarjetas con la cuenta de colores a la vista (todas con solución)
+  sudoku.py        Familia Sudoku (17 variantes): llena, pone las pistas de la variante y quita números mientras haya UNA sola solución; verificar(var) revisa los archivos

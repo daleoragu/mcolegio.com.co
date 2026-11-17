@@ -39,7 +39,12 @@
     <span class="lg-datos" id="lg-nivel-titulo"></span>
     <span class="ms-auto lg-datos">Movimientos: <b id="lg-movs">0</b> · Tiempo: <b id="lg-tiempo">0:00</b></span>
   </div>
-  {% if modos %}<div class="lg-barra" aria-label="Modo de juego"><span class="small fw-bold me-1">Modo:</span>
+  {% if modos|length > 6 %}<div class="lg-barra"><label class="small fw-bold me-1" for="lg-modo">Variante:</label>
+    <select id="lg-modo" class="form-select form-select-sm" style="max-width:260px" onchange="location.href=this.value">
+      {% for m, etiqueta in modos %}<option value="{% if aula %}{% url 'aula:logica_juego' aula.pk m %}{% else %}{% url 'materiales:logica_probar' m %}{% endif %}" {% if m == juego %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}
+    </select>
+  </div>
+  {% elif modos %}<div class="lg-barra" aria-label="Modo de juego"><span class="small fw-bold me-1">Modo:</span>
     {% for m, etiqueta in modos %}<a href="{% if aula %}{% url 'aula:logica_juego' aula.pk m %}{% else %}{% url 'materiales:logica_probar' m %}{% endif %}" class="btn btn-sm {% if m == juego %}btn-success{% else %}btn-outline-success{% endif %}">{{ etiqueta }}</a>{% endfor %}
   </div>{% endif %}
   <div class="lg-barra">
