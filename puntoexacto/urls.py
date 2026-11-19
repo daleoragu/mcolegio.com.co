@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.urls import path
 
-from . import views
+from . import views, views_informes as vi
 
 app_name = 'puntoexacto'
 
@@ -40,4 +40,12 @@ urlpatterns = [
     path('<int:examen_id>/planilla/', views.llevar_a_planilla, name='planilla'),
     path('<int:examen_id>/planilla/bloque/<int:bloque_id>/', views.planilla_bloque,
          name='planilla_bloque'),
+    path('<int:examen_id>/informe/', vi.informe_general, name='informe_general'),
+    path('<int:examen_id>/informe/estudiantes/', vi.informes_estudiantes, name='informes_estudiantes'),
+    path('<int:examen_id>/informe/estudiante/<str:clave>/', vi.informe_estudiante, name='informe_estudiante'),
+    path('unidas/', vi.unidas, name='unidas'),
+    path('unida/<int:pk>/', vi.unida, name='unida'),
+    path('unida/<int:pk>/informe/', vi.unida_general, name='unida_general'),
+    path('unida/<int:pk>/estudiantes/', vi.unida_estudiantes, name='unida_estudiantes'),
+    path('unida/<int:pk>/estudiante/<str:clave>/', vi.unida_estudiantes, name='unida_estudiante'),
 ]

@@ -1,0 +1,26 @@
+<style>
+  @page { size: letter{% if horizontal %} landscape{% endif %}; margin: 15mm 14mm 16mm;
+          @bottom-left { content: "{{ institucion|escapejs }} · {{ d.titulo|escapejs }}"; font: 7.5pt Helvetica; color: #64748b; }
+          @bottom-right { content: "Página " counter(page) " de " counter(pages); font: 7.5pt Helvetica; color: #64748b; } }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 9.6pt; color: #0f172a; line-height: 1.42; }
+  .cab { background: {{ tema.primario }}; color: {{ tema.texto }}; border-radius: 8px; padding: 14px 18px; margin-bottom: 12px; }
+  .cab .eti { font-size: 7.5pt; letter-spacing: .12em; text-transform: uppercase; color: {{ tema.texto }}; opacity: .8; font-weight: bold; }
+  .cab h1 { font-size: 17pt; margin: 3px 0 2px; line-height: 1.15; }
+  .cab p { margin: 0; color: {{ tema.texto }}; opacity: .85; font-size: 9pt; }
+  h2 { font-size: 12pt; color: {{ tema.primario }}; border-bottom: 2px solid #e2e8f0; padding-bottom: 2px; margin: 14px 0 6px; page-break-after: avoid; }
+  .kpis { display: flex; gap: 7px; margin: 4px 0 10px; }
+  .kpi { flex: 1; border: 1px solid #e2e8f0; border-radius: 7px; padding: 7px 9px; }
+  .kpi b { display: block; font-size: 15pt; color: {{ tema.primario }}; line-height: 1.1; }
+  .kpi span { font-size: 7.8pt; color: #475569; }
+  table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 8.6pt; }
+  th { background: {{ tema.primario }}; color: {{ tema.texto }}; text-align: left; padding: 4px 5px; }
+  td { border-bottom: 1px solid #e2e8f0; padding: 3px 5px; vertical-align: top; }
+  tr { page-break-inside: avoid; }
+  .num { text-align: center; }
+  .fig { border: 1px solid #e2e8f0; border-radius: 7px; padding: 8px 10px 4px; margin: 6px 0; page-break-inside: avoid; }
+  .nota { background: #f1f5f9; border-left: 4px solid #94a3b8; padding: 6px 9px; border-radius: 3px; font-size: 8.4pt; color: #334155; }
+  .bien { color: #2b8a3e; font-weight: bold; } .mal { color: #c92a2a; font-weight: bold; }
+  .chip { display: inline-block; border-radius: 99px; padding: 0 7px; font-size: 8pt; font-weight: bold; background: #eef2f7; color: {{ tema.primario }}; border: 1px solid {{ tema.primario }}; }
+  ul, ol { margin: 3px 0 6px; padding-left: 16px; } li { margin-bottom: 2px; }
+  .salto { page-break-before: always; }
+</style>

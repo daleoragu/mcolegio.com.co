@@ -1,4 +1,4 @@
-Versión 0054 · 2026-11-17 14:11
+Versión 0055 · 2026-11-19 20:38
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -774,7 +774,21 @@ CAMBIADO  notas/views/sabana_views.py
 CAMBIADO  piar/logica.py
 CAMBIADO  prematricula/templates/prematricula/_base_publica.html
 CAMBIADO  puntoexacto/cuadernillo.py
+NUEVO     puntoexacto/graficas_informe.py
+NUEVO     puntoexacto/informes.py
+NUEVO     puntoexacto/migrations/0012_pruebas_unidas.py
+CAMBIADO  puntoexacto/models.py
+NUEVO     puntoexacto/templates/puntoexacto/_informe_estilos.html
+NUEVO     puntoexacto/templates/puntoexacto/informe_estudiantes_pdf.html
+NUEVO     puntoexacto/templates/puntoexacto/informe_general_pdf.html
+CAMBIADO  puntoexacto/templates/puntoexacto/lista.html
+CAMBIADO  puntoexacto/templates/puntoexacto/resultados.html
+NUEVO     puntoexacto/templates/puntoexacto/unida.html
+NUEVO     puntoexacto/templates/puntoexacto/unidas.html
+NUEVO     puntoexacto/test_informes.py
+CAMBIADO  puntoexacto/urls.py
 CAMBIADO  puntoexacto/views.py
+NUEVO     puntoexacto/views_informes.py
 CAMBIADO  requirements.txt
 NUEVO     salon_digital/claves.py
 NUEVO     salon_digital/datos/divipola.json
@@ -921,6 +935,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   salon_digital/migrations/0009_cuentas_estudiantes.py (contraseñas de estudiantes y forma de entrar)
   salon_digital/migrations/0010_cuenta_estudiante.py  (estudiante con varias clases: cuenta única y solicitudes)
   materiales/migrations/0014_puntos_y_comentarios.py  (biblioteca: puntos de cada material y comentarios de docentes)
+  puntoexacto/migrations/0012_pruebas_unidas.py  (pruebas unidas para los informes tipo Saber 11)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

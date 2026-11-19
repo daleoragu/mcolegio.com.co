@@ -1,0 +1,70 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% block title %}Unir exámenes - {{ block.super }}{% endblock %}
+{% block page_title %}Unir exámenes{% endblock %}
+
+{% block content %}
+<div class="pe-barra">
+    <a href="{% url 'puntoexacto:lista' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Exámenes</a>
+</div>
+
+<div class="pe-aviso">
+    Un simulacro tipo Saber 11 suele aplicarse por partes: un examen para cada área o cada sesión.
+    Al unirlos, a cada estudiante se le juntan sus hojas de todos los exámenes y sale un solo informe,
+    con puntaje por área (0 a 100), puntaje global (0 a 500), niveles de desempeño y percentil, como lo entrega el ICFES.
+</div>
+
+{% if unidas %}
+<div class="pe-tarjeta">
+    <h5>Pruebas unidas</h5>
+    <table class="pe-tabla">
+        <thead><tr><th>Prueba</th><th>Exámenes</th><th class="pe-num">Creada</th><th></th></tr></thead>
+        <tbody>
+        {% for u in unidas %}
+        <tr>
+            <td><a href="{% url 'puntoexacto:unida' pk=u.pk %}"><strong>{{ u.titulo }}</strong></a></td>
+            <td style="font-size:.86rem;">{% for e in u.examenes.all %}{{ e.titulo }}{% if not forloop.last %} · {% endif %}{% endfor %}</td>
+            <td class="pe-num">{{ u.creada|date:"j M Y" }}</td>
+            <td class="text-end">
+                <a href="{% url 'puntoexacto:unida_general' pk=u.pk %}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-pdf"></i> Informe general</a>
+                <a href="{% url 'puntoexacto:unida' pk=u.pk %}" class="btn btn-sm btn-outline-secondary">Abrir</a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="pe-tarjeta">
+    <h5>Unir exámenes nuevos</h5>
+    {% if examenes|length < 2 %}
+        <p class="pe-vacio">Necesita al menos dos exámenes activos para unirlos.</p>
+    {% else %}
+    <form method="post">{% csrf_token %}
+        <label class="form-label fw-semibold" for="titulo">Nombre de la prueba</label>
+        <input id="titulo" name="titulo" class="form-control mb-3" maxlength="160" required
+               placeholder="Por ejemplo: Simulacro Saber 11 · noviembre">
+        <label class="form-label fw-semibold">Escoja los exámenes (dos o más)</label>
+        <input type="search" class="form-control mb-2" placeholder="Buscar examen" oninput="peFiltrar(this.value)">
+        <div style="max-height:360px; overflow:auto; border:1px solid #eceef2; border-radius:8px;">
+        <table class="pe-tabla" id="pe-escoger">
+            <tbody>
+            {% for e in examenes %}
+            <tr data-t="{{ e.titulo|lower }}">
+                <td style="width:36px;"><input type="checkbox" class="form-check-input" name="examenes" value="{{ e.id }}" id="ex{{ e.id }}"></td>
+                <td><label for="ex{{ e.id }}" style="cursor:pointer;">{{ e.titulo }}</label></td>
+                <td class="pe-num pe-gris">{{ e.fecha|date:"j M Y" }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        <button class="btn btn-primary mt-3"><i class="fas fa-layer-group me-1"></i> Unir exámenes</button>
+    </form>
+    <script>
+    function peFiltrar(q){ q = q.toLowerCase();
+        document.querySelectorAll('#pe-escoger tr').forEach(tr => tr.style.display = tr.dataset.t.includes(q) ? '' : 'none'); }
+    </script>
+    {% endif %}
+</div>
+{% endblock %}

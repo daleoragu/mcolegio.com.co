@@ -1,0 +1,66 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe general · {{ d.titulo }}</title>
+{% include 'puntoexacto/_informe_estilos.html' %}</head><body>
+<div class="cab"><div class="eti">Informe general de resultados</div>
+  <h1>{{ d.titulo }}</h1>
+  <p>{{ institucion }} · {% for ex in d.examenes %}{{ ex.titulo }} ({{ ex.fecha|date:"j M Y" }}){% if not forloop.last %} · {% endif %}{% endfor %} · Generado el {{ hoy|date:"j \d\e F \d\e Y" }}</p></div>
+
+<div class="kpis">
+  <div class="kpi"><b>{{ r.presentaron }}</b><span>estudiantes evaluados{% if varias_areas %} · {{ r.completos }} con todas las áreas{% endif %}</span></div>
+  <div class="kpi"><b>{{ r.promedio }}</b><span>puntaje global promedio (0 a 500)</span></div>
+  <div class="kpi"><b>{{ r.desviacion }}</b><span>desviación estándar del global</span></div>
+  <div class="kpi"><b>{{ r.p25 }} · {{ r.p50 }} · {{ r.p75 }}</b><span>percentiles 25, 50 y 75</span></div>
+  <div class="kpi"><b>{{ r.minimo }}–{{ r.maximo }}</b><span>puntaje global más bajo y más alto</span></div>
+</div>
+
+<h2>Resultados por área</h2>
+<table><tr><th>Área</th><th>Prueba de referencia</th><th class="num">Preguntas</th><th class="num">Evaluados</th><th class="num">Promedio (0–100)</th><th class="num">Desviación</th></tr>
+{% for a in d.areas %}<tr><td>{{ a.nombre }}</td><td>{{ a.prueba_nombre }}</td><td class="num">{{ a.n }}</td><td class="num">{{ a.presentaron }}</td><td class="num"><b>{{ a.promedio }}</b></td><td class="num">{{ a.desviacion }}</td></tr>{% endfor %}</table>
+<div class="fig">{{ g_areas }}</div>
+
+<h2>Niveles de desempeño</h2>
+<p>Porcentaje de estudiantes en cada nivel de desempeño, con los rangos de puntaje de Saber 11 para cada área.</p>
+<div class="fig">{{ g_niveles }}</div>
+<table><tr><th>Nivel</th><th>Qué quiere decir</th></tr>
+{% for k, v in que_dice.items %}<tr><td><b>{{ k }}</b></td><td>{{ v }}</td></tr>{% endfor %}</table>
+
+<h2>Distribución del puntaje global</h2>
+<div class="fig">{{ g_hist }}</div>
+{% if r.cursos|length > 1 %}
+<h2>Comparación por curso</h2>
+<table><tr><th>Curso</th><th class="num">Evaluados</th><th class="num">Global promedio</th>{% for a in d.areas %}<th class="num">{{ a.nombre|truncatechars:16 }}</th>{% endfor %}</tr>
+{% for c in r.cursos %}<tr><td>{{ c.curso }}</td><td class="num">{{ c.n }}</td><td class="num"><b>{{ c.promedio }}</b></td>{% for a in d.areas %}<td class="num">{% for k, v in a.por_curso.items %}{% if k == c.curso %}{{ v }}{% endif %}{% endfor %}</td>{% endfor %}</tr>{% endfor %}</table>
+{% endif %}
+
+{% if d.competencias %}
+<h2>Competencias y temas evaluados</h2>
+<p>Porcentaje de acierto del grupo en cada competencia o tema (las «etiquetas» de las preguntas), de la más difícil a la más fácil dentro de cada área.</p>
+<table><tr><th>Área</th><th>Competencia o tema</th><th class="num">Preguntas</th><th class="num">Acierto del grupo</th></tr>
+{% for c in d.competencias %}<tr><td>{{ c.area }}</td><td>{{ c.etiqueta }}</td><td class="num">{{ c.preguntas|length }}</td><td class="num {% if c.pct < 40 %}mal{% elif c.pct >= 70 %}bien{% endif %}">{{ c.pct }} %</td></tr>{% endfor %}</table>
+{% else %}
+<p class="nota">Las preguntas no tienen etiquetas de competencia o tema. Si se las pone en la clave («Qué evalúa»), este informe muestra el acierto del grupo en cada una.</p>
+{% endif %}
+
+<h2>Análisis por pregunta</h2>
+<p>Las 10 preguntas con menos acierto. La <b>discriminación</b> compara al 27 % de mejor puntaje con el 27 % más bajo: si es negativa, la aciertan más los que peor van, y conviene revisar la pregunta o la clave. El <b>distractor</b> es la opción equivocada más escogida, donde suele haber un error de concepto.</p>
+<table><tr><th>Área</th><th class="num">Pregunta</th><th class="num">Clave</th><th class="num">Acierto</th><th class="num">Discriminación</th><th class="num">Distractor</th><th>Qué evalúa</th></tr>
+{% for q in dificiles %}<tr><td>{{ q.area|truncatechars:22 }}</td><td class="num">{{ q.numero }}</td><td class="num">{{ q.correcta }}</td><td class="num mal">{{ q.pct }} %</td><td class="num">{% if q.disc is not None %}{{ q.disc }}{% else %}—{% endif %}</td><td class="num">{% if q.distractor %}{{ q.distractor.0 }} ({{ q.distractor.1 }} %){% else %}—{% endif %}</td><td>{{ q.etiquetas|join:", " }}</td></tr>{% endfor %}</table>
+<p><b>Las más acertadas:</b> {% for q in faciles %}{{ q.area|truncatechars:18 }} n.º {{ q.numero }} ({{ q.pct }} %){% if not forloop.last %} · {% endif %}{% endfor %}.</p>
+{% if revisar %}<p class="nota"><b>Para revisar:</b> {% for q in revisar %}{{ q.area }} n.º {{ q.numero }}{% if not forloop.last %}, {% endif %}{% endfor %} tienen discriminación negativa. Puede haber un error en la clave o en el enunciado.</p>{% endif %}
+
+<h2>Pregunta por pregunta</h2>
+<table><tr><th>Área</th><th class="num">N.º</th><th class="num">Clave</th><th class="num">Acierto</th><th class="num">Discr.</th><th class="num">Distractor</th><th class="num">En blanco</th></tr>
+{% for q in d.preguntas %}<tr><td>{{ q.area|truncatechars:26 }}</td><td class="num">{{ q.numero }}</td><td class="num">{{ q.correcta }}</td><td class="num">{{ q.pct }} %</td><td class="num">{% if q.disc is not None %}{{ q.disc }}{% else %}—{% endif %}</td><td class="num">{% if q.distractor %}{{ q.distractor.0 }} ({{ q.distractor.1 }} %){% else %}—{% endif %}</td><td class="num">{{ q.blanco }} %</td></tr>{% endfor %}</table>
+
+<h2 class="salto">Resultados por estudiante</h2>
+<table><tr><th class="num">#</th><th>Estudiante</th><th>Curso</th>{% for a in d.areas %}<th class="num">{{ a.nombre|truncatechars:14 }}</th>{% endfor %}<th class="num">Global</th><th class="num">Percentil</th></tr>
+{% for p in d.personas %}<tr><td class="num">{{ forloop.counter }}</td><td>{{ p.nombre }}</td><td>{{ p.curso }}</td>{% for a in d.areas %}<td class="num">{% for k, v in p.areas.items %}{% if k == a.clave %}{{ v.puntaje }}{% endif %}{% endfor %}</td>{% endfor %}<td class="num"><b>{{ p.global }}</b></td><td class="num">{{ p.percentil }}</td></tr>{% endfor %}</table>
+
+<h2>Cómo se calcularon los puntajes</h2>
+<ul>
+  <li><b>Puntaje por área (0 a 100):</b> porcentaje de preguntas correctas del área, sin contar las anuladas ni las de control.</li>
+  <li><b>Puntaje global (0 a 500):</b> promedio ponderado de las áreas multiplicado por 5. Las áreas reconocidas como pruebas de Saber 11 pesan como en el ICFES (Lectura crítica, Matemáticas, Sociales y Ciencias naturales 3; Inglés 1); las demás, 1.</li>
+  <li><b>Niveles de desempeño:</b> rangos de Saber 11 por prueba; Inglés usa A-, A1, A2, B1 y B+.</li>
+  <li><b>Percentil:</b> porcentaje de estudiantes de esta prueba con un puntaje global menor.</li>
+</ul>
+<p class="nota">Es una aproximación al formato del ICFES: el ICFES calcula sus puntajes con teoría de respuesta al ítem y con la población nacional, y aquí se usa el porcentaje de aciertos de este grupo. Sirve para comparar y orientar el trabajo en clase, no como resultado oficial.</p>
+</body></html>

@@ -530,3 +530,26 @@ class Cuadernillo(models.Model):
 
     def __str__(self):
         return f'Cuadernillo · {self.examen.titulo}'
+
+
+class PruebaUnida(models.Model):
+    """Varios exámenes que se analizan juntos, como un simulacro aplicado por partes (una sesión por área).
+
+    No cambia los exámenes: solo los junta para el informe. A cada estudiante se le reúnen sus hojas de los
+    distintos exámenes y se calcula un puntaje por área y un puntaje global, al estilo del ICFES."""
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, null=True, blank=True, related_name='pruebas_unidas')
+    cuenta = models.ForeignKey('salon_digital.Cuenta', on_delete=models.CASCADE, null=True, blank=True, related_name='pruebas_unidas')
+    creador = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    titulo = models.CharField(max_length=160, verbose_name='Nombre de la prueba')
+    examenes = models.ManyToManyField(Examen, related_name='pruebas_unidas')
+    # A qué prueba de Saber 11 corresponde cada área ({"<examen>-<bloque>": "MAT"}); vacío = se reconoce por el nombre
+    areas = models.JSONField(default=dict, blank=True)
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creada']
+        verbose_name = 'Prueba unida'
+        verbose_name_plural = 'Pruebas unidas'
+
+    def __str__(self):
+        return self.titulo
