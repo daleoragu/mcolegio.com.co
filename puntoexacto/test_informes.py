@@ -72,7 +72,7 @@ class InformesIcfes(ColegioDePrueba):
         self.assertEqual(self.c.get(f'/puntoexacto/{self.mat.id}/informe/estudiante/e999999/').status_code, 404)
         pagina = self.c.get(f'/puntoexacto/{self.mat.id}/resultados/')
         self.assertContains(pagina, f'/puntoexacto/{self.mat.id}/informe/estudiante/{clave}/')
-        self.assertContains(pagina, 'Informes tipo ICFES')
+        self.assertContains(pagina, 'Informe general (PDF)')
 
     def test_unir_examenes(self):
         r = self.c.post('/puntoexacto/unidas/', {'titulo': 'Simulacro noviembre', 'examenes': [self.mat.id]})

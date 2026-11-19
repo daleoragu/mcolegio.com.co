@@ -12,16 +12,10 @@
     {% if not examen.cuenta_id %}<a href="{% url 'puntoexacto:bloques' examen_id=examen.id %}" class="btn btn-outline-secondary">Bloques</a>{% endif %}
     <a href="{% url 'puntoexacto:escanear' examen_id=examen.id %}" class="btn btn-outline-success">
         <i class="fas fa-camera me-1"></i> Cámara</a>
-    <div class="dropdown">
-        <button class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" type="button">
-            <i class="fas fa-file-pdf me-1"></i> Informes tipo ICFES</button>
-        <ul class="dropdown-menu">
-            <li><a class="dropdown-item" target="_blank" href="{% url 'puntoexacto:informe_general' examen_id=examen.id %}">Informe general de la prueba</a></li>
-            <li><a class="dropdown-item" target="_blank" href="{% url 'puntoexacto:informes_estudiantes' examen_id=examen.id %}">Informes de todos los estudiantes</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{% url 'puntoexacto:unidas' %}">Unir con otros exámenes…</a></li>
-        </ul>
-    </div>
+    <a href="{% url 'puntoexacto:informe_general' examen_id=examen.id %}" target="_blank" class="btn btn-outline-primary">
+        <i class="fas fa-file-pdf me-1"></i> Informe general (PDF)</a>
+    <a href="{% url 'puntoexacto:informes_estudiantes' examen_id=examen.id %}" target="_blank" class="btn btn-outline-primary">
+        <i class="fas fa-file-pdf me-1"></i> Informes por estudiante (PDF)</a>
     {% if examen.cuenta_id %}
     {% if examen.grupo.aula %}<a href="{% url 'aula:calificaciones' examen.grupo.aula.pk %}" class="btn btn-primary crece">
         Ver en la planilla del grupo</a>{% endif %}
