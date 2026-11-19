@@ -746,6 +746,11 @@ def digitar(request, examen_id, hoja_id):
 # Resultados
 # ---------------------------------------------------------------------------
 
+def _clave_informe(h):
+    from .informes import _clave_persona
+    return _clave_persona(h)
+
+
 @login_required
 def resultados(request, examen_id):
     examen = _examen_o_404(request, examen_id)
@@ -754,6 +759,7 @@ def resultados(request, examen_id):
     controles = list(examen.preguntas.filter(es_control=True).order_by('numero'))
     for h in lista_hojas:
         h.control = calif.control_de_hoja(h, controles) if h.estado in ('calificada', 'revisar') else None
+        h.clave_informe = _clave_informe(h) if h.estado in ('calificada', 'revisar') else None
     return render(request, 'puntoexacto/resultados.html', {
         'examen': examen, 'analisis': datos, 'hojas': lista_hojas,
         'controles': controles,

@@ -1,0 +1,73 @@
+{% extends 'puntoexacto/_base_pe.html' %}
+{% block title %}{{ u.titulo }} - {{ block.super }}{% endblock %}
+{% block page_title %}{{ u.titulo }}{% endblock %}
+
+{% block content %}
+<div class="pe-barra">
+    <a href="{% url 'puntoexacto:unidas' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Pruebas unidas</a>
+    {% if d.personas %}
+    <a href="{% url 'puntoexacto:unida_general' pk=u.pk %}" target="_blank" class="btn btn-primary"><i class="fas fa-file-pdf me-1"></i> Informe general</a>
+    <a href="{% url 'puntoexacto:unida_estudiantes' pk=u.pk %}" target="_blank" class="btn btn-outline-primary"><i class="fas fa-file-pdf me-1"></i> Informes de todos los estudiantes</a>
+    {% endif %}
+    <form method="post" class="crece" onsubmit="return confirm('¿Eliminar esta prueba unida? Los exámenes y sus notas no cambian.');">{% csrf_token %}
+        <input type="hidden" name="accion" value="eliminar">
+        <button class="btn btn-outline-danger"><i class="fas fa-trash me-1"></i> Eliminar</button>
+    </form>
+</div>
+
+<div class="pe-tarjeta">
+    <h5>Exámenes unidos</h5>
+    <ul class="mb-0">{% for e in examenes %}<li><a href="{% url 'puntoexacto:resultados' examen_id=e.id %}">{{ e.titulo }}</a> · {{ e.fecha|date:"j M Y" }}</li>{% endfor %}</ul>
+</div>
+
+<div class="pe-tarjeta">
+    <h5>Áreas y prueba de Saber 11</h5>
+    <p class="text-muted" style="font-size:.9rem;">La prueba define el peso en el puntaje global y los rangos de los niveles. Se reconoce por el nombre; corríjala si quedó mal.</p>
+    <form method="post">{% csrf_token %}
+    <table class="pe-tabla">
+        <thead><tr><th>Área</th><th>Examen</th><th class="pe-num">Preguntas</th><th class="pe-num">Promedio</th><th>Prueba de Saber 11</th></tr></thead>
+        <tbody>
+        {% for a in d.areas %}
+        <tr>
+            <td><strong>{{ a.nombre }}</strong></td>
+            <td class="pe-gris" style="font-size:.86rem;">{{ a.examen.titulo }}</td>
+            <td class="pe-num">{{ a.n }}</td>
+            <td class="pe-num">{% if a.presentaron %}{{ a.promedio }}{% else %}—{% endif %}</td>
+            <td><select name="area-{{ a.clave }}" class="form-select form-select-sm">
+                {% for k, p in pruebas.items %}<option value="{{ k }}"{% if a.prueba == k %} selected{% endif %}>{{ p.nombre }} (peso {{ p.peso }})</option>{% endfor %}
+                <option value="NO"{% if not a.prueba %} selected{% endif %}>No es de Saber 11 (peso 1)</option>
+            </select></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <button class="btn btn-outline-primary btn-sm mt-2">Guardar áreas</button>
+    </form>
+</div>
+
+<div class="pe-tarjeta">
+    <h5>Estudiantes ({{ d.personas|length }})</h5>
+    {% if d.personas %}
+    <div class="table-responsive">
+    <table class="pe-tabla">
+        <thead><tr><th class="pe-num">#</th><th>Estudiante</th><th>Curso</th>{% for a in d.areas %}<th class="pe-num">{{ a.nombre|truncatechars:14 }}</th>{% endfor %}<th class="pe-num">Global</th><th class="pe-num">Percentil</th><th></th></tr></thead>
+        <tbody>
+        {% for p in d.personas %}
+        <tr>
+            <td class="pe-num">{{ forloop.counter }}</td>
+            <td>{{ p.nombre }}{% if not p.completo %} <span class="pe-chip pe-media" title="No presentó todas las áreas">incompleto</span>{% endif %}</td>
+            <td>{{ p.curso }}</td>
+            {% for a in d.areas %}<td class="pe-num">{% for k, v in p.areas.items %}{% if k == a.clave %}{{ v.puntaje }}{% endif %}{% endfor %}</td>{% endfor %}
+            <td class="pe-num"><strong>{{ p.global }}</strong></td>
+            <td class="pe-num">{{ p.percentil }}</td>
+            <td class="text-end"><a href="{% url 'puntoexacto:unida_estudiante' pk=u.pk clave=p.clave %}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-pdf"></i> Informe</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="pe-vacio">Todavía no hay hojas calificadas en estos exámenes.</p>
+    {% endif %}
+</div>
+{% endblock %}

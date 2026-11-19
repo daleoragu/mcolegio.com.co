@@ -1,0 +1,155 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reporte de resultados · {{ d.titulo }}</title>
+{% include 'puntoexacto/_informe_estilos.html' with horizontal=True %}
+<style>
+  @page { margin: 11mm 12mm 13mm; }
+  body { font-size: 9.4pt; color: #334155; }
+  .banda { display: flex; align-items: center; justify-content: space-between; margin: 0 0 10px; }
+  .banda .tit { background: {{ tema.primario }}; color: {{ tema.texto }}; font-size: 15pt; font-weight: bold;
+                padding: 8px 40px 8px 16px; margin-left: -12mm; padding-left: calc(12mm + 14px); border-radius: 0 6px 6px 0; }
+  .banda .marca { display: flex; align-items: center; gap: 8px; text-align: right; font-size: 8.5pt; color: #475569; }
+  .banda .marca img { max-height: 42px; max-width: 120px; }
+  .banda .marca b { display: block; font-size: 10pt; color: {{ tema.primario }}; }
+  .sec { font-size: 11pt; font-weight: bold; color: #334155; margin: 10px 0 6px; page-break-after: avoid; }
+  .sec i { font-style: normal; color: {{ tema.acento_txt }}; margin-right: 4px; }
+  .datos { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px 14px; padding: 0 6px 8px; border-bottom: 1px solid #e2e8f0; }
+  .datos b { display: block; font-size: 8.2pt; color: #334155; }
+  .datos span { font-size: 8.8pt; color: #475569; }
+  .general { display: flex; align-items: center; gap: 26px; padding: 4px 6px 10px; border-bottom: 1px solid #e2e8f0; }
+  .global { text-align: center; padding-right: 26px; border-right: 1px solid #e2e8f0; min-width: 170px; }
+  .global small { display: block; font-size: 10pt; color: #64748b; }
+  .global .n { font-size: 36pt; font-weight: bold; color: #334155; line-height: 1.05; }
+  .global .n em { font-style: normal; font-size: 18pt; color: {{ tema.acento_txt }}; }
+  .perc { width: 300px; }
+  .perc .t { margin-bottom: 5px; line-height: 1.25; display: flex; justify-content: space-between; align-items: baseline; font-size: 8.6pt; color: #64748b; }
+  .perc .t b { font-size: 17pt; color: #334155; }
+  .frase { font-size: 8.8pt; color: #475569; flex: 1; }
+  .area { display: flex; gap: 16px; margin: 8px 0 10px; page-break-inside: avoid; }
+  .area .izq { width: 300px; padding: 4px 6px; }
+  .area .izq h3 { font-size: 12pt; margin: 0 0 6px; color: #334155; }
+  .area .izq h3 span { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: {{ tema.primario }}; margin-right: 6px; }
+  .pts { display: flex; align-items: baseline; gap: 14px; margin: 2px 0 8px; }
+  .pts small { font-weight: bold; color: #475569; }
+  .pts b { font-size: 26pt; color: #334155; } .pts b em { font-style: normal; font-size: 12pt; color: #94a3b8; }
+  .area .izq .p2 { font-size: 8.4pt; color: #64748b; margin-top: 4px; }
+  .panel { flex: 1; background: #eef0f3; padding: 10px 14px; border-radius: 4px; display: flex; gap: 18px; }
+  .panel .col { flex: 1; }
+  .panel h4 { font-size: 9.4pt; margin: 0 0 3px; color: #334155; }
+  .panel .q { font-size: 8.5pt; color: #64748b; margin: 4px 0; }
+  .panel ul { list-style: none; padding: 0; margin: 2px 0 6px; }
+  .panel li { position: relative; padding-left: 13px; font-size: 8.6pt; margin-bottom: 3px; }
+  .panel li:before { content: "▸"; position: absolute; left: 0; color: {{ tema.acento }}; }
+  .esc { width: 260px; }
+  .cierre { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 9pt; color: #475569; text-align: center; }
+  .cierre .l { flex: 1; border-top: 1.5px dashed {{ tema.primario }}; }
+  .cierre b { color: #334155; } .cierre em { font-style: normal; color: {{ tema.acento_txt }}; }
+  .paso { display: flex; gap: 22px; }
+  .paso > div { flex: 1; }
+  .calc td { border: none; padding: 2px 6px; font-size: 9.5pt; }
+  .calc .g { font-size: 13pt; color: #334155; }
+  .formula { font-size: 12pt; margin: 8px 0; } .formula b { color: {{ tema.acento_txt }}; }
+  .caja { border: 1.5px dashed #94a3b8; border-radius: 6px; padding: 10px 14px; text-align: center; margin-top: 10px; }
+  .caja b { color: {{ tema.acento_txt }}; }
+</style></head><body>
+{% for e in lista %}
+{% with p=e.persona %}
+<div class="{% if not forloop.first %}salto{% endif %}">
+
+<div class="banda"><div class="tit">Reporte de resultados</div>
+  <div class="marca"><div><b>{{ d.titulo }}</b>{{ institucion }}</div>{% if tema.logo %}<img src="{{ tema.logo }}" alt="">{% endif %}</div></div>
+
+<div class="sec"><i>1.</i>Datos del evaluado</div>
+<div class="datos">
+  <div><b>Nombre completo:</b><span>{{ p.nombre }}</span></div>
+  <div><b>Identificación:</b><span>{{ p.documento|default:"—" }}</span></div>
+  <div><b>Curso:</b><span>{{ p.curso }}</span></div>
+  <div><b>Aplicación del examen:</b><span>{{ fecha_desde|date:"d/m/Y" }}{% if fecha_hasta != fecha_desde %} a {{ fecha_hasta|date:"d/m/Y" }}{% endif %}</span></div>
+  <div><b>Fecha del reporte:</b><span>{{ hoy|date:"d/m/Y" }}</span></div>
+  <div style="grid-column: span 2;"><b>Institución:</b><span>{{ institucion|default:"—" }}</span></div>
+  <div style="grid-column: span 3;"><b>Prueba:</b><span>{{ d.titulo }}{% if d.examenes|length > 1 %} ({{ d.examenes|length }} exámenes){% endif %}</span></div>
+</div>
+
+<div class="sec"><i>2.</i>Reporte general</div>
+<div class="general">
+  <div class="global"><small>Puntaje global</small><div class="n">{{ p.global }} <em>/500</em></div></div>
+  <div class="perc"><div class="t"><span>¿En qué percentil está?<br>Estudiantes de esta prueba</span><b>{{ p.percentil }}</b></div>{{ e.g_percentil }}</div>
+  <div class="frase">Su puntaje superó al <b>{{ p.percentil }} %</b> de los {{ e.presentaron }} estudiantes que presentaron esta prueba.
+    El promedio global del grupo fue <b>{{ e.promedio_global }}</b>.{% if not p.completo %}<br>Presentó {{ e.areas|length }} de {{ e.n_areas_total }} áreas; el global se calcula con las que presentó.{% endif %}</div>
+</div>
+
+<div class="sec"><i>3.</i>Resultados por prueba</div>
+{% for a in e.areas %}
+<div class="area">
+  <div class="izq">
+    <h3><span></span>{{ a.nombre }}</h3>
+    <div class="pts"><small>Puntaje</small><b>{{ a.puntaje }}<em>/100</em></b></div>
+    <div class="perc" style="width:290px;"><div class="t"><span>¿En qué percentil está?<br>Estudiantes de esta prueba</span><b>{{ a.percentil }}</b></div>{{ a.g_percentil }}</div>
+    <div class="p2">{{ a.bien }} de {{ a.total }} correctas · promedio del grupo {{ a.grupo }}
+      (<span class="{% if a.diferencia >= 5 %}bien{% elif a.diferencia <= -5 %}mal{% endif %}">{% if a.diferencia > 0 %}+{% endif %}{{ a.diferencia }}</span>)</div>
+  </div>
+  <div class="panel">
+    <div class="col" style="flex:0 0 260px;">
+      <h4>Nivel de desempeño</h4>
+      <div class="esc">{{ a.g_escalera }}</div>
+      <div class="q">¿Qué refleja este nivel?</div>
+      <ul><li>{{ a.que_dice }}</li></ul>
+    </div>
+    <div class="col">
+      {% if a.fuertes %}<h4>Lo que domina</h4><ul>{% for c in a.fuertes %}<li>{{ c.etiqueta }} ({{ c.bien }} de {{ c.total }})</li>{% endfor %}</ul>{% endif %}
+      {% if a.reforzar %}<h4>Para reforzar</h4><ul>{% for c in a.reforzar %}<li>{{ c.etiqueta }} ({{ c.bien }} de {{ c.total }}; el grupo {{ c.grupo }} %)</li>{% endfor %}</ul>{% endif %}
+      {% if not a.fuertes and not a.reforzar %}<p class="q">Las preguntas de esta área no tienen etiquetas de competencia; si se ponen en la clave («Qué evalúa»), aquí aparece lo que domina y lo que debe reforzar.</p>{% endif %}
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<div class="salto"></div>
+<div class="banda"><div class="tit">Análisis de la prueba</div>
+  <div class="marca"><div><b>{{ p.nombre }}</b>{{ d.titulo }}</div>{% if tema.logo %}<img src="{{ tema.logo }}" alt="">{% endif %}</div></div>
+
+<div class="sec"><i>4.</i>Comparación con el grupo</div>
+<div class="fig">{{ e.g_areas }}</div>
+
+<div class="paso">
+  <div>
+    <div class="sec"><i>5.</i>Conclusiones</div>
+    <ul>{% for c in e.conclusiones %}<li>{{ c }}</li>{% endfor %}</ul>
+  </div>
+  <div>
+    <div class="sec"><i>6.</i>Recomendaciones</div>
+    <ul>{% for r in e.recomendaciones %}<li>{{ r }}</li>{% endfor %}</ul>
+  </div>
+</div>
+
+<div class="sec"><i>7.</i>Preguntas para revisar{% if e.falladas %} ({{ e.falladas|length }}){% endif %}</div>
+{% if e.falladas %}
+<table><tr><th>Área</th><th class="num">Pregunta</th><th class="num">Marcó</th><th class="num">Correcta</th><th>Qué evalúa</th><th class="num">Acierto del grupo</th></tr>
+{% for f in e.falladas %}<tr><td>{{ f.area|truncatechars:30 }}</td><td class="num">{{ f.numero }}</td><td class="num mal">{{ f.marcada }}</td><td class="num bien">{{ f.correcta }}</td><td>{{ f.etiquetas }}</td><td class="num">{{ f.grupo_pct }} %</td></tr>{% endfor %}</table>
+{% else %}<p class="bien">Respondió bien todas las preguntas.</p>{% endif %}
+
+<div class="sec" style="page-break-before: always;"><i>8.</i>¿Cómo entender sus resultados?</div>
+<div class="paso">
+  <div>
+    <h4 style="color:{{ tema.acento_txt }}; margin:0 0 3px;">Puntaje global</h4>
+    <p>Es un promedio ponderado: cada área pesa distinto.{% if e.calculo.pesos %} En este reporte:{% endif %}</p>
+    <p><b>Paso 1.</b> Multiplicar el puntaje de cada área por su ponderación.</p>
+    <table class="calc"><tr><th style="background:none;color:#334155;">Área</th><th style="background:none;color:#334155;" class="num">Puntaje</th><th style="background:none;"></th><th style="background:none;color:#334155;" class="num">Ponderación</th><th style="background:none;"></th><th style="background:none;color:#334155;" class="num">Resultado</th></tr>
+    {% for a in e.areas %}<tr><td>{{ a.nombre|truncatechars:26 }}</td><td class="num g">{{ a.puntaje }}</td><td>×</td><td class="num g">{{ a.peso }}</td><td>=</td><td class="num g">{{ a.ponderado }}</td></tr>{% endfor %}</table>
+    <p><b>Paso 2.</b> Sumar los resultados, dividir entre la suma de las ponderaciones ({{ e.calculo.pesos }}), multiplicar por cinco (5) y aproximar al entero más cercano.</p>
+    <p class="formula">{{ e.calculo.suma }} ÷ {{ e.calculo.pesos }} = {{ e.calculo.promedio }} &nbsp; → &nbsp; {{ e.calculo.promedio }} × 5 <b>=</b> <b style="font-size:16pt;">{{ p.global }}</b></p>
+  </div>
+  <div>
+    <h4 style="color:{{ tema.acento_txt }}; margin:0 0 3px;">Percentil</h4>
+    <p>El porcentaje de estudiantes que presentaron esta prueba con un puntaje menor al suyo.</p>
+    <h4 style="color:{{ tema.acento_txt }}; margin:8px 0 3px;">Puntaje por área</h4>
+    <p>El porcentaje de preguntas correctas del área, en una escala de 0 a 100 (sin las preguntas anuladas).</p>
+    <h4 style="color:{{ tema.acento_txt }}; margin:8px 0 3px;">Niveles de desempeño</h4>
+    <p>Describen lo que sabe hacer según su puntaje, con los rangos de Saber 11: cada área tiene sus niveles, cada nivel es más exigente que el anterior (4 y B+ son los más altos) y estar en un nivel indica que también se tienen las habilidades de los anteriores.</p>
+    <div class="caja">Esta prueba <b>no se gana ni se pierde</b>: es una herramienta para identificar sus <b>fortalezas y debilidades</b> y prepararse mejor.</div>
+    <p class="nota" style="margin-top:10px;">Puntajes aproximados al formato de Saber 11, calculados con el porcentaje de aciertos y comparados con este grupo. No son un resultado oficial del ICFES.</p>
+  </div>
+</div>
+<div class="cierre"><div class="l"></div><div>Ya conoce parte de sus <b>habilidades, conocimientos y destrezas</b>;<br>con esto, <em>siga preparándose</em>.</div><div class="l"></div></div>
+</div>
+{% endwith %}
+{% endfor %}
+</body></html>
