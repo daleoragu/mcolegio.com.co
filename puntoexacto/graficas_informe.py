@@ -132,7 +132,8 @@ def escalera(nombres, escalon, color=AZUL):
             yk = base - (k + 1) * (alto + 1.5)
             s.append(f'<rect x="{x}" y="{yk:.1f}" width="{col_w}" height="{alto}" fill="{color if i <= escalon else "#cbd5e1"}"/>')
         ytop = base - (i + 1) * (alto + 1.5)
-        s.append(f'<text x="{x + col_w / 2}" y="{ytop - 3:.1f}" text-anchor="middle" font-size="10" font-weight="bold" fill="{TXT}">{escape(nom.replace('Nivel ', ''))}</text>')
+        corto = escape(nom.replace('Nivel ', ''))
+        s.append(f'<text x="{x + col_w / 2}" y="{ytop - 3:.1f}" text-anchor="middle" font-size="10" font-weight="bold" fill="{TXT}">{corto}</text>')
         if i == escalon:
             s.append(f'<path d="M{x + col_w / 2 - 4},{ytop - 21:.1f} h8 l-4,5 z" fill="{TXT}"/>')
     return _svg(x0 + n * (col_w + 2), base + 2, ''.join(s))
