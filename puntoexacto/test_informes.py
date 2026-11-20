@@ -99,3 +99,34 @@ class InformesIcfes(ColegioDePrueba):
         self.c.post(f'/puntoexacto/unida/{u.pk}/', {'accion': 'eliminar'})
         self.assertFalse(PruebaUnida.objects.exists())
         self.assertEqual(Examen.objects.count(), 2)
+
+
+class HojasCalificadas(InformesIcfes):
+    """La hoja de cada estudiante con lo bueno, lo malo y la nota, para devolvérsela."""
+
+    def test_pdf_con_una_pagina_por_estudiante(self):
+        import io
+        import os
+        from pypdf import PdfReader
+        r = self.c.get(f'/puntoexacto/{self.mat.id}/hojas-calificadas/')
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        pdf = PdfReader(io.BytesIO(r.content))
+        self.assertEqual(len(pdf.pages), 3)
+        texto = pdf.pages[0].extract_text()
+        self.assertIn('bien', texto)
+        if os.environ.get('PE_SAL'):
+            open(os.path.join(os.environ['PE_SAL'], 'hojas_calificadas.pdf'), 'wb').write(r.content)
+        hoja = self.mat.hojas.first()
+        r = self.c.get(f'/puntoexacto/{self.mat.id}/hoja/{hoja.id}/calificada/')
+        self.assertEqual(len(PdfReader(io.BytesIO(r.content)).pages), 1)
+        self.assertContains(self.c.get(f'/puntoexacto/{self.mat.id}/resultados/'), f'/hoja/{hoja.id}/calificada/')
+        # Una hoja de otro colegio no se deja ver.
+        self.assertIn(self.cliente(self.u_docente, host='b.localhost')
+                      .get(f'/puntoexacto/{self.mat.id}/hoja/{hoja.id}/calificada/').status_code, (403, 404))
+
+    def test_como_va_el_grupo(self):
+        d = self.c.get(f'/puntoexacto/{self.mat.id}/en-vivo/').json()
+        print('VIVO', d)
+        self.assertEqual(d['n'], 3)
+        self.assertEqual(len(d['preguntas']), 4)
+        self.assertEqual(d['falladas'][0]['pct'], min(q['pct'] for q in d['preguntas']))

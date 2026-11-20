@@ -94,6 +94,24 @@
     .pe-chip-e.g { background:#dcfce7; color:#0b6b4a; } .pe-chip-e.r { background:#fff3d6; color:#8a5200; }
     .pe-chip-e.e { background:#fee2e2; color:#a4161a; } .pe-chip-e.n { background:#e5e7eb; color:#374151; }
     .pe-progreso { font-size:.9rem; color:#374151; margin:6px 0 10px; }
+    .pe-chip-e.w { background:#e0e7ff; color:#3730a3; }
+    .pe-pag.espera { border-color:#6366f1; }
+    /* Cómo va el grupo */
+    .pe-vivo-cifras { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    .pe-vivo-cifras div { flex:1; min-width:110px; border:1px solid #e3e6ec; border-radius:10px; padding:8px 10px; }
+    .pe-vivo-cifras b { display:block; font-size:1.4rem; line-height:1.1; }
+    .pe-vivo-cifras span { font-size:.78rem; color:#6b7280; }
+    .pe-barras { display:flex; align-items:flex-end; gap:3px; height:84px; padding:4px 0; overflow-x:auto; }
+    .pe-barras .b { flex:1 0 14px; max-width:28px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+    .pe-barras .b i { display:block; width:100%; border-radius:3px 3px 0 0; min-height:2px; }
+    .pe-barras .b small { font-size:.62rem; color:#6b7280; margin-top:2px; }
+    .pe-falladas { font-size:.88rem; margin-top:8px; }
+    .pe-falladas span { display:inline-block; margin:0 6px 6px 0; padding:3px 10px; border-radius:999px; background:#fee2e2; color:#7f1d1d; }
+    .pe-cam-vivo { position:absolute; z-index:4; right:12px; top:calc(max(10px, env(safe-area-inset-top)) + 96px); width:min(88vw, 320px);
+                   background:rgba(255,255,255,.97); color:#111; border-radius:14px; padding:10px 12px; display:none;
+                   box-shadow:0 10px 30px rgba(0,0,0,.4); }
+    .pe-cam-vivo.si { display:block; }
+    @media (orientation: landscape) { .pe-cam-vivo { right:132px; top:60px; } }
 
     /* ---- Revisión (pantalla completa) ---- */
     .pe-revision { position:fixed; inset:0; z-index:2010; background:#f4f5f7; display:none; flex-direction:column; }
@@ -188,6 +206,14 @@
         «PDF calificado» lleva encima la nota y lo bueno y lo malo de cada hoja.</p>
 </div>
 
+<div class="pe-tarjeta" id="pe-panel-vivo" style="display:none;">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">Cómo va el grupo</h5>
+        <span class="pe-leyenda">Se actualiza solo al guardar cada hoja</span>
+    </div>
+    <div id="pe-vivo"></div>
+</div>
+
 <div class="pe-tarjeta" id="pe-historial" style="display:none;">
     <h6>Calificadas en esta sesión</h6>
     <ul id="pe-lista-ok" style="font-size:.92rem;margin-bottom:0;"></ul>
@@ -208,13 +234,17 @@
         <button type="button" class="pe-cam-boton" id="pe-cerrar-camara" aria-label="Cerrar la cámara"><i class="fas fa-xmark"></i></button>
         <span class="pe-cuenta"><span class="ok"><i class="fas fa-check"></i> <span id="pe-contador">0</span></span>
             <span class="rv" id="pe-cuenta-rv" style="display:none;"> · <i class="fas fa-triangle-exclamation"></i> <span id="pe-contador-rv">0</span></span>
-            <span id="pe-cuenta-cola" style="display:none;"> · <i class="fas fa-spinner fa-spin"></i> <span id="pe-contador-cola">0</span></span></span>
+            <span id="pe-cuenta-cola" style="display:none;"> · <i class="fas fa-spinner fa-spin"></i> <span id="pe-contador-cola">0</span></span>
+            <span id="pe-cuenta-red" style="display:none;color:#c7d2fe;"> · <i class="fas fa-wifi"></i><i class="fas fa-slash" style="margin-left:-1.05em;"></i> <span id="pe-contador-red">0</span></span></span>
         <span style="display:flex;gap:6px;">
+            <button type="button" class="pe-cam-boton" id="pe-vivo-cam" aria-label="Cómo va el grupo"><i class="fas fa-chart-column"></i></button>
+            <button type="button" class="pe-cam-boton" id="pe-sonido" aria-label="Sonido"><i class="fas fa-volume-high"></i></button>
             <button type="button" class="pe-cam-boton" id="pe-auto-cam" aria-label="Guardar sola"><i class="fas fa-wand-magic-sparkles"></i><small>Auto</small></button>
             <button type="button" class="pe-cam-boton" id="pe-linterna" aria-label="Linterna" style="display:none;"><i class="fas fa-bolt"></i></button>
         </span>
     </div>
     <div class="pe-cam-estado" id="pe-cam-estado">Abriendo la cámara…</div>
+    <div class="pe-cam-vivo" id="pe-cam-vivo"></div>
     <div class="pe-cam-nota" id="pe-cam-nota">
         <div class="fila">
             <div class="valor" id="pe-cam-nota-valor">–</div>
@@ -335,14 +365,16 @@
     function nuevaPagina(blob, dz, sinMarcas, margenPx) {
         var p = {id: siguienteId++, raw: blob, url: URL.createObjectURL(blob), estado: 'nueva',
                  ancho_mm: dz ? dz.ancho : null, alto_mm: dz ? dz.alto : null, margenPx: margenPx || 0,
-                 pp: dz ? dz.pp : '', sinMarcas: !!sinMarcas};
+                 pp: dz ? dz.pp : '', sinMarcas: !!sinMarcas,
+                 uid: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), creada: Date.now()};
         lote.push(p);
+        guardarBD(p);
         return p;
     }
 
     var ETIQUETAS = {nueva: ['n', 'Sin calificar'], cola: ['n', 'En cola'], enviando: ['n', 'Leyendo…'],
                      guardada: ['g', 'Guardada'], revisar: ['r', 'Revisar'], error: ['e', 'No se leyó'],
-                     ajena: ['e', 'De otro examen'], repetida: ['n', 'Repetida']};
+                     ajena: ['e', 'De otro examen'], repetida: ['n', 'Repetida'], espera: ['w', 'Sin internet']};
 
     function pintarLote() {
         $('pe-panel-lote').style.display = lote.length ? '' : 'none';
@@ -366,12 +398,15 @@
         $('pe-lote').innerHTML = html;
         var porRevisar = lote.filter(function (p) { return p.estado === 'revisar'; }).length;
         var enCola = lote.filter(function (p) { return p.estado === 'cola' || p.estado === 'enviando'; }).length;
-        var faltan = lote.filter(function (p) { return p.estado === 'nueva' || p.estado === 'error'; }).length;
+        var faltan = lote.filter(function (p) { return p.estado === 'nueva' || p.estado === 'error' || p.estado === 'espera'; }).length;
+        var sinRed = lote.filter(function (p) { return p.estado === 'espera'; }).length;
+        $('pe-contador-red').textContent = sinRed; $('pe-cuenta-red').style.display = sinRed ? '' : 'none';
         $('pe-n-rev').textContent = porRevisar;
         $('pe-revisar-sig').style.display = porRevisar ? '' : 'none';
         $('pe-calificar-todas').style.display = faltan ? '' : 'none';
         $('pe-pdf-cal').disabled = !lote.some(function (p) { return p.lectura; });
-        $('pe-progreso').textContent = enCola ? 'Calificando… faltan ' + enCola + '.' : '';
+        $('pe-progreso').textContent = enCola ? 'Calificando… faltan ' + enCola + '.' :
+            (sinRed ? sinRed + ' hoja' + (sinRed > 1 ? 's esperan' : ' espera') + ' a que vuelva el internet (quedan guardadas en este equipo).' : (avisoLote || ''));
         // En la cámara
         $('pe-bandeja-n').textContent = lote.length;
         var rv = $('pe-bandeja-rv'); rv.textContent = porRevisar; rv.classList.toggle('si', porRevisar > 0);
@@ -388,7 +423,7 @@
         if (!p) return;
         if (b.dataset.accion === 'quitar') {
             if (p.estado === 'enviando') return;
-            lote.splice(lote.indexOf(p), 1); URL.revokeObjectURL(p.url); pintarLote();
+            lote.splice(lote.indexOf(p), 1); URL.revokeObjectURL(p.url); borrarBD(p); pintarLote();
         } else if (b.dataset.accion === 'girar') {
             girarPagina(p);
         } else if (b.dataset.accion === 'ver') {
@@ -398,11 +433,11 @@
     });
     $('pe-vaciar').addEventListener('click', function () {
         if (!confirm('¿Quitar todas las hojas escaneadas de esta pantalla? Las notas ya guardadas no se borran.')) return;
-        lote.forEach(function (p) { URL.revokeObjectURL(p.url); });
-        lote = []; pintarLote();
+        lote.forEach(function (p) { URL.revokeObjectURL(p.url); borrarBD(p); });
+        lote = []; avisoLote = ''; pintarLote();
     });
     $('pe-calificar-todas').addEventListener('click', function () {
-        lote.forEach(function (p) { if (p.estado === 'nueva' || p.estado === 'error') encolar(p); });
+        lote.forEach(function (p) { if (p.estado === 'nueva' || p.estado === 'error' || p.estado === 'espera') encolar(p); });
     });
     $('pe-revisar-sig').addEventListener('click', revisarSiguiente);
     $('pe-mas').addEventListener('click', function () { abrirCamara(modo); });
@@ -426,7 +461,7 @@
                 URL.revokeObjectURL(p.url);
                 p.raw = blob; p.url = URL.createObjectURL(blob);
                 if (p.estado !== 'guardada') { p.estado = 'nueva'; p.lectura = null; }
-                pintarLote();
+                pintarLote(); guardarBD(p);
             });
         };
         img.src = p.url;
@@ -444,7 +479,22 @@
         }
     }
 
+    function sinSenal(p) {
+        p.estado = 'espera';
+        p.error = 'Sin internet: se manda sola cuando vuelva la señal.';
+        pintarLote(); guardarBD(p);
+        if (camaraAbierta()) estado('Sin internet: la hoja queda guardada en el celular y se manda cuando vuelva la señal.', 'mal');
+        if (p.esperando) { p.esperando = false; elLeyendo.classList.remove('si'); reanudar(); }
+    }
+    function reintentar() {
+        if (navigator.onLine === false) return;
+        lote.forEach(function (p) { if (p.estado === 'espera') encolar(p); });
+    }
+    window.addEventListener('online', reintentar);
+    setInterval(reintentar, 20000);
+
     function enviar(p) {
+        if (navigator.onLine === false) { sinSenal(p); return Promise.resolve(); }
         p.estado = 'enviando'; pintarLote();
         var cuerpo = new FormData();
         cuerpo.append('foto', p.raw, 'hoja.jpg');
@@ -459,7 +509,7 @@
         };
         return intento(0)
             .then(function (d) { recibir(p, d); })
-            .catch(function () { p.estado = 'error'; p.error = 'Sin conexión. Toque «Calificar las que faltan».'; pintarLote(); });
+            .catch(function () { sinSenal(p); });
     }
 
     function recibir(p, d) {
@@ -467,10 +517,8 @@
             p.estado = d.otro_examen ? 'ajena' : 'error';
             p.error = d.error || 'No se pudo leer.';
             pintarLote();
-            if (camaraAbierta()) {
-                try { if (navigator.vibrate) navigator.vibrate([80, 60, 80]); } catch (e) {}
-                estado('⚠ ' + p.error, 'mal');
-            }
+            guardarBD(p);
+            if (camaraAbierta()) { sonar('mal'); estado('⚠ ' + p.error, 'mal'); }
             if (p.esperando) { p.esperando = false; reanudar(); }
             return;
         }
@@ -484,15 +532,17 @@
             p.estado = repetida ? 'repetida' : 'guardada';
             p.hojaId = d.guardada.hoja_id; p.nota = d.guardada.nota; p.nombre = d.guardada.nombre;
             anotar(p.hojaId, d.guardada, d);
-            if (camaraAbierta()) mostrarNotaCamara(p, d.guardada, repetida);
+            if (camaraAbierta()) { sonar('bien'); mostrarNotaCamara(p, d.guardada, repetida); }
+            pedirVivo();
         } else {
             p.estado = 'revisar';
             if (camaraAbierta() && !p.esperando) {
-                try { if (navigator.vibrate) navigator.vibrate([50, 40, 50]); } catch (e) {}
+                sonar('revisar');
                 estado('⚠ Para revisar: ' + (p.nombre || 'hoja sin nombre') + (p.dudas ? ' (' + p.dudas + ' dudas)' : ''), 'mal');
             }
         }
         pintarLote();
+        guardarBD(p);
         // Sin «auto», la cámara espera a que el docente confirme esta hoja.
         if (p.esperando) { p.esperando = false; elLeyendo.classList.remove('si'); abrirRevision(p); }
     }
@@ -714,16 +764,48 @@
         return m;
     }
 
-    function sonar() {
-        try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) {}
+    // Un sonido distinto para cada cosa, para no tener que mirar la pantalla:
+    //   foto: un clic corto · guardada: dos notas que suben · para revisar: dos notas graves · no se leyó: una grave larga
+    var SONIDOS = {foto: {notas: [[1500, 0.035]], vibra: 30},
+                   bien: {notas: [[880, 0.09], [1320, 0.14]], vibra: 60},
+                   revisar: {notas: [[520, 0.12], [0, 0.06], [520, 0.12]], vibra: [90, 60, 90]},
+                   mal: {notas: [[260, 0.32]], vibra: [220]}};
+    var sonidoOn = true;
+    try { sonidoOn = localStorage.getItem('pe-sonido') !== '0'; } catch (e) {}
+    function pintarSonido() {
+        var b = $('pe-sonido');
+        b.innerHTML = '<i class="fas fa-volume-' + (sonidoOn ? 'high' : 'xmark') + '"></i>';
+        b.classList.toggle('activo', !sonidoOn);
+    }
+    $('pe-sonido').addEventListener('click', function () {
+        sonidoOn = !sonidoOn;
+        try { localStorage.setItem('pe-sonido', sonidoOn ? '1' : '0'); } catch (e) {}
+        pintarSonido();
+        if (sonidoOn) sonar('bien');
+    });
+    pintarSonido();
+    function sonar(tipo) {
+        var s = SONIDOS[tipo || 'foto'];
+        try { if (navigator.vibrate) navigator.vibrate(s.vibra); } catch (e) {}
+        if (!sonidoOn) return;
         try {
             var A = window.AudioContext || window.webkitAudioContext;
             if (!A) return;
             sonar.ctx = sonar.ctx || new A();
-            var o = sonar.ctx.createOscillator(), gn = sonar.ctx.createGain();
-            o.frequency.value = 1150; gn.gain.value = 0.08;
-            o.connect(gn); gn.connect(sonar.ctx.destination);
-            o.start(); o.stop(sonar.ctx.currentTime + 0.09);
+            var t = sonar.ctx.currentTime + 0.01;
+            s.notas.forEach(function (n) {
+                if (n[0]) {
+                    var o = sonar.ctx.createOscillator(), g = sonar.ctx.createGain();
+                    o.type = tipo === 'mal' ? 'triangle' : 'sine';
+                    o.frequency.value = n[0];
+                    g.gain.setValueAtTime(0.0001, t);
+                    g.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + n[1]);
+                    o.connect(g); g.connect(sonar.ctx.destination);
+                    o.start(t); o.stop(t + n[1] + 0.02);
+                }
+                t += n[1];
+            });
         } catch (e) {}
     }
 
@@ -810,7 +892,7 @@
     function disparar(lienzo) {
         pararBusqueda();
         enfoque = null;
-        sonar();
+        sonar('foto');
         elDestello.style.opacity = '0.85';
         setTimeout(function () { elDestello.style.opacity = '0'; }, 120);
         var final = lienzo, dz = null;
@@ -1051,7 +1133,7 @@
     $('pe-otra').addEventListener('click', function () {
         var p = actual, repetir = $('pe-otra-txt').textContent === 'Repetir foto';
         cerrarRevision();
-        if (repetir && p) { lote.splice(lote.indexOf(p), 1); URL.revokeObjectURL(p.url); pintarLote(); esperarRetiro = false; }
+        if (repetir && p) { lote.splice(lote.indexOf(p), 1); URL.revokeObjectURL(p.url); borrarBD(p); pintarLote(); esperarRetiro = false; }
         if (camaraAbierta()) reanudar();
     });
     $('pe-limpiar').addEventListener('click', function () {
@@ -1256,10 +1338,12 @@
         }
         var p = actual;
         guardar(id, forma, function (d) {
-            if (p) { p.estado = 'guardada'; p.hojaId = id; p.nota = d.nota; p.nombre = d.nombre; }
+            if (p) { p.estado = 'guardada'; p.hojaId = id; p.nota = d.nota; p.nombre = d.nombre; guardarBD(p); }
             cerrarRevision();
             pintarLote();
+            pedirVivo();
             if (camaraAbierta()) {
+                sonar('bien');
                 mostrarNotaCamara(p, d, false);
                 reanudar();
             } else if (lote.some(function (x) { return x.estado === 'revisar'; })) {
@@ -1289,10 +1373,109 @@
     }
 
     window.addEventListener('beforeunload', function (e) {
-        if (lote.some(function (p) { return p.estado === 'cola' || p.estado === 'enviando' || p.estado === 'revisar'; })) {
+        if (lote.some(function (p) { return p.estado === 'cola' || p.estado === 'enviando'; })) {
             e.preventDefault(); e.returnValue = '';
         }
     });
+
+    // =====================================================================
+    // 6. Las hojas quedan guardadas en ESTE equipo (IndexedDB) hasta que se quiten: si se va el internet o se
+    //    cierra la página, no se pierde nada. Nunca suben a la plataforma más que para leerlas.
+    // =====================================================================
+    var EXAMEN = {{ examen.id }}, DIAS = 7, avisoLote = '';
+    var bd = new Promise(function (ok) {
+        try {
+            var r = indexedDB.open('puntoexacto-escaner', 1);
+            r.onupgradeneeded = function () {
+                var t = r.result.createObjectStore('paginas', {keyPath: 'clave'});
+                t.createIndex('examen', 'examen');
+            };
+            r.onsuccess = function () { ok(r.result); };
+            r.onerror = function () { ok(null); };
+        } catch (e) { ok(null); }
+    });
+    var CAMPOS = ['uid', 'creada', 'estado', 'pp', 'margenPx', 'ancho_mm', 'alto_mm', 'sinMarcas', 'lectura', 'respuestas',
+                  'notaInfo', 'nombre', 'nota', 'hojaId', 'dudas', 'error'];
+    function guardarBD(p) {
+        bd.then(function (db) {
+            if (!db || !p.uid) return;
+            var fila = {clave: EXAMEN + '-' + p.uid, examen: EXAMEN, raw: p.raw};
+            CAMPOS.forEach(function (k) { fila[k] = p[k] === undefined ? null : p[k]; });
+            try { db.transaction('paginas', 'readwrite').objectStore('paginas').put(fila); } catch (e) {}
+        });
+    }
+    function borrarBD(p) {
+        bd.then(function (db) {
+            if (!db || !p.uid) return;
+            try { db.transaction('paginas', 'readwrite').objectStore('paginas').delete(EXAMEN + '-' + p.uid); } catch (e) {}
+        });
+    }
+    bd.then(function (db) {
+        if (!db) return;
+        var req;
+        try { req = db.transaction('paginas').objectStore('paginas').index('examen').getAll(EXAMEN); } catch (e) { return; }
+        req.onsuccess = function () {
+            var filas = (req.result || []).sort(function (a, b) { return a.creada - b.creada; }), vivas = 0;
+            filas.forEach(function (f) {
+                if (Date.now() - (f.creada || 0) > DIAS * 864e5 || !f.raw) {
+                    try { db.transaction('paginas', 'readwrite').objectStore('paginas').delete(f.clave); } catch (e) {}
+                    return;
+                }
+                var p = {id: siguienteId++, raw: f.raw, url: URL.createObjectURL(f.raw)};
+                CAMPOS.forEach(function (k) { p[k] = f[k] === null ? undefined : f[k]; });
+                if (p.estado === 'cola' || p.estado === 'enviando') p.estado = 'espera';
+                lote.push(p); vivas++;
+            });
+            if (vivas) {
+                avisoLote = 'Se recuperaron ' + vivas + ' hoja' + (vivas > 1 ? 's' : '') + ' que quedaron en este equipo.';
+                pintarLote();
+                reintentar();
+            }
+        };
+    });
+
+    // =====================================================================
+    // 7. Cómo va el grupo (en vivo, desde lo que ya quedó guardado)
+    // =====================================================================
+    var urlVivo = "{% url 'puntoexacto:en_vivo' examen_id=examen.id %}", vivo = null, esperaVivo = null;
+    function colorPct(p) { return p >= 70 ? '#0b8a4a' : p >= 50 ? '#1b5fa8' : p >= 35 ? '#d48a00' : '#c92a2a'; }
+    function pedirVivo() {
+        clearTimeout(esperaVivo);
+        esperaVivo = setTimeout(function () {
+            fetch(urlVivo, {headers: {'X-Requested-With': 'XMLHttpRequest'}}).then(function (r) { return r.json(); })
+                .then(function (d) { vivo = d; pintarVivo(); }).catch(function () {});
+        }, 1200);
+    }
+    function htmlVivo(compacto) {
+        var d = vivo;
+        if (!d || !d.n) return '<p class="pe-leyenda mb-0">Todavía no hay hojas calificadas.</p>';
+        var h = '<div class="pe-vivo-cifras"><div><b>' + d.n + ' / ' + d.total + '</b><span>hojas calificadas</span></div>' +
+                (d.promedio !== null ? '<div><b style="color:' + colorNota(d.promedio) + '">' + d.promedio + '</b><span>nota promedio</span></div>' : '') + '</div>';
+        if (!compacto) {
+            h += '<div class="pe-barras">' + d.preguntas.map(function (q) {
+                return '<div class="b" title="Pregunta ' + q.numero + ': ' + q.pct + ' % la acertó"><i style="height:' + Math.max(2, q.pct) +
+                       '%;background:' + colorPct(q.pct) + '"></i><small>' + q.numero + '</small></div>';
+            }).join('') + '</div><div class="pe-leyenda">Acierto por pregunta (altura = % que la acertó).</div>';
+        }
+        if (d.falladas.length) {
+            h += '<div class="pe-falladas"><strong>Las más falladas:</strong><br>' + d.falladas.slice(0, compacto ? 3 : 5).map(function (q) {
+                return '<span>N.º ' + q.numero + ' · ' + q.pct + ' %' + (q.distractor ? ' · muchos marcaron ' + escapar(q.distractor[0]) : '') + '</span>';
+            }).join('') + '</div>';
+        }
+        return h;
+    }
+    function pintarVivo() {
+        $('pe-panel-vivo').style.display = vivo && vivo.n ? '' : 'none';
+        $('pe-vivo').innerHTML = htmlVivo(false);
+        if ($('pe-cam-vivo').classList.contains('si')) $('pe-cam-vivo').innerHTML = htmlVivo(true);
+    }
+    $('pe-vivo-cam').addEventListener('click', function () {
+        var c = $('pe-cam-vivo'), si = !c.classList.contains('si');
+        c.classList.toggle('si', si);
+        this.classList.toggle('activo', si);
+        if (si) { c.innerHTML = htmlVivo(true); pedirVivo(); }
+    });
+    pedirVivo();
 
     function escapar(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {

@@ -1,7 +1,7 @@
 """PuntoExacto · informes en PDF al estilo ICFES (por estudiante y general) y pruebas unidas (varios exámenes)."""
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -136,6 +136,73 @@ def informes_estudiantes(request, examen_id):
     return _pdf(request, 'puntoexacto/informe_estudiantes_pdf.html',
                 {'d': datos, 'lista': lista, 'institucion': _institucion(request), 'hoy': timezone.localdate(), 'tema': tema, **_fechas(datos)},
                 f'Informes por estudiante - {_nombre_archivo(examen.titulo)}')
+
+
+# ----------------------------------------------------------------------------- hojas calificadas
+def _respuesta_pdf(pdf, nombre):
+    r = HttpResponse(pdf, content_type='application/pdf')
+    r['Content-Disposition'] = f'inline; filename="{nombre}.pdf"'
+    return r
+
+
+@login_required
+@personal_requerido
+def hoja_calificada(request, examen_id, hoja_id):
+    """La hoja de un estudiante con lo bueno, lo malo y la nota, para devolvérsela."""
+    from . import hoja_calificada as HC
+    examen = _examen_o_404(request, examen_id)
+    hoja = get_object_or_404(examen.hojas.select_related('estudiante__user', 'estudiante__curso__sede'), pk=hoja_id)
+    pdf = HC.pdf_calificadas(examen, [hoja])
+    if pdf is None:
+        raise Http404
+    return _respuesta_pdf(pdf, f'Hoja calificada - {_nombre_archivo(hoja.nombre)}')
+
+
+@login_required
+@personal_requerido
+def hojas_calificadas(request, examen_id):
+    """Las hojas calificadas de todos (una por página), en el orden en que se reparten; ?curso= para un salón."""
+    from . import hoja_calificada as HC
+    from . import hojas as hojas_mod
+    examen = _examen_o_404(request, examen_id)
+    lista = list(examen.hojas.filter(estado__in=('calificada', 'revisar'))
+                 .select_related('estudiante__user', 'estudiante__curso__sede')
+                 .order_by('estudiante__curso__grado', 'estudiante__curso__nombre',
+                           'estudiante__user__last_name', 'estudiante__user__first_name', 'nombre_libre', 'identificador'))
+    curso = request.GET.get('curso')
+    if curso:
+        lista = [h for h in lista if (getattr(hojas_mod.curso_de_hoja(h), 'nombre', '') == curso)]
+    pdf = HC.pdf_calificadas(examen, lista)
+    if pdf is None:
+        messages.info(request, 'Todavía no hay hojas calificadas.')
+        return redirect('puntoexacto:resultados', examen_id=examen.id)
+    return _respuesta_pdf(pdf, f'Hojas calificadas - {_nombre_archivo(examen.titulo)}')
+
+
+@login_required
+@personal_requerido
+def en_vivo(request, examen_id):
+    """Cómo va el grupo mientras se califica: promedio, acierto por pregunta y las más falladas (JSON)."""
+    from collections import Counter
+    examen = _examen_o_404(request, examen_id)
+    hojas = list(examen.hojas.filter(estado__in=('calificada', 'revisar')).prefetch_related('respuestas'))
+    preguntas = list(examen.preguntas.filter(anulada=False, es_control=False).order_by('numero'))
+    n = len(hojas)
+    filas = []
+    for p in preguntas:
+        marcas = [next((r.marcada for r in h.respuestas.all() if r.pregunta_id == p.id), '') for h in hojas]
+        bien = sum(1 for m in marcas if m and m == p.correcta)
+        otras = Counter(m for m in marcas if m and m != p.correcta and m != '?')
+        dis = otras.most_common(1)[0] if otras else None
+        filas.append({'numero': p.numero, 'pct': round(100 * bien / n) if n else 0, 'correcta': p.rotulo(p.correcta),
+                      'distractor': [p.rotulo(dis[0]), round(100 * dis[1] / n)] if dis else None})
+    notas = [float(h.nota) for h in hojas if h.nota is not None]
+    return JsonResponse({
+        'n': n, 'total': examen.hojas.exclude(estado='ausente').count(),
+        'promedio': round(sum(notas) / len(notas), 2) if notas else None,
+        'preguntas': filas,
+        'falladas': sorted([f for f in filas if n], key=lambda f: f['pct'])[:5],
+    })
 
 
 # ----------------------------------------------------------------------------- pruebas unidas
