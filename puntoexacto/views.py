@@ -1435,7 +1435,9 @@ def escanear(request, examen_id):
         if pp != actual and hojas_mod.capacidad(pp, examen.opciones_maximas()) < examen.numero_preguntas:
             continue
         geo = _geometria_de_examen(examen, ids, pp)
-        guia.append(dict({k: geo[k] for k in ('ancho_mm', 'alto_mm', 'marca_mm', 'marcas_mm')}, por_pagina=pp))
+        guia.append(dict({k: geo[k] for k in ('ancho_mm', 'alto_mm', 'marca_mm', 'marcas_mm', 'barras_x_mm',
+                                             'barras_grosor_mm', 'barras_y0_mm', 'barras_largo_max_mm')},
+                          por_pagina=pp))
     return render(request, 'puntoexacto/escanear.html', {
         'examen': examen,
         'pendientes': sum(1 for h in hojas_lista if h.estado != 'calificada'),
@@ -1662,6 +1664,9 @@ def _guardar_hoja(examen, hoja, respuestas, forma):
     elif not examen.formas.filter(letra=hoja.forma).exists():
         hoja.forma = 'A'
     with transaction.atomic():
+        # Si llegan dos fotos de la misma hoja a la vez (la cámara manda dos en paralelo), se guardan una tras
+        # otra: las dos borran y vuelven a crear las respuestas, y a la vez chocarían.
+        Hoja.objects.select_for_update().filter(pk=hoja.pk).first()
         hoja.save(update_fields=['forma'])
         # Las respuestas vienen por posición en la hoja impresa; si la hoja es
         # de la forma B se traducen a la A antes de guardarse.

@@ -16,6 +16,9 @@
         <i class="fas fa-file-pdf me-1"></i> Informe general (PDF)</a>
     <a href="{% url 'puntoexacto:informes_estudiantes' examen_id=examen.id %}" target="_blank" class="btn btn-outline-primary">
         <i class="fas fa-file-pdf me-1"></i> Informes por estudiante (PDF)</a>
+    <a href="{% url 'puntoexacto:hojas_calificadas' examen_id=examen.id %}" target="_blank" class="btn btn-outline-primary"
+       title="La hoja de cada estudiante con lo bueno, lo malo y la nota, para devolvérsela">
+        <i class="fas fa-file-circle-check me-1"></i> Hojas calificadas (PDF)</a>
     {% if examen.cuenta_id %}
     {% if examen.grupo.aula %}<a href="{% url 'aula:calificaciones' examen.grupo.aula.pk %}" class="btn btn-primary crece">
         Ver en la planilla del grupo</a>{% endif %}
@@ -190,6 +193,8 @@
                 <td class="text-end">
                     {% if h.clave_informe %}<a href="{% url 'puntoexacto:informe_estudiante' examen_id=examen.id clave=h.clave_informe %}" target="_blank"
                        class="btn btn-sm btn-outline-primary" title="Informe del estudiante en PDF"><i class="fas fa-file-pdf"></i> Informe</a>{% endif %}
+                    {% if h.clave_informe %}<a href="{% url 'puntoexacto:hoja_calificada' examen_id=examen.id hoja_id=h.id %}" target="_blank"
+                       class="btn btn-sm btn-outline-primary" title="Su hoja calificada en PDF"><i class="fas fa-file-circle-check"></i> Hoja</a>{% endif %}
                     <a href="{% url 'puntoexacto:digitar' examen_id=examen.id hoja_id=h.id %}"
                        class="btn btn-sm btn-outline-secondary">Editar</a>
                 </td>

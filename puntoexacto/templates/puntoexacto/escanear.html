@@ -1,95 +1,152 @@
 {% extends 'puntoexacto/_base_pe.html' %}
+{% load static %}
 {% block title %}Calificar con la cámara - {{ block.super }}{% endblock %}
 {% block page_title %}Calificar con la cámara · {{ examen.titulo }} <span class="fs-6 text-muted fw-normal">(Examen N.º {{ examen.id }})</span>{% endblock %}
 
 {% block content %}
 <style>
-    .pe-escaner { max-width:900px; }
-    .pe-tomar { display:block; width:100%; padding:18px; font-size:1.15rem; }
+    .pe-escaner { max-width:960px; }
+    .pe-tomar { display:block; width:100%; padding:16px; font-size:1.12rem; }
+    .pe-acciones { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+    .pe-acciones .btn { padding:12px 8px; font-size:.95rem; }
+    .pe-ajuste { display:flex; align-items:center; gap:8px; margin-top:12px; font-size:.9rem; }
+    .pe-ajuste input { width:20px; height:20px; }
 
-    /* ---- Cámara en vivo (pantalla completa, como un escáner de documentos) ---- */
-    .pe-camara { position:fixed; inset:0; z-index:2000; background:#000; color:#fff;
-                 display:none; flex-direction:column; touch-action:manipulation; }
-    .pe-camara.abierta { display:flex; }
-    .pe-cam-arriba, .pe-cam-abajo { display:flex; align-items:center; gap:10px;
-                 padding:10px 14px; background:rgba(0,0,0,.55); }
-    .pe-cam-arriba { justify-content:space-between; font-size:.9rem; }
-    .pe-cam-boton { background:rgba(255,255,255,.14); color:#fff; border:0; border-radius:999px;
-                    min-width:44px; height:44px; padding:0 14px; font-size:1rem; }
-    .pe-cam-boton.activo { background:#f5c400; color:#000; }
-    .pe-visor { position:relative; flex:1; display:flex; align-items:center; justify-content:center;
-                overflow:hidden; }
-    .pe-visor-caja { position:relative; max-width:100%; max-height:100%; }
+    /* ---- Cámara: el video ocupa toda la pantalla y los controles flotan encima ---- */
+    .pe-camara { position:fixed; inset:0; z-index:2000; background:#000; color:#fff; display:none;
+                 touch-action:manipulation; user-select:none; -webkit-user-select:none; }
+    .pe-camara.abierta { display:block; }
+    .pe-visor { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .pe-visor-caja { position:relative; }
     .pe-visor video { display:block; width:100%; height:100%; }
     .pe-visor svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
-    .pe-cam-estado { text-align:center; padding:8px 14px 2px; font-size:1rem; min-height:2.6em;
-                     background:rgba(0,0,0,.55); }
+    .pe-cam-arriba { position:absolute; top:0; left:0; right:0; z-index:3; display:flex; align-items:center;
+                     justify-content:space-between; gap:8px;
+                     padding:max(10px, env(safe-area-inset-top)) 12px 18px;
+                     background:linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,0)); }
+    .pe-cam-boton { background:rgba(0,0,0,.42); color:#fff; border:0; border-radius:999px;
+                    min-width:42px; height:42px; padding:0 12px; font-size:.95rem; display:inline-flex;
+                    align-items:center; justify-content:center; gap:6px; }
+    .pe-cam-boton.activo { background:#f5c400; color:#000; }
+    .pe-cam-boton small { font-size:.72rem; font-weight:700; }
+    .pe-cuenta { background:rgba(0,0,0,.42); border-radius:999px; padding:6px 12px; font-size:.85rem; font-weight:600; }
+    .pe-cuenta .ok { color:#7dff9b; } .pe-cuenta .rv { color:#ffd166; }
+    .pe-cam-estado { position:absolute; left:50%; top:calc(max(10px, env(safe-area-inset-top)) + 54px); z-index:3;
+                     transform:translateX(-50%); max-width:92%; text-align:center; font-size:.92rem;
+                     background:rgba(0,0,0,.58); border-radius:999px; padding:6px 14px; pointer-events:none; }
     .pe-cam-estado.bien { color:#7dff9b; } .pe-cam-estado.mal { color:#ffb4a8; }
-    .pe-cam-abajo { justify-content:space-around; padding-bottom:max(14px, env(safe-area-inset-bottom)); }
-    .pe-disparador { width:70px; height:70px; border-radius:50%; border:5px solid #fff;
-                     background:rgba(255,255,255,.25); }
+    .pe-cam-abajo { position:absolute; left:0; right:0; bottom:0; z-index:3; display:flex; flex-direction:column;
+                    align-items:center; gap:10px; padding:22px 16px max(16px, env(safe-area-inset-bottom));
+                    background:linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.6)); }
+    .pe-modos { display:flex; gap:2px; background:rgba(0,0,0,.45); border-radius:999px; padding:3px; }
+    .pe-modos button { border:0; background:transparent; color:#ddd; border-radius:999px; padding:6px 13px;
+                       font-size:.8rem; font-weight:700; letter-spacing:.02em; }
+    .pe-modos button.on { background:#fff; color:#000; }
+    .pe-fila-disparo { display:flex; align-items:center; justify-content:space-between; width:100%; max-width:440px; }
+    .pe-disparador { width:72px; height:72px; border-radius:50%; border:5px solid #fff; background:rgba(255,255,255,.22); }
     .pe-disparador:active { background:#fff; }
-    .pe-auto { width:90px; font-size:.72rem; text-align:center; line-height:1.15; opacity:.9; }
-    .pe-auto input { display:block; margin:0 auto 3px; width:20px; height:20px; }
+    .pe-bandeja { width:54px; height:54px; border-radius:12px; border:2px solid rgba(255,255,255,.9); position:relative;
+                  background:#222 center/cover no-repeat; color:#fff; font-size:.7rem; padding:0; }
+    .pe-bandeja b { position:absolute; top:-9px; right:-9px; background:#fff; color:#000; border-radius:999px;
+                    min-width:22px; height:22px; font-size:.75rem; display:flex; align-items:center; justify-content:center; padding:0 5px; }
+    .pe-bandeja em { position:absolute; top:-9px; left:-9px; background:#f5a400; color:#000; border-radius:999px; font-style:normal;
+                     min-width:22px; height:22px; font-size:.75rem; font-weight:700; display:none; align-items:center; justify-content:center; padding:0 5px; }
+    .pe-bandeja em.si { display:flex; }
+    .pe-listo { width:54px; height:54px; border-radius:50%; border:0; background:rgba(0,0,0,.42); color:#fff; font-size:.72rem; font-weight:700; }
+    @media (orientation: landscape) {
+        .pe-cam-abajo { top:0; left:auto; right:0; bottom:0; width:120px; flex-direction:row-reverse; justify-content:center;
+                        padding:12px max(12px, env(safe-area-inset-right)) 12px 8px;
+                        background:linear-gradient(to left, rgba(0,0,0,.6), rgba(0,0,0,0)); }
+        .pe-fila-disparo { flex-direction:column-reverse; width:auto; height:100%; max-height:360px; justify-content:space-between; }
+        .pe-modos { position:absolute; right:calc(100% + 10px); bottom:max(12px, env(safe-area-inset-bottom)); white-space:nowrap; }
+        .pe-cam-arriba { right:120px; }
+    }
     .pe-leyendo { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
                   background:rgba(0,0,0,.55); font-size:1.2rem; font-weight:600; }
     .pe-leyendo.si { display:flex; }
-    .pe-destello { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none;
-                   transition:opacity .25s; }
-    /* Resultado encima de la cámara, cuando la hoja se guardó sola */
-    .pe-cam-nota { position:absolute; left:50%; bottom:16px; transform:translateX(-50%); width:min(92%, 380px);
-                   background:rgba(255,255,255,.97); color:#111; border-radius:16px; padding:14px 16px;
-                   box-shadow:0 10px 30px rgba(0,0,0,.4); display:none; }
+    .pe-destello { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; transition:opacity .25s; }
+    /* Aviso de la última hoja (encima de la cámara) */
+    .pe-cam-nota { position:absolute; left:50%; bottom:calc(150px + env(safe-area-inset-bottom)); transform:translateX(-50%);
+                   width:min(92%, 380px); z-index:4; background:rgba(255,255,255,.97); color:#111; border-radius:16px;
+                   padding:10px 12px; box-shadow:0 10px 30px rgba(0,0,0,.4); display:none; }
+    @media (orientation: landscape) { .pe-cam-nota { bottom:auto; top:calc(max(10px, env(safe-area-inset-top)) + 98px); left:calc(50% - 60px); } }
     .pe-cam-nota.si { display:block; animation:pe-sube .25s ease-out; }
     @keyframes pe-sube { from { transform:translate(-50%, 20px); opacity:0; } }
-    .pe-cam-nota .fila { display:flex; align-items:center; gap:14px; }
-    .pe-cam-nota .valor { font-size:2.6rem; font-weight:800; line-height:1; min-width:84px; text-align:center;
-                          border-radius:12px; padding:8px 6px; color:#fff; }
+    .pe-cam-nota .fila { display:flex; align-items:center; gap:12px; }
+    .pe-cam-nota .valor { font-size:2rem; font-weight:800; line-height:1; min-width:70px; text-align:center;
+                          border-radius:12px; padding:7px 6px; color:#fff; }
+
+    /* ---- Hojas escaneadas (lote) ---- */
+    .pe-lote-barra { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+    .pe-lote { display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:12px; }
+    .pe-pag { position:relative; border:1px solid #e3e6ec; border-radius:10px; overflow:hidden; background:#f4f5f7; }
+    .pe-pag img { display:block; width:100%; aspect-ratio:0.77; object-fit:contain; background:#fff; cursor:pointer; }
+    .pe-pag .num { position:absolute; top:6px; left:6px; background:rgba(0,0,0,.6); color:#fff; border-radius:6px;
+                   font-size:.72rem; padding:1px 6px; }
+    .pe-pag .est { font-size:.78rem; padding:6px 7px 2px; line-height:1.25; min-height:2.6em; }
+    .pe-pag .est b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pe-pag .botones { display:flex; justify-content:space-between; padding:2px 4px 6px; }
+    .pe-pag .botones button { border:0; background:transparent; color:#4b5563; font-size:.85rem; padding:3px 6px; border-radius:6px; }
+    .pe-pag .botones button:hover { background:#e5e7eb; }
+    .pe-pag.guardada { border-color:#0b6b4a; } .pe-pag.revisar { border-color:#d48a00; box-shadow:0 0 0 2px #ffd166; }
+    .pe-pag.error, .pe-pag.ajena { border-color:#b42318; }
+    .pe-chip-e { display:inline-block; border-radius:999px; padding:0 7px; font-size:.7rem; font-weight:700; }
+    .pe-chip-e.g { background:#dcfce7; color:#0b6b4a; } .pe-chip-e.r { background:#fff3d6; color:#8a5200; }
+    .pe-chip-e.e { background:#fee2e2; color:#a4161a; } .pe-chip-e.n { background:#e5e7eb; color:#374151; }
+    .pe-progreso { font-size:.9rem; color:#374151; margin:6px 0 10px; }
+    .pe-chip-e.w { background:#e0e7ff; color:#3730a3; }
+    .pe-pag.espera { border-color:#6366f1; }
+    /* Cómo va el grupo */
+    .pe-vivo-cifras { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    .pe-vivo-cifras div { flex:1; min-width:110px; border:1px solid #e3e6ec; border-radius:10px; padding:8px 10px; }
+    .pe-vivo-cifras b { display:block; font-size:1.4rem; line-height:1.1; }
+    .pe-vivo-cifras span { font-size:.78rem; color:#6b7280; }
+    .pe-barras { display:flex; align-items:flex-end; gap:3px; height:84px; padding:4px 0; overflow-x:auto; }
+    .pe-barras .b { flex:1 0 14px; max-width:28px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+    .pe-barras .b i { display:block; width:100%; border-radius:3px 3px 0 0; min-height:2px; }
+    .pe-barras .b small { font-size:.62rem; color:#6b7280; margin-top:2px; }
+    .pe-falladas { font-size:.88rem; margin-top:8px; }
+    .pe-falladas span { display:inline-block; margin:0 6px 6px 0; padding:3px 10px; border-radius:999px; background:#fee2e2; color:#7f1d1d; }
+    .pe-cam-vivo { position:absolute; z-index:4; right:12px; top:calc(max(10px, env(safe-area-inset-top)) + 96px); width:min(88vw, 320px);
+                   background:rgba(255,255,255,.97); color:#111; border-radius:14px; padding:10px 12px; display:none;
+                   box-shadow:0 10px 30px rgba(0,0,0,.4); }
+    .pe-cam-vivo.si { display:block; }
+    @media (orientation: landscape) { .pe-cam-vivo { right:132px; top:60px; } }
 
     /* ---- Revisión (pantalla completa) ---- */
-    .pe-revision { position:fixed; inset:0; z-index:2010; background:#f4f5f7; display:none;
-                   flex-direction:column; }
+    .pe-revision { position:fixed; inset:0; z-index:2010; background:#f4f5f7; display:none; flex-direction:column; }
     .pe-revision.abierta { display:flex; }
     .pe-rev-cuerpo { flex:1; overflow:auto; padding:12px; -webkit-overflow-scrolling:touch; }
     .pe-rev-pie { display:flex; gap:8px; padding:10px 12px; background:#fff;
                   border-top:1px solid #e3e6ec; padding-bottom:max(10px, env(safe-area-inset-bottom)); }
     .pe-rev-pie .btn { flex:1; padding:12px 6px; font-size:1rem; }
-    .pe-rev-bloque { background:#fff; border:1px solid #e3e6ec; border-radius:10px; padding:12px;
-                     margin-bottom:12px; }
+    .pe-rev-bloque { background:#fff; border:1px solid #e3e6ec; border-radius:10px; padding:12px; margin-bottom:12px; }
     .pe-lienzo { position:relative; display:inline-block; line-height:0; }
-    .pe-marco { overflow:auto; max-height:70vh; background:#e9ebef; border-radius:8px;
-                -webkit-overflow-scrolling:touch; }
+    .pe-marco { overflow:auto; max-height:70vh; background:#e9ebef; border-radius:8px; -webkit-overflow-scrolling:touch; }
     .pe-lienzo img { display:block; width:100%; height:auto; }
-    .pe-burbuja { position:absolute; transform:translate(-50%,-50%);
-                  border-radius:50%; box-sizing:border-box; cursor:pointer;
+    .pe-burbuja { position:absolute; transform:translate(-50%,-50%); border-radius:50%; box-sizing:border-box; cursor:pointer;
                   border:2px solid rgba(90,100,115,.25); background:transparent; }
     .pe-burbuja.marcada { background:rgba(27,95,168,.5); border-color:#1b5fa8; }
     .pe-burbuja.marcada.bien { background:rgba(13,140,70,.6); border-color:#0b6b4a; }
     .pe-burbuja.marcada.mal { background:rgba(200,30,30,.55); border-color:#a4161a; }
     .pe-burbuja.correcta { border:3px dashed #0b8a4a; }
     .pe-burbuja.duda { box-shadow:0 0 0 4px rgba(230,150,0,.7); }
-    .pe-burbuja.tocada { outline:3px solid #1b5fa8; }
     .pe-sello { position:absolute; top:8px; left:8px; z-index:3; line-height:1.1; color:#fff; border-radius:12px;
                 padding:8px 12px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,.25); pointer-events:none; }
-    .pe-sello b { display:block; font-size:2rem; }
-    .pe-sello span { font-size:.78rem; }
+    .pe-sello b { display:block; font-size:2rem; } .pe-sello span { font-size:.78rem; }
     .pe-barra-zoom { display:flex; gap:10px; align-items:center; margin:8px 0; }
     .pe-estado-grande { font-size:1.05rem; font-weight:600; }
-    .pe-fila-duda { display:inline-block; margin:0 6px 6px 0; padding:4px 11px;
-                    border:1px solid #c77800; border-radius:999px; color:#8a5200;
-                    cursor:pointer; background:#fff8e6; font-size:.88rem; }
+    .pe-fila-duda { display:inline-block; margin:0 6px 6px 0; padding:4px 11px; border:1px solid #c77800; border-radius:999px;
+                    color:#8a5200; cursor:pointer; background:#fff8e6; font-size:.88rem; }
     .pe-cabeza { display:flex; gap:14px; align-items:center; }
     .pe-nota-grande { font-size:2.4rem; font-weight:800; color:#fff; border-radius:12px; padding:6px 12px;
                       min-width:92px; text-align:center; line-height:1.05; }
     .pe-nota-grande small { display:block; font-size:.72rem; font-weight:600; opacity:.95; }
-
-    /* Rejilla de respuestas: botones grandes para el dedo */
     .pe-rejilla { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:6px 14px; }
     .pe-renglon { display:flex; align-items:center; gap:5px; padding:3px 4px; border-radius:8px; }
     .pe-renglon.duda { background:#fff3d6; box-shadow:inset 0 0 0 2px #e0a100; }
     .pe-renglon.tocado { background:#e3eefc; }
-    .pe-renglon .n { width:30px; text-align:right; font-weight:700; font-variant-numeric:tabular-nums;
-                     color:#374151; margin-right:3px; }
+    .pe-renglon .n { width:30px; text-align:right; font-weight:700; font-variant-numeric:tabular-nums; color:#374151; margin-right:3px; }
     .pe-op { width:38px; height:38px; border-radius:50%; border:2px solid #9aa3b2; background:#fff;
              font-weight:700; color:#4b5563; padding:0; font-size:.92rem; }
     .pe-op.si { background:#1b5fa8; border-color:#1b5fa8; color:#fff; }
@@ -108,27 +165,53 @@
 
 <div class="pe-tarjeta">
     <p class="text-muted" style="font-size:.92rem;">
-        Abra la cámara y apunte a la hoja: la cámara <strong>busca sola la hoja y sus cuatro
-        esquinas negras</strong>, esté cerca o lejos, y toma la foto cuando la ve quieta.
-        Enseguida sale la <strong>nota sobre la foto</strong>. Si algo no se vio claro, lo corrige
-        tocando con el dedo; si todo estaba claro, se guarda sola y la cámara sigue con la
-        siguiente hoja.
-    </p>
-    <p class="text-muted" style="font-size:.86rem;">
-        La foto no se guarda en el servidor: entra, se mide y se descarta.
+        Apunte a la hoja, <strong>vertical o acostada</strong>: la cámara busca sola las cuatro esquinas negras,
+        endereza la hoja y la califica <strong>mientras usted pasa a la siguiente</strong>. Las hojas que tengan
+        algo dudoso quedan apartadas para revisarlas al final.
     </p>
     {% csrf_token %}
-    <input type="file" accept="image/*" capture="environment" id="pe-archivo" hidden>
+    <input type="file" accept="application/pdf,image/*" id="pe-archivo" multiple hidden>
     <button type="button" class="btn btn-primary pe-tomar" id="pe-abrir-camara">
-        <i class="fas fa-camera me-2"></i> Escanear hojas con la cámara
+        <i class="fas fa-camera me-2"></i> Calificar con la cámara
     </button>
-    <button type="button" class="btn btn-link w-100 mt-1" id="pe-tomar">
-        <i class="fas fa-image me-1"></i> o subir una foto ya tomada
-    </button>
-    <div id="pe-sin-camara" class="alert alert-warning mt-2 mb-0" style="display:none;font-size:.9rem;"></div>
-    <div class="form-text text-center mt-2">
-        <span id="pe-pendientes">{{ pendientes }}</span> de {{ total }} hoja{{ total|pluralize }} sin calificar.
+    <div class="pe-acciones">
+        <button type="button" class="btn btn-outline-primary" id="pe-abrir-pdf">
+            <i class="fas fa-file-pdf me-1"></i> Escanear a PDF</button>
+        <button type="button" class="btn btn-outline-primary" id="pe-tomar">
+            <i class="fas fa-file-import me-1"></i> Calificar un PDF o fotos</button>
     </div>
+    <label class="pe-ajuste"><input type="checkbox" id="pe-auto" checked> Guardar sola cada hoja que se lea sin dudas</label>
+    <div id="pe-sin-camara" class="alert alert-warning mt-2 mb-0" style="display:none;font-size:.9rem;"></div>
+    <div class="form-text mt-2">
+        <span id="pe-pendientes">{{ pendientes }}</span> de {{ total }} hoja{{ total|pluralize }} sin calificar.
+        Las fotos y los PDF no se guardan en la plataforma: se leen y se descartan.
+    </div>
+</div>
+
+<div class="pe-tarjeta" id="pe-panel-lote" style="display:none;">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">Hojas escaneadas (<span id="pe-lote-n">0</span>)</h5>
+        <button type="button" class="btn btn-sm btn-link text-danger" id="pe-vaciar">Quitar todas</button>
+    </div>
+    <div class="pe-progreso" id="pe-progreso"></div>
+    <div class="pe-lote-barra">
+        <button type="button" class="btn btn-success" id="pe-calificar-todas"><i class="fas fa-check-double me-1"></i> Calificar las que faltan</button>
+        <button type="button" class="btn btn-warning" id="pe-revisar-sig" style="display:none;"><i class="fas fa-hand-pointer me-1"></i> Revisar dudosas (<span id="pe-n-rev">0</span>)</button>
+        <button type="button" class="btn btn-outline-primary" id="pe-pdf"><i class="fas fa-file-arrow-down me-1"></i> Descargar PDF</button>
+        <button type="button" class="btn btn-outline-primary" id="pe-pdf-cal" disabled><i class="fas fa-file-circle-check me-1"></i> PDF calificado</button>
+        <button type="button" class="btn btn-outline-secondary" id="pe-mas"><i class="fas fa-camera me-1"></i> Escanear más</button>
+    </div>
+    <div class="pe-lote" id="pe-lote"></div>
+    <p class="pe-leyenda mt-2 mb-0">El PDF se arma en su celular o computador y se descarga ahí; no queda guardado en la plataforma.
+        «PDF calificado» lleva encima la nota y lo bueno y lo malo de cada hoja.</p>
+</div>
+
+<div class="pe-tarjeta" id="pe-panel-vivo" style="display:none;">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">Cómo va el grupo</h5>
+        <span class="pe-leyenda">Se actualiza solo al guardar cada hoja</span>
+    </div>
+    <div id="pe-vivo"></div>
 </div>
 
 <div class="pe-tarjeta" id="pe-historial" style="display:none;">
@@ -137,17 +220,8 @@
 </div>
 </div>
 
-<!-- Cámara en vivo -->
+<!-- Cámara -->
 <div class="pe-camara" id="pe-camara" aria-label="Cámara">
-    <div class="pe-cam-arriba">
-        <button type="button" class="pe-cam-boton" id="pe-cerrar-camara" aria-label="Cerrar la cámara">
-            <i class="fas fa-xmark"></i>
-        </button>
-        <span><span id="pe-contador">0</span> calificada<span id="pe-contador-s">s</span></span>
-        <button type="button" class="pe-cam-boton" id="pe-linterna" aria-label="Linterna" style="visibility:hidden;">
-            <i class="fas fa-bolt"></i>
-        </button>
-    </div>
     <div class="pe-visor" id="pe-visor">
         <div class="pe-visor-caja" id="pe-visor-caja">
             <video id="pe-video" playsinline muted autoplay></video>
@@ -155,25 +229,42 @@
             <div class="pe-destello" id="pe-destello"></div>
             <div class="pe-leyendo" id="pe-leyendo"><span><i class="fas fa-spinner fa-spin me-2"></i>Leyendo la hoja…</span></div>
         </div>
-        <div class="pe-cam-nota" id="pe-cam-nota">
-            <div class="fila">
-                <div class="valor" id="pe-cam-nota-valor">–</div>
-                <div style="flex:1;min-width:0;">
-                    <div class="fw-bold text-truncate" id="pe-cam-nota-nombre"></div>
-                    <div class="small" id="pe-cam-nota-detalle"></div>
-                    <div class="small text-success fw-semibold"><i class="fas fa-check me-1"></i>Guardada</div>
-                </div>
-            </div>
-            <button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-2" id="pe-cam-corregir">
-                <i class="fas fa-hand-pointer me-1"></i> Revisar o corregir esta hoja
-            </button>
-        </div>
+    </div>
+    <div class="pe-cam-arriba">
+        <button type="button" class="pe-cam-boton" id="pe-cerrar-camara" aria-label="Cerrar la cámara"><i class="fas fa-xmark"></i></button>
+        <span class="pe-cuenta"><span class="ok"><i class="fas fa-check"></i> <span id="pe-contador">0</span></span>
+            <span class="rv" id="pe-cuenta-rv" style="display:none;"> · <i class="fas fa-triangle-exclamation"></i> <span id="pe-contador-rv">0</span></span>
+            <span id="pe-cuenta-cola" style="display:none;"> · <i class="fas fa-spinner fa-spin"></i> <span id="pe-contador-cola">0</span></span>
+            <span id="pe-cuenta-red" style="display:none;color:#c7d2fe;"> · <i class="fas fa-wifi"></i><i class="fas fa-slash" style="margin-left:-1.05em;"></i> <span id="pe-contador-red">0</span></span></span>
+        <span style="display:flex;gap:6px;">
+            <button type="button" class="pe-cam-boton" id="pe-vivo-cam" aria-label="Cómo va el grupo"><i class="fas fa-chart-column"></i></button>
+            <button type="button" class="pe-cam-boton" id="pe-sonido" aria-label="Sonido"><i class="fas fa-volume-high"></i></button>
+            <button type="button" class="pe-cam-boton" id="pe-auto-cam" aria-label="Guardar sola"><i class="fas fa-wand-magic-sparkles"></i><small>Auto</small></button>
+            <button type="button" class="pe-cam-boton" id="pe-linterna" aria-label="Linterna" style="display:none;"><i class="fas fa-bolt"></i></button>
+        </span>
     </div>
     <div class="pe-cam-estado" id="pe-cam-estado">Abriendo la cámara…</div>
+    <div class="pe-cam-vivo" id="pe-cam-vivo"></div>
+    <div class="pe-cam-nota" id="pe-cam-nota">
+        <div class="fila">
+            <div class="valor" id="pe-cam-nota-valor">–</div>
+            <div style="flex:1;min-width:0;">
+                <div class="fw-bold text-truncate" id="pe-cam-nota-nombre"></div>
+                <div class="small" id="pe-cam-nota-detalle"></div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="pe-cam-corregir">Corregir</button>
+        </div>
+    </div>
     <div class="pe-cam-abajo">
-        <label class="pe-auto"><input type="checkbox" id="pe-auto" checked>Guardar sola si todo está claro</label>
-        <button type="button" class="pe-disparador" id="pe-disparar" aria-label="Tomar la foto ahora"></button>
-        <span style="width:90px;"></span>
+        <div class="pe-modos" role="tablist">
+            <button type="button" data-modo="calificar" class="on">CALIFICAR</button>
+            <button type="button" data-modo="pdf">SOLO ESCANEAR (PDF)</button>
+        </div>
+        <div class="pe-fila-disparo">
+            <button type="button" class="pe-bandeja" id="pe-bandeja" aria-label="Ver las hojas escaneadas"><b id="pe-bandeja-n">0</b><em id="pe-bandeja-rv">0</em></button>
+            <button type="button" class="pe-disparador" id="pe-disparar" aria-label="Tomar la foto ahora"></button>
+            <button type="button" class="pe-listo" id="pe-listo">Listo</button>
+        </div>
     </div>
 </div>
 
@@ -200,9 +291,7 @@
             </div>
             <div class="pe-leyenda">Verde: bien. Rojo: mal. Punteada: la respuesta correcta. Toque una burbuja para corregir lo que leyó la cámara.</div>
         </div>
-        <div class="pe-rev-bloque" id="pe-bloque-dudas">
-            <div id="pe-dudas"></div>
-        </div>
+        <div class="pe-rev-bloque" id="pe-bloque-dudas"><div id="pe-dudas"></div></div>
         <div class="pe-rev-bloque">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <strong>Respuestas leídas</strong>
@@ -225,11 +314,13 @@
 
 <script id="pe-datos-hojas" type="application/json">{{ hojas_json|safe }}</script>
 <script id="pe-datos-geo" type="application/json">{{ geo_json|safe }}</script>
+<script src="{% static 'puntoexacto/escaner.js' %}"></script>
 <script>
 (function () {
     var urlFoto = "{% url 'puntoexacto:procesar_foto' examen_id=examen.id %}";
     var urlGuardar = "{% url 'puntoexacto:guardar_lectura' examen_id=examen.id %}";
     var urlNota = "{% url 'puntoexacto:nota_previa' examen_id=examen.id %}";
+    var TITULO = "{{ examen.titulo|escapejs }}";
     var NOTA_MIN = parseFloat("{{ examen.nota_minima|stringformat:'s' }}") || 1;
     var NOTA_MAX = parseFloat("{{ examen.nota_maxima|stringformat:'s' }}") || 5;
     var csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
@@ -244,55 +335,259 @@
     var elCamara = $('pe-camara'), elVideo = $('pe-video'), elGuias = $('pe-guias');
     var elCaja = $('pe-visor-caja'), elVisor = $('pe-visor'), elEstado = $('pe-cam-estado');
     var elLeyendo = $('pe-leyendo'), elDestello = $('pe-destello'), elLinterna = $('pe-linterna');
-    var elAuto = $('pe-auto'), elCamNota = $('pe-cam-nota');
+    var elAuto = $('pe-auto'), elAutoCam = $('pe-auto-cam'), elCamNota = $('pe-cam-nota');
 
-    var lectura = null;      // lo que devolvió el servidor
-    var respuestas = {};     // lo que vale ahora, ya con las correcciones
-    var notaInfo = null;     // nota calculada con las respuestas de ahora
-    var urlObjeto = null;
-    var modoCamara = false;  // si la foto vino de la cámara en vivo
-    var yaGuardada = null;   // id de la hoja si ya se guardó sola (para corregirla)
+    // Lo que se está revisando (sale de una hoja del lote)
+    var actual = null;       // la hoja del lote abierta en la revisión
+    var lectura = null, respuestas = {}, notaInfo = null, yaGuardada = null;
     var calificadas = 0;
     var pendientes = parseInt($('pe-pendientes').textContent, 10) || 0;
 
-    try { var guardado = localStorage.getItem('pe-auto'); if (guardado !== null) elAuto.checked = guardado === '1'; } catch (e) {}
+    try { var g = localStorage.getItem('pe-auto'); if (g !== null) elAuto.checked = g === '1'; } catch (e) {}
+    function pintarAuto() { elAutoCam.classList.toggle('activo', elAuto.checked); }
     elAuto.addEventListener('change', function () {
         try { localStorage.setItem('pe-auto', elAuto.checked ? '1' : '0'); } catch (e) {}
+        pintarAuto();
     });
+    elAutoCam.addEventListener('click', function () {
+        elAuto.checked = !elAuto.checked;
+        elAuto.dispatchEvent(new Event('change'));
+        estado(elAuto.checked ? 'Auto: las hojas claras se guardan solas.' : 'Auto apagado: usted confirma cada hoja.');
+    });
+    pintarAuto();
 
     // =====================================================================
-    // 1. Cámara en vivo: encontrar la hoja en cualquier parte del cuadro
+    // 1. Lote: todas las hojas escaneadas de esta sesión (solo en este equipo)
     // =====================================================================
-    // Las marcas, en mm con el origen arriba a la izquierda (el generador
-    // las da desde abajo). Orden: sup. izq., sup. der., inf. der., inf. izq.
-    // Una por cada reparto con que pudo imprimirse la hoja (1, 2, 4 u 8 por
-    // página), empezando por el del examen: cambian las proporciones y el
-    // tamaño de las marcas. La de 2 y la de 8 por página son apaisadas.
-    var DISENOS = GEOS.map(function (g) {
-        var m = g.marcas_mm.map(function (p) { return [p[0], g.alto_mm - p[1]]; });
-        var sw = m[1][0] - m[0][0], sh = m[3][1] - m[0][1];
-        return {pp: g.por_pagina, marcas: m, spanW: sw, spanH: sh, prop: sh / sw, marca: g.marca_mm,
-                ancho: g.ancho_mm, alto: g.alto_mm,
-                borde: [[0, 0], [g.ancho_mm, 0], [g.ancho_mm, g.alto_mm], [0, g.alto_mm]]};
-    });
+    var lote = [], siguienteId = 1;
 
+    // margenPx: el borde de mesa que lleva la foto enderezada alrededor de la hoja (el PDF lo recorta).
+    function nuevaPagina(blob, dz, sinMarcas, margenPx) {
+        var p = {id: siguienteId++, raw: blob, url: URL.createObjectURL(blob), estado: 'nueva',
+                 ancho_mm: dz ? dz.ancho : null, alto_mm: dz ? dz.alto : null, margenPx: margenPx || 0,
+                 pp: dz ? dz.pp : '', sinMarcas: !!sinMarcas,
+                 uid: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), creada: Date.now()};
+        lote.push(p);
+        guardarBD(p);
+        return p;
+    }
+
+    var ETIQUETAS = {nueva: ['n', 'Sin calificar'], cola: ['n', 'En cola'], enviando: ['n', 'Leyendo…'],
+                     guardada: ['g', 'Guardada'], revisar: ['r', 'Revisar'], error: ['e', 'No se leyó'],
+                     ajena: ['e', 'De otro examen'], repetida: ['n', 'Repetida'], espera: ['w', 'Sin internet']};
+
+    function pintarLote() {
+        $('pe-panel-lote').style.display = lote.length ? '' : 'none';
+        $('pe-lote-n').textContent = lote.length;
+        var html = lote.map(function (p, i) {
+            var et = ETIQUETAS[p.estado] || ['n', p.estado];
+            var detalle = '';
+            if (p.estado === 'guardada' || p.estado === 'repetida') detalle = '<b>' + escapar(p.nombre || '') + '</b>Nota ' + escapar(p.nota);
+            else if (p.estado === 'revisar') detalle = '<b>' + escapar(p.nombre || '¿De quién es?') + '</b>' + (p.dudas ? p.dudas + ' por revisar' : 'Confirmar');
+            else if (p.estado === 'error' || p.estado === 'ajena') detalle = '<span style="font-size:.72rem;">' + escapar(p.error || '') + '</span>';
+            else if (p.sinMarcas) detalle = '<span style="font-size:.72rem;">No se vieron las 4 esquinas</span>';
+            return '<div class="pe-pag ' + p.estado + '" data-id="' + p.id + '">' +
+                   '<span class="num">' + (i + 1) + '</span>' +
+                   '<img src="' + p.url + '" alt="Hoja ' + (i + 1) + '" data-accion="ver">' +
+                   '<div class="est"><span class="pe-chip-e ' + et[0] + '">' + et[1] + '</span>' + detalle + '</div>' +
+                   '<div class="botones">' +
+                   '<button type="button" data-accion="girar" title="Girar"><i class="fas fa-rotate-right"></i></button>' +
+                   (p.lectura ? '<button type="button" data-accion="ver" title="Revisar o corregir"><i class="fas fa-pen"></i></button>' : '') +
+                   '<button type="button" data-accion="quitar" title="Quitar"><i class="fas fa-trash"></i></button></div></div>';
+        }).join('');
+        $('pe-lote').innerHTML = html;
+        var porRevisar = lote.filter(function (p) { return p.estado === 'revisar'; }).length;
+        var enCola = lote.filter(function (p) { return p.estado === 'cola' || p.estado === 'enviando'; }).length;
+        var faltan = lote.filter(function (p) { return p.estado === 'nueva' || p.estado === 'error' || p.estado === 'espera'; }).length;
+        var sinRed = lote.filter(function (p) { return p.estado === 'espera'; }).length;
+        $('pe-contador-red').textContent = sinRed; $('pe-cuenta-red').style.display = sinRed ? '' : 'none';
+        $('pe-n-rev').textContent = porRevisar;
+        $('pe-revisar-sig').style.display = porRevisar ? '' : 'none';
+        $('pe-calificar-todas').style.display = faltan ? '' : 'none';
+        $('pe-pdf-cal').disabled = !lote.some(function (p) { return p.lectura; });
+        $('pe-progreso').textContent = enCola ? 'Calificando… faltan ' + enCola + '.' :
+            (sinRed ? sinRed + ' hoja' + (sinRed > 1 ? 's esperan' : ' espera') + ' a que vuelva el internet (quedan guardadas en este equipo).' : (avisoLote || ''));
+        // En la cámara
+        $('pe-bandeja-n').textContent = lote.length;
+        var rv = $('pe-bandeja-rv'); rv.textContent = porRevisar; rv.classList.toggle('si', porRevisar > 0);
+        var ult = lote[lote.length - 1];
+        $('pe-bandeja').style.backgroundImage = ult ? 'url(' + ult.url + ')' : '';
+        $('pe-contador-rv').textContent = porRevisar; $('pe-cuenta-rv').style.display = porRevisar ? '' : 'none';
+        $('pe-contador-cola').textContent = enCola; $('pe-cuenta-cola').style.display = enCola ? '' : 'none';
+    }
+
+    $('pe-lote').addEventListener('click', function (ev) {
+        var b = ev.target.closest('[data-accion]'), caja = ev.target.closest('.pe-pag');
+        if (!b || !caja) return;
+        var p = lote.filter(function (x) { return String(x.id) === caja.dataset.id; })[0];
+        if (!p) return;
+        if (b.dataset.accion === 'quitar') {
+            if (p.estado === 'enviando') return;
+            lote.splice(lote.indexOf(p), 1); URL.revokeObjectURL(p.url); borrarBD(p); pintarLote();
+        } else if (b.dataset.accion === 'girar') {
+            girarPagina(p);
+        } else if (b.dataset.accion === 'ver') {
+            if (p.lectura) abrirRevision(p);
+            else window.open(p.url, '_blank');
+        }
+    });
+    $('pe-vaciar').addEventListener('click', function () {
+        if (!confirm('¿Quitar todas las hojas escaneadas de esta pantalla? Las notas ya guardadas no se borran.')) return;
+        lote.forEach(function (p) { URL.revokeObjectURL(p.url); borrarBD(p); });
+        lote = []; avisoLote = ''; pintarLote();
+    });
+    $('pe-calificar-todas').addEventListener('click', function () {
+        lote.forEach(function (p) { if (p.estado === 'nueva' || p.estado === 'error' || p.estado === 'espera') encolar(p); });
+    });
+    $('pe-revisar-sig').addEventListener('click', revisarSiguiente);
+    $('pe-mas').addEventListener('click', function () { abrirCamara(modo); });
+    $('pe-pdf').addEventListener('click', function () { descargarPDF(false, this); });
+    $('pe-pdf-cal').addEventListener('click', function () { descargarPDF(true, this); });
+
+    function revisarSiguiente() {
+        var p = lote.filter(function (x) { return x.estado === 'revisar'; })[0];
+        if (p) abrirRevision(p);
+    }
+
+    function girarPagina(p) {
+        if (p.estado === 'enviando' || p.estado === 'cola') return;
+        var img = new Image();
+        img.onload = function () {
+            var c = document.createElement('canvas');
+            c.width = img.naturalHeight; c.height = img.naturalWidth;
+            var x = c.getContext('2d');
+            x.translate(c.width, 0); x.rotate(Math.PI / 2); x.drawImage(img, 0, 0);
+            PEScan.aJPEG(c, 0.9).then(function (blob) {
+                URL.revokeObjectURL(p.url);
+                p.raw = blob; p.url = URL.createObjectURL(blob);
+                if (p.estado !== 'guardada') { p.estado = 'nueva'; p.lectura = null; }
+                pintarLote(); guardarBD(p);
+            });
+        };
+        img.src = p.url;
+    }
+
+    // ---- Envío al lector: en cola, dos a la vez, sin detener la cámara ----
+    var cola = [], enviando = 0;
+    function encolar(p) { p.estado = 'cola'; cola.push(p); pintarLote(); atenderCola(); }
+    function atenderCola() {
+        while (enviando < 2 && cola.length) {
+            var p = cola.shift();
+            if (p.estado !== 'cola') continue;
+            enviando++;
+            enviar(p).then(function () { enviando--; atenderCola(); });
+        }
+    }
+
+    function sinSenal(p) {
+        p.estado = 'espera';
+        p.error = 'Sin internet: se manda sola cuando vuelva la señal.';
+        pintarLote(); guardarBD(p);
+        if (camaraAbierta()) estado('Sin internet: la hoja queda guardada en el celular y se manda cuando vuelva la señal.', 'mal');
+        if (p.esperando) { p.esperando = false; elLeyendo.classList.remove('si'); reanudar(); }
+    }
+    function reintentar() {
+        if (navigator.onLine === false) return;
+        lote.forEach(function (p) { if (p.estado === 'espera') encolar(p); });
+    }
+    window.addEventListener('online', reintentar);
+    setInterval(reintentar, 20000);
+
+    function enviar(p) {
+        if (navigator.onLine === false) { sinSenal(p); return Promise.resolve(); }
+        p.estado = 'enviando'; pintarLote();
+        var cuerpo = new FormData();
+        cuerpo.append('foto', p.raw, 'hoja.jpg');
+        if (elAuto.checked && !p.confirmar) cuerpo.append('auto', '1');
+        if (p.pp) cuerpo.append('por_pagina', p.pp);
+        var intento = function (n) {
+            return fetch(urlFoto, {method: 'POST', body: cuerpo, headers: {'X-CSRFToken': csrf}}).then(function (r) {
+                // Un tropiezo del servidor: se reintenta una vez antes de darla por perdida.
+                if (r.status >= 500 && n < 1) return new Promise(function (ok) { setTimeout(ok, 900); }).then(function () { return intento(n + 1); });
+                return r.json();
+            });
+        };
+        return intento(0)
+            .then(function (d) { recibir(p, d); })
+            .catch(function () { sinSenal(p); });
+    }
+
+    function recibir(p, d) {
+        if (!d.ok) {
+            p.estado = d.otro_examen ? 'ajena' : 'error';
+            p.error = d.error || 'No se pudo leer.';
+            pintarLote();
+            guardarBD(p);
+            if (camaraAbierta()) { sonar('mal'); estado('⚠ ' + p.error, 'mal'); }
+            if (p.esperando) { p.esperando = false; reanudar(); }
+            return;
+        }
+        p.lectura = d;
+        p.respuestas = Object.assign({}, d.respuestas);
+        p.notaInfo = d.nota_previa || null;
+        p.dudas = (d.dudas || []).length;
+        p.nombre = d.hoja_nombre || '';
+        if (d.guardada && d.guardada.ok) {
+            var repetida = lote.some(function (x) { return x !== p && x.hojaId === d.guardada.hoja_id && x.estado === 'guardada'; });
+            p.estado = repetida ? 'repetida' : 'guardada';
+            p.hojaId = d.guardada.hoja_id; p.nota = d.guardada.nota; p.nombre = d.guardada.nombre;
+            anotar(p.hojaId, d.guardada, d);
+            if (camaraAbierta()) { sonar('bien'); mostrarNotaCamara(p, d.guardada, repetida); }
+            pedirVivo();
+        } else {
+            p.estado = 'revisar';
+            if (camaraAbierta() && !p.esperando) {
+                sonar('revisar');
+                estado('⚠ Para revisar: ' + (p.nombre || 'hoja sin nombre') + (p.dudas ? ' (' + p.dudas + ' dudas)' : ''), 'mal');
+            }
+        }
+        pintarLote();
+        guardarBD(p);
+        // Sin «auto», la cámara espera a que el docente confirme esta hoja.
+        if (p.esperando) { p.esperando = false; elLeyendo.classList.remove('si'); abrirRevision(p); }
+    }
+
+    // =====================================================================
+    // 2. Cámara
+    // =====================================================================
+    var DISENOS = PEScan.disenos(GEOS);
+    var detector = new PEScan.Detector(DISENOS, 320);
+    var modo = 'calificar';
     var flujo = null, pista = null, linternaPrendida = false;
-    var analisis = document.createElement('canvas');
-    var ctxA = analisis.getContext('2d', {willReadFrequently: true});
-    var ANCHO_ANALISIS = 320;    // basta para ver las marcas y corre rápido en el celular
-    var ANCHO_FOTO = 1600;       // la foto que se sube: ~300 KB, con detalle para trazos flojos
-    var enfoque = null;          // fotogramas candidatos mientras la cámara enfoca
-    var porPaginaVisto = '';     // reparto que reconoció la cámara (lo confirma el servidor)
-    var buscando = false, temporizador = null;
-    var anterior = null, estables = 0;
-    var esperarRetiro = false; // después de guardar: no repetir la misma hoja
-    var perdidas = 0;
-    var avisoGuardado = '';
+    var ANCHO_RECORTE = 2200;
+    var enfoque = null, buscando = false, temporizador = null;
+    var anterior = null, estables = 0, esperarRetiro = false, perdidas = 0;
 
-    $('pe-abrir-camara').addEventListener('click', abrirCamara);
+    function camaraAbierta() { return elCamara.classList.contains('abierta'); }
+
+    Array.prototype.forEach.call(document.querySelectorAll('.pe-modos button'), function (b) {
+        b.addEventListener('click', function () { ponerModo(b.dataset.modo); });
+    });
+    function ponerModo(m) {
+        modo = m;
+        Array.prototype.forEach.call(document.querySelectorAll('.pe-modos button'), function (b) {
+            b.classList.toggle('on', b.dataset.modo === m);
+        });
+        if (camaraAbierta() && !esperarRetiro) estado(m === 'pdf' ? 'Solo escanear: junte todas las hojas y al final arme el PDF.' : 'Apunte a la hoja: la cámara la busca sola.');
+    }
+
+    $('pe-abrir-camara').addEventListener('click', function () { abrirCamara('calificar'); });
+    $('pe-abrir-pdf').addEventListener('click', function () { abrirCamara('pdf'); });
     $('pe-cerrar-camara').addEventListener('click', cerrarCamara);
+    $('pe-listo').addEventListener('click', cerrarCamara);
+    $('pe-bandeja').addEventListener('click', function () {
+        cerrarCamara();
+        $('pe-panel-lote').scrollIntoView({behavior: 'smooth'});
+    });
     $('pe-disparar').addEventListener('click', function () {
-        if (buscando) { ocultarNotaCamara(); capturar(anterior); }
+        if (!buscando) return;
+        ocultarNotaCamara();
+        disparar(fotograma(anterior));
+    });
+    $('pe-cam-corregir').addEventListener('click', function () {
+        var p = elCamNota.pagina;
+        if (!p || !p.lectura) return;
+        pararBusqueda(); ocultarNotaCamara(); abrirRevision(p);
     });
     elLinterna.addEventListener('click', function () {
         if (!pista) return;
@@ -303,20 +598,30 @@
 
     function sinCamara(msg) {
         var el = $('pe-sin-camara');
-        el.innerHTML = msg + ' Puede usar <strong>«subir una foto ya tomada»</strong>.';
+        el.innerHTML = msg + ' Puede usar <strong>«Calificar un PDF o fotos»</strong>.';
         el.style.display = '';
     }
 
-    function abrirCamara() {
+    function pantallaCompleta(si) {
+        try {
+            var d = document, raiz = d.documentElement;
+            if (si && !d.fullscreenElement && raiz.requestFullscreen) raiz.requestFullscreen({navigationUI: 'hide'}).catch(function () {});
+            if (!si && d.fullscreenElement && d.exitFullscreen) d.exitFullscreen().catch(function () {});
+        } catch (e) { /* iPhone: no deja; la cámara igual ocupa toda la pantalla */ }
+    }
+
+    function abrirCamara(m) {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             sinCamara('Este navegador no deja usar la cámara en vivo (se necesita una conexión https).');
             return;
         }
+        ponerModo(m || 'calificar');
         elCamara.classList.add('abierta');
         document.body.style.overflow = 'hidden';
+        pantallaCompleta(true);
+        pintarLote();
         estado('Abriendo la cámara…');
         if (flujo) { arrancarBusqueda(); return; }
-        // Que el servidor tenga listo el mapa de burbujas antes de la primera hoja.
         fetch(urlFoto, {headers: {'X-Requested-With': 'XMLHttpRequest'}}).catch(function () {});
         navigator.mediaDevices.getUserMedia({
             audio: false,
@@ -326,12 +631,12 @@
             pista = s.getVideoTracks()[0];
             try {
                 var cap = pista.getCapabilities ? pista.getCapabilities() : {};
-                if (cap.torch) elLinterna.style.visibility = 'visible';
+                if (cap.torch) elLinterna.style.display = '';
                 pista.__enfoqueUnaVez = !!(cap.focusMode && cap.focusMode.indexOf('single-shot') >= 0);
                 if (cap.focusMode && cap.focusMode.indexOf('continuous') >= 0) {
                     pista.applyConstraints({advanced: [{focusMode: 'continuous'}]}).catch(function () {});
                 }
-            } catch (e) { /* no todos los navegadores lo tienen */ }
+            } catch (e) {}
             elVideo.srcObject = s;
             elVideo.onloadedmetadata = function () {
                 elVideo.play();
@@ -354,7 +659,10 @@
         flujo = null; pista = null; linternaPrendida = false;
         elLinterna.classList.remove('activo');
         elCamara.classList.remove('abierta');
+        elLeyendo.classList.remove('si');
         document.body.style.overflow = '';
+        pantallaCompleta(false);
+        pintarLote();
     }
 
     function estado(texto, clase) {
@@ -362,8 +670,6 @@
         elEstado.className = 'pe-cam-estado' + (clase ? ' ' + clase : '');
     }
 
-    // El video se muestra completo (sin recortar) para que lo que se ve en
-    // pantalla sea exactamente lo que se analiza.
     function ajustarVisor() {
         var vw = elVideo.videoWidth, vh = elVideo.videoHeight;
         if (!vw || !vh) return;
@@ -374,87 +680,56 @@
         elGuias.setAttribute('viewBox', '0 0 ' + vw + ' ' + vh);
         dibujar(null);
     }
-    window.addEventListener('resize', function () { if (flujo) ajustarVisor(); });
-
-    // Homografía de 4 puntos (milímetros de la hoja -> píxeles del video), para
-    // dibujar el borde del papel a partir de las cuatro marcas.
-    function homografia(src, dst) {
-        var A = [], b = [];
-        for (var i = 0; i < 4; i++) {
-            var x = src[i][0], y = src[i][1], u = dst[i][0], v = dst[i][1];
-            A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u);
-            A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v);
-        }
-        for (var c = 0; c < 8; c++) {           // eliminación de Gauss con pivoteo
-            var p = c;
-            for (var r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
-            var t = A[c]; A[c] = A[p]; A[p] = t; t = b[c]; b[c] = b[p]; b[p] = t;
-            if (Math.abs(A[c][c]) < 1e-12) return null;
-            for (r = c + 1; r < 8; r++) {
-                var f = A[r][c] / A[c][c];
-                for (var k = c; k < 8; k++) A[r][k] -= f * A[c][k];
-                b[r] -= f * b[c];
-            }
-        }
-        var h = new Array(8);
-        for (c = 7; c >= 0; c--) {
-            var s = b[c];
-            for (k = c + 1; k < 8; k++) s -= A[c][k] * h[k];
-            h[c] = s / A[c][c];
-        }
-        return function (x, y) {
-            var w = h[6] * x + h[7] * y + 1;
-            return [(h[0] * x + h[1] * y + h[2]) / w, (h[3] * x + h[4] * y + h[5]) / w];
-        };
-    }
+    window.addEventListener('resize', function () { if (flujo) setTimeout(ajustarVisor, 150); });
 
     function dibujar(quad, progreso) {
-        var vw = elVideo.videoWidth || 1000, g = Math.max(3, vw / 200);
+        var vw = elVideo.videoWidth || 1000, g = Math.max(3, Math.max(vw, elVideo.videoHeight || 0) / 220);
         var html = '';
         if (quad) {
-            var H = homografia(quad.diseno.marcas, quad);
+            var H = PEScan.homografia(quad.diseno.marcas, quad);
             if (H) {
                 var borde = quad.diseno.borde.map(function (p) { return H(p[0], p[1]); });
                 html += '<polygon points="' + borde.map(function (p) { return p.join(','); }).join(' ') +
                         '" fill="rgba(46,226,107,' + (0.10 + 0.15 * (progreso || 0)) + ')" stroke="#2ee26b" stroke-width="' + g + '" stroke-linejoin="round"/>';
             }
             quad.forEach(function (p) {
-                html += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + (g * 3.2) +
-                        '" fill="none" stroke="#2ee26b" stroke-width="' + g + '"/>';
-                html += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + g + '" fill="#2ee26b"/>';
+                html += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + (g * 3.2) + '" fill="none" stroke="#2ee26b" stroke-width="' + g + '"/>';
             });
         }
         elGuias.innerHTML = html;
     }
 
     function arrancarBusqueda() {
+        if (!flujo) return;
         buscando = true;
         anterior = null; estables = 0; enfoque = null;
         elLeyendo.classList.remove('si');
-        if (!esperarRetiro) estado('Apunte a la hoja: la cámara la busca sola.');
+        if (esperarRetiro) estado('Ponga la siguiente hoja.');
+        else estado(modo === 'pdf' ? 'Apunte a la hoja: se guarda en el PDF sola.' : 'Apunte a la hoja: la cámara la busca sola.');
         clearTimeout(temporizador);
         temporizador = setTimeout(cuadro, 50);
     }
+    function reanudar() { if (camaraAbierta()) arrancarBusqueda(); }
 
-    function pararBusqueda() {
-        buscando = false;
-        clearTimeout(temporizador);
+    function pararBusqueda() { buscando = false; clearTimeout(temporizador); }
+
+    // Qué tan grande se ve la hoja: su ancho frente al lado corto del cuadro (así cuenta igual derecha o acostada).
+    function cerca(quad) {
+        var lado = Math.hypot(quad[1][0] - quad[0][0], quad[1][1] - quad[0][1]), dz = quad.diseno;
+        return (lado / dz.spanW * dz.ancho) / Math.min(elVideo.videoWidth, elVideo.videoHeight);
     }
 
     function cuadro() {
         if (!buscando) return;
         if (elVideo.readyState >= 2 && elVideo.videoWidth && !document.hidden) {
-            var t0 = performance.now();
-            var r = buscarHoja();
-            window.__pe_ms = Math.round(performance.now() - t0);
+            var r = detector.buscar(elVideo, elVideo.videoWidth, elVideo.videoHeight);
             var quad = r.quad;
             if (esperarRetiro) {
-                // Tras guardar, la hoja calificada suele seguir debajo de la cámara:
-                // se espera a que salga del cuadro antes de volver a disparar.
+                // La hoja que se acaba de tomar sigue debajo: se espera a que la cambien.
                 dibujar(null);
-                if (!quad) { perdidas++; if (perdidas >= 2) esperarRetiro = false; }
-                if (esperarRetiro) estado(avisoGuardado, avisoGuardado.charAt(0) === '⚠' ? 'mal' : 'bien');
-                else { ocultarNotaCamara(); estado('Apunte a la siguiente hoja.'); }
+                if (!quad) { perdidas++; if (perdidas >= 1) esperarRetiro = false; }
+                else if (anterior && cambio(quad, anterior) > 0.25) esperarRetiro = false;
+                if (!esperarRetiro) { estado(modo === 'pdf' ? 'Siguiente hoja.' : 'Apunte a la siguiente hoja.'); anterior = null; }
             } else if (quad) {
                 var ancho = Math.hypot(quad[1][0] - quad[0][0], quad[1][1] - quad[0][1]);
                 var quieto = anterior && quad.every(function (h, i) {
@@ -463,14 +738,10 @@
                 estables = quieto ? estables + 1 : 1;
                 anterior = quad;
                 dibujar(quad, Math.min(1, estables / 2));
-                var anchoVideo = elVideo.videoWidth;
-                if (ancho < anchoVideo * 0.42) {
-                    // Muy lejos: la foto no tendría detalle para leer las burbujas.
+                if (cerca(quad) < 0.46) {
                     estables = 0;
                     estado('Hoja encontrada. Acérquese un poco más.');
                 } else if (estables >= 2) {
-                    // Quieta: se toma el fotograma más nítido de los que van
-                    // llegando mientras la cámara termina de enfocar.
                     if (elegirFotograma(quad)) return;
                     estado('Enfocando… no mueva el celular', 'bien');
                 } else {
@@ -480,203 +751,105 @@
             } else {
                 estables = 0; anterior = null; enfoque = null;
                 dibujar(null);
-                estado(r.girada ? 'Ponga la hoja derecha: debe verse vertical en la pantalla.'
-                                : 'Apunte a la hoja: que se vean las cuatro esquinas negras.');
+                estado('Apunte a la hoja: que se vean las cuatro esquinas negras.');
             }
         }
         temporizador = setTimeout(cuadro, 30);
     }
 
-    // Busca cuadrados oscuros rodeados de papel en TODO el cuadro y a varios
-    // tamaños (la hoja puede estar cerca o lejos), y escoge los cuatro que
-    // forman un rectángulo con las proporciones de la hoja. Es la misma idea
-    // del lector del servidor (centro oscuro menos anillo claro), en pequeño.
-    function buscarHoja() {
-        var vw = elVideo.videoWidth, vh = elVideo.videoHeight;
-        var s = ANCHO_ANALISIS / vw;
-        var W = ANCHO_ANALISIS, H = Math.round(vh * s);
-        if (analisis.width !== W || analisis.height !== H) { analisis.width = W; analisis.height = H; }
-        ctxA.drawImage(elVideo, 0, 0, W, H);
-        var px = ctxA.getImageData(0, 0, W, H).data;
-        var gris = new Float32Array(W * H);
-        var W1 = W + 1, integ = new Float64Array(W1 * (H + 1));
-        for (var y = 0; y < H; y++) {
-            var fila = 0;
-            for (var x = 0; x < W; x++) {
-                var i = (y * W + x) * 4, v = px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
-                gris[y * W + x] = v;
-                fila += v;
-                integ[(y + 1) * W1 + x + 1] = integ[y * W1 + x + 1] + fila;
-            }
-        }
-        function suma(x0, y0, x1, y1) {
-            return integ[y1 * W1 + x1] - integ[y0 * W1 + x1] - integ[y1 * W1 + x0] + integ[y0 * W1 + x0];
-        }
-        // Tamaños de la marca: la hoja ocupa entre ~30 % y ~98 % del ancho útil,
-        // para cada reparto posible; los tamaños casi iguales se miran una vez.
-        var tamanos = [];
-        DISENOS.forEach(function (dz) {
-            var lado = Math.min(W, H / dz.prop);
-            var base = dz.marca / dz.spanW * lado;
-            [0.3, 0.42, 0.58, 0.8, 1.0].forEach(function (f) {
-                var L = base * f;
-                if (L >= 4.5 && !tamanos.some(function (t) { return Math.abs(t - L) < L * 0.15; })) tamanos.push(L);
-            });
-        });
-        var candidatos = [];
-        tamanos.forEach(function (L) {
-            var c = Math.max(2, Math.round(L * 0.35)), ri = Math.max(c + 1, Math.round(L * 0.78)),
-                ro = Math.max(ri + 2, Math.round(L * 1.25)), paso = Math.max(1, Math.round(L / 4));
-            var areaC = 4 * c * c, areaR = 4 * ro * ro - 4 * ri * ri;
-            var locales = [];
-            for (var y = ro; y < H - ro; y += paso) {
-                for (var x = ro; x < W - ro; x += paso) {
-                    var cen = suma(x - c, y - c, x + c, y + c) / areaC;
-                    if (cen > 150) continue;     // lo claro no puede ser una marca
-                    var anillo = (suma(x - ro, y - ro, x + ro, y + ro) - suma(x - ri, y - ri, x + ri, y + ri)) / areaR;
-                    var val = anillo - cen;
-                    if (val > 34 && cen < anillo * 0.6) locales.push({x: x, y: y, v: val, L: L, cen: cen, anillo: anillo});
-                }
-            }
-            // Quedarse con el mejor de cada vecindario.
-            locales.sort(function (a, b) { return b.v - a.v; });
-            var elegidos = [];
-            for (var k = 0; k < locales.length && elegidos.length < 7; k++) {
-                var a = locales[k], cerca = false;
-                for (var j = 0; j < elegidos.length; j++) {
-                    if (Math.abs(elegidos[j].x - a.x) < L * 1.5 && Math.abs(elegidos[j].y - a.y) < L * 1.5) { cerca = true; break; }
-                }
-                if (!cerca) elegidos.push(a);
-            }
-            candidatos = candidatos.concat(elegidos);
-        });
-        // Entre tamaños también: el mismo cuadro visto a dos escalas cuenta una vez.
-        candidatos.sort(function (a, b) { return b.v - a.v; });
-        var unicos = [];
-        candidatos.forEach(function (a) {
-            if (unicos.length >= 12) return;
-            for (var j = 0; j < unicos.length; j++) {
-                var b = unicos[j], r = Math.max(a.L, b.L) * 1.2;
-                if (Math.abs(a.x - b.x) < r && Math.abs(a.y - b.y) < r) return;
-            }
-            unicos.push(a);
-        });
-
-        var mejor = null, mejorV = -1, girada = false, n = unicos.length;
-        var d = function (a, b) { return Math.hypot(a.x - b.x, a.y - b.y); };
-        for (var i1 = 0; i1 < n; i1++) for (var i2 = i1 + 1; i2 < n; i2++)
-        for (var i3 = i2 + 1; i3 < n; i3++) for (var i4 = i3 + 1; i4 < n; i4++) {
-            var q = [unicos[i1], unicos[i2], unicos[i3], unicos[i4]];
-            var tl = q[0], br = q[0], tr = q[0], bl = q[0];
-            q.forEach(function (p) {
-                if (p.x + p.y < tl.x + tl.y) tl = p;
-                if (p.x + p.y > br.x + br.y) br = p;
-                if (p.x - p.y > tr.x - tr.y) tr = p;
-                if (p.x - p.y < bl.x - bl.y) bl = p;
-            });
-            if (tl === br || tl === tr || tl === bl || br === tr || br === bl || tr === bl) continue;
-            var arriba = d(tl, tr), abajo = d(bl, br), izq = d(tl, bl), der = d(tr, br);
-            if (Math.min(arriba, abajo) / Math.max(arriba, abajo) < 0.75) continue;
-            if (Math.min(izq, der) / Math.max(izq, der) < 0.75) continue;
-            var d1 = d(tl, br), d2 = d(tr, bl);
-            if (Math.min(d1, d2) / Math.max(d1, d2) < 0.85) continue;
-            var ancho = (arriba + abajo) / 2, alto = (izq + der) / 2;
-            if (ancho < W * 0.18) continue;
-            var suma4 = tl.v + tr.v + br.v + bl.v;
-            for (var di = 0; di < DISENOS.length; di++) {
-                var dz = DISENOS[di];
-                var prop = (alto / ancho) / dz.prop;
-                var esperado = dz.marca * ancho / dz.spanW;
-                var tamOk = q.every(function (p) { return p.L > esperado * 0.5 && p.L < esperado * 1.9; });
-                if (!tamOk) continue;
-                if (prop > 0.84 && prop < 1.19) {
-                    // A igual calidad gana el reparto del examen (el primero).
-                    var v = suma4 * (di === 0 ? 1.02 : 1);
-                    if (v > mejorV) { mejorV = v; mejor = [tl, tr, br, bl]; mejor.diseno = dz; }
-                    break;
-                } else if (prop > 1 / 1.19 / dz.prop / dz.prop && prop < 1 / 0.84 / dz.prop / dz.prop) {
-                    girada = true;   // proporciones de esta hoja, pero acostada
-                }
-            }
-        }
-        if (mejor) girada = false;
-        if (!mejor) return {quad: null, girada: girada};
-        // Centro fino de cada marca: centroide de lo oscuro alrededor.
-        var quad = mejor.map(function (m) {
-            var r = Math.round(m.L * 0.9), umbral = (m.cen + m.anillo) / 2, sx = 0, sy = 0, cnt = 0;
-            for (var yy = Math.max(0, m.y - r); yy < Math.min(H, m.y + r); yy++) {
-                for (var xx = Math.max(0, m.x - r); xx < Math.min(W, m.x + r); xx++) {
-                    if (gris[yy * W + xx] <= umbral) { sx += xx; sy += yy; cnt++; }
-                }
-            }
-            var cx = cnt >= 4 ? sx / cnt : m.x, cy = cnt >= 4 ? sy / cnt : m.y;
-            return [cx / s, cy / s];
-        });
-        quad.diseno = mejor.diseno;
-        return {quad: quad, girada: false};
+    // Cuánto se movió la hoja (fracción de su ancho): si cambió mucho, es otra hoja.
+    function cambio(a, b) {
+        var ancho = Math.hypot(a[1][0] - a[0][0], a[1][1] - a[0][1]) || 1, m = 0;
+        for (var i = 0; i < 4; i++) m = Math.max(m, Math.hypot(a[i][0] - b[i][0], a[i][1] - b[i][1]) / ancho);
+        return m;
     }
 
-    function sonar() {
-        try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) {}
+    // Un sonido distinto para cada cosa, para no tener que mirar la pantalla:
+    //   foto: un clic corto · guardada: dos notas que suben · para revisar: dos notas graves · no se leyó: una grave larga
+    var SONIDOS = {foto: {notas: [[1500, 0.035]], vibra: 30},
+                   bien: {notas: [[880, 0.09], [1320, 0.14]], vibra: 60},
+                   revisar: {notas: [[520, 0.12], [0, 0.06], [520, 0.12]], vibra: [90, 60, 90]},
+                   mal: {notas: [[260, 0.32]], vibra: [220]}};
+    var sonidoOn = true;
+    try { sonidoOn = localStorage.getItem('pe-sonido') !== '0'; } catch (e) {}
+    function pintarSonido() {
+        var b = $('pe-sonido');
+        b.innerHTML = '<i class="fas fa-volume-' + (sonidoOn ? 'high' : 'xmark') + '"></i>';
+        b.classList.toggle('activo', !sonidoOn);
+    }
+    $('pe-sonido').addEventListener('click', function () {
+        sonidoOn = !sonidoOn;
+        try { localStorage.setItem('pe-sonido', sonidoOn ? '1' : '0'); } catch (e) {}
+        pintarSonido();
+        if (sonidoOn) sonar('bien');
+    });
+    pintarSonido();
+    function sonar(tipo) {
+        var s = SONIDOS[tipo || 'foto'];
+        try { if (navigator.vibrate) navigator.vibrate(s.vibra); } catch (e) {}
+        if (!sonidoOn) return;
         try {
             var A = window.AudioContext || window.webkitAudioContext;
             if (!A) return;
             sonar.ctx = sonar.ctx || new A();
-            var o = sonar.ctx.createOscillator(), g = sonar.ctx.createGain();
-            o.frequency.value = 1150; g.gain.value = 0.08;
-            o.connect(g); g.connect(sonar.ctx.destination);
-            o.start(); o.stop(sonar.ctx.currentTime + 0.09);
+            var t = sonar.ctx.currentTime + 0.01;
+            s.notas.forEach(function (n) {
+                if (n[0]) {
+                    var o = sonar.ctx.createOscillator(), g = sonar.ctx.createGain();
+                    o.type = tipo === 'mal' ? 'triangle' : 'sine';
+                    o.frequency.value = n[0];
+                    g.gain.setValueAtTime(0.0001, t);
+                    g.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + n[1]);
+                    o.connect(g); g.connect(sonar.ctx.destination);
+                    o.start(t); o.stop(t + n[1] + 0.02);
+                }
+                t += n[1];
+            });
         } catch (e) {}
     }
 
-    // Foto a resolución completa, recortada a la hoja: el lector del servidor
-    // busca una marca por cuadrante y supone que la hoja llena la foto.
+    // Recorte del video alrededor de la hoja (con sus marcas en coordenadas del recorte).
     function fotograma(marcas) {
         var vw = elVideo.videoWidth, vh = elVideo.videoHeight;
         var x0 = 0, y0 = 0, x1 = vw, y1 = vh;
         if (marcas) {
-            var dz = marcas.diseno || DISENOS[0];
-            var H = homografia(dz.marcas, marcas);
+            var dz = marcas.diseno;
+            var H = PEScan.homografia(dz.marcas, marcas);
             var borde = H ? dz.borde.map(function (p) { return H(p[0], p[1]); }) : marcas;
             var xs = borde.map(function (p) { return p[0]; }), ys = borde.map(function (p) { return p[1]; });
-            var mx = (Math.max.apply(null, xs) - Math.min.apply(null, xs)) * 0.03;
-            var my = (Math.max.apply(null, ys) - Math.min.apply(null, ys)) * 0.03;
+            var mx = (Math.max.apply(null, xs) - Math.min.apply(null, xs)) * 0.05;
+            var my = (Math.max.apply(null, ys) - Math.min.apply(null, ys)) * 0.05;
             x0 = Math.max(0, Math.min.apply(null, xs) - mx); x1 = Math.min(vw, Math.max.apply(null, xs) + mx);
             y0 = Math.max(0, Math.min.apply(null, ys) - my); y1 = Math.min(vh, Math.max.apply(null, ys) + my);
         }
-        // Se sube reducida a 1600 px (unos 300 KB): con eso se ven bien hasta
-        // los trazos flojos de lápiz, y no pesa los 2 MB de la foto completa.
-        var k = Math.min(1, ANCHO_FOTO / (x1 - x0));
+        var k = Math.min(1, ANCHO_RECORTE / Math.max(x1 - x0, y1 - y0));
         var lienzo = document.createElement('canvas');
         lienzo.width = Math.round((x1 - x0) * k); lienzo.height = Math.round((y1 - y0) * k);
-        lienzo.getContext('2d').drawImage(elVideo, x0, y0, x1 - x0, y1 - y0, 0, 0, lienzo.width, lienzo.height);
-        lienzo.porPagina = marcas && marcas.diseno ? marcas.diseno.pp : '';
+        lienzo.getContext('2d', {willReadFrequently: true}).drawImage(elVideo, x0, y0, x1 - x0, y1 - y0, 0, 0, lienzo.width, lienzo.height);
+        if (marcas) {
+            lienzo.quad = marcas.map(function (p) { return [(p[0] - x0) * k, (p[1] - y0) * k]; });
+            lienzo.quad.diseno = marcas.diseno;
+        }
         return lienzo;
     }
 
-    // Qué tan enfocada está: energía de los bordes en el centro de la hoja
-    // (donde están las burbujas). Una foto borrosa tiene bordes suaves.
     var lienzoNitidez = document.createElement('canvas');
     function nitidez(lienzo) {
-        var w = 360, h = Math.round(lienzo.height * w / lienzo.width);
-        var sx = lienzo.width * 0.15, sy = lienzo.height * 0.25;
-        var sw = lienzo.width * 0.7, sh = lienzo.height * 0.5;
-        h = Math.round(sh * w / sw);
+        var w = 360, sx = lienzo.width * 0.15, sy = lienzo.height * 0.25;
+        var sw = lienzo.width * 0.7, sh = lienzo.height * 0.5, h = Math.round(sh * w / sw);
         lienzoNitidez.width = w; lienzoNitidez.height = h;
         var c = lienzoNitidez.getContext('2d', {willReadFrequently: true});
         c.drawImage(lienzo, sx, sy, sw, sh, 0, 0, w, h);
         var d = c.getImageData(0, 0, w, h).data, suma = 0, n = 0;
-        for (var y = 1; y < h - 1; y += 1) {
-            for (var x = 1; x < w - 1; x += 1) {
-                var i = (y * w + x) * 4;
-                var lap = 4 * d[i + 1] - d[i + 1 - 4] - d[i + 1 + 4] - d[i + 1 - 4 * w] - d[i + 1 + 4 * w];
-                suma += lap * lap; n++;
-            }
+        for (var y = 1; y < h - 1; y++) for (var x = 1; x < w - 1; x++) {
+            var i = (y * w + x) * 4;
+            var lap = 4 * d[i + 1] - d[i + 1 - 4] - d[i + 1 + 4] - d[i + 1 - 4 * w] - d[i + 1 + 4 * w];
+            suma += lap * lap; n++;
         }
         return n ? suma / n : 0;
     }
 
-    // Pide a la cámara que enfoque ya (en los celulares que lo permiten).
     function pedirEnfoque() {
         if (!pista || !pista.__enfoqueUnaVez) return;
         pista.applyConstraints({advanced: [{focusMode: 'single-shot'}]})
@@ -684,12 +857,6 @@
             .catch(function () {});
     }
 
-    // Mientras la hoja está quieta se miden unos fotogramas y se manda el más
-    // nítido: dispara cuando la cámara ya enfocó (la nitidez dejó de subir) o,
-    // a más tardar, en 0,6 segundos con el mejor que haya.
-    // Cuántos fotogramas nuevos ha entregado la cámara. El ciclo de búsqueda
-    // corre más rápido que la cámara: sin esto se mediría el mismo fotograma
-    // varias veces y parecería que «ya no mejora» aunque siga enfocando.
     var cuadrosVideo = 0, ultimoTiempo = -1;
     function contarCuadros() {
         if (elVideo.requestVideoFrameCallback) {
@@ -701,93 +868,212 @@
             if (cuadrosVideo === ultimoTiempo) return false;
             ultimoTiempo = cuadrosVideo; return true;
         }
-        var t = elVideo.currentTime;        // navegadores sin requestVideoFrameCallback
+        var t = elVideo.currentTime;
         if (t === ultimoTiempo) return false;
         ultimoTiempo = t; return true;
     }
 
+    // Mientras la hoja está quieta se miden unos fotogramas y se usa el más nítido (máximo 0,45 s).
     function elegirFotograma(quad) {
         var ahora = performance.now();
-        if (enfoque && !hayCuadroNuevo()) return ahora - enfoque.t0 > 600 && enfoque.mejor ? (disparar(enfoque.mejor), true) : false;
+        if (enfoque && !hayCuadroNuevo()) return ahora - enfoque.t0 > 450 && enfoque.mejor ? (disparar(enfoque.mejor), true) : false;
         if (!enfoque) { enfoque = {t0: ahora, n: 0, max: 0, mejor: null, sinMejorar: 0}; pedirEnfoque(); }
         var lienzo = fotograma(quad), v = nitidez(lienzo);
         enfoque.n++;
-        // «Mejoró» solo si sube de verdad (3 %): el ruido del video hace bailar
-        // la medida un poco aunque la imagen no cambie.
         if (v > enfoque.max * 1.03) { enfoque.max = v; enfoque.mejor = lienzo; enfoque.sinMejorar = 0; }
-        else {
-            enfoque.sinMejorar++;
-            if (v > enfoque.max) { enfoque.max = v; enfoque.mejor = lienzo; }
-        }
-        window.__pe_nitidez = Math.round(v);
-        // Mientras la nitidez sube, la cámara sigue enfocando: se espera. Cuando
-        // deja de subir ya enfocó y se manda el mejor.
-        var listo = (enfoque.n >= 2 && enfoque.sinMejorar >= 1) || ahora - enfoque.t0 > 600;
+        else { enfoque.sinMejorar++; if (v > enfoque.max) { enfoque.max = v; enfoque.mejor = lienzo; } }
+        var listo = (enfoque.n >= 2 && enfoque.sinMejorar >= 1) || ahora - enfoque.t0 > 450;
         if (!listo) return false;
         disparar(enfoque.mejor || lienzo);
         return true;
     }
 
+    // Toma la hoja: la endereza (quede como quede en la foto), la pone en el lote y, al calificar, la manda.
     function disparar(lienzo) {
         pararBusqueda();
         enfoque = null;
-        sonar();
+        sonar('foto');
         elDestello.style.opacity = '0.85';
         setTimeout(function () { elDestello.style.opacity = '0'; }, 120);
-        elLeyendo.classList.add('si');
-        estado('Leyendo la hoja…');
-        porPaginaVisto = lienzo.porPagina || '';
-        lienzo.toBlob(function (blob) { enviarFoto(blob, true); }, 'image/jpeg', 0.85);
+        var final = lienzo, dz = null;
+        if (lienzo.quad) {
+            dz = lienzo.quad.diseno;
+            try { final = PEScan.enderezar(lienzo, lienzo.quad, dz, PEScan.resolucion(lienzo.quad, dz)); }
+            catch (e) { final = lienzo; dz = null; }
+        }
+        PEScan.aJPEG(final, 0.88).then(function (blob) {
+            var p = nuevaPagina(blob, dz, !lienzo.quad, final.margen);
+            esperarRetiro = true; perdidas = 0;
+            if (modo === 'pdf') {
+                estado('✓ Hoja ' + lote.length + ' en el PDF. Ponga la siguiente.', 'bien');
+                pintarLote();
+                arrancarBusqueda();
+                return;
+            }
+            if (elAuto.checked) {
+                // No se espera al servidor: la cámara sigue con la siguiente hoja.
+                encolar(p);
+                estado('Leyendo… ponga la siguiente hoja.', 'bien');
+                arrancarBusqueda();
+            } else {
+                p.esperando = true; p.confirmar = true;
+                elLeyendo.classList.add('si');
+                estado('Leyendo la hoja…');
+                encolar(p);
+            }
+        });
     }
 
-    // El botón: con lo que haya en este momento.
-    function capturar(marcas) { disparar(fotograma(marcas)); }
-
     // =====================================================================
-    // 2. Subir una foto (si no hay cámara en vivo)
+    // 3. Calificar un PDF o fotos (de CamScanner, OneDrive, la galería…)
     // =====================================================================
     elTomar.addEventListener('click', function () { elArchivo.value = ''; elArchivo.click(); });
     elArchivo.addEventListener('change', function () {
-        var archivo = elArchivo.files && elArchivo.files[0];
-        if (!archivo) return;
+        var archivos = Array.prototype.slice.call(elArchivo.files || []);
+        if (!archivos.length) return;
+        var detPagina = new PEScan.Detector(DISENOS, 480);
+        var antes = lote.length, txt = elTomar.innerHTML;
         elTomar.disabled = true;
-        elTomar.innerHTML = 'Leyendo la hoja…';
-        enviarFoto(archivo, false);
+        $('pe-panel-lote').style.display = '';
+        var aviso = function (t) { $('pe-progreso').textContent = t; elTomar.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> ' + t; };
+        var cadena = Promise.resolve();
+        archivos.forEach(function (a, ia) {
+            cadena = cadena.then(function () {
+                aviso('Abriendo ' + (ia + 1) + ' de ' + archivos.length + '…');
+                return PEScan.leerArchivo(a, function (n, t) { aviso('Página ' + n + ' de ' + t + '…'); });
+            }).then(function (lienzos) {
+                var c2 = Promise.resolve();
+                lienzos.forEach(function (c, ic) {
+                    c2 = c2.then(function () {
+                        aviso('Buscando hojas en la página ' + (ic + 1) + '…');
+                        return new Promise(function (ok) { setTimeout(ok, 10); });
+                    }).then(function () {
+                        var quads = detPagina.buscarTodas(c);
+                        if (!quads.length) return PEScan.aJPEG(c, 0.9).then(function (b) { nuevaPagina(b, null, true); });
+                        var c3 = Promise.resolve();
+                        quads.forEach(function (q) {
+                            c3 = c3.then(function () {
+                                var e = PEScan.enderezar(c, q, q.diseno, PEScan.resolucion(q, q.diseno));
+                                return PEScan.aJPEG(e, 0.88).then(function (b) { nuevaPagina(b, q.diseno, false, e.margen); });
+                            });
+                        });
+                        return c3;
+                    });
+                });
+                return c2;
+            });
+        });
+        cadena.catch(function (e) { alert(e && e.message ? e.message : 'No se pudo abrir el archivo.'); })
+        .then(function () {
+            elTomar.disabled = false; elTomar.innerHTML = txt;
+            var nuevas = lote.slice(antes);
+            aviso('');
+            elTomar.innerHTML = txt;
+            pintarLote();
+            if (!nuevas.length) { alert('No se encontró ninguna hoja de PuntoExacto en el archivo.'); return; }
+            nuevas.forEach(encolar);
+            $('pe-panel-lote').scrollIntoView({behavior: 'smooth'});
+        });
     });
 
-    function restaurarBotonSubir() {
-        elTomar.disabled = false;
-        elTomar.innerHTML = '<i class="fas fa-image me-1"></i> o subir una foto ya tomada';
+    // =====================================================================
+    // 4. El PDF (se arma en el navegador)
+    // =====================================================================
+    function cargarImagen(url) {
+        return new Promise(function (ok, mal) { var i = new Image(); i.onload = function () { ok(i); }; i.onerror = mal; i.src = url; });
     }
 
-    function enviarFoto(archivo, deCamara) {
-        modoCamara = deCamara;
-        yaGuardada = null;
-        // La imagen que se muestra es la del teléfono, no una copia del
-        // servidor: no hay segunda descarga y la foto no viaja de vuelta.
-        if (urlObjeto) URL.revokeObjectURL(urlObjeto);
-        urlObjeto = URL.createObjectURL(archivo);
-        var cuerpo = new FormData();
-        cuerpo.append('foto', archivo, 'hoja.jpg');
-        // Si todo sale claro, el servidor la guarda de una vez (una sola ida y vuelta).
-        if (deCamara && flujo && elAuto.checked) cuerpo.append('auto', '1');
-        if (deCamara && porPaginaVisto) cuerpo.append('por_pagina', porPaginaVisto);
-        fetch(urlFoto, {method: 'POST', body: cuerpo, headers: {'X-CSRFToken': csrf}})
-            .then(function (r) { return r.json(); })
-            .then(function (d) {
-                restaurarBotonSubir();
-                if (!d.ok && d.otro_examen) { hojaAjena(d); return; }
-                if (!d.ok) { fallo(d.error || 'No se pudo leer la foto.'); return; }
-                lectura = d;
-                respuestas = Object.assign({}, d.respuestas);
-                notaInfo = d.nota_previa || null;
-                despuesDeLeer(d.guardada);
-            })
-            .catch(function () {
-                restaurarBotonSubir();
-                fallo('No se pudo enviar la foto. Revise la conexión.');
-            });
+    function marcarCalificacion(c, p) {
+        var l = p.lectura, x = c.getContext('2d');
+        if (!l || !l.posiciones) return;
+        var kx = c.width / (l.ancho_foto || c.width), ky = c.height / (l.alto_foto || c.height);
+        var r = (l.radio_px || 10) * kx * 1.25, resp = p.respuestas || l.respuestas, info = p.notaInfo;
+        var clave = info && info.clave ? info.clave : {};
+        x.lineWidth = Math.max(2, r * 0.22);
+        Object.keys(l.posiciones).forEach(function (k) {
+            var m = k.match(/^(\d+)([A-J])$/);
+            if (!m) return;
+            var pr = m[1], le = m[2], pos = l.posiciones[k], marcada = resp[pr] === le, buena = clave[pr];
+            if (!buena) return;
+            x.beginPath(); x.arc(pos[0] * kx, pos[1] * ky, r, 0, Math.PI * 2);
+            if (marcada) { x.setLineDash([]); x.strokeStyle = buena === le ? '#0b8a4a' : '#d32f2f'; x.stroke(); }
+            else if (buena === le) { x.setLineDash([r * 0.35, r * 0.25]); x.strokeStyle = '#0b8a4a'; x.stroke(); }
+        });
+        x.setLineDash([]);
+        if (info) {
+            var w = c.width * 0.3, h = c.width * 0.085, x0 = c.width - w - c.width * 0.07, y0 = c.height * 0.12;
+            x.fillStyle = 'rgba(255,255,255,.92)'; x.fillRect(x0, y0, w, h);
+            x.strokeStyle = colorNota(parseFloat(info.nota)); x.lineWidth = c.width * 0.004; x.strokeRect(x0, y0, w, h);
+            x.fillStyle = colorNota(parseFloat(info.nota));
+            x.font = 'bold ' + Math.round(h * 0.55) + 'px Helvetica, Arial';
+            x.textBaseline = 'middle';
+            x.fillText(String(info.nota), x0 + h * 0.25, y0 + h * 0.5);
+            x.font = Math.round(h * 0.24) + 'px Helvetica, Arial'; x.fillStyle = '#111';
+            x.fillText(info.buenas + ' de ' + info.total + ' bien', x0 + w * 0.45, y0 + h * 0.36);
+            x.fillText(p.estado === 'guardada' ? 'Guardada' : 'Sin guardar', x0 + w * 0.45, y0 + h * 0.68);
+        }
     }
+
+    function descargarPDF(conNota, boton) {
+        var paginas = lote.filter(function (p) { return p.estado !== 'ajena'; });
+        if (!paginas.length) return;
+        var txt = boton.innerHTML;
+        boton.disabled = true;
+        var hechas = [], cadena = Promise.resolve();
+        paginas.forEach(function (p, i) {
+            cadena = cadena.then(function () {
+                boton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Página ' + (i + 1) + ' de ' + paginas.length;
+                return cargarImagen(p.url);
+            }).then(function (img) {
+                var c = document.createElement('canvas');
+                c.width = img.naturalWidth; c.height = img.naturalHeight;
+                c.getContext('2d', {willReadFrequently: true}).drawImage(img, 0, 0);
+                var m = PEScan.mejorar(c);
+                if (conNota) marcarCalificacion(m, p);
+                // Sin el borde de mesa: la página del PDF queda del tamaño exacto de la hoja.
+                var mg = Math.round(p.margenPx || 0);
+                if (mg > 0 && mg * 3 < Math.min(m.width, m.height)) {
+                    var r = document.createElement('canvas');
+                    r.width = m.width - 2 * mg; r.height = m.height - 2 * mg;
+                    r.getContext('2d').drawImage(m, mg, mg, r.width, r.height, 0, 0, r.width, r.height);
+                    m = r;
+                }
+                return PEScan.aJPEG(m, 0.8).then(function (b) {
+                    var horizontal = m.width > m.height, aw = p.ancho_mm, ah = p.alto_mm;
+                    if (aw && ah && (aw > ah) !== horizontal) { var t = aw; aw = ah; ah = t; }   // la giraron
+                    if (!aw) { aw = horizontal ? 279.4 : 215.9; ah = aw * m.height / m.width; }
+                    hechas.push({blob: b, ancho_mm: aw, alto_mm: ah});
+                });
+            });
+        });
+        var nombre = (TITULO || 'Examen').replace(/[\\/:*?"<>|]+/g, ' ').trim() + (conNota ? ' - calificado' : '') + '.pdf';
+        cadena.then(function () { return PEScan.armarPDF(hechas, nombre); })
+            .catch(function (e) { alert('No se pudo armar el PDF' + (e && e.message ? ': ' + e.message : '.')); })
+            .then(function () { boton.disabled = false; boton.innerHTML = txt; pintarLote(); });
+    }
+
+    // =====================================================================
+    // 5. Revisión: la nota sobre la foto y corregir con el dedo
+    // =====================================================================
+    function colorNota(nota) {
+        var f = (nota - NOTA_MIN) / ((NOTA_MAX - NOTA_MIN) || 1);
+        return f >= 0.8 ? '#0b6b4a' : f >= 0.5 ? '#1b5fa8' : f >= 0.35 ? '#b45309' : '#b42318';
+    }
+
+    function mostrarNotaCamara(p, d, repetida) {
+        var v = $('pe-cam-nota-valor');
+        v.textContent = d.nota;
+        v.style.background = colorNota(parseFloat(d.nota));
+        $('pe-cam-nota-nombre').textContent = d.nombre + (d.curso ? ' · ' + d.curso : '');
+        var info = p.notaInfo;
+        $('pe-cam-nota-detalle').innerHTML = (repetida ? '<span class="text-muted">Ya estaba (repetida) · </span>' : '<span class="text-success fw-semibold">Guardada</span> · ') +
+            (info ? '<span class="pe-c-bien">' + info.buenas + ' bien</span> · <span class="pe-c-mal">' + info.malas + ' mal</span>' : '');
+        elCamNota.pagina = p;
+        elCamNota.classList.add('si');
+        clearTimeout(mostrarNotaCamara.t);
+        mostrarNotaCamara.t = setTimeout(ocultarNotaCamara, 4500);
+    }
+    function ocultarNotaCamara() { elCamNota.classList.remove('si'); }
 
     function formaElegida() {
         if (!lectura || !lectura.formas) return 'A';
@@ -801,95 +1087,35 @@
         return limpias;
     }
 
-    // La nota con las respuestas de ahora (el servidor califica sin guardar).
     var pedido = 0;
     function pedirNota() {
-        var mio = ++pedido;
+        var mio = ++pedido, item = actual;
         return fetch(urlNota, {
             method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
             body: JSON.stringify({respuestas: respuestasLimpias(), forma: formaElegida() || 'A'})
         }).then(function (r) { return r.json(); }).then(function (d) {
-            if (mio !== pedido) return;    // llegó tarde: ya hay una más nueva
+            if (mio !== pedido) return;
             notaInfo = d.ok ? d : null;
+            if (item) item.notaInfo = notaInfo;
             if (elResultado.classList.contains('abierta')) { pintar(); pintarNota(); }
         }).catch(function () { notaInfo = null; });
     }
 
-    function despuesDeLeer(guardada) {
-        if (guardada && guardada.ok && modoCamara && flujo) {
-            // Todo claro: ya quedó guardada. Sale la nota sobre la cámara y se sigue.
-            anotar(guardada.hoja_id, guardada);
-            yaGuardada = guardada.hoja_id;
-            mostrarNotaCamara(guardada);
-            esperarRetiro = true; perdidas = 0;
-            avisoGuardado = '✓ ' + guardada.nombre + ' · ' + guardada.nota + '. Ponga la siguiente hoja.';
-            arrancarBusqueda();
-            estado(avisoGuardado, 'bien');
-        } else {
-            elLeyendo.classList.remove('si');
-            abrirRevision();
-        }
-    }
-
-    function colorNota(nota) {
-        var f = (nota - NOTA_MIN) / ((NOTA_MAX - NOTA_MIN) || 1);
-        return f >= 0.8 ? '#0b6b4a' : f >= 0.5 ? '#1b5fa8' : f >= 0.35 ? '#b45309' : '#b42318';
-    }
-
-    function mostrarNotaCamara(d) {
-        var v = $('pe-cam-nota-valor');
-        v.textContent = d.nota;
-        v.style.background = colorNota(parseFloat(d.nota));
-        $('pe-cam-nota-nombre').textContent = d.nombre + (d.curso ? ' · ' + d.curso : '');
-        $('pe-cam-nota-detalle').innerHTML = notaInfo
-            ? '<span class="pe-c-bien">' + notaInfo.buenas + ' bien</span> · <span class="pe-c-mal">' + notaInfo.malas +
-              ' mal</span>' + (notaInfo.blancas ? ' · ' + notaInfo.blancas + ' en blanco' : '') + ' de ' + notaInfo.total
-            : '';
-        elCamNota.classList.add('si');
-    }
-    function ocultarNotaCamara() { elCamNota.classList.remove('si'); }
-
-    $('pe-cam-corregir').addEventListener('click', function () {
-        if (!lectura) return;
+    function abrirRevision(p) {
+        actual = p;
+        lectura = p.lectura;
+        respuestas = p.respuestas || Object.assign({}, lectura.respuestas);
+        p.respuestas = respuestas;
+        notaInfo = p.notaInfo || null;
+        yaGuardada = (p.estado === 'guardada' || p.estado === 'repetida') ? p.hojaId : null;
         pararBusqueda();
         ocultarNotaCamara();
-        abrirRevision();
-    });
-
-    function hojaAjena(d) {
-        try { if (navigator.vibrate) navigator.vibrate([80, 60, 80]); } catch (e) {}
-        if (modoCamara && flujo) {
-            elLeyendo.classList.remove('si');
-            estado('⚠ ' + d.error, 'mal');
-            // Hasta que la hoja salga del cuadro no se vuelve a intentar con ella.
-            esperarRetiro = true; perdidas = 0; avisoGuardado = '⚠ ' + d.error;
-            setTimeout(function () { if (flujo && !elResultado.classList.contains('abierta')) arrancarBusqueda(); }, 1000);
-        } else {
-            if (d.url_otro && confirm(d.error + '\n\n¿Abrir la cámara de ese examen?')) location.href = d.url_otro;
-            else if (!d.url_otro) alert(d.error);
-        }
-    }
-
-    function fallo(msg) {
-        if (modoCamara && flujo) {
-            elLeyendo.classList.remove('si');
-            // El mensaje se deja leer antes de que la búsqueda lo reemplace.
-            estado(msg + ' Intente otra vez.', 'mal');
-            setTimeout(function () { if (flujo && !elResultado.classList.contains('abierta')) arrancarBusqueda(); }, 1500);
-        } else {
-            alert(msg);
-        }
-    }
-
-    // =====================================================================
-    // 3. Revisión: la nota sobre la foto y corregir con el dedo
-    // =====================================================================
-    function abrirRevision() {
-        elImg.src = urlObjeto;
+        elImg.src = p.url;
         elZoom.value = 100;
         elLienzo.style.width = '100%';
-        $('pe-guardar-txt').textContent = yaGuardada ? 'Guardar corrección' : (modoCamara ? 'Guardar y seguir' : 'Guardar');
-        $('pe-otra-txt').textContent = yaGuardada ? 'Volver a la cámara' : 'Repetir foto';
+        var desdeCamara = camaraAbierta() && p === lote[lote.length - 1];
+        $('pe-guardar-txt').textContent = yaGuardada ? 'Guardar corrección' : (desdeCamara ? 'Guardar y seguir' : 'Guardar');
+        $('pe-otra-txt').textContent = desdeCamara && !yaGuardada ? 'Repetir foto' : 'Volver';
         pintarCabecera();
         pintar();
         pintarNota();
@@ -900,44 +1126,45 @@
 
     function cerrarRevision() {
         elResultado.classList.remove('abierta');
-        if (!elCamara.classList.contains('abierta')) document.body.style.overflow = '';
+        if (!camaraAbierta()) document.body.style.overflow = '';
+        actual = null;
     }
 
     $('pe-otra').addEventListener('click', function () {
+        var p = actual, repetir = $('pe-otra-txt').textContent === 'Repetir foto';
         cerrarRevision();
-        if (modoCamara && flujo) { esperarRetiro = !!yaGuardada; perdidas = 0; arrancarBusqueda(); }
-        else { elArchivo.value = ''; elArchivo.click(); }
+        if (repetir && p) { lote.splice(lote.indexOf(p), 1); URL.revokeObjectURL(p.url); borrarBD(p); pintarLote(); esperarRetiro = false; }
+        if (camaraAbierta()) reanudar();
     });
     $('pe-limpiar').addEventListener('click', function () {
         if (!lectura) return;
         respuestas = Object.assign({}, lectura.respuestas);
+        if (actual) actual.respuestas = respuestas;
         pintar();
         pedirNota();
     });
 
     function pintarNota() {
-        var g = $('pe-nota-grande'), sello = $('pe-sello');
+        var gN = $('pe-nota-grande'), sello = $('pe-sello');
         if (!notaInfo) {
-            g.innerHTML = '–<small>nota</small>'; g.style.background = '#6b7280';
+            gN.innerHTML = '–<small>nota</small>'; gN.style.background = '#6b7280';
             sello.style.display = 'none';
             return;
         }
         var c = colorNota(parseFloat(notaInfo.nota));
-        g.innerHTML = escapar(notaInfo.nota) + '<small>' + notaInfo.buenas + ' de ' + notaInfo.total + '</small>';
-        g.style.background = c;
+        gN.innerHTML = escapar(notaInfo.nota) + '<small>' + notaInfo.buenas + ' de ' + notaInfo.total + '</small>';
+        gN.style.background = c;
         sello.style.display = '';
         sello.style.background = c;
         sello.innerHTML = '<b>' + escapar(notaInfo.nota) + '</b><span>' + notaInfo.buenas + '/' + notaInfo.total + ' bien</span>';
     }
 
     function pintarCabecera() {
-        var d = lectura;
-        var html = '', extra = '';
+        var d = lectura, html = '', extra = '';
         if (d.hoja_id) {
             html += '<div class="pe-estado-grande">' + escapar(d.hoja_nombre) + '</div>';
             if (d.hoja_curso) html += '<div class="fw-semibold" style="font-size:.92rem;color:#1b5fa8;">Curso ' + escapar(d.hoja_curso) + '</div>';
-            html += '<div class="text-muted" style="font-size:.85rem;">' +
-                    escapar(d.identificador) + ' · ' + escapar(d.como_se_supo) + '</div>';
+            html += '<div class="text-muted" style="font-size:.85rem;">' + escapar(d.identificador) + ' · ' + escapar(d.como_se_supo) + '</div>';
             if (d.ya_calificada && !yaGuardada) {
                 extra += '<div class="alert alert-warning mt-2 mb-0" style="font-size:.88rem;">' +
                          'Esta hoja ya estaba calificada. Si guarda, se reemplaza lo anterior.</div>';
@@ -946,12 +1173,10 @@
             html += '<div class="pe-estado-grande">¿De quién es esta hoja?</div>';
             extra += '<div class="alert alert-warning mt-2 mb-2" style="font-size:.9rem;">' +
                     (d.identificador
-                        ? 'El código dice <strong>' + escapar(d.identificador) +
-                          '</strong>, que no es de este examen. '
+                        ? 'El código dice <strong>' + escapar(d.identificador) + '</strong>, que no es de este examen. '
                         : 'No se pudo leer el código de barras. ') +
                     'Antes de escoger, mire que la hoja diga <strong>«Examen N.º {{ examen.id }}»</strong> arriba a la derecha: ' +
-                    'si dice otro número, es de otro examen y no se debe calificar aquí. ' +
-                    'Escoja de quién es esta hoja.</div>';
+                    'si dice otro número, es de otro examen y no se debe calificar aquí. Escoja de quién es esta hoja.</div>';
             extra += '<select class="form-select" id="pe-quien"><option value="">Seleccione el estudiante</option>';
             extra += HOJAS.map(function (h) {
                 return '<option value="' + h.id + '">' + escapar(h.nombre) + (h.curso ? ' · ' + escapar(h.curso) : '') +
@@ -960,22 +1185,20 @@
             extra += '</select>';
         }
         if (d.formas) {
-            // Forma que marcó el estudiante: se califica con la clave de esa forma.
-            var actual = formaElegida() || d.forma;
-            extra += '<div class="mt-2 d-flex flex-wrap align-items-center gap-2" style="font-size:1rem;">' +
-                    '<strong>Forma:</strong>' + d.formas.split('').map(function (l) {
-                        return '<label class="me-1"><input type="radio" name="pe-forma" value="' + l + '"' +
-                               (actual === l ? ' checked' : '') + '> ' + l + '</label>';
-                    }).join('') + '</div>';
+            var act = formaElegida() || d.forma;
+            extra += '<div class="mt-2 d-flex flex-wrap align-items-center gap-2" style="font-size:1rem;"><strong>Forma:</strong>' +
+                d.formas.split('').map(function (l) {
+                    return '<label class="me-1"><input type="radio" name="pe-forma" value="' + l + '"' + (act === l ? ' checked' : '') + '> ' + l + '</label>';
+                }).join('') + '</div>';
             if (d.forma_duda) {
-                extra += '<div class="alert alert-warning mt-2 mb-0" style="font-size:.88rem;">' +
-                        'Forma: ' + escapar(d.forma_duda) + '. Escoja cuál le tocó antes de guardar.</div>';
+                extra += '<div class="alert alert-warning mt-2 mb-0" style="font-size:.88rem;">Forma: ' + escapar(d.forma_duda) +
+                         '. Escoja cuál le tocó antes de guardar.</div>';
             }
         }
         elCabecera.innerHTML = html;
         $('pe-cabecera-extra').innerHTML = extra;
         Array.prototype.forEach.call(document.querySelectorAll('input[name="pe-forma"]'), function (r) {
-            r.addEventListener('change', pedirNota);   // otra forma, otra clave
+            r.addEventListener('change', pedirNota);
         });
     }
 
@@ -992,11 +1215,10 @@
     }
 
     function claseDe(p, letra) {
-        // marcada / bien / mal / correcta, según la clave de la forma.
         var c = [], clave = notaInfo && notaInfo.clave ? notaInfo.clave[p] : undefined;
         var marcada = respuestas[p] === letra;
         if (marcada) {
-            c.push(clave === undefined || clave === '' ? 'marcada' : 'marcada');
+            c.push('marcada');
             if (clave) c.push(clave === letra ? 'bien' : 'mal');
         }
         if (clave && clave === letra && respuestas[p] !== letra) c.push('correcta');
@@ -1005,22 +1227,17 @@
 
     function pintar() {
         var dud = dudosas();
-        // --- Burbujas sobre la foto ---
-        Array.prototype.slice.call(elLienzo.querySelectorAll('.pe-burbuja'))
-            .forEach(function (b) { b.remove(); });
+        Array.prototype.slice.call(elLienzo.querySelectorAll('.pe-burbuja')).forEach(function (b) { b.remove(); });
         var W = lectura.ancho_foto, H = lectura.alto_foto;
-        var diametro = (lectura.radio_px * 2 / W) * 100;   // en % del ancho
+        var diametro = (lectura.radio_px * 2 / W) * 100;
         Object.keys(lectura.posiciones).forEach(function (clave) {
             var m = clave.match(/^(\d+)([A-J])$/);
             if (!m) return;
-            var pregunta = m[1], letra = m[2];
-            var pos = lectura.posiciones[clave];
+            var pregunta = m[1], letra = m[2], pos = lectura.posiciones[clave];
             var b = document.createElement('div');
             b.className = 'pe-burbuja';
             b.style.left = (pos[0] / W * 100) + '%';
             b.style.top = (pos[1] / H * 100) + '%';
-            // Caja cuadrada de verdad: con alto 0 + relleno, el borde se suma al
-            // alto y los círculos chicos salían como óvalos.
             b.style.width = diametro + '%';
             b.style.height = 'auto';
             b.style.aspectRatio = '1 / 1';
@@ -1032,16 +1249,13 @@
             b.addEventListener('click', function () { tocar(pregunta, letra); });
             elLienzo.appendChild(b);
         });
-        // --- Rejilla para el dedo ---
         var preguntas = Object.keys(lectura.respuestas).sort(function (a, b) { return a - b; });
         elRejilla.innerHTML = preguntas.map(function (p) {
-            return '<div class="pe-renglon' + (dud[p] ? ' duda' : '') + '" id="pe-r-' + p + '">' +
-                   '<span class="n">' + p + '</span>' +
+            return '<div class="pe-renglon' + (dud[p] ? ' duda' : '') + '" id="pe-r-' + p + '"><span class="n">' + p + '</span>' +
                    letrasDe(p).map(function (l) {
                        var cs = claseDe(p, l).map(function (c) { return c === 'marcada' ? 'si' : c; });
-                       return '<button type="button" class="pe-op ' + cs.join(' ') +
-                              '" data-p="' + p + '" data-l="' + l + '" aria-label="Pregunta ' + p +
-                              ', ' + l + '">' + l + '</button>';
+                       return '<button type="button" class="pe-op ' + cs.join(' ') + '" data-p="' + p + '" data-l="' + l +
+                              '" aria-label="Pregunta ' + p + ', ' + l + '">' + l + '</button>';
                    }).join('') + '</div>';
         }).join('');
         resumen();
@@ -1054,8 +1268,6 @@
 
     var esperaNota = null;
     function tocar(pregunta, letra) {
-        // Tocar la que ya está marcada la deja en blanco: así se corrige tanto
-        // "marcó otra" como "no marcó nada".
         respuestas[pregunta] = (respuestas[pregunta] === letra) ? '' : letra;
         var cuerpo = elResultado.querySelector('.pe-rev-cuerpo'), scroll = cuerpo.scrollTop;
         pintar();
@@ -1070,8 +1282,7 @@
         var html = dudas.map(function (d) {
             var resuelta = !!respuestas[d.pregunta];
             return '<span class="pe-fila-duda" data-p="' + d.pregunta + '"' +
-                   (resuelta ? ' style="opacity:.45;text-decoration:line-through;"' : '') +
-                   '>' + d.pregunta + ': ' + escapar(d.motivo) + '</span>';
+                   (resuelta ? ' style="opacity:.45;text-decoration:line-through;"' : '') + '>' + d.pregunta + ': ' + escapar(d.motivo) + '</span>';
         }).join('');
         if (html) {
             html = '<strong>Revise estas</strong> <span class="pe-leyenda">(toque una para ir a ella)</span><br>' + html;
@@ -1080,10 +1291,7 @@
             html = '<span class="text-success"><i class="fas fa-circle-check me-1"></i>El lector vio todas las respuestas claras.</span>';
         }
         var enBlanco = Object.keys(lectura.respuestas).filter(function (p) { return !respuestas[p]; });
-        if (enBlanco.length) {
-            html += '<div class="text-muted mt-1" style="font-size:.85rem;">Quedan en blanco: ' +
-                    enBlanco.join(', ') + '</div>';
-        }
+        if (enBlanco.length) html += '<div class="text-muted mt-1" style="font-size:.85rem;">Quedan en blanco: ' + enBlanco.join(', ') + '</div>';
         elDudas.innerHTML = html;
         Array.prototype.slice.call(elDudas.querySelectorAll('.pe-fila-duda')).forEach(function (s) {
             s.addEventListener('click', function () {
@@ -1107,14 +1315,12 @@
             body: JSON.stringify({hoja_id: id, respuestas: respuestasLimpias(), forma: forma})
         }).then(function (r) { return r.json(); }).then(function (d) {
             if (boton) boton.disabled = false;
-            if (!d.ok) { elLeyendo.classList.remove('si'); alert(d.error || 'No se pudo guardar.'); if (!boton) abrirRevision(); return; }
-            anotar(id, d);
+            if (!d.ok) { alert(d.error || 'No se pudo guardar.'); return; }
+            anotar(id, d, lectura);
             alTerminar(d);
         }).catch(function () {
             if (boton) boton.disabled = false;
-            elLeyendo.classList.remove('si');
             alert('No se pudo guardar. Revise la conexión.');
-            if (!boton) abrirRevision();
         });
     }
 
@@ -1130,50 +1336,154 @@
             forma = formaElegida();
             if (!forma) { alert('Escoja la forma que le tocó al estudiante.'); return; }
         }
+        var p = actual;
         guardar(id, forma, function (d) {
-            yaGuardada = id;
+            if (p) { p.estado = 'guardada'; p.hojaId = id; p.nota = d.nota; p.nombre = d.nombre; guardarBD(p); }
             cerrarRevision();
-            if (modoCamara && flujo) {
-                esperarRetiro = true; perdidas = 0;
-                mostrarNotaCamara(d);
-                avisoGuardado = '✓ ' + d.nombre + ' · ' + d.nota + '. Ponga la siguiente hoja.';
-                arrancarBusqueda();
-                estado(avisoGuardado, 'bien');
-            } else {
-                setTimeout(function () { elArchivo.value = ''; elArchivo.click(); }, 350);
+            pintarLote();
+            pedirVivo();
+            if (camaraAbierta()) {
+                sonar('bien');
+                mostrarNotaCamara(p, d, false);
+                reanudar();
+            } else if (lote.some(function (x) { return x.estado === 'revisar'; })) {
+                setTimeout(revisarSiguiente, 250);
             }
         }, $('pe-guardar'));
     });
 
     var contadas = {};
-    function anotar(id, d) {
+    function anotar(id, d, lect) {
         var hoja = HOJAS.filter(function (h) { return String(h.id) === String(id); })[0];
         if (hoja && !hoja.calificada) {
             hoja.calificada = true;
             pendientes = Math.max(0, pendientes - 1);
             $('pe-pendientes').textContent = pendientes;
         }
-        var linea = d.nombre + (d.curso ? ' (' + d.curso + ')' : '') + (lectura.formas ? ' (forma ' + d.forma + ')' : '') + ' — ' + d.nota +
+        var linea = d.nombre + (d.curso ? ' (' + d.curso + ')' : '') + (lect && lect.formas ? ' (forma ' + d.forma + ')' : '') + ' — ' + d.nota +
                     (d.recortada ? ' (ajustada a la escala)' : '');
         elHistorial.style.display = '';
-        if (contadas[id]) {                 // una corrección: se cambia la línea, no se suma
-            contadas[id].textContent = linea;
-            return;
-        }
+        if (contadas[id]) { contadas[id].textContent = linea; return; }
         calificadas++;
         $('pe-contador').textContent = calificadas;
-        $('pe-contador-s').textContent = calificadas === 1 ? '' : 's';
         var li = document.createElement('li');
         li.textContent = linea;
         contadas[id] = li;
         elListaOk.insertBefore(li, elListaOk.firstChild);
     }
 
+    window.addEventListener('beforeunload', function (e) {
+        if (lote.some(function (p) { return p.estado === 'cola' || p.estado === 'enviando'; })) {
+            e.preventDefault(); e.returnValue = '';
+        }
+    });
+
+    // =====================================================================
+    // 6. Las hojas quedan guardadas en ESTE equipo (IndexedDB) hasta que se quiten: si se va el internet o se
+    //    cierra la página, no se pierde nada. Nunca suben a la plataforma más que para leerlas.
+    // =====================================================================
+    var EXAMEN = {{ examen.id }}, DIAS = 7, avisoLote = '';
+    var bd = new Promise(function (ok) {
+        try {
+            var r = indexedDB.open('puntoexacto-escaner', 1);
+            r.onupgradeneeded = function () {
+                var t = r.result.createObjectStore('paginas', {keyPath: 'clave'});
+                t.createIndex('examen', 'examen');
+            };
+            r.onsuccess = function () { ok(r.result); };
+            r.onerror = function () { ok(null); };
+        } catch (e) { ok(null); }
+    });
+    var CAMPOS = ['uid', 'creada', 'estado', 'pp', 'margenPx', 'ancho_mm', 'alto_mm', 'sinMarcas', 'lectura', 'respuestas',
+                  'notaInfo', 'nombre', 'nota', 'hojaId', 'dudas', 'error'];
+    function guardarBD(p) {
+        bd.then(function (db) {
+            if (!db || !p.uid) return;
+            var fila = {clave: EXAMEN + '-' + p.uid, examen: EXAMEN, raw: p.raw};
+            CAMPOS.forEach(function (k) { fila[k] = p[k] === undefined ? null : p[k]; });
+            try { db.transaction('paginas', 'readwrite').objectStore('paginas').put(fila); } catch (e) {}
+        });
+    }
+    function borrarBD(p) {
+        bd.then(function (db) {
+            if (!db || !p.uid) return;
+            try { db.transaction('paginas', 'readwrite').objectStore('paginas').delete(EXAMEN + '-' + p.uid); } catch (e) {}
+        });
+    }
+    bd.then(function (db) {
+        if (!db) return;
+        var req;
+        try { req = db.transaction('paginas').objectStore('paginas').index('examen').getAll(EXAMEN); } catch (e) { return; }
+        req.onsuccess = function () {
+            var filas = (req.result || []).sort(function (a, b) { return a.creada - b.creada; }), vivas = 0;
+            filas.forEach(function (f) {
+                if (Date.now() - (f.creada || 0) > DIAS * 864e5 || !f.raw) {
+                    try { db.transaction('paginas', 'readwrite').objectStore('paginas').delete(f.clave); } catch (e) {}
+                    return;
+                }
+                var p = {id: siguienteId++, raw: f.raw, url: URL.createObjectURL(f.raw)};
+                CAMPOS.forEach(function (k) { p[k] = f[k] === null ? undefined : f[k]; });
+                if (p.estado === 'cola' || p.estado === 'enviando') p.estado = 'espera';
+                lote.push(p); vivas++;
+            });
+            if (vivas) {
+                avisoLote = 'Se recuperaron ' + vivas + ' hoja' + (vivas > 1 ? 's' : '') + ' que quedaron en este equipo.';
+                pintarLote();
+                reintentar();
+            }
+        };
+    });
+
+    // =====================================================================
+    // 7. Cómo va el grupo (en vivo, desde lo que ya quedó guardado)
+    // =====================================================================
+    var urlVivo = "{% url 'puntoexacto:en_vivo' examen_id=examen.id %}", vivo = null, esperaVivo = null;
+    function colorPct(p) { return p >= 70 ? '#0b8a4a' : p >= 50 ? '#1b5fa8' : p >= 35 ? '#d48a00' : '#c92a2a'; }
+    function pedirVivo() {
+        clearTimeout(esperaVivo);
+        esperaVivo = setTimeout(function () {
+            fetch(urlVivo, {headers: {'X-Requested-With': 'XMLHttpRequest'}}).then(function (r) { return r.json(); })
+                .then(function (d) { vivo = d; pintarVivo(); }).catch(function () {});
+        }, 1200);
+    }
+    function htmlVivo(compacto) {
+        var d = vivo;
+        if (!d || !d.n) return '<p class="pe-leyenda mb-0">Todavía no hay hojas calificadas.</p>';
+        var h = '<div class="pe-vivo-cifras"><div><b>' + d.n + ' / ' + d.total + '</b><span>hojas calificadas</span></div>' +
+                (d.promedio !== null ? '<div><b style="color:' + colorNota(d.promedio) + '">' + d.promedio + '</b><span>nota promedio</span></div>' : '') + '</div>';
+        if (!compacto) {
+            h += '<div class="pe-barras">' + d.preguntas.map(function (q) {
+                return '<div class="b" title="Pregunta ' + q.numero + ': ' + q.pct + ' % la acertó"><i style="height:' + Math.max(2, q.pct) +
+                       '%;background:' + colorPct(q.pct) + '"></i><small>' + q.numero + '</small></div>';
+            }).join('') + '</div><div class="pe-leyenda">Acierto por pregunta (altura = % que la acertó).</div>';
+        }
+        if (d.falladas.length) {
+            h += '<div class="pe-falladas"><strong>Las más falladas:</strong><br>' + d.falladas.slice(0, compacto ? 3 : 5).map(function (q) {
+                return '<span>N.º ' + q.numero + ' · ' + q.pct + ' %' + (q.distractor ? ' · muchos marcaron ' + escapar(q.distractor[0]) : '') + '</span>';
+            }).join('') + '</div>';
+        }
+        return h;
+    }
+    function pintarVivo() {
+        $('pe-panel-vivo').style.display = vivo && vivo.n ? '' : 'none';
+        $('pe-vivo').innerHTML = htmlVivo(false);
+        if ($('pe-cam-vivo').classList.contains('si')) $('pe-cam-vivo').innerHTML = htmlVivo(true);
+    }
+    $('pe-vivo-cam').addEventListener('click', function () {
+        var c = $('pe-cam-vivo'), si = !c.classList.contains('si');
+        c.classList.toggle('si', si);
+        this.classList.toggle('activo', si);
+        if (si) { c.innerHTML = htmlVivo(true); pedirVivo(); }
+    });
+    pedirVivo();
+
     function escapar(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
             return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
         });
     }
+
+    window.__pe = {lote: function () { return lote; }, detector: detector, abrirRevision: abrirRevision};
 })();
 </script>
 {% endblock %}

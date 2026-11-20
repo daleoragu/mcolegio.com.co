@@ -50,6 +50,11 @@ class CamaraEnVivo(ColegioDePrueba):
         self.assertEqual({g['por_pagina'] for g in geos}, {1, 2, 4, 8})
         esperado = H.geometria(1, 'PE-00001-0001')
         self.assertEqual(geos[0]['ancho_mm'], esperado['ancho_mm'])
+        # Con la franja del código de barras la cámara sabe hacia dónde está girada la hoja.
+        self.assertEqual(geos[0]['barras_x_mm'], esperado['barras_x_mm'])
+        self.assertIn('puntoexacto/escaner.js', html)
+        self.assertIn('id="pe-abrir-pdf"', html)          # escanear a PDF
+        self.assertIn('accept="application/pdf,image/*"', html)   # calificar un PDF o fotos
         self.assertEqual([list(p) for p in esperado['marcas_mm']], geos[0]['marcas_mm'])
 
     def test_lee_la_foto_recortada_como_la_manda_la_camara(self):
