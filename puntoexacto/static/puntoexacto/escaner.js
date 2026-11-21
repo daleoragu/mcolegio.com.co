@@ -236,6 +236,79 @@
         return true;
     }
 
+    // ------------------------------------------------------------------ visores fijos (como los de la cámara de ZipGrade)
+    // Dónde van los 4 visores para este cuadro: las marcas de la hoja ocupando ~82 % de la pantalla, derecha si el
+    // celular está vertical y acostada si está horizontal. Devuelve los centros (orden de pantalla: sup. izq.,
+    // sup. der., inf. der., inf. izq.), el lado de cada visor y si la hoja va acostada.
+    function visores(vw, vh, dz) {
+        var acostada = vw > vh;
+        var prop = acostada ? 1 / dz.prop : dz.prop;          // alto/ancho del rectángulo de marcas en pantalla
+        var ancho = Math.min(vw * 0.82, vh * 0.82 / prop), alto = ancho * prop;
+        var x0 = (vw - ancho) / 2, y0 = (vh - alto) / 2;
+        var lado = Math.max(Math.min(vw, vh) * 0.10, dz.marca / (acostada ? dz.spanH : dz.spanW) * ancho * 2.2);
+        return {centros: [[x0, y0], [x0 + ancho, y0], [x0 + ancho, y0 + alto], [x0, y0 + alto]],
+                lado: lado, acostada: acostada, marca: dz.marca / (acostada ? dz.spanH : dz.spanW) * ancho};
+    }
+
+    // Busca una marca negra dentro de cada visor (solo ahí: es rápido y el fondo no confunde).
+    Detector.prototype.buscarEnVisores = function (fuente, vw, vh, dz) {
+        var W = this.ancho, s = W / vw, H = Math.round(vh * s);
+        if (this.lienzo.width !== W || this.lienzo.height !== H) { this.lienzo.width = W; this.lienzo.height = H; }
+        this.ctx.drawImage(fuente, 0, 0, W, H);
+        var px = this.ctx.getImageData(0, 0, W, H).data;
+        var gris = new Float32Array(W * H), W1 = W + 1, integ = new Float64Array(W1 * (H + 1));
+        for (var y = 0; y < H; y++) {
+            var fila = 0;
+            for (var x = 0; x < W; x++) {
+                var i = (y * W + x) * 4, v = px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
+                gris[y * W + x] = v; fila += v;
+                integ[(y + 1) * W1 + x + 1] = integ[y * W1 + x + 1] + fila;
+            }
+        }
+        function suma(x0, y0, x1, y1) {
+            return integ[y1 * W1 + x1] - integ[y0 * W1 + x1] - integ[y1 * W1 + x0] + integ[y0 * W1 + x0];
+        }
+        var vis = visores(vw, vh, dz), encontrados = [], puntos = [];
+        vis.centros.forEach(function (c) {
+            var cx = c[0] * s, cy = c[1] * s, R = vis.lado * s / 2, mejor = null;
+            // Tamaños de marca posibles dentro del visor (la hoja un poco más cerca o más lejos).
+            [0.7, 0.85, 1.0, 1.2].forEach(function (f) {
+                var L = Math.max(4, vis.marca * s * f);
+                var cc = Math.max(2, Math.round(L * 0.35)), ri = Math.max(cc + 1, Math.round(L * 0.78)),
+                    ro = Math.max(ri + 2, Math.round(L * 1.25)), paso = Math.max(1, Math.round(L / 5));
+                var areaC = 4 * cc * cc, areaR = 4 * ro * ro - 4 * ri * ri;
+                for (var yy = Math.max(ro, Math.round(cy - R)); yy <= Math.min(H - ro - 1, Math.round(cy + R)); yy += paso) {
+                    for (var xx = Math.max(ro, Math.round(cx - R)); xx <= Math.min(W - ro - 1, Math.round(cx + R)); xx += paso) {
+                        var cen = suma(xx - cc, yy - cc, xx + cc, yy + cc) / areaC;
+                        if (cen > 150) continue;
+                        var anillo = (suma(xx - ro, yy - ro, xx + ro, yy + ro) - suma(xx - ri, yy - ri, xx + ri, yy + ri)) / areaR;
+                        var val = anillo - cen;
+                        if (val > 34 && cen < anillo * 0.6 && (!mejor || val > mejor.v)) mejor = {x: xx, y: yy, v: val, L: L, cen: cen, anillo: anillo};
+                    }
+                }
+            });
+            encontrados.push(!!mejor);
+            if (mejor) {
+                var r = Math.round(mejor.L * 0.9), umbral = (mejor.cen + mejor.anillo) / 2, sx = 0, sy = 0, cnt = 0;
+                for (var yy = Math.max(0, mejor.y - r); yy < Math.min(H, mejor.y + r); yy++)
+                    for (var xx = Math.max(0, mejor.x - r); xx < Math.min(W, mejor.x + r); xx++)
+                        if (gris[yy * W + xx] <= umbral) { sx += xx; sy += yy; cnt++; }
+                puntos.push(cnt >= 4 ? [sx / cnt, sy / cnt] : [mejor.x, mejor.y]);
+            } else puntos.push(null);
+        });
+        var res = {quad: null, encontrados: encontrados, visores: vis};
+        if (puntos.some(function (p) { return !p; })) return res;
+        var TL = puntos[0], TR = puntos[1], BR = puntos[2], BL = puntos[3];
+        var opciones = vis.acostada ? [{giro: 90, q: [TR, BR, BL, TL]}, {giro: -90, q: [BL, TL, TR, BR]}]
+                                    : [{giro: 0, q: [TL, TR, BR, BL]}, {giro: 180, q: [BR, BL, TL, TR]}];
+        opciones.forEach(function (o) { o.puntos = puntajeBarras(o.q, dz, gris, W, H); });
+        var elegida = opciones[1].puntos > opciones[0].puntos + (vis.acostada ? 0 : 12) ? opciones[1] : opciones[0];
+        var quad = elegida.q.map(function (p) { return [p[0] / s, p[1] / s]; });
+        quad.diseno = dz; quad.giro = elegida.giro;
+        res.quad = quad;
+        return res;
+    };
+
     // Cuánto más oscura es la franja del código de barras (borde izquierdo) que la misma franja del borde derecho.
     function puntajeBarras(q, dz, gris, W, H) {
         if (!dz.barras) return 0;
@@ -575,5 +648,5 @@
 
     global.PEScan = {homografia: homografia, disenos: disenos, Detector: Detector, enderezar: enderezar,
                      resolucion: resolucion, mejorar: mejorar, armarPDF: armarPDF, leerArchivo: leerArchivo,
-                     aJPEG: aJPEG, enderezarAsync: enderezarAsync, ajustarEsquina: ajustarEsquina, desdeEsquinas: desdeEsquinas};
+                     aJPEG: aJPEG, visores: visores, enderezarAsync: enderezarAsync, ajustarEsquina: ajustarEsquina, desdeEsquinas: desdeEsquinas};
 })(window);
