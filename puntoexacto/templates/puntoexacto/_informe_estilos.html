@@ -1,6 +1,7 @@
 <style>
   @page { size: letter{% if horizontal %} landscape{% endif %}; margin: 15mm 14mm 16mm;
-          @bottom-left { content: "{{ institucion|escapejs }} · {{ d.titulo|escapejs }}"; font: 7.5pt Helvetica; color: #64748b; }
+          @bottom-left { content: "Informe desarrollado por medio de la plataforma mcolegio · mcolegio.com.co"; font: 7.5pt Helvetica; color: #64748b; }
+          @bottom-center { content: "{{ d.titulo|truncatechars:60|escapejs }}"; font: 7.5pt Helvetica; color: #94a3b8; }
           @bottom-right { content: "Página " counter(page) " de " counter(pages); font: 7.5pt Helvetica; color: #64748b; } }
   body { font-family: Helvetica, Arial, sans-serif; font-size: 9.6pt; color: #0f172a; line-height: 1.42; }
   .cab { background: {{ tema.primario }}; color: {{ tema.texto }}; border-radius: 8px; padding: 14px 18px; margin-bottom: 12px; }
@@ -23,4 +24,10 @@
   .chip { display: inline-block; border-radius: 99px; padding: 0 7px; font-size: 8pt; font-weight: bold; background: #eef2f7; color: {{ tema.primario }}; border: 1px solid {{ tema.primario }}; }
   ul, ol { margin: 3px 0 6px; padding-left: 16px; } li { margin-bottom: 2px; }
   .salto { page-break-before: always; }
+  /* Encabezado del colegio (el mismo de certificados y horarios) */
+  .enc-colegio { margin: 0 0 8px; }
+  .enc-colegio table { width: 100%; border-collapse: collapse; }
+  .enc-colegio td { border: none; padding: 2px 4px; }
+  .enc-colegio .escudo { max-height: 62px !important; }
+  .enc-colegio p { margin: 1px 0 !important; color: #0f172a; }
 </style>

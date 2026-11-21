@@ -545,6 +545,8 @@
         cuerpo.append('foto', p.raw, 'hoja.jpg');
         if (elAuto.checked && !p.confirmar) cuerpo.append('auto', '1');
         if (p.pp) cuerpo.append('por_pagina', p.pp);
+        // Dónde vio la cámara las 4 marcas: el lector las afina ahí y no se confunde con manchas del fondo.
+        if (p.quad && p.quad.length === 4) cuerpo.append('marcas', JSON.stringify(p.quad));
         var intento = function (n) {
             return fetch(urlFoto, {method: 'POST', body: cuerpo, headers: {'X-CSRFToken': csrf}}).then(function (r) {
                 // Un tropiezo del servidor: se reintenta una vez antes de darla por perdida.
@@ -625,10 +627,16 @@
         cerrarCamara();
         $('pe-panel-lote').scrollIntoView({behavior: 'smooth'});
     });
+    // El botón: si la cámara no ha visto las 4 esquinas, se buscan con más detalle; si tampoco aparecen, se
+    // congela la imagen para tocarlas. Antes se mandaba el cuadro entero (con el fondo) y la hoja se leía corrida.
+    var detectorFino = new PEScan.Detector(DISENOS, 640);
     $('pe-disparar').addEventListener('click', function () {
         if (!buscando) return;
         ocultarNotaCamara();
-        disparar(fotograma(anterior));
+        var q = anterior;
+        if (!q && elVideo.videoWidth) q = detectorFino.buscar(elVideo, elVideo.videoWidth, elVideo.videoHeight).quad;
+        if (q) { disparar(fotograma(q)); return; }
+        if (entrarManual()) estado('No encontré las 4 esquinas: tóquelas en la pantalla.', 'mal');
     });
     $('pe-cam-corregir').addEventListener('click', function () {
         var p = elCamNota.pagina;
@@ -865,8 +873,8 @@
             var H = PEScan.homografia(dz.marcas, marcas);
             var borde = H ? dz.borde.map(function (p) { return H(p[0], p[1]); }) : marcas;
             var xs = borde.map(function (p) { return p[0]; }), ys = borde.map(function (p) { return p[1]; });
-            var mx = (Math.max.apply(null, xs) - Math.min.apply(null, xs)) * 0.05;
-            var my = (Math.max.apply(null, ys) - Math.min.apply(null, ys)) * 0.05;
+            var mx = (Math.max.apply(null, xs) - Math.min.apply(null, xs)) * 0.03;
+            var my = (Math.max.apply(null, ys) - Math.min.apply(null, ys)) * 0.03;
             x0 = Math.max(0, Math.min.apply(null, xs) - mx); x1 = Math.min(vw, Math.max.apply(null, xs) + mx);
             y0 = Math.max(0, Math.min.apply(null, ys) - my); y1 = Math.min(vh, Math.max.apply(null, ys) + my);
         }
