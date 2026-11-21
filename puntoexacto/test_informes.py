@@ -148,7 +148,7 @@ class DescargarTodo(InformesIcfes):
         ids = list(self.mat.hojas.values_list('id', flat=True))
         z = self._zip({'tipos': ['general', 'informes', 'hojas', 'excel'], 'modo': 'separado', 'hojas': ids})
         nombres = sorted(z.namelist())
-        self.assertIn('Informe general.pdf', nombres)
+        self.assertIn('Informe general (total).pdf', nombres)
         self.assertIn('Resultados.xlsx', nombres)
         self.assertEqual(len([n for n in nombres if n.startswith('Informes por estudiante/')]), 3)
         self.assertEqual(len([n for n in nombres if n.startswith('Hojas calificadas/')]), 3)
@@ -172,3 +172,61 @@ class DescargarTodo(InformesIcfes):
         pagina = self.c.get(f'/puntoexacto/{self.mat.id}/resultados/')
         self.assertContains(pagina, 'Descargar informes')
         self.assertContains(pagina, 'name="hojas"')
+
+
+class InformePorGrado(InformesIcfes):
+    """Un examen con estudiantes de dos grados: informe total, de cada grado y de cada curso."""
+
+    def setUp(self):
+        super().setUp()
+        from notas.models import Curso
+        self.c701 = Curso.objects.create(colegio=self.a, nombre='701', grado=7, subgrupo='1')
+        self.dani = self.crear_estudiante('dani', curso=self.c701)
+        self._hoja(self.mat, self.dani, 'ABCD')
+
+    # Las del examen base cuentan con tres estudiantes; aquí hay un cuarto.
+    test_puntajes_niveles_y_percentil = None
+    test_unir_examenes = None
+    test_pdf_general_y_por_estudiante = None
+
+    def test_zip_con_grados_y_cursos(self):
+        import io
+        import zipfile
+        from pypdf import PdfReader
+        ids = list(self.mat.hojas.values_list('id', flat=True))
+        r = self.c.post(f'/puntoexacto/{self.mat.id}/informes/descargar/',
+                        {'tipos': ['general', 'grados', 'cursos'], 'modo': 'separado', 'hojas': ids})
+        z = zipfile.ZipFile(io.BytesIO(r.content))
+        nombres = sorted(z.namelist())
+        self.assertEqual(nombres, ['Informe general (total).pdf', 'Informes por curso/Curso 601.pdf',
+                                   'Informes por curso/Curso 701.pdf', 'Informes por grado/Grado 6.pdf',
+                                   'Informes por grado/Grado 7.pdf'])
+        texto7 = ''.join(p.extract_text() for p in PdfReader(io.BytesIO(z.read('Informes por grado/Grado 7.pdf'))).pages)
+        self.assertIn('Grado 7', texto7)
+        self.assertIn('Prueba Dani', texto7)
+        self.assertNotIn('Prueba Ana', texto7)
+        total = ''.join(p.extract_text() for p in PdfReader(io.BytesIO(z.read('Informe general (total).pdf'))).pages)
+        self.assertIn('Prueba Dani', total)
+        self.assertIn('Prueba Ana', total)
+
+    def test_total_es_solo_lo_escogido(self):
+        import io
+        import zipfile
+        from pypdf import PdfReader
+        r = self.c.post(f'/puntoexacto/{self.mat.id}/informes/descargar/',
+                        {'tipos': ['general'], 'hojas': [self.mat.hojas.get(estudiante=self.dani).id]})
+        texto = ''.join(p.extract_text() for p in PdfReader(io.BytesIO(
+            zipfile.ZipFile(io.BytesIO(r.content)).read('Informe general (total).pdf'))).pages)
+        self.assertIn('Prueba Dani', texto)
+        self.assertNotIn('Prueba Ana', texto)
+
+    def test_botones_por_grado(self):
+        pagina = self.c.get(f'/puntoexacto/{self.mat.id}/resultados/')
+        self.assertContains(pagina, '?grado=Grado%207')
+        self.assertContains(pagina, 'value="grados"')
+        r = self.c.get(f'/puntoexacto/{self.mat.id}/informe/?grado=Grado%207')
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        u = PruebaUnida.objects.create(titulo='Simulacro', colegio=self.a)
+        u.examenes.set([self.mat, self.lec])
+        self.assertContains(self.c.get(f'/puntoexacto/unida/{u.pk}/'), '?grado=Grado%206')
+        self.assertTrue(self.c.get(f'/puntoexacto/unida/{u.pk}/informe/?grado=Grado%207').content.startswith(b'%PDF'))

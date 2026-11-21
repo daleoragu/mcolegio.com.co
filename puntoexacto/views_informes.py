@@ -92,6 +92,26 @@ def _fechas(datos):
     return {'fecha_desde': f[0] if f else None, 'fecha_hasta': f[-1] if f else None}
 
 
+def grupos_de(hojas):
+    """Los grados y los cursos que hay entre estas hojas (para ofrecer un informe de cada uno)."""
+    def clave_orden(t):
+        num = ''.join(ch for ch in t if ch.isdigit())
+        return (int(num) if num else 999, t)
+    grados = sorted({INF.grado_de(h) for h in hojas}, key=clave_orden)
+    cursos = sorted({INF.curso_de(h) for h in hojas}, key=clave_orden)
+    return grados, cursos
+
+
+def _filtro(request):
+    """?grado= o ?curso=: (función para INF.construir, texto para el título)."""
+    grado, curso = request.GET.get('grado'), request.GET.get('curso')
+    if grado:
+        return (lambda h: INF.grado_de(h) == grado), grado
+    if curso:
+        return (lambda h: INF.curso_de(h) == curso), f'Curso {curso}'
+    return None, ''
+
+
 def _nombre_archivo(t):
     return ''.join(ch for ch in t if ch.isalnum() or ch in ' -_.')[:80].strip() or 'informe'
 
@@ -101,11 +121,13 @@ def _nombre_archivo(t):
 @personal_requerido
 def informe_general(request, examen_id):
     examen = _examen_o_404(request, examen_id)
-    datos = INF.construir([examen])
+    incluir, sufijo = _filtro(request)
+    titulo = f'{examen.titulo} · {sufijo}' if sufijo else examen.titulo
+    datos = INF.construir([examen], titulo, incluir=incluir)
     if not datos['personas']:
         messages.info(request, 'Todavía no hay hojas calificadas para hacer el informe.')
         return redirect('puntoexacto:resultados', examen_id=examen.id)
-    return _pdf(request, 'puntoexacto/informe_general_pdf.html', _ctx_general(request, datos), f'Informe general - {_nombre_archivo(examen.titulo)}')
+    return _pdf(request, 'puntoexacto/informe_general_pdf.html', _ctx_general(request, datos), f'Informe general - {_nombre_archivo(titulo)}')
 
 
 @login_required
@@ -221,7 +243,8 @@ def _nombre_unico(nombre, usados):
 def descargar_informes(request, examen_id):
     """Los informes escogidos de los estudiantes escogidos, en un solo ZIP.
 
-    tipos: general, informes (uno por estudiante), hojas (hoja calificada), excel.
+    tipos: general (el total de los escogidos), grados y cursos (un informe general de cada uno),
+           informes (uno por estudiante), hojas (hoja calificada), excel.
     modo: «separado» (un PDF por estudiante, en carpetas) o «junto» (un PDF por tipo con todos).
     Los informes de todos se arman en una sola pasada de WeasyPrint y luego se cortan por estudiante:
     armarlos uno por uno tardaba demasiado con un curso completo.
@@ -245,16 +268,32 @@ def descargar_informes(request, examen_id):
              .select_related('estudiante__user', 'estudiante__curso__sede')
              .order_by('estudiante__curso__grado', 'estudiante__curso__nombre', 'estudiante__user__last_name',
                        'estudiante__user__first_name', 'nombre_libre', 'identificador') if h.id in ids]
-    if not tipos or (not hojas and tipos - {'general', 'excel'}):
+    if not tipos or (not hojas and tipos - {'excel'}):
         messages.warning(request, 'Escoja qué descargar y al menos un estudiante con hoja calificada.')
         return redirect('puntoexacto:resultados', examen_id=examen.id)
 
     buf = io.BytesIO()
     zf = zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED)
-    datos = INF.construir([examen]) if tipos & {'general', 'informes'} else None
+    escogidas = {h.id for h in hojas}
+    datos = INF.construir([examen], incluir=lambda h: h.id in escogidas) if tipos & {'general', 'informes'} else None
+
+    def general(d, archivo):
+        html = render_to_string('puntoexacto/informe_general_pdf.html', _ctx_general(request, d), request=request)
+        zf.writestr(archivo, HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf())
+
     if 'general' in tipos and datos and datos['personas']:
-        html = render_to_string('puntoexacto/informe_general_pdf.html', _ctx_general(request, datos), request=request)
-        zf.writestr('Informe general.pdf', HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf())
+        general(datos, 'Informe general (total).pdf')
+    # Un informe general por grado y por curso, con solo los escogidos de cada uno.
+    grados, cursos = grupos_de(hojas)
+    for tipo, carpeta, valores, de in (('grados', 'Informes por grado', grados, INF.grado_de),
+                                       ('cursos', 'Informes por curso', cursos, INF.curso_de)):
+        if tipo not in tipos:
+            continue
+        for v in valores:
+            d = INF.construir([examen], f'{examen.titulo} · {v if tipo == "grados" else "Curso " + v}',
+                              incluir=lambda h, v=v, de=de: h.id in escogidas and de(h) == v)
+            if d['personas']:
+                general(d, f'{carpeta}/{_nombre_archivo(v if tipo == "grados" else "Curso " + v)}.pdf')
 
     if 'informes' in tipos and datos:
         tema = _tema(request)
@@ -372,18 +411,23 @@ def unida(request, pk):
         messages.success(request, 'Áreas guardadas.')
         return redirect('puntoexacto:unida', pk=u.pk)
     datos = INF.construir(examenes, u.titulo, u.areas)
-    return render(request, 'puntoexacto/unida.html', {'u': u, 'examenes': examenes, 'd': datos, 'pruebas': INF.PRUEBAS})
+    todas = [h for p in datos['personas'] for h in p['hojas'].values()]
+    grados, cursos = grupos_de(todas)
+    return render(request, 'puntoexacto/unida.html', {'u': u, 'examenes': examenes, 'd': datos, 'pruebas': INF.PRUEBAS,
+                                                      'grados': grados, 'cursos': cursos})
 
 
 @login_required
 @personal_requerido
 def unida_general(request, pk):
     u, examenes = _unida_o_404(request, pk)
-    datos = INF.construir(examenes, u.titulo, u.areas)
+    incluir, sufijo = _filtro(request)
+    titulo = f'{u.titulo} · {sufijo}' if sufijo else u.titulo
+    datos = INF.construir(examenes, titulo, u.areas, incluir=incluir)
     if not datos['personas']:
         messages.info(request, 'Todavía no hay hojas calificadas en estos exámenes.')
         return redirect('puntoexacto:unida', pk=u.pk)
-    return _pdf(request, 'puntoexacto/informe_general_pdf.html', _ctx_general(request, datos), f'Informe general - {_nombre_archivo(u.titulo)}')
+    return _pdf(request, 'puntoexacto/informe_general_pdf.html', _ctx_general(request, datos), f'Informe general - {_nombre_archivo(titulo)}')
 
 
 @login_required

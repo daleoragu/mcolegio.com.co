@@ -174,9 +174,19 @@
 
 <div class="pe-tarjeta">
     <h5><i class="fas fa-file-zipper me-1"></i> Descargar informes</h5>
+    {% if grados|length > 1 or cursos|length > 1 %}
+    <div class="mb-3" style="font-size:.9rem;">
+        {% if grados|length > 1 %}<div class="mb-1"><strong>Informe general por grado:</strong>
+            {% for g in grados %}<a href="{% url 'puntoexacto:informe_general' examen_id=examen.id %}?grado={{ g|urlencode }}" target="_blank" class="btn btn-sm btn-outline-primary ms-1 mb-1"><i class="fas fa-file-pdf"></i> {{ g }}</a>{% endfor %}</div>{% endif %}
+        {% if cursos|length > 1 %}<div><strong>Por curso:</strong>
+            {% for c in cursos %}<a href="{% url 'puntoexacto:informe_general' examen_id=examen.id %}?curso={{ c|urlencode }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1 mb-1">{{ c }}</a>{% endfor %}</div>{% endif %}
+    </div>
+    {% endif %}
     <form method="post" action="{% url 'puntoexacto:descargar_informes' examen_id=examen.id %}" id="pe-descarga">{% csrf_token %}
         <div class="d-flex flex-wrap gap-3 mb-2" style="font-size:.95rem;">
-            <label><input type="checkbox" name="tipos" value="general" checked> Informe general</label>
+            <label><input type="checkbox" name="tipos" value="general" checked> Informe general (total de los escogidos)</label>
+            {% if grados|length > 1 %}<label><input type="checkbox" name="tipos" value="grados" checked> Un informe de cada grado ({{ grados|length }})</label>{% endif %}
+            {% if cursos|length > 1 %}<label><input type="checkbox" name="tipos" value="cursos"> Un informe de cada curso ({{ cursos|length }})</label>{% endif %}
             <label><input type="checkbox" name="tipos" value="informes" checked> Informe de cada estudiante</label>
             <label><input type="checkbox" name="tipos" value="hojas" checked> Hoja calificada de cada estudiante</label>
             <label><input type="checkbox" name="tipos" value="excel"> Resultados en Excel</label>
