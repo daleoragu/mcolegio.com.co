@@ -130,3 +130,45 @@ class HojasCalificadas(InformesIcfes):
         self.assertEqual(d['n'], 3)
         self.assertEqual(len(d['preguntas']), 4)
         self.assertEqual(d['falladas'][0]['pct'], min(q['pct'] for q in d['preguntas']))
+
+
+class DescargarTodo(InformesIcfes):
+    """Todos los informes de un examen (o los escogidos) en un solo ZIP."""
+
+    def _zip(self, datos):
+        import io
+        import zipfile
+        r = self.c.post(f'/puntoexacto/{self.mat.id}/informes/descargar/', datos)
+        self.assertEqual(r['Content-Type'], 'application/zip')
+        return zipfile.ZipFile(io.BytesIO(r.content))
+
+    def test_un_pdf_por_estudiante(self):
+        from pypdf import PdfReader
+        import io
+        ids = list(self.mat.hojas.values_list('id', flat=True))
+        z = self._zip({'tipos': ['general', 'informes', 'hojas', 'excel'], 'modo': 'separado', 'hojas': ids})
+        nombres = sorted(z.namelist())
+        self.assertIn('Informe general.pdf', nombres)
+        self.assertIn('Resultados.xlsx', nombres)
+        self.assertEqual(len([n for n in nombres if n.startswith('Informes por estudiante/')]), 3)
+        self.assertEqual(len([n for n in nombres if n.startswith('Hojas calificadas/')]), 3)
+        # Cada informe individual es de su estudiante.
+        for n in nombres:
+            if n.startswith('Informes por estudiante/'):
+                texto = PdfReader(io.BytesIO(z.read(n))).pages[0].extract_text()
+                self.assertIn(n.split('/')[1][:-4], texto)
+
+    def test_solo_los_escogidos_y_todo_junto(self):
+        ana = self.mat.hojas.get(estudiante=self.estudiantes[0])
+        z = self._zip({'tipos': ['informes', 'hojas'], 'modo': 'junto', 'hojas': [ana.id]})
+        self.assertEqual(sorted(z.namelist()), ['Hojas calificadas.pdf', 'Informes por estudiante.pdf'])
+        import io
+        from pypdf import PdfReader
+        self.assertEqual(len(PdfReader(io.BytesIO(z.read('Hojas calificadas.pdf'))).pages), 1)
+
+    def test_sin_escoger_nada(self):
+        r = self.c.post(f'/puntoexacto/{self.mat.id}/informes/descargar/', {'tipos': ['informes']})
+        self.assertRedirects(r, f'/puntoexacto/{self.mat.id}/resultados/', fetch_redirect_response=False)
+        pagina = self.c.get(f'/puntoexacto/{self.mat.id}/resultados/')
+        self.assertContains(pagina, 'Descargar informes')
+        self.assertContains(pagina, 'name="hojas"')

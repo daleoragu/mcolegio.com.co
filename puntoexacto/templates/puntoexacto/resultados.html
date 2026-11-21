@@ -173,12 +173,34 @@
 {% endif %}
 
 <div class="pe-tarjeta">
+    <h5><i class="fas fa-file-zipper me-1"></i> Descargar informes</h5>
+    <form method="post" action="{% url 'puntoexacto:descargar_informes' examen_id=examen.id %}" id="pe-descarga">{% csrf_token %}
+        <div class="d-flex flex-wrap gap-3 mb-2" style="font-size:.95rem;">
+            <label><input type="checkbox" name="tipos" value="general" checked> Informe general</label>
+            <label><input type="checkbox" name="tipos" value="informes" checked> Informe de cada estudiante</label>
+            <label><input type="checkbox" name="tipos" value="hojas" checked> Hoja calificada de cada estudiante</label>
+            <label><input type="checkbox" name="tipos" value="excel"> Resultados en Excel</label>
+        </div>
+        <div class="d-flex flex-wrap gap-3 mb-2" style="font-size:.92rem;">
+            <label><input type="radio" name="modo" value="separado" checked> Un PDF por estudiante (para enviar a cada uno)</label>
+            <label><input type="radio" name="modo" value="junto"> Todos en un solo PDF (para imprimir)</label>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <button class="btn btn-primary" id="pe-descargar"><i class="fas fa-download me-1"></i>
+                Descargar ZIP · <span id="pe-n-sel">0</span> estudiante<span id="pe-n-sel-s">s</span></button>
+            <span class="pe-leyenda" style="font-size:.82rem;color:#6b7280;">Escoja los estudiantes en la tabla de abajo (vienen todos marcados). Con un curso completo puede tardar un minuto.</span>
+        </div>
+    </form>
+</div>
+
+<div class="pe-tarjeta">
     <h5>Notas</h5>
     <table class="pe-tabla">
-        <thead><tr><th>Estudiante</th><th>Estado</th><th class="pe-num">Nota</th>{% if controles %}<th class="pe-num">Control</th>{% endif %}<th></th></tr></thead>
+        <thead><tr><th style="width:34px;"><input type="checkbox" id="pe-todos" checked title="Escoger todos" aria-label="Escoger todos"></th><th>Estudiante</th><th>Estado</th><th class="pe-num">Nota</th>{% if controles %}<th class="pe-num">Control</th>{% endif %}<th></th></tr></thead>
         <tbody>
         {% for h in hojas %}
             <tr>
+                <td>{% if h.clave_informe %}<input type="checkbox" name="hojas" value="{{ h.id }}" form="pe-descarga" class="pe-sel" checked aria-label="Incluir a {{ h.nombre }}">{% endif %}</td>
                 <td>{{ h.nombre }}</td>
                 <td>
                     {% if h.estado == 'calificada' %}<span class="pe-chip pe-ok">Calificada</span>
@@ -203,4 +225,23 @@
         </tbody>
     </table>
 </div>
+<script>
+(function () {
+    var todos = document.getElementById('pe-todos'), sel = function () { return document.querySelectorAll('.pe-sel'); };
+    function contar() {
+        var n = Array.prototype.filter.call(sel(), function (c) { return c.checked; }).length;
+        document.getElementById('pe-n-sel').textContent = n;
+        document.getElementById('pe-n-sel-s').textContent = n === 1 ? '' : 's';
+        todos.checked = n === sel().length; todos.indeterminate = n > 0 && n < sel().length;
+    }
+    todos.addEventListener('change', function () { sel().forEach(function (c) { c.checked = todos.checked; }); contar(); });
+    document.addEventListener('change', function (e) { if (e.target.classList.contains('pe-sel')) contar(); });
+    document.getElementById('pe-descarga').addEventListener('submit', function (e) {
+        var b = document.getElementById('pe-descargar');
+        b.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Armando los informes…';
+        setTimeout(function () { b.innerHTML = '<i class="fas fa-download me-1"></i> Descargar ZIP · <span id="pe-n-sel">0</span> estudiante<span id="pe-n-sel-s">s</span>'; contar(); }, 6000);
+    });
+    contar();
+})();
+</script>
 {% endblock %}

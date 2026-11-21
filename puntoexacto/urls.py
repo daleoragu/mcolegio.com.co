@@ -46,6 +46,7 @@ urlpatterns = [
     path('<int:examen_id>/hojas-calificadas/', vi.hojas_calificadas, name='hojas_calificadas'),
     path('<int:examen_id>/hoja/<int:hoja_id>/calificada/', vi.hoja_calificada, name='hoja_calificada'),
     path('<int:examen_id>/en-vivo/', vi.en_vivo, name='en_vivo'),
+    path('<int:examen_id>/informes/descargar/', vi.descargar_informes, name='descargar_informes'),
     path('unidas/', vi.unidas, name='unidas'),
     path('unida/<int:pk>/', vi.unida, name='unida'),
     path('unida/<int:pk>/informe/', vi.unida_general, name='unida_general'),
