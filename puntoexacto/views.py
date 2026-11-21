@@ -1521,9 +1521,21 @@ def procesar_foto(request, examen_id):
                 forma_duda = d_forma[0]['motivo']
             elif not forma:
                 forma_duda = 'no marcó la forma'
+        # Claridad: cuánto le gana, en promedio, la burbuja más rellena a la segunda en cada pregunta. Con el mapa
+        # de burbujas correcto las marcadas quedan llenas y las demás vacías; con el de otro reparto, a medias.
+        por_pregunta = {}
+        for clave_b, m in medidas.items():
+            if clave_b[:1].isdigit():
+                n_preg = ''.join(ch for ch in clave_b if ch.isdigit())
+                por_pregunta.setdefault(n_preg, []).append(m['relleno'] if m else 0.0)
+        difs = []
+        for vals in por_pregunta.values():
+            vals = sorted(vals, reverse=True) + [0.0]
+            difs.append(vals[0] - vals[1])
+        claridad = sum(difs) / len(difs) if difs else 0.0
         return {'por_pagina': por_pagina, 'respuestas': respuestas, 'dudas': dudas, 'leido': leido,
                 'como': como, 'forma': forma, 'forma_duda': forma_duda, 'radio_px': radio_px,
-                'posiciones': posiciones}
+                'posiciones': posiciones, 'claridad': claridad}
 
     def calidad(r):
         # Primero, que el código de barras se haya leído (confirma el reparto);
@@ -1552,6 +1564,20 @@ def procesar_foto(request, examen_id):
         if mejor is None or calidad(r) < calidad(mejor):
             mejor = r
         if r['leido'] and len(r['dudas']) <= max(2, examen.numero_preguntas // 10):
+            # Las hojas de 1 y 4 por página (y las de 2 y 8) tienen la misma forma: el código se lee con
+            # cualquiera de las dos y la lectura equivocada puede quedar con pocas dudas. Se lee también con la
+            # gemela y gana la más clara (antes se quedaba con la primera y elegía burbujas que no eran).
+            gemela = {1: 4, 4: 1, 2: 8, 8: 2}.get(pp)
+            if gemela in orden and gemela != pp:
+                try:
+                    r2 = leer_con(gemela)
+                except Exception:
+                    r2 = None
+                if r2 and r2['leido'] and (len(r2['dudas']), -r2['claridad']) < (len(r['dudas']), -r['claridad']) \
+                        and r2['claridad'] > r['claridad']:
+                    mejor = r2
+                else:
+                    mejor = r
             break                      # código leído y lectura limpia: es este reparto
     if mejor is None:
         return JsonResponse({'ok': False, 'error': error or 'No se pudo leer la foto.'})
@@ -1666,7 +1692,8 @@ def _guardar_hoja(examen, hoja, respuestas, forma):
     with transaction.atomic():
         # Si llegan dos fotos de la misma hoja a la vez (la cámara manda dos en paralelo), se guardan una tras
         # otra: las dos borran y vuelven a crear las respuestas, y a la vez chocarían.
-        Hoja.objects.select_for_update().filter(pk=hoja.pk).first()
+        # Sin el orden por defecto (por apellido, con JOIN): PostgreSQL no deja bloquear filas de un JOIN abierto.
+        list(Hoja.objects.select_for_update().filter(pk=hoja.pk).order_by().values_list('pk', flat=True))
         hoja.save(update_fields=['forma'])
         # Las respuestas vienen por posición en la hoja impresa; si la hoja es
         # de la forma B se traducen a la A antes de guardarse.
