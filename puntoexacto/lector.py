@@ -18,6 +18,8 @@ El camino es:
 Cada paso devuelve además por qué decidió lo que decidió, para que la pantalla
 pueda mostrarle al docente una hoja dudosa en vez de inventarse una nota.
 """
+import weakref
+
 import numpy as np
 from PIL import Image, ImageOps
 
@@ -40,6 +42,27 @@ def _a_gris(imagen):
         imagen = Image.open(imagen)
     imagen = ImageOps.exif_transpose(imagen)      # el celular rota por metadato
     return np.asarray(imagen.convert('L'), dtype=np.float32)
+
+
+_ULTIMA_REDUCIDA = (None, None, None)     # (referencia débil a la foto, escala, foto achicada)
+
+
+def _reducida(gris, escala):
+    """La foto achicada para buscar las marcas. Se recuerda la última (sin retener la foto grande): la misma foto
+    se lee con varios repartos."""
+    global _ULTIMA_REDUCIDA
+    ref, esc, chica = _ULTIMA_REDUCIDA
+    if ref is not None and ref() is gris and esc == escala:
+        return chica
+    alto0, ancho0 = gris.shape
+    chica = np.asarray(Image.fromarray(gris.astype(np.uint8)).resize(
+        (max(1, int(ancho0 * escala)), max(1, int(alto0 * escala))), Image.BILINEAR),
+        dtype=np.float32)
+    try:
+        _ULTIMA_REDUCIDA = (weakref.ref(gris), escala, chica)
+    except TypeError:
+        pass
+    return chica
 
 
 def _integral(a):
@@ -75,9 +98,7 @@ def encontrar_marcas(gris, marca_mm, ancho_mm, pistas=None):
     """
     alto0, ancho0 = gris.shape
     escala = ANCHO_BUSQUEDA / ancho0 if ancho0 > ANCHO_BUSQUEDA else 1.0
-    chica = np.asarray(Image.fromarray(gris.astype(np.uint8)).resize(
-        (max(1, int(ancho0 * escala)), max(1, int(alto0 * escala))), Image.BILINEAR),
-        dtype=np.float32)
+    chica = _reducida(gris, escala)
     alto, ancho = chica.shape
 
     # La hoja ocupa casi todo el cuadro, así que esto estima bien la escala.
@@ -86,6 +107,12 @@ def encontrar_marcas(gris, marca_mm, ancho_mm, pistas=None):
     if lado * 2 >= min(alto, ancho):
         raise LecturaFallida('La foto es demasiado pequeña para leerla. '
                              'Tome la foto más cerca o suba la resolución.')
+
+    if pistas and len(pistas) == 4:
+        # La cámara ya encontró las cuatro (verificó que forman la hoja): aquí solo se afina cada una con el
+        # centro de lo oscuro a su alrededor. Funciona aunque la marca quede pegada al borde de la foto.
+        centros = [_afinar(chica, px * escala, py * escala, lado) for px, py in pistas]
+        return [(x / escala, y / escala) for x, y in centros], escala
 
     integ = _integral(chica)
     medias = _media_ventanas(integ, lado, lado)
@@ -113,11 +140,6 @@ def encontrar_marcas(gris, marca_mm, ancho_mm, pistas=None):
     mitad_y, mitad_x = alto // 2, ancho // 2
     cuadrantes = [(0, mitad_y, 0, mitad_x), (0, mitad_y, mitad_x, ancho),
                   (mitad_y, alto, mitad_x, ancho), (mitad_y, alto, 0, mitad_x)]
-    if pistas and len(pistas) == 4:
-        # La cámara ya encontró las cuatro (verificó que forman la hoja): aquí solo se afina cada una con el
-        # centro de lo oscuro a su alrededor. Funciona aunque la marca quede pegada al borde de la foto.
-        centros = [_afinar(chica, px * escala, py * escala, lado) for px, py in pistas]
-        return [(x / escala, y / escala) for x, y in centros], escala
     centros = []
     for y0, y1, x0, x1 in cuadrantes:
         sub = puntaje[y0:max(y0 + 1, y1 - lado), x0:max(x0 + 1, x1 - lado)]
@@ -483,8 +505,9 @@ def decidir(medidas, preguntas, letras_por_pregunta):
             # la hoja a revisión y los docentes lo veían como un error del lector en cada pregunta sin responder.
             respuestas[n] = ''
         elif mejor[0] >= UMBRAL_SOLO and ventaja < VENTAJA_MINIMA:
-            # Dos burbujas bien rellenas: es doble marca, no una duda menor.
-            respuestas[n] = ''
+            # Dos burbujas bien rellenas: es doble marca, no una duda menor. Quedan las dos marcadas (así lo ve el
+            # docente al revisar y decide); valen solo si la pregunta tiene esas dos como correctas.
+            respuestas[n] = ''.join(sorted(l for _, l in valores[:2]))
             dudas.append({'pregunta': n, 'motivo': 'hay dos marcadas',
                           'opciones': [l for _, l in valores[:2]],
                           'valores': [round(v, 3) for v, _ in valores[:2]]})

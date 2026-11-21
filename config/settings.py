@@ -277,3 +277,7 @@ MICROSOFT_CLIENT_ID = os.getenv('MICROSOFT_CLIENT_ID', '')
 # creen después) se conectan a través de ella; vacía = cada colegio con su propia
 # dirección registrada (útil en desarrollo).
 NUBE_URL = os.getenv('NUBE_URL', 'https://mcolegio.com.co').rstrip('/')
+
+# La clave de un examen largo manda ~15 campos por pregunta (opciones, rótulos, puntos, parciales por letra,
+# bloque, etiquetas…): con 60 preguntas se pasaba del tope de Django (1000) y salía «Bad Request (400)».
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 20000

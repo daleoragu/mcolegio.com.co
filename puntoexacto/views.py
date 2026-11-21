@@ -10,6 +10,7 @@ import re
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django.contrib import messages
+from django.core.cache import cache
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Q
@@ -555,6 +556,10 @@ def _leer_parciales(request, pregunta, letras):
             continue
         if Decimal('0') < valor < Decimal('1'):
             salida[letra] = str(valor)
+    # «Otra correcta»: vale lo mismo que la correcta (100 %).
+    for letra in request.POST.getlist(f'tambien_{pregunta.numero}'):
+        if letra in letras and letra != pregunta.correcta:
+            salida[letra] = '1'
     return salida
 
 
@@ -832,7 +837,7 @@ def exportar(request, examen_id):
     for h in examen.hojas.select_related('estudiante__user').prefetch_related('respuestas'):
         marcadas = {r.pregunta_id: r.marcada for r in h.respuestas.all()}
         buenas = sum(1 for p in preguntas
-                     if marcadas.get(p.id) and marcadas[p.id] == p.correcta)
+                     if p.acierta(marcadas.get(p.id)))
         blancas = sum(1 for p in preguntas if not marcadas.get(p.id))
         fila = [h.nombre, h.documento, h.get_estado_display(),
                 float(h.nota) if h.nota is not None else '']
@@ -1582,7 +1587,10 @@ def procesar_foto(request, examen_id):
             # cualquiera de las dos y la lectura equivocada puede quedar con pocas dudas. Se lee también con la
             # gemela y gana la más clara (antes se quedaba con la primera y elegía burbujas que no eran).
             gemela = {1: 4, 4: 1, 2: 8, 8: 2}.get(pp)
-            if gemela in orden and gemela != pp:
+            # Si una hoja anterior de este examen ya ganó la comparación con este reparto y esta salió sin dudas,
+            # no se vuelve a leer con la gemela: es la mitad del tiempo de cada foto.
+            confirmado = cache.get(f'pe_reparto_{examen.id}') == pp and not r['dudas']
+            if gemela in orden and gemela != pp and not confirmado:
                 try:
                     r2 = leer_con(gemela)
                 except Exception:
@@ -1592,6 +1600,9 @@ def procesar_foto(request, examen_id):
                     mejor = r2
                 else:
                     mejor = r
+                cache.set(f'pe_reparto_{examen.id}', mejor['por_pagina'], 6 * 3600)
+            else:
+                mejor = r
             break                      # código leído y lectura limpia: es este reparto
     if mejor is None:
         return JsonResponse({'ok': False, 'error': error or 'No se pudo leer la foto.'})
@@ -1678,8 +1689,13 @@ def _nota_sin_guardar(examen, respuestas, forma, calificar=True):
         forma = 'A'
     preguntas = list(examen.preguntas.order_by('numero'))
     orden = formas_mod.orden_de(examen, forma, preguntas)
-    clave = {str(c['posicion']): c['correcta'] for c in formas_mod.clave_de(orden, preguntas)
-             if not c['anulada'] and not (c['pregunta'] and c['pregunta'].es_control)}
+    # Por posición: la correcta y las «otras correctas», ya traducidas a esta forma («AC»).
+    clave = {}
+    for c, fila in zip(formas_mod.clave_de(orden, preguntas), orden):
+        if c['anulada'] or not c['pregunta'] or c['pregunta'].es_control or not c['correcta']:
+            continue
+        otras = [formas_mod.letra_en_hoja(fila, l) for l in c['pregunta'].letras_correctas()[1:]]
+        clave[str(c['posicion'])] = c['correcta'] + ''.join(l for l in otras if l and l != c['correcta'])
     r = {'nota': '', 'buenas': 0, 'malas': 0, 'blancas': 0, 'parciales': 0, 'dobles': 0, 'recortada': False}
     if calificar:
         with transaction.atomic():

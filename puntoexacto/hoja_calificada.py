@@ -42,8 +42,9 @@ def _encima(examen, hoja, info, preguntas, ancho_pt, alto_pt):
             continue
         marcada = (lectura.get(str(pos)) or '').strip()
         letras = [l for l in hojas_mod.LETRAS[:p.opciones_efectivas()] if f'{pos}{l}' in mapa]
-        # La letra de la hoja que, traducida a la forma A, es la correcta.
-        correcta_hoja = next((l for l in letras if formas_mod.a_forma_a(orden, pos, l)[1] == p.correcta), None)
+        # Las letras de la hoja que, traducidas a la forma A, son correctas (la correcta y las «otras correctas»).
+        correctas_a = set(p.letras_correctas())
+        correctas_hoja = {l for l in letras if formas_mod.a_forma_a(orden, pos, l)[1] in correctas_a}
         if p.anulada or p.es_control:
             x, y = mapa[f'{pos}{letras[0]}'] if letras else (None, None)
             if x is not None:
@@ -62,12 +63,12 @@ def _encima(examen, hoja, info, preguntas, ancho_pt, alto_pt):
                 malas += 1
         for l in letras:
             x, y = (v * mm for v in mapa[f'{pos}{l}'])
-            if marcada == l:
-                ok = formas_mod.a_forma_a(orden, pos, l)[1] == p.correcta
+            if l in marcada and marcada != Hoja.MARCA_DOBLE:
+                ok = l in correctas_hoja
                 c.setFillColor(Color(0.15, 0.15, 0.18)); c.circle(x, y, r * 0.78, stroke=0, fill=1)
                 c.setStrokeColor(VERDE if ok else ROJO); c.setLineWidth(1.8); c.setDash()
                 c.circle(x, y, r * 1.28, stroke=1, fill=0)
-            elif l == correcta_hoja:
+            elif l in correctas_hoja:
                 c.setStrokeColor(VERDE); c.setLineWidth(1.4); c.setDash(2, 1.6)
                 c.circle(x, y, r * 1.28, stroke=1, fill=0)
                 c.setDash()

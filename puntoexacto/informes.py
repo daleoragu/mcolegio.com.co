@@ -168,7 +168,7 @@ def construir(examenes, titulo=None, areas_fijas=None, incluir=None):
             if a['examen'].pk not in per['hojas']:
                 continue
             ps = por_area_preguntas[a['clave']]
-            bien = sum(1 for p in ps if per['marcas'].get(p.id) and per['marcas'][p.id] == p.correcta)
+            bien = sum(1 for p in ps if p.acierta(per['marcas'].get(p.id)))
             puntaje = round(100 * bien / len(ps)) if ps else 0
             per['areas'][a['clave']] = {'bien': bien, 'total': len(ps), 'puntaje': puntaje, 'nivel': nivel(puntaje, a['prueba'])}
         pesos = [(per['areas'][a['clave']]['puntaje'], a['peso']) for a in areas if a['clave'] in per['areas']]
@@ -216,16 +216,16 @@ def construir(examenes, titulo=None, areas_fijas=None, incluir=None):
             for p in quienes:
                 m = p['marcas'].get(q.id) or ''
                 reparto[m or '—'] += 1
-                if m == q.correcta:
+                if q.acierta(m):
                     bien += 1
                     ab += p['clave'] in altos
                     bb += p['clave'] in bajos
             n = len(quienes) or 1
-            dist = sorted(((k, v) for k, v in reparto.items() if k not in (q.correcta, '—')), key=lambda x: -x[1])
-            info = {'area': a['nombre'], 'numero': q.numero, 'examen': a['examen'].titulo, 'correcta': q.rotulo(q.correcta),
+            dist = sorted(((k, v) for k, v in reparto.items() if k != '—' and not q.acierta(k)), key=lambda x: -x[1])
+            info = {'area': a['nombre'], 'numero': q.numero, 'examen': a['examen'].titulo, 'correcta': q.rotulo_correctas(),
                     'etiquetas': q.lista_etiquetas(), 'pct': round(100 * bien / n),
                     'disc': round(ab / tam - bb / tam, 2) if hay_grupos else None,
-                    'distractor': (q.rotulo(dist[0][0]), round(100 * dist[0][1] / n)) if dist else None,
+                    'distractor': (q.rotulo_marcada(dist[0][0]), round(100 * dist[0][1] / n)) if dist else None,
                     'blanco': round(100 * reparto.get('—', 0) / n), 'id': q.id}
             preguntas_info.append(info)
             for et in q.lista_etiquetas():
@@ -286,7 +286,7 @@ def de_estudiante(datos, clave):
         for q in datos['por_area_preguntas'][a['clave']]:
             for et in q.lista_etiquetas():
                 por[et][1] += 1
-                por[et][0] += per['marcas'].get(q.id) == q.correcta and bool(per['marcas'].get(q.id))
+                por[et][0] += q.acierta(per['marcas'].get(q.id))
         for et, (b, t) in por.items():
             comp.append({'area': a['nombre'], 'etiqueta': et, 'bien': b, 'total': t, 'pct': round(100 * b / t),
                          'grupo': grupo.get((a['clave'], et), 0)})
@@ -297,10 +297,10 @@ def de_estudiante(datos, clave):
             continue
         for q in datos['por_area_preguntas'][a['clave']]:
             m = per['marcas'].get(q.id) or ''
-            if m != q.correcta:
+            if not q.acierta(m):
                 info = next((x for x in datos['preguntas'] if x['id'] == q.id), {})
-                falladas.append({'area': a['nombre'], 'numero': q.numero, 'marcada': q.rotulo(m) if m and m != '?' else ('doble' if m == '?' else 'sin marcar'),
-                                 'correcta': q.rotulo(q.correcta), 'etiquetas': ', '.join(q.lista_etiquetas()),
+                falladas.append({'area': a['nombre'], 'numero': q.numero, 'marcada': q.rotulo_marcada(m),
+                                 'correcta': q.rotulo_correctas(), 'etiquetas': ', '.join(q.lista_etiquetas()),
                                  'grupo_pct': info.get('pct', 0)})
     conclusiones = _conclusiones(per, areas, comp, falladas, datos)
     for x in areas:                      # sus fortalezas y lo que debe reforzar dentro de cada área

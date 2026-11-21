@@ -170,6 +170,10 @@ def a_forma_a(orden, posicion, marcada):
     if not fila:
         return posicion, marcada
     numero = fila.get('pregunta') or posicion
+    if marcada and len(marcada) > 1 and all(l in LETRAS for l in marcada):
+        ops = fila.get('opciones') or ''
+        trad = [(ops[LETRAS.index(l)] if LETRAS.index(l) < len(ops) else l) for l in marcada]
+        return numero, ''.join(sorted(set(trad)))
     if not marcada or marcada == Hoja.MARCA_DOBLE or marcada not in LETRAS:
         return numero, marcada
     i = LETRAS.index(marcada)
@@ -206,8 +210,8 @@ def guardar_lectura(hoja, lectura, preguntas=None, orden=None):
         en_hoja = por_numero.get(pos)
         if en_hoja is None:
             continue
-        letra = (letra or '').strip().upper()[:1]
-        if letra and letra != Hoja.MARCA_DOBLE and letra not in en_hoja.letras():
+        letra = ''.join(sorted(set((letra or '').strip().upper())))[:8]
+        if letra and letra != Hoja.MARCA_DOBLE and not all(l in en_hoja.letras() for l in letra):
             letra = ''          # una letra que esa pregunta no tiene
         limpia[str(pos)] = letra
 

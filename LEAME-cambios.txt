@@ -1,4 +1,4 @@
-Versión 0067 · 2026-11-21 15:06
+Versión 0068 · 2026-11-21 16:00
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -773,15 +773,20 @@ CAMBIADO  notas/views/reporte_parcial_views.py
 CAMBIADO  notas/views/sabana_views.py
 CAMBIADO  piar/logica.py
 CAMBIADO  prematricula/templates/prematricula/_base_publica.html
+CAMBIADO  puntoexacto/analisis.py
+CAMBIADO  puntoexacto/calificacion.py
 CAMBIADO  puntoexacto/cuadernillo.py
+CAMBIADO  puntoexacto/formas.py
 NUEVO     puntoexacto/graficas_informe.py
 NUEVO     puntoexacto/hoja_calificada.py
 NUEVO     puntoexacto/informes.py
 CAMBIADO  puntoexacto/lector.py
 NUEVO     puntoexacto/migrations/0012_pruebas_unidas.py
+NUEVO     puntoexacto/migrations/0013_respuesta_varias_letras.py
 CAMBIADO  puntoexacto/models.py
 NUEVO     puntoexacto/static/puntoexacto/escaner.js
 NUEVO     puntoexacto/templates/puntoexacto/_informe_estilos.html
+CAMBIADO  puntoexacto/templates/puntoexacto/clave.html
 CAMBIADO  puntoexacto/templates/puntoexacto/escanear.html
 NUEVO     puntoexacto/templates/puntoexacto/informe_estudiantes_pdf.html
 NUEVO     puntoexacto/templates/puntoexacto/informe_general_pdf.html
@@ -790,7 +795,9 @@ CAMBIADO  puntoexacto/templates/puntoexacto/resultados.html
 NUEVO     puntoexacto/templates/puntoexacto/unida.html
 NUEVO     puntoexacto/templates/puntoexacto/unidas.html
 CAMBIADO  puntoexacto/test_camara.py
+CAMBIADO  puntoexacto/test_clave_importar.py
 NUEVO     puntoexacto/test_informes.py
+NUEVO     puntoexacto/test_varias_correctas.py
 CAMBIADO  puntoexacto/urls.py
 CAMBIADO  puntoexacto/views.py
 NUEVO     puntoexacto/views_informes.py
@@ -941,6 +948,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   salon_digital/migrations/0010_cuenta_estudiante.py  (estudiante con varias clases: cuenta única y solicitudes)
   materiales/migrations/0014_puntos_y_comentarios.py  (biblioteca: puntos de cada material y comentarios de docentes)
   puntoexacto/migrations/0012_pruebas_unidas.py  (pruebas unidas para los informes tipo Saber 11)
+  puntoexacto/migrations/0013_respuesta_varias_letras.py  (respuesta con varias letras)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

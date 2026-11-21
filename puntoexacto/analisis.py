@@ -65,7 +65,7 @@ def analizar(examen):
     for h in hojas:
         m = marcadas[h.id]
         aciertos_por_hoja[h.id] = sum(
-            1 for p in preguntas if m.get(p.id) and m[p.id] == p.correcta)
+            1 for p in preguntas if p.acierta(m.get(p.id)))
 
     orden = sorted(hojas, key=lambda h: aciertos_por_hoja[h.id], reverse=True)
     tamano = max(1, int(len(orden) * PROPORCION_GRUPOS))
@@ -80,7 +80,7 @@ def analizar(examen):
         for h in hojas:
             marca = marcadas[h.id].get(p.id) or '—'
             reparto[marca] += 1
-            if marca == p.correcta:
+            if p.acierta(marca):
                 correctas += 1
                 if h.id in grupo_alto:
                     altos += 1
@@ -95,7 +95,7 @@ def analizar(examen):
         # La opción equivocada que más gente escogió: ahí suele haber un error
         # conceptual concreto, no un despiste.
         distractores = sorted(
-            ((op, n) for op, n in reparto.items() if op != p.correcta and op != '—'),
+            ((op, n) for op, n in reparto.items() if op not in p.letras_correctas() and op != '—'),
             key=lambda x: -x[1])
         filas.append({
             'numero': p.numero, 'correcta': p.rotulo(p.correcta),

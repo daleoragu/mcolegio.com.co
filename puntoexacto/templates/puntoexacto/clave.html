@@ -155,7 +155,20 @@
                             <span class="pe-cuenta">{{ p.opciones_efectivas }}</span>
                             <button type="button" class="pe-mm pe-mas" aria-label="Agregar una opción">+</button>
                             <button type="button" class="pe-etq-btn">Etiquetas</button>
+                            <button type="button" class="pe-etq-btn pe-tambien-btn" title="Otra opción que también es correcta (vale lo mismo)">+ Otra correcta</button>
                         </div>
+                        {% with pc=p.parciales %}
+                        <div class="pe-tambien" {% if not p.tiene_otra_correcta %}hidden{% endif %}>
+                            <span style="font-size:.78rem;color:#6b7280;">También correcta:</span>
+                            {% for l in letras_todas %}
+                            <label class="pe-op" data-i="{{ forloop.counter0 }}" style="font-size:.8rem;"
+                                   {% if forloop.counter > p.opciones_efectivas %}hidden{% endif %}>
+                                <input type="checkbox" name="tambien_{{ p.numero }}" value="{{ l }}"
+                                       {% if l in p.letras_correctas and l != p.correcta %}checked{% endif %}> <span class="pe-rot">{{ l }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        {% endwith %}
                         <div class="pe-etq" {% if not p.rotulos %}hidden{% endif %}>
                             <input type="text" name="rotulos_{{ p.numero }}" value="{{ p.rotulos }}"
                                    class="form-control form-control-sm pe-rotulos" maxlength="40"
@@ -354,6 +367,11 @@
         }
         tr.querySelector('.pe-menos').addEventListener('click', function () { mover(-1); });
         tr.querySelector('.pe-mas').addEventListener('click', function () { mover(+1); });
+        var btnTambien = tr.querySelector('.pe-tambien-btn');
+        if (btnTambien) btnTambien.addEventListener('click', function () {
+            var t = tr.querySelector('.pe-tambien');
+            t.hidden = !t.hidden;
+        });
         tr.querySelector('.pe-etq-btn').addEventListener('click', function () {
             etq.hidden = !etq.hidden;
             if (!etq.hidden) rot.focus();
