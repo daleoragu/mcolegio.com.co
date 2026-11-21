@@ -84,6 +84,15 @@
     .pe-cam-nota.si { display:block; animation:pe-sube .25s ease-out; }
     @keyframes pe-sube { from { transform:translate(-50%, 20px); opacity:0; } }
     .pe-cam-nota .fila { display:flex; align-items:center; gap:12px; }
+    .pe-cam-nota img { display:none; width:100%; max-height:34vh; object-fit:contain; border-radius:10px; margin-bottom:8px;
+                       background:#fff; border:1px solid #e5e7eb; cursor:zoom-in; }
+    .pe-cam-nota img.si { display:block; }
+    .pe-cam-nota .titulo-rev { font-size:.78rem; font-weight:700; color:#8a5200; margin-bottom:4px; display:none; }
+    .pe-cam-nota.revisar .titulo-rev { display:block; }
+    @media (orientation: landscape) {
+        .pe-cam-nota { left:12px; top:58px; bottom:auto; transform:none; width:min(42vw, 380px); animation:none !important; }
+        .pe-cam-nota img { max-height:52vh; }
+    }
     .pe-cam-nota .valor { font-size:2rem; font-weight:800; line-height:1; min-width:70px; text-align:center;
                           border-radius:12px; padding:7px 6px; color:#fff; }
 
@@ -264,6 +273,8 @@
         <button type="button" id="pe-manual-cancelar" style="background:#ef4444;color:#fff;">Cancelar</button>
     </div>
     <div class="pe-cam-nota" id="pe-cam-nota">
+        <div class="titulo-rev"><i class="fas fa-triangle-exclamation me-1"></i>Para revisar: toque la imagen o «Corregir»</div>
+        <img id="pe-cam-previa" alt="Vista previa de la hoja">
         <div class="fila">
             <div class="valor" id="pe-cam-nota-valor">–</div>
             <div style="flex:1;min-width:0;">
@@ -571,6 +582,7 @@
             if (camaraAbierta() && !p.esperando) {
                 sonar('revisar');
                 estado('⚠ Para revisar: ' + (p.nombre || 'hoja sin nombre') + (p.dudas ? ' (' + p.dudas + ' dudas)' : ''), 'mal');
+                mostrarRevisarCamara(p);
             }
         }
         pintarLote();
@@ -906,55 +918,46 @@
         ultimoTiempo = t; return true;
     }
 
-    // Mientras la hoja está quieta se miden unos fotogramas y se usa el más nítido (máximo 0,45 s).
+    // Mientras la hoja está quieta se miden unos fotogramas y se usa el más nítido (máximo 0,3 s).
     function elegirFotograma(quad) {
         var ahora = performance.now();
-        if (enfoque && !hayCuadroNuevo()) return ahora - enfoque.t0 > 450 && enfoque.mejor ? (disparar(enfoque.mejor), true) : false;
+        if (enfoque && !hayCuadroNuevo()) return ahora - enfoque.t0 > 300 && enfoque.mejor ? (disparar(enfoque.mejor), true) : false;
         if (!enfoque) { enfoque = {t0: ahora, n: 0, max: 0, mejor: null, sinMejorar: 0}; pedirEnfoque(); }
         var lienzo = fotograma(quad), v = nitidez(lienzo);
         enfoque.n++;
         if (v > enfoque.max * 1.03) { enfoque.max = v; enfoque.mejor = lienzo; enfoque.sinMejorar = 0; }
         else { enfoque.sinMejorar++; if (v > enfoque.max) { enfoque.max = v; enfoque.mejor = lienzo; } }
-        var listo = (enfoque.n >= 2 && enfoque.sinMejorar >= 1) || ahora - enfoque.t0 > 450;
+        var listo = (enfoque.n >= 2 && enfoque.sinMejorar >= 1) || ahora - enfoque.t0 > 300;
         if (!listo) return false;
         disparar(enfoque.mejor || lienzo);
         return true;
     }
 
     // Toma la hoja: la endereza (quede como quede en la foto), la pone en el lote y, al calificar, la manda.
+    // La cámara vuelve a buscar de una vez: el enderezado va aparte y no la frena.
     function disparar(lienzo) {
         pararBusqueda();
         enfoque = null;
         sonar('foto');
         elDestello.style.opacity = '0.85';
         setTimeout(function () { elDestello.style.opacity = '0'; }, 120);
-        var final = lienzo, dz = null;
-        if (lienzo.quad) {
-            dz = lienzo.quad.diseno;
-            try { final = PEScan.enderezar(lienzo, lienzo.quad, dz, PEScan.resolucion(lienzo.quad, dz)); }
-            catch (e) { final = lienzo; dz = null; }
+        esperarRetiro = true; perdidas = 0;
+        var dz = lienzo.quad ? lienzo.quad.diseno : null;
+        var paso = dz ? PEScan.enderezarAsync(lienzo, lienzo.quad, dz, PEScan.resolucion(lienzo.quad, dz)).catch(function () { dz = null; return lienzo; })
+                      : Promise.resolve(lienzo);
+        var confirmar = !elAuto.checked && modo !== 'pdf';
+        if (confirmar) { elLeyendo.classList.add('si'); estado('Leyendo la hoja…'); }
+        else {
+            estado(modo === 'pdf' ? '✓ Hoja ' + (lote.length + 1) + ' en el PDF. Ponga la siguiente.' : 'Leyendo… ponga la siguiente hoja.', 'bien');
+            arrancarBusqueda();
         }
-        PEScan.aJPEG(final, 0.88).then(function (blob) {
-            var p = nuevaPagina(blob, dz, !lienzo.quad, final.margen);
-            esperarRetiro = true; perdidas = 0;
-            if (modo === 'pdf') {
-                estado('✓ Hoja ' + lote.length + ' en el PDF. Ponga la siguiente.', 'bien');
-                pintarLote();
-                arrancarBusqueda();
-                return;
-            }
-            if (elAuto.checked) {
-                // No se espera al servidor: la cámara sigue con la siguiente hoja.
+        paso.then(function (final) { return PEScan.aJPEG(final, 0.88).then(function (blob) { return [blob, final]; }); })
+            .then(function (r) {
+                var p = nuevaPagina(r[0], dz, !lienzo.quad, r[1].margen);
+                if (modo === 'pdf') { pintarLote(); return; }
+                if (confirmar) { p.esperando = true; p.confirmar = true; }
                 encolar(p);
-                estado('Leyendo… ponga la siguiente hoja.', 'bien');
-                arrancarBusqueda();
-            } else {
-                p.esperando = true; p.confirmar = true;
-                elLeyendo.classList.add('si');
-                estado('Leyendo la hoja…');
-                encolar(p);
-            }
-        });
+            });
     }
 
     // ---- Esquinas a mano: se congela la imagen y el docente toca las 4 marcas negras ----
@@ -1093,7 +1096,7 @@
         return new Promise(function (ok, mal) { var i = new Image(); i.onload = function () { ok(i); }; i.onerror = mal; i.src = url; });
     }
 
-    function marcarCalificacion(c, p) {
+    function marcarCalificacion(c, p, sinSello) {
         var l = p.lectura, x = c.getContext('2d');
         if (!l || !l.posiciones) return;
         var kx = c.width / (l.ancho_foto || c.width), ky = c.height / (l.alto_foto || c.height);
@@ -1110,7 +1113,17 @@
             else if (buena === le) { x.setLineDash([r * 0.35, r * 0.25]); x.strokeStyle = '#0b8a4a'; x.stroke(); }
         });
         x.setLineDash([]);
-        if (info) {
+        // Las preguntas dudosas, en naranja.
+        (l.dudas || []).forEach(function (du) {
+            Object.keys(l.posiciones).forEach(function (k) {
+                var m = k.match(/^(\d+)([A-J])$/);
+                if (!m || m[1] !== String(du.pregunta)) return;
+                var pos = l.posiciones[k];
+                x.beginPath(); x.arc(pos[0] * kx, pos[1] * ky, r * 1.25, 0, Math.PI * 2);
+                x.strokeStyle = '#f59e0b'; x.lineWidth = Math.max(2, r * 0.3); x.stroke();
+            });
+        });
+        if (info && !sinSello) {
             var w = c.width * 0.3, h = c.width * 0.085, x0 = c.width - w - c.width * 0.07, y0 = c.height * 0.12;
             x.fillStyle = 'rgba(255,255,255,.92)'; x.fillRect(x0, y0, w, h);
             x.strokeStyle = colorNota(parseFloat(info.nota)); x.lineWidth = c.width * 0.004; x.strokeRect(x0, y0, w, h);
@@ -1170,7 +1183,56 @@
         return f >= 0.8 ? '#0b6b4a' : f >= 0.5 ? '#1b5fa8' : f >= 0.35 ? '#b45309' : '#b42318';
     }
 
+    // Vista previa: solo la parte de las burbujas, con lo bueno, lo malo y lo dudoso marcado encima.
+    function vistaPrevia(p) {
+        var l = p.lectura;
+        if (!l || !l.posiciones) return Promise.resolve(null);
+        return cargarImagen(p.url).then(function (img) {
+            var k = Math.min(1, 1000 / img.naturalWidth);
+            var c = document.createElement('canvas');
+            c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            marcarCalificacion(c, p, true);
+            var kx = c.width / (l.ancho_foto || c.width), ky = c.height / (l.alto_foto || c.height);
+            var xs = [], ys = [];
+            Object.keys(l.posiciones).forEach(function (q) { xs.push(l.posiciones[q][0] * kx); ys.push(l.posiciones[q][1] * ky); });
+            if (!xs.length) return c.toDataURL('image/jpeg', 0.8);
+            var m = (l.radio_px || 10) * kx * 3;
+            var x0 = Math.max(0, Math.min.apply(null, xs) - m * 1.6), x1 = Math.min(c.width, Math.max.apply(null, xs) + m);
+            var y0 = Math.max(0, Math.min.apply(null, ys) - m), y1 = Math.min(c.height, Math.max.apply(null, ys) + m);
+            var r = document.createElement('canvas');
+            r.width = Math.round(x1 - x0); r.height = Math.round(y1 - y0);
+            r.getContext('2d').drawImage(c, x0, y0, r.width, r.height, 0, 0, r.width, r.height);
+            return r.toDataURL('image/jpeg', 0.82);
+        }).catch(function () { return null; });
+    }
+    function ponerPrevia(p) {
+        var im = $('pe-cam-previa');
+        im.classList.remove('si');
+        vistaPrevia(p).then(function (url) {
+            if (url && elCamNota.pagina === p) { im.src = url; im.classList.add('si'); }
+        });
+    }
+    $('pe-cam-previa').addEventListener('click', function () { $('pe-cam-corregir').click(); });
+
+    // Una hoja dudosa (con «auto»): sale su vista previa para corregirla ya, sin detener la cámara.
+    function mostrarRevisarCamara(p) {
+        var v = $('pe-cam-nota-valor');
+        var info = p.notaInfo;
+        v.textContent = info ? info.nota : '?';
+        v.style.background = '#d48a00';
+        $('pe-cam-nota-nombre').textContent = p.nombre || '¿De quién es esta hoja?';
+        $('pe-cam-nota-detalle').innerHTML = '<span style="color:#8a5200;font-weight:600;">' +
+            (p.dudas ? p.dudas + ' pregunta' + (p.dudas > 1 ? 's' : '') + ' por revisar' : 'Falta confirmar') + '</span>';
+        elCamNota.pagina = p;
+        elCamNota.classList.add('si', 'revisar');
+        ponerPrevia(p);
+        clearTimeout(mostrarNotaCamara.t);
+        mostrarNotaCamara.t = setTimeout(ocultarNotaCamara, 9000);
+    }
+
     function mostrarNotaCamara(p, d, repetida) {
+        elCamNota.classList.remove('revisar');
         var v = $('pe-cam-nota-valor');
         v.textContent = d.nota;
         v.style.background = colorNota(parseFloat(d.nota));
@@ -1180,8 +1242,9 @@
             (info ? '<span class="pe-c-bien">' + info.buenas + ' bien</span> · <span class="pe-c-mal">' + info.malas + ' mal</span>' : '');
         elCamNota.pagina = p;
         elCamNota.classList.add('si');
+        if (p) ponerPrevia(p);
         clearTimeout(mostrarNotaCamara.t);
-        mostrarNotaCamara.t = setTimeout(ocultarNotaCamara, 4500);
+        mostrarNotaCamara.t = setTimeout(ocultarNotaCamara, 7000);
     }
     function ocultarNotaCamara() { elCamNota.classList.remove('si'); }
 

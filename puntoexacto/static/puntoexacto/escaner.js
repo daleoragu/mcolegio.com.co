@@ -404,6 +404,40 @@
         return salida;
     }
 
+    // Lo mismo, pero en un «trabajador» aparte: el celular no se congela mientras endereza y la cámara sigue buscando.
+    var CODIGO_TRABAJADOR = 'onmessage=function(e){var m=e.data,src=new Uint8ClampedArray(m.src),sw=m.sw,sh=m.sh,Wd=m.Wd,Hd=m.Hd,h=m.h,k=m.k,mg=m.mg;' +
+        'var dst=new Uint8ClampedArray(Wd*Hd*4);for(var y=0;y<Hd;y++){var my=(y+0.5)/k-mg;for(var x=0;x<Wd;x++){var mx=(x+0.5)/k-mg;' +
+        'var w=h[6]*mx+h[7]*my+1,u=(h[0]*mx+h[1]*my+h[2])/w-0.5,v=(h[3]*mx+h[4]*my+h[5])/w-0.5,o=(y*Wd+x)*4;' +
+        'if(u<0||v<0||u>=sw-1||v>=sh-1){dst[o]=dst[o+1]=dst[o+2]=255;dst[o+3]=255;continue;}' +
+        'var x0=u|0,y0=v|0,fx=u-x0,fy=v-y0,a=(y0*sw+x0)*4,b=a+4,c=a+sw*4,d=c+4;' +
+        'for(var ch=0;ch<3;ch++){var t=src[a+ch]+(src[b+ch]-src[a+ch])*fx,bo=src[c+ch]+(src[d+ch]-src[c+ch])*fx;dst[o+ch]=t+(bo-t)*fy;}dst[o+3]=255;}}' +
+        'postMessage({dst:dst.buffer,id:m.id},[dst.buffer]);};';
+    var trabajador = null, pendientes = {}, siguiente = 1;
+    function enderezarAsync(fuente, quad, dz, pxPorMm, margenMm) {
+        var k = pxPorMm, mg = margenMm === undefined ? Math.max(4, dz.ancho * 0.035) : margenMm;
+        try {
+            if (!trabajador) {
+                trabajador = new Worker(URL.createObjectURL(new Blob([CODIGO_TRABAJADOR], {type: 'text/javascript'})));
+                trabajador.onmessage = function (e) { var f = pendientes[e.data.id]; delete pendientes[e.data.id]; if (f) f(e.data.dst); };
+            }
+        } catch (e) { trabajador = null; }
+        if (!trabajador) return Promise.resolve(enderezar(fuente, quad, dz, pxPorMm, margenMm));
+        var Wd = Math.round((dz.ancho + 2 * mg) * k), Hd = Math.round((dz.alto + 2 * mg) * k);
+        var img = fuente.getContext('2d', {willReadFrequently: true}).getImageData(0, 0, fuente.width, fuente.height);
+        var Hm = homografia(dz.marcas, quad), id = siguiente++;
+        return new Promise(function (ok) {
+            pendientes[id] = function (buf) {
+                var salida = document.createElement('canvas');
+                salida.width = Wd; salida.height = Hd;
+                salida.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(buf), Wd, Hd), 0, 0);
+                salida.diseno = dz; salida.margen = mg * k;
+                ok(salida);
+            };
+            trabajador.postMessage({src: img.data.buffer, sw: fuente.width, sh: fuente.height, Wd: Wd, Hd: Hd, h: Hm.h, k: k, mg: mg, id: id},
+                                   [img.data.buffer]);
+        });
+    }
+
     // Píxeles por mm para enderezar sin inventar detalle que la foto no tiene.
     function resolucion(quad, dz, maxAncho) {
         var lado = Math.hypot(quad[1][0] - quad[0][0], quad[1][1] - quad[0][1]);
@@ -541,5 +575,5 @@
 
     global.PEScan = {homografia: homografia, disenos: disenos, Detector: Detector, enderezar: enderezar,
                      resolucion: resolucion, mejorar: mejorar, armarPDF: armarPDF, leerArchivo: leerArchivo,
-                     aJPEG: aJPEG, ajustarEsquina: ajustarEsquina, desdeEsquinas: desdeEsquinas};
+                     aJPEG: aJPEG, enderezarAsync: enderezarAsync, ajustarEsquina: ajustarEsquina, desdeEsquinas: desdeEsquinas};
 })(window);
