@@ -270,6 +270,7 @@
             <span id="pe-cuenta-red" style="display:none;color:#c7d2fe;"> · <i class="fas fa-wifi"></i><i class="fas fa-slash" style="margin-left:-1.05em;"></i> <span id="pe-contador-red">0</span></span></span>
         <span style="display:flex;gap:6px;">
             <button type="button" class="pe-cam-boton" id="pe-visores" aria-label="Visores fijos o búsqueda libre"><i class="fas fa-vector-square"></i></button>
+            <button type="button" class="pe-cam-boton" id="pe-girar" aria-label="Girar los visores (hoja acostada o derecha)"><i class="fas fa-rotate"></i></button>
             <button type="button" class="pe-cam-boton" id="pe-mano" aria-label="Marcar las esquinas con el dedo"><i class="fas fa-hand-pointer"></i></button>
             <button type="button" class="pe-cam-boton" id="pe-vivo-cam" aria-label="Cómo va el grupo"><i class="fas fa-chart-column"></i></button>
             <button type="button" class="pe-cam-boton" id="pe-sonido" aria-label="Sonido"><i class="fas fa-volume-high"></i></button>
@@ -627,7 +628,31 @@
     // Es mucho más rápido y el fondo no confunde. Con el botón se cambia a la búsqueda libre en todo el cuadro.
     var usarVisores = true, ultimaVista = null;
     try { usarVisores = localStorage.getItem('pe-visores') !== '0'; } catch (e) {}
-    function pintarBotonVisores() { $('pe-visores').classList.toggle('activo', usarVisores); }
+    var girarVisores = false;
+    try { girarVisores = localStorage.getItem('pe-girar') === '1'; } catch (e) {}
+    function pintarBotonVisores() {
+        $('pe-visores').classList.toggle('activo', usarVisores);
+        $('pe-girar').style.display = usarVisores ? '' : 'none';
+        $('pe-girar').classList.toggle('activo', girarVisores);
+    }
+    // Girar los visores a mano: para la hoja acostada aunque la pantalla no gire (rotación bloqueada).
+    $('pe-girar').addEventListener('click', function () {
+        girarVisores = !girarVisores;
+        try { localStorage.setItem('pe-girar', girarVisores ? '1' : '0'); } catch (e) {}
+        pintarBotonVisores();
+        ultimaVista = null; anterior = null; estables = 0;
+        var vw = elVideo.videoWidth, vh = elVideo.videoHeight;
+        var acostada = (vw > vh) !== girarVisores;
+        estado(acostada ? 'Visores para la hoja ACOSTADA.' : 'Visores para la hoja DERECHA.', 'bien');
+        dibujar(null);
+    });
+    // Al girar el celular el video cambia de forma: los visores se acomodan solos de una vez.
+    function alGirar() {
+        ultimaVista = null; anterior = null; estables = 0;
+        if (flujo) { ajustarVisor(); dibujar(null); }
+    }
+    elVideo.addEventListener('resize', alGirar);
+    window.addEventListener('orientationchange', function () { setTimeout(alGirar, 250); });
     $('pe-visores').addEventListener('click', function () {
         usarVisores = !usarVisores;
         try { localStorage.setItem('pe-visores', usarVisores ? '1' : '0'); } catch (e) {}
@@ -765,7 +790,7 @@
         elGuias.setAttribute('viewBox', '0 0 ' + vw + ' ' + vh);
         dibujar(null);
     }
-    window.addEventListener('resize', function () { if (flujo) setTimeout(ajustarVisor, 150); });
+    window.addEventListener('resize', function () { if (flujo) setTimeout(function () { ultimaVista = null; ajustarVisor(); }, 150); });
 
     function dibujar(quad, progreso) {
         var vw = elVideo.videoWidth || 1000, g = Math.max(3, Math.max(vw, elVideo.videoHeight || 0) / 220);
@@ -783,7 +808,7 @@
         }
         // Los visores: esquinas en L, blancas; verdes cuando hay un cuadrado negro adentro.
         if (usarVisores && elVideo.videoWidth && !manual) {
-            var vis = ultimaVista && ultimaVista.visores ? ultimaVista.visores : PEScan.visores(elVideo.videoWidth, elVideo.videoHeight, DISENOS[0]);
+            var vis = ultimaVista && ultimaVista.visores ? ultimaVista.visores : PEScan.visores(elVideo.videoWidth, elVideo.videoHeight, DISENOS[0], girarVisores);
             var lado = vis.lado, b = lado * 0.32, gv = Math.max(3, Math.max(vw, elVideo.videoHeight) / 260);
             vis.centros.forEach(function (c, i) {
                 var ok = ultimaVista && ultimaVista.encontrados && ultimaVista.encontrados[i];
@@ -821,7 +846,7 @@
     function cuadro() {
         if (!buscando) return;
         if (elVideo.readyState >= 2 && elVideo.videoWidth && !document.hidden) {
-            var r = usarVisores ? detector.buscarEnVisores(elVideo, elVideo.videoWidth, elVideo.videoHeight, DISENOS[0])
+            var r = usarVisores ? detector.buscarEnVisores(elVideo, elVideo.videoWidth, elVideo.videoHeight, DISENOS[0], girarVisores)
                                 : detector.buscar(elVideo, elVideo.videoWidth, elVideo.videoHeight);
             ultimaVista = usarVisores ? r : null;
             var quad = r.quad;

@@ -240,8 +240,10 @@
     // Dónde van los 4 visores para este cuadro: las marcas de la hoja ocupando ~82 % de la pantalla, derecha si el
     // celular está vertical y acostada si está horizontal. Devuelve los centros (orden de pantalla: sup. izq.,
     // sup. der., inf. der., inf. izq.), el lado de cada visor y si la hoja va acostada.
-    function visores(vw, vh, dz) {
-        var acostada = vw > vh;
+    // girar: true para poner los visores al revés de lo que dice la pantalla (hoja acostada con el celular
+    // vertical, por ejemplo cuando el celular tiene bloqueada la rotación).
+    function visores(vw, vh, dz, girar) {
+        var acostada = (vw > vh) !== !!girar;
         var prop = acostada ? 1 / dz.prop : dz.prop;          // alto/ancho del rectángulo de marcas en pantalla
         var ancho = Math.min(vw * 0.82, vh * 0.82 / prop), alto = ancho * prop;
         var x0 = (vw - ancho) / 2, y0 = (vh - alto) / 2;
@@ -251,7 +253,7 @@
     }
 
     // Busca una marca negra dentro de cada visor (solo ahí: es rápido y el fondo no confunde).
-    Detector.prototype.buscarEnVisores = function (fuente, vw, vh, dz) {
+    Detector.prototype.buscarEnVisores = function (fuente, vw, vh, dz, girar) {
         var W = this.ancho, s = W / vw, H = Math.round(vh * s);
         if (this.lienzo.width !== W || this.lienzo.height !== H) { this.lienzo.width = W; this.lienzo.height = H; }
         this.ctx.drawImage(fuente, 0, 0, W, H);
@@ -268,7 +270,7 @@
         function suma(x0, y0, x1, y1) {
             return integ[y1 * W1 + x1] - integ[y0 * W1 + x1] - integ[y1 * W1 + x0] + integ[y0 * W1 + x0];
         }
-        var vis = visores(vw, vh, dz), encontrados = [], puntos = [];
+        var vis = visores(vw, vh, dz, girar), encontrados = [], puntos = [];
         vis.centros.forEach(function (c) {
             var cx = c[0] * s, cy = c[1] * s, R = vis.lado * s / 2, mejor = null;
             // Tamaños de marca posibles dentro del visor (la hoja un poco más cerca o más lejos).
