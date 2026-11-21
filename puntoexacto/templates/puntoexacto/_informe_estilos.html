@@ -4,13 +4,13 @@
           @bottom-center { content: "{{ d.titulo|truncatechars:60|escapejs }}"; font: 7.5pt Helvetica; color: #94a3b8; }
           @bottom-right { content: "Página " counter(page) " de " counter(pages); font: 7.5pt Helvetica; color: #64748b; } }
   body { font-family: Helvetica, Arial, sans-serif; font-size: 9.6pt; color: #0f172a; line-height: 1.42; }
-  .cab { background: {{ tema.primario }}; color: {{ tema.texto }}; border-radius: 8px; padding: 14px 18px; margin-bottom: 12px; }
+  .cab { background: {{ tema.primario }}; color: {{ tema.texto }}; border-bottom: 4px solid {{ tema.secundario|default:tema.primario }}; border-radius: 8px; padding: 14px 18px; margin-bottom: 12px; }
   .cab .eti { font-size: 7.5pt; letter-spacing: .12em; text-transform: uppercase; color: {{ tema.texto }}; opacity: .8; font-weight: bold; }
   .cab h1 { font-size: 17pt; margin: 3px 0 2px; line-height: 1.15; }
   .cab p { margin: 0; color: {{ tema.texto }}; opacity: .85; font-size: 9pt; }
-  h2 { font-size: 12pt; color: {{ tema.primario }}; border-bottom: 2px solid #e2e8f0; padding-bottom: 2px; margin: 14px 0 6px; page-break-after: avoid; }
+  h2 { font-size: 12pt; color: {{ tema.primario }}; border-bottom: 2px solid {{ tema.secundario|default:'#e2e8f0' }}; padding-bottom: 2px; margin: 14px 0 6px; page-break-after: avoid; }
   .kpis { display: flex; gap: 7px; margin: 4px 0 10px; }
-  .kpi { flex: 1; border: 1px solid #e2e8f0; border-radius: 7px; padding: 7px 9px; }
+  .kpi { flex: 1; border: 1px solid #e2e8f0; border-top: 3px solid {{ tema.secundario|default:'#e2e8f0' }}; border-radius: 7px; padding: 7px 9px; }
   .kpi b { display: block; font-size: 15pt; color: {{ tema.primario }}; line-height: 1.1; }
   .kpi span { font-size: 7.8pt; color: #475569; }
   table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 8.6pt; }
@@ -30,4 +30,11 @@
   .enc-colegio td { border: none; padding: 2px 4px; }
   .enc-colegio .escudo { max-height: 62px !important; }
   .enc-colegio p { margin: 1px 0 !important; color: #0f172a; }
+  /* Encabezado del docente sin colegio («Mi encabezado») */
+  .enc-docente { width: 100%; border-collapse: collapse; border-bottom: 2px solid {{ tema.primario }}; margin-bottom: 8px; }
+  .enc-docente.sin-borde { border-bottom: 0; }
+  .enc-docente td { border: none; vertical-align: middle; padding: 0 4px 3px; }
+  .enc-docente .lado { width: 24mm; text-align: center; }
+  .enc-docente .lado img, .enc-docente .arriba img { max-height: 17mm; max-width: 24mm; }
+  .enc-docente .arriba { text-align: center; }
 </style>

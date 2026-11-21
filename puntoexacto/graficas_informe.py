@@ -25,9 +25,10 @@ def _svg(w, h, cuerpo):
                      f'font-family="Helvetica, Arial" font-size="11">{cuerpo}</svg>')
 
 
-def barras_areas(areas, valores_alumno=None, color=AZUL):
+def barras_areas(areas, valores_alumno=None, color=AZUL, color2=None):
     """Una barra por área (0–100). Con valores_alumno: barra del estudiante (azul) y marca del promedio del grupo."""
     W, izq, ancho, fila = 700, 170, 430, 30
+    marca = color2 if color2 and color2 != color else TXT          # la línea del grupo, en el segundo color del colegio
     H = 20 + fila * len(areas) + 26
     s = []
     for i, a in enumerate(areas):
@@ -39,20 +40,20 @@ def barras_areas(areas, valores_alumno=None, color=AZUL):
             s.append(f'<rect x="{izq}" y="{y}" width="{ancho * v / 100:.1f}" height="18" rx="3" fill="{color}"/>')
             d = a.get('desviacion') or 0
             x1, x2 = izq + ancho * max(0, v - d) / 100, izq + ancho * min(100, v + d) / 100
-            s.append(f'<line x1="{x1:.1f}" x2="{x2:.1f}" y1="{y + 9}" y2="{y + 9}" stroke="{TXT}" stroke-width="1.2"/>')
+            s.append(f'<line x1="{x1:.1f}" x2="{x2:.1f}" y1="{y + 9}" y2="{y + 9}" stroke="{marca}" stroke-width="1.2"/>')
             s.append(f'<text x="{izq + ancho + 8}" y="{y + 14}" fill="{TXT2}">{v:.0f} ± {d:.0f}</text>')
         else:
             v, gp = valores_alumno[i], a['grupo']
             s.append(f'<rect x="{izq}" y="{y}" width="{ancho * v / 100:.1f}" height="18" rx="3" fill="{color}"/>')
             xg = izq + ancho * gp / 100
-            s.append(f'<line x1="{xg:.1f}" x2="{xg:.1f}" y1="{y - 3}" y2="{y + 21}" stroke="{TXT}" stroke-width="2.5"/>')
+            s.append(f'<line x1="{xg:.1f}" x2="{xg:.1f}" y1="{y - 3}" y2="{y + 21}" stroke="{marca}" stroke-width="2.5"/>')
             s.append(f'<text x="{izq + ancho + 8}" y="{y + 14}" fill="{TXT2}">{v} · grupo {gp:.0f}</text>')
     yl = H - 8
     if valores_alumno is None:
         s.append(f'<text x="{izq}" y="{yl}" fill="{TXT2}">Barra: promedio del área (0–100) · línea: ± una desviación estándar</text>')
     else:
         s.append(f'<rect x="{izq}" y="{yl - 9}" width="12" height="10" fill="{color}"/><text x="{izq + 16}" y="{yl}" fill="{TXT2}">Su puntaje</text>'
-                 f'<line x1="{izq + 100}" x2="{izq + 100}" y1="{yl - 11}" y2="{yl + 1}" stroke="{TXT}" stroke-width="2.5"/>'
+                 f'<line x1="{izq + 100}" x2="{izq + 100}" y1="{yl - 11}" y2="{yl + 1}" stroke="{marca}" stroke-width="2.5"/>'
                  f'<text x="{izq + 106}" y="{yl}" fill="{TXT2}">Promedio del grupo</text>')
     return _svg(W, H, ''.join(s))
 

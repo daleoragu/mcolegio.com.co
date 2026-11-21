@@ -1,6 +1,6 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe general · {{ d.titulo }}</title>
 {% include 'puntoexacto/_informe_estilos.html' %}</head><body>
-{% if colegio %}<div class="enc-colegio">{% include 'notas/fragmentos/encabezado_pdf.html' %}</div>{% endif %}
+{% if colegio %}<div class="enc-colegio">{% include 'notas/fragmentos/encabezado_pdf.html' %}</div>{% elif tema.encabezado %}{% include 'materiales/_encabezado_docente.html' with encabezado=tema.encabezado rutas=tema.rutas %}{% endif %}
 <div class="cab"><div class="eti">Informe general de resultados</div>
   <h1>{{ d.titulo }}</h1>
   <p>{{ institucion }} · {% for ex in d.examenes %}{{ ex.titulo }} ({{ ex.fecha|date:"j M Y" }}){% if not forloop.last %} · {% endif %}{% endfor %} · Generado el {{ hoy|date:"j \d\e F \d\e Y" }}</p></div>

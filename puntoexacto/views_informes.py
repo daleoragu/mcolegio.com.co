@@ -30,14 +30,68 @@ def _luz(hexa):
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 
+def _hex(c):
+    """'#abc' o '#aabbcc' -> '#aabbcc' en minúsculas; cualquier otra cosa -> ''."""
+    c = (c or '').strip().lower()
+    if len(c) == 4 and c.startswith('#'):
+        c = '#' + ''.join(ch * 2 for ch in c[1:])
+    if len(c) == 7 and c.startswith('#') and all(ch in '0123456789abcdef' for ch in c[1:]):
+        return c
+    return ''
+
+
+def _saturacion(c):
+    r, g, b = (int(c[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    return max(r, g, b) - min(r, g, b)
+
+
+def _distintos(a, b):
+    """Dos colores que se ven distintos (no dos tonos casi iguales)."""
+    return sum(abs(int(a[i:i + 2], 16) - int(b[i:i + 2], 16)) for i in (1, 3, 5)) > 90
+
+
+def _texto_sobre(fondo, preferido=''):
+    """El texto que se lee sobre ese fondo: el que puso el colegio si contrasta; si no, blanco o casi negro."""
+    oscuro = _luz(fondo) < 0.55
+    pref = _hex(preferido)
+    if pref and abs(_luz(pref) - _luz(fondo)) > 0.45:
+        return pref
+    return '#ffffff' if oscuro else '#0f172a'
+
+
+# Los valores con que nace un colegio: si siguen así, el colegio no escogió ese color.
+_POR_DEFECTO = {'color_primario': '#0d6efd', 'color_secundario': '#6c757d', 'color_topbar': '#343a40',
+                'color_footer': '#212529'}
+
+
 def _tema(request):
-    """Colores y logo de la plataforma: los del colegio, o los de Mi Salón Virtual en el plan individual."""
+    """Los colores institucionales del colegio, tomados de la paleta de su portal, y su escudo.
+
+    Principal: el fondo de la barra superior (el color más fuerte del colegio), con el texto de la barra.
+    Segundo color: el primero que el colegio sí escogió entre el primario del portal, el secundario y el pie de
+    página, que tenga color (no un gris) y se distinga del principal. En el plan individual, los de Mi Salón Virtual.
+    """
     col = getattr(request, 'colegio', None)
-    primario, texto, acento, logo = '#1e3a8a', '#ffffff', '#f59e0b', ''
+    primario, texto, secundario, logo = '#1e3a8a', '#ffffff', '#f59e0b', ''
     if col:
-        primario = col.color_primario or primario
-        texto = col.color_texto_primario or texto
-        acento = col.color_iconos_topbar or acento
+        barra = _hex(col.color_topbar)
+        if barra and _luz(barra) <= 0.75:
+            primario, texto = barra, _texto_sobre(barra, col.color_topbar_texto)
+        else:
+            # Barra blanca o muy clara: el primario del portal hace de principal.
+            p = _hex(col.color_primario)
+            if p and _luz(p) <= 0.75:
+                primario, texto = p, _texto_sobre(p, col.color_texto_primario)
+        propios = []
+        for campo in ('color_primario', 'color_secundario', 'color_footer'):
+            v = _hex(getattr(col, campo, ''))
+            if v and v != _POR_DEFECTO[campo] and _luz(v) <= 0.85 and _saturacion(v) > 0.18:
+                propios.append(v)
+        icono = _hex(col.color_iconos_topbar)
+        if icono and _luz(icono) <= 0.85:
+            propios.append(icono)
+        otros = [c for c in propios if c != primario and _distintos(c, primario)]
+        secundario = otros[0] if otros else primario
         if col.logo_izquierdo:
             try:
                 import base64
@@ -47,10 +101,40 @@ def _tema(request):
                     logo = f'data:{tipo};base64,{base64.b64encode(f.read()).decode()}'
             except Exception:
                 logo = ''
+    encabezado, rutas = None, {}
+    if not col and getattr(request, 'user', None) is not None and request.user.is_authenticated:
+        # Docente sin colegio: el color, el logo y las líneas de «Mi encabezado».
+        from materiales.models import EncabezadoDocente
+        encabezado = EncabezadoDocente.objects.filter(usuario=request.user).first()
+        if encabezado is not None:
+            c = _hex(encabezado.color)
+            if c and _luz(c) <= 0.75:
+                primario, texto = c, _texto_sobre(c)
+            secundario = primario          # un solo color: el que el docente escogió para sus documentos
+            for campo in ('logo', 'logo2'):
+                rutas[campo] = _datos_de_imagen(getattr(encabezado, campo, None))
+            logo = rutas.get('logo') or rutas.get('logo2') or ''
+            if not encabezado.tiene_algo:
+                encabezado = None
     if _luz(primario) > 0.75:             # un primario muy claro no sirve de fondo para títulos: se usa el azul
         primario, texto = '#1e3a8a', '#ffffff'
-    return {'primario': primario, 'texto': texto, 'acento': acento,
-            'acento_txt': acento if _luz(acento) < 0.55 else primario, 'logo': logo}
+    return {'primario': primario, 'texto': texto, 'secundario': secundario, 'acento': secundario,
+            'acento_txt': secundario if _luz(secundario) < 0.55 else primario, 'logo': logo,
+            'encabezado': encabezado, 'rutas': rutas}
+
+
+def _datos_de_imagen(archivo):
+    """Un archivo de imagen guardado -> data: URI (WeasyPrint no puede leer el almacenamiento privado)."""
+    if not archivo:
+        return ''
+    try:
+        import base64
+        import mimetypes
+        with archivo.open('rb') as f:
+            tipo = mimetypes.guess_type(archivo.name)[0] or 'image/png'
+            return f'data:{tipo};base64,{base64.b64encode(f.read()).decode()}'
+    except Exception:
+        return ''
 
 
 def _institucion(request):
@@ -58,7 +142,9 @@ def _institucion(request):
     if col:
         return col.nombre
     cuenta = _cuenta_de(request)
-    return (request.user.get_full_name() or request.user.username) if cuenta else ''
+    if not cuenta:
+        return ''
+    return (cuenta.institucion or '').strip() or request.user.get_full_name() or request.user.username
 
 
 def _ctx_general(request, datos):
@@ -67,7 +153,7 @@ def _ctx_general(request, datos):
     tema = _tema(request)
     c = tema['primario']
     return {'d': datos, 'r': datos['resumen'], 'institucion': _institucion(request), 'hoy': timezone.localdate(), 'tema': tema,
-            'g_areas': GR.barras_areas(datos['areas'], color=c), 'g_niveles': GR.niveles_areas(datos['areas'], color=c),
+            'g_areas': GR.barras_areas(datos['areas'], color=c, color2=tema['secundario']), 'g_niveles': GR.niveles_areas(datos['areas'], color=c),
             'g_hist': GR.histograma(globales, color=c), 'dificiles': preguntas[:10], 'faciles': preguntas[::-1][:5],
             'revisar': [q for q in datos['preguntas'] if q['disc'] is not None and q['disc'] < 0],
             'que_dice': INF.QUE_DICE_NIVEL, 'varias_areas': len(datos['areas']) > 1}
@@ -78,7 +164,7 @@ def _ctx_estudiante(datos, clave, tema):
     if e is None:
         raise Http404
     c = tema['primario']
-    e['g_areas'] = GR.barras_areas(e['areas'], [a['puntaje'] for a in e['areas']], color=c)
+    e['g_areas'] = GR.barras_areas(e['areas'], [a['puntaje'] for a in e['areas']], color=c, color2=tema['secundario'])
     e['g_percentil'] = GR.barra_percentil(e['persona']['percentil'], c)
     for a in e['areas']:
         a['g_percentil'] = GR.barra_percentil(a['percentil'], c)
