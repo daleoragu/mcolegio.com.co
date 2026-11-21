@@ -60,3 +60,37 @@ MEJORAS PENDIENTES (ideas acordadas para hacer más adelante)
    · Videos tutoriales cortos (1–3 min, grabados en el celular) de lo más usado.
    · Marketing: página de inicio, redes, docentes «embajadores» que prueben y cuenten, y luego la base
      de colegios privados de Ibagué (punto 2).
+
+
+4. Apps nativas para Play Store (y luego iPhone) — sin afán
+   ---------------------------------------------------------
+   Decisión: Capacitor (apps reales de Play Store/App Store sobre la misma plataforma: cada mejora llega
+   a la web y a las apps a la vez). Tres apps conectadas al mismo servidor:
+   · App de COLEGIOS: al entrar reconoce al usuario y lo lleva a su colegio; si tiene varios, un menú
+     para escoger (como «cambiar de hijo» de las familias). Herramientas: Docentes (asistencia,
+     planillas/notas, observador, excusas, PuntoExacto) y Estudiantes del colegio (notas, tareas, aula,
+     juegos, carné).
+   · App de PROFES INDIVIDUALES (Mi Salón Virtual): todas las herramientas.
+   · App de ESTUDIANTES: todas las herramientas.
+   Sin internet (prioridad): asistencia y notas (se guardan en el celular y se suben solas) y calificar
+   con la cámara (la lectura se hace en el mismo celular).
+   Partes nativas: pantalla de inicio, pestañas abajo, botón atrás, cámara nativa, avisos (Firebase),
+   entrar con huella o rostro.
+   Fase 1: ingreso central con selector de colegio + motor sin conexión + app de colegios.
+   El AAB se compila con GitHub Actions. Hace falta la cuenta de Google Play Console (USD 25, una vez);
+   para iPhone, la de Apple Developer (USD 99 al año) y compilar en un Mac o en la nube.
+
+
+5. Conectar IA, OneDrive/Drive y Facebook/Google — sin afán
+   ---------------------------------------------------------
+   Se configuran UNA vez en las variables de entorno de DigitalOcean y quedan en todos los colegios,
+   en Mi Salón Virtual y en las apps:
+   · IA: ANTHROPIC_API_KEY (opcional IA_MODELO; por defecto claude-haiku-4-5).
+   · OneDrive: MICROSOFT_CLIENT_ID (Azure), regreso https://mcolegio.com.co/puntoexacto/nube-central/onedrive/
+     Google Drive: GOOGLE_CLIENT_ID, regreso https://mcolegio.com.co/puntoexacto/nube-central/google/
+   · Entrar con Facebook/Google: FACEBOOK_APP_ID y FACEBOOK_APP_SECRET, GOOGLE_OAUTH_CLIENT_ID y
+     GOOGLE_OAUTH_CLIENT_SECRET; regresos https://mcolegio.com.co/salon_digital/auth/facebook/vuelta/ y
+     https://mcolegio.com.co/salon_digital/auth/google/vuelta/
+   · Para las apps nativas: agregar la plataforma Android en Meta y en Google (nombre del paquete y huella
+     de la firma de la app).
+   Falta: guía paso a paso para crear cada credencial.
