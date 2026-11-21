@@ -278,3 +278,62 @@ class DescargarUnida(InformesIcfes):
     def test_sin_escoger(self):
         r = self.c.post(f'/puntoexacto/unida/{self.u.pk}/descargar/', {'tipos': ['informes']})
         self.assertRedirects(r, f'/puntoexacto/unida/{self.u.pk}/', fetch_redirect_response=False)
+
+
+class ColoresInstitucionales(InformesIcfes):
+    """Los informes toman los colores de la paleta del portal del colegio."""
+
+    test_puntajes_niveles_y_percentil = test_unir_examenes = test_pdf_general_y_por_estudiante = None
+
+    def tema(self):
+        from django.test import RequestFactory
+        from .views_informes import _tema
+        r = RequestFactory().get('/')
+        self.a.refresh_from_db()
+        r.colegio = self.a
+        return _tema(r)
+
+    def poner(self, **colores):
+        for k, v in colores.items():
+            setattr(self.a, k, v)
+        self.a.save()
+
+    def test_el_principal_es_la_barra_superior(self):
+        self.poner(color_topbar='#7a1020', color_topbar_texto='#ffffff', color_primario='#d4a017')
+        t = self.tema()
+        self.assertEqual(t['primario'], '#7a1020')
+        self.assertEqual(t['texto'], '#ffffff')
+        self.assertEqual(t['secundario'], '#d4a017')
+
+    def test_primario_por_defecto_no_cuenta_como_segundo(self):
+        self.poner(color_primario='#0D6EFD', color_topbar='#14532d', color_topbar_texto='#ffffff',
+                   color_secundario='#6C757D', color_footer='#b91c1c')
+        t = self.tema()
+        self.assertEqual(t['primario'], '#14532d')
+        self.assertEqual(t['secundario'], '#b91c1c')
+
+    def test_texto_ilegible_se_corrige(self):
+        self.poner(color_topbar='#0b3d91', color_topbar_texto='#0a0a40')      # azul oscuro con texto casi igual
+        t = self.tema()
+        self.assertEqual(t['primario'], '#0b3d91')
+        self.assertEqual(t['texto'], '#ffffff')
+
+    def test_barra_blanca_usa_el_primario(self):
+        self.poner(color_topbar='#ffffff', color_primario='#7a1020', color_texto_primario='#ffffff')
+        self.assertEqual(self.tema()['primario'], '#7a1020')
+
+    def test_los_pdf_llevan_los_colores(self):
+        import io
+        self.poner(color_topbar='#7a1020', color_primario='#d4a017')
+        from django.template.loader import render_to_string
+        from . import informes as INF2
+        from .views_informes import _ctx_general
+        from django.test import RequestFactory
+        r = RequestFactory().get('/')
+        r.colegio = self.a
+        r.user = self.u_docente
+        html = render_to_string('puntoexacto/informe_general_pdf.html', _ctx_general(r, INF2.construir([self.mat])))
+        self.assertIn('#7a1020', html)
+        self.assertIn('#d4a017', html)
+        pdf = self.c.get(f'/puntoexacto/{self.mat.id}/informe/estudiantes/')
+        self.assertTrue(pdf.content.startswith(b'%PDF'))
