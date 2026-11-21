@@ -314,8 +314,6 @@ def _sumar_trazos(medidas):
 UMBRAL_SOLO = 0.26         # tan oscura que no necesita comparación
 UMBRAL_CON_VENTAJA = 0.10  # tenue, pero solo si les saca ventaja a las demás
 VENTAJA_MINIMA = 0.09      # cuánto debe ganarle la primera a la segunda
-UMBRAL_SOSPECHA = 0.05     # por debajo de esto es ruido de la foto, no lápiz
-VENTAJA_SOSPECHA = 0.035   # y aun así tiene que destacarse de sus vecinas
 
 def decidir(medidas, preguntas, letras_por_pregunta):
     """De las medidas a las respuestas, diciendo también de cuáles no está segura.
@@ -340,16 +338,9 @@ def decidir(medidas, preguntas, letras_por_pregunta):
         ventaja = mejor[0] - segunda[0]
 
         if mejor[0] < UMBRAL_CON_VENTAJA:
-            respuestas[n] = ''                      # en blanco
-            # Pero si algo asoma por encima del ruido y de sus vecinas, se
-            # avisa. Los únicos errores que quedaron en las pruebas fueron
-            # marcas de lápiz muy flojas en fotos quemadas, leídas como casilla
-            # vacía. Mandarlas a revisión le cuesta al docente un vistazo;
-            # tragárselas en silencio le cuesta una nota mal puesta.
-            if mejor[0] >= UMBRAL_SOSPECHA and ventaja >= VENTAJA_SOSPECHA:
-                dudas.append({'pregunta': n, 'motivo': 'tal vez marcó, muy tenue',
-                              'opciones': [mejor[1]],
-                              'valores': [round(mejor[0], 3)]})
+            # En blanco, sin duda: el estudiante no marcó. Antes, un asomo de gris (un borrón, papel sucio) mandaba
+            # la hoja a revisión y los docentes lo veían como un error del lector en cada pregunta sin responder.
+            respuestas[n] = ''
         elif mejor[0] >= UMBRAL_SOLO and ventaja < VENTAJA_MINIMA:
             # Dos burbujas bien rellenas: es doble marca, no una duda menor.
             respuestas[n] = ''

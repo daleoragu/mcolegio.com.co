@@ -288,6 +288,83 @@
         return halladas;
     };
 
+    // ------------------------------------------------------------------ esquinas tocadas con el dedo
+    // Lleva un toque al centro de la marca negra más cercana: no hace falta atinarle exacto.
+    function ajustarEsquina(lienzo, x, y, radio) {
+        var R = Math.max(8, Math.round(radio)), x0 = Math.max(0, Math.round(x - R)), y0 = Math.max(0, Math.round(y - R));
+        var w = Math.min(lienzo.width - x0, 2 * R), h = Math.min(lienzo.height - y0, 2 * R);
+        if (w < 4 || h < 4) return [x, y];
+        var k = Math.min(1, 140 / Math.max(w, h)), ww = Math.max(4, Math.round(w * k)), hh = Math.max(4, Math.round(h * k));
+        var c = document.createElement('canvas'); c.width = ww; c.height = hh;
+        var cx = c.getContext('2d', {willReadFrequently: true});
+        cx.drawImage(lienzo, x0, y0, w, h, 0, 0, ww, hh);
+        var d = cx.getImageData(0, 0, ww, hh).data, g = new Float32Array(ww * hh), lo = 255, hi = 0;
+        for (var i = 0; i < ww * hh; i++) {
+            g[i] = d[i * 4] * 0.299 + d[i * 4 + 1] * 0.587 + d[i * 4 + 2] * 0.114;
+            if (g[i] < lo) lo = g[i]; if (g[i] > hi) hi = g[i];
+        }
+        if (hi - lo < 40) return [x, y];                      // no hay nada oscuro: se deja donde tocó
+        var umbral = lo + (hi - lo) * 0.42, visto = new Uint8Array(ww * hh), mejor = null, tx = (x - x0) * k, ty = (y - y0) * k;
+        for (var j = 0; j < ww * hh; j++) {
+            if (visto[j] || g[j] > umbral) continue;
+            var pila = [j], n = 0, sx = 0, sy = 0, bx0 = ww, bx1 = 0, by0 = hh, by1 = 0; visto[j] = 1;
+            while (pila.length) {
+                var q = pila.pop(), qx = q % ww, qy = (q / ww) | 0;
+                n++; sx += qx; sy += qy;
+                if (qx < bx0) bx0 = qx; if (qx > bx1) bx1 = qx; if (qy < by0) by0 = qy; if (qy > by1) by1 = qy;
+                [q - 1, q + 1, q - ww, q + ww].forEach(function (v, t) {
+                    if (v < 0 || v >= ww * hh || visto[v] || g[v] > umbral) return;
+                    if ((t === 0 && qx === 0) || (t === 1 && qx === ww - 1)) return;
+                    visto[v] = 1; pila.push(v);
+                });
+            }
+            if (n < 6) continue;
+            // Una marca es un cuadrado macizo y entero: la mesa o una sombra tocan el borde de la ventana o no son macizas.
+            var bw = bx1 - bx0 + 1, bh = by1 - by0 + 1;
+            if (bx0 === 0 || by0 === 0 || bx1 === ww - 1 || by1 === hh - 1) continue;
+            if (n / (bw * bh) < 0.6 || bw / bh > 1.8 || bh / bw > 1.8) continue;
+            var mx = sx / n, my = sy / n, dist = Math.hypot(mx - tx, my - ty);
+            var puntos = n / (1 + dist * 0.15);               // grande y cerca del dedo
+            if (!mejor || puntos > mejor.p) mejor = {p: puntos, x: mx, y: my};
+        }
+        return mejor ? [x0 + mejor.x / k, y0 + mejor.y / k] : [x, y];
+    }
+
+    // Cuatro toques (en cualquier orden) → quad en el orden de la hoja, con su diseño y su giro.
+    function desdeEsquinas(lienzo, toques, lista) {
+        var lado = Math.min(lienzo.width, lienzo.height) * 0.07;
+        var p = toques.map(function (t) { return ajustarEsquina(lienzo, t[0], t[1], lado); });
+        var orden = p.slice().sort(function (a, b) { return (a[0] + a[1]) - (b[0] + b[1]); });
+        var TL = orden[0], BR = orden[3], resto = [orden[1], orden[2]];
+        var TR = (resto[0][0] - resto[0][1]) > (resto[1][0] - resto[1][1]) ? resto[0] : resto[1];
+        var BL = TR === resto[0] ? resto[1] : resto[0];
+        var dd = function (a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); };
+        var ancho = (dd(TL, TR) + dd(BL, BR)) / 2, alto = (dd(TL, BL) + dd(TR, BR)) / 2;
+        var mejor = null;
+        lista.forEach(function (dz, i) {
+            [false, true].forEach(function (acostada) {
+                var r = (acostada ? ancho / alto : alto / ancho) / dz.prop, err = Math.abs(Math.log(r)) - (i === 0 ? 0.02 : 0);
+                if (!mejor || err < mejor.err) mejor = {err: err, dz: dz, acostada: acostada};
+            });
+        });
+        var dz = mejor.dz;
+        var opciones = mejor.acostada ? [{giro: 90, q: [TR, BR, BL, TL]}, {giro: -90, q: [BL, TL, TR, BR]}]
+                                      : [{giro: 0, q: [TL, TR, BR, BL]}, {giro: 180, q: [BR, BL, TL, TR]}];
+        // La orientación, por el código de barras (en una copia pequeña en gris).
+        var W = Math.min(640, lienzo.width), s = W / lienzo.width, H = Math.round(lienzo.height * s);
+        var c = document.createElement('canvas'); c.width = W; c.height = H;
+        var cx = c.getContext('2d', {willReadFrequently: true}); cx.drawImage(lienzo, 0, 0, W, H);
+        var d = cx.getImageData(0, 0, W, H).data, gris = new Float32Array(W * H);
+        for (var i = 0; i < W * H; i++) gris[i] = d[i * 4] * 0.299 + d[i * 4 + 1] * 0.587 + d[i * 4 + 2] * 0.114;
+        opciones.forEach(function (o) {
+            o.puntos = puntajeBarras(o.q.map(function (v) { return [v[0] * s, v[1] * s]; }), dz, gris, W, H);
+        });
+        var elegida = opciones[1].puntos > opciones[0].puntos + (mejor.acostada ? 0 : 12) ? opciones[1] : opciones[0];
+        var quad = elegida.q.map(function (v) { return [v[0], v[1]]; });
+        quad.diseno = dz; quad.giro = elegida.giro;
+        return quad;
+    }
+
     // ------------------------------------------------------------------ enderezar
     // La hoja completa, derecha y del tamaño real (px_por_mm), interpolando entre los píxeles de la foto.
     // Lleva un borde alrededor (margen_mm, de la misma foto): el lector necesita ver papel o mesa alrededor
@@ -464,5 +541,5 @@
 
     global.PEScan = {homografia: homografia, disenos: disenos, Detector: Detector, enderezar: enderezar,
                      resolucion: resolucion, mejorar: mejorar, armarPDF: armarPDF, leerArchivo: leerArchivo,
-                     aJPEG: aJPEG};
+                     aJPEG: aJPEG, ajustarEsquina: ajustarEsquina, desdeEsquinas: desdeEsquinas};
 })(window);

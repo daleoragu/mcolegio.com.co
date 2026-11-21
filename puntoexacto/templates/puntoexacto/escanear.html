@@ -61,6 +61,17 @@
         .pe-modos { position:absolute; right:calc(100% + 10px); bottom:max(12px, env(safe-area-inset-bottom)); white-space:nowrap; }
         .pe-cam-arriba { right:120px; }
     }
+    .pe-congelado { position:absolute; inset:0; width:100%; height:100%; display:none; }
+    /* Las franjas de controles dejan pasar el dedo a la imagen (para tocar las esquinas); solo sus botones lo toman. */
+    .pe-cam-arriba, .pe-cam-abajo, .pe-fila-disparo { pointer-events:none; }
+    .pe-cam-arriba button, .pe-cam-arriba .pe-cuenta, .pe-cam-abajo button, .pe-modos { pointer-events:auto; }
+    /* Marcando esquinas: fuera los demás controles (tapaban las esquinas) y la barra va al centro, donde nunca hay una. */
+    .pe-camara.manual .pe-cam-arriba, .pe-camara.manual .pe-cam-abajo, .pe-camara.manual .pe-cam-vivo { display:none; }
+    .pe-manual { position:absolute; z-index:5; left:50%; top:50%; transform:translate(-50%, -50%);
+                 display:none; align-items:center; gap:8px; background:rgba(0,0,0,.72); border-radius:999px; padding:6px 8px 6px 16px;
+                 white-space:nowrap; font-size:.92rem; }
+    .pe-manual.si { display:flex; }
+    .pe-manual button { border:0; border-radius:999px; padding:6px 12px; font-size:.85rem; font-weight:600; }
     .pe-leyendo { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
                   background:rgba(0,0,0,.55); font-size:1.2rem; font-weight:600; }
     .pe-leyendo.si { display:flex; }
@@ -225,6 +236,7 @@
     <div class="pe-visor" id="pe-visor">
         <div class="pe-visor-caja" id="pe-visor-caja">
             <video id="pe-video" playsinline muted autoplay></video>
+            <canvas id="pe-congelado" class="pe-congelado"></canvas>
             <svg id="pe-guias" preserveAspectRatio="none"></svg>
             <div class="pe-destello" id="pe-destello"></div>
             <div class="pe-leyendo" id="pe-leyendo"><span><i class="fas fa-spinner fa-spin me-2"></i>Leyendo la hoja…</span></div>
@@ -237,6 +249,7 @@
             <span id="pe-cuenta-cola" style="display:none;"> · <i class="fas fa-spinner fa-spin"></i> <span id="pe-contador-cola">0</span></span>
             <span id="pe-cuenta-red" style="display:none;color:#c7d2fe;"> · <i class="fas fa-wifi"></i><i class="fas fa-slash" style="margin-left:-1.05em;"></i> <span id="pe-contador-red">0</span></span></span>
         <span style="display:flex;gap:6px;">
+            <button type="button" class="pe-cam-boton" id="pe-mano" aria-label="Marcar las esquinas con el dedo"><i class="fas fa-hand-pointer"></i></button>
             <button type="button" class="pe-cam-boton" id="pe-vivo-cam" aria-label="Cómo va el grupo"><i class="fas fa-chart-column"></i></button>
             <button type="button" class="pe-cam-boton" id="pe-sonido" aria-label="Sonido"><i class="fas fa-volume-high"></i></button>
             <button type="button" class="pe-cam-boton" id="pe-auto-cam" aria-label="Guardar sola"><i class="fas fa-wand-magic-sparkles"></i><small>Auto</small></button>
@@ -245,6 +258,11 @@
     </div>
     <div class="pe-cam-estado" id="pe-cam-estado">Abriendo la cámara…</div>
     <div class="pe-cam-vivo" id="pe-cam-vivo"></div>
+    <div class="pe-manual" id="pe-manual">
+        <span id="pe-manual-txt">Toque las 4 esquinas negras</span>
+        <button type="button" id="pe-manual-deshacer" style="background:#fff;color:#111;">Deshacer</button>
+        <button type="button" id="pe-manual-cancelar" style="background:#ef4444;color:#fff;">Cancelar</button>
+    </div>
     <div class="pe-cam-nota" id="pe-cam-nota">
         <div class="fila">
             <div class="valor" id="pe-cam-nota-valor">–</div>
@@ -437,7 +455,8 @@
         lote = []; avisoLote = ''; pintarLote();
     });
     $('pe-calificar-todas').addEventListener('click', function () {
-        lote.forEach(function (p) { if (p.estado === 'nueva' || p.estado === 'error' || p.estado === 'espera') encolar(p); });
+        lote.forEach(function (p) { if (!p.correccion && (p.estado === 'nueva' || p.estado === 'error' || p.estado === 'espera')) encolar(p); });
+        reintentar();
     });
     $('pe-revisar-sig').addEventListener('click', revisarSiguiente);
     $('pe-mas').addEventListener('click', function () { abrirCamara(modo); });
@@ -488,7 +507,20 @@
     }
     function reintentar() {
         if (navigator.onLine === false) return;
-        lote.forEach(function (p) { if (p.estado === 'espera') encolar(p); });
+        lote.forEach(function (p) {
+            if (p.estado !== 'espera') return;
+            if (p.correccion) {
+                var c = p.correccion; p.correccion = null; p.estado = 'enviando'; pintarLote();
+                postGuardar(c, 0).then(function (d) {
+                    if (!d.ok) { p.estado = 'revisar'; p.error = d.error; }
+                    else { p.estado = 'guardada'; p.hojaId = c.hoja_id; p.nota = d.nota; p.nombre = d.nombre; p.respuestas = c.respuestas;
+                           try { anotar(c.hoja_id, d, p.lectura); } catch (e) {} pedirVivo(); }
+                    guardarBD(p); pintarLote();
+                }, function () { p.correccion = c; p.estado = 'espera'; guardarBD(p); pintarLote(); });
+            } else {
+                encolar(p);
+            }
+        });
     }
     window.addEventListener('online', reintentar);
     setInterval(reintentar, 20000);
@@ -653,6 +685,7 @@
     }
 
     function cerrarCamara() {
+        if (manual) salirManual(false);
         pararBusqueda();
         ocultarNotaCamara();
         if (flujo) flujo.getTracks().forEach(function (t) { t.stop(); });
@@ -700,12 +733,12 @@
     }
 
     function arrancarBusqueda() {
-        if (!flujo) return;
+        if (!flujo || manual) return;
         buscando = true;
         anterior = null; estables = 0; enfoque = null;
         elLeyendo.classList.remove('si');
         if (esperarRetiro) estado('Ponga la siguiente hoja.');
-        else estado(modo === 'pdf' ? 'Apunte a la hoja: se guarda en el PDF sola.' : 'Apunte a la hoja: la cámara la busca sola.');
+        else estado(modo === 'pdf' ? 'Apunte a la hoja (o toque sus 4 esquinas).' : 'Apunte a la hoja o toque sus 4 esquinas.');
         clearTimeout(temporizador);
         temporizador = setTimeout(cuadro, 50);
     }
@@ -922,6 +955,83 @@
                 encolar(p);
             }
         });
+    }
+
+    // ---- Esquinas a mano: se congela la imagen y el docente toca las 4 marcas negras ----
+    var manual = null;
+    function entrarManual() {
+        if (!flujo || elResultado.classList.contains('abierta')) return false;
+        var vw = elVideo.videoWidth, vh = elVideo.videoHeight;
+        if (!vw || !vh) return false;
+        pararBusqueda(); ocultarNotaCamara();
+        var c = $('pe-congelado');
+        c.width = vw; c.height = vh;
+        c.getContext('2d', {willReadFrequently: true}).drawImage(elVideo, 0, 0, vw, vh);
+        c.style.display = 'block';
+        manual = {lienzo: c, toques: []};
+        elCamara.classList.add('manual');
+        $('pe-manual').classList.add('si');
+        $('pe-mano').classList.add('activo');
+        pintarManual();
+        return true;
+    }
+    function salirManual(seguir) {
+        manual = null;
+        $('pe-congelado').style.display = 'none';
+        elCamara.classList.remove('manual');
+        $('pe-manual').classList.remove('si');
+        $('pe-mano').classList.remove('activo');
+        dibujar(null);
+        if (seguir) reanudar();
+    }
+    function pintarManual() {
+        var falta = 4 - manual.toques.length, vw = manual.lienzo.width, g = Math.max(3, Math.max(vw, manual.lienzo.height) / 220);
+        $('pe-manual-txt').textContent = falta === 4 ? 'Toque las 4 esquinas negras' : 'Faltan ' + falta;
+        estado(falta === 4 ? 'Imagen quieta: toque las 4 esquinas negras, en cualquier orden.' : 'Bien. Faltan ' + falta + '.', 'bien');
+        elGuias.innerHTML = manual.toques.map(function (t, i) {
+            return '<circle cx="' + t[0] + '" cy="' + t[1] + '" r="' + g * 5 + '" fill="rgba(46,226,107,.25)" stroke="#2ee26b" stroke-width="' + g + '"/>' +
+                   '<text x="' + t[0] + '" y="' + (t[1] + g * 2.6) + '" text-anchor="middle" font-size="' + g * 7 + '" font-weight="bold" fill="#fff" stroke="#000" stroke-width="' + g * 0.6 + '">' + (i + 1) + '</text>';
+        }).join('');
+    }
+    $('pe-mano').addEventListener('click', function () { if (manual) salirManual(true); else entrarManual(); });
+    $('pe-manual-cancelar').addEventListener('click', function () { salirManual(true); });
+    $('pe-manual-deshacer').addEventListener('click', function () {
+        if (!manual) return;
+        if (manual.toques.length) { manual.toques.pop(); pintarManual(); } else salirManual(true);
+    });
+    // Tocar la imagen también sirve: el primer toque congela la imagen y ya cuenta como la primera esquina.
+    elVisor.addEventListener('pointerdown', function (ev) {
+        if (!camaraAbierta() || !flujo) return;
+        var r = elCaja.getBoundingClientRect();
+        if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) return;
+        if (!manual && !entrarManual()) return;
+        ev.preventDefault();
+        var c = manual.lienzo;
+        var x = (ev.clientX - r.left) / r.width * c.width, y = (ev.clientY - r.top) / r.height * c.height;
+        manual.toques.push(PEScan.ajustarEsquina(c, x, y, Math.min(c.width, c.height) * 0.07));
+        pintarManual();
+        if (manual.toques.length === 4) {
+            var quad = PEScan.desdeEsquinas(c, manual.toques, DISENOS);
+            var rec = recortarAlrededor(c, quad);
+            salirManual(false);
+            disparar(rec);
+        }
+    });
+    // El pedazo de la imagen con la hoja (con sus marcas en coordenadas del pedazo), como lo da fotograma().
+    function recortarAlrededor(c, quad) {
+        var dz = quad.diseno, H = PEScan.homografia(dz.marcas, quad);
+        var borde = H ? dz.borde.map(function (p) { return H(p[0], p[1]); }) : quad;
+        var xs = borde.map(function (p) { return p[0]; }), ys = borde.map(function (p) { return p[1]; });
+        var mx = (Math.max.apply(null, xs) - Math.min.apply(null, xs)) * 0.05, my = (Math.max.apply(null, ys) - Math.min.apply(null, ys)) * 0.05;
+        var x0 = Math.max(0, Math.min.apply(null, xs) - mx), x1 = Math.min(c.width, Math.max.apply(null, xs) + mx);
+        var y0 = Math.max(0, Math.min.apply(null, ys) - my), y1 = Math.min(c.height, Math.max.apply(null, ys) + my);
+        var k = Math.min(1, ANCHO_RECORTE / Math.max(x1 - x0, y1 - y0));
+        var l = document.createElement('canvas');
+        l.width = Math.round((x1 - x0) * k); l.height = Math.round((y1 - y0) * k);
+        l.getContext('2d', {willReadFrequently: true}).drawImage(c, x0, y0, x1 - x0, y1 - y0, 0, 0, l.width, l.height);
+        l.quad = quad.map(function (p) { return [(p[0] - x0) * k, (p[1] - y0) * k]; });
+        l.quad.diseno = dz;
+        return l;
     }
 
     // =====================================================================
@@ -1307,20 +1417,57 @@
 
     elZoom.addEventListener('input', function () { elLienzo.style.width = elZoom.value + '%'; });
 
+    // Guardar lo corregido. Antes cualquier tropiezo decía «revise la conexión» aunque el internet estuviera bien;
+    // ahora se reintenta solo y, si no se puede, se dice la razón de verdad.
+    function postGuardar(cuerpo, intento) {
+        return fetch(urlGuardar, {method: 'POST', credentials: 'same-origin', cache: 'no-store',
+                                  headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf,
+                                            'X-Requested-With': 'XMLHttpRequest'},
+                                  body: JSON.stringify(cuerpo)})
+            .then(function (r) {
+                var tipo = r.headers.get('content-type') || '';
+                if (r.redirected || /login|entrar/.test(r.url)) throw {razon: 'sesion'};
+                if (r.status === 403) throw {razon: 'sesion'};
+                if (r.status >= 500 || tipo.indexOf('json') < 0) throw {razon: 'servidor', codigo: r.status};
+                return r.json();
+            })
+            .catch(function (e) {
+                var razon = e && e.razon ? e.razon : 'red';
+                if (razon !== 'sesion' && intento < 2) {
+                    return new Promise(function (ok) { setTimeout(ok, 800 * (intento + 1)); })
+                        .then(function () { return postGuardar(cuerpo, intento + 1); });
+                }
+                throw {razon: razon, codigo: e && e.codigo};
+            });
+    }
+
     function guardar(id, forma, alTerminar, boton) {
         if (boton) boton.disabled = true;
-        fetch(urlGuardar, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
-            body: JSON.stringify({hoja_id: id, respuestas: respuestasLimpias(), forma: forma})
-        }).then(function (r) { return r.json(); }).then(function (d) {
+        var cuerpo = {hoja_id: id, respuestas: respuestasLimpias(), forma: forma}, item = actual;
+        postGuardar(cuerpo, 0).then(function (d) {
             if (boton) boton.disabled = false;
             if (!d.ok) { alert(d.error || 'No se pudo guardar.'); return; }
-            anotar(id, d, lectura);
-            alTerminar(d);
-        }).catch(function () {
+            try {
+                anotar(id, d, lectura);
+                alTerminar(d);
+            } catch (e) { if (window.console) console.error(e); }      // la hoja YA quedó guardada
+        }, function (e) {
             if (boton) boton.disabled = false;
-            alert('No se pudo guardar. Revise la conexión.');
+            if (e.razon === 'sesion') {
+                alert('Su sesión se cerró. Abra la plataforma en otra pestaña, entre de nuevo y vuelva a tocar «Guardar» (lo corregido sigue aquí).');
+            } else if (e.razon === 'servidor') {
+                alert('El servidor no pudo guardar en este momento' + (e.codigo ? ' (error ' + e.codigo + ')' : '') + '. Intente otra vez en unos segundos.');
+            } else if (navigator.onLine === false && item) {
+                // Sin señal de verdad: la corrección queda guardada en el equipo y se manda sola al volver.
+                item.correccion = cuerpo;
+                item.estado = 'espera';
+                item.error = 'Corrección sin enviar: se manda sola cuando vuelva la señal.';
+                guardarBD(item); pintarLote(); cerrarRevision();
+                alert('No hay internet. La corrección quedó guardada en este equipo y se manda sola cuando vuelva la señal.');
+                if (camaraAbierta()) reanudar();
+            } else {
+                alert('No se pudo comunicar con el servidor (se intentó 3 veces). Vuelva a tocar «Guardar».');
+            }
         });
     }
 
@@ -1395,7 +1542,7 @@
         } catch (e) { ok(null); }
     });
     var CAMPOS = ['uid', 'creada', 'estado', 'pp', 'margenPx', 'ancho_mm', 'alto_mm', 'sinMarcas', 'lectura', 'respuestas',
-                  'notaInfo', 'nombre', 'nota', 'hojaId', 'dudas', 'error'];
+                  'notaInfo', 'nombre', 'nota', 'hojaId', 'dudas', 'error', 'correccion'];
     function guardarBD(p) {
         bd.then(function (db) {
             if (!db || !p.uid) return;
