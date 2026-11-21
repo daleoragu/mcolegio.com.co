@@ -52,7 +52,7 @@
 </style></head><body>
 {% for e in lista %}
 {% with p=e.persona %}
-<div class="{% if not forloop.first %}salto{% endif %}">
+<div class="{% if not forloop.first %}salto{% endif %}" id="est-{{ forloop.counter }}">
 
 <div class="banda"><div class="tit">Reporte de resultados</div>
   <div class="marca"><div><b>{{ d.titulo }}</b>{{ institucion }}</div>{% if tema.logo %}<img src="{{ tema.logo }}" alt="">{% endif %}</div></div>

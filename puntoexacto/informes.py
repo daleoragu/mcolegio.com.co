@@ -80,6 +80,22 @@ def _clave_persona(h):
     return f'n{_plano(h.nombre_libre)}' if h.nombre_libre else f'h{h.pk}'
 
 
+def grado_de(h):
+    """«Grado 6» del estudiante de la hoja; sin curso con grado, el nombre del curso o del grupo."""
+    from . import hojas as hojas_mod
+    try:
+        c = hojas_mod.curso_de_hoja(h)
+    except Exception:
+        c = None
+    if c is not None and getattr(c, 'grado', None) not in (None, ''):
+        return f'Grado {c.grado}'
+    return _curso_de(h)
+
+
+def curso_de(h):
+    return _curso_de(h)
+
+
 def _curso_de(h):
     from . import hojas as hojas_mod
     try:
@@ -104,9 +120,10 @@ def _prom(xs):
     return sum(xs) / len(xs) if xs else 0.0
 
 
-def construir(examenes, titulo=None, areas_fijas=None):
+def construir(examenes, titulo=None, areas_fijas=None, incluir=None):
     """Todo lo que necesitan los informes. examenes: lista de Examen (uno o varios unidos).
-    areas_fijas: {clave_area: 'MAT'} para forzar a qué prueba de Saber 11 corresponde un área."""
+    areas_fijas: {clave_area: 'MAT'} para forzar a qué prueba de Saber 11 corresponde un área.
+    incluir: función hoja -> bool para quedarse con una parte (un grado, un curso, los escogidos)."""
     from .models import Hoja
     areas_fijas = areas_fijas or {}
     areas, por_area_preguntas = [], {}
@@ -136,9 +153,11 @@ def construir(examenes, titulo=None, areas_fijas=None):
         hojas = (ex.hojas.filter(estado__in=('calificada', 'revisar'))
                  .select_related('estudiante__user', 'estudiante__curso', 'integrante__grupo').prefetch_related('respuestas'))
         for h in hojas:
+            if incluir is not None and not incluir(h):
+                continue
             k = _clave_persona(h)
             per = personas.setdefault(k, {'clave': k, 'nombre': h.nombre, 'documento': h.documento, 'curso': _curso_de(h),
-                                          'hojas': {}, 'marcas': {}})
+                                          'grado': grado_de(h), 'hojas': {}, 'marcas': {}})
             per['hojas'][ex.pk] = h
             per['marcas'].update({r.pregunta_id: r.marcada for r in h.respuestas.all()})
 

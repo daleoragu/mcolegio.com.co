@@ -760,7 +760,10 @@ def resultados(request, examen_id):
     for h in lista_hojas:
         h.control = calif.control_de_hoja(h, controles) if h.estado in ('calificada', 'revisar') else None
         h.clave_informe = _clave_informe(h) if h.estado in ('calificada', 'revisar') else None
+    from .views_informes import grupos_de
+    grados, cursos = grupos_de([h for h in lista_hojas if h.estado in ('calificada', 'revisar')])
     return render(request, 'puntoexacto/resultados.html', {
+        'grados': grados, 'cursos': cursos,
         'examen': examen, 'analisis': datos, 'hojas': lista_hojas,
         'controles': controles,
         'marcados_r': [h for h in lista_hojas if h.control and h.control['r']],
