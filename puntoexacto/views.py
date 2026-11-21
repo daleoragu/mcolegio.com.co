@@ -1476,6 +1476,8 @@ def procesar_foto(request, examen_id):
     colegio; además, el repaso lo hace el navegador con la imagen que ya tiene
     en el teléfono, así que guardarla tampoco serviría de nada.
     """
+    import json
+
     from . import lector as lector_mod
 
     examen = _examen_o_404(request, examen_id)
@@ -1504,11 +1506,20 @@ def procesar_foto(request, examen_id):
     except Exception as e:
         return JsonResponse({'ok': False, 'error': f'No se pudo abrir la foto ({type(e).__name__}).'})
 
+    # Dónde vio la cámara las cuatro marcas (en píxeles de esta foto): el lector las afina ahí.
+    pistas = None
+    try:
+        crudo = json.loads(request.POST.get('marcas') or 'null')
+        if isinstance(crudo, list) and len(crudo) == 4 and all(len(p) == 2 for p in crudo):
+            pistas = [(float(p[0]), float(p[1])) for p in crudo]
+    except (ValueError, TypeError):
+        pistas = None
+
     def leer_con(por_pagina):
         """Lee la foto suponiendo que la hoja se imprimió con ese reparto por página."""
         info = hojas_mod.mapa_de_examen(examen, por_pagina)
         geo = _geometria_de_examen(examen, identificadores, por_pagina)
-        H, centros = lector_mod.matriz_de_hoja(gris, geo)
+        H, centros = lector_mod.matriz_de_hoja(gris, geo, pistas)
         negro = lector_mod.nivel_de_negro(gris, centros, geo['marca_mm'], H)
         medidas, radio_px, posiciones = lector_mod.medir_burbujas(
             gris, H, info['mapa'], info['radio_mm'], geo['alto_mm'], negro)

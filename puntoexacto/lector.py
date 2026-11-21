@@ -61,8 +61,12 @@ def _media_ventanas(integ, alto, ancho):
 # 1. Las marcas de registro
 # ---------------------------------------------------------------------------
 
-def encontrar_marcas(gris, marca_mm, ancho_mm):
+def encontrar_marcas(gris, marca_mm, ancho_mm, pistas=None):
     """Centro de las cuatro marcas negras, en píxeles de la foto original.
+
+    pistas: dónde vio la cámara las cuatro marcas (sup. izq., sup. der., inf. der., inf. izq., en píxeles de esta
+    foto). Con pistas se busca solo alrededor de cada una: buscando por cuadrante, una mancha oscura del fondo
+    (un sofá, una sombra) podía ganarle a una marca y la hoja entera se leía corrida.
 
     Se busca una por cuadrante y no todas a la vez: el cuadrante acota el
     problema y, sobre todo, hace que la sombra no importe. Una foto con el
@@ -109,6 +113,11 @@ def encontrar_marcas(gris, marca_mm, ancho_mm):
     mitad_y, mitad_x = alto // 2, ancho // 2
     cuadrantes = [(0, mitad_y, 0, mitad_x), (0, mitad_y, mitad_x, ancho),
                   (mitad_y, alto, mitad_x, ancho), (mitad_y, alto, 0, mitad_x)]
+    if pistas and len(pistas) == 4:
+        # La cámara ya encontró las cuatro (verificó que forman la hoja): aquí solo se afina cada una con el
+        # centro de lo oscuro a su alrededor. Funciona aunque la marca quede pegada al borde de la foto.
+        centros = [_afinar(chica, px * escala, py * escala, lado) for px, py in pistas]
+        return [(x / escala, y / escala) for x, y in centros], escala
     centros = []
     for y0, y1, x0, x1 in cuadrantes:
         sub = puntaje[y0:max(y0 + 1, y1 - lado), x0:max(x0 + 1, x1 - lado)]
@@ -166,13 +175,21 @@ def _aplicar(H, puntos):
     return q[:, :2] / q[:, 2:3]
 
 
-def matriz_de_hoja(gris, geo):
+def matriz_de_hoja(gris, geo, pistas=None):
     """Homografía milímetros -> píxeles, a partir de las marcas de la foto."""
-    centros, _ = encontrar_marcas(gris, geo['marca_mm'], geo['ancho_mm'])
     alto_mm = geo['alto_mm']
     # Los milímetros del generador van de abajo hacia arriba; los píxeles, al
     # revés. Se invierte aquí, una sola vez, y no en cada cuenta posterior.
     destino = [(x, alto_mm - y) for x, y in geo['marcas_mm']]
+    if pistas:
+        try:
+            centros, _ = encontrar_marcas(gris, geo['marca_mm'], geo['ancho_mm'], pistas)
+            H = homografia(destino, centros)
+            _validar(H, geo, gris.shape)
+            return H, centros
+        except Exception:
+            pass                        # si las pistas no sirven, se busca como siempre
+    centros, _ = encontrar_marcas(gris, geo['marca_mm'], geo['ancho_mm'])
     H = homografia(destino, centros)
     _validar(H, geo, gris.shape)
     return H, centros
@@ -219,6 +236,128 @@ def nivel_de_negro(gris, centros, marca_mm, H):
     return float(np.median(muestras))
 
 
+def _alinear_burbujas(gris, claves, centros, radio_px):
+    """Corre cada pregunta hasta donde está su círculo impreso.
+
+    Con cuatro esquinas se supone la hoja plana; si el papel está doblado o abombado, en el centro las burbujas
+    quedan corridas de donde se calcularon y se mide el borde en vez del interior: salían «no se distingue cuál
+    marcó», «hay dos marcadas» o una marca leída como blanco. Aquí, para cada pregunta (todas sus opciones juntas,
+    que se mueven igual), se prueba correr un poco el grupo y se queda donde los contornos impresos caen más
+    oscuros. Luego se compara con las preguntas vecinas para que una sola no se vaya a otra fila.
+    """
+    red = 1                                  # a resolución completa: a media se perdía precisión
+    if red > 1:
+        h2, w2 = (gris.shape[0] // red) * red, (gris.shape[1] // red) * red
+        gris = gris[:h2, :w2].reshape(h2 // red, red, w2 // red, red).mean(axis=(1, 3))
+        centros = [(x / red, y / red) for x, y in centros]
+    r = float(radio_px) / red
+    if r < 4:
+        return [(x * red, y * red) for x, y in centros]
+    alto_px, ancho_px = gris.shape
+    caja = int(np.ceil(r * 1.25)) + 1
+    dy, dx = np.mgrid[-caja:caja + 1, -caja:caja + 1]
+    dist = np.sqrt(dx * dx + dy * dy)
+    # Contraste del contorno: el círculo impreso es una línea oscura con papel claro adentro y afuera. Una burbuja
+    # rellena es oscura entera y queda neutra (no jala hacia ningún lado); las vacías guían el ajuste.
+    caja = int(np.ceil(r * 1.55)) + 1
+    dy, dx = np.mgrid[-caja:caja + 1, -caja:caja + 1]
+    dist = np.sqrt(dx * dx + dy * dy)
+    sel = (dist >= r * 0.82) & (dist <= r * 1.10)          # el contorno impreso del círculo
+    den = (dist >= r * 0.35) & (dist <= r * 0.62)          # papel de adentro
+    fue = (dist >= r * 1.28) & (dist <= r * 1.50)          # papel de afuera
+    def muestra(m, n=120):          # basta una muestra pareja de cada anillo: es mucho más rápido
+        yy, xx = dy[m].ravel(), dx[m].ravel()
+        paso_m = max(1, len(yy) // n)
+        return yy[::paso_m], xx[::paso_m]
+    ay, ax = muestra(sel)
+    by, bx = muestra(den, 60)
+    cy_, cx_ = muestra(fue)
+    tope = max(1, int(round(r * 0.85)))
+    paso = max(1, int(round(r / 5)))
+    pasos = [k * paso for k in range(-(tope // paso), tope // paso + 1)]          # siempre incluye el 0
+    desplazamientos = [(oy, ox) for oy in pasos for ox in pasos]
+
+    grupos = {}
+    for i, k in enumerate(claves):
+        num = ''.join(ch for ch in k if ch.isdigit()) or k[:1]
+        grupos.setdefault(num, []).append(i)
+    centros = np.asarray(centros, dtype=np.float64).copy()
+
+    nombres = list(grupos)
+    grupo_de = np.empty(len(claves), dtype=int)
+    for g_i, num in enumerate(nombres):
+        grupo_de[grupos[num]] = g_i
+    cuenta = np.bincount(grupo_de, minlength=len(nombres)).astype(float)
+
+    def buscar_todas():
+        """Para cada pregunta, cuánto correrla. Todas las burbujas a la vez para cada desplazamiento."""
+        ix = np.round(centros[:, 0]).astype(int)
+        iy = np.round(centros[:, 1]).astype(int)
+        dentro_img = ((ix - caja - tope >= 0) & (iy - caja - tope >= 0) &
+                      (ix + caja + tope < ancho_px) & (iy + caja + tope < alto_px))
+        ix = np.clip(ix, caja + tope, ancho_px - caja - tope - 1)
+        iy = np.clip(iy, caja + tope, alto_px - caja - tope - 1)
+        def puntaje(oy, ox):
+            linea = gris[iy[:, None] + oy + ay[None, :], ix[:, None] + ox + ax[None, :]].mean(axis=1)
+            adentro = gris[iy[:, None] + oy + by[None, :], ix[:, None] + ox + bx[None, :]].mean(axis=1)
+            afuera = gris[iy[:, None] + oy + cy_[None, :], ix[:, None] + ox + cx_[None, :]].mean(axis=1)
+            por_burbuja = linea - 0.5 * (adentro + afuera)
+            # Un poco de castigo por alejarse: entre dos sitios parecidos gana el más cercano (no la fila vecina).
+            return (np.bincount(grupo_de, weights=por_burbuja, minlength=len(nombres)) / cuenta
+                    + 6.0 * (oy * oy + ox * ox) / (r * r))
+        validos = np.bincount(grupo_de, weights=(~dentro_img).astype(float), minlength=len(nombres)) == 0
+        # Primero una cuadrícula gruesa y después, alrededor de lo mejor de cada pregunta, la fina.
+        base = puntaje(0, 0)
+        mejor_v = base.copy()
+        mejor_d = np.zeros((len(nombres), 2), dtype=int)
+        gruesa = [(oy, ox) for oy, ox in desplazamientos if (oy // paso) % 2 == 0 and (ox // paso) % 2 == 0]
+        for oy, ox in gruesa:
+            v = puntaje(oy, ox)
+            m = v < mejor_v
+            mejor_v[m], mejor_d[m] = v[m], (oy, ox)
+        for vy in (-paso, 0, paso):
+            for vx in (-paso, 0, paso):
+                if vy == 0 and vx == 0:
+                    continue
+                # Cada pregunta prueba su vecino fino; se evalúan juntas las que comparten el mismo desplazamiento.
+                for oy, ox in {tuple(d) for d in mejor_d}:
+                    ny, nx = oy + vy, ox + vx
+                    if abs(ny) > tope or abs(nx) > tope:
+                        continue
+                    sel_g = (mejor_d[:, 0] == oy) & (mejor_d[:, 1] == ox)
+                    v = puntaje(ny, nx)
+                    m = sel_g & (v < mejor_v)
+                    mejor_v[m], mejor_d[m] = v[m], (ny, nx)
+        resultado = {}
+        for g_i, num in enumerate(nombres):
+            # Solo se corre si el contorno se ve claramente mejor allá que donde se calculó.
+            if validos[g_i] and base[g_i] - mejor_v[g_i] > 3.0:
+                resultado[num] = (int(mejor_d[g_i, 0]), int(mejor_d[g_i, 1]))
+            else:
+                resultado[num] = (0, 0)
+        return resultado
+
+    # Tres pasadas: el papel se dobla suave, así que lo que se corrige en una pasada (sobre todo cerca de las
+    # esquinas) deja a las demás más cerca de su sitio para la siguiente. En cada pasada, cada pregunta se mueve
+    # lo que dicen ella y sus vecinas (la mediana): una sola no se va a la fila de al lado.
+    for _ in range(3):
+        corridas = buscar_todas()
+        if not any(c != (0, 0) for c in corridas.values()):
+            break
+        centro_de = {num: centros[idx].mean(axis=0) for num, idx in grupos.items()}
+        nuevas = {}
+        for num in grupos:
+            cercanas = sorted((np.linalg.norm(centro_de[o] - centro_de[num]), o) for o in grupos)[:13]
+            med = np.median(np.array([corridas[o] for _, o in cercanas], dtype=float), axis=0)
+            propio = np.array(corridas[num], dtype=float)
+            nuevas[num] = propio if np.abs(propio - med).max() <= r * 0.45 else med
+        for num, idx in grupos.items():
+            oy, ox = nuevas[num]
+            centros[idx, 0] += ox
+            centros[idx, 1] += oy
+    return [(float(x) * red, float(y) * red) for x, y in centros]
+
+
 def medir_burbujas(gris, H, mapa, radio_mm, alto_mm, negro=0.0):
     """Qué tan llena está cada burbuja, de 0 (vacía) a 1 (rellena).
 
@@ -248,6 +387,8 @@ def medir_burbujas(gris, H, mapa, radio_mm, alto_mm, negro=0.0):
     dist = np.sqrt(dx * dx + dy * dy)
     m_dentro = dist <= r_dentro
     m_fuera = (dist >= r_fuera0) & (dist <= r_fuera1)
+
+    centros = _alinear_burbujas(gris, claves, centros, radio_px)
 
     medidas = {}
     posiciones = {}

@@ -54,6 +54,7 @@
 {% with p=e.persona %}
 <div class="{% if not forloop.first %}salto{% endif %}" id="est-{{ forloop.counter }}">
 
+{% if colegio %}<div class="enc-colegio">{% include 'notas/fragmentos/encabezado_pdf.html' %}</div>{% endif %}
 <div class="banda"><div class="tit">Reporte de resultados</div>
   <div class="marca"><div><b>{{ d.titulo }}</b>{{ institucion }}</div>{% if tema.logo %}<img src="{{ tema.logo }}" alt="">{% endif %}</div></div>
 

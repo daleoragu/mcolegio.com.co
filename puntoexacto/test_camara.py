@@ -4,6 +4,7 @@
     python manage.py test puntoexacto
 """
 import io
+import os
 import json
 import re
 import subprocess
@@ -286,3 +287,191 @@ class RepartoGemelo(ImpresaConOtroReparto, UnaSolaIdaAlServidor):
         d = self.c.post(self.url('escanear/foto/'), {'foto': foto, 'por_pagina': '1'}).json()
         self.assertTrue(d['ok'], d)
         self.assertEqual({int(k): v for k, v in d['respuestas'].items() if v}, marcadas)
+
+
+class PistasDeLaCamara(UnaSolaIdaAlServidor):
+    """Una mancha oscura en el fondo (un sofá, una sombra) no debe correr la lectura de la hoja entera."""
+
+    def _foto_con_mancha(self, marcadas):
+        hoja = Image.open(self.foto_llena(marcadas)).convert('RGB')
+        W, Hh = hoja.size
+        m = 150
+        fondo = Image.new('RGB', (W + 2 * m, Hh + 2 * m), (70, 70, 78))
+        fondo.paste(hoja, (m, m))
+        d = ImageDraw.Draw(fondo)
+        esc = W / H.geometria(1)['ancho_mm']
+        lado = int(H.geometria(1)['marca_mm'] * esc)
+        d.rectangle([10, 10, 10 + lado * 2.4, 10 + lado * 2.4], fill=(250, 250, 250))       # papel suelto en el fondo
+        d.rectangle([10 + lado * 0.7, 10 + lado * 0.7, 10 + lado * 1.7, 10 + lado * 1.7], fill=(0, 0, 0))
+        g = H.geometria(1)
+        pistas = [[x * esc + m, (g['alto_mm'] - y) * esc + m] for x, y in g['marcas_mm']]
+        b = io.BytesIO()
+        fondo.save(b, 'JPEG', quality=90)
+        return b.getvalue(), pistas
+
+    def test_con_las_marcas_de_la_camara_lee_bien(self):
+        marcadas = {1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'A', 6: 'B', 7: 'C'}
+        datos, pistas = self._foto_con_mancha(marcadas)
+        sin = self.c.post(self.url('escanear/foto/'), {'foto': SimpleUploadedFile('h.jpg', datos, 'image/jpeg')}).json()
+        con = self.c.post(self.url('escanear/foto/'), {'foto': SimpleUploadedFile('h.jpg', datos, 'image/jpeg'),
+                                                       'marcas': json.dumps(pistas)}).json()
+        print('SIN pistas:', sin.get('ok'), {int(k): v for k, v in sin.get('respuestas', {}).items() if v}, len(sin.get('dudas', [])))
+        self.assertTrue(con['ok'], con)
+        self.assertEqual({int(k): v for k, v in con['respuestas'].items() if v}, marcadas)
+        self.assertEqual(con['dudas'], [])
+
+    def test_pistas_malas_no_estorban(self):
+        marcadas = {1: 'A', 2: 'B'}
+        datos, pistas = self._foto_con_mancha(marcadas)
+        malas = [[5, 5], [6, 6], [7, 7], [8, 8]]
+        d = self.c.post(self.url('escanear/foto/'), {'foto': SimpleUploadedFile('h.jpg', datos, 'image/jpeg'),
+                                                     'marcas': json.dumps(malas)}).json()
+        self.assertTrue(d['ok'] or d.get('error'), d)
+        d = self.c.post(self.url('escanear/foto/'), {'foto': SimpleUploadedFile('h.jpg', datos, 'image/jpeg'),
+                                                     'marcas': 'esto no es json'}).json()
+        self.assertIn('ok', d)
+
+
+class MarcaPegadaAlBorde(UnaSolaIdaAlServidor):
+    """La hoja casi toca el borde de la foto: la marca de esa esquina queda sin papel alrededor."""
+
+    def test_marca_al_borde(self):
+        marcadas = {1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'A', 6: 'B', 7: 'C'}
+        hoja = Image.open(self.foto_llena(marcadas)).convert('RGB').rotate(2.5, expand=True, fillcolor=(70, 70, 78))
+        g = H.geometria(1)
+        W0 = Image.open(self.foto_llena(marcadas)).size[0]
+        esc = W0 / g['ancho_mm']
+        # Se recorta arriba y a la izquierda justo sobre la marca de esa esquina.
+        recorte = int((g['marcas_mm'][0][0] - g['marca_mm'] * 0.55) * esc)
+        foto = hoja.crop((recorte, recorte, hoja.width, hoja.height))
+        b = io.BytesIO(); foto.save(b, 'JPEG', quality=90)
+        datos = b.getvalue()
+        # Dónde quedaron las marcas (como las vería la cámara): se buscan en la imagen con el motor del servidor.
+        sin = self.c.post(self.url('escanear/foto/'), {'foto': SimpleUploadedFile('h.jpg', datos, 'image/jpeg')}).json()
+        print('SIN pistas:', sin.get('ok'), sin.get('error'), {int(k): v for k, v in sin.get('respuestas', {}).items() if v}, len(sin.get('dudas', [])))
+        open('/tmp/claude-0/-home-user-mcolegio-com-co/992cef15-1ebd-50c5-a051-1131c8cc80c9/scratchpad/caso/borde.jpg', 'wb').write(datos)
+
+
+class FotoConFondo(UnaSolaIdaAlServidor):
+    """La foto de todo el cuadro, con la hoja más pequeña sobre una tela con textura (como al oprimir el botón)."""
+
+    def test_con_y_sin_pistas(self):
+        import random
+        marcadas = {1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'A', 6: 'B', 7: 'C'}
+        hoja = Image.open(self.foto_llena(marcadas)).convert('RGB')
+        W, Hh = hoja.size
+        random.seed(3)
+        fondo = Image.new('RGB', (int(W * 1.45), int(Hh * 1.3)), (95, 95, 100))
+        d = ImageDraw.Draw(fondo)
+        for _ in range(2500):                                   # tela con textura: motas oscuras y claras
+            x, y, t = random.randrange(fondo.width), random.randrange(fondo.height), random.randint(4, 22)
+            c = random.choice([25, 40, 60, 140, 170])
+            d.rectangle([x, y, x + t, y + t], fill=(c, c, c + 4))
+        ox, oy = int(W * 0.12), int(Hh * 0.08)
+        fondo.paste(hoja.rotate(-3, expand=False, fillcolor=(95, 95, 100)), (ox, oy))
+        b = io.BytesIO(); fondo.save(b, 'JPEG', quality=88)
+        datos = b.getvalue()
+        g = H.geometria(1)
+        esc = W / g['ancho_mm']
+        import math
+        cx0, cy0, a = W / 2, Hh / 2, math.radians(3)
+        def girar(x, y):          # rotate(-3) de PIL gira en el sentido del reloj, alrededor del centro
+            dx, dy = x - cx0, y - cy0
+            return [cx0 + dx * math.cos(a) - dy * math.sin(a) + ox, cy0 + dx * math.sin(a) + dy * math.cos(a) + oy]
+        pistas = [girar(x * esc, (g['alto_mm'] - y) * esc) for x, y in g['marcas_mm']]
+        sin = self.c.post(self.url('escanear/foto/'), {'foto': SimpleUploadedFile('h.jpg', datos, 'image/jpeg')}).json()
+        con = self.c.post(self.url('escanear/foto/'), {'foto': SimpleUploadedFile('h.jpg', datos, 'image/jpeg'),
+                                                       'marcas': json.dumps(pistas)}).json()
+        print('SIN pistas:', sin.get('ok'), sin.get('error'), {int(k): v for k, v in sin.get('respuestas', {}).items() if v}, len(sin.get('dudas', [])))
+        print('CON pistas:', con.get('ok'), {int(k): v for k, v in con.get('respuestas', {}).items() if v}, len(con.get('dudas', [])))
+        open('/tmp/claude-0/-home-user-mcolegio-com-co/992cef15-1ebd-50c5-a051-1131c8cc80c9/scratchpad/caso/fondo.jpg', 'wb').write(datos)
+        self.assertEqual({int(k): v for k, v in con['respuestas'].items() if v}, marcadas)
+
+
+class HojaCurvada(UnaSolaIdaAlServidor):
+    """El papel doblado: las esquinas están bien, pero en el centro las burbujas quedan corridas."""
+
+    def _curvada(self, marcadas, fuerza):
+        import numpy as np
+        hoja = Image.open(self.foto_llena(marcadas)).convert('RGB')
+        a = np.asarray(hoja)
+        Hh, W = a.shape[:2]
+        yy, xx = np.mgrid[0:Hh, 0:W].astype(np.float32)
+        # Abombado: el centro se corre hacia arriba y a la izquierda; las esquinas quedan quietas.
+        b = np.sin(np.pi * xx / W) * np.sin(np.pi * yy / Hh)
+        sx = np.clip(xx + fuerza * b, 0, W - 1).astype(int)
+        sy = np.clip(yy + fuerza * b, 0, Hh - 1).astype(int)
+        out = Image.fromarray(a[sy, sx])
+        buf = io.BytesIO(); out.save(buf, 'JPEG', quality=90)
+        return SimpleUploadedFile('h.jpg', buf.getvalue(), 'image/jpeg')
+
+    def test_hoja_curvada(self):
+        marcadas = {1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'A', 6: 'B', 7: 'C'}
+        radio_px = H.mapa_de_examen(self.ex)['radio_mm'] * (Image.open(self.foto_llena(marcadas)).size[0] / H.geometria(1)['ancho_mm'])
+        d = self.c.post(self.url('escanear/foto/'), {'foto': self._curvada(marcadas, radio_px * 1.1)}).json()
+        print('CURVADA', round(radio_px, 1), d.get('ok'), {int(k): v for k, v in d.get('respuestas', {}).items() if v}, [x['motivo'] for x in d.get('dudas', [])])
+        self.assertTrue(d['ok'], d)
+        self.assertEqual({int(k): v for k, v in d['respuestas'].items() if v}, marcadas)
+        self.assertEqual(d['dudas'], [])
+
+
+class HojaCurvadaGrande(CamaraEnVivo):
+    """60 preguntas, como un simulacro, con el papel abombado."""
+    test_la_pantalla_trae_la_camara_y_donde_van_las_marcas = None
+    test_lee_la_foto_recortada_como_la_manda_la_camara = None
+    test_calentar_con_get = None
+
+    def setUp(self):
+        import random
+        self.c = self.cliente(self.rectora)
+        self.c.post('/puntoexacto/nuevo/', {
+            'titulo': 'Simulacro', 'fecha': '2026-10-06', 'componente': 'SABER',
+            'numero_preguntas': '60', 'numero_opciones': '4', 'hojas_por_pagina': '1',
+            'metodo': 'con_piso', 'nota_todo_mal': '1', 'nota_nada_marcado': '1', 'opciones_por_pregunta': '{}'})
+        self.ex = Examen.objects.get()
+        random.seed(7)
+        datos = {'metodo': 'con_piso'}
+        for n in range(1, 61):
+            datos.update({f'correcta_{n}': random.choice('ABCD'), f'opciones_{n}': '4', f'puntos_{n}': '1'})
+        self.c.post(f'/puntoexacto/{self.ex.id}/clave/', datos)
+        self.hoja = Hoja.objects.create(examen=self.ex, identificador=f'PE-{self.ex.id:05d}-0001', nombre_libre='Juan')
+
+    def test_60_preguntas_abombada(self):
+        import random
+        import time
+        import numpy as np
+        random.seed(11)
+        marcadas = {n: random.choice('ABCD') for n in range(1, 61) if random.random() > 0.1}
+        pdf = self.c.get(self.url('hojas/imprimir/')).content
+        with tempfile.TemporaryDirectory() as d:
+            open(f'{d}/h.pdf', 'wb').write(pdf)
+            subprocess.run(['pdftoppm', '-r', '150', '-png', '-singlefile', f'{d}/h.pdf', f'{d}/h'], check=True)
+            hoja = Image.open(f'{d}/h.png').convert('RGB')
+        info = H.mapa_de_examen(self.ex)
+        esc = hoja.width / info['hoja_w_mm']
+        alto_mm = hoja.height / esc
+        dib = ImageDraw.Draw(hoja)
+        r = info['radio_mm'] * esc
+        for p, l in marcadas.items():
+            x, y = info['mapa'][f'{p}{l}']
+            dib.ellipse([x * esc - r * 0.75, (alto_mm - y) * esc - r * 0.75, x * esc + r * 0.75, (alto_mm - y) * esc + r * 0.75],
+                        fill=(70, 70, 75))
+        a = np.asarray(hoja)
+        Hh, W = a.shape[:2]
+        yy, xx = np.mgrid[0:Hh, 0:W].astype(np.float32)
+        b = np.sin(np.pi * xx / W) * np.sin(np.pi * yy / Hh)
+        for fuerza in (0.0, r * 0.6, r * 1.0, r * 1.2, r * 1.4, r * 1.7):
+            sx = np.clip(xx + fuerza * b, 0, W - 1).astype(int)
+            sy = np.clip(yy - fuerza * 0.6 * b, 0, Hh - 1).astype(int)
+            out = Image.fromarray(a[sy, sx]).resize((1600, round(Hh * 1600 / W)))
+            buf = io.BytesIO(); out.save(buf, 'JPEG', quality=88)
+            if os.environ.get('PE_SAL'):
+                out.save(os.path.join(os.environ['PE_SAL'], f'abombada_{round(fuerza / r, 1)}.jpg'), quality=88)
+            t = time.perf_counter()
+            dd = self.c.post(self.url('escanear/foto/'), {'foto': SimpleUploadedFile('h.jpg', buf.getvalue(), 'image/jpeg')}).json()
+            ms = round(1000 * (time.perf_counter() - t))
+            leidas = {int(k): v for k, v in dd['respuestas'].items() if v}
+            malas = [n for n in range(1, 61) if leidas.get(n, '') != marcadas.get(n, '')]
+            print('ABOMBADA', round(fuerza / r, 1), 'radios:', 'malas', malas, 'dudas', len(dd['dudas']), ms, 'ms')
+            if fuerza <= r * 1.0:
+                self.assertEqual(malas, [], fuerza)

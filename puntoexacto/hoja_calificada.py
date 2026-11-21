@@ -89,7 +89,8 @@ def _encima(examen, hoja, info, preguntas, ancho_pt, alto_pt):
     # Leyenda al pie
     c.setFont('Helvetica', 6.8); c.setFillColor(GRIS)
     c.drawCentredString(ancho_pt / 2, 6 * mm,
-                        'Verde: bien · Rojo: mal · Punteada: la respuesta correcta. Hoja reconstruida con lo que leyó PuntoExacto.')
+                        'Verde: bien · Rojo: mal · Punteada: la respuesta correcta. Hoja reconstruida con lo que leyó PuntoExacto. '
+                        'Informe desarrollado por medio de la plataforma mcolegio · mcolegio.com.co')
     c.showPage(); c.save()
     return buf.getvalue()
 
