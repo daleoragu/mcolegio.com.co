@@ -1,4 +1,4 @@
-Versión 0059 · 2026-11-20 19:03
+Versión 0061 · 2026-11-21 00:54
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -777,6 +777,7 @@ CAMBIADO  puntoexacto/cuadernillo.py
 NUEVO     puntoexacto/graficas_informe.py
 NUEVO     puntoexacto/hoja_calificada.py
 NUEVO     puntoexacto/informes.py
+CAMBIADO  puntoexacto/lector.py
 NUEVO     puntoexacto/migrations/0012_pruebas_unidas.py
 CAMBIADO  puntoexacto/models.py
 NUEVO     puntoexacto/static/puntoexacto/escaner.js
