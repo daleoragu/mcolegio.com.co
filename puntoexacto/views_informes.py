@@ -101,10 +101,40 @@ def _tema(request):
                     logo = f'data:{tipo};base64,{base64.b64encode(f.read()).decode()}'
             except Exception:
                 logo = ''
+    encabezado, rutas = None, {}
+    if not col and getattr(request, 'user', None) is not None and request.user.is_authenticated:
+        # Docente sin colegio: el color, el logo y las líneas de «Mi encabezado».
+        from materiales.models import EncabezadoDocente
+        encabezado = EncabezadoDocente.objects.filter(usuario=request.user).first()
+        if encabezado is not None:
+            c = _hex(encabezado.color)
+            if c and _luz(c) <= 0.75:
+                primario, texto = c, _texto_sobre(c)
+            secundario = primario          # un solo color: el que el docente escogió para sus documentos
+            for campo in ('logo', 'logo2'):
+                rutas[campo] = _datos_de_imagen(getattr(encabezado, campo, None))
+            logo = rutas.get('logo') or rutas.get('logo2') or ''
+            if not encabezado.tiene_algo:
+                encabezado = None
     if _luz(primario) > 0.75:             # un primario muy claro no sirve de fondo para títulos: se usa el azul
         primario, texto = '#1e3a8a', '#ffffff'
     return {'primario': primario, 'texto': texto, 'secundario': secundario, 'acento': secundario,
-            'acento_txt': secundario if _luz(secundario) < 0.55 else primario, 'logo': logo}
+            'acento_txt': secundario if _luz(secundario) < 0.55 else primario, 'logo': logo,
+            'encabezado': encabezado, 'rutas': rutas}
+
+
+def _datos_de_imagen(archivo):
+    """Un archivo de imagen guardado -> data: URI (WeasyPrint no puede leer el almacenamiento privado)."""
+    if not archivo:
+        return ''
+    try:
+        import base64
+        import mimetypes
+        with archivo.open('rb') as f:
+            tipo = mimetypes.guess_type(archivo.name)[0] or 'image/png'
+            return f'data:{tipo};base64,{base64.b64encode(f.read()).decode()}'
+    except Exception:
+        return ''
 
 
 def _institucion(request):
@@ -112,7 +142,9 @@ def _institucion(request):
     if col:
         return col.nombre
     cuenta = _cuenta_de(request)
-    return (request.user.get_full_name() or request.user.username) if cuenta else ''
+    if not cuenta:
+        return ''
+    return (cuenta.institucion or '').strip() or request.user.get_full_name() or request.user.username
 
 
 def _ctx_general(request, datos):

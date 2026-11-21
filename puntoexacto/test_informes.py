@@ -337,3 +337,48 @@ class ColoresInstitucionales(InformesIcfes):
         self.assertIn('#d4a017', html)
         pdf = self.c.get(f'/puntoexacto/{self.mat.id}/informe/estudiantes/')
         self.assertTrue(pdf.content.startswith(b'%PDF'))
+
+
+class DocenteSinColegio(ColegioDePrueba):
+    """Plan individual: el informe sale con el color, el logo y las líneas de «Mi encabezado»."""
+
+    def test_color_y_encabezado_del_docente(self):
+        import io
+        from django.contrib.auth.models import User
+        from django.core.files.base import ContentFile
+        from django.test import Client, RequestFactory
+        from PIL import Image
+        from materiales.models import EncabezadoDocente
+        from salon_digital.models import Cuenta
+        from .views_informes import _institucion, _tema
+        u = User.objects.create_user('profe_ind', password='x', first_name='Laura', last_name='Ríos')
+        Cuenta.objects.create(usuario=u, slug='laura', nombre_publico='Laura Ríos', estado='verificada',
+                              plan='ilimitado', institucion='I. E. Los Andes')
+        enc = EncabezadoDocente.objects.create(usuario=u, config={'color': '#0f5132', 'lineas': [
+            {'texto': 'Laura Ríos · Matemáticas', 'negrilla': True, 'tam': 'grande'}]})
+        b = io.BytesIO(); Image.new('RGB', (40, 40), (200, 0, 0)).save(b, 'PNG')
+        enc.logo.save('escudo.png', ContentFile(b.getvalue()))
+        r = RequestFactory().get('/')
+        r.user = u
+        t = _tema(r)
+        self.assertEqual(t['primario'], '#0f5132')
+        self.assertTrue(t['logo'].startswith('data:image/png;base64,'))
+        self.assertEqual(t['encabezado'], enc)
+        self.assertEqual(_institucion(r), 'I. E. Los Andes')
+        from django.template.loader import render_to_string
+        html = render_to_string('puntoexacto/informe_general_pdf.html',
+                                {'d': {'titulo': 'Prueba', 'examenes': [], 'areas': [], 'preguntas': []},
+                                 'r': {}, 'tema': t, 'institucion': 'I. E. Los Andes'})
+        self.assertIn('Laura Ríos · Matemáticas', html)
+        self.assertIn('#0f5132', html)
+        self.assertIn('enc-docente', html)
+
+    def test_sin_mi_encabezado_sale_el_azul(self):
+        from django.contrib.auth.models import User
+        from django.test import RequestFactory
+        from .views_informes import _tema
+        r = RequestFactory().get('/')
+        r.user = User.objects.create_user('otro', password='x')
+        t = _tema(r)
+        self.assertEqual(t['primario'], '#1e3a8a')
+        self.assertIsNone(t['encabezado'])
