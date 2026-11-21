@@ -391,9 +391,11 @@
     var lote = [], siguienteId = 1;
 
     // margenPx: el borde de mesa que lleva la foto enderezada alrededor de la hoja (el PDF lo recorta).
-    function nuevaPagina(blob, dz, sinMarcas, margenPx) {
+    // quad: dónde quedaron las 4 marcas en la foto (para enderezarla al armar el PDF).
+    function nuevaPagina(blob, dz, sinMarcas, margenPx, quad) {
         var p = {id: siguienteId++, raw: blob, url: URL.createObjectURL(blob), estado: 'nueva',
                  ancho_mm: dz ? dz.ancho : null, alto_mm: dz ? dz.alto : null, margenPx: margenPx || 0,
+                 quad: quad ? quad.map(function (v) { return [v[0], v[1]]; }) : null,
                  pp: dz ? dz.pp : '', sinMarcas: !!sinMarcas,
                  uid: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), creada: Date.now()};
         lote.push(p);
@@ -598,7 +600,7 @@
     var detector = new PEScan.Detector(DISENOS, 320);
     var modo = 'calificar';
     var flujo = null, pista = null, linternaPrendida = false;
-    var ANCHO_RECORTE = 2200;
+    var ANCHO_RECORTE = 2600, ANCHO_FOTO = 1600;
     var enfoque = null, buscando = false, temporizador = null;
     var anterior = null, estables = 0, esperarRetiro = false, perdidas = 0;
 
@@ -874,7 +876,7 @@
         lienzo.getContext('2d', {willReadFrequently: true}).drawImage(elVideo, x0, y0, x1 - x0, y1 - y0, 0, 0, lienzo.width, lienzo.height);
         if (marcas) {
             lienzo.quad = marcas.map(function (p) { return [(p[0] - x0) * k, (p[1] - y0) * k]; });
-            lienzo.quad.diseno = marcas.diseno;
+            lienzo.quad.diseno = marcas.diseno; lienzo.quad.giro = marcas.giro || 0;
         }
         return lienzo;
     }
@@ -942,22 +944,55 @@
         elDestello.style.opacity = '0.85';
         setTimeout(function () { elDestello.style.opacity = '0'; }, 120);
         esperarRetiro = true; perdidas = 0;
+        // Al lector va la FOTO ORIGINAL, solo recortada y puesta derecha (girar 90° no cambia ningún píxel):
+        // enderezarla la suavizaba y el lector, calibrado con fotos, elegía peor. Se endereza solo para el PDF.
         var dz = lienzo.quad ? lienzo.quad.diseno : null;
-        var paso = dz ? PEScan.enderezarAsync(lienzo, lienzo.quad, dz, PEScan.resolucion(lienzo.quad, dz)).catch(function () { dz = null; return lienzo; })
-                      : Promise.resolve(lienzo);
+        var derecho = lienzo.quad ? girarDerecho(lienzo, lienzo.quad) : lienzo;
         var confirmar = !elAuto.checked && modo !== 'pdf';
         if (confirmar) { elLeyendo.classList.add('si'); estado('Leyendo la hoja…'); }
         else {
             estado(modo === 'pdf' ? '✓ Hoja ' + (lote.length + 1) + ' en el PDF. Ponga la siguiente.' : 'Leyendo… ponga la siguiente hoja.', 'bien');
             arrancarBusqueda();
         }
-        paso.then(function (final) { return PEScan.aJPEG(final, 0.88).then(function (blob) { return [blob, final]; }); })
-            .then(function (r) {
-                var p = nuevaPagina(r[0], dz, !lienzo.quad, r[1].margen);
-                if (modo === 'pdf') { pintarLote(); return; }
-                if (confirmar) { p.esperando = true; p.confirmar = true; }
-                encolar(p);
-            });
+        PEScan.aJPEG(derecho, 0.88).then(function (blob) {
+            var p = nuevaPagina(blob, dz, !lienzo.quad, 0, derecho.quad);
+            if (modo === 'pdf') { pintarLote(); return; }
+            if (confirmar) { p.esperando = true; p.confirmar = true; }
+            encolar(p);
+        });
+    }
+
+    // Gira el recorte en ángulo recto para que la hoja quede derecha, y lleva las marcas con él.
+    function girarDerecho(l, quad) {
+        var g = quad.giro || 0, W = l.width, H = l.height;
+        var mapa = g === 90 ? function (p) { return [p[1], W - p[0]]; }
+                 : g === -90 ? function (p) { return [H - p[1], p[0]]; }
+                 : g === 180 ? function (p) { return [W - p[0], H - p[1]]; }
+                 : function (p) { return [p[0], p[1]]; };
+        var c = l;
+        if (g) {
+            c = document.createElement('canvas');
+            c.width = (g === 180) ? W : H; c.height = (g === 180) ? H : W;
+            var x = c.getContext('2d');
+            if (g === 90) { x.translate(0, W); x.rotate(-Math.PI / 2); }
+            else if (g === -90) { x.translate(H, 0); x.rotate(Math.PI / 2); }
+            else { x.translate(W, H); x.rotate(Math.PI); }
+            x.drawImage(l, 0, 0);
+        }
+        // Del tamaño con que el lector siempre las ha leído bien: unos 1600 px de ancho. Con cámaras de 1080p la
+        // hoja sale más pequeña y el código de barras no se alcanzaba a leer: se amplía (sin deformarla).
+        var k = ANCHO_FOTO / c.width;
+        var final = c;
+        if (Math.abs(k - 1) > 0.03) {
+            final = document.createElement('canvas');
+            final.width = Math.round(c.width * k); final.height = Math.round(c.height * k);
+            var fx = final.getContext('2d');
+            fx.imageSmoothingEnabled = true; fx.imageSmoothingQuality = 'high';
+            fx.drawImage(c, 0, 0, final.width, final.height);
+        }
+        final.quad = quad.map(function (p) { var m = mapa(p); return [m[0] * k, m[1] * k]; });
+        final.quad.diseno = quad.diseno; final.quad.giro = 0;
+        return final;
     }
 
     // ---- Esquinas a mano: se congela la imagen y el docente toca las 4 marcas negras ----
@@ -1033,7 +1068,7 @@
         l.width = Math.round((x1 - x0) * k); l.height = Math.round((y1 - y0) * k);
         l.getContext('2d', {willReadFrequently: true}).drawImage(c, x0, y0, x1 - x0, y1 - y0, 0, 0, l.width, l.height);
         l.quad = quad.map(function (p) { return [(p[0] - x0) * k, (p[1] - y0) * k]; });
-        l.quad.diseno = dz;
+        l.quad.diseno = dz; l.quad.giro = quad.giro || 0;
         return l;
     }
 
@@ -1153,6 +1188,9 @@
                 c.getContext('2d', {willReadFrequently: true}).drawImage(img, 0, 0);
                 var m = PEScan.mejorar(c);
                 if (conNota) marcarCalificacion(m, p);
+                // Las fotos de la cámara se enderezan aquí (la nota y las marcas ya van dibujadas encima).
+                var dzp = p.quad && DISENOS.filter(function (d) { return String(d.pp) === String(p.pp); })[0];
+                if (dzp) { m = PEScan.enderezar(m, p.quad, dzp, 6, 0); p.margenPx = 0; }
                 // Sin el borde de mesa: la página del PDF queda del tamaño exacto de la hoja.
                 var mg = Math.round(p.margenPx || 0);
                 if (mg > 0 && mg * 3 < Math.min(m.width, m.height)) {
@@ -1605,7 +1643,7 @@
         } catch (e) { ok(null); }
     });
     var CAMPOS = ['uid', 'creada', 'estado', 'pp', 'margenPx', 'ancho_mm', 'alto_mm', 'sinMarcas', 'lectura', 'respuestas',
-                  'notaInfo', 'nombre', 'nota', 'hojaId', 'dudas', 'error', 'correccion'];
+                  'notaInfo', 'nombre', 'nota', 'hojaId', 'dudas', 'error', 'correccion', 'quad'];
     function guardarBD(p) {
         bd.then(function (db) {
             if (!db || !p.uid) return;

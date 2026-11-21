@@ -265,3 +265,24 @@ class ImpresaConOtroReparto(CamaraEnVivo):
         d = self.c.post(self.url('escanear/foto/'), {'foto': foto, 'por_pagina': '2'}).json()
         self.assertTrue(d['ok'], d)
         self.assertEqual({int(k): v for k, v in d['respuestas'].items() if v}, marcadas)
+
+
+class RepartoGemelo(ImpresaConOtroReparto, UnaSolaIdaAlServidor):
+    """Las hojas de 1 y de 4 por página tienen la misma forma: el lector no debe quedarse con el mapa equivocado."""
+
+    def test_hoja_de_1_por_pagina_con_el_examen_en_4(self):
+        marcadas = {1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'A', 6: 'B', 7: 'C'}
+        foto = self.foto_llena(marcadas)                    # impresa a 1 por página
+        Examen.objects.filter(id=self.ex.id).update(hojas_por_pagina=4)
+        d = self.c.post(self.url('escanear/foto/'), {'foto': foto, 'por_pagina': '4'}).json()
+        self.assertTrue(d['ok'], d)
+        self.assertEqual({int(k): v for k, v in d['respuestas'].items() if v}, marcadas)
+        self.assertEqual(d['dudas'], [])
+
+    def test_hoja_de_4_por_pagina_con_el_examen_en_1(self):
+        marcadas = {n: l for n, l in zip(range(1, 9), 'DCBADCBA')}
+        foto = self.foto_de_reparto(4, marcadas)
+        Examen.objects.filter(id=self.ex.id).update(hojas_por_pagina=1)
+        d = self.c.post(self.url('escanear/foto/'), {'foto': foto, 'por_pagina': '1'}).json()
+        self.assertTrue(d['ok'], d)
+        self.assertEqual({int(k): v for k, v in d['respuestas'].items() if v}, marcadas)
