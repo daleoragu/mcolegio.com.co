@@ -185,6 +185,9 @@
     .pe-op.si.mal { background:#b42318; border-color:#b42318; }
     .pe-op.correcta { border:3px dashed #0b8a4a; color:#0b6b4a; }
     .pe-leyenda { font-size:.82rem; color:#6b7280; }
+    .pe-dos { width:28px; height:28px; margin-left:4px; border-radius:8px; border:1px dashed #9aa3b2; background:#fff;
+              color:#6b7280; font-size:.75rem; font-weight:700; padding:0; }
+    .pe-dos.si { border-style:solid; border-color:#1b5fa8; background:#e3eefc; color:#1b5fa8; }
     .pe-c-bien { color:#0b6b4a; font-weight:700; } .pe-c-mal { color:#b42318; font-weight:700; }
 </style>
 
@@ -1002,16 +1005,16 @@
         ultimoTiempo = t; return true;
     }
 
-    // Mientras la hoja está quieta se miden unos fotogramas y se usa el más nítido (máximo 0,3 s).
+    // Mientras la hoja está quieta se miden unos fotogramas y se usa el más nítido (máximo 0,2 s).
     function elegirFotograma(quad) {
         var ahora = performance.now();
-        if (enfoque && !hayCuadroNuevo()) return ahora - enfoque.t0 > 300 && enfoque.mejor ? (disparar(enfoque.mejor), true) : false;
+        if (enfoque && !hayCuadroNuevo()) return ahora - enfoque.t0 > 200 && enfoque.mejor ? (disparar(enfoque.mejor), true) : false;
         if (!enfoque) { enfoque = {t0: ahora, n: 0, max: 0, mejor: null, sinMejorar: 0}; pedirEnfoque(); }
         var lienzo = fotograma(quad), v = nitidez(lienzo);
         enfoque.n++;
         if (v > enfoque.max * 1.03) { enfoque.max = v; enfoque.mejor = lienzo; enfoque.sinMejorar = 0; }
         else { enfoque.sinMejorar++; if (v > enfoque.max) { enfoque.max = v; enfoque.mejor = lienzo; } }
-        var listo = (enfoque.n >= 2 && enfoque.sinMejorar >= 1) || ahora - enfoque.t0 > 300;
+        var listo = (enfoque.n >= 2 && enfoque.sinMejorar >= 1) || ahora - enfoque.t0 > 200;
         if (!listo) return false;
         disparar(enfoque.mejor || lienzo);
         return true;
@@ -1040,13 +1043,28 @@
             estado('✓ Hoja ' + (lote.length + 1) + ' en el PDF. Ponga la siguiente.', 'bien');
             arrancarBusqueda();
         }
-        PEScan.aJPEG(derecho, 0.88).then(function (blob) {
+        // Para calificar va en gris y algo más comprimida: pesa cerca de la mitad, sube más rápido y el lector
+        // (que trabaja en gris) lee igual. Para el PDF se deja a color.
+        var salida = modo === 'pdf' ? derecho : enGris(derecho);
+        PEScan.aJPEG(salida, modo === 'pdf' ? 0.88 : 0.8).then(function (blob) {
             var p = nuevaPagina(blob, dz, !lienzo.quad, 0, derecho.quad);
             if (modo === 'pdf') { pintarLote(); return; }
             if (confirmar) { p.esperando = true; p.confirmar = true; }
             if (pausa) { p.pausa = true; elCamNota.pagina = p; }
             encolar(p);
         });
+    }
+
+    function enGris(c) {
+        try {
+            var x = c.getContext('2d', {willReadFrequently: true}), im = x.getImageData(0, 0, c.width, c.height), d = im.data;
+            for (var i = 0; i < d.length; i += 4) {
+                var g = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
+                d[i] = d[i + 1] = d[i + 2] = g;
+            }
+            x.putImageData(im, 0, 0);
+        } catch (e) {}
+        return c;
     }
 
     // Gira el recorte en ángulo recto para que la hoja quede derecha, y lleva las marcas con él.
@@ -1228,11 +1246,11 @@
         Object.keys(l.posiciones).forEach(function (k) {
             var m = k.match(/^(\d+)([A-J])$/);
             if (!m) return;
-            var pr = m[1], le = m[2], pos = l.posiciones[k], marcada = resp[pr] === le, buena = clave[pr];
+            var pr = m[1], le = m[2], pos = l.posiciones[k], marcada = tiene(resp[pr], le), buena = clave[pr];
             if (!buena) return;
             x.beginPath(); x.arc(pos[0] * kx, pos[1] * ky, r, 0, Math.PI * 2);
-            if (marcada) { x.setLineDash([]); x.strokeStyle = buena === le ? '#0b8a4a' : '#d32f2f'; x.stroke(); }
-            else if (buena === le) { x.setLineDash([r * 0.35, r * 0.25]); x.strokeStyle = '#0b8a4a'; x.stroke(); }
+            if (marcada) { x.setLineDash([]); x.strokeStyle = tiene(buena, le) ? '#0b8a4a' : '#d32f2f'; x.stroke(); }
+            else if (tiene(buena, le)) { x.setLineDash([r * 0.35, r * 0.25]); x.strokeStyle = '#0b8a4a'; x.stroke(); }
         });
         x.setLineDash([]);
         // Las preguntas dudosas, en naranja.
@@ -1540,16 +1558,19 @@
         return todas.slice(0, n).split('');
     }
 
+    // Una respuesta puede tener varias letras («AC»: marcó dos) y la clave también («AC»: dos correctas).
+    function tiene(valor, letra) { return !!valor && valor !== '?' && valor.indexOf(letra) >= 0; }
     function claseDe(p, letra) {
         var c = [], clave = notaInfo && notaInfo.clave ? notaInfo.clave[p] : undefined;
-        var marcada = respuestas[p] === letra;
+        var marcada = tiene(respuestas[p], letra);
         if (marcada) {
             c.push('marcada');
-            if (clave) c.push(clave === letra ? 'bien' : 'mal');
+            if (clave) c.push(tiene(clave, letra) ? 'bien' : 'mal');
         }
-        if (clave && clave === letra && respuestas[p] !== letra) c.push('correcta');
+        if (clave && tiene(clave, letra) && !marcada) c.push('correcta');
         return c;
     }
+    var dosLetras = {};          // preguntas donde el docente activó «2»: se pueden dejar dos marcadas
 
     function pintar() {
         var dud = dudosas();
@@ -1577,24 +1598,44 @@
         });
         var preguntas = Object.keys(lectura.respuestas).sort(function (a, b) { return a - b; });
         elRejilla.innerHTML = preguntas.map(function (p) {
+            var dos = dosLetras[p] || (respuestas[p] || '').length > 1;
             return '<div class="pe-renglon' + (dud[p] ? ' duda' : '') + '" id="pe-r-' + p + '"><span class="n">' + p + '</span>' +
                    letrasDe(p).map(function (l) {
                        var cs = claseDe(p, l).map(function (c) { return c === 'marcada' ? 'si' : c; });
                        return '<button type="button" class="pe-op ' + cs.join(' ') + '" data-p="' + p + '" data-l="' + l +
                               '" aria-label="Pregunta ' + p + ', ' + l + '">' + l + '</button>';
-                   }).join('') + '</div>';
+                   }).join('') +
+                   '<button type="button" class="pe-dos' + (dos ? ' si' : '') + '" data-dos="' + p + '" title="Dejar dos marcadas">2</button></div>';
         }).join('');
         resumen();
     }
 
     elRejilla.addEventListener('click', function (ev) {
+        var d = ev.target.closest('.pe-dos');
+        if (d) {
+            var q = d.dataset.dos;
+            dosLetras[q] = !(dosLetras[q] || (respuestas[q] || '').length > 1);
+            if (!dosLetras[q] && (respuestas[q] || '').length > 1) respuestas[q] = respuestas[q].charAt(0);
+            pintar(); clearTimeout(esperaNota); esperaNota = setTimeout(pedirNota, 250);
+            return;
+        }
         var b = ev.target.closest('.pe-op');
         if (b) tocar(b.dataset.p, b.dataset.l);
     });
 
     var esperaNota = null;
     function tocar(pregunta, letra) {
-        respuestas[pregunta] = (respuestas[pregunta] === letra) ? '' : letra;
+        var actual = respuestas[pregunta] === '?' ? '' : (respuestas[pregunta] || '');
+        if (dosLetras[pregunta] || actual.length > 1) {
+            // Con «2»: cada toque pone o quita esa letra (quedan las que estén marcadas, en orden).
+            var set = actual.split('').filter(function (x) { return x; });
+            var i = set.indexOf(letra);
+            if (i >= 0) set.splice(i, 1); else set.push(letra);
+            respuestas[pregunta] = set.sort().join('');
+        } else {
+            // Tocar la que ya está marcada la deja en blanco: así se corrige tanto «marcó otra» como «no marcó».
+            respuestas[pregunta] = (actual === letra) ? '' : letra;
+        }
         var cuerpo = elResultado.querySelector('.pe-rev-cuerpo'), scroll = cuerpo.scrollTop;
         pintar();
         cuerpo.scrollTop = scroll;

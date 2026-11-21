@@ -213,8 +213,8 @@ def en_vivo(request, examen_id):
     filas = []
     for p in preguntas:
         marcas = [next((r.marcada for r in h.respuestas.all() if r.pregunta_id == p.id), '') for h in hojas]
-        bien = sum(1 for m in marcas if m and m == p.correcta)
-        otras = Counter(m for m in marcas if m and m != p.correcta and m != '?')
+        bien = sum(1 for m in marcas if p.acierta(m))
+        otras = Counter(m for m in marcas if m and not p.acierta(m) and m != '?' and len(m) == 1)
         dis = otras.most_common(1)[0] if otras else None
         filas.append({'numero': p.numero, 'pct': round(100 * bien / n) if n else 0, 'correcta': p.rotulo(p.correcta),
                       'distractor': [p.rotulo(dis[0]), round(100 * dis[1] / n)] if dis else None})
@@ -249,15 +249,6 @@ def descargar_informes(request, examen_id):
     Los informes de todos se arman en una sola pasada de WeasyPrint y luego se cortan por estudiante:
     armarlos uno por uno tardaba demasiado con un curso completo.
     """
-    import io
-    import zipfile
-
-    from pypdf import PdfReader, PdfWriter
-    from weasyprint import HTML
-
-    from . import hoja_calificada as HC
-    from .views import exportar
-
     examen = _examen_o_404(request, examen_id)
     if request.method != 'POST':
         return redirect('puntoexacto:resultados', examen_id=examen.id)
@@ -272,10 +263,33 @@ def descargar_informes(request, examen_id):
         messages.warning(request, 'Escoja qué descargar y al menos un estudiante con hoja calificada.')
         return redirect('puntoexacto:resultados', examen_id=examen.id)
 
+    escogidas = {h.id for h in hojas}
+    contenido = _armar_zip(request, [examen], examen.titulo, None, lambda h: h.id in escogidas,
+                           [INF._clave_persona(h) for h in hojas], {examen.id: hojas}, tipos, separado)
+    r = HttpResponse(contenido, content_type='application/zip')
+    r['Content-Disposition'] = f'attachment; filename="Informes - {_nombre_archivo(examen.titulo)}.zip"'
+    return r
+
+
+def _armar_zip(request, examenes, titulo, areas, incluir, claves, hojas_por_examen, tipos, separado):
+    """El ZIP de informes, para un examen o para una prueba unida (varios exámenes).
+
+    incluir: hoja -> bool (los escogidos). claves: las personas escogidas, en el orden de los informes.
+    hojas_por_examen: {examen.id: [hojas escogidas]} para las hojas calificadas.
+    """
+    import io
+    import zipfile
+
+    from pypdf import PdfReader, PdfWriter
+    from weasyprint import HTML
+
+    from . import hoja_calificada as HC
+    from .views import exportar
+
+    varios = len(examenes) > 1
     buf = io.BytesIO()
     zf = zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED)
-    escogidas = {h.id for h in hojas}
-    datos = INF.construir([examen], incluir=lambda h: h.id in escogidas) if tipos & {'general', 'informes'} else None
+    datos = INF.construir(examenes, titulo, areas, incluir=incluir) if tipos & {'general', 'informes'} else None
 
     def general(d, archivo):
         html = render_to_string('puntoexacto/informe_general_pdf.html', _ctx_general(request, d), request=request)
@@ -284,20 +298,20 @@ def descargar_informes(request, examen_id):
     if 'general' in tipos and datos and datos['personas']:
         general(datos, 'Informe general (total).pdf')
     # Un informe general por grado y por curso, con solo los escogidos de cada uno.
-    grados, cursos = grupos_de(hojas)
+    todas = [h for hs in hojas_por_examen.values() for h in hs]
+    grados, cursos = grupos_de(todas)
     for tipo, carpeta, valores, de in (('grados', 'Informes por grado', grados, INF.grado_de),
                                        ('cursos', 'Informes por curso', cursos, INF.curso_de)):
         if tipo not in tipos:
             continue
         for v in valores:
-            d = INF.construir([examen], f'{examen.titulo} · {v if tipo == "grados" else "Curso " + v}',
-                              incluir=lambda h, v=v, de=de: h.id in escogidas and de(h) == v)
+            d = INF.construir(examenes, f'{titulo} · {v if tipo == "grados" else "Curso " + v}', areas,
+                              incluir=lambda h, v=v, de=de: incluir(h) and de(h) == v)
             if d['personas']:
                 general(d, f'{carpeta}/{_nombre_archivo(v if tipo == "grados" else "Curso " + v)}.pdf')
 
     if 'informes' in tipos and datos:
         tema = _tema(request)
-        claves = [INF._clave_persona(h) for h in hojas]
         lista, vistos = [], set()
         for k in claves:
             if k in vistos or not any(p['clave'] == k for p in datos['personas']):
@@ -329,26 +343,41 @@ def descargar_informes(request, examen_id):
                     nombre = _nombre_unico(e['persona']['nombre'], usados)
                     zf.writestr(f'Informes por estudiante/{nombre}.pdf', doc.copy(paginas).write_pdf())
 
-    if 'hojas' in tipos and hojas:
-        pdf = HC.pdf_calificadas(examen, hojas)
-        if pdf:
+    if 'hojas' in tipos:
+        # En una prueba unida, cada estudiante tiene una hoja por examen: van todas juntas en su PDF.
+        por_persona, nombres, orden = {}, {}, []
+        usados_junto = set()
+        for ex in examenes:
+            hs = hojas_por_examen.get(ex.id) or []
+            pdf = HC.pdf_calificadas(ex, hs) if hs else None
+            if not pdf:
+                continue
             if not separado:
-                zf.writestr('Hojas calificadas.pdf', pdf)
-            else:
-                lector, usados = PdfReader(io.BytesIO(pdf)), set()
-                for pagina, h in zip(lector.pages, hojas):
-                    w = PdfWriter()
-                    w.add_page(pagina)
-                    b = io.BytesIO()
-                    w.write(b)
-                    zf.writestr(f'Hojas calificadas/{_nombre_unico(h.nombre, usados)}.pdf', b.getvalue())
+                nombre = 'Hojas calificadas' + (f' - {_nombre_unico(ex.titulo, usados_junto)}' if varios else '')
+                zf.writestr(f'{nombre}.pdf', pdf)
+                continue
+            for pagina, h in zip(PdfReader(io.BytesIO(pdf)).pages, hs):
+                k = INF._clave_persona(h)
+                if k not in por_persona:
+                    por_persona[k], nombres[k] = [], h.nombre
+                    orden.append(k)
+                por_persona[k].append(pagina)
+        usados = set()
+        for k in orden:
+            w = PdfWriter()
+            for pagina in por_persona[k]:
+                w.add_page(pagina)
+            b = io.BytesIO()
+            w.write(b)
+            zf.writestr(f'Hojas calificadas/{_nombre_unico(nombres[k], usados)}.pdf', b.getvalue())
 
     if 'excel' in tipos:
-        zf.writestr('Resultados.xlsx', exportar(request, examen.id).content)
+        usados = set()
+        for ex in examenes:
+            nombre = f'Resultados - {_nombre_unico(ex.titulo, usados)}.xlsx' if varios else 'Resultados.xlsx'
+            zf.writestr(nombre, exportar(request, ex.id).content)
     zf.close()
-    r = HttpResponse(buf.getvalue(), content_type='application/zip')
-    r['Content-Disposition'] = f'attachment; filename="Informes - {_nombre_archivo(examen.titulo)}.zip"'
-    return r
+    return buf.getvalue()
 
 
 # ----------------------------------------------------------------------------- pruebas unidas
@@ -447,3 +476,36 @@ def unida_estudiantes(request, pk, clave=None):
     return _pdf(request, 'puntoexacto/informe_estudiantes_pdf.html',
                 {'d': datos, 'lista': lista, 'institucion': _institucion(request), 'hoy': timezone.localdate(), 'tema': tema, **_fechas(datos)},
                 f'Informe - {_nombre_archivo(nombre)}')
+
+
+@login_required
+@personal_requerido
+def unida_descargar(request, pk):
+    """Lo mismo que «Descargar informes» de un examen, para una prueba unida: los estudiantes se escogen por persona
+    (cada uno puede tener una hoja en cada examen)."""
+    u, examenes = _unida_o_404(request, pk)
+    if request.method != 'POST':
+        return redirect('puntoexacto:unida', pk=u.pk)
+    tipos = set(request.POST.getlist('tipos'))
+    separado = request.POST.get('modo', 'separado') != 'junto'
+    escogidas = set(request.POST.getlist('personas'))
+    orden = ('estudiante__curso__grado', 'estudiante__curso__nombre', 'estudiante__user__last_name',
+             'estudiante__user__first_name', 'nombre_libre', 'identificador')
+    hojas_por_examen, claves = {}, []
+    for ex in examenes:
+        hs = [h for h in ex.hojas.filter(estado__in=('calificada', 'revisar'))
+              .select_related('estudiante__user', 'estudiante__curso__sede').order_by(*orden)
+              if INF._clave_persona(h) in escogidas]
+        hojas_por_examen[ex.id] = hs
+        for h in hs:
+            k = INF._clave_persona(h)
+            if k not in claves:
+                claves.append(k)
+    if not tipos or (not claves and tipos - {'excel'}):
+        messages.warning(request, 'Escoja qué descargar y al menos un estudiante.')
+        return redirect('puntoexacto:unida', pk=u.pk)
+    contenido = _armar_zip(request, examenes, u.titulo, u.areas, lambda h: INF._clave_persona(h) in escogidas,
+                           claves, hojas_por_examen, tipos, separado)
+    r = HttpResponse(contenido, content_type='application/zip')
+    r['Content-Disposition'] = f'attachment; filename="Informes - {_nombre_archivo(u.titulo)}.zip"'
+    return r

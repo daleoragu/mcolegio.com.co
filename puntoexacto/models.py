@@ -397,10 +397,48 @@ class Pregunta(models.Model):
     def lista_etiquetas(self):
         return [e.strip() for e in self.etiquetas.split(',') if e.strip()]
 
+    def letras_correctas(self):
+        """La correcta y las que el docente marcó como «otra correcta» (las que valen el 100 %)."""
+        letras = [self.correcta] if self.correcta else []
+        for l, v in (self.parciales or {}).items():
+            try:
+                if Decimal(str(v)) >= 1 and l not in letras:
+                    letras.append(l)
+            except Exception:
+                pass
+        return letras
+
+    @property
+    def tiene_otra_correcta(self):
+        return len(self.letras_correctas()) > 1
+
+    def rotulo_correctas(self):
+        """«A» o, con otra correcta, «A o C»."""
+        return ' o '.join(self.rotulo(l) for l in self.letras_correctas())
+
+    def rotulo_marcada(self, marcada):
+        """Lo que marcó, legible: «B», «A y C» (dos marcadas), «doble» o «sin marcar»."""
+        if not marcada:
+            return 'sin marcar'
+        if marcada == Hoja.MARCA_DOBLE:
+            return 'doble'
+        return ' y '.join(self.rotulo(l) for l in marcada)
+
+    def acierta(self, marcada):
+        """¿Esta respuesta es correcta? Con dos marcadas, solo si las dos son correctas."""
+        return bool(marcada) and self.fraccion(marcada) >= 1
+
     def fraccion(self, marcada):
-        """Qué fracción del puntaje gana esta respuesta: de 0 a 1."""
+        """Qué fracción del puntaje gana esta respuesta: de 0 a 1.
+
+        Dos o más letras («AC»: el estudiante marcó dos): vale solo si todas son correctas (una pregunta con
+        dos respuestas correctas en la que marcó ambas); si alguna no lo es, nada.
+        """
         if not marcada or marcada == Hoja.MARCA_DOBLE:
             return Decimal('0')
+        if len(marcada) > 1:
+            correctas = set(self.letras_correctas())
+            return Decimal('1') if correctas and set(marcada) <= correctas else Decimal('0')
         if marcada == self.correcta:
             return Decimal('1')
         try:
@@ -504,7 +542,8 @@ class Respuesta(models.Model):
     """Lo que marcó el estudiante en una pregunta. Vacío = no marcó."""
     hoja = models.ForeignKey(Hoja, on_delete=models.CASCADE, related_name='respuestas')
     pregunta = models.ForeignKey(Pregunta, on_delete=models.CASCADE, related_name='respuestas')
-    marcada = models.CharField(max_length=1, blank=True)
+    # Una letra, o varias si marcó más de una («AC») y el docente lo dejó así al corregir.
+    marcada = models.CharField(max_length=8, blank=True)
 
     class Meta:
         unique_together = ('hoja', 'pregunta')

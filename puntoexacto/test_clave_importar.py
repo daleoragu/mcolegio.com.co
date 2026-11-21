@@ -133,3 +133,25 @@ class CargarClave(ColegioDePrueba):
         self.subir(texto.encode('utf-8'))
         despues = list(self.ex.preguntas.order_by('numero').values_list('correcta', 'etiquetas', 'es_control'))
         self.assertEqual(antes, despues)
+
+
+
+class ClaveLarga(ColegioDePrueba):
+    """Un examen de 120 preguntas: guardar la clave no debe dar «Bad Request (400)»."""
+
+    def test_guardar_clave_de_120(self):
+        c = self.cliente(self.rectora)
+        c.post('/puntoexacto/nuevo/', {
+            'titulo': 'Simulacro largo', 'fecha': '2026-10-06', 'componente': 'SABER',
+            'numero_preguntas': '120', 'numero_opciones': '4', 'hojas_por_pagina': '1',
+            'metodo': 'con_piso', 'nota_todo_mal': '1', 'nota_nada_marcado': '1', 'opciones_por_pregunta': '{}'})
+        ex = Examen.objects.get()
+        datos = {'metodo': 'con_piso'}
+        for n in range(1, 121):
+            datos.update({f'correcta_{n}': 'ABCD'[n % 4], f'opciones_{n}': '4', f'puntos_{n}': '1',
+                          f'rotulos_{n}': '', f'etiquetas_{n}': 'tema', f'componente_{n}': '',
+                          **{f'parcial_{n}_{l}': '' for l in 'ABCD'}})
+        self.assertGreater(len(datos), 1000)
+        r = c.post(f'/puntoexacto/{ex.id}/clave/', datos)
+        self.assertNotEqual(r.status_code, 400)
+        self.assertEqual(ex.preguntas.get(numero=120).correcta, 'A')

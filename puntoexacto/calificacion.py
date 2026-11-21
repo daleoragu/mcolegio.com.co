@@ -245,7 +245,7 @@ def revisar_configuracion(examen):
             except Exception:
                 avisos.append(f'Pregunta {p.numero}: el parcial de "{p.rotulo(opcion)}" no es un número.')
                 continue
-            if v <= 0 or v >= 1:
+            if v <= 0 or v > 1:
                 avisos.append(f'Pregunta {p.numero}: el parcial de "{p.rotulo(opcion)}" es {v}; '
                               f'debe estar entre 0 y 1.')
 
@@ -392,7 +392,7 @@ def control_de_hoja(hoja, controles):
     if not controles:
         return None
     marcadas = {r.pregunta_id: r.marcada for r in hoja.respuestas.all()}
-    aciertos = sum(1 for p in controles if p.correcta and marcadas.get(p.id) == p.correcta)
+    aciertos = sum(1 for p in controles if p.correcta and p.acierta(marcadas.get(p.id)))
     leida = bool(marcadas) or hoja.estado == 'calificada'
     return {'aciertos': aciertos, 'total': len(controles),
             'r': leida and aciertos == 0}

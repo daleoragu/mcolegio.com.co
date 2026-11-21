@@ -50,6 +50,7 @@ urlpatterns = [
     path('unidas/', vi.unidas, name='unidas'),
     path('unida/<int:pk>/', vi.unida, name='unida'),
     path('unida/<int:pk>/informe/', vi.unida_general, name='unida_general'),
+    path('unida/<int:pk>/descargar/', vi.unida_descargar, name='unida_descargar'),
     path('unida/<int:pk>/estudiantes/', vi.unida_estudiantes, name='unida_estudiantes'),
     path('unida/<int:pk>/estudiante/<str:clave>/', vi.unida_estudiantes, name='unida_estudiante'),
 ]
