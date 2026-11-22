@@ -1435,4 +1435,23 @@
     pintar();
     foto = fotoActual();
     botonesHist();
+    // Para el menú «Insertar», la vista de impresión y el panel de navegación (vistas.js)
+    window.MMEditor = {
+        datos: datos,
+        bloque: function (tipo) {
+            if (tipo === 'imagen') { destinoImagen = null; $('#mm-archivo').click(); return; }
+            if (tipo === 'hoja') { $('#mm-archivo-hoja').click(); return; }
+            if (tipo === 'grafica') { abrirGrafica(null); return; }
+            if (tipo === 'banco') { abrirBanco(); return; }
+            insertar(nuevo(tipo));
+        },
+        pregunta: function (modo) { var b = nuevo('pregunta'); cambiarModo(b, modo); insertar(b); },
+        ir: function (bid) {
+            marcar(bid);
+            var n = caja.querySelector('[data-id="' + bid + '"]');
+            if (n) n.scrollIntoView({behavior: 'smooth', block: 'center'});
+        },
+        papel: papelMM,
+    };
+    document.dispatchEvent(new Event('mm-editor-listo'));
 })();

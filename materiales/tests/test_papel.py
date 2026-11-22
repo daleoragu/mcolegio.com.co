@@ -53,3 +53,11 @@ class TamanoDeHoja(TestCase):
         self.assertContains(r, 'Oficio (21,6 × 33 cm)')
         self.assertContains(r, 'id="mm-papel-unidad"')
         self.assertContains(r, 'mm-completo')
+        # Insertar (bloques y cada tipo de pregunta), vista con zoom y panel de navegación
+        self.assertContains(r, 'data-ins-pregunta="crucigrama"')
+        self.assertContains(r, 'data-ins-pregunta="sopa"')
+        self.assertContains(r, 'data-ins="imagen"')
+        self.assertContains(r, 'Diseño de impresión')
+        self.assertContains(r, 'id="mm-zoom"')
+        self.assertContains(r, 'id="mm-nav"')
+        self.assertContains(r, 'materiales/vistas.js')
