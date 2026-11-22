@@ -122,6 +122,16 @@ def calificar_hoja(hoja, preguntas=None, guardar=True):
     if preguntas is None:
         preguntas = list(examen.preguntas.filter(anulada=False, es_control=False))
     marcadas = {r.pregunta_id: r.marcada for r in hoja.respuestas.all()}
+    en_blanco = not any((m or '').strip() for m in marcadas.values())
+    if en_blanco and guardar and not hoja.calificar_en_blanco:
+        # Nada marcado: no presentó. No se le pone la nota más baja ni cuenta en el promedio.
+        hoja.nota = None
+        hoja.nota_recortada = False
+        hoja.estado = 'ausente'
+        hoja.save(update_fields=['nota', 'nota_recortada', 'estado', 'actualizada'])
+        return {'nota': None, 'bruto': None, 'recortada': False, 'aviso': None, 'obtenido': Decimal('0'),
+                'posible': sum(p.puntos for p in preguntas) or Decimal('0'), 'buenas': 0, 'parciales': 0,
+                'malas': 0, 'blancas': len(preguntas), 'dobles': 0, 'bloques': None, 'ausente': True}
 
     posible = sum(p.puntos for p in preguntas) or Decimal('0')
     obtenido = Decimal('0')
@@ -164,7 +174,7 @@ def calificar_hoja(hoja, preguntas=None, guardar=True):
     if guardar:
         hoja.nota = nota
         hoja.nota_recortada = recortada
-        if hoja.estado == 'pendiente':
+        if hoja.estado in ('pendiente', 'ausente'):
             hoja.estado = 'revisar' if dobles else 'calificada'
         hoja.save(update_fields=['nota', 'nota_recortada', 'estado', 'actualizada'])
 
@@ -177,7 +187,7 @@ def calificar_hoja(hoja, preguntas=None, guardar=True):
         'nota': nota, 'bruto': bruto.quantize(CENTESIMA), 'recortada': recortada,
         'aviso': aviso, 'obtenido': obtenido.quantize(CENTESIMA), 'posible': posible,
         'buenas': buenas, 'parciales': parciales, 'malas': malas,
-        'blancas': blancas, 'dobles': dobles, 'bloques': detalle_bloques,
+        'blancas': blancas, 'dobles': dobles, 'bloques': detalle_bloques, 'ausente': False,
     }
 
 
@@ -201,7 +211,8 @@ def pesos_de_bloques(examen, preguntas=None):
 def calificar_examen(examen):
     """Recalifica todas las hojas. Se usa al cambiar la clave o anular una pregunta."""
     preguntas = list(examen.preguntas.filter(anulada=False, es_control=False))
-    hojas = examen.hojas.exclude(estado='ausente').prefetch_related('respuestas')
+    # Solo las que ya se calificaron: las que no se han escaneado (pendientes) no reciben nota.
+    hojas = examen.hojas.filter(estado__in=('calificada', 'revisar')).prefetch_related('respuestas')
     return [calificar_hoja(h, preguntas=preguntas) for h in hojas]
 
 

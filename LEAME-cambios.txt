@@ -1,4 +1,4 @@
-Versión 0074 · 2026-11-22 03:42
+Versión 0076 · 2026-11-22 04:53
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -787,10 +787,12 @@ NUEVO     puntoexacto/informes_nota.py
 CAMBIADO  puntoexacto/lector.py
 NUEVO     puntoexacto/migrations/0012_pruebas_unidas.py
 NUEVO     puntoexacto/migrations/0013_respuesta_varias_letras.py
+NUEVO     puntoexacto/migrations/0014_hoja_en_blanco_no_presento.py
 CAMBIADO  puntoexacto/models.py
 NUEVO     puntoexacto/static/puntoexacto/escaner.js
 NUEVO     puntoexacto/templates/puntoexacto/_informe_estilos.html
 CAMBIADO  puntoexacto/templates/puntoexacto/clave.html
+CAMBIADO  puntoexacto/templates/puntoexacto/digitar.html
 CAMBIADO  puntoexacto/templates/puntoexacto/escanear.html
 NUEVO     puntoexacto/templates/puntoexacto/informe_estudiantes_pdf.html
 NUEVO     puntoexacto/templates/puntoexacto/informe_general_pdf.html
@@ -955,6 +957,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   materiales/migrations/0014_puntos_y_comentarios.py  (biblioteca: puntos de cada material y comentarios de docentes)
   puntoexacto/migrations/0012_pruebas_unidas.py  (pruebas unidas para los informes tipo Saber 11)
   puntoexacto/migrations/0013_respuesta_varias_letras.py  (respuesta con varias letras)
+  puntoexacto/migrations/0014_hoja_en_blanco_no_presento.py  (hoja en blanco = No presentó; arregla las que ya tenían nota)
   chat/migrations/0012_muro_de_colega_y_etiquetas.py  (escribir en el muro de un colega y etiquetar)
 
 Después de desplegar:

@@ -28,6 +28,11 @@
                     min-width:42px; height:42px; padding:0 12px; font-size:.95rem; display:inline-flex;
                     align-items:center; justify-content:center; gap:6px; }
     .pe-cam-boton.activo { background:#f5c400; color:#000; }
+    .pe-rev-blanco { margin:8px 12px 0; padding:8px 10px; border-radius:10px; background:#fff7e6; border:1px solid #f5c26b; font-size:.88rem; }
+    .pe-cam-forma { position:absolute; left:50%; transform:translateX(-50%); top:calc(64px + env(safe-area-inset-top, 0px)); z-index:6;
+                    display:flex; gap:6px; }
+    .pe-cam-forma button { background:rgba(0,0,0,.5); color:#fff; border:0; border-radius:999px; padding:6px 12px; font-size:.85rem; font-weight:600; white-space:nowrap; }
+    .pe-cam-forma button:active { background:#f5c400; color:#000; }
     .pe-cam-boton small { font-size:.72rem; font-weight:700; }
     .pe-cuenta { background:rgba(0,0,0,.42); border-radius:999px; padding:6px 12px; font-size:.85rem; font-weight:600; }
     .pe-cuenta .ok { color:#7dff9b; } .pe-cuenta .rv { color:#ffd166; }
@@ -265,6 +270,11 @@
             <div class="pe-leyendo" id="pe-leyendo"><span><i class="fas fa-spinner fa-spin me-2"></i>Leyendo la hoja…</span></div>
         </div>
     </div>
+    <div class="pe-cam-forma" id="pe-cam-forma">
+        <button type="button" id="pe-forma" aria-label="Forma de la hoja"><i class="fas fa-crop-simple"></i> <span id="pe-forma-txt">Hoja completa</span></button>
+        <button type="button" id="pe-tam-menos" aria-label="Recuadros más pequeños (hoja más lejos)"><i class="fas fa-minus"></i></button>
+        <button type="button" id="pe-tam-mas" aria-label="Recuadros más grandes (hoja más cerca)"><i class="fas fa-plus"></i></button>
+    </div>
     <div class="pe-cam-arriba">
         <button type="button" class="pe-cam-boton" id="pe-cerrar-camara" aria-label="Cerrar la cámara"><i class="fas fa-xmark"></i></button>
         <span class="pe-cuenta"><span class="ok"><i class="fas fa-check"></i> <span id="pe-contador">0</span></span>
@@ -347,6 +357,10 @@
                 Las de fondo amarillo son las que el lector no vio claras.</div>
             <div class="pe-rejilla" id="pe-rejilla"></div>
         </div>
+    </div>
+    <div class="pe-rev-blanco" id="pe-rev-blanco" hidden>
+        <i class="fas fa-circle-info me-1"></i>No tiene nada marcado: al guardar queda como <b>«No presentó»</b> (no recibe nota ni cuenta en el promedio).
+        <label class="d-block mt-1"><input type="checkbox" id="pe-en-blanco"> Calificar aunque esté en blanco (con la nota de «nada marcado»)</label>
     </div>
     <div class="pe-rev-pie">
         <button type="button" class="btn btn-outline-secondary" id="pe-otra">
@@ -633,7 +647,28 @@
     try { usarVisores = localStorage.getItem('pe-visores') !== '0'; } catch (e) {}
     var girarVisores = false;
     try { girarVisores = localStorage.getItem('pe-girar') === '1'; } catch (e) {}
+    // Forma de la hoja para los visores (completa, media, cuarto u octavo de página) y tamaño de los recuadros:
+    // se recuerdan por examen en este celular.
+    var NOMBRES_FORMA = {1: 'Hoja completa', 2: 'Media hoja', 4: 'Cuarto de hoja', 8: 'Octavo de hoja'};
+    var claveForma = 'pe-forma-{{ examen.id }}', formaVisor = 0, tamVisor = 1;
+    try { var gf = JSON.parse(localStorage.getItem(claveForma) || 'null');
+          if (gf) { formaVisor = Math.min(DISENOS.length - 1, gf.f || 0); tamVisor = Math.max(0.55, Math.min(1.1, gf.t || 1)); } } catch (e) {}
+    function disenoVisor() { return DISENOS[formaVisor] || DISENOS[0]; }
+    function guardarForma() {
+        try { localStorage.setItem(claveForma, JSON.stringify({f: formaVisor, t: tamVisor})); } catch (e) {}
+        $('pe-forma-txt').textContent = NOMBRES_FORMA[disenoVisor().pp] || (disenoVisor().pp + ' por página');
+        ultimaVista = null; anterior = null; estables = 0;
+        if (flujo) dibujar(null);
+    }
+    $('pe-forma').addEventListener('click', function () {
+        formaVisor = (formaVisor + 1) % DISENOS.length; guardarForma();
+        estado('Recuadros para: ' + $('pe-forma-txt').textContent.toLowerCase() + '.', 'bien');
+    });
+    $('pe-tam-menos').addEventListener('click', function () { tamVisor = Math.max(0.55, +(tamVisor - 0.1).toFixed(2)); guardarForma(); });
+    $('pe-tam-mas').addEventListener('click', function () { tamVisor = Math.min(1.1, +(tamVisor + 0.1).toFixed(2)); guardarForma(); });
+    guardarForma();
     function pintarBotonVisores() {
+        $('pe-cam-forma').style.display = usarVisores ? '' : 'none';
         $('pe-visores').classList.toggle('activo', usarVisores);
         $('pe-girar').style.display = usarVisores ? '' : 'none';
         $('pe-girar').classList.toggle('activo', girarVisores);
@@ -811,7 +846,7 @@
         }
         // Los visores: esquinas en L, blancas; verdes cuando hay un cuadrado negro adentro.
         if (usarVisores && elVideo.videoWidth && !manual) {
-            var vis = ultimaVista && ultimaVista.visores ? ultimaVista.visores : PEScan.visores(elVideo.videoWidth, elVideo.videoHeight, DISENOS[0], girarVisores);
+            var vis = ultimaVista && ultimaVista.visores ? ultimaVista.visores : PEScan.visores(elVideo.videoWidth, elVideo.videoHeight, disenoVisor(), girarVisores, tamVisor);
             var lado = vis.lado, b = lado * 0.32, gv = Math.max(3, Math.max(vw, elVideo.videoHeight) / 260);
             vis.centros.forEach(function (c, i) {
                 var ok = ultimaVista && ultimaVista.encontrados && ultimaVista.encontrados[i];
@@ -849,7 +884,7 @@
     function cuadro() {
         if (!buscando) return;
         if (elVideo.readyState >= 2 && elVideo.videoWidth && !document.hidden) {
-            var r = usarVisores ? detector.buscarEnVisores(elVideo, elVideo.videoWidth, elVideo.videoHeight, DISENOS[0], girarVisores)
+            var r = usarVisores ? detector.buscarEnVisores(elVideo, elVideo.videoWidth, elVideo.videoHeight, disenoVisor(), girarVisores, tamVisor)
                                 : detector.buscar(elVideo, elVideo.videoWidth, elVideo.videoHeight);
             ultimaVista = usarVisores ? r : null;
             var quad = r.quad;
@@ -1405,12 +1440,14 @@
     function mostrarNotaCamara(p, d, repetida) {
         elCamNota.classList.remove('revisar');
         var v = $('pe-cam-nota-valor');
-        v.textContent = d.nota;
-        v.style.background = colorNota(parseFloat(d.nota));
+        v.textContent = d.ausente ? 'NP' : d.nota;
+        v.style.background = d.ausente ? '#6b7280' : colorNota(parseFloat(d.nota));
         $('pe-cam-nota-nombre').textContent = d.nombre + (d.curso ? ' · ' + d.curso : '');
         var info = p.notaInfo;
-        $('pe-cam-nota-detalle').innerHTML = (repetida ? '<span class="text-muted">Ya estaba (repetida) · </span>' : '<span class="text-success fw-semibold">Guardada</span> · ') +
-            (info ? '<span class="pe-c-bien">' + info.buenas + ' bien</span> · <span class="pe-c-mal">' + info.malas + ' mal</span>' : '');
+        $('pe-cam-nota-detalle').innerHTML = d.ausente
+            ? '<span class="fw-semibold">Hoja en blanco: quedó como «No presentó»</span>. Si sí la presentó, ábrala en el lote y marque «Calificar aunque esté en blanco».'
+            : (repetida ? '<span class="text-muted">Ya estaba (repetida) · </span>' : '<span class="text-success fw-semibold">Guardada</span> · ') +
+              (info ? '<span class="pe-c-bien">' + info.buenas + ' bien</span> · <span class="pe-c-mal">' + info.malas + ' mal</span>' : '');
         elCamNota.pagina = p;
         elCamNota.classList.add('si');
         if (p) ponerPrevia(p);
@@ -1447,6 +1484,7 @@
 
     function abrirRevision(p) {
         actual = p;
+        $('pe-en-blanco').checked = false;
         lectura = p.lectura;
         respuestas = p.respuestas || Object.assign({}, lectura.respuestas);
         p.respuestas = respuestas;
@@ -1574,6 +1612,9 @@
 
     function pintar() {
         var dud = dudosas();
+        // Sin nada marcado: avisar que queda como «No presentó» (o calificarla en blanco si el docente quiere).
+        var vacia = !Object.keys(respuestas).some(function (k) { return respuestas[k] && respuestas[k] !== '?'; });
+        $('pe-rev-blanco').hidden = !vacia;
         Array.prototype.slice.call(elLienzo.querySelectorAll('.pe-burbuja')).forEach(function (b) { b.remove(); });
         var W = lectura.ancho_foto, H = lectura.alto_foto;
         var diametro = (lectura.radio_px * 2 / W) * 100;
@@ -1700,7 +1741,7 @@
 
     function guardar(id, forma, alTerminar, boton) {
         if (boton) boton.disabled = true;
-        var cuerpo = {hoja_id: id, respuestas: respuestasLimpias(), forma: forma}, item = actual;
+        var cuerpo = {hoja_id: id, respuestas: respuestasLimpias(), forma: forma, en_blanco: $('pe-en-blanco').checked}, item = actual;
         postGuardar(cuerpo, 0).then(function (d) {
             if (boton) boton.disabled = false;
             if (!d.ok) { alert(d.error || 'No se pudo guardar.'); return; }

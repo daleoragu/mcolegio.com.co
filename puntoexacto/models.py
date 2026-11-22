@@ -475,6 +475,9 @@ class Hoja(models.Model):
     nota_recortada = models.BooleanField(
         default=False, help_text='La nota calculada se salía de la escala y se ajustó.')
     enviada_a_planilla = models.BooleanField(default=False)
+    # Una hoja sin nada marcado queda como «No presentó» (no se califica ni mueve el promedio), a menos que el
+    # docente pida calificarla así (con la nota de «nada marcado»).
+    calificar_en_blanco = models.BooleanField(default=False)
     # Qué forma del examen le tocó (A, B, C o D). La A es el examen tal como
     # está en la clave; las demás reordenan preguntas u opciones (ver Forma).
     forma = models.CharField(max_length=1, default='A')

@@ -37,7 +37,7 @@
 </div>
 
 {% if resumen_bloques %}
-<div class="pe-tarjeta">
+<div class="pe-tarjeta" data-estilo="nota">
     <h5>Resultados por área</h5>
     <p class="text-muted" style="font-size:.9rem;">
         Cada bloque se califica solo con sus preguntas, así que estas notas son
@@ -91,17 +91,55 @@
 {% endif %}
 
 {% if analisis.resumen %}
-<div class="pe-tarjeta">
-    <h5>Resumen</h5>
+<div class="pe-tarjeta" data-estilo="nota">
+    <h5>Resumen <small class="text-muted fw-normal" style="font-size:.8rem;">por nota</small></h5>
     <div class="row text-center">
         <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ analisis.resumen.calificadas }}</div><div class="text-muted" style="font-size:.84rem;">hojas calificadas</div></div>
         <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ analisis.resumen.promedio }}</div><div class="text-muted" style="font-size:.84rem;">promedio</div></div>
         <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ analisis.resumen.mediana }}</div><div class="text-muted" style="font-size:.84rem;">mediana</div></div>
         <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ analisis.resumen.minima }}</div><div class="text-muted" style="font-size:.84rem;">la más baja</div></div>
         <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ analisis.resumen.maxima }}</div><div class="text-muted" style="font-size:.84rem;">la más alta</div></div>
+        {% if resumen_nota %}<div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ resumen_nota.total.resumen.pct_aprobados }}%</div><div class="text-muted" style="font-size:.84rem;">aprobaron ({{ resumen_nota.total.resumen.aprobados }})</div></div>{% endif %}
     </div>
+    {% if resumen_nota %}
+    <div class="mt-3" style="font-size:.9rem;"><strong>Desempeños según la escala de valoración</strong>{% if resumen_nota.referencia %} <span class="text-muted">(escala de referencia: no hay escala configurada para el área)</span>{% endif %}</div>
+    <div class="pe-dist">{% for x in resumen_nota.total.resumen.distribucion %}{% if x.n %}<span style="width:{{ x.pct }}%;background:{{ x.color }}" title="{{ x.nombre }}: {{ x.n }}">{% if x.pct >= 10 %}{{ x.nombre|title }} {{ x.pct }}%{% endif %}</span>{% endif %}{% endfor %}</div>
+    <div class="d-flex flex-wrap gap-3" style="font-size:.85rem;">{% for x in resumen_nota.total.resumen.distribucion %}<span><i class="fas fa-circle" style="color:{{ x.color }}"></i> {{ x.nombre|title }} ({{ x.rango }}): <b>{{ x.n }}</b></span>{% endfor %}</div>
+    {% if resumen_nota.cursos|length > 1 %}
+    <div class="table-responsive mt-2"><table class="pe-tabla">
+        <thead><tr><th>Curso</th><th class="pe-num">Evaluados</th><th class="pe-num">Promedio</th><th class="pe-num">Aprobaron</th>{% for x in resumen_nota.total.resumen.distribucion %}<th class="pe-num">{{ x.nombre|title }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for c in resumen_nota.cursos %}<tr><td><strong>{{ c.curso }}</strong></td><td class="pe-num">{{ c.resumen.n }}</td><td class="pe-num"><strong>{{ c.resumen.promedio }}</strong></td><td class="pe-num">{{ c.resumen.pct_aprobados }}%</td>{% for x in c.resumen.distribucion %}<td class="pe-num">{{ x.n }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+    </table></div>
+    {% endif %}
+    {% endif %}
 </div>
 {% endif %}
+
+{% if resumen_icfes and resumen_icfes.personas %}
+{% with r=resumen_icfes.resumen %}
+<div class="pe-tarjeta" data-estilo="icfes" style="display:none;">
+    <h5>Resumen <small class="text-muted fw-normal" style="font-size:.8rem;">estilo ICFES (aproximación)</small></h5>
+    <div class="row text-center">
+        <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ r.presentaron }}</div><div class="text-muted" style="font-size:.84rem;">evaluados</div></div>
+        <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ r.promedio }}</div><div class="text-muted" style="font-size:.84rem;">puntaje global promedio (0–500)</div></div>
+        <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ r.desviacion }}</div><div class="text-muted" style="font-size:.84rem;">desviación</div></div>
+        <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ r.p25 }} · {{ r.p50 }} · {{ r.p75 }}</div><div class="text-muted" style="font-size:.84rem;">percentiles 25, 50 y 75</div></div>
+        <div class="col"><div style="font-size:1.7rem;font-weight:700;">{{ r.minimo }}–{{ r.maximo }}</div><div class="text-muted" style="font-size:.84rem;">global más bajo y más alto</div></div>
+    </div>
+    <div class="table-responsive mt-3"><table class="pe-tabla">
+        <thead><tr><th>Área</th><th>Prueba de referencia</th><th class="pe-num">Evaluados</th><th class="pe-num">Promedio (0–100)</th><th>Niveles de desempeño</th></tr></thead>
+        <tbody>{% for a in resumen_icfes.areas %}<tr><td><strong>{{ a.nombre }}</strong></td><td>{{ a.prueba_nombre }}</td><td class="pe-num">{{ a.presentaron }}</td><td class="pe-num"><strong>{{ a.promedio }}</strong></td>
+            <td style="min-width:220px;"><div class="pe-dist pe-dist-icfes">{% for nv in a.niveles %}{% if nv.n %}<span style="width:{{ nv.pct }}%" class="nv{{ forloop.counter }}" title="{{ nv.nivel }}: {{ nv.n }}">{% if nv.pct >= 15 %}{{ nv.nivel|cut:"Nivel " }}·{{ nv.pct }}%{% endif %}</span>{% endif %}{% endfor %}</div></td></tr>{% endfor %}</tbody>
+    </table></div>
+    <div class="text-muted" style="font-size:.8rem;">Puntajes llevados a la escala de Saber 11 como aproximación; no son resultados oficiales del ICFES.</div>
+</div>
+{% endwith %}
+{% endif %}
+<style>
+    .pe-dist { display:flex; height:22px; border-radius:6px; overflow:hidden; border:1px solid #e3e8ef; margin:6px 0; background:#f8fafc; }
+    .pe-dist span { display:block; height:100%; color:#fff; font-size:.72rem; font-weight:700; text-align:center; line-height:22px; overflow:hidden; white-space:nowrap; }
+    .pe-dist-icfes .nv1 { background:#c92a2a; } .pe-dist-icfes .nv2 { background:#e8a317; } .pe-dist-icfes .nv3 { background:#1c7ed6; } .pe-dist-icfes .nv4 { background:#2b8a3e; } .pe-dist-icfes .nv5 { background:#0b7285; }
+</style>
 
 {% if analisis.etiquetas %}
 <div class="pe-tarjeta">
@@ -269,6 +307,7 @@
         var est = document.querySelector('input[name=estilo]:checked').value;
         enlaces.forEach(function (a) { var b = a.dataset.base; a.href = est === 'nota' ? b + (b.indexOf('?') >= 0 ? '&' : '?') + 'estilo=nota' : b; });
         document.getElementById('pe-est-ayuda').textContent = AYUDA[est];
+        document.querySelectorAll('[data-estilo]').forEach(function (x) { x.style.display = x.dataset.estilo === est ? '' : 'none'; });
         try { localStorage.setItem('pe-estilo-informe', est); } catch (e) {}
     }
     try { var g = localStorage.getItem('pe-estilo-informe'); if (g === 'icfes') document.getElementById('pe-est-icfes').checked = true; } catch (e) {}
