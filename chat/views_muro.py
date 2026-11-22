@@ -26,7 +26,7 @@ from django.views.decorators.http import require_POST
 
 from .models import (Colega, ComentarioMuro, PerfilColega, Publicacion, ReaccionMuro, ReporteMuro,
                      SugerenciaDescartada)
-from .views_colegas import BASE, avisar, descripcion, docentes, foto_de, mis_colegas, nombre_de, perfil_de, vista
+from .views_colegas import BASE, avisar, descripcion, docentes, foto_de, mis_colegas, nombre_de, perfil_de, tarjeta, vista
 
 MURO = f'{BASE}/muro'
 REPORTES_PARA_OCULTAR = 3
@@ -102,11 +102,15 @@ def _tarjeta_pub(p, user, mias):
     return {'p': p, 'icono': ic, 'color': color, 'hace': hace, 'premium': bool(c and c.nivel in ('premium', 'ilimitado') and not c.en_prueba), 'nombre': nombre_de(p.autor), 'foto': foto_de(p.autor),
             'desc': descripcion(p.autor), 'util': p.n_util, 'usare': p.n_usare, 'n_com': p.n_com,
             'mias': mias.get(p.pk, set()), 'mia': p.autor_id == user.pk,
+            'para': {'id': p.destinatario_id, 'nombre': nombre_de(p.destinatario)} if p.destinatario_id else None,
+            'con': [{'id': u.pk, 'nombre': nombre_de(u)} for u in p.etiquetados.all()],
+            'en_mi_muro': p.destinatario_id == user.pk,
+            'etiquetado': any(u.pk == user.pk for u in p.etiquetados.all()),
             'host': re.sub(r'^https?://(www\.)?', '', p.enlace).split('/')[0] if p.enlace else ''}
 
 
 def _con_conteos(qs):
-    return qs.select_related('autor', 'documento', 'pagina__propietario', 'juego').annotate(
+    return qs.select_related('autor', 'destinatario', 'documento', 'pagina__propietario', 'juego').prefetch_related('etiquetados').annotate(
         n_util=Count('reacciones', filter=Q(reacciones__tipo='util'), distinct=True),
         n_usare=Count('reacciones', filter=Q(reacciones__tipo='usare'), distinct=True),
         n_com=Count('comentarios', distinct=True))
@@ -312,11 +316,24 @@ def _publicar(request):
                     grados=limpio('grados', 40) or (documento.grado if documento else ''),
                     modelo=limpio('modelo', 40), fecha_limite=fecha,
                     visibilidad='colegas' if request.POST.get('visibilidad') == 'colegas' else 'todos')
+    # En el muro de un colega (solo entre colegas) y colegas etiquetados (solo mis colegas).
+    colegas = set(mis_colegas(user).values_list('pk', flat=True))
+    dest = request.POST.get('destinatario') or ''
+    destinatario = User.objects.filter(pk=dest).first() if dest.isdigit() and int(dest) in colegas else None
+    etiquetas = [int(x) for x in request.POST.getlist('etiquetas') if x.isdigit() and int(x) in colegas][:20]
+    p.destinatario = destinatario
     if imagen:
         p.imagen.save('muro.jpg', imagen, save=False)
     p.save()
+    if etiquetas:
+        p.etiquetados.set(etiquetas)
+    autor, url = nombre_de(user), f'{MURO}/{p.pk}/'
+    if destinatario is not None:
+        avisar(destinatario, f'{autor} escribió en su muro: «{p.titulo[:80]}»', url)
+    for u in User.objects.filter(pk__in=set(etiquetas) - {getattr(destinatario, 'pk', None)}):
+        avisar(u, f'{autor} lo(a) etiquetó en «{p.titulo[:80]}»', url)
     cache.set(clave, (cache.get(clave) or 0) + 1, 86400)
-    messages.success(request, 'Publicado en el muro.')
+    messages.success(request, f'Publicado en el muro de {nombre_de(destinatario)}.' if destinatario else 'Publicado en el muro.')
     return p
 
 
@@ -325,6 +342,9 @@ def muro(request):
     user = request.user
     if request.method == 'POST':
         p = _publicar(request)
+        volver = request.POST.get('volver') or ''
+        if re.fullmatch(r'/chat/colegas/u/\d+/', volver):          # se escribió desde el muro de un colega
+            return redirect(volver)
         return redirect(f'{MURO}/' if p else f'{MURO}/?escribir=1')
     tipo = request.GET.get('tipo') if request.GET.get('tipo') in dict(Publicacion.TIPOS) else ''
     area = ' '.join((request.GET.get('area') or '').split())[:60]
@@ -337,7 +357,7 @@ def muro(request):
     if ver == 'guardados':
         qs = qs.filter(reacciones__usuario=user, reacciones__tipo='guardar')
     elif ver == 'mias':
-        qs = qs.filter(autor=user)
+        qs = qs.filter(Q(autor=user) | Q(destinatario=user) | Q(etiquetados=user))
     else:
         qs = qs.filter(Q(fecha_limite__isnull=True) | Q(fecha_limite__gte=hoy))
     if tipo:
@@ -385,7 +405,8 @@ def muro(request):
         'siguiente': f'?{urlencode(dict(filtros, pagina=pagina + 1))}' if pagina * POR_PAGINA < total else '',
         'anterior': f'?{urlencode(dict(filtros, pagina=pagina - 1))}' if pagina > 1 else '',
         'sugerencias': sugerencias(user, 5), 'destacados': destacados, 'convocatorias': convocatorias,
-        'perfil': perfil, 'yo': {'nombre': nombre_de(user), 'foto': foto_de(user), 'desc': descripcion(user)},
+        'perfil': perfil, 'mi_perfil': perfil, 'yo': {'nombre': nombre_de(user), 'foto': foto_de(user), 'desc': descripcion(user)},
+        'etiquetables': [tarjeta(u) for u in mis_colegas(user).order_by('first_name', 'last_name')[:300]],
         'n_colegas': mis_colegas(user).count(), 'n_solicitudes': Colega.objects.filter(para=user, estado='pendiente').count(),
         'documentos': _mis_documentos(user), 'paginas': _mis_paginas(user), 'mis_juegos': _mis_juegos(user), 'modelos': MODELOS, 'normas': NORMAS,
         'escribir': request.GET.get('escribir') == '1', 'compartir': request.GET.get('compartir', ''),
@@ -462,7 +483,11 @@ def accion(request, pk):
     p = _pub(request, pk)
     que = request.POST.get('accion')
     volver = f'{MURO}/{p.pk}/'
-    if que == 'eliminar' and (p.autor_id == user.pk or user.is_staff):
+    if que == 'quitar_etiqueta':
+        p.etiquetados.remove(user)
+        messages.info(request, 'Ya no está etiquetado(a) en esa publicación.')
+        return redirect(request.POST.get('volver') if re.fullmatch(r'/chat/colegas/[\w/?=&-]*', request.POST.get('volver') or '') else f'{MURO}/')
+    if que == 'eliminar' and (p.autor_id == user.pk or p.destinatario_id == user.pk or user.is_staff):
         p.delete()
         messages.info(request, 'Publicación eliminada.')
         return redirect(f'{MURO}/')

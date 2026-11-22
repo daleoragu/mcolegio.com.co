@@ -60,6 +60,20 @@
 
   {# ---------- Centro: todos sus aportes ---------- #}
   <section class="col-lg-6">
+    {% if para %}
+    <div class="mu-lado">
+      {% if not mi_perfil.normas_aceptadas %}
+      <div class="small">Para escribir en el muro de {{ o.nombre }}, primero acepte las normas de la comunidad.
+        <form method="post" action="/chat/colegas/muro/normas/" class="d-inline">{% csrf_token %}<button class="btn btn-link btn-sm p-0 align-baseline">Acepto las normas</button></form></div>
+      {% else %}
+      <div class="d-flex gap-2 align-items-center" id="sp-compositor">
+        {% include 'chat/_av.html' with foto=yo.foto nombre=yo.nombre clase='chico' %}
+        <button class="btn flex-grow-1 text-start text-muted border px-3 py-2" style="border-radius:14px" type="button" id="mu-abrir">Escriba algo en el muro de {{ o.nombre }}…</button>
+      </div>
+      {% include 'chat/_muro_form.html' %}
+      {% endif %}
+    </div>
+    {% endif %}
     <div class="d-flex gap-1 overflow-auto pb-1 mb-2">
       <a class="mu-chip {% if not tipo %}on{% endif %}" href="?">Todo <span class="opacity-75">{{ total_pubs }}</span></a>
       {% for k, v, ic, n in filtros_tipo %}{% if n %}<a class="mu-chip text-nowrap {% if tipo == k %}on{% endif %}" href="?tipo={{ k }}"><i class="fas {{ ic }} me-1"></i>{{ v }} <span class="opacity-75">{{ n }}</span></a>{% endif %}{% endfor %}
@@ -113,6 +127,11 @@
 {% include 'chat/_muro_js.html' %}
 {% include 'aula/_compartir.html' %}
 <script>
+(function () {
+  var ab = document.getElementById('mu-abrir'), comp = document.getElementById('sp-compositor'), can = document.getElementById('mu-cancelar');
+  if (ab && comp) ab.addEventListener('click', function () { comp.classList.add('d-none'); comp.classList.remove('d-flex'); });
+  if (can && comp) can.addEventListener('click', function () { comp.classList.remove('d-none'); comp.classList.add('d-flex'); });
+})();
 (function () {
   // Abierta desde el chat (otra pestaña): «Cerrar» la cierra. Si no, vuelve a la Sala de Profesores.
   var cerrar = document.getElementById('cm-cerrar');

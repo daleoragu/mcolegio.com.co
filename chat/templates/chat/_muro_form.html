@@ -1,0 +1,64 @@
+{# Formulario para publicar en el muro. Con «para» (tarjeta de un colega) se publica en el muro de ese colega. #}
+      <form method="post" action="/chat/colegas/muro/" enctype="multipart/form-data" id="mu-form" class="{% if not escribir %}d-none{% endif %}">{% csrf_token %}
+        {% if para %}<input type="hidden" name="destinatario" value="{{ para.u.pk }}"><input type="hidden" name="volver" value="/chat/colegas/u/{{ para.u.pk }}/">{% endif %}
+        <div class="d-flex flex-wrap gap-1 mb-2" role="radiogroup" aria-label="Tipo de publicación">
+          {% for k, v in tipos %}<input type="radio" class="btn-check" name="tipo" value="{{ k }}" id="mu-t-{{ k }}" {% if compartir and k == 'actividad' or not compartir and k == 'experiencia' %}checked{% endif %}>
+          <label class="btn btn-sm btn-outline-secondary rounded-pill" for="mu-t-{{ k }}">{{ v }}</label>{% endfor %}
+        </div>
+        <div class="small text-muted mb-2" id="mu-ayuda"></div>
+        <input name="titulo" class="form-control mb-2" maxlength="150" required placeholder="Título">
+        <textarea name="texto" class="form-control mb-2" rows="4" maxlength="5000" placeholder="Cuéntele a sus colegas…"></textarea>
+        <div class="mu-solo" data-para="recurso">
+          <select name="documento" class="form-select form-select-sm mb-2"><option value="">— Escoja uno de Mis materiales (opcional) —</option>{% for d in documentos %}<option value="{{ d.pk }}">{{ d.titulo }} · {{ d.get_tipo_display }}</option>{% endfor %}</select>
+        </div>
+        <div class="mu-solo" data-para="actividad">
+          <select name="pagina" class="form-select form-select-sm mb-2"><option value="">— Escoja una actividad o uno de Mis juegos —</option>
+            {% if mis_juegos %}<optgroup label="🎮 Mis juegos (con preguntas)">{% for j in mis_juegos %}<option value="j{{ j.pk }}" {% if compartir_juego == j.pk %}selected{% endif %}>{{ j.titulo }} · {{ j.nombre_tipo }}</option>{% endfor %}</optgroup>{% endif %}
+            <optgroup label="Actividades interactivas (HTML)">{% for pg in paginas %}<option value="{{ pg.pk }}" {% if compartir == pg.pk|stringformat:'s' %}selected{% endif %}>{{ pg.titulo }}</option>{% empty %}<option value="" disabled>Todavía no tiene actividades publicadas</option>{% endfor %}</optgroup></select>
+          <div class="small text-muted mb-2">Sus colegas la juegan aquí mismo, con pantalla completa. Sus intentos no llegan a sus resultados. <a href="{% url 'salon_digital:panel' %}">Subir una actividad HTML</a></div>
+        </div>
+        <div class="mu-solo" data-para="convocatoria"><label class="small fw-bold">Fecha límite</label><input type="date" name="fecha_limite" class="form-control form-control-sm mb-2" min="{{ hoy|date:'Y-m-d' }}"></div>
+        <input name="enlace" type="url" class="form-control form-control-sm mb-2" maxlength="300" placeholder="Enlace (opcional): https://…">
+        <div class="row g-2 mb-2">
+          <div class="col-sm-4"><input name="area" class="form-control form-control-sm" maxlength="80" placeholder="Área" value="{{ mi_perfil.area }}"></div>
+          <div class="col-sm-3"><input name="grados" class="form-control form-control-sm" maxlength="40" placeholder="Grados (ej.: 6.º a 9.º)"></div>
+          <div class="col-sm-5"><select name="modelo" class="form-select form-select-sm"><option value="">Modelo pedagógico (opcional)</option>{% for m in modelos %}<option>{{ m }}</option>{% endfor %}</select></div>
+        </div>
+        <label class="small fw-bold d-block">Imagen (opcional)</label>
+        <input type="file" name="imagen" accept="image/*" class="form-control form-control-sm mb-1" id="mu-img">
+        <div class="form-check small mb-2 d-none" id="mu-sin-est"><input class="form-check-input" type="checkbox" name="sin_estudiantes" id="mu-se">
+          <label class="form-check-label" for="mu-se">Confirmo que en la imagen <b>no aparecen estudiantes</b> (rostros, nombres, notas ni datos personales).</label></div>
+        {% if etiquetables %}
+        <details class="mu-etq mb-2">
+          <summary class="small fw-bold"><i class="fas fa-user-tag me-1"></i>Etiquetar colegas <span class="mu-etq-n text-muted fw-normal"></span></summary>
+          <input type="search" class="form-control form-control-sm my-1 mu-etq-buscar" placeholder="Buscar colega" aria-label="Buscar colega para etiquetar">
+          <div class="mu-etq-lista">{% for c in etiquetables %}<label class="mu-etq-op" data-n="{{ c.nombre|lower }}"><input type="checkbox" name="etiquetas" value="{{ c.u.pk }}" class="form-check-input me-1">{% include 'chat/_av.html' with foto=c.foto nombre=c.nombre clase='chico' %}<span>{{ c.nombre }}</span></label>{% endfor %}</div>
+          <div class="small text-muted">Les llega un aviso y la publicación sale también en su muro.</div>
+        </details>
+        {% endif %}
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <select name="visibilidad" class="form-select form-select-sm w-auto"><option value="todos">🌎 Toda la comunidad docente</option><option value="colegas">👥 Solo mis colegas</option></select>
+          <button type="button" class="btn btn-sm btn-link text-muted ms-auto" id="mu-cancelar">Cancelar</button>
+          <button class="btn btn-primary btn-sm px-3">Publicar</button>
+        </div>
+      </form>
+      <style>
+        .mu-etq { display: block; width: 100%; }
+        .mu-etq summary { cursor: pointer; }
+        .mu-etq-lista { max-height: 180px; overflow: auto; display: flex; flex-wrap: wrap; gap: 6px; }
+        .mu-etq-op { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #e3e8ef; border-radius: 99px; padding: 2px 10px 2px 4px; font-size: .82rem; cursor: pointer; }
+        .mu-etq-op:has(input:checked) { background: #e8f0fe; border-color: #2b4f8a; }
+        .mu-etq-op .av { transform: scale(.8); }
+      </style>
+      <script>
+      (function () {
+        var d = document.querySelector('#mu-form .mu-etq'); if (!d) return;
+        var n = d.querySelector('.mu-etq-n');
+        function contar() { var k = d.querySelectorAll('input[name=etiquetas]:checked').length; n.textContent = k ? '(' + k + ')' : ''; }
+        d.addEventListener('change', contar);
+        d.querySelector('.mu-etq-buscar').addEventListener('input', function () {
+          var q = this.value.trim().toLowerCase();
+          d.querySelectorAll('.mu-etq-op').forEach(function (o) { o.style.display = !q || o.dataset.n.indexOf(q) >= 0 ? '' : 'none'; });
+        });
+      })();
+      </script>

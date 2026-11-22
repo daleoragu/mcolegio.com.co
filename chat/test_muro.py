@@ -209,6 +209,61 @@ class MuroDeColega(Muro):
         self.assertContains(r, f'href="/chat/colegas/u/{self.bea.pk}/" target="_blank"')
 
 
+class EscribirYEtiquetar(Muro):
+    """Escribir en el muro de un colega y etiquetar colegas, como en una red social."""
+
+    def setUp(self):
+        super().setUp()
+        Colega.objects.create(de=self.bea, para=self.carlos, estado='aceptada')
+        self.aceptar(self.cb)
+
+    def test_escribir_en_el_muro_de_un_colega(self):
+        from notas.models import Notificacion
+        r = self.cb.get(f'/chat/colegas/u/{self.luis.pk}/')
+        self.assertContains(r, 'Escriba algo en el muro de Luis Libre')
+        self.assertContains(r, 'name="destinatario"')
+        r = self.cb.post('/chat/colegas/muro/', {'tipo': 'experiencia', 'titulo': 'Gracias por la guía', 'texto': 'Me sirvió en 9.º',
+                                                 'destinatario': self.luis.pk, 'volver': f'/chat/colegas/u/{self.luis.pk}/'})
+        self.assertRedirects(r, f'/chat/colegas/u/{self.luis.pk}/', fetch_redirect_response=False)
+        p = Publicacion.objects.get(titulo='Gracias por la guía')
+        self.assertEqual((p.autor, p.destinatario), (self.bea, self.luis))
+        self.assertTrue(Notificacion.objects.filter(destinatario=self.luis, mensaje__contains='escribió en su muro').exists())
+        # Sale en el muro de Luis con «Beatriz ▸ Luis», y Luis la puede eliminar de su muro
+        r = self.cl.get(f'/chat/colegas/u/{self.luis.pk}/')
+        self.assertContains(r, 'Gracias por la guía')
+        self.assertContains(r, 'escribió en el muro de')
+        self.cl.post(f'/chat/colegas/muro/{p.pk}/accion/', {'accion': 'eliminar'})
+        self.assertFalse(Publicacion.objects.filter(pk=p.pk).exists())
+
+    def test_solo_entre_colegas(self):
+        # Carlos no es colega de Luis: no ve el cuadro y si lo intenta, queda en su propio muro
+        self.aceptar(self.cc)
+        self.assertNotContains(self.cc.get(f'/chat/colegas/u/{self.luis.pk}/'), 'name="destinatario"')
+        self.cc.post('/chat/colegas/muro/', {'tipo': 'experiencia', 'titulo': 'Intento ajeno', 'destinatario': self.luis.pk})
+        self.assertIsNone(Publicacion.objects.get(titulo='Intento ajeno').destinatario)
+
+    def test_etiquetar_colegas(self):
+        from notas.models import Notificacion
+        self.assertContains(self.cb.get('/chat/colegas/muro/'), 'Etiquetar colegas')
+        self.cb.post('/chat/colegas/muro/', {'tipo': 'experiencia', 'titulo': 'Feria de ciencias', 'texto': 'Lo hicimos juntos',
+                                             'etiquetas': [self.luis.pk, self.carlos.pk, self.diana.pk]})
+        p = Publicacion.objects.get(titulo='Feria de ciencias')
+        # Diana sí es colega de Bea; los tres quedan etiquetados y avisados
+        self.assertEqual(set(p.etiquetados.values_list('pk', flat=True)), {self.luis.pk, self.carlos.pk, self.diana.pk})
+        self.assertTrue(Notificacion.objects.filter(destinatario=self.carlos, mensaje__contains='etiquetó').exists())
+        r = self.cl.get(f'/chat/colegas/u/{self.carlos.pk}/')            # sale en el muro de Carlos
+        self.assertContains(r, 'Feria de ciencias')
+        self.assertContains(self.cc.get('/chat/colegas/muro/?ver=mias'), 'Feria de ciencias')
+        # Carlos se quita la etiqueta
+        self.cc.post(f'/chat/colegas/muro/{p.pk}/accion/', {'accion': 'quitar_etiqueta'})
+        self.assertFalse(p.etiquetados.filter(pk=self.carlos.pk).exists())
+
+    def test_no_etiqueta_a_quien_no_es_colega(self):
+        otro, _ = self.docente('Olga', 'Otra', 'Inglés')
+        self.cb.post('/chat/colegas/muro/', {'tipo': 'experiencia', 'titulo': 'Sin extraños', 'etiquetas': [otro.pk]})
+        self.assertFalse(Publicacion.objects.get(titulo='Sin extraños').etiquetados.exists())
+
+
 class ActividadesEnElMuro(TestCase):
 
     def setUp(self):
