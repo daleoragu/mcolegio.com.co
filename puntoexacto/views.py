@@ -1577,6 +1577,8 @@ def procesar_foto(request, examen_id):
     """
     import json
 
+    import numpy as np
+
     from . import lector as lector_mod
 
     examen = _examen_o_404(request, examen_id)
@@ -1664,40 +1666,60 @@ def procesar_foto(request, examen_id):
     for pp in [examen.hojas_por_pagina or 1, 1, 4, 2, 8]:
         if pp not in orden and hojas_mod.capacidad(pp, examen.opciones_maximas()) >= examen.numero_preguntas:
             orden.append(pp)
-    mejor, error = None, None
-    for pp in orden:
-        try:
-            r = leer_con(pp)
-        except lector_mod.LecturaFallida as e:
-            error = error or str(e)
-            continue
-        except Exception as e:
-            error = error or f'No se pudo leer la foto ({type(e).__name__}).'
-            continue
-        if mejor is None or calidad(r) < calidad(mejor):
-            mejor = r
-        if r['leido'] and len(r['dudas']) <= max(2, examen.numero_preguntas // 10):
-            # Las hojas de 1 y 4 por página (y las de 2 y 8) tienen la misma forma: el código se lee con
-            # cualquiera de las dos y la lectura equivocada puede quedar con pocas dudas. Se lee también con la
-            # gemela y gana la más clara (antes se quedaba con la primera y elegía burbujas que no eran).
-            gemela = {1: 4, 4: 1, 2: 8, 8: 2}.get(pp)
-            # Si una hoja anterior de este examen ya ganó la comparación con este reparto y esta salió sin dudas,
-            # no se vuelve a leer con la gemela: es la mitad del tiempo de cada foto.
-            confirmado = cache.get(f'pe_reparto_{examen.id}') == pp and not r['dudas']
-            if gemela in orden and gemela != pp and not confirmado:
-                try:
-                    r2 = leer_con(gemela)
-                except Exception:
-                    r2 = None
-                if r2 and r2['leido'] and (len(r2['dudas']), -r2['claridad']) < (len(r['dudas']), -r['claridad']) \
-                        and r2['claridad'] > r['claridad']:
-                    mejor = r2
+    def elegir():
+        """Lee la foto con cada reparto posible y se queda con la mejor lectura (código leído y pocas dudas)."""
+        mejor, error = None, None
+        for pp in orden:
+            try:
+                r = leer_con(pp)
+            except lector_mod.LecturaFallida as e:
+                error = error or str(e)
+                continue
+            except Exception as e:
+                error = error or f'No se pudo leer la foto ({type(e).__name__}).'
+                continue
+            if mejor is None or calidad(r) < calidad(mejor):
+                mejor = r
+            if r['leido'] and len(r['dudas']) <= max(2, examen.numero_preguntas // 10):
+                # Las hojas de 1 y 4 por página (y las de 2 y 8) tienen la misma forma: el código se lee con
+                # cualquiera de las dos y la lectura equivocada puede quedar con pocas dudas. Se lee también con la
+                # gemela y gana la más clara (antes se quedaba con la primera y elegía burbujas que no eran).
+                gemela = {1: 4, 4: 1, 2: 8, 8: 2}.get(pp)
+                # Si una hoja anterior de este examen ya ganó la comparación con este reparto y esta salió sin dudas,
+                # no se vuelve a leer con la gemela: es la mitad del tiempo de cada foto.
+                confirmado = cache.get(f'pe_reparto_{examen.id}') == pp and not r['dudas']
+                if gemela in orden and gemela != pp and not confirmado:
+                    try:
+                        r2 = leer_con(gemela)
+                    except Exception:
+                        r2 = None
+                    if r2 and r2['leido'] and (len(r2['dudas']), -r2['claridad']) < (len(r['dudas']), -r['claridad']) \
+                            and r2['claridad'] > r['claridad']:
+                        mejor = r2
+                    else:
+                        mejor = r
+                    cache.set(f'pe_reparto_{examen.id}', mejor['por_pagina'], 6 * 3600)
                 else:
                     mejor = r
-                cache.set(f'pe_reparto_{examen.id}', mejor['por_pagina'], 6 * 3600)
-            else:
-                mejor = r
-            break                      # código leído y lectura limpia: es este reparto
+                break                      # código leído y lectura limpia: es este reparto
+        return mejor, error
+
+    mejor, error = elegir()
+    # Hoja al revés: si el celular giró mal la foto (180°), el código de barras queda a la derecha y no se lee;
+    # las burbujas tampoco cuadran. Se lee otra vez girada y, si así sí se lee el código, gana esa lectura.
+    girada = False
+    if mejor is None or not mejor['leido']:
+        alto_f, ancho_f = gris.shape
+        antes = (gris, pistas)
+        gris = np.ascontiguousarray(gris[::-1, ::-1])
+        if pistas:
+            gir = lambda q: (ancho_f - 1 - q[0], alto_f - 1 - q[1])
+            pistas = [gir(pistas[2]), gir(pistas[3]), gir(pistas[0]), gir(pistas[1])]
+        m2, e2 = elegir()
+        if m2 is not None and (mejor is None or calidad(m2) < calidad(mejor)):
+            mejor, error, girada = m2, e2, True
+        else:
+            gris, pistas = antes
     if mejor is None:
         return JsonResponse({'ok': False, 'error': error or 'No se pudo leer la foto.'})
     if mejor['leido'] in identificadores and mejor['por_pagina'] != (examen.hojas_por_pagina or 1):
@@ -1708,6 +1730,10 @@ def procesar_foto(request, examen_id):
     respuestas, dudas, leido, como = mejor['respuestas'], mejor['dudas'], mejor['leido'], mejor['como']
     forma, forma_duda = mejor['forma'], mejor['forma_duda']
     radio_px, posiciones = mejor['radio_px'], mejor['posiciones']
+    if girada:
+        # las burbujas, en la foto tal como la tiene el celular (sin girar)
+        alto_f, ancho_f = gris.shape
+        posiciones = {k: [ancho_f - 1 - v[0], alto_f - 1 - v[1]] for k, v in posiciones.items()}
 
     # Cada hoja es de UN examen: el código de barras lleva el número del examen
     # (PE-00012-0007 = hoja 7 del examen 12). Si es de otro, no se califica

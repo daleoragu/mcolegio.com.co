@@ -475,3 +475,38 @@ class HojaCurvadaGrande(CamaraEnVivo):
             print('ABOMBADA', round(fuerza / r, 1), 'radios:', 'malas', malas, 'dudas', len(dd['dudas']), ms, 'ms')
             if fuerza <= r * 1.0:
                 self.assertEqual(malas, [], fuerza)
+
+
+class HojaAlReves(UnaSolaIdaAlServidor):
+    """Si el celular manda la hoja girada 180° (código de barras a la derecha), el servidor la lee girada."""
+
+    test_calentar_con_get = test_sin_auto_no_guarda_pero_trae_la_nota = None
+
+    def test_lee_la_hoja_al_reves(self):
+        import json as _json
+        marcadas = {n: l for n, l in zip(range(1, 9), 'ABCDABCD')}
+        foto = self.foto_llena(marcadas)
+        im = Image.open(foto).rotate(180)
+        W, H = im.size
+        b = io.BytesIO(); im.save(b, 'JPEG', quality=85)
+        # sin pistas
+        d = self.c.post(self.url('escanear/foto/'), {'foto': SimpleUploadedFile('h.jpg', b.getvalue(), 'image/jpeg')}).json()
+        self.assertTrue(d['ok'], d)
+        self.assertEqual(d['hoja_id'], self.hoja.id)
+        self.assertEqual({int(k): v for k, v in d['respuestas'].items() if v}, marcadas)
+        # las burbujas quedan sobre la foto tal como se mandó (girada): la 1A, abajo a la derecha
+        x, y = d['posiciones']['1A']
+        self.assertGreater(x, W / 2); self.assertGreater(y, H / 2)
+        # con las esquinas que vio la cámara, nombradas como si la hoja estuviera derecha (el error del celular)
+        from . import hojas as Hm
+        geo = Hm.geometria(1, self.hoja.identificador)
+        e = W / geo['ancho_mm']
+        reales = [(x_ * e, (geo['alto_mm'] - y_) * e) for x_, y_ in geo['marcas_mm']]          # en la hoja derecha
+        giradas = [(W - 1 - px, H - 1 - py) for px, py in reales]                                   # ya en la foto girada
+        pistas = [giradas[2], giradas[3], giradas[0], giradas[1]]          # el celular cree que arriba-izq. es la de abajo-der.
+        b2 = io.BytesIO(); im.save(b2, 'JPEG', quality=85)
+        d = self.c.post(self.url('escanear/foto/'), {'foto': SimpleUploadedFile('h.jpg', b2.getvalue(), 'image/jpeg'),
+                                                     'marcas': _json.dumps(pistas)}).json()
+        self.assertTrue(d['ok'], d)
+        self.assertEqual(d['hoja_id'], self.hoja.id)
+        self.assertEqual({int(k): v for k, v in d['respuestas'].items() if v}, marcadas)
