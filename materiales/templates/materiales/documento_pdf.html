@@ -2,7 +2,7 @@
 <html lang="es"><head><meta charset="utf-8">
 <title>{{ doc.titulo }}</title>
 <style>
-    @page { size: letter; margin: {% if cuadernillo %}{{ margen|add:6 }}{% else %}{{ margen }}{% endif %}mm {{ margen }}mm {{ margen|add:4 }}mm;
+    @page { size: {{ papel.ancho_mm|stringformat:".1f" }}mm {{ papel.alto_mm|stringformat:".1f" }}mm; margin: {% if cuadernillo %}{{ margen|add:6 }}{% else %}{{ margen }}{% endif %}mm {{ margen }}mm {{ margen|add:4 }}mm;
             {% if cuadernillo %}@top-left { content: "{{ css_izquierda|safe }}"; font-size: 7.5pt; font-weight: bold; color: {{ color }}; border-bottom: 1px solid {{ color }}; vertical-align: bottom; padding-bottom: 2mm; }
             @top-right { content: "{{ css_derecha|safe }}"; font-size: 7.5pt; font-style: italic; color: #333; border-bottom: 1px solid {{ color }}; vertical-align: bottom; padding-bottom: 2mm; }
             @bottom-left { content: "Material de uso institucional · No escribas en este cuadernillo"; font-size: 7pt; font-style: italic; color: #555; }{% endif %}

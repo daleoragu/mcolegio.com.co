@@ -305,8 +305,41 @@ def limpiar(contenido, imagenes_validas):
         'fin': texto_plano(o.get('fin'), 200),
         # Color de los títulos, las franjas de sección y los recuadros (antes siempre azul)
         'color': color_valido(o.get('color')),
+        # Tamaño de la hoja: carta, oficio o uno personalizado (en la unidad que escoja el docente)
+        'papel': papel(o.get('papel')),
     }
     return {'bloques': bloques, 'opciones': opciones}
+
+
+# Tamaños de hoja (ancho × alto en mm). Oficio: el de Colombia (8,5 × 13 pulgadas).
+PAPELES = {'carta': ('Carta', 215.9, 279.4), 'oficio': ('Oficio', 215.9, 330.2), 'a4': ('A4', 210.0, 297.0)}
+UNIDADES = {'mm': ('milímetros', 1.0), 'cm': ('centímetros', 10.0), 'in': ('pulgadas', 25.4), 'px': ('píxeles', 25.4 / 96)}
+
+
+def papel(p):
+    """{'tipo', 'ancho', 'alto', 'unidad', 'ancho_mm', 'alto_mm', 'nombre'}: carta si no viene nada válido."""
+    p = p if isinstance(p, dict) else {}
+    tipo = p.get('tipo') if p.get('tipo') in PAPELES or p.get('tipo') == 'personalizado' else 'carta'
+    if tipo in PAPELES:
+        nombre, ancho_mm, alto_mm = PAPELES[tipo]
+        return {'tipo': tipo, 'nombre': nombre, 'unidad': 'cm', 'ancho': round(ancho_mm / 10, 2), 'alto': round(alto_mm / 10, 2),
+                'ancho_mm': ancho_mm, 'alto_mm': alto_mm}
+    unidad = p.get('unidad') if p.get('unidad') in UNIDADES else 'cm'
+    factor = UNIDADES[unidad][1]
+
+    def medida(v, defecto):
+        try:
+            v = float(str(v).replace(',', '.'))
+        except (TypeError, ValueError):
+            return defecto
+        return v if v > 0 else defecto
+    ancho = medida(p.get('ancho'), 215.9 / factor)
+    alto = medida(p.get('alto'), 279.4 / factor)
+    # entre 7 cm y 60 cm de ancho, y entre 7 cm y 120 cm de alto
+    ancho_mm = round(min(600.0, max(70.0, ancho * factor)), 1)
+    alto_mm = round(min(1200.0, max(70.0, alto * factor)), 1)
+    return {'tipo': 'personalizado', 'nombre': 'Personalizado', 'unidad': unidad,
+            'ancho': round(ancho_mm / factor, 2), 'alto': round(alto_mm / factor, 2), 'ancho_mm': ancho_mm, 'alto_mm': alto_mm}
 
 
 def _lista(valores, maximo, largo=300):

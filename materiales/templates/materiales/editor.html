@@ -3,10 +3,53 @@
 {% block page_title %}{% endblock %}
 {% block content %}
 {% include 'materiales/_estilos.html' %}
-<style>.mm-solo-ver { pointer-events:none; } #mm-conflicto[hidden] { display:none !important; }</style>
+<style>.mm-solo-ver { pointer-events:none; } #mm-conflicto[hidden] { display:none !important; }
+  /* El editor ocupa toda la pestaña: sin la barra ni el menú de la plataforma; los botones quedan fijos arriba. */
+  body.mm-completo .topbar-new, body.mm-completo .page-header, body.mm-completo .navbar-salon, body.mm-completo .esp-abajo,
+  body.mm-completo footer.pie, body.mm-completo .impersonation-banner, body.mm-completo .esp-sub { display:none !important; }
+  body.mm-completo .content-area, body.mm-completo main.container { max-width:none !important; width:100% !important; padding:0 12px 24px !important; margin:0 !important; }
+  body.mm-completo .page-wrapper { display:block !important; }
+  body.mm-completo { background:#e9edf3; }
+  body.mm-completo .mm-barra-fija { position:sticky; top:0; z-index:30; border-radius:0 0 12px 12px; box-shadow:0 4px 14px rgba(15,23,42,.12); margin:0 -12px 14px; }
+  /* La hoja del tamaño escogido (carta, oficio o personalizado): rayas donde termina cada página (aprox.) */
+  .mm-hoja { max-width:var(--mm-ancho, 860px) !important; width:100%; min-height:var(--mm-alto, auto);
+             background-image:repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--mm-alto, 99999px) - 2px),
+             rgba(37,99,235,.45) calc(var(--mm-alto, 99999px) - 2px), rgba(37,99,235,.45) var(--mm-alto, 99999px)); box-shadow:0 6px 24px rgba(15,23,42,.10); }
+  .mm-papel-etq { font-size:.78rem; color:#64748b; text-align:center; margin:-8px 0 8px; }
+  /* Menú Insertar */
+  .mm-insertar.show { display:flex; gap:8px; flex-wrap:wrap; max-height:min(72vh, 620px); overflow-y:auto; }
+  .mm-ins-col { flex:1 1 220px; min-width:0; }
+  .mm-ins-tit { font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#64748b; padding:2px 8px 4px; }
+  .mm-insertar .dropdown-item { display:flex; align-items:center; gap:8px; border-radius:8px; font-size:.88rem; padding:5px 8px; white-space:normal; }
+  .mm-insertar .dropdown-item i { width:18px; text-align:center; color:#2563eb; }
+  /* Diseño de impresión: hojas separadas, fondo gris y zoom */
+  body.mm-impresion { background:#cbd5e1 !important; }
+  body.mm-impresion .mm-hoja { border-radius:2px; border:0;
+      background-image:repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--mm-alto, 99999px) - 8px),
+      #cbd5e1 calc(var(--mm-alto, 99999px) - 8px), #cbd5e1 calc(var(--mm-alto, 99999px) + 8px), transparent calc(var(--mm-alto, 99999px) + 8px));
+      box-shadow:0 2px 12px rgba(15,23,42,.25); }
+  body.mm-impresion #mm-agregar { opacity:.85; }
+  /* Panel de navegación a la derecha (opcional) */
+  .mm-nav { position:fixed; right:10px; top:var(--mm-nav-top, 150px); bottom:12px; width:270px; z-index:25; background:#fff; border:1px solid #e2e8f0;
+            border-radius:12px; box-shadow:0 8px 24px rgba(15,23,42,.14); display:flex; flex-direction:column; overflow:hidden; }
+  .mm-nav[hidden] { display:none; }
+  .mm-nav-cab { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid #eef2f7; }
+  .mm-nav-resumen { padding:6px 12px; border-bottom:1px solid #eef2f7; }
+  .mm-nav-lista { overflow:auto; padding:6px; flex:1; }
+  .mm-nav-pag { font-size:.7rem; font-weight:800; color:#2563eb; text-transform:uppercase; letter-spacing:.05em; padding:8px 6px 2px; }
+  .mm-nav-it { display:flex; gap:6px; align-items:flex-start; width:100%; text-align:left; border:0; background:none; border-radius:8px; padding:4px 6px; font-size:.84rem; color:#1e293b; }
+  .mm-nav-it:hover { background:#eff6ff; }
+  .mm-nav-it.activo { background:#dbeafe; }
+  .mm-nav-it i { width:16px; text-align:center; color:#64748b; margin-top:3px; flex:none; }
+  .mm-nav-it.n1 { font-weight:700; } .mm-nav-it.n2 { padding-left:16px; }
+  .mm-nav-it span { overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  body.mm-con-nav .mm-area { padding-right:290px; }
+  @media (max-width: 900px) { .mm-nav { left:10px; width:auto; top:auto; height:45vh; } body.mm-con-nav .mm-area { padding-right:0; } }
+</style>
 <div class="mm">
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
     <a href="{% url 'materiales:lista' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Mis materiales</a>
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="mm-pantalla" title="Pantalla completa (sin la barra del navegador)"><i class="fas fa-expand"></i></button>
     <span class="badge text-bg-light">{{ doc.get_tipo_display }}</span>
     {% if rol != 'dueno' %}<span class="badge text-bg-info" title="Material de {{ dueno_nombre }}"><i class="fas fa-user-group me-1"></i>De {{ dueno_nombre }} · {% if solo_ver %}solo ver{% else %}puede editar{% endif %}</span>{% endif %}
     <span class="small text-success" id="mm-presentes"></span>
@@ -34,7 +77,7 @@
 </div>
 <div class="mb-2">{% include 'materiales/_medidor.html' with med=med %}</div>
 
-<div class="mm-tarjeta py-2" style="position:sticky;top:0;z-index:20">
+<div class="mm-tarjeta py-2 mm-barra-fija" style="position:sticky;top:0;z-index:20">
   <div class="row g-2 align-items-end">
     <div class="col-md-4"><input id="mm-titulo" class="form-control fw-bold" maxlength="150" value="{{ doc.titulo }}" placeholder="Título"></div>
     <div class="col-6 col-md-3"><select id="mm-area" class="form-select form-select-sm" aria-label="Área" title="Área (lista oficial de la Ley 115)">
@@ -55,6 +98,57 @@
       <button type="button" class="btn btn-outline-secondary mm-porta" data-porta="copy" title="Copiar (Ctrl+C)" aria-label="Copiar"><i class="far fa-copy"></i></button>
       <button type="button" class="btn btn-outline-secondary mm-porta" data-porta="paste" title="Pegar (Ctrl+V)" aria-label="Pegar"><i class="fas fa-paste"></i></button>
     </div>
+    <div class="dropdown">
+      <button class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown" type="button" title="Insertar debajo del bloque marcado"><i class="fas fa-plus me-1"></i>Insertar</button>
+      <div class="dropdown-menu p-2 mm-insertar" style="width:min(580px,94vw)">
+        <div class="mm-ins-col">
+          <div class="mm-ins-tit">Texto y estructura</div>
+          <button type="button" class="dropdown-item" data-ins="texto"><i class="fas fa-paragraph"></i>Texto</button>
+          <button type="button" class="dropdown-item" data-ins="titulo"><i class="fas fa-heading"></i>Título</button>
+          <button type="button" class="dropdown-item" data-ins="seccion"><i class="fas fa-bookmark"></i>Sección</button>
+          <button type="button" class="dropdown-item" data-ins="recuadro"><i class="far fa-square"></i>Recuadro</button>
+          <button type="button" class="dropdown-item" data-ins="tabla"><i class="fas fa-table"></i>Tabla</button>
+          <button type="button" class="dropdown-item" data-ins="contexto"><i class="fas fa-book-open"></i>Texto para varias preguntas</button>
+          <button type="button" class="dropdown-item" data-ins="lineas"><i class="fas fa-grip-lines"></i>Líneas para escribir</button>
+          <button type="button" class="dropdown-item" data-ins="separador"><i class="fas fa-minus"></i>Separador</button>
+          <button type="button" class="dropdown-item" data-ins="salto"><i class="fas fa-file-circle-plus"></i>Nueva página</button>
+          <div class="mm-ins-tit mt-2">Imágenes</div>
+          <button type="button" class="dropdown-item" data-ins="imagen"><i class="far fa-image"></i>Imagen</button>
+          <button type="button" class="dropdown-item" data-ins="grafica"><i class="fas fa-chart-line"></i>Gráfica de funciones o figuras</button>
+          <button type="button" class="dropdown-item" data-ins="hoja"><i class="far fa-file-pdf"></i>Hoja sobre un PDF o una imagen</button>
+        </div>
+        <div class="mm-ins-col">
+          <div class="mm-ins-tit">Preguntas y actividades</div>
+          {% for k, v in modos_pregunta.items %}{% if k != 'hoja' %}<button type="button" class="dropdown-item" data-ins-pregunta="{{ k }}"><i class="fas {% if k == 'unica' %}fa-circle-dot{% elif k == 'varias' %}fa-square-check{% elif k == 'vf' %}fa-check-double{% elif k == 'completar' %}fa-i-cursor{% elif k == 'numerica' %}fa-hashtag{% elif k == 'corta' %}fa-pen{% elif k == 'abierta' %}fa-align-left{% elif k == 'emparejar' %}fa-link{% elif k == 'ordenar' %}fa-arrow-down-1-9{% elif k == 'clasificar' %}fa-layer-group{% elif k == 'senalar' %}fa-crosshairs{% elif k == 'archivo' %}fa-camera{% elif k == 'sopa' %}fa-border-all{% elif k == 'crucigrama' %}fa-table-cells{% else %}fa-circle-question{% endif %}"></i>{{ v }}</button>{% endif %}{% endfor %}
+          <div class="mm-ins-tit mt-2">De otros lados</div>
+          <button type="button" class="dropdown-item" data-ins="banco"><i class="fas fa-box-archive"></i>Del banco de preguntas</button>
+        </div>
+      </div>
+    </div>
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" type="button" title="Vista y zoom"><i class="fas fa-eye me-1"></i>Vista</button>
+      <div class="dropdown-menu p-3" style="min-width:260px">
+        <div class="small fw-bold mb-1">Vista</div>
+        <div class="btn-group btn-group-sm w-100 mb-2" id="mm-vista">
+          <button type="button" class="btn btn-outline-primary" data-vista="edicion">Edición</button>
+          <button type="button" class="btn btn-outline-primary" data-vista="impresion">Diseño de impresión</button>
+        </div>
+        <div class="small fw-bold mb-1">Zoom</div>
+        <div class="d-flex align-items-center gap-1 mb-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="mm-zoom-menos" aria-label="Alejar"><i class="fas fa-minus"></i></button>
+          <input type="range" class="form-range flex-grow-1" min="40" max="200" step="10" id="mm-zoom" aria-label="Zoom">
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="mm-zoom-mas" aria-label="Acercar"><i class="fas fa-plus"></i></button>
+          <span class="small fw-bold" id="mm-zoom-v" style="min-width:44px;text-align:right">100%</span>
+        </div>
+        <div class="d-flex gap-1 mb-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" data-zoom="100">100%</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" data-zoom="ancho">Ajustar al ancho</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" data-zoom="pagina">Página entera</button>
+        </div>
+        <div class="form-check form-switch small"><input class="form-check-input" type="checkbox" id="mm-nav-switch"><label class="form-check-label" for="mm-nav-switch">Panel de navegación</label></div>
+      </div>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="mm-nav-btn" title="Panel de navegación: secciones, preguntas y páginas"><i class="fas fa-list-ul"></i></button>
     <button type="button" class="btn btn-sm btn-outline-primary" id="mm-grafica-btn" title="Insertar una gráfica de funciones o figuras"><i class="fas fa-chart-line me-1"></i>Gráfica</button>
     <button type="button" class="btn btn-sm btn-outline-primary" id="mm-ecuacion-btn" title="Insertar una ecuación (Alt+=)"><span style="font-family:'Times New Roman',serif;font-style:italic;font-weight:700">∑ x²</span> Ecuación</button>
     <div class="btn-group btn-group-sm" role="group" aria-label="Formato del texto">
@@ -97,6 +191,24 @@
         <div class="btn-group btn-group-sm w-100 mb-2" id="mm-columnas">
           <button type="button" class="btn btn-outline-primary" data-col="1">Una</button>
           <button type="button" class="btn btn-outline-primary" data-col="2">Dos</button>
+        </div>
+        <div class="small fw-bold mb-1">Tamaño de hoja</div>
+        <select id="mm-papel" class="form-select form-select-sm mb-1">
+          <option value="carta">Carta (21,6 × 27,9 cm)</option>
+          <option value="oficio">Oficio (21,6 × 33 cm)</option>
+          <option value="a4">A4 (21 × 29,7 cm)</option>
+          <option value="personalizado">Personalizado…</option>
+        </select>
+        <div id="mm-papel-pers" class="mb-2" hidden>
+          <div class="d-flex gap-1 align-items-center">
+            <input id="mm-papel-ancho" type="number" step="any" min="0" class="form-control form-control-sm" placeholder="Ancho" aria-label="Ancho de la hoja">
+            <span>×</span>
+            <input id="mm-papel-alto" type="number" step="any" min="0" class="form-control form-control-sm" placeholder="Alto" aria-label="Alto de la hoja">
+            <select id="mm-papel-unidad" class="form-select form-select-sm" style="max-width:96px" aria-label="Unidad">
+              <option value="mm">mm</option><option value="cm">cm</option><option value="in">pulgadas</option><option value="px">píxeles</option>
+            </select>
+          </div>
+          <div class="small text-muted mt-1">Entre 7 y 60 cm de ancho, y entre 7 y 120 cm de alto.</div>
         </div>
         <label class="small fw-bold mb-1">Tamaño de letra: <span id="mm-letra-v"></span> pt</label>
         <input type="range" class="form-range" min="9" max="14" step="1" id="mm-letra">
@@ -234,6 +346,13 @@
   </div>
 </div>
 
+<aside class="mm-nav" id="mm-nav" hidden aria-label="Navegación del documento">
+  <div class="mm-nav-cab"><b><i class="fas fa-list-ul me-1"></i>Navegación</b><button type="button" class="btn-close btn-sm" id="mm-nav-cerrar" aria-label="Cerrar"></button></div>
+  <div class="mm-nav-resumen small text-muted" id="mm-nav-resumen"></div>
+  <div class="mm-nav-lista" id="mm-nav-lista"></div>
+</aside>
+<div class="mm-area">
+<div class="mm-papel-etq" id="mm-papel-etq"></div>
 <div class="mm-hoja" id="mm-hoja">
     <div id="mm-bloques"></div>
     <div class="mm-agregar" id="mm-agregar">
@@ -253,6 +372,7 @@
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="separador"><i class="fas fa-minus me-1"></i>Separador</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="salto"><i class="fas fa-file-circle-plus me-1"></i>Nueva página</button>
     </div>
+</div>
 </div>
 <input type="file" id="mm-archivo" accept="image/*" multiple hidden>
 <input type="file" id="mm-archivo-hoja" accept="application/pdf,.pdf,image/*" multiple hidden>
@@ -477,5 +597,6 @@ window.MM = {
 <script src="{% static 'materiales/imagenes.js' %}"></script>
 <script src="{% static 'materiales/impresion.js' %}"></script>
 <script src="{% static 'materiales/editor.js' %}"></script>
+<script src="{% static 'materiales/vistas.js' %}"></script>
 <script src="{% static 'materiales/equipo.js' %}"></script>
 {% endblock %}

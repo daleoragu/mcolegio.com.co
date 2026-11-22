@@ -257,7 +257,8 @@ def contexto(doc, modo=None, docente='', respuestas=False):
         if b['tipo'] == 'tabla':
             est = b.get('estilos') or {}
             b['filas_estilo'] = [[(c, _css_celda(est.get(f'{i}-{j}'))) for j, c in enumerate(fila)] for i, fila in enumerate(b['filas'])]
-    ancho_util = 215.9 - 2 * m['margen']          # hoja carta
+    hoja = opciones.get('papel') or B.papel(None)
+    ancho_util = hoja['ancho_mm'] - 2 * m['margen']
     for b in bloques:
         if b['tipo'] == 'pregunta':
             _preparar_pregunta(b, modo)
@@ -270,7 +271,7 @@ def contexto(doc, modo=None, docente='', respuestas=False):
         'doc': doc, 'bloques': bloques, 'opciones': opciones, 'modo': modo,
         'letra': max(8.5, opciones['letra'] + m['dif']), 'margen': m['margen'], 'interlineado': m['linea'],
         'columnas': m['columnas'] or opciones['columnas'], 'alto_imagen': m['img'], 'separacion': m['sep'],
-        'docente': docente, 'fecha': timezone.localdate(),
+        'docente': docente, 'fecha': timezone.localdate(), 'papel': hoja,
         'color': B.color_valido(opciones.get('color')), 'color_claro': B.mezclar(opciones.get('color'), .93),
         'color_medio': B.mezclar(opciones.get('color'), .86),
     }
@@ -616,7 +617,7 @@ def docx(doc, colegio=None, encabezado=None, docente='', modo=None, respuestas=F
     estilo.font.size = Pt(letra)
     estilo.paragraph_format.space_after = Pt(2 if ctx['modo'] != 'normal' else 4)
     sec = w.sections[0]
-    sec.page_width, sec.page_height = Cm(21.59), Cm(27.94)
+    sec.page_width, sec.page_height = Cm(ctx['papel']['ancho_mm'] / 10), Cm(ctx['papel']['alto_mm'] / 10)
     margen = Cm(ctx['margen'] / 10)
     sec.left_margin = sec.right_margin = sec.top_margin = sec.bottom_margin = margen
     util = sec.page_width - 2 * margen

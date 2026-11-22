@@ -1,4 +1,4 @@
-Versión 0079 · 2026-11-22 14:16
+Versión 0081 · 2026-11-22 15:38
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -630,6 +630,7 @@ NUEVO     materiales/static/materiales/equipo.js
 NUEVO     materiales/static/materiales/graficador.js
 NUEVO     materiales/static/materiales/imagenes.js
 NUEVO     materiales/static/materiales/impresion.js
+NUEVO     materiales/static/materiales/vistas.js
 NUEVO     materiales/templates/materiales/_colores.html
 NUEVO     materiales/templates/materiales/_doc_acciones.html
 NUEVO     materiales/templates/materiales/_encabezado_docente.html
@@ -662,6 +663,7 @@ NUEVO     materiales/tests/test_graficas.py
 NUEVO     materiales/tests/test_imagenes.py
 NUEVO     materiales/tests/test_juegos_colores.py
 CAMBIADO  materiales/tests/test_materiales.py
+NUEVO     materiales/tests/test_papel.py
 NUEVO     materiales/tests/test_reputacion.py
 CAMBIADO  materiales/urls.py
 CAMBIADO  materiales/views.py
