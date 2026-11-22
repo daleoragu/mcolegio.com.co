@@ -767,7 +767,21 @@ def resultados(request, examen_id):
         h.clave_informe = _clave_informe(h) if h.estado in ('calificada', 'revisar') else None
     from .views_informes import grupos_de
     grados, cursos = grupos_de([h for h in lista_hojas if h.estado in ('calificada', 'revisar')])
+    # Los dos resúmenes: por nota (escala de valoración) y estilo ICFES. La página muestra el del tipo de informe escogido.
+    resumen_nota = resumen_icfes = None
+    if any(h.estado in ('calificada', 'revisar') for h in lista_hojas):
+        from . import informes as INF
+        from . import informes_nota as INFN
+        try:
+            resumen_nota = INFN.construir(examen)
+        except Exception:
+            resumen_nota = None
+        try:
+            resumen_icfes = INF.construir([examen])
+        except Exception:
+            resumen_icfes = None
     return render(request, 'puntoexacto/resultados.html', {
+        'resumen_nota': resumen_nota, 'resumen_icfes': resumen_icfes,
         'grados': grados, 'cursos': cursos,
         'examen': examen, 'analisis': datos, 'hojas': lista_hojas,
         'controles': controles,

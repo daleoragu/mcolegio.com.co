@@ -242,18 +242,20 @@
     // sup. der., inf. der., inf. izq.), el lado de cada visor y si la hoja va acostada.
     // girar: true para poner los visores al revés de lo que dice la pantalla (hoja acostada con el celular
     // vertical, por ejemplo cuando el celular tiene bloqueada la rotación).
-    function visores(vw, vh, dz, girar) {
+    // tam: qué tanto del cuadro ocupa la hoja (1 = casi todo; menos para una hoja pequeña tomada de más lejos).
+    function visores(vw, vh, dz, girar, tam) {
+        tam = tam || 1;
         var acostada = (vw > vh) !== !!girar;
         var prop = acostada ? 1 / dz.prop : dz.prop;          // alto/ancho del rectángulo de marcas en pantalla
-        var ancho = Math.min(vw * 0.82, vh * 0.82 / prop), alto = ancho * prop;
+        var ancho = Math.min(vw * 0.82 * tam, vh * 0.82 * tam / prop), alto = ancho * prop;
         var x0 = (vw - ancho) / 2, y0 = (vh - alto) / 2;
-        var lado = Math.max(Math.min(vw, vh) * 0.10, dz.marca / (acostada ? dz.spanH : dz.spanW) * ancho * 2.2);
+        var lado = Math.max(Math.min(vw, vh) * 0.12, dz.marca / (acostada ? dz.spanH : dz.spanW) * ancho * 2.4);
         return {centros: [[x0, y0], [x0 + ancho, y0], [x0 + ancho, y0 + alto], [x0, y0 + alto]],
                 lado: lado, acostada: acostada, marca: dz.marca / (acostada ? dz.spanH : dz.spanW) * ancho};
     }
 
     // Busca una marca negra dentro de cada visor (solo ahí: es rápido y el fondo no confunde).
-    Detector.prototype.buscarEnVisores = function (fuente, vw, vh, dz, girar) {
+    Detector.prototype.buscarEnVisores = function (fuente, vw, vh, dz, girar, tam) {
         var W = this.ancho, s = W / vw, H = Math.round(vh * s);
         if (this.lienzo.width !== W || this.lienzo.height !== H) { this.lienzo.width = W; this.lienzo.height = H; }
         this.ctx.drawImage(fuente, 0, 0, W, H);
@@ -270,7 +272,7 @@
         function suma(x0, y0, x1, y1) {
             return integ[y1 * W1 + x1] - integ[y0 * W1 + x1] - integ[y1 * W1 + x0] + integ[y0 * W1 + x0];
         }
-        var vis = visores(vw, vh, dz, girar), encontrados = [], puntos = [];
+        var vis = visores(vw, vh, dz, girar, tam), encontrados = [], puntos = [];
         vis.centros.forEach(function (c) {
             var cx = c[0] * s, cy = c[1] * s, R = vis.lado * s / 2, mejor = null;
             // Tamaños de marca posibles dentro del visor (la hoja un poco más cerca o más lejos).

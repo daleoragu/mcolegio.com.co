@@ -420,6 +420,11 @@ class InformesPorNota(InformesIcfes):
         pagina = self.c.get(f'/puntoexacto/{self.mat.id}/resultados/')
         self.assertContains(pagina, 'Por nota (escala de valoración)')
         self.assertContains(pagina, 'Estilo ICFES')
+        # Los dos resúmenes están en la página y se muestra el del tipo escogido
+        self.assertContains(pagina, 'data-estilo="nota"')
+        self.assertContains(pagina, 'data-estilo="icfes"')
+        self.assertContains(pagina, 'Desempeños según la escala de valoración')
+        self.assertContains(pagina, 'puntaje global promedio (0–500)')
 
     def test_zip_por_nota(self):
         import io

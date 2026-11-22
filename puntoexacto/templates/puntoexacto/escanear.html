@@ -28,6 +28,10 @@
                     min-width:42px; height:42px; padding:0 12px; font-size:.95rem; display:inline-flex;
                     align-items:center; justify-content:center; gap:6px; }
     .pe-cam-boton.activo { background:#f5c400; color:#000; }
+    .pe-cam-forma { position:absolute; left:50%; transform:translateX(-50%); top:calc(64px + env(safe-area-inset-top, 0px)); z-index:6;
+                    display:flex; gap:6px; }
+    .pe-cam-forma button { background:rgba(0,0,0,.5); color:#fff; border:0; border-radius:999px; padding:6px 12px; font-size:.85rem; font-weight:600; white-space:nowrap; }
+    .pe-cam-forma button:active { background:#f5c400; color:#000; }
     .pe-cam-boton small { font-size:.72rem; font-weight:700; }
     .pe-cuenta { background:rgba(0,0,0,.42); border-radius:999px; padding:6px 12px; font-size:.85rem; font-weight:600; }
     .pe-cuenta .ok { color:#7dff9b; } .pe-cuenta .rv { color:#ffd166; }
@@ -264,6 +268,11 @@
             <div class="pe-destello" id="pe-destello"></div>
             <div class="pe-leyendo" id="pe-leyendo"><span><i class="fas fa-spinner fa-spin me-2"></i>Leyendo la hoja…</span></div>
         </div>
+    </div>
+    <div class="pe-cam-forma" id="pe-cam-forma">
+        <button type="button" id="pe-forma" aria-label="Forma de la hoja"><i class="fas fa-crop-simple"></i> <span id="pe-forma-txt">Hoja completa</span></button>
+        <button type="button" id="pe-tam-menos" aria-label="Recuadros más pequeños (hoja más lejos)"><i class="fas fa-minus"></i></button>
+        <button type="button" id="pe-tam-mas" aria-label="Recuadros más grandes (hoja más cerca)"><i class="fas fa-plus"></i></button>
     </div>
     <div class="pe-cam-arriba">
         <button type="button" class="pe-cam-boton" id="pe-cerrar-camara" aria-label="Cerrar la cámara"><i class="fas fa-xmark"></i></button>
@@ -633,7 +642,28 @@
     try { usarVisores = localStorage.getItem('pe-visores') !== '0'; } catch (e) {}
     var girarVisores = false;
     try { girarVisores = localStorage.getItem('pe-girar') === '1'; } catch (e) {}
+    // Forma de la hoja para los visores (completa, media, cuarto u octavo de página) y tamaño de los recuadros:
+    // se recuerdan por examen en este celular.
+    var NOMBRES_FORMA = {1: 'Hoja completa', 2: 'Media hoja', 4: 'Cuarto de hoja', 8: 'Octavo de hoja'};
+    var claveForma = 'pe-forma-{{ examen.id }}', formaVisor = 0, tamVisor = 1;
+    try { var gf = JSON.parse(localStorage.getItem(claveForma) || 'null');
+          if (gf) { formaVisor = Math.min(DISENOS.length - 1, gf.f || 0); tamVisor = Math.max(0.55, Math.min(1.1, gf.t || 1)); } } catch (e) {}
+    function disenoVisor() { return DISENOS[formaVisor] || DISENOS[0]; }
+    function guardarForma() {
+        try { localStorage.setItem(claveForma, JSON.stringify({f: formaVisor, t: tamVisor})); } catch (e) {}
+        $('pe-forma-txt').textContent = NOMBRES_FORMA[disenoVisor().pp] || (disenoVisor().pp + ' por página');
+        ultimaVista = null; anterior = null; estables = 0;
+        if (flujo) dibujar(null);
+    }
+    $('pe-forma').addEventListener('click', function () {
+        formaVisor = (formaVisor + 1) % DISENOS.length; guardarForma();
+        estado('Recuadros para: ' + $('pe-forma-txt').textContent.toLowerCase() + '.', 'bien');
+    });
+    $('pe-tam-menos').addEventListener('click', function () { tamVisor = Math.max(0.55, +(tamVisor - 0.1).toFixed(2)); guardarForma(); });
+    $('pe-tam-mas').addEventListener('click', function () { tamVisor = Math.min(1.1, +(tamVisor + 0.1).toFixed(2)); guardarForma(); });
+    guardarForma();
     function pintarBotonVisores() {
+        $('pe-cam-forma').style.display = usarVisores ? '' : 'none';
         $('pe-visores').classList.toggle('activo', usarVisores);
         $('pe-girar').style.display = usarVisores ? '' : 'none';
         $('pe-girar').classList.toggle('activo', girarVisores);
@@ -811,7 +841,7 @@
         }
         // Los visores: esquinas en L, blancas; verdes cuando hay un cuadrado negro adentro.
         if (usarVisores && elVideo.videoWidth && !manual) {
-            var vis = ultimaVista && ultimaVista.visores ? ultimaVista.visores : PEScan.visores(elVideo.videoWidth, elVideo.videoHeight, DISENOS[0], girarVisores);
+            var vis = ultimaVista && ultimaVista.visores ? ultimaVista.visores : PEScan.visores(elVideo.videoWidth, elVideo.videoHeight, disenoVisor(), girarVisores, tamVisor);
             var lado = vis.lado, b = lado * 0.32, gv = Math.max(3, Math.max(vw, elVideo.videoHeight) / 260);
             vis.centros.forEach(function (c, i) {
                 var ok = ultimaVista && ultimaVista.encontrados && ultimaVista.encontrados[i];
@@ -849,7 +879,7 @@
     function cuadro() {
         if (!buscando) return;
         if (elVideo.readyState >= 2 && elVideo.videoWidth && !document.hidden) {
-            var r = usarVisores ? detector.buscarEnVisores(elVideo, elVideo.videoWidth, elVideo.videoHeight, DISENOS[0], girarVisores)
+            var r = usarVisores ? detector.buscarEnVisores(elVideo, elVideo.videoWidth, elVideo.videoHeight, disenoVisor(), girarVisores, tamVisor)
                                 : detector.buscar(elVideo, elVideo.videoWidth, elVideo.videoHeight);
             ultimaVista = usarVisores ? r : null;
             var quad = r.quad;
