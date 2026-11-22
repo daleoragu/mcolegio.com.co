@@ -382,3 +382,59 @@ class DocenteSinColegio(ColegioDePrueba):
         t = _tema(r)
         self.assertEqual(t['primario'], '#1e3a8a')
         self.assertIsNone(t['encabezado'])
+
+
+class InformesPorNota(InformesIcfes):
+    """El otro tipo de informe: por nota, con la escala de valoración del área (sin unir exámenes)."""
+
+    test_puntajes_niveles_y_percentil = test_unir_examenes = test_pdf_general_y_por_estudiante = None
+
+    def test_desempenos_con_la_escala_del_colegio(self):
+        from . import informes_nota as INFN
+        d = INFN.construir(self.mat)
+        por = {f['nombre'].split()[-1]: f for f in d['filas']}
+        self.assertEqual(por['Ana']['nota'], self.mat.nota_maxima)
+        self.assertEqual(por['Ana']['nivel']['nombre'], 'SUPERIOR')
+        self.assertEqual(por['Caro']['nivel']['nombre'], 'BAJO')
+        self.assertFalse(d['referencia'])                           # usa la escala del colegio, no la de referencia
+        r = d['total']['resumen']
+        self.assertEqual(r['n'], 3)
+        self.assertEqual(sum(x['n'] for x in r['distribucion']), 3)
+        self.assertEqual(r['aprobados'] + r['reprobados'], 3)
+        self.assertEqual(len(por['Caro']['falladas']), 4)
+        self.assertIn('sin marcar', [x['marcada'] for x in por['Caro']['falladas']])
+
+    def test_pdf_por_nota(self):
+        import io
+        from pypdf import PdfReader
+        r = self.c.get(f'/puntoexacto/{self.mat.id}/informe/?estilo=nota')
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        texto = ''.join(p.extract_text() for p in PdfReader(io.BytesIO(r.content)).pages)
+        self.assertIn('POR NOTA', texto)
+        self.assertIn('Prueba Beto', texto)
+        self.assertIn('SUPERIOR', texto)
+        r = self.c.get(f'/puntoexacto/{self.mat.id}/informe/estudiantes/?estilo=nota')
+        self.assertEqual(len(PdfReader(io.BytesIO(r.content)).pages), 3)      # una página por estudiante
+        clave = f'e{self.estudiantes[0].id}'
+        self.assertTrue(self.c.get(f'/puntoexacto/{self.mat.id}/informe/estudiante/{clave}/?estilo=nota').content.startswith(b'%PDF'))
+        pagina = self.c.get(f'/puntoexacto/{self.mat.id}/resultados/')
+        self.assertContains(pagina, 'Por nota (escala de valoración)')
+        self.assertContains(pagina, 'Estilo ICFES')
+
+    def test_zip_por_nota(self):
+        import io
+        import zipfile
+        ids = list(self.mat.hojas.values_list('id', flat=True))
+        r = self.c.post(f'/puntoexacto/{self.mat.id}/informes/descargar/',
+                        {'tipos': ['general', 'informes', 'cursos'], 'modo': 'separado', 'hojas': ids, 'estilo': 'nota'})
+        nombres = sorted(zipfile.ZipFile(io.BytesIO(r.content)).namelist())
+        self.assertIn('Informe por nota (total).pdf', nombres)
+        self.assertEqual(len([n for n in nombres if n.startswith('Informes por estudiante/')]), 3)
+
+    def test_sin_escala_usa_la_de_referencia(self):
+        from notas.models import EscalaValoracion
+        from . import informes_nota as INFN
+        EscalaValoracion.objects.filter(colegio=self.a).delete()
+        d = INFN.construir(self.mat)
+        self.assertTrue(d['referencia'])
+        self.assertEqual([n['nombre'] for n in d['niveles']], ['BAJO', 'BÁSICO', 'ALTO', 'SUPERIOR'])

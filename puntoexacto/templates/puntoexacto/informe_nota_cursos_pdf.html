@@ -1,0 +1,85 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe por nota · {{ d.titulo }}</title>
+{% include 'puntoexacto/_informe_estilos.html' %}
+<style>
+  .dist { display: flex; height: 22px; border-radius: 6px; overflow: hidden; margin: 6px 0 4px; border: 1px solid #e2e8f0; }
+  .dist span { display: block; height: 100%; color: #fff; font-size: 7.5pt; font-weight: bold; text-align: center; line-height: 22px; overflow: hidden; }
+  .niv { display: inline-block; border-radius: 99px; padding: 0 8px; font-size: 7.8pt; font-weight: bold; color: #fff; white-space: nowrap; }
+  .barra { background: #eef2f7; border-radius: 4px; height: 9px; width: 100%; }
+  .barra i { display: block; height: 9px; border-radius: 4px; }
+  .curso-cab { border-left: 5px solid {{ tema.primario }}; padding: 4px 10px; margin: 0 0 8px; }
+  .curso-cab b { font-size: 14pt; color: {{ tema.primario }}; }
+  .dos { display: flex; gap: 12px; } .dos > div { flex: 1; }
+  td.cnota { font-weight: bold; text-align: center; }
+</style></head><body>
+{% if colegio %}<div class="enc-colegio">{% include 'notas/fragmentos/encabezado_pdf.html' %}</div>{% elif tema.encabezado %}{% include 'materiales/_encabezado_docente.html' with encabezado=tema.encabezado rutas=tema.rutas %}{% endif %}
+<div class="cab"><div class="eti">Informe de resultados por nota{% if d.materia %} · {{ d.materia }}{% endif %}</div>
+  <h1>{{ d.titulo }}</h1>
+  <p>{{ institucion }} · {{ d.examen.fecha|date:"j M Y" }} · {{ d.n_preguntas }} preguntas · notas de {{ d.examen.nota_minima }} a {{ d.examen.nota_maxima }} · Generado el {{ hoy|date:"j \d\e F \d\e Y" }}</p></div>
+
+{% with r=d.total.resumen %}
+<div class="kpis">
+  <div class="kpi"><b>{{ r.n }}</b><span>estudiantes evaluados</span></div>
+  <div class="kpi"><b>{{ r.promedio }}</b><span>nota promedio{% if r.nivel_promedio %} · {{ r.nivel_promedio.nombre }}{% endif %}</span></div>
+  <div class="kpi"><b>{{ r.pct_aprobados }} %</b><span>aprobaron ({{ r.aprobados }} de {{ r.n }}){% if r.piso %} · desde {{ r.piso }}{% endif %}</span></div>
+  <div class="kpi"><b>{{ r.minimo }} – {{ r.maximo }}</b><span>nota más baja y más alta</span></div>
+  <div class="kpi"><b>{{ r.desviacion }}</b><span>desviación estándar</span></div>
+</div>
+
+<h2>Desempeños según la escala de valoración</h2>
+<div class="dist">{% for x in r.distribucion %}{% if x.n %}<span style="width:{{ x.pct }}%;background:{{ x.color }}">{% if x.pct >= 8 %}{{ x.pct }} %{% endif %}</span>{% endif %}{% endfor %}</div>
+<table><tr><th>Desempeño</th><th>Rango de nota</th><th class="num">Estudiantes</th><th class="num">%</th><th style="width:35%"></th></tr>
+{% for x in r.distribucion %}<tr><td><span class="niv" style="background:{{ x.color }}">{{ x.nombre }}</span></td><td>{{ x.rango }}</td><td class="num">{{ x.n }}</td><td class="num"><b>{{ x.pct }} %</b></td>
+  <td><div class="barra"><i style="width:{{ x.pct }}%;background:{{ x.color }}"></i></div></td></tr>{% endfor %}</table>
+<p class="nota">{% if d.referencia %}No hay escala de valoración configurada para esta área: se usa la escala nacional de referencia (Bajo, Básico, Alto, Superior) llevada a las notas del examen.{% else %}Escala de valoración del colegio para el área{% if d.materia %} ({{ d.materia }}){% endif %}{% if d.cursos|length > 1 %}; si un grado tiene una escala especial, cada curso se valora con la suya{% endif %}.{% endif %}</p>
+{% endwith %}
+
+{% if d.cursos|length > 1 %}
+<h2>Comparación por curso</h2>
+<table><tr><th>Curso</th><th class="num">Evaluados</th><th class="num">Promedio</th><th class="num">Aprobaron</th>{% for x in d.total.resumen.distribucion %}<th class="num">{{ x.nombre|title }}</th>{% endfor %}</tr>
+{% for c in d.cursos %}<tr><td><b>{{ c.curso }}</b></td><td class="num">{{ c.resumen.n }}</td><td class="num"><b>{{ c.resumen.promedio }}</b></td><td class="num">{{ c.resumen.pct_aprobados }} %</td>
+  {% for x in c.resumen.distribucion %}<td class="num">{{ x.n }}</td>{% endfor %}</tr>{% endfor %}</table>
+{% endif %}
+
+<div class="dos">
+  <div><h2>Preguntas con menos acierto</h2>
+    <table><tr><th class="num">Pregunta</th><th class="num">Clave</th><th class="num">Acierto</th></tr>
+    {% for q in d.total.dificiles %}<tr><td class="num">{{ q.numero }}</td><td class="num">{{ q.correcta }}</td><td class="num {% if q.pct < 40 %}mal{% elif q.pct >= 70 %}bien{% endif %}">{{ q.pct }} %</td></tr>{% endfor %}</table></div>
+  <div>{% if d.total.temas %}<h2>Temas evaluados</h2>
+    <table><tr><th>Qué evalúa</th><th class="num">Acierto</th></tr>
+    {% for t in d.total.temas %}<tr><td>{{ t.etiqueta }}</td><td class="num {% if t.pct < 40 %}mal{% elif t.pct >= 70 %}bien{% endif %}">{{ t.pct }} %</td></tr>{% endfor %}</table>
+    {% else %}<h2>Preguntas con más acierto</h2>
+    <table><tr><th class="num">Pregunta</th><th class="num">Acierto</th></tr>
+    {% for q in d.total.faciles %}<tr><td class="num">{{ q.numero }}</td><td class="num bien">{{ q.pct }} %</td></tr>{% endfor %}</table>{% endif %}</div>
+</div>
+
+{% for c in d.cursos %}
+{% if d.cursos|length > 1 %}
+<div class="salto"></div>
+<div class="curso-cab"><b>Curso {{ c.curso }}</b><div class="small">{{ d.titulo }}</div></div>
+{% with r=c.resumen %}
+<div class="kpis">
+  <div class="kpi"><b>{{ r.n }}</b><span>evaluados</span></div>
+  <div class="kpi"><b>{{ r.promedio }}</b><span>promedio{% if r.nivel_promedio %} · {{ r.nivel_promedio.nombre }}{% endif %}</span></div>
+  <div class="kpi"><b>{{ r.pct_aprobados }} %</b><span>aprobaron ({{ r.aprobados }})</span></div>
+  <div class="kpi"><b>{{ r.minimo }} – {{ r.maximo }}</b><span>más baja y más alta</span></div>
+</div>
+<div class="dist">{% for x in r.distribucion %}{% if x.n %}<span style="width:{{ x.pct }}%;background:{{ x.color }}">{% if x.pct >= 8 %}{{ x.nombre|title }} {{ x.pct }} %{% endif %}</span>{% endif %}{% endfor %}</div>
+{% endwith %}
+{% endif %}
+<h2>Estudiantes{% if d.cursos|length == 1 %} · Curso {{ c.curso }}{% endif %}</h2>
+<table><tr><th class="num">#</th><th>Estudiante</th><th class="num">Nota</th><th>Desempeño</th><th class="num">Bien</th><th class="num">Mal</th><th class="num">En blanco</th></tr>
+{% for f in c.filas %}<tr><td class="num">{{ forloop.counter }}</td><td>{{ f.nombre }}</td><td class="cnota" style="color:{{ f.nivel.color }}">{{ f.nota }}</td>
+  <td>{% if f.nivel %}<span class="niv" style="background:{{ f.nivel.color }}">{{ f.nivel.nombre }}</span>{% endif %}</td>
+  <td class="num">{{ f.buenas }}</td><td class="num">{{ f.malas }}</td><td class="num">{{ f.blancas }}</td></tr>{% endfor %}</table>
+{% if d.cursos|length > 1 %}
+<div class="dos">
+  <div><h2>Preguntas con menos acierto</h2>
+    <table><tr><th class="num">Pregunta</th><th class="num">Clave</th><th class="num">Acierto</th></tr>
+    {% for q in c.dificiles|slice:":6" %}<tr><td class="num">{{ q.numero }}</td><td class="num">{{ q.correcta }}</td><td class="num {% if q.pct < 40 %}mal{% elif q.pct >= 70 %}bien{% endif %}">{{ q.pct }} %</td></tr>{% endfor %}</table></div>
+  {% if c.temas %}<div><h2>Temas</h2>
+    <table><tr><th>Qué evalúa</th><th class="num">Acierto</th></tr>
+    {% for t in c.temas|slice:":8" %}<tr><td>{{ t.etiqueta }}</td><td class="num {% if t.pct < 40 %}mal{% elif t.pct >= 70 %}bien{% endif %}">{{ t.pct }} %</td></tr>{% endfor %}</table></div>{% endif %}
+</div>
+{% endif %}
+{% endfor %}
+</body></html>

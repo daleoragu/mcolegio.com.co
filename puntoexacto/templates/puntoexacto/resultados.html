@@ -12,9 +12,9 @@
     {% if not examen.cuenta_id %}<a href="{% url 'puntoexacto:bloques' examen_id=examen.id %}" class="btn btn-outline-secondary">Bloques</a>{% endif %}
     <a href="{% url 'puntoexacto:escanear' examen_id=examen.id %}" class="btn btn-outline-success">
         <i class="fas fa-camera me-1"></i> Cámara</a>
-    <a href="{% url 'puntoexacto:informe_general' examen_id=examen.id %}" target="_blank" class="btn btn-outline-primary">
+    <a data-inf="1" href="{% url 'puntoexacto:informe_general' examen_id=examen.id %}" target="_blank" class="btn btn-outline-primary">
         <i class="fas fa-file-pdf me-1"></i> Informe general (PDF)</a>
-    <a href="{% url 'puntoexacto:informes_estudiantes' examen_id=examen.id %}" target="_blank" class="btn btn-outline-primary">
+    <a data-inf="1" href="{% url 'puntoexacto:informes_estudiantes' examen_id=examen.id %}" target="_blank" class="btn btn-outline-primary">
         <i class="fas fa-file-pdf me-1"></i> Informes por estudiante (PDF)</a>
     <a href="{% url 'puntoexacto:hojas_calificadas' examen_id=examen.id %}" target="_blank" class="btn btn-outline-primary"
        title="La hoja de cada estudiante con lo bueno, lo malo y la nota, para devolvérsela">
@@ -26,6 +26,14 @@
     <a href="{% url 'puntoexacto:planilla' examen_id=examen.id %}" class="btn btn-primary crece">
         Pasar a la planilla</a>
     {% endif %}
+</div>
+<div class="pe-tarjeta d-flex flex-wrap align-items-center gap-2 py-2" id="pe-estilo-caja">
+    <b class="me-1"><i class="fas fa-file-lines me-1"></i>Tipo de informe:</b>
+    <input type="radio" class="btn-check" name="estilo" value="nota" id="pe-est-nota" form="pe-descarga" checked>
+    <label class="btn btn-sm btn-outline-primary" for="pe-est-nota"><i class="fas fa-scale-balanced me-1"></i>Por nota (escala de valoración)</label>
+    <input type="radio" class="btn-check" name="estilo" value="icfes" id="pe-est-icfes" form="pe-descarga">
+    <label class="btn btn-sm btn-outline-primary" for="pe-est-icfes"><i class="fas fa-chart-column me-1"></i>Estilo ICFES (puntajes y niveles)</label>
+    <span class="small text-muted" id="pe-est-ayuda">Cada estudiante con su nota y su desempeño (Superior, Alto, Básico, Bajo) según la escala del área; cada curso con su promedio y cuántos hay en cada desempeño.</span>
 </div>
 
 {% if resumen_bloques %}
@@ -177,9 +185,9 @@
     {% if grados|length > 1 or cursos|length > 1 %}
     <div class="mb-3" style="font-size:.9rem;">
         {% if grados|length > 1 %}<div class="mb-1"><strong>Informe general por grado:</strong>
-            {% for g in grados %}<a href="{% url 'puntoexacto:informe_general' examen_id=examen.id %}?grado={{ g|urlencode }}" target="_blank" class="btn btn-sm btn-outline-primary ms-1 mb-1"><i class="fas fa-file-pdf"></i> {{ g }}</a>{% endfor %}</div>{% endif %}
+            {% for g in grados %}<a data-inf="1" href="{% url 'puntoexacto:informe_general' examen_id=examen.id %}?grado={{ g|urlencode }}" target="_blank" class="btn btn-sm btn-outline-primary ms-1 mb-1"><i class="fas fa-file-pdf"></i> {{ g }}</a>{% endfor %}</div>{% endif %}
         {% if cursos|length > 1 %}<div><strong>Por curso:</strong>
-            {% for c in cursos %}<a href="{% url 'puntoexacto:informe_general' examen_id=examen.id %}?curso={{ c|urlencode }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1 mb-1">{{ c }}</a>{% endfor %}</div>{% endif %}
+            {% for c in cursos %}<a data-inf="1" href="{% url 'puntoexacto:informe_general' examen_id=examen.id %}?curso={{ c|urlencode }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1 mb-1">{{ c }}</a>{% endfor %}</div>{% endif %}
     </div>
     {% endif %}
     <form method="post" action="{% url 'puntoexacto:descargar_informes' examen_id=examen.id %}" id="pe-descarga">{% csrf_token %}
@@ -223,7 +231,7 @@
                 {% if controles %}<td class="pe-num">{% if h.control %}{{ h.control.aciertos }}/{{ h.control.total }}
                     {% if h.control.r %}<span class="pe-chip pe-mal">R</span>{% endif %}{% else %}—{% endif %}</td>{% endif %}
                 <td class="text-end">
-                    {% if h.clave_informe %}<a href="{% url 'puntoexacto:informe_estudiante' examen_id=examen.id clave=h.clave_informe %}" target="_blank"
+                    {% if h.clave_informe %}<a data-inf="1" href="{% url 'puntoexacto:informe_estudiante' examen_id=examen.id clave=h.clave_informe %}" target="_blank"
                        class="btn btn-sm btn-outline-primary" title="Informe del estudiante en PDF"><i class="fas fa-file-pdf"></i> Informe</a>{% endif %}
                     {% if h.clave_informe %}<a href="{% url 'puntoexacto:hoja_calificada' examen_id=examen.id hoja_id=h.id %}" target="_blank"
                        class="btn btn-sm btn-outline-primary" title="Su hoja calificada en PDF"><i class="fas fa-file-circle-check"></i> Hoja</a>{% endif %}
@@ -252,6 +260,20 @@
         setTimeout(function () { b.innerHTML = '<i class="fas fa-download me-1"></i> Descargar ZIP · <span id="pe-n-sel">0</span> estudiante<span id="pe-n-sel-s">s</span>'; contar(); }, 6000);
     });
     contar();
+    // Tipo de informe: todos los botones de informes y el ZIP siguen lo escogido (se recuerda en este equipo).
+    var AYUDA = {nota: 'Cada estudiante con su nota y su desempeño (Superior, Alto, Básico, Bajo) según la escala del área; cada curso con su promedio y cuántos hay en cada desempeño.',
+                 icfes: 'Puntaje de 0 a 100 por área, global de 0 a 500, percentiles y niveles como en Saber 11 (una aproximación). Es el que se usa al unir exámenes.'};
+    var enlaces = document.querySelectorAll('a[data-inf]');
+    enlaces.forEach(function (a) { a.dataset.base = a.getAttribute('href'); });
+    function aplicar() {
+        var est = document.querySelector('input[name=estilo]:checked').value;
+        enlaces.forEach(function (a) { var b = a.dataset.base; a.href = est === 'nota' ? b + (b.indexOf('?') >= 0 ? '&' : '?') + 'estilo=nota' : b; });
+        document.getElementById('pe-est-ayuda').textContent = AYUDA[est];
+        try { localStorage.setItem('pe-estilo-informe', est); } catch (e) {}
+    }
+    try { var g = localStorage.getItem('pe-estilo-informe'); if (g === 'icfes') document.getElementById('pe-est-icfes').checked = true; } catch (e) {}
+    document.querySelectorAll('input[name=estilo]').forEach(function (r) { r.addEventListener('change', aplicar); });
+    aplicar();
 })();
 </script>
 {% endblock %}
