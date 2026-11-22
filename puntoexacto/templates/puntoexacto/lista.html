@@ -16,18 +16,65 @@
     {% endif %}
     <form method="get" class="crece d-flex gap-2">
         {% if archivados %}<input type="hidden" name="archivados" value="1">{% endif %}
+        {% if sel_grado %}<input type="hidden" name="grado" value="{{ sel_grado }}">{% endif %}
+        {% if sel_curso %}<input type="hidden" name="curso" value="{{ sel_curso }}">{% endif %}
+        {% if sel_materia %}<input type="hidden" name="materia" value="{{ sel_materia }}">{% endif %}
         <input type="search" name="q" value="{{ busqueda }}" class="form-control"
                placeholder="Buscar por nombre" style="min-width:220px;">
         <button class="btn btn-outline-secondary">Buscar</button>
     </form>
 </div>
 
+{% if grados or materias or sin_curso %}
+<div class="pe-tarjeta pe-filtros">
+    <div class="pe-fila-filtro">
+        <span class="pe-fil-tit"><i class="fas fa-layer-group me-1"></i>Grado</span>
+        <a class="pe-fchip {% if not sel_grado %}on{% endif %}" href="?{% if archivados %}archivados=1&{% endif %}{% if busqueda %}q={{ busqueda|urlencode }}{% endif %}">Todos <b>{{ total }}</b></a>
+        {% for g, nombre, n in grados %}
+        <a class="pe-fchip {% if sel_grado == g %}on{% endif %}" href="?grado={{ g }}{% if archivados %}&archivados=1{% endif %}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}">{{ nombre }} <b>{{ n }}</b></a>
+        {% endfor %}
+        {% if sin_curso %}<a class="pe-fchip {% if sel_grado == 'sin' %}on{% endif %}" href="?grado=sin{% if archivados %}&archivados=1{% endif %}">Sin curso <b>{{ sin_curso }}</b></a>{% endif %}
+    </div>
+    {% if cursos|length > 1 %}
+    <div class="pe-fila-filtro">
+        <span class="pe-fil-tit"><i class="fas fa-users me-1"></i>Curso</span>
+        <a class="pe-fchip {% if not sel_curso %}on{% endif %}" href="?grado={{ sel_grado }}{% if archivados %}&archivados=1{% endif %}{% if sel_materia %}&materia={{ sel_materia|urlencode }}{% endif %}">Todos</a>
+        {% for k, nombre, n in cursos %}
+        <a class="pe-fchip {% if sel_curso == k %}on{% endif %}" href="?grado={{ sel_grado }}&curso={{ k }}{% if archivados %}&archivados=1{% endif %}{% if sel_materia %}&materia={{ sel_materia|urlencode }}{% endif %}">{{ nombre }} <b>{{ n }}</b></a>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% if materias|length > 1 or sel_materia %}
+    <div class="pe-fila-filtro">
+        <span class="pe-fil-tit"><i class="fas fa-book me-1"></i>Materia</span>
+        <a class="pe-fchip {% if not sel_materia %}on{% endif %}" href="?{% if sel_grado %}grado={{ sel_grado }}&{% endif %}{% if sel_curso %}curso={{ sel_curso }}&{% endif %}{% if archivados %}archivados=1{% endif %}">Todas</a>
+        {% for m, n in materias %}
+        <a class="pe-fchip {% if sel_materia == m %}on{% endif %}" href="?{% if sel_grado %}grado={{ sel_grado }}&{% endif %}{% if sel_curso %}curso={{ sel_curso }}&{% endif %}materia={{ m|urlencode }}{% if archivados %}&archivados=1{% endif %}">{{ m }} <b>{{ n }}</b></a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+<style>
+    .pe-filtros { padding:12px 14px; }
+    .pe-fila-filtro { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:6px; }
+    .pe-fila-filtro:last-child { margin-bottom:0; }
+    .pe-fil-tit { font-weight:700; font-size:.85rem; color:#495057; min-width:78px; }
+    .pe-fchip { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; border:1px solid #dee2e6;
+                background:#fff; color:#343a40; text-decoration:none; font-size:.88rem; }
+    .pe-fchip b { font-size:.75rem; color:#868e96; font-weight:700; }
+    .pe-fchip:hover { border-color:var(--bs-primary, #0d6efd); }
+    .pe-fchip.on { background:var(--bs-primary, #0d6efd); border-color:var(--bs-primary, #0d6efd); color:#fff; }
+    .pe-fchip.on b { color:rgba(255,255,255,.85); }
+    @media (max-width:600px) { .pe-fila-filtro { flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; } .pe-fchip { white-space:nowrap; } }
+</style>
+{% endif %}
+
 <div class="pe-tarjeta">
     {% if examenes %}
     <div class="table-responsive">
         <table class="pe-tabla">
             <thead><tr>
-                <th>Examen</th><th>Asignatura y curso</th><th>Periodo</th>
+                <th>Examen</th><th>Materia y cursos</th><th>Periodo</th>
                 <th class="pe-num">Fecha</th><th class="pe-num">Preguntas</th>
                 <th class="pe-num">Hojas</th><th></th>
             </tr></thead>
@@ -36,11 +83,11 @@
                 <tr>
                     <td><a href="{% url 'puntoexacto:resultados' examen_id=e.id %}"><strong>{{ e.titulo }}</strong></a>
                         {% if e.compartido_por_nombre %}<div class="small pe-gris"><i class="fas fa-share-nodes me-1"></i>Compartido por {{ e.compartido_por_nombre }}</div>{% endif %}</td>
-                    <td>{% if e.asignacion %}{{ e.asignacion.materia.nombre }} · {{ e.asignacion.curso.nombre }}{% elif e.compartido_por_nombre %}<a href="{% url 'puntoexacto:editar' examen_id=e.id %}" class="pe-chip pe-media">Escoja su asignatura</a>{% else %}<span class="pe-gris">Sin asignar</span>{% endif %}</td>
+                    <td>{% if e.lista_materias or e.lista_cursos %}{% if e.lista_materias %}<span class="fw-semibold">{{ e.lista_materias|join:", " }}</span>{% endif %}{% for k, c in e.lista_cursos.items %}{% if forloop.first %}<div class="small pe-gris">{% endif %}{{ c.0 }}{% if not forloop.last %}, {% else %}</div>{% endif %}{% endfor %}{% elif e.compartido_por_nombre %}<a href="{% url 'puntoexacto:editar' examen_id=e.id %}" class="pe-chip pe-media">Escoja su asignatura</a>{% else %}<span class="pe-gris">Sin asignar</span>{% endif %}</td>
                     <td>{{ e.periodo|default:"—" }}</td>
-                    <td class="pe-num">{{ e.fecha|date:"Y-m-d" }}</td>
+                    <td class="pe-num text-nowrap">{{ e.fecha|date:"j M Y" }}</td>
                     <td class="pe-num">{{ e.numero_preguntas }}</td>
-                    <td class="pe-num">{{ e.hojas.count }}</td>
+                    <td class="pe-num">{{ e.n_hojas }}</td>
                     <td class="text-end">
                         <a href="{% url 'puntoexacto:clave' examen_id=e.id %}" class="btn btn-sm btn-outline-primary">Clave</a>
                         <a href="{% url 'puntoexacto:cuadernillo' examen_id=e.id %}" class="btn btn-sm btn-outline-primary" title="Escribir el examen y sacarlo en Word o PDF"><i class="fas fa-pen-nib"></i></a>
@@ -58,7 +105,7 @@
     </div>
     {% else %}
         <p class="pe-vacio">
-            {% if busqueda %}Ningún examen coincide con «{{ busqueda }}».
+            {% if filtrando %}Ningún examen con esos filtros{% if busqueda %} y el nombre «{{ busqueda }}»{% endif %}. <a href="?{% if archivados %}archivados=1{% endif %}">Quitar filtros</a>
             {% elif archivados %}No hay exámenes archivados.
             {% else %}Todavía no hay exámenes. Cree el primero con el botón de arriba.{% endif %}
         </p>

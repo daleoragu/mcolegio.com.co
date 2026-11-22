@@ -125,3 +125,38 @@ class HojaEnBlanco(VariasCorrectas):
         mig.blancas_a_no_presento(apps, None)
         h.refresh_from_db()
         self.assertEqual((h.estado, h.nota), ('ausente', None))
+
+
+class BuscadorDeExamenes(ColegioDePrueba):
+    """La lista de exámenes se filtra por grado, curso y materia, del más reciente al más antiguo."""
+
+    def test_filtros(self):
+        from notas.models import AsignacionDocente, Curso, Materia
+        c = self.cliente(self.rectora)
+        c701 = Curso.objects.create(colegio=self.a, nombre='701', grado=7, subgrupo='1')
+        c702 = Curso.objects.create(colegio=self.a, nombre='702', grado=7, subgrupo='2')
+        bio = Materia.objects.create(colegio=self.a, nombre='Biología')
+        asig7 = AsignacionDocente.objects.create(colegio=self.a, docente=self.docente, materia=bio, curso=c701)
+        e6 = Examen.objects.create(colegio=self.a, titulo='Fracciones', fecha='2026-10-01', asignacion=self.asig)
+        e6.cursos.set([self.curso])
+        e7 = Examen.objects.create(colegio=self.a, titulo='Célula', fecha='2026-11-01', asignacion=asig7)
+        e7.cursos.set([c701, c702])
+        Examen.objects.create(colegio=self.a, titulo='Sin curso', fecha='2026-09-01')
+        r = c.get('/puntoexacto/')
+        self.assertEqual([e.titulo for e in r.context['examenes']], ['Célula', 'Fracciones', 'Sin curso'])   # más reciente primero
+        self.assertEqual([(g, n) for g, _, n in r.context['grados']], [('6', 1), ('7', 1)])
+        self.assertContains(r, '?grado=7')
+        r = c.get('/puntoexacto/?grado=7')
+        self.assertEqual([e.titulo for e in r.context['examenes']], ['Célula'])
+        self.assertEqual([n for _, n, _ in r.context['cursos']], ['701', '702'])
+        r = c.get(f'/puntoexacto/?grado=7&curso=c{c702.pk}')
+        self.assertEqual([e.titulo for e in r.context['examenes']], ['Célula'])
+        r = c.get('/puntoexacto/?materia=Biología')
+        self.assertEqual([e.titulo for e in r.context['examenes']], ['Célula'])
+        r = c.get('/puntoexacto/?grado=sin')
+        self.assertEqual([e.titulo for e in r.context['examenes']], ['Sin curso'])
+        self.assertContains(c.get('/puntoexacto/?grado=6&materia=Biología'), 'Quitar filtros')
+
+    def test_grado_del_nombre_del_grupo(self):
+        from .views import _grado_de_nombre
+        self.assertEqual([_grado_de_nombre(x) for x in ('601', '1102', '7-01', 'Grado 9', 'Sexto')], [6, 11, 7, 9, None])

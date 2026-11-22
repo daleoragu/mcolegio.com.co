@@ -122,17 +122,92 @@ def _examen_o_404(request, examen_id):
 @login_required
 @personal_requerido
 def lista(request):
+    """Los exámenes, filtrados por grado, curso y materia (y por nombre), del más reciente al más antiguo.
+
+    Un examen es de los cursos donde se aplica (y del de su asignatura); en el plan individual, de su grupo. Sus
+    materias son la de la asignatura y las de sus bloques (los simulacros por áreas tienen varias)."""
     mostrar_archivados = request.GET.get('archivados') == '1'
     busqueda = (request.GET.get('q') or '').strip()
+    sel_grado = (request.GET.get('grado') or '').strip()
+    sel_curso = (request.GET.get('curso') or '').strip()
+    sel_materia = (request.GET.get('materia') or '').strip()
 
     examenes = _examenes_visibles(request).filter(archivado=mostrar_archivados)
     if busqueda:
         examenes = examenes.filter(titulo__icontains=busqueda)
-    examenes = examenes.select_related('asignacion__materia', 'asignacion__curso', 'periodo')
+    from django.db.models import Count
+    examenes = list(examenes.annotate(n_hojas=Count('hojas', distinct=True))
+                    .select_related('asignacion__materia', 'asignacion__curso', 'periodo', 'grupo')
+                    .prefetch_related('cursos', 'bloques__materia').order_by('-fecha', '-creado'))
+
+    for e in examenes:
+        cursos = {}
+        for c in list(e.cursos.all()) + ([e.asignacion.curso] if e.asignacion_id and e.asignacion.curso_id else []):
+            cursos[f'c{c.pk}'] = (c.nombre, c.grado if c.grado is not None else _grado_de_nombre(c.nombre))
+        if e.grupo_id:
+            cursos[f'g{e.grupo_id}'] = (e.grupo.nombre, _grado_de_nombre(e.grupo.nombre))
+        e.lista_cursos = cursos
+        materias = {e.asignacion.materia.nombre} if e.asignacion_id and e.asignacion.materia_id else set()
+        materias |= {b.materia.nombre for b in e.bloques.all() if b.materia_id}
+        e.lista_materias = sorted(materias)
+        e.grados = sorted({g for _, g in cursos.values() if g is not None})
+
+    def cuenta_por(lista, clave):
+        conteo = {}
+        for e in lista:
+            for k in clave(e):
+                conteo[k] = conteo.get(k, 0) + 1
+        return conteo
+
+    # Grados (con cuántos exámenes tiene cada uno)
+    por_grado = cuenta_por(examenes, lambda e: e.grados)
+    grados = [(str(g), _nombre_grado(g), n) for g, n in sorted(por_grado.items())]
+    sin_curso = sum(1 for e in examenes if not e.lista_cursos)
+    filtrados = examenes
+    if sel_grado == 'sin':
+        filtrados = [e for e in filtrados if not e.lista_cursos]
+    elif sel_grado.lstrip('-').isdigit():
+        filtrados = [e for e in filtrados if int(sel_grado) in e.grados]
+    # Cursos del grado escogido
+    cursos = []
+    if sel_grado and sel_grado != 'sin':
+        nombres = {}
+        for e in filtrados:
+            for k, (nombre, g) in e.lista_cursos.items():
+                if g is not None and str(g) == sel_grado:
+                    nombres.setdefault(k, [nombre, 0])[1] += 1
+        cursos = sorted(((k, n, c) for k, (n, c) in nombres.items()), key=lambda x: x[1])
+        if sel_curso:
+            filtrados = [e for e in filtrados if sel_curso in e.lista_cursos]
+    # Materias de lo que queda
+    por_materia = cuenta_por(filtrados, lambda e: e.lista_materias)
+    materias = sorted(por_materia.items())
+    if sel_materia:
+        filtrados = [e for e in filtrados if sel_materia in e.lista_materias]
 
     return render(request, 'puntoexacto/lista.html', {
-        'examenes': examenes, 'archivados': mostrar_archivados, 'busqueda': busqueda,
+        'examenes': filtrados, 'total': len(examenes), 'archivados': mostrar_archivados, 'busqueda': busqueda,
+        'grados': grados, 'sin_curso': sin_curso, 'cursos': cursos, 'materias': materias,
+        'sel_grado': sel_grado, 'sel_curso': sel_curso, 'sel_materia': sel_materia,
+        'filtrando': bool(sel_grado or sel_materia or busqueda),
     })
+
+
+def _grado_de_nombre(nombre):
+    """«601» → 6, «1102» → 11, «7-01» → 7, «Grado 9» → 9; None si no se reconoce."""
+    import re as _re
+    m = _re.search(r'\d+', nombre or '')
+    if not m:
+        return None
+    dig = m.group(0)
+    if len(dig) >= 3:
+        dig = dig[:-2]
+    g = int(dig)
+    return g if 0 <= g <= 13 else None
+
+
+def _nombre_grado(g):
+    return {0: 'Transición', -1: 'Jardín', -2: 'Prejardín'}.get(g, f'{g}.º')
 
 
 @login_required
