@@ -58,7 +58,10 @@
         <label style="font-weight:400;">
             <input type="checkbox" name="seguir" checked> Seguir con la siguiente hoja
         </label>
-        <label style="font-weight:400; margin-left:auto;">
+        <label style="font-weight:400; margin-left:auto;" title="Sin esto, una hoja sin nada marcado queda como «No presentó»">
+            <input type="checkbox" name="en_blanco" {% if hoja.calificar_en_blanco %}checked{% endif %}> Calificar aunque esté en blanco
+        </label>
+        <label style="font-weight:400;">
             <input type="checkbox" name="ausente"> No presentó
         </label>
     </div>

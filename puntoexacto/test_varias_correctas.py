@@ -68,3 +68,60 @@ class VariasCorrectas(ColegioDePrueba):
             datos.update({f'correcta_{n}': letra, f'opciones_{n}': '4', f'puntos_{n}': '1'})
         self.c.post(f'/puntoexacto/{self.ex.id}/clave/', datos)
         self.assertEqual(self.ex.preguntas.get(numero=1).letras_correctas(), ['A'])
+
+
+class HojaEnBlanco(VariasCorrectas):
+    """Una hoja sin nada marcado es «No presentó»: no recibe la nota más baja ni mueve el promedio."""
+
+    test_la_clave_guarda_la_otra_correcta = test_cualquiera_de_las_dos_vale = None
+    test_marcar_las_dos_correctas_vale_y_una_mala_no = test_letra_que_no_existe_se_descarta = None
+    test_quitar_la_otra_correcta = None
+
+    def guardar(self, hoja, respuestas, **extra):
+        import json
+        return self.c.post(f'/puntoexacto/{self.ex.id}/escanear/guardar/', json.dumps(
+            {'hoja_id': hoja.id, 'respuestas': respuestas, **extra}), content_type='application/json').json()
+
+    def test_en_blanco_queda_no_presento(self):
+        from . import analisis
+        buena = Hoja.objects.create(examen=self.ex, identificador='PE-B1', nombre_libre='Ana')
+        blanca = Hoja.objects.create(examen=self.ex, identificador='PE-B2', nombre_libre='Beto')
+        self.guardar(buena, {'1': 'A', '2': 'B', '3': 'C', '4': 'D'})
+        d = self.guardar(blanca, {'1': '', '2': '', '3': '', '4': ''})
+        self.assertTrue(d['ok']); self.assertTrue(d['ausente'])
+        blanca.refresh_from_db()
+        self.assertEqual((blanca.estado, blanca.nota), ('ausente', None))
+        res = analisis.analizar(self.ex)['resumen']
+        self.assertEqual(res['calificadas'], 1)                 # el promedio es solo el de Ana
+        self.assertEqual(str(res['promedio']), str(self.ex.nota_maxima))
+
+    def test_calificar_aunque_este_en_blanco(self):
+        blanca = Hoja.objects.create(examen=self.ex, identificador='PE-B3', nombre_libre='Caro')
+        d = self.guardar(blanca, {'1': '', '2': ''}, en_blanco=True)
+        self.assertFalse(d.get('ausente'))
+        blanca.refresh_from_db()
+        self.assertEqual(blanca.estado, 'calificada')
+        self.assertEqual(blanca.nota, self.ex.nota_nada_marcado)
+
+    def test_cambiar_la_clave_no_califica_las_no_escaneadas(self):
+        pendiente = Hoja.objects.create(examen=self.ex, identificador='PE-B4', nombre_libre='Dani')
+        from .calificacion import calificar_examen
+        calificar_examen(self.ex)
+        pendiente.refresh_from_db()
+        self.assertEqual((pendiente.estado, pendiente.nota), ('pendiente', None))
+
+    def test_digitar_en_blanco(self):
+        h = Hoja.objects.create(examen=self.ex, identificador='PE-B5', nombre_libre='Eva')
+        self.c.post(f'/puntoexacto/{self.ex.id}/hoja/{h.id}/digitar/', {'p_1': '', 'p_2': ''})
+        h.refresh_from_db(); self.assertEqual(h.estado, 'ausente')
+        self.c.post(f'/puntoexacto/{self.ex.id}/hoja/{h.id}/digitar/', {'p_1': '', 'en_blanco': 'on'})
+        h.refresh_from_db(); self.assertEqual((h.estado, h.nota), ('calificada', self.ex.nota_nada_marcado))
+
+    def test_migracion_arregla_las_que_ya_tenian_nota(self):
+        import importlib
+        from django.apps import apps
+        mig = importlib.import_module('puntoexacto.migrations.0014_hoja_en_blanco_no_presento')
+        h = Hoja.objects.create(examen=self.ex, identificador='PE-B6', nombre_libre='Fer', estado='calificada', nota=1)
+        mig.blancas_a_no_presento(apps, None)
+        h.refresh_from_db()
+        self.assertEqual((h.estado, h.nota), ('ausente', None))

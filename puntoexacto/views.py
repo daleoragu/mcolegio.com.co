@@ -723,11 +723,16 @@ def digitar(request, examen_id, hoja_id):
             lectura = {str(p.numero): request.POST.get(f'p_{p.numero}') or ''
                        for p in preguntas}
             formas_mod.guardar_lectura(hoja, lectura, preguntas)
+            hoja.calificar_en_blanco = request.POST.get('en_blanco') == 'on'
             if hoja.estado == 'ausente':
                 hoja.estado = 'pendiente'
-                hoja.save(update_fields=['estado'])
-            calif.calificar_hoja(hoja)
-        messages.success(request, f'Respuestas de {hoja.nombre} guardadas.')
+            hoja.save(update_fields=['estado', 'calificar_en_blanco'])
+            r = calif.calificar_hoja(hoja)
+        if r.get('ausente'):
+            messages.info(request, f'{hoja.nombre}: la hoja no tiene nada marcado y quedó como «No presentó». '
+                                   'Si sí la presentó en blanco, marque «Calificar aunque esté en blanco».')
+        else:
+            messages.success(request, f'Respuestas de {hoja.nombre} guardadas.')
         siguiente = examen.hojas.filter(estado='pendiente').exclude(id=hoja.id).first()
         if siguiente and request.POST.get('seguir') == 'on':
             return redirect('puntoexacto:digitar', examen_id=examen.id, hoja_id=siguiente.id)
@@ -1726,9 +1731,15 @@ def _nota_sin_guardar(examen, respuestas, forma, calificar=True):
     }
 
 
-def _guardar_hoja(examen, hoja, respuestas, forma):
-    """Guarda lo que se leyó (ya confirmado) y califica la hoja. Devuelve lo que ve el docente."""
+def _guardar_hoja(examen, hoja, respuestas, forma, en_blanco=None):
+    """Guarda lo que se leyó (ya confirmado) y califica la hoja. Devuelve lo que ve el docente.
+
+    en_blanco: True si el docente pidió calificar la hoja aunque no tenga nada marcado; si no, una hoja en blanco
+    queda como «No presentó»."""
     forma = (forma or '').strip().upper()[:1]
+    if en_blanco is not None:
+        hoja.calificar_en_blanco = bool(en_blanco)
+        hoja.save(update_fields=['calificar_en_blanco'])
     if forma and forma in formas_mod.letras_del_examen(examen):
         hoja.forma = forma
     elif not examen.formas.filter(letra=hoja.forma).exists():
@@ -1746,6 +1757,10 @@ def _guardar_hoja(examen, hoja, respuestas, forma):
         hoja.save(update_fields=['estado'])
         r = calif.calificar_hoja(hoja)
     hoja.refresh_from_db()
+    if r.get('ausente'):
+        return {'ok': True, 'ausente': True, 'nota': 'No presentó', 'forma': hoja.forma, 'recortada': False,
+                'nombre': hoja.nombre, 'hoja_id': hoja.id, 'curso': _curso_y_sede(hoja), 'buenas': 0, 'malas': 0,
+                'blancas': r['blancas']}
     return {'ok': True, 'nota': str(hoja.nota), 'forma': hoja.forma,
             'recortada': hoja.nota_recortada, 'nombre': hoja.nombre, 'hoja_id': hoja.id,
             'curso': _curso_y_sede(hoja),
@@ -1790,7 +1805,8 @@ def guardar_lectura(request, examen_id):
     if not isinstance(respuestas, dict):
         respuestas = {}
 
-    return JsonResponse(_guardar_hoja(examen, hoja, respuestas, datos.get('forma')))
+    return JsonResponse(_guardar_hoja(examen, hoja, respuestas, datos.get('forma'),
+                                      en_blanco=bool(datos.get('en_blanco')) if 'en_blanco' in datos else None))
 
 
 # ---------------------------------------------------------------------------
