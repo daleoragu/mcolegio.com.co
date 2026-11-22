@@ -94,3 +94,24 @@ MEJORAS PENDIENTES (ideas acordadas para hacer más adelante)
    · Para las apps nativas: agregar la plataforma Android en Meta y en Google (nombre del paquete y huella
      de la firma de la app).
    Falta: guía paso a paso para crear cada credencial.
+
+
+6. Para esta semana (pedidos del 22/11/2026)
+   ------------------------------------------
+   6.1 Generador de horario
+       · Turnos de portería (entrada y/o salida) que cuenten dentro del tiempo de permanencia del docente.
+       · Que abra en una pestaña dentro del software (no en una ventana aparte), conservando la opción de abrir
+         otras ventanas como ahora.
+       · La animación de construcción no se ve y parece congelado: que el cálculo no bloquee la pantalla y se vea
+         el avance.
+       · Sugerencias para conversar: rotación justa de la portería entre docentes (contador por semana), excluir a
+         quien tenga la primera o la última hora ocupada en otra sede, ver el horario parcial mientras se arma, y
+         botón «Detener y quedarme con lo que lleva».
+   6.2 Policías y ladrones (el de los vehículos): reestructurarlo, porque hoy todos los retos son iguales.
+       Ideas: zonas como túneles donde no se pueden poner obstáculos para cerrarle el paso al ladrón, y obstáculos
+       de varias formas. Definir el diseño antes de construir.
+   6.3 Juego nuevo de tablero «Policías y ladrón» (4 contra 1), el clásico que se jugaba en el tablero de ajedrez
+       (se conoce también como «lobo y ovejas»): 4 policías que solo avanzan hacia adelante en diagonal, una
+       casilla; el ladrón se mueve en diagonal en todas las direcciones, una casilla a la vez. El ladrón gana si
+       llega al otro lado; los policías, si lo dejan sin movimientos. Retos de policía (encerrar) y retos de
+       ladrón (fugarse), desde varias posiciones y en varios tableros, con niveles verificados.
