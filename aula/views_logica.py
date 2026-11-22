@@ -37,7 +37,11 @@ JUEGOS = [
     ('conejos', 'Conejos saltarines', 'Los conejos saltan sobre hongos y zorros hasta meterse en los huecos.', 'conejos'),
     ('perrito', 'Perrito a su casita', 'Deslice las fichas del camino hasta que cada perrito llegue a su casita.', 'perrito'),
     ('caperucita', 'Caperucita', 'Ponga las piezas de camino para llevar a Caperucita donde la abuela, esquivando al lobo.', 'caperucita'),
-    ('ladron', 'Atrapa al ladrón', 'Encierre el carro del ladrón con los edificios antes de que escape.', 'ladron'),
+    ('ladron', 'Atrapa al ladrón', 'Ponga todas las piezas de calle con sus patrullas para cerrarle al ladrón todas las salidas del barrio.', 'ladron'),
+    ('policias', 'Policías y ladrón', 'Por turnos en mapas de caminos o en el tablero de ajedrez: acorrale al ladrón o escápese con él.', 'policias'),
+    ('policias_fuga', 'Policías y ladrón · mapas (ladrón)', 'Usted es el ladrón: llegue a una salida sin quedar acorralado.', 'policias'),
+    ('policias_tablero', 'Policías y ladrón · tablero (policía)', 'El clásico del tablero: 4 policías solo hacia adelante contra un ladrón en diagonal.', 'policias'),
+    ('policias_tablero_fuga', 'Policías y ladrón · tablero (ladrón)', 'Usted es el ladrón en el tablero: llegue a la fila de arriba.', 'policias'),
     ('fijas', 'Picas y fijas con figuras', 'Adivine el orden secreto: solo sabrá cuántas están exactas y cuántas en otro sitio. Solo o entre dos.', 'fijas'),
     # Familia Sudoku: una tarjeta con 17 variantes (cada una con sus niveles verificados de solución única)
     ('sudoku', 'Sudoku', 'Clásico y 16 variantes: mini, figuras, en X, ventanas, irregular, par e impar, flechas, termómetro, asesino…', 'sudoku'),
@@ -60,7 +64,9 @@ JUEGOS = [
 ]
 DATOS = {j[0]: j for j in JUEGOS}
 # Juegos con varios modos: en el menú sale una sola tarjeta y en el juego se cambia de modo (cada modo guarda su avance)
-MODOS = {'selva': [('selva', 'Clásico'), ('selva_fijo', 'Jeep grande · lodo fijo'), ('selva_movil', 'Jeep grande · lodo móvil')],
+MODOS = {'policias': [('policias', 'Mapas · policía'), ('policias_fuga', 'Mapas · ladrón'),
+                      ('policias_tablero', 'Tablero · policía'), ('policias_tablero_fuga', 'Tablero · ladrón')],
+         'selva': [('selva', 'Clásico'), ('selva_fijo', 'Jeep grande · lodo fijo'), ('selva_movil', 'Jeep grande · lodo móvil')],
          'sudoku': [('sudoku', 'Clásico'), ('sudoku_mini', 'Mini'), ('sudoku_figuras', 'Figuras'), ('sudoku_x', 'En X'), ('sudoku_hiper', 'Ventanas'),
                     ('sudoku_irregular', 'Irregular'), ('sudoku_parimpar', 'Par e impar'), ('sudoku_consecutivo', 'Consecutivo'),
                     ('sudoku_mayor', 'Mayor que'), ('sudoku_kropki', 'Puntos'), ('sudoku_xv', 'Sumas'), ('sudoku_termo', 'Termómetro'),

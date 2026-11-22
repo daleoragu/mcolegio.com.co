@@ -49,7 +49,7 @@ JUEGOS = [
     ('ranas', 'Ranas saltarinas', 'logica'), ('cerditos', 'Los tres cerditos', 'logica'), ('kiriku', 'Deslizables de colores', 'logica'),
     ('laberinto', 'Laberinto de colores', 'logica'), ('fijas', 'Picas y fijas con figuras', 'logica'),
     ('sokoban', 'Empuja cajas (tipo Sokoban)', 'logica'), ('conejos', 'Conejos saltarines', 'logica'), ('perrito', 'Perrito a su casita', 'logica'),
-    ('caperucita', 'Caperucita (piezas de camino)', 'logica'), ('ladron', 'Atrapa al ladrón', 'logica'), ('bloque', 'Bloque rodante (tipo Bloxorz)', 'logica'),
+    ('caperucita', 'Caperucita (piezas de camino)', 'logica'), ('ladron', 'Atrapa al ladrón', 'logica'), ('policias', 'Policías y ladrón (mapas)', 'logica'), ('policias_tablero', 'Policías y ladrón (tablero)', 'logica'), ('bloque', 'Bloque rodante (tipo Bloxorz)', 'logica'),
     ('tiro', 'Tiro al vuelo (aves con la respuesta)', 'arcade'), ('pacman', 'Laberinto comelón (galleta con el resultado)', 'arcade'),
     ('speedrun', 'Cálculo veloz (contrarreloj)', 'arcade'),
     ('geoplano', 'Geoplano (bandas elásticas)', 'montessori'), ('regletas', 'Regletas en la balanza (Cuisenaire)', 'montessori'),
@@ -1126,7 +1126,7 @@ def jugar(request, eid):
         'dificultad': {j[0]: dificultad(c, j[0]) for j in JUEGOS},
         'propios': {}, 'motor': {},
         'ritmo': {j[0]: JuegoAula.RITMO.get((c['por_juego'].get(j[0]) or {}).get('velocidad', 'normal'), 1) for j in juegos_del_evento(ev)},
-        'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'selva', 'selva_fijo', 'selva_movil', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito')},
+        'niveles': {j: niveles(j) for j in ('tangram', 'trancon', 'safari', 'selva', 'selva_fijo', 'selva_movil', 'bango', 'kadogemo', 'nonograma', 'ranas', 'cerditos', 'kiriku', 'laberinto', 'sokoban', 'bloque', 'conejos', 'perrito', 'ladron', 'policias', 'policias_tablero')},
         'usuario': request.user.pk or (p.token[:8] if p else 'anon'),
         'vigilancia': dict(c['vigilancia'], graba=graba(c['vigilancia']), texto=texto_supervision(c['vigilancia'])) if c['vigilancia']['activa'] else None,
         'arcade_preguntas': _preguntas_arcade(ev, c, grado, grupo) if c.get('arcade', 'preguntas') != 'operaciones' else None,
@@ -1145,7 +1145,7 @@ def jugar(request, eid):
             datos['motor'][jid] = t
     motores = sorted(set(datos['motor'].values()))
     scripts = ['tangram', 'trancon', 'cerditos', 'ranas', 'bango', 'kadogemo', 'kiriku', 'laberinto_colores', 'hanoi', 'fila',
-               'nonograma', 'geoplano', 'regletas', 'speedrun', 'fijas', 'sokoban', 'bloque', 'cubo', 'conejos', 'perrito', 'caperucita', 'ladron']
+               'nonograma', 'geoplano', 'regletas', 'speedrun', 'fijas', 'sokoban', 'bloque', 'cubo', 'conejos', 'perrito', 'caperucita', 'ladron', 'policias']
     return render(request, 'aula/evento_jugar.html', {'ev': ev, 'datos': datos, 'grupos': grupos(c), 'organiza': organiza, 'scripts': scripts, 'motores': motores,
                                                       'categorias': CATEGORIAS, 'base': _base(request), 'hide_cuenta': not request.user.is_authenticated})
 
