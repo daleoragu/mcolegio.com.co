@@ -16,7 +16,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_POST
 
-VERSION_SW = '2'
+VERSION_SW = '3'
 TAMANOS = (192, 512)
 
 
@@ -194,18 +194,30 @@ def icono(request, tam):
 
 
 SERVICE_WORKER = """// mcolegio · service worker v%(version)s
-// Solo guarda la página «sin conexión» y los archivos estáticos (estilos, iconos).
-// Las páginas con datos (notas, boletines…) siempre se piden al servidor: nunca
-// quedan guardadas en el celular.
+// Guarda la página «sin conexión», los archivos estáticos (estilos, iconos, librerías)
+// y SOLO las páginas de trabajo del docente que deben abrir sin internet (la pizarra y el
+// editor de materiales): siempre se piden primero al servidor y la copia solo se usa sin
+// conexión. Esa copia se borra al cerrar sesión. Las demás páginas con datos nunca se guardan.
 const CACHE = 'mcolegio-v%(version)s';
+const PAGINAS = 'mcolegio-paginas';
+const LIBRERIAS = 'mcolegio-librerias';
 const SIN_CONEXION = '/sin-conexion/';
+const SIN_RED = [
+  /^\\/salon_digital\\/pizarra\\/tablero\\/(\\d+\\/)?$/,      // la pizarra: lista de tableros y cada tablero
+  /^\\/aula\\/\\d+\\/tablero\\/\\d+\\/$/,                        // el tablero compartido con la clase
+  /^\\/aula\\/tablero\\/\\d+\\/imagen\\/\\d+\\/$/,                 // imágenes pegadas en el tablero
+  /^\\/materiales\\/$/,                                         // Mis materiales (para llegar a cada documento)
+  /^\\/materiales\\/\\d+\\/$/,                                   // el editor de materiales y formatos
+  /^\\/materiales\\/imagen\\/\\d+\\/$/,                           // sus imágenes
+];
+const CDN = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'unpkg.com', 'code.jquery.com'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll([SIN_CONEXION, '/app/icono-192.png'])).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => ![CACHE, PAGINAS, LIBRERIAS].includes(k)).map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 
@@ -231,10 +243,33 @@ self.addEventListener('notificationclick', (e) => {
   }));
 });
 
+// La página puede pedir que se borre lo guardado (al cerrar sesión)
+self.addEventListener('message', (e) => {
+  if (e.data && e.data.tipo === 'olvidar') caches.delete(PAGINAS);
+});
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  // Al cerrar sesión se borran las páginas guardadas (otra persona puede usar el equipo)
+  if (url.origin === location.origin && url.pathname.startsWith('/logout')) { caches.delete(PAGINAS); return; }
+  if (req.method !== 'GET') return;
+  // Librerías de internet (íconos, Bootstrap…): de la copia y se actualizan por detrás
+  if (CDN.includes(url.hostname)) {
+    e.respondWith(caches.open(LIBRERIAS).then((c) => c.match(req).then((guardado) => {
+      const red = fetch(req).then((r) => { if (r.ok || r.type === 'opaque') c.put(req, r.clone()); return r; }).catch(() => guardado);
+      return guardado || red;
+    })));
+    return;
+  }
+  if (url.origin === location.origin && SIN_RED.some((x) => x.test(url.pathname))) {
+    // Primero el servidor (lo más nuevo); sin conexión, la última copia
+    e.respondWith(fetch(req).then((r) => {
+      if (r.ok && !r.redirected && r.type === 'basic') { const copia = r.clone(); caches.open(PAGINAS).then((c) => c.put(url.pathname, copia)); }
+      return r;
+    }).catch(() => caches.open(PAGINAS).then((c) => c.match(url.pathname)).then((g) => g || (req.mode === 'navigate' ? caches.match(SIN_CONEXION) : Response.error()))));
+    return;
+  }
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).catch(() => caches.match(SIN_CONEXION)));
     return;
