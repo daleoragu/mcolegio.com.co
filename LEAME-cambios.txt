@@ -1,4 +1,4 @@
-Versión 0081 · 2026-11-22 15:38
+Versión 0084 · 2026-11-22 17:06
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -345,6 +345,7 @@ NUEVO     materiales/migrations/0011_region.py
 NUEVO     materiales/migrations/0012_dba_codigo.py
 NUEVO     materiales/migrations/0013_documento_asignatura.py
 NUEVO     materiales/migrations/0014_puntos_y_comentarios.py
+NUEVO     materiales/migrations/0015_imagen_dibujo.py
 CAMBIADO  materiales/models.py
 CAMBIADO  materiales/plantillas.py
 NUEVO     materiales/reputacion.py
@@ -623,13 +624,17 @@ NUEVO     materiales/semilla/sociales_6.py
 NUEVO     materiales/semilla/sociales_7.py
 NUEVO     materiales/semilla/sociales_8.py
 NUEVO     materiales/semilla/sociales_9.py
+NUEVO     materiales/static/materiales/anotar.js
 NUEVO     materiales/static/materiales/colores.js
+NUEVO     materiales/static/materiales/dibujo.js
 NUEVO     materiales/static/materiales/ecuaciones.js
 CAMBIADO  materiales/static/materiales/editor.js
 NUEVO     materiales/static/materiales/equipo.js
 NUEVO     materiales/static/materiales/graficador.js
 NUEVO     materiales/static/materiales/imagenes.js
 NUEVO     materiales/static/materiales/impresion.js
+NUEVO     materiales/static/materiales/marcar.js
+NUEVO     materiales/static/materiales/tinta.js
 NUEVO     materiales/static/materiales/vistas.js
 NUEVO     materiales/templates/materiales/_colores.html
 NUEVO     materiales/templates/materiales/_doc_acciones.html
@@ -656,6 +661,7 @@ NUEVO     materiales/templatetags/__init__.py
 NUEVO     materiales/templatetags/ecuaciones.py
 NUEVO     materiales/tests/test_banco_html.py
 NUEVO     materiales/tests/test_dba.py
+NUEVO     materiales/tests/test_dibujo.py
 NUEVO     materiales/tests/test_ecuaciones.py
 NUEVO     materiales/tests/test_equipo.py
 CAMBIADO  materiales/tests/test_fase3.py
@@ -964,6 +970,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   salon_digital/migrations/0009_cuentas_estudiantes.py (contraseñas de estudiantes y forma de entrar)
   salon_digital/migrations/0010_cuenta_estudiante.py  (estudiante con varias clases: cuenta única y solicitudes)
   materiales/migrations/0014_puntos_y_comentarios.py  (biblioteca: puntos de cada material y comentarios de docentes)
+  materiales/migrations/0015_imagen_dibujo.py        (editor: dibujo a mano alzada editable)
   puntoexacto/migrations/0012_pruebas_unidas.py  (pruebas unidas para los informes tipo Saber 11)
   puntoexacto/migrations/0013_respuesta_varias_letras.py  (respuesta con varias letras)
   puntoexacto/migrations/0014_hoja_en_blanco_no_presento.py  (hoja en blanco = No presentó; arregla las que ya tenían nota)

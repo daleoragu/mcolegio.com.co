@@ -562,10 +562,11 @@ def editor(request, a, pk):
     imagenes = {i.pk: request.build_absolute_uri(f'/materiales/imagen/{i.pk}/') + (f'?v={i.peso}' if i.grafica else '')
                 for i in usadas}
     graficas = {i.pk: i.grafica for i in usadas if i.grafica and i.propietario_id == request.user.pk}
+    dibujos = {i.pk: i.dibujo for i in usadas if i.dibujo and i.propietario_id == request.user.pk}
     recortes = {i.pk: dict(i.recorte, url_origen=request.build_absolute_uri(f'/materiales/imagen/{i.recorte["origen"]}/'))
                 for i in usadas if i.recorte and i.recorte.get('origen')}
     return render(request, 'materiales/editor.html', {
-        'graficas': graficas, 'recortes': recortes,
+        'graficas': graficas, 'recortes': recortes, 'dibujos': dibujos,
         'rol': rol, 'solo_ver': rol == 'ver', 'dueno_nombre': nombre(doc.propietario),
         'base': a.base, 'acceso': a, 'doc': doc, 'contenido': doc.contenido, 'imagenes': imagenes,
         'aulas': a.aulas(), 'nube': _nube(a), 'tipos': Documento.TIPOS, 'nube_docente': _nube_docente(request),
@@ -781,6 +782,34 @@ def pdf(request, a, pk):
 
 
 @vista
+def marcar(request, a, pk):
+    """La hoja tal como sale impresa (el mismo HTML del PDF) para marcar encima a mano alzada desde el editor.
+    Las marcas se guardan con el documento (el editor que abrió esta página es el que guarda)."""
+    from .views_equipo import doc_equipo
+    doc, _ = doc_equipo(a, pk)
+    ctx = exportar.contexto(doc, None, a.docente(), False)
+    from salon_digital.limites import marca_pdf
+    encabezado = a.encabezado()
+    rutas = {i: f'/materiales/imagen/{i}/' for i in B.imagenes_usadas(doc.contenido)}
+    for campo in ('logo', 'logo2'):
+        archivo = getattr(encabezado, campo, None) if encabezado is not None else None
+        if archivo:
+            try:
+                rutas[campo] = archivo.url
+            except ValueError:
+                pass
+    pie_lineas = encabezado.pie['lineas'] if encabezado is not None and a.colegio is None else []
+    hoja = ctx['papel']
+    ctx.update({'colegio': a.colegio, 'encabezado': encabezado, 'marca': marca_pdf(doc), 'pie_lineas': pie_lineas, 'rutas': rutas,
+                'marcar': True, 'ancho_util': round(hoja['ancho_mm'] - 2 * ctx['margen'], 1)})
+    for b in ctx['bloques']:
+        b.pop('anot', None)          # aquí las marcas se dibujan en vivo, no como imagen
+    r = render(request, 'materiales/documento_pdf.html', ctx)
+    r['X-Frame-Options'] = 'SAMEORIGIN'
+    return r
+
+
+@vista
 def imprimir(request, a, pk):
     """La vista previa de impresión desde Mis materiales (sin abrir el editor): copias por hoja, folleto y cuántas hojas."""
     from .views_equipo import doc_equipo
@@ -956,6 +985,86 @@ def grafica_guardar(request, a):
     img.archivo.save('grafica.png', ContentFile(datos), save=False)
     img.save()
     return JsonResponse({'ok': True, 'id': img.pk, 'grafica': spec, 'errores': errores, 'nube': _nube(a),
+                         'url': request.build_absolute_uri(f'/materiales/imagen/{img.pk}/') + f'?v={img.peso}'})
+
+
+LIM_DIBUJO = 6 * MB
+
+
+def _dibujo_limpio(d):
+    """Los trazos que se guardan para volver a editar el dibujo (acotados: nada de texto o números sueltos)."""
+    import re as _re
+    d = d if isinstance(d, dict) else {}
+    color = lambda c: c if isinstance(c, str) and _re.fullmatch(r'#[0-9a-fA-F]{6}', c) else '#111827'
+    num = lambda v, lo, hi, defecto=0: max(lo, min(hi, float(v))) if isinstance(v, (int, float)) else defecto
+    trazos = []
+    for t in (d.get('trazos') or [])[:2000]:
+        if not isinstance(t, dict) or t.get('h') not in ('lapiz', 'resaltar', 'linea', 'flecha', 'rect', 'elipse', 'texto'):
+            continue
+        puntos = [[round(num(p[0], -50, 5000), 1), round(num(p[1], -50, 5000), 1)] + ([round(num(p[2], 0, 1), 2)] if len(p) > 2 and isinstance(p[2], (int, float)) else [])
+                  for p in (t.get('p') or [])[:3000] if isinstance(p, (list, tuple)) and len(p) >= 2]
+        if not puntos:
+            continue
+        n = {'h': t['h'], 'c': color(t.get('c')), 'g': num(t.get('g'), 1, 60, 3), 'p': puntos}
+        if t['h'] == 'texto':
+            n['texto'] = str(t.get('texto') or '')[:300]
+        if t.get('relleno'):
+            n['relleno'] = True
+        trazos.append(n)
+    fondo = d.get('fondo') if d.get('fondo') in ('blanco', 'cuadros', 'rayas', 'puntos', 'transparente') else 'blanco'
+    base = d.get('base') if isinstance(d.get('base'), int) else None
+    return {'trazos': trazos, 'fondo': fondo, 'ancho': int(num(d.get('ancho'), 200, 4000, 1200)),
+            'alto': int(num(d.get('alto'), 200, 4000, 900)), 'base': base}
+
+
+@require_POST
+@vista
+def dibujo_guardar(request, a):
+    """Guarda un dibujo a mano alzada como imagen PNG del docente (nueva, o la misma si lo está editando).
+    El navegador manda el PNG ya dibujado y los trazos, para poder volver a editarlo."""
+    import base64
+    try:
+        d = json.loads(request.body or b'{}')
+    except ValueError:
+        d = {}
+    crudo = str(d.get('png') or '')
+    if not crudo.startswith('data:image/png;base64,'):
+        return JsonResponse({'ok': False, 'error': 'No llegó el dibujo.'}, status=400)
+    try:
+        datos = base64.b64decode(crudo.split(',', 1)[1], validate=True)
+    except (ValueError, IndexError):
+        return JsonResponse({'ok': False, 'error': 'El dibujo llegó dañado.'}, status=400)
+    if len(datos) > LIM_DIBUJO:
+        return JsonResponse({'ok': False, 'error': 'El dibujo pesa demasiado.'}, status=400)
+    from PIL import Image as PILImage
+    try:
+        im = PILImage.open(io.BytesIO(datos))
+        im.verify()
+        im = PILImage.open(io.BytesIO(datos))
+        if im.format != 'PNG' or im.size[0] > 4000 or im.size[1] > 4000:
+            raise ValueError
+        ancho, alto = im.size
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'El dibujo no es una imagen válida.'}, status=400)
+    dibujo = _dibujo_limpio(d.get('dibujo'))
+    if dibujo['base'] is not None and not Imagen.objects.filter(pk=dibujo['base'], propietario_id__in=[request.user.pk]).exists():
+        dibujo['base'] = None
+    if not dibujo['trazos'] and dibujo['base'] is None:
+        return JsonResponse({'ok': False, 'error': 'El dibujo está vacío.'}, status=400)
+    img = None
+    if d.get('imagen'):
+        img = Imagen.objects.filter(pk=d['imagen'], propietario=request.user, dibujo__isnull=False).first()
+    antes = img.peso if img else 0
+    if a.usado() - antes + len(datos) > a.cuota():
+        return JsonResponse({'ok': False, 'error': f'Su nube está llena ({round(a.cuota() / MB)} MB).'}, status=400)
+    if img is None:
+        img = Imagen(propietario=request.user)
+    elif img.archivo:
+        img.archivo.delete(save=False)
+    img.ancho, img.alto, img.peso, img.dibujo = ancho, alto, len(datos), dibujo
+    img.archivo.save('dibujo.png', ContentFile(datos), save=False)
+    img.save()
+    return JsonResponse({'ok': True, 'id': img.pk, 'dibujo': dibujo, 'nube': _nube(a),
                          'url': request.build_absolute_uri(f'/materiales/imagen/{img.pk}/') + f'?v={img.peso}'})
 
 

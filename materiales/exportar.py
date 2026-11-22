@@ -264,6 +264,15 @@ def contexto(doc, modo=None, docente='', respuestas=False):
             _preparar_pregunta(b, modo)
         elif b['tipo'] == 'imagen':
             b['clase_img'], b['css_caja'], b['css_img'] = B.css_imagen(b, ancho_util)
+    if opciones.get('marcas_pdf', True) and contenido.get('anotaciones'):
+        # Marcas a mano alzada: van sobre cada bloque, a la escala del ancho útil de la hoja (o de la columna)
+        columnas = m['columnas'] or opciones['columnas']
+        ancho_px = (ancho_util / columnas - (3 if columnas == 2 else 0)) * 96 / 25.4
+        por_bloque = {}
+        for a in contenido['anotaciones']:
+            por_bloque.setdefault(a['b'], []).append(a)
+        for b in bloques:
+            b['anot'] = B.marcas_svg(por_bloque.get(b['id']), ancho_px)
     areas = [b['titulo'] for b in bloques if b['tipo'] == 'seccion' and b['titulo']]
     derecha = ' · '.join(x for x in (doc.grado and f'Grado {doc.grado}', opciones.get('sesion')) if x)
     return {'css_izquierda': _css(doc.titulo)[:70], 'css_derecha': _css(derecha)[:70],'respuestas': respuestas, 'total_preguntas': total, 'areas': areas,

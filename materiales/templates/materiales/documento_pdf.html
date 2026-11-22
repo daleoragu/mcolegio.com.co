@@ -12,6 +12,8 @@
     .pie-doc .marca { color: {{ color }}; font-size: 7pt; }
     {% if cuadernillo and opciones.portada %}@page portada { @top-left { content: none; border: 0; } @top-right { content: none; border: 0; } @bottom-left { content: none; } }
     .portada { page: portada; break-after: page; text-align: center; border: 3px double {{ color }}; padding: 10mm 8mm; min-height: 215mm; }{% endif %}
+    .anot-caja { position: relative; }
+    .anot { position: absolute; max-width: none; z-index: 5; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: {{ letra }}pt; color: #111; line-height: {{ interlineado }}; margin: 0; }
     .enc-docente { width: 100%; border-collapse: collapse; border-bottom: 2px solid {{ color }}; margin-bottom: 6px; }
     .enc-docente td { vertical-align: middle; padding-bottom: 4px; }
@@ -107,8 +109,19 @@
     .pistas b { color: {{ color }}; }
     .nota-archivo { font-style: italic; color: #444; margin-left: 14px; }
     .clave-docente { text-align: center; color: #198754; font-weight: bold; font-size: 9pt; border: 1px solid #198754; padding: 2px; margin-bottom: 4px; }
-</style></head>
-<body>
+</style>
+{% if marcar %}{% load static %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    /* En pantalla: una hoja blanca del ancho del papel (el ancho útil es el mismo del PDF) */
+    html { background: #cbd5e1; }
+    body.marcar { box-sizing: content-box; width: {{ ancho_util|stringformat:".1f" }}mm; margin: 74px auto 40px; padding: {{ margen }}mm;
+                  background: #fff; box-shadow: 0 8px 30px rgba(15,23,42,.18); position: relative; line-height: {{ interlineado }}; }
+    body.marcar .pie-doc { display: none; }
+    body.marcar img { max-width: 100%; }
+</style>{% endif %}
+</head>
+<body{% if marcar %} class="marcar"{% endif %}>
 {% if pie_lineas or marca %}<div class="pie-doc">{% for l in pie_lineas %}<div>{{ l }}</div>{% endfor %}{% if marca %}<div class="marca">Hecho con mcolegio · mcolegio.com.co</div>{% endif %}</div>{% endif %}
 {% if cuadernillo and opciones.portada %}
 <div class="portada">
@@ -135,7 +148,7 @@
 {% if opciones.nombre_estudiante and not cuadernillo %}<div class="nombre"><b>Nombre:</b> <span class="l">&nbsp;</span> &nbsp; <b>Curso:</b> <span class="c">&nbsp;</span> &nbsp; <b>Fecha:</b> <span class="c">&nbsp;</span></div>{% endif %}
 
 <div class="cuerpo{% if columnas == 2 %} dos{% endif %}">
-{% for b in bloques %}
+{% for b in bloques %}{% if b.anot or marcar %}<div class="anot-caja"{% if marcar %} data-bid="{{ b.id }}"{% endif %}>{% endif %}
     {% if b.tipo == 'titulo' %}
         {% if b.nivel == 1 %}<h2 class="t1">{{ b.texto|eq }}</h2>{% else %}<h3 class="t2">{{ b.texto|eq }}</h3>{% endif %}
     {% elif b.tipo == 'seccion' %}
@@ -204,7 +217,8 @@
     {% elif b.tipo == 'salto' %}
         <div class="salto"></div>
     {% endif %}
-{% endfor %}
+{% if b.anot %}<img class="anot" src="{{ b.anot.src }}" style="{{ b.anot.css }}" alt=""></div>{% elif marcar %}</div>{% endif %}{% endfor %}
+{% if marcar %}<script src="{% static 'materiales/tinta.js' %}"></script><script src="{% static 'materiales/marcar.js' %}"></script>{% endif %}
 {% if cuadernillo %}<div class="fin">{{ opciones.fin|default:"FIN. Revisa que hayas marcado todas las respuestas en la hoja de respuestas." }}</div>{% endif %}
 </div>
 </body></html>
