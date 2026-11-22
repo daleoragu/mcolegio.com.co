@@ -85,7 +85,24 @@ def css_imagen(b, ancho_util_mm=None):
     return 'img-linea', f'text-align:{texto}', f'width:{ancho}%'
 
 
-ETIQUETAS = {'b', 'strong', 'i', 'em', 'u', 'br', 'p', 'ul', 'ol', 'li', 'sub', 'sup', 'div', 'span'}
+ETIQUETAS = {'b', 'strong', 'i', 'em', 'u', 's', 'br', 'p', 'ul', 'ol', 'li', 'sub', 'sup', 'div', 'span'}
+# Tipos de letra que se pueden escoger: el nombre y lo que se pone en el CSS (con parecidas por si el
+# equipo o el servidor del PDF no la tienen)
+FUENTES = {
+    'Arial': "Arial,'Liberation Sans',Helvetica,sans-serif",
+    'Calibri': "Calibri,Carlito,'Liberation Sans',sans-serif",
+    'Times New Roman': "'Times New Roman','Liberation Serif',Times,serif",
+    'Georgia': "Georgia,'DejaVu Serif',serif",
+    'Verdana': "Verdana,'DejaVu Sans',sans-serif",
+    'Tahoma': "Tahoma,'DejaVu Sans',sans-serif",
+    'Trebuchet MS': "'Trebuchet MS','DejaVu Sans',sans-serif",
+    'Century Gothic': "'Century Gothic','URW Gothic',sans-serif",
+    'Comic Sans MS': "'Comic Sans MS','Comic Neue',cursive",
+    'Courier New': "'Courier New','Liberation Mono',monospace",
+}
+TAMANOS = (8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48)
+_TAM_PALABRA = {'xx-small': 7, 'x-small': 7.5, 'small': 10, 'medium': 12, 'large': 13.5, 'x-large': 18, 'xx-large': 24, 'xxx-large': 36}
+ALINEACIONES = ('left', 'center', 'right', 'justify')
 VACIAS = {'br'}
 
 
@@ -118,9 +135,63 @@ def _estilo_color(attrs):
     return ';'.join(x for x in (color and f'color:{color}', fondo and f'background-color:{fondo}') if x)
 
 
+def fuente(valor):
+    """El tipo de letra permitido a partir de lo que mande el navegador ('Georgia, serif', '"Times New Roman"'…)."""
+    primera = str(valor or '').split(',')[0].strip().strip('\'"').lower()
+    return next((k for k in FUENTES if k.lower() == primera), None)
+
+
+def tamano_pt(valor):
+    """El tamaño de letra en puntos (6 a 72) desde '14pt', '18px', '1.5em' no; 'large'…"""
+    v = str(valor or '').strip().lower()
+    if v in _TAM_PALABRA:
+        return _TAM_PALABRA[v]
+    m = re.fullmatch(r'(\d{1,3}(?:\.\d+)?)\s*(pt|px)', v)
+    if not m:
+        return None
+    n = float(m.group(1)) * (0.75 if m.group(2) == 'px' else 1)
+    return round(n, 1) if 6 <= n <= 72 else None
+
+
+def _estilo_span(attrs):
+    """Color, relleno, tipo y tamaño de letra de un <span style> o <font>, validados."""
+    d = dict(attrs)
+    partes = [x for x in _estilo_color(attrs).split(';') if x]
+    familia = fuente(d.get('face')) if d.get('face') else None
+    tam = None
+    for parte in str(d.get('style') or '').split(';'):
+        if ':' not in parte:
+            continue
+        k, v = (x.strip().lower() for x in parte.split(':', 1))
+        if k == 'font-family':
+            familia = fuente(parte.split(':', 1)[1]) or familia
+        elif k == 'font-size':
+            tam = tamano_pt(v) or tam
+        elif k == 'text-decoration' or k == 'text-decoration-line':
+            if 'line-through' in v:
+                partes.append('text-decoration:line-through')
+    if familia:
+        partes.append('font-family:' + FUENTES[familia])
+    if tam:
+        partes.append(f'font-size:{tam:g}pt')
+    return ';'.join(partes)
+
+
+def _alineacion(attrs):
+    d = dict(attrs)
+    valor = str(d.get('align') or '').lower()
+    for parte in str(d.get('style') or '').split(';'):
+        if ':' in parte:
+            k, v = (x.strip().lower() for x in parte.split(':', 1))
+            if k == 'text-align':
+                valor = v
+    valor = {'start': 'left', 'end': 'right', 'middle': 'center'}.get(valor, valor)
+    return valor if valor in ALINEACIONES else ''
+
+
 class _Limpiador(HTMLParser):
-    """Deja solo negrilla, cursiva, subrayado, listas, párrafos, saltos y el color de letra o de relleno
-    (<span style="color:#…;background-color:#…">); ningún otro atributo."""
+    """Deja solo negrilla, cursiva, subrayado, tachado, listas, párrafos (con su alineación), saltos, y en los
+    <span style> el color de letra, el relleno, el tipo y el tamaño de letra; ningún otro atributo."""
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -129,20 +200,21 @@ class _Limpiador(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         if tag in ('span', 'font', 'mark'):
-            estilo = _estilo_color(attrs) or ('background-color:#fef08a' if tag == 'mark' else '')
+            estilo = _estilo_span(attrs) or ('background-color:#fef08a' if tag == 'mark' else '')
             if estilo:
                 self.salida.append(f'<span style="{estilo}">')
                 self.abiertas.append('span')
             else:
                 self.abiertas.append('-' + tag)      # se cierra sin escribir nada
             return
-        tag = {'strong': 'b', 'em': 'i', 'div': 'p'}.get(tag, tag)
+        tag = {'strong': 'b', 'em': 'i', 'div': 'p', 'strike': 's', 'del': 's'}.get(tag, tag)
         if tag not in ETIQUETAS:
             return
         if tag in VACIAS:
             self.salida.append('<br>')
             return
-        self.salida.append(f'<{tag}>')
+        alinear = _alineacion(attrs) if tag in ('p', 'li') else ''
+        self.salida.append(f'<{tag} style="text-align:{alinear}">' if alinear else f'<{tag}>')
         self.abiertas.append(tag)
 
     def handle_endtag(self, tag):
@@ -156,7 +228,7 @@ class _Limpiador(HTMLParser):
                             self.salida.append(f'</{t}>')
                     return
             return
-        tag = {'strong': 'b', 'em': 'i', 'div': 'p'}.get(tag, tag)
+        tag = {'strong': 'b', 'em': 'i', 'div': 'p', 'strike': 's', 'del': 's'}.get(tag, tag)
         if tag in VACIAS or tag not in self.abiertas:
             return
         while self.abiertas:

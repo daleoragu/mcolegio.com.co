@@ -327,40 +327,57 @@ def paginas(request, doc, colegio=None, encabezado=None, docente=''):
 # ---------------------------------------------------------------------------
 # Word
 # ---------------------------------------------------------------------------
+class _Parrafo(list):
+    """Los trozos de un párrafo y su alineación ('left', 'center', 'right', 'justify' o '')."""
+    alinear = ''
+
+
 class _Trozos(HTMLParser):
     """Convierte el HTML limpio en párrafos de trozos con su formato: [[(texto, {'b','i'...}), ...], ...]."""
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
-        self.parrafos = [[]]
+        self.parrafos = [_Parrafo()]
         self.formato = []
+        self.alineaciones = []      # pila de la alineación de los <p>/<li> abiertos
         self.vinieta = []
         self.colores = []          # pila de los <span style>: [('c:#…', 'f:#…'), …]
 
     def _nuevo(self):
         if self.parrafos[-1]:
-            self.parrafos.append([])
+            self.parrafos.append(_Parrafo())
+        self.parrafos[-1].alinear = self.alineaciones[-1] if self.alineaciones else ''
 
     def handle_starttag(self, tag, attrs):
+        from .bloques import _alineacion, _estilo_span, fuente, tamano_pt
+        if tag in ('p', 'li'):
+            self.alineaciones.append(_alineacion(attrs))
         if tag in ('p', 'br'):
             self._nuevo()
         elif tag == 'li':
             self._nuevo()
             self.parrafos[-1].append(('• ', frozenset()))
-        elif tag in ('b', 'i', 'u', 'sub', 'sup'):
+        elif tag in ('b', 'i', 'u', 's', 'sub', 'sup'):
             self.formato.append(tag)
         elif tag == 'span':
-            from .bloques import _estilo_color
             marcas = []
-            for parte in _estilo_color(attrs).split(';'):
+            for parte in _estilo_span(attrs).split(';'):
                 if parte.startswith('color:'):
                     marcas.append('c:' + parte[6:])
                 elif parte.startswith('background-color:'):
                     marcas.append('f:' + parte[17:])
+                elif parte.startswith('font-family:'):
+                    marcas.append('n:' + (fuente(parte[12:]) or 'Arial'))
+                elif parte.startswith('font-size:'):
+                    marcas.append('t:' + str(tamano_pt(parte[10:]) or 11))
+                elif parte == 'text-decoration:line-through':
+                    marcas.append('s')
             self.colores.append(tuple(marcas))
 
     def handle_endtag(self, tag):
         if tag in ('p', 'li'):
+            if self.alineaciones:
+                self.alineaciones.pop()
             self._nuevo()
         elif tag == 'span':
             if self.colores:
@@ -404,6 +421,11 @@ def _ecuacion(parrafo, tex, tam):
 
 def _escribir(parrafo, trozos, tam=None):
     from . import ecuaciones as E
+    alinear = getattr(trozos, 'alinear', '')
+    if alinear:
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        parrafo.alignment = {'left': WD_ALIGN_PARAGRAPH.LEFT, 'center': WD_ALIGN_PARAGRAPH.CENTER,
+                             'right': WD_ALIGN_PARAGRAPH.RIGHT, 'justify': WD_ALIGN_PARAGRAPH.JUSTIFY}[alinear]
     corridas = []
     for texto, f in trozos:
         for parte in E.partes(texto):
@@ -420,12 +442,19 @@ def _run(parrafo, texto, f, tam):
     r.bold = 'b' in f or None
     r.italic = 'i' in f or None
     r.underline = 'u' in f or None
+    if 's' in f:
+        r.font.strike = True
     if 'sub' in f:
         r.font.subscript = True
     if 'sup' in f:
         r.font.superscript = True
     if tam:
         r.font.size = Pt(tam)
+    for marca in sorted(x for x in f if x[:2] in ('n:', 't:')):      # tipo y tamaño de letra escogidos
+        if marca.startswith('n:'):
+            r.font.name = marca[2:]
+        else:
+            r.font.size = Pt(float(marca[2:]))
     for marca in sorted(x for x in f if x[:2] in ('c:', 'f:')):     # el último (el más interno) gana
         if marca.startswith('c:'):
             from docx.shared import RGBColor

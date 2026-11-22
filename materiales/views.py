@@ -574,6 +574,7 @@ def editor(request, a, pk):
         'es_formato': doc.tipo in plantillas.FORMATOS,
         'areas_lista': AREAS_LISTA, 'asignaturas': sugerencias_asignatura(request, a),
         'colores_texto': [('c', 'Color de letra'), ('f', 'Relleno')],
+        'fuentes': B.FUENTES, 'tamanos': B.TAMANOS,
         # (color de letra, color de relleno suave) para las paletas
         'paleta': [('#000000', '#fef08a'), ('#1f3a68', '#bbf7d0'), ('#2563eb', '#bfdbfe'), ('#0f766e', '#99f6e4'),
                    ('#15803d', '#d9f99d'), ('#7c3aed', '#ddd6fe'), ('#be185d', '#fbcfe8'), ('#dc2626', '#fecaca'),

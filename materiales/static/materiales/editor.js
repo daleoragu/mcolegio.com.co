@@ -823,7 +823,60 @@
 
     $$('[data-cmd]').forEach(function (b) {
         b.addEventListener('mousedown', function (e) { e.preventDefault(); });
-        b.addEventListener('click', function () { document.execCommand(b.getAttribute('data-cmd'), false, null); });
+        // Sin CSS: negrilla, cursiva… quedan como etiquetas (<b>, <i>, <s>) que se guardan bien
+        b.addEventListener('click', function () { document.execCommand('styleWithCSS', false, false); document.execCommand(b.getAttribute('data-cmd'), false, null); marcarAlineacion(); });
+    });
+    // Ctrl+L / E / R / J: alinear, como en Word
+    document.addEventListener('keydown', function (e) {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || !e.target.closest || !e.target.closest('.mm-edit')) return;
+        var cmd = { l: 'justifyLeft', e: 'justifyCenter', r: 'justifyRight', j: 'justifyFull' }[e.key.toLowerCase()];
+        if (!cmd) return;
+        e.preventDefault(); document.execCommand(cmd, false, null); marcarAlineacion();
+    });
+    // El botón de la alineación del párrafo donde está el cursor queda marcado
+    function marcarAlineacion() {
+        var s = window.getSelection(), n = s.rangeCount ? s.getRangeAt(0).startContainer : null, valor = '';
+        n = n && (n.nodeType === 1 ? n : n.parentElement);
+        if (n && n.closest('.mm-edit')) valor = getComputedStyle(n).textAlign.replace('start', 'left').replace('end', 'right');
+        $$('[data-alinear]').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-alinear') === valor); });
+        // y el tipo y el tamaño de letra de ese texto
+        if (n && n.closest('.mm-edit')) {
+            var cs = getComputedStyle(n), fam = (cs.fontFamily.split(',')[0] || '').replace(/["']/g, '').trim().toLowerCase();
+            var selF = $('#mm-fuente'), selT = $('#mm-tam');
+            if (selF) selF.value = Array.prototype.slice.call(selF.options).map(function (o) { return o.value; }).filter(function (v) { return v && v.toLowerCase() === fam; })[0] || '';
+            if (selT) { var pt = Math.round(parseFloat(cs.fontSize) * 0.75 * 2) / 2; selT.value = Array.prototype.slice.call(selT.options).some(function (o) { return +o.value === pt; }) ? String(pt) : ''; }
+        }
+    }
+    document.addEventListener('selectionchange', function () { clearTimeout(marcarAlineacion.t); marcarAlineacion.t = setTimeout(marcarAlineacion, 120); });
+    // Tipo y tamaño de letra: se aplican al texto seleccionado (como en Word). El navegador solo sabe poner
+    // <font face> y tamaños del 1 al 7: se pone el 7 de marca y se cambia por el tamaño en puntos.
+    var FUENTES_CSS = {};
+    Array.prototype.forEach.call(($('#mm-fuente') || { options: [] }).options, function (o) { if (o.value) FUENTES_CSS[o.value] = o.style.fontFamily || o.value; });
+    function aplicarLetra(tipo, valor) {
+        if (!valor) return;
+        if (!ultimoRango) { estado('Seleccione primero el texto al que le quiere cambiar la letra'); return; }
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(ultimoRango);
+        var ed = ultimoRango.commonAncestorContainer;
+        ed = ed && (ed.nodeType === 1 ? ed : ed.parentElement);
+        ed = ed && ed.closest('.mm-edit');
+        if (!ed) return;
+        document.execCommand('styleWithCSS', false, false);
+        if (tipo === 'fuente') document.execCommand('fontName', false, 'MMFUENTE');
+        else document.execCommand('fontSize', false, '7');
+        Array.prototype.forEach.call(ed.querySelectorAll(tipo === 'fuente' ? 'font[face="MMFUENTE"]' : 'font[size="7"]'), function (f) {
+            var sp = document.createElement('span');
+            if (tipo === 'fuente') sp.style.fontFamily = FUENTES_CSS[valor] || valor; else sp.style.fontSize = valor + 'pt';
+            while (f.firstChild) sp.appendChild(f.firstChild);
+            f.parentNode.replaceChild(sp, f);
+            // lo de adentro que tenía otro tamaño u otro tipo de letra toma el nuevo
+            Array.prototype.forEach.call(sp.querySelectorAll('span'), function (x) { if (tipo === 'fuente') x.style.fontFamily = ''; else x.style.fontSize = ''; });
+        });
+        ed.dispatchEvent(new Event('input', { bubbles: true }));
+        marcarAlineacion();
+    }
+    ['fuente', 'tam'].forEach(function (k) {
+        var sel = $('#mm-' + k); if (!sel) return;
+        sel.addEventListener('change', function () { aplicarLetra(k === 'fuente' ? 'fuente' : 'tam', sel.value); });
     });
 
     // Color de letra y relleno (como en Word): sobre el texto seleccionado o sobre la celda de la tabla donde está el cursor
