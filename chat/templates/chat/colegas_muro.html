@@ -1,0 +1,161 @@
+{% extends "salon_digital/base_salon.html" %}
+{% block titulo %}{{ o.nombre }} · Sala de Profesores{% endblock %}
+{% block contenido %}
+{% include 'chat/_muro_estilos.html' %}
+<style>
+  .cm-barra { display:flex; align-items:center; gap:10px; background:#fff; border:1px solid #e3e8ef; border-radius:14px; padding:8px 12px; margin-top:.25rem; }
+  .cm-barra b { color:#1f3a68; }
+  .cm-portada { height:88px; border-radius:14px 14px 0 0; margin:-1rem -1rem 0; background:linear-gradient(120deg,#1f3a68,#2b4f8a 60%,#f2b33d); }
+  .cm-foto { width:112px; height:112px; margin:-56px auto 10px; border-radius:50%; overflow:hidden; background:#e4e9f2; display:flex; align-items:center;
+             justify-content:center; font:700 2.6rem Poppins,system-ui; color:#1f3a68; box-shadow:0 0 0 5px #fff, 0 0 0 8px #f2b33d; position:relative; }
+  .cm-foto img { width:100%; height:100%; object-fit:cover; }
+  .cm-cifras { display:flex; justify-content:space-around; text-align:center; font-size:.78rem; color:#667085; margin:10px 0 4px; }
+  .cm-cifras b { display:block; font-size:1.15rem; color:#1d2939; }
+  .cm-acciones .btn { width:100%; margin-top:6px; }
+  .cm-comun a { width:64px; color:#1d2939; }
+</style>
+
+<div class="cm-barra">
+  <a href="/chat/colegas/muro/" class="btn btn-sm btn-light" id="cm-cerrar" title="Cerrar"><i class="fas fa-xmark me-1"></i><span id="cm-cerrar-txt">Volver a la Sala de Profesores</span></a>
+  <span class="flex-grow-1 text-truncate">Muro de <b>{{ o.nombre }}</b></span>
+</div>
+
+<div class="row g-3 mt-1">
+  {# ---------- Izquierda: su perfil y lo que se puede hacer con él/ella ---------- #}
+  <aside class="col-lg-3">
+    <div class="mu-lado text-center" style="padding:1rem">
+      <div class="cm-portada"></div>
+      <div class="cm-foto">{% if o.foto %}<img src="{{ o.foto }}" alt="Foto de {{ o.nombre }}">{% else %}{{ o.nombre|slice:":1"|upper }}{% endif %}</div>
+      <h5 class="fw-bold mb-1" style="color:#1f3a68">{{ o.nombre }}</h5>
+      <div class="small text-muted mb-2">{{ o.desc }}</div>
+      {% if perfil.area %}<span class="badge text-bg-light border mb-1"><i class="fas fa-book me-1"></i>{{ perfil.area }}</span>{% endif %}
+      {% if perfil.grados %}<span class="badge text-bg-light border mb-1"><i class="fas fa-school me-1"></i>{{ perfil.grados }}</span>{% endif %}
+      {% if perfil.formacion %}<div class="small mt-1"><i class="fas fa-graduation-cap me-1"></i>{{ perfil.formacion }}</div>{% endif %}
+      {% if perfil.presentacion %}<p class="small mt-2 mb-1 fst-italic">«{{ perfil.presentacion }}»</p>{% endif %}
+      <div class="cm-cifras">
+        <div><b>{{ logros.publicaciones }}</b>aportes</div>
+        <div><b>{{ logros.utiles }}</b>«útil»</div>
+        <div><b>{{ logros.copias }}</b>copias</div>
+      </div>
+      {% if logros.lista %}<div class="d-flex flex-wrap justify-content-center gap-1 mb-1">{% for ic, nom, det in logros.lista %}<span class="badge rounded-pill" style="background:#fff4d6;color:#7a5200;border:1px solid #f2b632" title="{{ det }}"><i class="fas {{ ic }} me-1"></i>{{ nom }}</span>{% endfor %}</div>{% endif %}
+      {% if desde %}<div class="small text-success"><i class="fas fa-user-check me-1"></i>Colegas desde el {{ desde|date:"d/m/Y" }}</div>{% endif %}
+      <div class="cm-acciones mt-2">
+        {% if estado == 'yo' %}<a href="/chat/colegas/?tab=perfil" class="btn btn-outline-primary btn-sm"><i class="fas fa-pen me-1"></i>Editar mi perfil</a>
+        {% elif estado == 'colegas' %}
+          <form method="post" action="/chat/colegas/escribir/" class="m-0">{% csrf_token %}<input type="hidden" name="usuario" value="{{ o.u.pk }}"><button class="btn btn-success btn-sm"><i class="fas fa-comment-dots me-1"></i>Escribir</button></form>
+          <button type="button" class="btn btn-outline-primary btn-sm" id="cm-compartir"><i class="fas fa-share-nodes me-1"></i>Compartirle algo</button>
+        {% elif estado == 'enviada' %}<span class="btn btn-light btn-sm disabled">Solicitud enviada</span>
+        {% elif estado == 'recibida' %}
+          <form method="post" action="/chat/colegas/solicitud/" class="m-0">{% csrf_token %}<input type="hidden" name="usuario" value="{{ o.u.pk }}"><input type="hidden" name="accion" value="aceptar"><input type="hidden" name="volver" value="/chat/colegas/u/{{ o.u.pk }}/"><button class="btn btn-primary btn-sm">Aceptar su solicitud</button></form>
+        {% elif estado == 'bloqueado' %}
+          <form method="post" action="/chat/colegas/solicitud/" class="m-0">{% csrf_token %}<input type="hidden" name="usuario" value="{{ o.u.pk }}"><input type="hidden" name="accion" value="desbloquear"><input type="hidden" name="volver" value="/chat/colegas/u/{{ o.u.pk }}/"><button class="btn btn-outline-secondary btn-sm">Desbloquear</button></form>
+        {% else %}
+          <form method="post" action="/chat/colegas/solicitud/" class="m-0">{% csrf_token %}<input type="hidden" name="usuario" value="{{ o.u.pk }}"><input type="hidden" name="accion" value="enviar"><input type="hidden" name="volver" value="/chat/colegas/u/{{ o.u.pk }}/">
+            <input name="mensaje" maxlength="200" class="form-control form-control-sm mt-1" placeholder="Mensaje (opcional)" aria-label="Mensaje de la solicitud">
+            <button class="btn btn-primary btn-sm"><i class="fas fa-user-plus me-1"></i>Agregar como colega</button></form>
+        {% endif %}
+      </div>
+    </div>
+  </aside>
+
+  {# ---------- Centro: todos sus aportes ---------- #}
+  <section class="col-lg-6">
+    <div class="d-flex gap-1 overflow-auto pb-1 mb-2">
+      <a class="mu-chip {% if not tipo %}on{% endif %}" href="?">Todo <span class="opacity-75">{{ total_pubs }}</span></a>
+      {% for k, v, ic, n in filtros_tipo %}{% if n %}<a class="mu-chip text-nowrap {% if tipo == k %}on{% endif %}" href="?tipo={{ k }}"><i class="fas {{ ic }} me-1"></i>{{ v }} <span class="opacity-75">{{ n }}</span></a>{% endif %}{% endfor %}
+    </div>
+    {% for t in pubs %}{% include 'chat/_muro_pub.html' with detalle=False %}
+    {% empty %}
+    <div class="mu-lado text-center text-muted py-4">
+      {% if tipo %}No tiene aportes de ese tipo.{% elif estado == 'yo' %}Todavía no ha publicado en la Sala de Profesores.{% else %}{{ o.nombre }} todavía no ha publicado nada que usted pueda ver.{% endif %}
+    </div>
+    {% endfor %}
+    <div class="d-flex justify-content-between mb-4">{% if anterior %}<a class="btn btn-sm btn-outline-secondary" href="{{ anterior }}">← Más recientes</a>{% else %}<span></span>{% endif %}{% if siguiente %}<a class="btn btn-sm btn-outline-secondary" href="{{ siguiente }}">Más antiguas →</a>{% endif %}</div>
+  </section>
+
+  {# ---------- Derecha: en común ---------- #}
+  <aside class="col-lg-3">
+    {% if en_comun %}
+    <div class="mu-lado">
+      <h6 class="sp-tit">Colegas en común ({{ en_comun|length }})</h6>
+      <div class="d-flex flex-wrap gap-2 cm-comun">{% for c in en_comun %}<a href="/chat/colegas/u/{{ c.u.pk }}/" class="text-decoration-none text-center small">
+        <span class="d-flex justify-content-center mb-1">{% include 'chat/_av.html' with foto=c.foto nombre=c.nombre clase='chico' %}</span><span class="d-block text-truncate">{{ c.nombre }}</span></a>{% endfor %}</div>
+    </div>
+    {% endif %}
+    {% if grupos %}
+    <div class="mu-lado">
+      <h6 class="sp-tit">Grupos en común</h6>
+      {% for g in grupos %}<a href="/chat/colegas/c/{{ g.pk }}/" class="d-block small mb-1"><i class="fas fa-users me-1"></i>{{ g.nombre }}</a>{% endfor %}
+    </div>
+    {% endif %}
+    <div class="mu-lado small text-muted">
+      Lo que ve aquí son los aportes de {{ o.nombre }} en la Sala de Profesores que usted puede ver (los de «solo mis colegas» aparecen si son colegas).
+    </div>
+  </aside>
+</div>
+
+{% if estado == 'colegas' %}
+<div class="modal fade" id="cm-modal" tabindex="-1" aria-hidden="true" aria-labelledby="cm-tit"><div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+  <div class="modal-header py-2"><h6 class="modal-title" id="cm-tit"><i class="fas fa-share-nodes me-1"></i>Compartirle algo a {{ o.nombre }}</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+  <div class="modal-body">
+    <input id="cm-buscar" class="form-control form-control-sm mb-2" placeholder="Buscar en mis actividades, clases invertidas y talleres">
+    <div id="cm-lista" class="small" style="max-height:320px;overflow:auto"><span class="text-muted">Cargando…</span></div>
+    <input id="cm-mensaje" class="form-control form-control-sm mt-2" maxlength="300" placeholder="Mensaje (opcional): «Te comparto el taller que hice para 7.º»">
+    <div class="small text-muted mt-1">Le llega un aviso y lo agrega a la clase que quiera desde «Compartido conmigo». Para compartirle un aporte del muro, use «Compartir» en la publicación.</div>
+    <div id="cm-aviso" class="alert py-1 px-2 small mt-2 d-none"></div>
+  </div>
+  <div class="modal-footer py-2"><button type="button" class="btn btn-link" data-bs-dismiss="modal">Cerrar</button>
+    <button type="button" class="btn btn-primary" id="cm-enviar" disabled><i class="fas fa-share me-1"></i>Compartir</button></div>
+</div></div></div>
+{% endif %}
+
+{% include 'chat/_muro_js.html' %}
+{% include 'aula/_compartir.html' %}
+<script>
+(function () {
+  // Abierta desde el chat (otra pestaña): «Cerrar» la cierra. Si no, vuelve a la Sala de Profesores.
+  var cerrar = document.getElementById('cm-cerrar');
+  if (window.opener || history.length <= 1) {
+    document.getElementById('cm-cerrar-txt').textContent = 'Cerrar';
+    cerrar.addEventListener('click', function (e) { e.preventDefault(); window.close(); setTimeout(function () { location.href = '/chat/colegas/muro/'; }, 300); });
+  }
+  var btn = document.getElementById('cm-compartir');
+  if (!btn) return;
+  var items = [], elegido = null, cargado = false, $ = function (id) { return document.getElementById(id); };
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
+  function pintar() {
+    var q = $('cm-buscar').value.trim().toLowerCase(), grupo = '', html = '';
+    items.filter(function (x) { return !q || x.titulo.toLowerCase().indexOf(q) >= 0; }).forEach(function (x) {
+      if (x.grupo !== grupo) { grupo = x.grupo; html += '<div class="fw-bold mt-2 mb-1">' + esc(grupo) + '</div>'; }
+      var k = x.tipo + ':' + x.id;
+      html += '<label class="d-flex gap-2 align-items-center border rounded px-2 py-1 mb-1"><input type="radio" name="cm-item" value="' + k + '"' + (elegido === k ? ' checked' : '') + '>' +
+              '<span class="flex-grow-1">' + esc(x.titulo) + (x.de ? ' <span class="text-muted">· ' + esc(x.de) + '</span>' : '') + '</span></label>';
+    });
+    $('cm-lista').innerHTML = html || '<span class="text-muted">' + (items.length ? 'Nada con esa búsqueda.' : 'Todavía no tiene actividades, clases invertidas ni talleres para compartir.') + '</span>';
+  }
+  function token() { var i = document.querySelector('[name=csrfmiddlewaretoken]'); return i ? i.value : ''; }
+  function aviso(ok, texto) { var a = $('cm-aviso'); a.className = 'alert py-1 px-2 small mt-2 ' + (ok ? 'alert-success' : 'alert-danger'); a.textContent = texto; }
+  btn.addEventListener('click', function () {
+    bootstrap.Modal.getOrCreateInstance($('cm-modal')).show();
+    $('cm-aviso').classList.add('d-none');
+    if (cargado) return;
+    fetch('/chat/colegas/u/{{ o.u.pk }}/compartibles/', {credentials: 'same-origin'}).then(function (r) { return r.json(); })
+      .then(function (j) { items = j.items || []; cargado = true; pintar(); })
+      .catch(function () { $('cm-lista').innerHTML = '<span class="text-danger">No se pudo cargar. Revise su conexión.</span>'; });
+  });
+  $('cm-buscar').addEventListener('input', pintar);
+  $('cm-lista').addEventListener('change', function (e) { if (e.target.name === 'cm-item') { elegido = e.target.value; $('cm-enviar').disabled = false; } });
+  $('cm-enviar').addEventListener('click', function () {
+    if (!elegido) return;
+    var p = elegido.split(':'), fd = new FormData();
+    fd.append('destino', 'colega'); fd.append('usuario', '{{ o.u.pk }}'); fd.append('mensaje', $('cm-mensaje').value);
+    $('cm-enviar').disabled = true;
+    fetch('/aula/compartir/' + p[0] + '/' + p[1] + '/', {method: 'POST', body: fd, credentials: 'same-origin', headers: {'X-CSRFToken': token()}})
+      .then(function (r) { return r.json(); })
+      .then(function (j) { $('cm-enviar').disabled = false; aviso(j.ok, j.ok ? (j.mensaje || 'Listo, se lo compartió.') : (j.error || 'No se pudo compartir.')); })
+      .catch(function () { $('cm-enviar').disabled = false; aviso(false, 'No se pudo compartir. Revise su conexión.'); });
+  });
+})();
+</script>
+{% endblock %}

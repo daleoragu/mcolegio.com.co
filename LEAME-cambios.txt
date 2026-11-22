@@ -1,4 +1,4 @@
-Versión 0070 · 2026-11-21 16:56
+Versión 0071 · 2026-11-22 02:38
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -288,7 +288,7 @@ NUEVO     chat/templates/chat/colegas_conversacion.html
 NUEVO     chat/templates/chat/colegas_grupo_nuevo.html
 NUEVO     chat/templates/chat/colegas_inicio.html
 NUEVO     chat/templates/chat/colegas_lista.html
-NUEVO     chat/templates/chat/colegas_perfil.html
+NUEVO     chat/templates/chat/colegas_muro.html
 CAMBIADO  chat/templates/chat/conversacion.html
 NUEVO     chat/templates/chat/muro.html
 NUEVO     chat/templates/chat/muro_detalle.html
