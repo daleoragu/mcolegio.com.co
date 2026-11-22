@@ -14,6 +14,9 @@
         $$('[data-ins]').forEach(function (b) { b.addEventListener('click', function () { E.bloque(b.getAttribute('data-ins')); }); });
         $$('[data-ins-pregunta]').forEach(function (b) { b.addEventListener('click', function () { E.pregunta(b.getAttribute('data-ins-pregunta')); }); });
 
+        // La barra de la izquierda solo muestra íconos: el nombre va en el globo de ayuda
+        $$('#mm-agregar [data-nuevo]').forEach(function (b) { if (!b.title) b.title = (b.textContent || '').trim(); b.setAttribute('aria-label', b.title); });
+
         // ------------------------------------------------------------ Vista y zoom
         var vista = leer('mm-vista') === 'impresion' ? 'impresion' : 'edicion';
         var zoom = Math.max(40, Math.min(200, parseInt(leer('mm-zoom') || '100', 10) || 100));
@@ -57,7 +60,7 @@
         $('#mm-nav-cerrar').addEventListener('click', function () { abrirNav(false); });
         function ubicarNav() {
             var barra = $('.mm-barra-fija'), b = barra ? barra.getBoundingClientRect().bottom : 60;
-            nav.style.setProperty('--mm-nav-top', Math.max(12, b + 8) + 'px');
+            document.documentElement.style.setProperty('--mm-nav-top', Math.max(12, b + 8) + 'px');
         }
         window.addEventListener('scroll', ubicarNav, {passive: true});
         window.addEventListener('resize', function () { ubicarNav(); armarNav(); });

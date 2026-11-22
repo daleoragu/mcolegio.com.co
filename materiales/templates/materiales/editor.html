@@ -28,7 +28,13 @@
       background-image:repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--mm-alto, 99999px) - 8px),
       #cbd5e1 calc(var(--mm-alto, 99999px) - 8px), #cbd5e1 calc(var(--mm-alto, 99999px) + 8px), transparent calc(var(--mm-alto, 99999px) + 8px));
       box-shadow:0 2px 12px rgba(15,23,42,.25); }
-  body.mm-impresion #mm-agregar { opacity:.85; }
+  /* Agregar: barra vertical de íconos a la izquierda, fuera de la hoja (el nombre sale al pasar el ratón) */
+  .mm-riel { position:fixed; left:10px; top:var(--mm-nav-top, 150px); z-index:24; display:flex; flex-direction:column; flex-wrap:nowrap; gap:4px;
+             margin:0; padding:6px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 8px 24px rgba(15,23,42,.12);
+             max-height:calc(100vh - var(--mm-nav-top, 150px) - 12px); overflow-y:auto; justify-content:flex-start; }
+  .mm-riel button { width:40px; height:38px; padding:0 !important; font-size:0 !important; display:flex; align-items:center; justify-content:center; flex:none; }
+  .mm-riel button i { font-size:1rem; margin:0 !important; }
+  @media (max-width: 1100px) { .mm-riel { display:none; } }
   /* Panel de navegación a la derecha (opcional) */
   .mm-nav { position:fixed; right:10px; top:var(--mm-nav-top, 150px); bottom:12px; width:270px; z-index:25; background:#fff; border:1px solid #e2e8f0;
             border-radius:12px; box-shadow:0 8px 24px rgba(15,23,42,.14); display:flex; flex-direction:column; overflow:hidden; }
@@ -353,10 +359,7 @@
 </aside>
 <div class="mm-area">
 <div class="mm-papel-etq" id="mm-papel-etq"></div>
-<div class="mm-hoja" id="mm-hoja">
-    <div id="mm-bloques"></div>
-    <div class="mm-agregar" id="mm-agregar">
-        <span class="small text-muted w-100 text-center">Agregar debajo del bloque marcado · pegue imágenes con Ctrl+V o arrástrelas aquí</span>
+<nav class="mm-agregar mm-riel" id="mm-agregar" aria-label="Agregar debajo del bloque marcado">
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="texto"><i class="fas fa-paragraph me-1"></i>Texto</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="titulo"><i class="fas fa-heading me-1"></i>Título</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="seccion"><i class="fas fa-bookmark me-1"></i>Sección</button>
@@ -371,7 +374,9 @@
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="lineas"><i class="fas fa-grip-lines me-1"></i>Líneas</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="separador"><i class="fas fa-minus me-1"></i>Separador</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="salto"><i class="fas fa-file-circle-plus me-1"></i>Nueva página</button>
-    </div>
+    </nav>
+<div class="mm-hoja" id="mm-hoja">
+    <div id="mm-bloques"></div>
 </div>
 </div>
 <input type="file" id="mm-archivo" accept="image/*" multiple hidden>
