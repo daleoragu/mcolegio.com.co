@@ -121,6 +121,7 @@
           <div class="mm-ins-tit mt-2">Imágenes</div>
           <button type="button" class="dropdown-item" data-ins="imagen"><i class="far fa-image"></i>Imagen</button>
           <button type="button" class="dropdown-item" data-ins="grafica"><i class="fas fa-chart-line"></i>Gráfica de funciones o figuras</button>
+          <button type="button" class="dropdown-item" data-ins="dibujo"><i class="fas fa-pen-nib"></i>Dibujo a mano alzada</button>
           <button type="button" class="dropdown-item" data-ins="hoja"><i class="far fa-file-pdf"></i>Hoja sobre un PDF o una imagen</button>
         </div>
         <div class="mm-ins-col">
@@ -365,6 +366,7 @@
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="seccion"><i class="fas fa-bookmark me-1"></i>Sección</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="imagen"><i class="far fa-image me-1"></i>Imagen</button>
         <button type="button" class="btn btn-sm btn-outline-primary" data-nuevo="grafica"><i class="fas fa-chart-line me-1"></i>Gráfica</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-nuevo="dibujo"><i class="fas fa-pen-nib me-1"></i>Dibujo a mano alzada</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-nuevo="pregunta"><i class="fas fa-circle-question me-1"></i>Pregunta</button>
         <button type="button" class="btn btn-sm btn-outline-primary" data-nuevo="banco"><i class="fas fa-box-archive me-1"></i>Del banco</button>
         <button type="button" class="btn btn-sm btn-outline-primary" data-nuevo="hoja"><i class="far fa-file-pdf me-1"></i>Hoja sobre un PDF</button>
@@ -567,6 +569,7 @@
 {{ imagenes|json_script:"mm-imagenes" }}
 {{ graficas|json_script:"mm-graficas" }}
 {{ recortes|json_script:"mm-recortes" }}
+{{ dibujos|json_script:"mm-dibujos" }}
 {{ nube_docente|json_script:"mm-nube-config" }}
 {{ modos_pregunta|json_script:"mm-modos" }}
 {{ med|json_script:"mm-medidor-datos" }}
@@ -593,12 +596,14 @@ window.MM = {
     estado: "{% url 'materiales:estado' doc.pk %}",
     ecuacion: "{% url 'materiales:ecuacion' %}",
     dba: "{% url 'materiales:dba_lista' %}",
-    grafica: { vista: "{% url 'materiales:grafica_vista' %}", guardar: "{% url 'materiales:grafica_guardar' %}" }
+    grafica: { vista: "{% url 'materiales:grafica_vista' %}", guardar: "{% url 'materiales:grafica_guardar' %}" },
+    dibujo: { guardar: "{% url 'materiales:dibujo_guardar' %}", imagen: "{% url 'materiales:imagen' 0 %}" }
 };
 </script>
 <script src="{% static 'materiales/colores.js' %}"></script>
 <script src="{% static 'materiales/ecuaciones.js' %}"></script>
 <script src="{% static 'materiales/graficador.js' %}"></script>
+<script src="{% static 'materiales/dibujo.js' %}"></script>
 <script src="{% static 'materiales/imagenes.js' %}"></script>
 <script src="{% static 'materiales/impresion.js' %}"></script>
 <script src="{% static 'materiales/editor.js' %}"></script>

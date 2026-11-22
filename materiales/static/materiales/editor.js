@@ -9,6 +9,7 @@
     var IMAGENES = JSON.parse(document.getElementById('mm-imagenes').textContent || '{}');
     var GRAFICAS = JSON.parse((document.getElementById('mm-graficas') || {}).textContent || '{}');
     var RECORTES = JSON.parse((document.getElementById('mm-recortes') || {}).textContent || '{}');
+    var DIBUJOS = JSON.parse((document.getElementById('mm-dibujos') || {}).textContent || '{}');
     var NUBE = JSON.parse(document.getElementById('mm-nube-config').textContent || '{}');
     datos.bloques = datos.bloques || [];
     datos.opciones = Object.assign({ columnas: 1, letra: 11, modo: 'normal', nombre_estudiante: true, datos: true }, datos.opciones || {});
@@ -544,7 +545,7 @@
             caja2.appendChild(editable(b.enunciado, b.modo === 'completar' ? 'Indicación (opcional): Completa con la palabra correcta' : 'Escriba la pregunta…', function (v) { b.enunciado = v; }, true));
             if (b.imagen && IMAGENES[b.imagen] && b.modo !== 'senalar') {
                 caja2.appendChild(el('div', { class: 'mm-img text-center' }, [el('img', { src: IMAGENES[b.imagen], alt: 'Imagen de la pregunta', style: 'width:45%' }),
-                    GRAFICAS[b.imagen] ? null : el('button', { type: 'button', class: 'btn btn-sm btn-link', html: '<i class="fas fa-crop-simple me-1"></i>Recortar', onclick: function () { recortarDe(b); } }),
+                    GRAFICAS[b.imagen] || DIBUJOS[b.imagen] ? null : el('button', { type: 'button', class: 'btn btn-sm btn-link', html: '<i class="fas fa-crop-simple me-1"></i>Recortar', onclick: function () { recortarDe(b); } }),
                     el('button', { type: 'button', class: 'btn btn-sm btn-link text-danger', text: 'Quitar imagen', onclick: function () { b.imagen = null; cambio(); pintar(); } })]));
             }
             caja2.appendChild((CUERPO[b.modo] || CUERPO.abierta)(b));
@@ -561,6 +562,9 @@
                 b.modo === 'senalar' || b.modo === 'hoja' ? null : el('button', { type: 'button', class: 'btn btn-sm btn-link py-0',
                     html: '<i class="fas fa-chart-line me-1"></i>' + (GRAFICAS[b.imagen] ? 'Editar la gráfica' : 'Gráfica para la pregunta'),
                     onclick: function () { activo = b.id; abrirGrafica(b); } }),
+                b.modo === 'senalar' || b.modo === 'hoja' ? null : el('button', { type: 'button', class: 'btn btn-sm btn-link py-0',
+                    html: '<i class="fas fa-pen-nib me-1"></i>' + (DIBUJOS[b.imagen] ? 'Editar el dibujo' : b.imagen && IMAGENES[b.imagen] ? 'Dibujar sobre la imagen' : 'Dibujo para la pregunta'),
+                    onclick: function () { activo = b.id; abrirDibujo(b); } }),
                 el('button', { type: 'button', class: 'btn btn-sm btn-link py-0 ms-auto', html: '<i class="fas fa-box-archive me-1"></i>Guardar en el banco',
                     onclick: function () { guardarEnBanco(b); } })]));
             return caja2;
@@ -577,7 +581,7 @@
                 rango.value = b.ancho || 70;
                 rango.addEventListener('input', function () { b.ancho = +rango.value; img.style.width = b.ancho + '%'; cambio(); });
                 hijos.push(el('div', { class: 'mm-img text-center' }, [img, el('div', {}, [rango]),
-                    GRAFICAS[b.imagen] ? null : el('button', { type: 'button', class: 'btn btn-sm btn-link', html: '<i class="fas fa-crop-simple me-1"></i>Recortar', onclick: function () { recortarDe(b); } }),
+                    GRAFICAS[b.imagen] || DIBUJOS[b.imagen] ? null : el('button', { type: 'button', class: 'btn btn-sm btn-link', html: '<i class="fas fa-crop-simple me-1"></i>Recortar', onclick: function () { recortarDe(b); } }),
                     el('button', { type: 'button', class: 'btn btn-sm btn-link text-danger', text: 'Quitar imagen', onclick: function () { b.imagen = null; cambio(); pintar(); } })]));
             }
             hijos.push(editable(b.html, 'El texto, la receta, la biografía o la explicación de la gráfica…', function (v) { b.html = v; }));
@@ -633,6 +637,7 @@
             if (tipo === 'imagen') { destinoImagen = null; $('#mm-archivo').click(); return; }
             if (tipo === 'hoja') { $('#mm-archivo-hoja').click(); return; }
             if (tipo === 'grafica') { abrirGrafica(null); return; }
+            if (tipo === 'dibujo') { abrirDibujo(null); return; }
             if (tipo === 'banco') { abrirBanco(); return; }
             insertar(nuevo(tipo));
         });
@@ -691,8 +696,11 @@
             op.addEventListener('input', function () { b.opacidad = +op.value; img.style.opacity = b.opacidad / 100; cambio(); });
             controles.push(el('span', { text: 'Opacidad' }), op, el('span', { class: 'text-muted', text: 'Arrástrela a donde la quiera.' }));
         }
-        if (!GRAFICAS[b.imagen]) controles.push(el('button', { type: 'button', class: 'btn btn-sm btn-outline-primary py-0', html: '<i class="fas fa-crop-simple me-1"></i>Recortar',
+        if (!GRAFICAS[b.imagen] && !DIBUJOS[b.imagen]) controles.push(el('button', { type: 'button', class: 'btn btn-sm btn-outline-primary py-0', html: '<i class="fas fa-crop-simple me-1"></i>Recortar',
             onclick: function () { recortarDe(b); } }));
+        if (b.imagen && IMAGENES[b.imagen]) controles.push(el('button', { type: 'button', class: 'btn btn-sm btn-outline-primary py-0',
+            html: '<i class="fas fa-pen-nib me-1"></i>' + (DIBUJOS[b.imagen] ? 'Editar dibujo' : 'Dibujar encima'),
+            onclick: function () { activo = b.id; abrirDibujo(b); } }));
         var hijos = [caja, el('div', { class: 'mm-img-ajustes' }, controles)];
         if (!libre) hijos.push(campo(b.pie, 'Pie de imagen (opcional)', function (v) { b.pie = v; }, 'form-control form-control-sm border-0 text-center fst-italic'));
         if (libre && GRAFICAS[b.imagen]) hijos.push(botonGrafica(b));
@@ -752,6 +760,19 @@
             if (b) { b.imagen = j.id; pintar(); cambio(); }
             else { var n = nuevo('imagen'); n.imagen = j.id; n.ancho = 70; n.pie = ''; insertar(n); }
             estado('Gráfica guardada');
+        });
+    }
+    // Dibujo a mano alzada: nuevo (bloque de imagen), editar uno hecho aquí o dibujar encima de otra imagen
+    function abrirDibujo(b) {
+        if (!window.MMDibujo) { estado('No cargó el dibujo a mano alzada.', true); return; }
+        var previo = null;
+        if (b && b.imagen && DIBUJOS[b.imagen]) previo = { id: b.imagen, dibujo: DIBUJOS[b.imagen] };
+        else if (b && b.imagen && IMAGENES[b.imagen]) previo = { base: b.imagen };
+        window.MMDibujo.abrir(previo, function (j) {
+            IMAGENES[j.id] = j.url; DIBUJOS[j.id] = j.dibujo;
+            if (b) { b.imagen = j.id; if (b.tipo === 'imagen' && !b.ancho) b.ancho = 70; pintar(); cambio(); }
+            else { var n = nuevo('imagen'); n.imagen = j.id; n.ancho = 70; n.pie = ''; insertar(n); }
+            estado('Dibujo guardado');
         });
     }
     function botonGrafica(b) {
@@ -1442,6 +1463,7 @@
             if (tipo === 'imagen') { destinoImagen = null; $('#mm-archivo').click(); return; }
             if (tipo === 'hoja') { $('#mm-archivo-hoja').click(); return; }
             if (tipo === 'grafica') { abrirGrafica(null); return; }
+            if (tipo === 'dibujo') { abrirDibujo(null); return; }
             if (tipo === 'banco') { abrirBanco(); return; }
             insertar(nuevo(tipo));
         },
