@@ -95,3 +95,47 @@ class DibujoEnElEditor(ColegioDePrueba):
         self.assertEqual(d['trazos'][0]['g'], 60)
         self.assertEqual(len(d['trazos'][1]['texto']), 300)
         self.assertEqual((d['fondo'], d['ancho']), ('blanco', 4000))
+
+
+class MarcasSobreLaHoja(DibujoEnElEditor):
+    test_guardar_editar_y_usar = test_dibujar_encima_de_una_imagen = test_rechaza_lo_que_no_sirve = None
+
+    def test_guardar_limpiar_y_pdf(self):
+        from materiales import bloques as B, exportar
+        profe = self.cliente(self.u_docente)
+        profe.post('/materiales/nuevo/', {'tipo': 'cuadernillo', 'titulo': 'Taller calificado'})
+        doc = Documento.objects.get()
+        marcas = [{'b': 'p1', 'h': 'lapiz', 'c': '#dc2626', 'g': 4, 'p': [[10, 10, .5], [30, 25, .8], [60, 20, 1]]},
+                  {'b': 'p1', 'h': 'sello', 's': 'bien', 'c': '#16a34a', 'g': 4, 'p': [[900, 20]]},
+                  {'b': 'p1', 'h': 'texto', 'c': '#dc2626', 'g': 4, 'p': [[800, 60]], 'texto': '4,5 <b>'},
+                  {'b': 'otro', 'h': 'lapiz', 'p': [[1, 1]]},                          # bloque que no existe
+                  {'b': 'p1', 'h': 'virus', 'p': [[1, 1]]},
+                  {'b': 'p1', 'h': 'sello', 's': 'raro', 'p': [[1, 'x'], [2, 2]]}]
+        contenido = {'bloques': [{'id': 'p1', 'tipo': 'pregunta', 'modo': 'abierta', 'enunciado': '¿Cuánto es 2+2?'}],
+                     'anotaciones': marcas, 'opciones': dict(doc.contenido.get('opciones') or {}, portada=False)}
+        r = profe.post(f'/materiales/{doc.pk}/guardar/', json.dumps({'titulo': doc.titulo, 'contenido': contenido}), content_type='application/json')
+        self.assertTrue(r.json()['ok'])
+        doc.refresh_from_db()
+        a = doc.contenido['anotaciones']
+        self.assertEqual([x['h'] for x in a], ['lapiz', 'sello', 'texto', 'sello'])
+        self.assertEqual(a[0]['p'][2], [60.0, 20.0, 1.0])                          # la presión del lápiz se guarda
+        self.assertEqual(a[3]['s'], 'bien'); self.assertEqual(a[3]['p'], [[2.0, 2.0]])
+        # En el PDF: una imagen SVG encima del bloque (y nada si el docente las apaga)
+        ctx = exportar.contexto(doc)
+        anot = ctx['bloques'][0]['anot']
+        self.assertTrue(anot['src'].startswith('data:image/svg+xml;base64,'))
+        svg = base64.b64decode(anot['src'].split(',')[1]).decode()
+        self.assertIn('4,5 &lt;b&gt;', svg); self.assertIn('#16a34a', svg)
+        self.assertTrue(profe.get(f'/materiales/{doc.pk}/pdf/').content.startswith(b'%PDF'))
+        doc.contenido['opciones']['marcas_pdf'] = False
+        doc.save()
+        self.assertNotIn('anot', exportar.contexto(doc)['bloques'][0])
+        # El editor trae el botón y el script
+        r = profe.get(f'/materiales/{doc.pk}/')
+        self.assertContains(r, 'id="mm-anotar-btn"'); self.assertContains(r, 'materiales/anotar.js')
+        # La hoja para marcar: el mismo HTML del PDF, con cada bloque marcado por su id y el script
+        r = profe.get(f'/materiales/{doc.pk}/marcar/')
+        self.assertContains(r, 'data-bid="p1"'); self.assertContains(r, 'materiales/marcar.js'); self.assertContains(r, 'class="marcar"')
+        self.assertNotContains(r, 'class="anot"')
+        self.assertEqual(self.cliente(self.rectora).get(f'/materiales/{doc.pk}/marcar/').status_code, 404)
+        self.assertEqual(B.limpiar_anotaciones('nada', {'p1'}), [])

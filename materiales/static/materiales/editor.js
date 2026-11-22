@@ -1372,7 +1372,7 @@
     // -------------------------------------------------------------------
     var historial = [], futuro = [], foto = null, esperaFoto = null, restaurando = false;
     var btnDeshacer = $('#mm-deshacer'), btnRehacer = $('#mm-rehacer');
-    function fotoActual() { return JSON.stringify({ bloques: datos.bloques, opciones: datos.opciones }); }
+    function fotoActual() { return JSON.stringify({ bloques: datos.bloques, opciones: datos.opciones, anotaciones: datos.anotaciones || [] }); }
     function botonesHist() {
         if (btnDeshacer) btnDeshacer.disabled = !(historial.length || esperaFoto);
         if (btnRehacer) btnRehacer.disabled = !futuro.length;
@@ -1392,8 +1392,9 @@
     function restaurar(f) {
         restaurando = true;
         var d = JSON.parse(f);
-        datos.bloques = d.bloques; datos.opciones = d.opciones; foto = f;
+        datos.bloques = d.bloques; datos.opciones = d.opciones; datos.anotaciones = d.anotaciones || []; foto = f;
         pintarOpciones(); pintar(); cambio();
+        document.dispatchEvent(new Event('mm-restaurado'));
         restaurando = false;
         botonesHist();
     }
@@ -1474,6 +1475,11 @@
             if (n) n.scrollIntoView({behavior: 'smooth', block: 'center'});
         },
         papel: papelMM,
+        // Marcas a mano sobre la hoja: cada trazo es un paso de deshacer
+        cambio: function () { cambio(); cerrarFoto(); },
+        guardarYa: function () { clearTimeout(temporizador); return guardar(); },
+        deshacer: function () { deshacer(); },
+        rehacer: function () { rehacer(); },
     };
     document.dispatchEvent(new Event('mm-editor-listo'));
 })();

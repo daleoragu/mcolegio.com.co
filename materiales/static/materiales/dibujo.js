@@ -14,6 +14,8 @@
                 ['flecha', 'fa-arrow-right-long', 'Flecha'], ['rect', 'fa-square', 'Rectángulo'], ['elipse', 'fa-circle', 'Círculo u óvalo'],
                 ['texto', 'fa-font', 'Texto'], ['borrar', 'fa-eraser', 'Borrador (quita el trazo que toque)']];
 
+    var presion = window.MMTinta.presion, tinta = window.MMTinta.tinta, sumarPuntos = window.MMTinta.sumarPuntos;
+
     var modal, lienzo, ctx, est = null, alGuardarCb = null;
     function el(tag, at, hijos) {
         var e = document.createElement(tag);
@@ -143,13 +145,19 @@
         if (est.h === 'borrar') { actual = { borrar: true }; est.hist.push(est.trazos.slice()); est.rehacer = []; borrarEn(p); return; }
         actual = { h: est.h, c: est.c, g: est.g, p: [p, p.slice()] };
         if (est.relleno && (est.h === 'rect' || est.h === 'elipse')) actual.relleno = true;
-        if (est.h === 'lapiz' || est.h === 'resaltar') actual.p = [p];
+        if (est.h === 'resaltar') actual.p = [p];
+        if (est.h === 'lapiz') {
+            var pr = presion(ev, null);
+            actual.g = est.g * 1.4; actual.p = [[p[0], p[1], pr]];
+            actual.ult = { sx: ev.clientX, sy: ev.clientY, t: ev.timeStamp, pr: pr, w: p };
+        }
     }
     function mover(ev) {
         if (!actual) return;
         var p = punto(ev);
         if (actual.borrar) { borrarEn(p); return; }
-        if (actual.h === 'lapiz' || actual.h === 'resaltar') {
+        if (actual.h === 'lapiz') { sumarPuntos(actual, ev, actual.ult, punto); dibujar(); return; }
+        if (actual.h === 'resaltar') {
             var u = actual.p[actual.p.length - 1];
             if (Math.abs(u[0] - p[0]) + Math.abs(u[1] - p[1]) < 1.5) return;
             actual.p.push(p);
@@ -164,9 +172,9 @@
     }
     function arriba() {
         if (!actual) return;
-        var t = actual; actual = null;
+        var t = actual; actual = null; delete t.ult;
         if (t.borrar) { if (est.hist.length && est.hist[est.hist.length - 1].length === est.trazos.length) est.hist.pop(); pintarBarra(); return; }
-        if (t.p.length === 1) t.p.push([t.p[0][0] + .1, t.p[0][1] + .1]);   // un toque deja un punto
+        if (t.p.length === 1 && t.h !== 'lapiz') t.p.push([t.p[0][0] + .1, t.p[0][1] + .1]);   // un toque deja un punto
         agregar(t);
     }
     function agregar(t) { est.hist.push(est.trazos.slice()); est.rehacer = []; est.trazos.push(t); dibujar(); pintarBarra(); }
@@ -219,6 +227,7 @@
         c.save();
         c.strokeStyle = t.c; c.fillStyle = t.c; c.lineCap = 'round'; c.lineJoin = 'round'; c.lineWidth = t.g;
         if (t.h === 'resaltar') { c.globalAlpha = .35; c.lineWidth = t.g * 3; c.lineCap = 'butt'; }
+        if (t.h === 'lapiz' && p[0].length > 2) { tinta(c, t); c.restore(); return; }
         if (t.h === 'lapiz' || t.h === 'resaltar') {
             c.beginPath(); c.moveTo(p[0][0], p[0][1]);
             if (p.length < 3) { for (var i = 1; i < p.length; i++) c.lineTo(p[i][0], p[i][1]); }

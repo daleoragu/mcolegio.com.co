@@ -157,6 +157,7 @@
     </div>
     <button type="button" class="btn btn-sm btn-outline-secondary" id="mm-nav-btn" title="Panel de navegación: secciones, preguntas y páginas"><i class="fas fa-list-ul"></i></button>
     <button type="button" class="btn btn-sm btn-outline-primary" id="mm-grafica-btn" title="Insertar una gráfica de funciones o figuras"><i class="fas fa-chart-line me-1"></i>Gráfica</button>
+    <button type="button" class="btn btn-sm btn-outline-danger" id="mm-anotar-btn" title="Dibujar, calificar y poner chulos donde quiera sobre la hoja"><i class="fas fa-pen-fancy me-1"></i>Marcar a mano</button>
     <button type="button" class="btn btn-sm btn-outline-primary" id="mm-ecuacion-btn" title="Insertar una ecuación (Alt+=)"><span style="font-family:'Times New Roman',serif;font-style:italic;font-weight:700">∑ x²</span> Ecuación</button>
     <div class="btn-group btn-group-sm" role="group" aria-label="Formato del texto">
       <button type="button" class="btn btn-outline-secondary" data-cmd="bold" title="Negrilla"><i class="fas fa-bold"></i></button>
@@ -597,16 +598,19 @@ window.MM = {
     ecuacion: "{% url 'materiales:ecuacion' %}",
     dba: "{% url 'materiales:dba_lista' %}",
     grafica: { vista: "{% url 'materiales:grafica_vista' %}", guardar: "{% url 'materiales:grafica_guardar' %}" },
-    dibujo: { guardar: "{% url 'materiales:dibujo_guardar' %}", imagen: "{% url 'materiales:imagen' 0 %}" }
+    dibujo: { guardar: "{% url 'materiales:dibujo_guardar' %}", imagen: "{% url 'materiales:imagen' 0 %}" },
+    marcar: "{% url 'materiales:marcar' doc.pk %}"
 };
 </script>
 <script src="{% static 'materiales/colores.js' %}"></script>
 <script src="{% static 'materiales/ecuaciones.js' %}"></script>
 <script src="{% static 'materiales/graficador.js' %}"></script>
+<script src="{% static 'materiales/tinta.js' %}"></script>
 <script src="{% static 'materiales/dibujo.js' %}"></script>
 <script src="{% static 'materiales/imagenes.js' %}"></script>
 <script src="{% static 'materiales/impresion.js' %}"></script>
 <script src="{% static 'materiales/editor.js' %}"></script>
 <script src="{% static 'materiales/vistas.js' %}"></script>
+<script src="{% static 'materiales/anotar.js' %}"></script>
 <script src="{% static 'materiales/equipo.js' %}"></script>
 {% endblock %}

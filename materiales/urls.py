@@ -28,6 +28,7 @@ urlpatterns = [
     path('grafica/vista/', views.grafica_vista, name='grafica_vista'),
     path('grafica/guardar/', views.grafica_guardar, name='grafica_guardar'),
     path('dibujo/guardar/', views.dibujo_guardar, name='dibujo_guardar'),
+    path('<int:pk>/marcar/', views.marcar, name='marcar'),
     path('imagen/<int:pk>/', views.imagen_ver, name='imagen'),
     path('imagen/<int:pk>/recortar/', views.imagen_recortar, name='imagen_recortar'),
     path('banco/', views_banco.banco_pagina, name='banco_pagina'),

@@ -307,8 +307,129 @@ def limpiar(contenido, imagenes_validas):
         'color': color_valido(o.get('color')),
         # Tamaño de la hoja: carta, oficio o uno personalizado (en la unidad que escoja el docente)
         'papel': papel(o.get('papel')),
+        # Marcas a mano alzada sobre la hoja: si salen también al imprimir
+        'marcas_pdf': o.get('marcas_pdf', True) is not False,
     }
-    return {'bloques': bloques, 'opciones': opciones}
+    return {'bloques': bloques, 'opciones': opciones,
+            'anotaciones': limpiar_anotaciones(contenido.get('anotaciones'), {b['id'] for b in bloques})}
+
+
+# ---------------------------------------------------------------- Marcas a mano alzada sobre la hoja
+# Cada marca va pegada a un bloque (si el bloque se mueve, la marca se mueve con él). Las coordenadas van en
+# milésimas del ancho útil de la hoja, medidas desde la esquina de arriba a la izquierda del bloque.
+HERR_ANOT = ('lapiz', 'resaltar', 'linea', 'flecha', 'rect', 'elipse', 'texto', 'sello')
+SELLOS = ('bien', 'mal', 'medio', 'estrella')
+MAX_ANOT, MAX_PUNTOS_ANOT, MAX_PUNTOS_TOTAL = 1500, 2000, 60000
+
+
+def limpiar_anotaciones(crudo, ids):
+    salida, total = [], 0
+    for a in (crudo if isinstance(crudo, list) else [])[:MAX_ANOT]:
+        if not isinstance(a, dict) or a.get('h') not in HERR_ANOT or a.get('b') not in ids:
+            continue
+        num = lambda v, lo, hi: max(lo, min(hi, float(v))) if isinstance(v, (int, float)) and v == v else None
+        puntos = []
+        for q in (a.get('p') or [])[:MAX_PUNTOS_ANOT]:
+            if not isinstance(q, (list, tuple)) or len(q) < 2:
+                continue
+            x, y = num(q[0], -200, 1200), num(q[1], -500, 20000)
+            if x is None or y is None:
+                continue
+            punto = [round(x, 1), round(y, 1)]
+            if len(q) > 2 and num(q[2], 0, 1) is not None:
+                punto.append(round(num(q[2], 0, 1), 2))
+            puntos.append(punto)
+        if not puntos or total + len(puntos) > MAX_PUNTOS_TOTAL:
+            continue
+        total += len(puntos)
+        n = {'b': a['b'], 'h': a['h'], 'c': color_valido(a.get('c'), '#dc2626'), 'g': round(num(a.get('g'), .5, 40) or 3, 1), 'p': puntos}
+        if a['h'] == 'texto':
+            n['texto'] = texto_plano(a.get('texto'), 200)
+            if not n['texto']:
+                continue
+        if a['h'] == 'sello':
+            n['s'] = a.get('s') if a.get('s') in SELLOS else 'bien'
+        if a.get('relleno') and a['h'] in ('rect', 'elipse'):
+            n['relleno'] = True
+        salida.append(n)
+    return salida
+
+
+def _camino_suave(p):
+    if len(p) < 3:
+        return 'M' + ' L'.join(f'{x:.1f} {y:.1f}' for x, y, *_ in p) + (f' L{p[0][0] + .1:.1f} {p[0][1]:.1f}' if len(p) == 1 else '')
+    d = [f'M{p[0][0]:.1f} {p[0][1]:.1f}']
+    for i in range(1, len(p) - 1):
+        d.append(f'Q{p[i][0]:.1f} {p[i][1]:.1f} {(p[i][0] + p[i + 1][0]) / 2:.1f} {(p[i][1] + p[i + 1][1]) / 2:.1f}')
+    d.append(f'L{p[-1][0]:.1f} {p[-1][1]:.1f}')
+    return ' '.join(d)
+
+
+def _svg_marca(a):
+    from html import escape
+    c, g, p = a['c'], a['g'], a['p']
+    if a['h'] == 'lapiz':
+        con = [q[2] for q in p if len(q) > 2]
+        ancho = g * (.3 + .85 * (sum(con) / len(con))) if con else g
+        return f'<path d="{_camino_suave(p)}" fill="none" stroke="{c}" stroke-width="{ancho:.2f}" stroke-linecap="round" stroke-linejoin="round"/>'
+    if a['h'] == 'resaltar':
+        return f'<path d="{_camino_suave(p)}" fill="none" stroke="{c}" stroke-opacity=".35" stroke-width="{g * 3:.1f}" stroke-linecap="butt" stroke-linejoin="round"/>'
+    if a['h'] in ('linea', 'flecha'):
+        (x0, y0), (x1, y1) = p[0][:2], p[-1][:2]
+        s = f'<line x1="{x0}" y1="{y0}" x2="{x1}" y2="{y1}" stroke="{c}" stroke-width="{g}" stroke-linecap="round"/>'
+        if a['h'] == 'flecha':
+            import math
+            ang, L = math.atan2(y1 - y0, x1 - x0), 10 + g * 2.5
+            pts = [(x1, y1), (x1 - L * math.cos(ang - .45), y1 - L * math.sin(ang - .45)), (x1 - L * math.cos(ang + .45), y1 - L * math.sin(ang + .45))]
+            s += f'<polygon points="{" ".join(f"{x:.1f},{y:.1f}" for x, y in pts)}" fill="{c}"/>'
+        return s
+    if a['h'] in ('rect', 'elipse'):
+        (x0, y0), (x1, y1) = p[0][:2], p[-1][:2]
+        relleno = f'fill="{c}" fill-opacity=".9"' if a.get('relleno') else 'fill="none"'
+        if a['h'] == 'rect':
+            return f'<rect x="{min(x0, x1)}" y="{min(y0, y1)}" width="{abs(x1 - x0)}" height="{abs(y1 - y0)}" stroke="{c}" stroke-width="{g}" {relleno}/>'
+        return f'<ellipse cx="{(x0 + x1) / 2}" cy="{(y0 + y1) / 2}" rx="{abs(x1 - x0) / 2}" ry="{abs(y1 - y0) / 2}" stroke="{c}" stroke-width="{g}" {relleno}/>'
+    if a['h'] == 'texto':
+        return (f'<text x="{p[0][0]}" y="{p[0][1]}" fill="{c}" font-family="Arial, sans-serif" font-weight="bold" '
+                f'font-size="{14 + g * 3:.0f}">{escape(a["texto"])}</text>')
+    if a['h'] == 'sello':
+        x, y, t = p[0][0], p[0][1], tam_sello(g)
+        return f'<g transform="translate({x} {y}) scale({t / 100:.3f})">{SELLO_SVG[a.get("s", "bien")]}</g>'
+    return ''
+
+
+def tam_sello(g):
+    return 22 + g * 4
+
+
+# Sellos centrados en (0, 0), dibujados en una caja de 100 × 100
+SELLO_SVG = {
+    'bien': '<path d="M-38 2 L-12 28 L40 -30" fill="none" stroke="#16a34a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>',
+    'mal': '<path d="M-30 -30 L30 30 M30 -30 L-30 30" fill="none" stroke="#dc2626" stroke-width="14" stroke-linecap="round"/>',
+    'medio': '<path d="M-38 2 L-12 28 L40 -30" fill="none" stroke="#ea580c" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>'
+             '<path d="M-34 34 L34 -34" stroke="#ea580c" stroke-width="8" stroke-linecap="round"/>',
+    'estrella': '<polygon points="0,-46 13,-15 46,-14 20,7 29,40 0,21 -29,40 -20,7 -46,-14 -13,-15" fill="#facc15" stroke="#ca8a04" stroke-width="5" stroke-linejoin="round"/>',
+}
+
+
+def marcas_svg(anotaciones, ancho_px):
+    """Las marcas de un bloque como imagen SVG (data URI) y su posición en px dentro del bloque."""
+    import base64
+    if not anotaciones:
+        return None
+    xs, ys = [], []
+    for a in anotaciones:
+        m = tam_sello(a['g']) if a['h'] == 'sello' else (14 + a['g'] * 3) if a['h'] == 'texto' else a['g'] * 3
+        for q in a['p']:
+            xs += [q[0] - m, q[0] + m * (len(a.get('texto', '')) * .6 + 1 if a['h'] == 'texto' else 1)]
+            ys += [q[1] - m, q[1] + m]
+    x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
+    k = ancho_px / 1000
+    cuerpo = ''.join(_svg_marca(a) for a in anotaciones)
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{x0:.1f} {y0:.1f} {x1 - x0:.1f} {y1 - y0:.1f}" '
+           f'width="{(x1 - x0) * k:.1f}" height="{(y1 - y0) * k:.1f}">{cuerpo}</svg>')
+    return {'src': 'data:image/svg+xml;base64,' + base64.b64encode(svg.encode()).decode(),
+            'css': f'left:{x0 * k:.1f}px;top:{y0 * k:.1f}px;width:{(x1 - x0) * k:.1f}px;height:{(y1 - y0) * k:.1f}px'}
 
 
 # Tamaños de hoja (ancho × alto en mm). Oficio: el de Colombia (8,5 × 13 pulgadas).

@@ -782,6 +782,34 @@ def pdf(request, a, pk):
 
 
 @vista
+def marcar(request, a, pk):
+    """La hoja tal como sale impresa (el mismo HTML del PDF) para marcar encima a mano alzada desde el editor.
+    Las marcas se guardan con el documento (el editor que abrió esta página es el que guarda)."""
+    from .views_equipo import doc_equipo
+    doc, _ = doc_equipo(a, pk)
+    ctx = exportar.contexto(doc, None, a.docente(), False)
+    from salon_digital.limites import marca_pdf
+    encabezado = a.encabezado()
+    rutas = {i: f'/materiales/imagen/{i}/' for i in B.imagenes_usadas(doc.contenido)}
+    for campo in ('logo', 'logo2'):
+        archivo = getattr(encabezado, campo, None) if encabezado is not None else None
+        if archivo:
+            try:
+                rutas[campo] = archivo.url
+            except ValueError:
+                pass
+    pie_lineas = encabezado.pie['lineas'] if encabezado is not None and a.colegio is None else []
+    hoja = ctx['papel']
+    ctx.update({'colegio': a.colegio, 'encabezado': encabezado, 'marca': marca_pdf(doc), 'pie_lineas': pie_lineas, 'rutas': rutas,
+                'marcar': True, 'ancho_util': round(hoja['ancho_mm'] - 2 * ctx['margen'], 1)})
+    for b in ctx['bloques']:
+        b.pop('anot', None)          # aquí las marcas se dibujan en vivo, no como imagen
+    r = render(request, 'materiales/documento_pdf.html', ctx)
+    r['X-Frame-Options'] = 'SAMEORIGIN'
+    return r
+
+
+@vista
 def imprimir(request, a, pk):
     """La vista previa de impresión desde Mis materiales (sin abrir el editor): copias por hoja, folleto y cuántas hojas."""
     from .views_equipo import doc_equipo
@@ -973,8 +1001,8 @@ def _dibujo_limpio(d):
     for t in (d.get('trazos') or [])[:2000]:
         if not isinstance(t, dict) or t.get('h') not in ('lapiz', 'resaltar', 'linea', 'flecha', 'rect', 'elipse', 'texto'):
             continue
-        puntos = [[round(num(p[0], -50, 5000), 1), round(num(p[1], -50, 5000), 1)] for p in (t.get('p') or [])[:3000]
-                  if isinstance(p, (list, tuple)) and len(p) >= 2]
+        puntos = [[round(num(p[0], -50, 5000), 1), round(num(p[1], -50, 5000), 1)] + ([round(num(p[2], 0, 1), 2)] if len(p) > 2 and isinstance(p[2], (int, float)) else [])
+                  for p in (t.get('p') or [])[:3000] if isinstance(p, (list, tuple)) and len(p) >= 2]
         if not puntos:
             continue
         n = {'h': t['h'], 'c': color(t.get('c')), 'g': num(t.get('g'), 1, 60, 3), 'p': puntos}
