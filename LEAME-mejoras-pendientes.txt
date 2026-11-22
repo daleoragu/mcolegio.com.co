@@ -107,9 +107,12 @@ MEJORAS PENDIENTES (ideas acordadas para hacer más adelante)
        · Sugerencias para conversar: rotación justa de la portería entre docentes (contador por semana), excluir a
          quien tenga la primera o la última hora ocupada en otra sede, ver el horario parcial mientras se arma, y
          botón «Detener y quedarme con lo que lleva».
-   6.2 Policías y ladrones (el de los vehículos): reestructurarlo, porque hoy todos los retos son iguales.
-       Ideas: zonas como túneles donde no se pueden poner obstáculos para cerrarle el paso al ladrón, y obstáculos
-       de varias formas. Definir el diseño antes de construir.
+   6.2 Policías y ladrones (el de los vehículos): REEMPLAZARLO por un juego original con la mecánica de bloquear
+       la huida (referencia: el juego de mesa «Road Block», sin copiar su nombre, piezas exactas, retos ni
+       aspecto). Barrio cuadriculado con edificios fijos; se colocan piezas de calle de varias formas, cada una con
+       un carro de policía, para que el carro del ladrón no pueda salir del tablero. Retos propios por niveles,
+       generados y verificados con un solucionador. Ideas extra: túneles donde no se puede bloquear, piezas fijas
+       de inicio, modo con preguntas. Pendiente: lo que el usuario diga del juego de mesa de «dobles».
    6.3 Juego nuevo de tablero «Policías y ladrón» (4 contra 1), el clásico que se jugaba en el tablero de ajedrez
        (se conoce también como «lobo y ovejas»): 4 policías que solo avanzan hacia adelante en diagonal, una
        casilla; el ladrón se mueve en diagonal en todas las direcciones, una casilla a la vez. El ladrón gana si
