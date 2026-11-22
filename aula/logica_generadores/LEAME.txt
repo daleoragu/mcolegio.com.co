@@ -12,3 +12,8 @@ así todos tienen solución y se ordenan por dificultad. Los niveles quedan en a
   perrito.py       Perrito a su casita: caminos armados, revueltos y resueltos con búsqueda en anchura
   kadogemo.py      Kadogemo: tablero con puntos fijos; tarjetas con la cuenta de colores a la vista (todas con solución)
   sudoku.py        Familia Sudoku (17 variantes): llena, pone las pistas de la variante y quita números mientras haya UNA sola solución; verificar(var) revisa los archivos
+  bloqueo.py       Atrapa al ladrón: barrios con edificios y túneles; piezas de calle con patrulla; cada reto se arma
+                   alrededor de una solución y el solucionador (con corte mínimo) deja los de 1 o 2 soluciones
+                   python3 bloqueo.py 40 > ../static/aula/logica/niveles/ladron.json
+  policias.py      Policías y ladrón (mapas y tablero de ajedrez, de policía y de ladrón): análisis retrógrado de cada
+                   posición; se guardan los que gana el rol y se ordenan por jugadas y por lo escasas que son las buenas

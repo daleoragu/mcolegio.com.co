@@ -1,4 +1,4 @@
-Versión 0076 · 2026-11-22 04:53
+Versión 0079 · 2026-11-22 14:16
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -26,11 +26,13 @@ NUEVO     aula/invertida.py
 CAMBIADO  aula/logica.py
 NUEVO     aula/logica_generadores/LEAME.txt
 NUEVO     aula/logica_generadores/bloque.py
+NUEVO     aula/logica_generadores/bloqueo.py
 NUEVO     aula/logica_generadores/conejos.py
 NUEVO     aula/logica_generadores/kadogemo.py
 NUEVO     aula/logica_generadores/logica.py
 NUEVO     aula/logica_generadores/nonograma.py
 NUEVO     aula/logica_generadores/perrito.py
+NUEVO     aula/logica_generadores/policias.py
 NUEVO     aula/logica_generadores/sokoban.py
 NUEVO     aula/logica_generadores/sudoku.py
 NUEVO     aula/logica_generadores/tangram.py
@@ -121,6 +123,10 @@ NUEVO     aula/static/aula/logica/niveles/laberinto.json
 NUEVO     aula/static/aula/logica/niveles/ladron.json
 NUEVO     aula/static/aula/logica/niveles/nonograma.json
 NUEVO     aula/static/aula/logica/niveles/perrito.json
+NUEVO     aula/static/aula/logica/niveles/policias.json
+NUEVO     aula/static/aula/logica/niveles/policias_fuga.json
+NUEVO     aula/static/aula/logica/niveles/policias_tablero.json
+NUEVO     aula/static/aula/logica/niveles/policias_tablero_fuga.json
 NUEVO     aula/static/aula/logica/niveles/ranas.json
 NUEVO     aula/static/aula/logica/niveles/regletas.json
 NUEVO     aula/static/aula/logica/niveles/safari.json
@@ -150,6 +156,7 @@ NUEVO     aula/static/aula/logica/niveles/tangram.json
 NUEVO     aula/static/aula/logica/niveles/trancon.json
 NUEVO     aula/static/aula/logica/nonograma.js
 NUEVO     aula/static/aula/logica/perrito.js
+NUEVO     aula/static/aula/logica/policias.js
 NUEVO     aula/static/aula/logica/ranas.js
 NUEVO     aula/static/aula/logica/regletas.js
 NUEVO     aula/static/aula/logica/sokoban.js

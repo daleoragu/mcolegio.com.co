@@ -250,6 +250,56 @@ class Gamificacion(ColegioDePrueba):
             self.assertEqual(len(set(celdas)), 35)
             self.assertNotIn(((n - 1) // 6, (n - 1) % 6), celdas)
 
+    def test_atrapa_al_ladron_bloqueo_de_calles(self):
+        """Cada reto: sin piezas el ladrón escapa y con la solución guardada (todas las piezas, sobre calles libres,
+        sin encimarse y con su forma) queda encerrado."""
+        from aula.logica_generadores import bloqueo as B
+        from aula.views_logica import niveles
+        d = niveles('ladron')
+        self.assertGreaterEqual(len(d), 30)
+        self.assertTrue(any(g['tuneles'] for g in d))
+        for g in d:
+            t = B.Tablero(g['N'], g['mapa'], tuple(g['ladron']))
+            N, occ = g['N'], set()
+            self.assertTrue(t.escapa(frozenset()))
+            self.assertEqual(len(g['sol']), len(g['piezas']))
+            for celdas, forma in zip(g['sol'], g['formas']):
+                cel = [tuple(c) for c in celdas]
+                self.assertTrue(all(t.libre[f][c] for f, c in cel))
+                mf, mc = min(f for f, _ in cel), min(c for _, c in cel)
+                self.assertIn(tuple(sorted((f - mf, c - mc) for f, c in cel)), B.ORIENT[forma])
+                idx = {f * N + c for f, c in cel}
+                self.assertFalse(idx & occ)
+                occ |= idx
+            self.assertFalse(t.escapa(frozenset(occ)))
+
+    def test_policias_y_ladron(self):
+        """Los cuatro modos: cada reto lo gana quien juega el rol (análisis completo) en las jugadas que dice."""
+        import random
+        from aula.logica_generadores import policias as P
+        from aula.views_logica import MODOS, niveles
+        self.assertEqual([m for m, _ in MODOS['policias']], ['policias', 'policias_fuga', 'policias_tablero', 'policias_tablero_fuga'])
+        for modo, _ in MODOS['policias']:
+            d = niveles(modo)
+            self.assertGreaterEqual(len(d), 20)
+            for R in random.Random(5).sample(d, 4):
+                j = P.Juego(len(R['nodos']), R['adyL'], R['adyP'], R['salidas'])
+                inicio = (R['ladron'], tuple(sorted(R['policias'])), P.LADRON if R['turno'] == 'ladron' else P.POLICIA)
+                res, hijos = j.resolver(inicio)
+                lado = P.POLICIA if R['rol'] == 'policia' else P.LADRON
+                self.assertEqual(res[inicio][0], lado)
+                self.assertEqual(j.medir(inicio, R['rol'], res, hijos)['jugadas'], R['jugadas'])
+        # el tablero: policías solo hacia adelante (abajo) en diagonal; ladrón en las cuatro diagonales
+        casillas, ady_l, ady_p, salidas = P.tablero(8)
+        self.assertEqual(len(casillas), 32)
+        for i, (f, c) in enumerate(casillas):
+            self.assertTrue(all(casillas[v][0] == f + 1 and abs(casillas[v][1] - c) == 1 for v in ady_p[i]))
+            self.assertTrue(all(abs(casillas[v][0] - f) == 1 and abs(casillas[v][1] - c) == 1 for v in ady_l[i]))
+        self.assertTrue(all(casillas[s][0] == 0 for s in salidas))
+        r = self.cliente(self.ana.user).get(f'/aula/{self.aula.pk}/logica/policias_tablero/')
+        self.assertContains(r, 'aula/logica/policias.js')
+        self.assertContains(r, 'Tablero · ladrón')
+
     def test_familia_sudoku(self):
         """Las 17 variantes del sudoku: cada nivel es coherente (los dados están en la solución y la solución cumple
         filas, columnas y regiones) y los primeros de cada variante tienen una sola solución con las pistas del archivo."""
