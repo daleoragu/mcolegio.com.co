@@ -118,3 +118,8 @@ MEJORAS PENDIENTES (ideas acordadas para hacer más adelante)
        casilla; el ladrón se mueve en diagonal en todas las direcciones, una casilla a la vez. El ladrón gana si
        llega al otro lado; los policías, si lo dejan sin movimientos. Retos de policía (encerrar) y retos de
        ladrón (fugarse), desde varias posiciones y en varios tableros, con niveles verificados.
+       Además, un segundo modo con MAPAS DE CAMINOS (puntos unidos por calles), como la app de referencia que
+       mostró el usuario (Play Store «Thief Police», sin copiar sus niveles, dibujos ni nombre): policías y ladrón
+       se mueven por turnos de un punto a otro vecino y ganan los policías si el ladrón queda sin movimientos.
+       Allá siempre se juega de policía; aquí también retos de ladrón (fugarse o aguantar N turnos). Rival de la
+       computadora con búsqueda (minimax) y cada reto verificado: que tenga solución y cuántas jugadas mínimas.
