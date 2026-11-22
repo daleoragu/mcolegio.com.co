@@ -576,10 +576,13 @@ def ver(request, uid):
     mios, suyos = set(mis_colegas(user).values_list('pk', flat=True)), set(mis_colegas(otro).values_list('pk', flat=True))
     grupos = Conversacion.objects.filter(colegio__isnull=True, tipo='colegas_g', participantes__usuario=user, participantes__activo=True) \
         .filter(pk__in=Participante.objects.filter(usuario=otro, activo=True).values('conversacion')).distinct()
-    from .views_muro import ICONOS, POR_PAGINA, _con_conteos, _mias, _tarjeta_pub, insignias, visibles
+    from collections import Counter
+    from .views_muro import (ICONOS, MODELOS, NORMAS, POR_PAGINA, _con_conteos, _mias, _mis_documentos, _mis_juegos,
+                             _mis_paginas, _tarjeta_pub, insignias, visibles)
     tipo = request.GET.get('tipo') if request.GET.get('tipo') in dict(PubMuro.TIPOS) else ''
-    qs = visibles(user).filter(autor=otro)
-    conteo = dict(qs.values_list('tipo').annotate(n=Count('pk')).values_list('tipo', 'n'))
+    # Su muro: lo que publicó, lo que otros le escribieron y donde lo etiquetaron.
+    qs = visibles(user).filter(Q(autor=otro) | Q(destinatario=otro) | Q(etiquetados=otro)).distinct()
+    conteo = Counter(t for _, t in set(qs.values_list('pk', 'tipo')))
     if tipo:
         qs = qs.filter(tipo=tipo)
     try:
@@ -598,7 +601,12 @@ def ver(request, uid):
         anterior=f'{base}pagina={pagina - 1}' if pagina > 1 else '',
         siguiente=f'{base}pagina={pagina + 1}' if pagina * POR_PAGINA < total else '',
         en_comun=[tarjeta(u) for u in User.objects.filter(pk__in=(mios & suyos) - {user.pk, otro.pk})[:12]],
-        grupos=grupos, desde=r.respondida if r and r.estado == 'aceptada' else None))
+        grupos=grupos, desde=r.respondida if r and r.estado == 'aceptada' else None,
+        # Para escribirle en su muro (solo entre colegas)
+        **(dict(para=tarjeta(otro), tipos=PubMuro.TIPOS, yo={'nombre': nombre_de(user), 'foto': foto_de(user)}, mi_perfil=perfil_de(user), documentos=_mis_documentos(user),
+                paginas=_mis_paginas(user), mis_juegos=_mis_juegos(user), modelos=MODELOS, normas=NORMAS,
+                etiquetables=[tarjeta(u) for u in mis_colegas(user).exclude(pk=otro.pk).order_by('first_name', 'last_name')[:300]])
+           if estado == 'colegas' else {})))
 
 
 @vista

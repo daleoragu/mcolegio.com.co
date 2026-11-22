@@ -1,0 +1,57 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe por nota · {{ d.titulo }}</title>
+{% include 'puntoexacto/_informe_estilos.html' %}
+<style>
+  .est { page-break-after: always; } .est:last-child { page-break-after: auto; }
+  .tarjeta-nota { display: flex; gap: 12px; align-items: stretch; margin: 8px 0 10px; }
+  .tn { flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; }
+  .tn .grande { font-size: 30pt; font-weight: bold; line-height: 1; }
+  .tn .peq { font-size: 8pt; color: #475569; }
+  .niv { display: inline-block; border-radius: 99px; padding: 2px 12px; font-size: 11pt; font-weight: bold; color: #fff; }
+  .escala { display: flex; border-radius: 6px; overflow: hidden; margin-top: 6px; }
+  .escala span { flex: 1; text-align: center; font-size: 7pt; color: #fff; padding: 3px 2px; opacity: .45; }
+  .escala span.suyo { opacity: 1; font-weight: bold; box-shadow: inset 0 0 0 2px #0f172a; }
+  .barra { background: #eef2f7; border-radius: 4px; height: 9px; } .barra i { display: block; height: 9px; border-radius: 4px; background: {{ tema.primario }}; }
+  .msg { border-left: 4px solid; padding: 7px 10px; border-radius: 4px; background: #f8fafc; font-size: 9pt; }
+  .datos td { border: none; padding: 1px 6px 1px 0; font-size: 8.8pt; }
+</style></head><body>
+{% for f in lista %}
+<section class="est" id="est-{{ forloop.counter }}">
+{% if colegio %}<div class="enc-colegio">{% include 'notas/fragmentos/encabezado_pdf.html' %}</div>{% elif tema.encabezado %}{% include 'materiales/_encabezado_docente.html' with encabezado=tema.encabezado rutas=tema.rutas %}{% endif %}
+<div class="cab"><div class="eti">Informe de resultados del estudiante{% if d.materia %} · {{ d.materia }}{% endif %}</div>
+  <h1>{{ f.nombre }}</h1>
+  <p>{{ d.titulo }} · {{ d.examen.fecha|date:"j M Y" }} · {{ institucion }}</p></div>
+<table class="datos"><tr><td><b>Curso:</b> {{ f.curso }}</td><td>{% if f.documento %}<b>Documento:</b> {{ f.documento }}{% endif %}</td><td><b>Preguntas:</b> {{ d.n_preguntas }}</td><td><b>Escala:</b> {{ d.examen.nota_minima }} a {{ d.examen.nota_maxima }}</td></tr></table>
+
+<div class="tarjeta-nota">
+  <div class="tn" style="border-color:{{ f.nivel.color }};">
+    <div class="peq">Nota</div>
+    <div class="grande" style="color:{{ f.nivel.color }}">{{ f.nota }}</div>
+    {% if f.nivel %}<div class="mt-1"><span class="niv" style="background:{{ f.nivel.color }}">{{ f.nivel.nombre }}</span></div>{% endif %}
+  </div>
+  <div class="tn">
+    <div class="peq">Respuestas</div>
+    <div style="font-size:11pt;margin-top:4px"><b class="bien">{{ f.buenas }}</b> bien · <b class="mal">{{ f.malas }}</b> mal · <b>{{ f.blancas }}</b> en blanco</div>
+    <div class="barra mt-1" style="margin-top:6px"><i style="width:{% widthratio f.buenas d.n_preguntas 100 %}%"></i></div>
+    <div class="peq" style="margin-top:6px">{% if f.aprobo %}Aprobó{% else %}No alcanzó la nota para aprobar{% endif %}{% if f.promedio_curso is not None %} · promedio del curso: <b>{{ f.promedio_curso }}</b>{% endif %}</div>
+  </div>
+</div>
+
+<div class="peq" style="font-size:8pt;color:#475569">Escala de valoración</div>
+<div class="escala">{% for n in f.niveles %}<span style="background:{{ n.color }}" class="{% if f.nivel and n.nombre == f.nivel.nombre %}suyo{% endif %}">{{ n.nombre }}<br>{{ n.min }}–{{ n.max }}</span>{% endfor %}</div>
+
+{% if f.nivel and f.nivel.mensaje %}<h2>Recomendación</h2><div class="msg" style="border-color:{{ f.nivel.color }}">{{ f.nivel.mensaje }}</div>{% endif %}
+
+{% if f.temas %}
+<h2>Cómo le fue en cada tema</h2>
+<table><tr><th>Qué evalúa</th><th class="num">Bien</th><th style="width:40%"></th></tr>
+{% for t in f.temas %}<tr><td>{{ t.etiqueta }}</td><td class="num {% if t.pct < 40 %}mal{% elif t.pct >= 70 %}bien{% endif %}">{{ t.bien }} de {{ t.total }}</td><td><div class="barra"><i style="width:{{ t.pct }}%"></i></div></td></tr>{% endfor %}</table>
+{% endif %}
+
+<h2>Preguntas para repasar</h2>
+{% if f.falladas %}
+<table><tr><th class="num">Pregunta</th><th class="num">Marcó</th><th class="num">Correcta</th>{% if f.temas %}<th>Tema</th>{% endif %}</tr>
+{% for x in f.falladas %}<tr><td class="num">{{ x.numero }}</td><td class="num {% if x.marcada != 'sin marcar' %}mal{% endif %}">{{ x.marcada }}</td><td class="num bien">{{ x.correcta }}</td>{% if f.temas %}<td>{{ x.etiquetas }}</td>{% endif %}</tr>{% endfor %}</table>
+{% else %}<p class="bien">¡Respondió bien todas las preguntas!</p>{% endif %}
+</section>
+{% endfor %}
+</body></html>

@@ -6,7 +6,7 @@ import os
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
-from django.db.models import Q, Sum
+from django.db.models import Count, Q, Sum
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -157,14 +157,18 @@ def lista(request, a):
     # Pestañas: «Crear» (plantillas) y «Mi banco de materiales» (lo mío, en miniatura o en lista)
     ver = request.GET.get('ver')
     if ver not in ('crear', 'banco'):
-        ver = 'banco' if filtro['total'] or filtro['filtrando'] or conmigo else 'crear'
+        ver = 'banco' if (filtro['total'] or filtro['filtrando'] or conmigo
+                          or (a.cuenta is not None and a.cuenta.paginas.exists())) else 'crear'
     vista = request.GET.get('vista')
     if vista in ('mini', 'lista'):
         request.session['mm_vista'] = vista
     vista = request.session.get('mm_vista', 'mini')
     for d in filtro['pagina']:
         d.miniatura = _primera_imagen(d)
+    # Los HTML que el docente sube (plan individual) también son parte de su banco.
+    paginas_html = list(a.cuenta.paginas.all().annotate(n_sesiones=Count('sesiones'))) if a.cuenta is not None else []
     return render(request, 'materiales/lista.html', {
+        'paginas_html': paginas_html, 'total_banco': filtro['total'] + len(paginas_html), 'puede_subir_html': a.cuenta is not None and a.cuenta.puede_publicar_otra(),
         'ver': ver, 'vista': vista,
         'base': a.base, 'acceso': a, 'documentos': filtro['pagina'], 'filtro': filtro, 'nube': _nube(a),
         'areas_lista': AREAS_LISTA, 'asignaturas': sugerencias_asignatura(request, a), 'volver': request.GET.urlencode(),

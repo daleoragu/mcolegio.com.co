@@ -237,6 +237,10 @@ class Publicacion(models.Model):
     modelo = models.CharField(max_length=40, blank=True, help_text='Modelo pedagógico: ABP, Escuela Nueva, aula invertida…')
     fecha_limite = models.DateField(null=True, blank=True, help_text='Convocatorias: deja de salir en el muro después.')
     visibilidad = models.CharField(max_length=8, choices=VISIBILIDAD, default='todos')
+    destinatario = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='publicaciones_en_mi_muro',
+                                     help_text='Escrita en el muro de este colega (como en una red social).')
+    etiquetados = models.ManyToManyField(User, blank=True, related_name='etiquetado_en_muro',
+                                         help_text='Colegas etiquetados: les llega un aviso y sale también en su muro.')
     copias = models.PositiveIntegerField(default=0, help_text='Docentes que copiaron el recurso a sus materiales.')
     mejor_respuesta = models.ForeignKey('ComentarioMuro', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     oculta = models.BooleanField(default=False, help_text='Oculta por reportes, mientras un administrador la revisa.')

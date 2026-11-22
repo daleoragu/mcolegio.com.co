@@ -1,4 +1,4 @@
-Versión 0071 · 2026-11-22 02:38
+Versión 0074 · 2026-11-22 03:42
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -270,6 +270,7 @@ NUEVO     chat/migrations/0008_muro_actividades.py
 NUEVO     chat/migrations/0009_reunion_docente.py
 NUEVO     chat/migrations/0010_muro_juegos.py
 NUEVO     chat/migrations/0011_editar_y_vaciar.py
+NUEVO     chat/migrations/0012_muro_de_colega_y_etiquetas.py
 CAMBIADO  chat/models.py
 CAMBIADO  chat/reglas.py
 CAMBIADO  chat/static/chat/conversacion.js
@@ -281,6 +282,7 @@ CAMBIADO  chat/templates/chat/_estilos.html
 NUEVO     chat/templates/chat/_herramientas.html
 CAMBIADO  chat/templates/chat/_muro.html
 NUEVO     chat/templates/chat/_muro_estilos.html
+NUEVO     chat/templates/chat/_muro_form.html
 NUEVO     chat/templates/chat/_muro_js.html
 NUEVO     chat/templates/chat/_muro_pub.html
 NUEVO     chat/templates/chat/_riel_colegas.html
@@ -644,6 +646,7 @@ CAMBIADO  materiales/templates/materiales/lista.html
 CAMBIADO  materiales/templates/materiales/material.html
 NUEVO     materiales/templatetags/__init__.py
 NUEVO     materiales/templatetags/ecuaciones.py
+NUEVO     materiales/tests/test_banco_html.py
 NUEVO     materiales/tests/test_dba.py
 NUEVO     materiales/tests/test_ecuaciones.py
 NUEVO     materiales/tests/test_equipo.py
@@ -780,6 +783,7 @@ CAMBIADO  puntoexacto/formas.py
 NUEVO     puntoexacto/graficas_informe.py
 NUEVO     puntoexacto/hoja_calificada.py
 NUEVO     puntoexacto/informes.py
+NUEVO     puntoexacto/informes_nota.py
 CAMBIADO  puntoexacto/lector.py
 NUEVO     puntoexacto/migrations/0012_pruebas_unidas.py
 NUEVO     puntoexacto/migrations/0013_respuesta_varias_letras.py
@@ -790,6 +794,8 @@ CAMBIADO  puntoexacto/templates/puntoexacto/clave.html
 CAMBIADO  puntoexacto/templates/puntoexacto/escanear.html
 NUEVO     puntoexacto/templates/puntoexacto/informe_estudiantes_pdf.html
 NUEVO     puntoexacto/templates/puntoexacto/informe_general_pdf.html
+NUEVO     puntoexacto/templates/puntoexacto/informe_nota_cursos_pdf.html
+NUEVO     puntoexacto/templates/puntoexacto/informe_nota_estudiantes_pdf.html
 CAMBIADO  puntoexacto/templates/puntoexacto/lista.html
 CAMBIADO  puntoexacto/templates/puntoexacto/resultados.html
 NUEVO     puntoexacto/templates/puntoexacto/unida.html
@@ -949,6 +955,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   materiales/migrations/0014_puntos_y_comentarios.py  (biblioteca: puntos de cada material y comentarios de docentes)
   puntoexacto/migrations/0012_pruebas_unidas.py  (pruebas unidas para los informes tipo Saber 11)
   puntoexacto/migrations/0013_respuesta_varias_letras.py  (respuesta con varias letras)
+  chat/migrations/0012_muro_de_colega_y_etiquetas.py  (escribir en el muro de un colega y etiquetar)
 
 Después de desplegar:
   * Reimprima los carnés (Imprimir Carnets): los viejos llevaban el número del estudiante y ya no marcan asistencia.

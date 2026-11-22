@@ -4,7 +4,8 @@
   <header class="d-flex align-items-start gap-2 mb-2">
     <a href="/chat/colegas/u/{{ p.autor_id }}/" class="text-decoration-none">{% include 'chat/_av.html' with foto=t.foto nombre=t.nombre clase='' %}</a>
     <div class="flex-grow-1 lh-sm" style="min-width:0">
-      <a href="/chat/colegas/u/{{ p.autor_id }}/" class="fw-bold text-reset text-decoration-none">{{ t.nombre }}</a>{% if t.premium %} <span title="Docente Premium" style="color:#e0a520">⭐</span>{% endif %}
+      <a href="/chat/colegas/u/{{ p.autor_id }}/" class="fw-bold text-reset text-decoration-none">{{ t.nombre }}</a>{% if t.premium %} <span title="Docente Premium" style="color:#e0a520">⭐</span>{% endif %}{% if t.para %} <i class="fas fa-caret-right text-muted mx-1" title="escribió en el muro de"></i><a href="/chat/colegas/u/{{ t.para.id }}/" class="fw-bold text-reset text-decoration-none">{{ t.para.nombre }}</a>{% endif %}
+      {% if t.con %}<span class="small text-muted"> con {% for c in t.con %}<a href="/chat/colegas/u/{{ c.id }}/" class="text-reset fw-semibold text-decoration-none">{{ c.nombre }}</a>{% if not forloop.last %}{% if forloop.revcounter == 2 %} y {% else %}, {% endif %}{% endif %}{% endfor %}</span>{% endif %}
       <div class="small text-muted text-truncate">{{ t.desc }}</div>
       <div class="small text-muted">{{ t.hace }} · {% if p.visibilidad == 'colegas' %}<i class="fas fa-user-group" title="Solo sus colegas"></i>{% else %}<i class="fas fa-earth-americas" title="Toda la comunidad docente"></i>{% endif %}</div>
     </div>
@@ -13,7 +14,8 @@
       <button class="btn btn-sm btn-link text-muted px-1" data-bs-toggle="dropdown" aria-label="Más opciones"><i class="fas fa-ellipsis"></i></button>
       <ul class="dropdown-menu dropdown-menu-end">
         <li><a class="dropdown-item" href="/chat/colegas/muro/{{ p.pk }}/"><i class="far fa-comment me-2"></i>Abrir</a></li>
-        {% if t.mia or request.user.is_staff %}<li><form method="post" action="/chat/colegas/muro/{{ p.pk }}/accion/" onsubmit="return confirm('¿Eliminar esta publicación?')">{% csrf_token %}<input type="hidden" name="accion" value="eliminar"><button class="dropdown-item text-danger"><i class="far fa-trash-can me-2"></i>Eliminar</button></form></li>{% endif %}
+        {% if t.etiquetado %}<li><form method="post" action="/chat/colegas/muro/{{ p.pk }}/accion/">{% csrf_token %}<input type="hidden" name="accion" value="quitar_etiqueta"><input type="hidden" name="volver" value="{{ request.get_full_path }}"><button class="dropdown-item"><i class="fas fa-user-xmark me-2"></i>Quitar mi etiqueta</button></form></li>{% endif %}
+        {% if t.mia or t.en_mi_muro or request.user.is_staff %}<li><form method="post" action="/chat/colegas/muro/{{ p.pk }}/accion/" onsubmit="return confirm('¿Eliminar esta publicación?')">{% csrf_token %}<input type="hidden" name="accion" value="eliminar"><button class="dropdown-item text-danger"><i class="far fa-trash-can me-2"></i>Eliminar</button></form></li>{% endif %}
         {% if not t.mia %}<li><form method="post" action="/chat/colegas/muro/{{ p.pk }}/accion/" onsubmit="var m=prompt('¿Por qué la reporta? (datos de estudiantes, irrespeto, publicidad, otro)');if(m===null)return false;this.motivo.value=m;">{% csrf_token %}<input type="hidden" name="accion" value="reportar"><input type="hidden" name="motivo"><button class="dropdown-item"><i class="far fa-flag me-2"></i>Reportar</button></form></li>{% endif %}
       </ul>
     </div>

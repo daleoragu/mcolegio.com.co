@@ -26,7 +26,7 @@
 {% block content %}
 {% include 'materiales/_estilos.html' %}
 <div class="mm">
-{% include 'materiales/_pestanas.html' with activa=ver total_mios=filtro.total %}
+{% include 'materiales/_pestanas.html' with activa=ver total_mios=total_banco %}
 <div class="mb-2">{% include 'materiales/_medidor.html' %}</div>
 <div class="row g-3">
   <div class="{% if ver == 'crear' %}col-lg-8{% else %}col-12{% endif %}">
@@ -273,6 +273,61 @@
     </style>
     {% endif %}
 
+    {% if ver == 'banco' and acceso.cuenta %}
+    <div class="mm-tarjeta" id="mis-html">
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <h6 class="mb-0 flex-grow-1"><i class="fas fa-code me-1"></i>Mis actividades HTML <span class="text-muted fw-normal small">({{ paginas_html|length }})</span></h6>
+        {% if puede_subir_html %}
+        <a href="{% url 'salon_digital:nueva_pagina' %}" class="btn btn-sm btn-primary"><i class="fas fa-upload me-1"></i>Subir HTML</a>
+        <a href="{% url 'salon_digital:subir_varias' %}" class="btn btn-sm btn-outline-primary">Subir varias</a>
+        {% else %}
+        <a href="{% url 'salon_digital:planes' %}?para=paginas" class="btn btn-sm btn-outline-secondary" title="Ya usa todas las actividades de su plan">Más actividades</a>
+        {% endif %}
+        <a href="{% url 'salon_digital:panel' %}" class="btn btn-sm btn-link">Panel completo</a>
+      </div>
+      {% if paginas_html %}
+      <div class="mm-mini mb-0">
+        {% for p in paginas_html %}
+        <div class="mm-carta">
+          <a href="{{ p.ruta }}" target="_blank" rel="noopener" class="mm-prev t-html" aria-hidden="true" tabindex="-1">
+            <i class="fas {% if p.tipo == 'sitio' %}fa-folder-tree{% else %}fa-laptop-code{% endif %}"></i>
+            <span class="tipo">{% if p.tipo == 'sitio' %}Sitio HTML{% else %}Actividad HTML{% endif %}</span>
+          </a>
+          <span class="mm-estado e-{{ p.estado }}">{{ p.estado }}</span>
+          <div class="mm-carta-cuerpo">
+            <a href="{{ p.ruta }}" target="_blank" rel="noopener" class="mm-carta-titulo">{{ p.titulo }}</a>
+            <div class="small text-muted text-truncate">{% if p.captura_resultados %}{{ p.n_sesiones }} resultado{{ p.n_sesiones|pluralize }} · {% endif %}{{ p.visitas }} visita{{ p.visitas|pluralize }}</div>
+            <div class="d-flex align-items-center gap-1 mt-2">
+              <span class="small text-muted flex-grow-1">{{ p.actualizada_en|date:"d M" }}</span>
+              <div class="dropdown">
+                <button class="btn btn-sm btn-light border py-0 px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Opciones de {{ p.titulo }}"><i class="fas fa-ellipsis"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" href="{{ p.ruta }}" target="_blank" rel="noopener"><i class="fas fa-up-right-from-square me-2 text-muted"></i>Abrir</a></li>
+                  <li><a class="dropdown-item" href="{% url 'salon_digital:editar_pagina' p.slug %}"><i class="fas fa-pen me-2 text-muted"></i>Editar</a></li>
+                  {% if p.captura_resultados and p.endpoint_reescrito %}<li><a class="dropdown-item" href="{% url 'salon_digital:panel_resultados' acceso.cuenta.slug p.slug %}"><i class="fas fa-chart-column me-2 text-muted"></i>Resultados</a></li>{% endif %}
+                  <li><a class="dropdown-item" href="{% url 'salon_digital:qr_hoja' p.slug %}" target="_blank"><i class="fas fa-qrcode me-2 text-muted"></i>Código QR</a></li>
+                  {% if p.tipo == 'html' %}<li><button type="button" class="dropdown-item btn-compartir" data-tipo="pagina" data-id="{{ p.pk }}"><i class="fas fa-share-nodes me-2 text-muted"></i>Compartir</button></li>{% endif %}
+                  <li><a class="dropdown-item" href="/chat/colegas/muro/?compartir={{ p.pk }}&escribir=1"><i class="fas fa-users me-2 text-muted"></i>Publicar en la Sala de Profesores</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center text-muted py-3 small">Todavía no ha subido actividades HTML. Suba un archivo .html (o un sitio .zip) y aparecerá aquí, listo para compartir con sus clases y colegas.</div>
+      {% endif %}
+      <style>
+        .mm-prev.t-html { background: linear-gradient(135deg, #38bdf8, #6366f1); }
+        .mm-estado { position: absolute; top: 8px; right: 8px; font-size: .68rem; font-weight: 700; border-radius: 99px; padding: 1px 8px; background: #e2e8f0; color: #334155; text-transform: capitalize; }
+        .mm-estado.e-abierta { background: #dcfce7; color: #166534; }
+        .mm-estado.e-programada { background: #fef3c7; color: #92400e; }
+        .mm-estado.e-cerrada, .mm-estado.e-suspendida { background: #fee2e2; color: #991b1b; }
+      </style>
+    </div>
+    {% endif %}
+
     {% if conmigo and ver == 'banco' %}
     <div class="mm-tarjeta p-0">
       <div class="px-3 pt-3"><h6><i class="fas fa-user-group me-1"></i>Construyo con otros docentes</h6></div>
@@ -350,4 +405,5 @@ document.querySelectorAll('.mm-filtros .mf-fila').forEach(function (f) {
   if (todos) todos.addEventListener('change', function () { marcas.forEach(function (m) { m.checked = todos.checked; }); contar(); });
 })();
 </script>
+{% include 'aula/_compartir.html' %}
 {% endblock %}
