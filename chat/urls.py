@@ -30,6 +30,7 @@ urlpatterns = [
     path('colegas/c/<int:pk>/accion/', colegas.accion, name='colegas_accion'),
     path('colegas/m/<int:mid>/archivo/', colegas.archivo, name='colegas_archivo'),
     path('colegas/u/<int:uid>/', colegas.ver, name='colegas_ver'),
+    path('colegas/u/<int:uid>/compartibles/', colegas.compartibles, name='colegas_compartibles'),
     path('colegas/avisos/', colegas.avisos, name='colegas_avisos'),
     path('colegas/avisos/leidos/', colegas.avisos_leidos, name='colegas_avisos_leidos'),
     path('colegas/aviso/<int:nid>/', colegas.aviso, name='colegas_aviso'),

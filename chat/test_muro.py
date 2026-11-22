@@ -142,7 +142,12 @@ class Muro(TestCase):
         self.assertFalse(Publicacion.objects.filter(titulo='Robado').exists())
         # Perfil: aportes e insignias
         r = self.cc.get(f'/chat/colegas/u/{self.luis.pk}/')
-        self.assertContains(r, 'Aportes recientes'); self.assertContains(r, 'copias de sus recursos')
+        self.assertContains(r, 'Muro de <b>Luis Libre')
+        self.assertContains(r, 'Guía de funciones')          # todos sus aportes, como en el muro
+        self.assertContains(r, 'copias')
+        self.assertTemplateUsed(r, 'salon_digital/base_salon.html')   # el diseño de la Sala de Profesores, no el chat
+        r = self.cc.get(f'/chat/colegas/u/{self.luis.pk}/?tipo=consulta')
+        self.assertNotContains(r, 'Guía de funciones')
 
     def test_reportes_ocultan_y_moderacion(self):
         self.aceptar(self.cl)
@@ -175,6 +180,35 @@ class Muro(TestCase):
 
 
 @override_settings(MEDIA_ROOT=MEDIA)
+class MuroDeColega(Muro):
+    """Al tocar a un colega se ve su muro (como el propio), con Escribir y Compartirle algo."""
+
+    def test_muro_de_colega_y_compartir(self):
+        from salon_digital.models import PaginaPublicada
+        self.aceptar(self.cl)
+        self.cl.post('/chat/colegas/muro/', {'tipo': 'experiencia', 'titulo': 'Agradecimiento', 'texto': 'Me ha servido'})
+        r = self.cb.get(f'/chat/colegas/u/{self.luis.pk}/')        # Bea y Luis son colegas
+        self.assertContains(r, 'Agradecimiento')
+        self.assertContains(r, 'Escribir')
+        self.assertContains(r, 'Compartirle algo')
+        self.assertContains(r, 'id="cm-cerrar"')
+        # Quien no es colega ve el muro y el botón para agregarle, pero no «Compartirle algo»
+        r = self.cc.get(f'/chat/colegas/u/{self.luis.pk}/')
+        self.assertContains(r, 'Agregar como colega')
+        self.assertNotContains(r, 'Compartirle algo')
+        # Lo que Bea le puede compartir: sus talleres HTML (no los de otros)
+        cuenta = self.bea.cuenta_salon
+        PaginaPublicada.objects.create(propietario=cuenta, titulo='Taller de fracciones', slug='taller-fracciones')
+        j = self.cb.get(f'/chat/colegas/u/{self.luis.pk}/compartibles/').json()
+        self.assertIn('Taller de fracciones', [x['titulo'] for x in j['items']])
+        self.assertEqual(self.cl.get(f'/chat/colegas/u/{self.bea.pk}/compartibles/').json()['items'], [])
+
+    def test_desde_el_chat_abre_otra_pestana(self):
+        Colega.objects.filter(de=self.luis, para=self.bea).update(estado='aceptada')
+        r = self.cl.get('/chat/colegas/?tab=colegas')
+        self.assertContains(r, f'href="/chat/colegas/u/{self.bea.pk}/" target="_blank"')
+
+
 class ActividadesEnElMuro(TestCase):
 
     def setUp(self):

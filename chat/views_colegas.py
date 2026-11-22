@@ -558,7 +558,10 @@ def no_leidos(request):
 
 @vista
 def ver(request, uid):
-    """El perfil de un docente: foto, colegio o institución, área, grados y presentación."""
+    """El muro de un docente, con el mismo diseño de la Sala de Profesores: su perfil a la izquierda, todos sus
+    aportes en el centro (con filtro por tipo) y lo que tienen en común a la derecha. Desde aquí se le escribe o se
+    le comparte algo. Desde el chat se abre en otra pestaña, que se cierra con «Cerrar»."""
+    from .models import Publicacion as PubMuro
     user = request.user
     otro = get_object_or_404(docentes(), pk=uid)
     if Colega.objects.filter(de=otro, para=user, estado='bloqueada').exists():
@@ -573,13 +576,47 @@ def ver(request, uid):
     mios, suyos = set(mis_colegas(user).values_list('pk', flat=True)), set(mis_colegas(otro).values_list('pk', flat=True))
     grupos = Conversacion.objects.filter(colegio__isnull=True, tipo='colegas_g', participantes__usuario=user, participantes__activo=True) \
         .filter(pk__in=Participante.objects.filter(usuario=otro, activo=True).values('conversacion')).distinct()
-    from .views_muro import _con_conteos, _mias, _tarjeta_pub, insignias, visibles
-    pubs = list(_con_conteos(visibles(user).filter(autor=otro))[:5])
-    mias = _mias(user, [p.pk for p in pubs])
-    return render(request, 'chat/colegas_perfil.html', dict(
-        _lista(request), o=tarjeta(otro), perfil=perfil, estado=estado, logros=insignias(otro),
-        pubs=[_tarjeta_pub(p, user, mias) for p in pubs], hoy=timezone.localdate(), en_comun=[tarjeta(u) for u in User.objects.filter(pk__in=(mios & suyos) - {user.pk, otro.pk})[:12]],
+    from .views_muro import ICONOS, POR_PAGINA, _con_conteos, _mias, _tarjeta_pub, insignias, visibles
+    tipo = request.GET.get('tipo') if request.GET.get('tipo') in dict(PubMuro.TIPOS) else ''
+    qs = visibles(user).filter(autor=otro)
+    conteo = dict(qs.values_list('tipo').annotate(n=Count('pk')).values_list('tipo', 'n'))
+    if tipo:
+        qs = qs.filter(tipo=tipo)
+    try:
+        pagina = max(1, int(request.GET.get('pagina') or 1))
+    except ValueError:
+        pagina = 1
+    total = qs.count()
+    lista = list(_con_conteos(qs)[(pagina - 1) * POR_PAGINA: pagina * POR_PAGINA])
+    mias = _mias(user, [p.pk for p in lista])
+    base = f'?tipo={tipo}&' if tipo else '?'
+    return render(request, 'chat/colegas_muro.html', dict(
+        o=tarjeta(otro), perfil=perfil, estado=estado, logros=insignias(otro),
+        pubs=[_tarjeta_pub(p, user, mias) for p in lista], hoy=timezone.localdate(), tipo=tipo,
+        filtros_tipo=[(k, v, ICONOS.get(k, ('fa-note-sticky', ''))[0], conteo.get(k, 0)) for k, v in PubMuro.TIPOS],
+        total_pubs=sum(conteo.values()),
+        anterior=f'{base}pagina={pagina - 1}' if pagina > 1 else '',
+        siguiente=f'{base}pagina={pagina + 1}' if pagina * POR_PAGINA < total else '',
+        en_comun=[tarjeta(u) for u in User.objects.filter(pk__in=(mios & suyos) - {user.pk, otro.pk})[:12]],
         grupos=grupos, desde=r.respondida if r and r.estado == 'aceptada' else None))
+
+
+@vista
+def compartibles(request, uid):
+    """Lo que el docente le puede compartir a este colega: sus actividades, clases invertidas y talleres HTML."""
+    from aula.compartir import mis_aulas
+    from aula.models import Actividad, ClaseInvertida
+    from salon_digital.models import PaginaPublicada
+    get_object_or_404(docentes(), pk=uid)
+    aulas = list(mis_aulas(request))
+    items = []
+    for a in Actividad.objects.filter(aula__in=aulas).select_related('aula').order_by('-pk')[:60]:
+        items.append({'tipo': 'actividad', 'id': a.pk, 'titulo': a.titulo, 'grupo': 'Actividades', 'de': a.aula.nombre})
+    for c in ClaseInvertida.objects.filter(aula__in=aulas).select_related('aula').order_by('-pk')[:60]:
+        items.append({'tipo': 'invertida', 'id': c.pk, 'titulo': c.titulo, 'grupo': 'Clases invertidas', 'de': c.aula.nombre})
+    for pg in PaginaPublicada.objects.filter(propietario__usuario=request.user, tipo='html').order_by('-pk')[:60]:
+        items.append({'tipo': 'pagina', 'id': pg.pk, 'titulo': pg.titulo, 'grupo': 'Talleres y actividades HTML', 'de': ''})
+    return JsonResponse({'items': items})
 
 
 def _icono(n):
