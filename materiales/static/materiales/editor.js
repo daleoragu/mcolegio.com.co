@@ -897,6 +897,63 @@
     $$('#mm-modo [data-modo]').forEach(function (b) { b.addEventListener('click', function () { datos.opciones.modo = b.getAttribute('data-modo'); pintarOpciones(); cambio(); }); });
     $$('#mm-columnas [data-col]').forEach(function (b) { b.addEventListener('click', function () { datos.opciones.columnas = +b.getAttribute('data-col'); pintarOpciones(); cambio(); }); });
     $('#mm-letra').addEventListener('input', function () { datos.opciones.letra = +this.value; pintarOpciones(); cambio(); });
+    // ---- Tamaño de hoja: carta, oficio, A4 o personalizado (mm, cm, pulgadas o píxeles) ----
+    var PAPELES = {carta: [215.9, 279.4, 'Carta'], oficio: [215.9, 330.2, 'Oficio'], a4: [210, 297, 'A4']};
+    var UNIDAD = {mm: 1, cm: 10, 'in': 25.4, px: 25.4 / 96};
+    function papelMM() {
+        var p = datos.opciones.papel || {tipo: 'carta'};
+        if (PAPELES[p.tipo]) return PAPELES[p.tipo];
+        var f = UNIDAD[p.unidad] || 10, a = parseFloat(String(p.ancho).replace(',', '.')), h = parseFloat(String(p.alto).replace(',', '.'));
+        return [Math.min(600, Math.max(70, (a > 0 ? a : 21.59) * f)), Math.min(1200, Math.max(70, (h > 0 ? h : 27.94) * f)), 'Personalizado'];
+    }
+    function aplicarPapel() {
+        var m = papelMM(), hoja = $('#mm-hoja'), px = 96 / 25.4;
+        hoja.style.setProperty('--mm-ancho', Math.round(m[0] * px) + 'px');
+        var ancho = hoja.clientWidth || m[0] * px;
+        hoja.style.setProperty('--mm-alto', Math.round(ancho * m[1] / m[0]) + 'px');
+        var cm = function (v) { return (Math.round(v) / 10).toLocaleString('es-CO', {maximumFractionDigits: 1}); };
+        $('#mm-papel-etq').textContent = m[2] + ' · ' + cm(m[0]) + ' × ' + cm(m[1]) + ' cm · la raya azul marca, más o menos, dónde termina cada hoja';
+    }
+    function pintarPapel() {
+        var p = datos.opciones.papel || {tipo: 'carta'};
+        $('#mm-papel').value = PAPELES[p.tipo] || p.tipo === 'personalizado' ? p.tipo : 'carta';
+        $('#mm-papel-pers').hidden = p.tipo !== 'personalizado';
+        if (p.tipo === 'personalizado') { $('#mm-papel-ancho').value = p.ancho || ''; $('#mm-papel-alto').value = p.alto || ''; $('#mm-papel-unidad').value = p.unidad || 'cm'; }
+        aplicarPapel();
+    }
+    $('#mm-papel').addEventListener('change', function () {
+        var t = this.value, antes = papelMM();
+        if (t === 'personalizado') {
+            // arranca con la medida que tenía, en centímetros
+            datos.opciones.papel = {tipo: t, unidad: 'cm', ancho: Math.round(antes[0]) / 10, alto: Math.round(antes[1]) / 10};
+        } else datos.opciones.papel = {tipo: t};
+        pintarPapel(); cambio();
+    });
+    ['#mm-papel-ancho', '#mm-papel-alto'].forEach(function (id) {
+        $(id).addEventListener('input', function () {
+            var p = datos.opciones.papel; if (!p || p.tipo !== 'personalizado') return;
+            p[id === '#mm-papel-ancho' ? 'ancho' : 'alto'] = this.value; aplicarPapel(); cambio();
+        });
+    });
+    $('#mm-papel-unidad').addEventListener('change', function () {
+        // al cambiar la unidad se convierte la medida (la hoja sigue del mismo tamaño)
+        var p = datos.opciones.papel; if (!p || p.tipo !== 'personalizado') return;
+        var m = papelMM(), f = UNIDAD[this.value], r = function (v) { return Math.round(v / f * 100) / 100; };
+        p.unidad = this.value; p.ancho = r(m[0]); p.alto = r(m[1]);
+        pintarPapel(); cambio();
+    });
+    window.addEventListener('resize', aplicarPapel);
+    pintarPapel();
+    // ---- El editor ocupa toda la pestaña; el botón ⛶ pone además pantalla completa ----
+    document.body.classList.add('mm-completo');
+    var bPant = $('#mm-pantalla');
+    if (bPant) bPant.addEventListener('click', function () {
+        if (document.fullscreenElement) document.exitFullscreen(); else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+    });
+    document.addEventListener('fullscreenchange', function () {
+        if (bPant) bPant.innerHTML = document.fullscreenElement ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
+        aplicarPapel();
+    });
     // Color de los títulos, franjas y recuadros del documento
     var selColor = window.MMColores && MMColores.iniciar('mm-colores', datos.opciones.color || '#1f3a68', function (c) {
         datos.opciones.color = c; document.documentElement.style.setProperty('--mm-doc', c); cambio();

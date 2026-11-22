@@ -3,10 +3,24 @@
 {% block page_title %}{% endblock %}
 {% block content %}
 {% include 'materiales/_estilos.html' %}
-<style>.mm-solo-ver { pointer-events:none; } #mm-conflicto[hidden] { display:none !important; }</style>
+<style>.mm-solo-ver { pointer-events:none; } #mm-conflicto[hidden] { display:none !important; }
+  /* El editor ocupa toda la pestaña: sin la barra ni el menú de la plataforma; los botones quedan fijos arriba. */
+  body.mm-completo .topbar-new, body.mm-completo .page-header, body.mm-completo .navbar-salon, body.mm-completo .esp-abajo,
+  body.mm-completo footer.pie, body.mm-completo .impersonation-banner, body.mm-completo .esp-sub { display:none !important; }
+  body.mm-completo .content-area, body.mm-completo main.container { max-width:none !important; width:100% !important; padding:0 12px 24px !important; margin:0 !important; }
+  body.mm-completo .page-wrapper { display:block !important; }
+  body.mm-completo { background:#e9edf3; }
+  body.mm-completo .mm-barra-fija { position:sticky; top:0; z-index:30; border-radius:0 0 12px 12px; box-shadow:0 4px 14px rgba(15,23,42,.12); margin:0 -12px 14px; }
+  /* La hoja del tamaño escogido (carta, oficio o personalizado): rayas donde termina cada página (aprox.) */
+  .mm-hoja { max-width:var(--mm-ancho, 860px) !important; width:100%; min-height:var(--mm-alto, auto);
+             background-image:repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--mm-alto, 99999px) - 2px),
+             rgba(37,99,235,.45) calc(var(--mm-alto, 99999px) - 2px), rgba(37,99,235,.45) var(--mm-alto, 99999px)); box-shadow:0 6px 24px rgba(15,23,42,.10); }
+  .mm-papel-etq { font-size:.78rem; color:#64748b; text-align:center; margin:-8px 0 8px; }
+</style>
 <div class="mm">
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
     <a href="{% url 'materiales:lista' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Mis materiales</a>
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="mm-pantalla" title="Pantalla completa (sin la barra del navegador)"><i class="fas fa-expand"></i></button>
     <span class="badge text-bg-light">{{ doc.get_tipo_display }}</span>
     {% if rol != 'dueno' %}<span class="badge text-bg-info" title="Material de {{ dueno_nombre }}"><i class="fas fa-user-group me-1"></i>De {{ dueno_nombre }} · {% if solo_ver %}solo ver{% else %}puede editar{% endif %}</span>{% endif %}
     <span class="small text-success" id="mm-presentes"></span>
@@ -34,7 +48,7 @@
 </div>
 <div class="mb-2">{% include 'materiales/_medidor.html' with med=med %}</div>
 
-<div class="mm-tarjeta py-2" style="position:sticky;top:0;z-index:20">
+<div class="mm-tarjeta py-2 mm-barra-fija" style="position:sticky;top:0;z-index:20">
   <div class="row g-2 align-items-end">
     <div class="col-md-4"><input id="mm-titulo" class="form-control fw-bold" maxlength="150" value="{{ doc.titulo }}" placeholder="Título"></div>
     <div class="col-6 col-md-3"><select id="mm-area" class="form-select form-select-sm" aria-label="Área" title="Área (lista oficial de la Ley 115)">
@@ -97,6 +111,24 @@
         <div class="btn-group btn-group-sm w-100 mb-2" id="mm-columnas">
           <button type="button" class="btn btn-outline-primary" data-col="1">Una</button>
           <button type="button" class="btn btn-outline-primary" data-col="2">Dos</button>
+        </div>
+        <div class="small fw-bold mb-1">Tamaño de hoja</div>
+        <select id="mm-papel" class="form-select form-select-sm mb-1">
+          <option value="carta">Carta (21,6 × 27,9 cm)</option>
+          <option value="oficio">Oficio (21,6 × 33 cm)</option>
+          <option value="a4">A4 (21 × 29,7 cm)</option>
+          <option value="personalizado">Personalizado…</option>
+        </select>
+        <div id="mm-papel-pers" class="mb-2" hidden>
+          <div class="d-flex gap-1 align-items-center">
+            <input id="mm-papel-ancho" type="number" step="any" min="0" class="form-control form-control-sm" placeholder="Ancho" aria-label="Ancho de la hoja">
+            <span>×</span>
+            <input id="mm-papel-alto" type="number" step="any" min="0" class="form-control form-control-sm" placeholder="Alto" aria-label="Alto de la hoja">
+            <select id="mm-papel-unidad" class="form-select form-select-sm" style="max-width:96px" aria-label="Unidad">
+              <option value="mm">mm</option><option value="cm">cm</option><option value="in">pulgadas</option><option value="px">píxeles</option>
+            </select>
+          </div>
+          <div class="small text-muted mt-1">Entre 7 y 60 cm de ancho, y entre 7 y 120 cm de alto.</div>
         </div>
         <label class="small fw-bold mb-1">Tamaño de letra: <span id="mm-letra-v"></span> pt</label>
         <input type="range" class="form-range" min="9" max="14" step="1" id="mm-letra">
@@ -234,6 +266,7 @@
   </div>
 </div>
 
+<div class="mm-papel-etq" id="mm-papel-etq"></div>
 <div class="mm-hoja" id="mm-hoja">
     <div id="mm-bloques"></div>
     <div class="mm-agregar" id="mm-agregar">
