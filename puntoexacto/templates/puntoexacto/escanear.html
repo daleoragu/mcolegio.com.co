@@ -158,6 +158,10 @@
     .pe-rev-pie .btn { flex:1; padding:12px 6px; font-size:1rem; }
     .pe-rev-bloque { background:#fff; border:1px solid #e3e6ec; border-radius:10px; padding:12px; margin-bottom:12px; }
     .pe-lienzo { position:relative; display:inline-block; line-height:0; }
+    /* Hoja fotografiada al revés (p. ej. 4 por hoja, cortadas y puestas de cualquier lado): se muestra derecha.
+       Se gira todo (foto y burbujas) y el sello de la nota se pone al otro lado para que quede arriba a la izquierda. */
+    .pe-lienzo.girada { transform:rotate(180deg); }
+    .pe-lienzo.girada .pe-sello { top:auto; left:auto; bottom:8px; right:8px; transform:rotate(180deg); }
     .pe-marco { overflow:auto; max-height:70vh; background:#e9ebef; border-radius:8px; -webkit-overflow-scrolling:touch; }
     .pe-lienzo img { display:block; width:100%; height:auto; }
     .pe-burbuja { position:absolute; transform:translate(-50%,-50%); border-radius:50%; box-sizing:border-box; cursor:pointer;
@@ -1267,6 +1271,29 @@
     // =====================================================================
     // 4. El PDF (se arma en el navegador)
     // =====================================================================
+    function alReves(l) {
+        if (!l || !l.posiciones) return false;
+        var porPregunta = {}, suma = 0, n = 0;
+        Object.keys(l.posiciones).forEach(function (k) {
+            var m = k.match(/^(\d+)([A-J])$/); if (!m) return;
+            (porPregunta[m[1]] = porPregunta[m[1]] || []).push([m[2], l.posiciones[k]]);
+        });
+        Object.keys(porPregunta).forEach(function (q) {
+            var ops = porPregunta[q].sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
+            if (ops.length < 2) return;
+            var a = ops[0][1], z = ops[ops.length - 1][1];
+            if (Math.abs(z[0] - a[0]) > Math.abs(z[1] - a[1])) { suma += z[0] > a[0] ? 1 : -1; n++; }
+        });
+        return n > 0 && suma < 0;
+    }
+    // Una imagen ya marcada, girada 180° si la hoja vino al revés (vista previa, PDF)
+    function enderezar(c, l) {
+        if (!alReves(l)) return c;
+        var g = document.createElement('canvas'); g.width = c.width; g.height = c.height;
+        var x = g.getContext('2d'); x.translate(g.width, g.height); x.rotate(Math.PI); x.drawImage(c, 0, 0);
+        return g;
+    }
+
     function cargarImagen(url) {
         return new Promise(function (ok, mal) { var i = new Image(); i.onload = function () { ok(i); }; i.onerror = mal; i.src = url; });
     }
@@ -1298,7 +1325,12 @@
                 x.strokeStyle = '#f59e0b'; x.lineWidth = Math.max(2, r * 0.3); x.stroke();
             });
         });
-        if (info && !sinSello) {
+        if (!sinSello) selloNota(c, p);
+    }
+    // El recuadro con la nota (arriba a la derecha de la hoja ya derecha)
+    function selloNota(c, p) {
+        var x = c.getContext('2d'), info = p.notaInfo;
+        if (info) {
             var w = c.width * 0.3, h = c.width * 0.085, x0 = c.width - w - c.width * 0.07, y0 = c.height * 0.12;
             x.fillStyle = 'rgba(255,255,255,.92)'; x.fillRect(x0, y0, w, h);
             x.strokeStyle = colorNota(parseFloat(info.nota)); x.lineWidth = c.width * 0.004; x.strokeRect(x0, y0, w, h);
@@ -1327,7 +1359,7 @@
                 c.width = img.naturalWidth; c.height = img.naturalHeight;
                 c.getContext('2d', {willReadFrequently: true}).drawImage(img, 0, 0);
                 var m = PEScan.mejorar(c);
-                if (conNota) marcarCalificacion(m, p);
+                if (conNota) marcarCalificacion(m, p, true);
                 // Las fotos de la cámara se enderezan aquí (la nota y las marcas ya van dibujadas encima).
                 var dzp = p.quad && DISENOS.filter(function (d) { return String(d.pp) === String(p.pp); })[0];
                 if (dzp) { m = PEScan.enderezar(m, p.quad, dzp, 6, 0); p.margenPx = 0; }
@@ -1339,6 +1371,9 @@
                     r.getContext('2d').drawImage(m, mg, mg, r.width, r.height, 0, 0, r.width, r.height);
                     m = r;
                 }
+                // Hoja al revés: se endereza y la nota se pone ya derecha
+                m = enderezar(m, p.lectura);
+                if (conNota) selloNota(m, p);
                 return PEScan.aJPEG(m, 0.8).then(function (b) {
                     var horizontal = m.width > m.height, aw = p.ancho_mm, ah = p.alto_mm;
                     if (aw && ah && (aw > ah) !== horizontal) { var t = aw; aw = ah; ah = t; }   // la giraron
@@ -1371,7 +1406,7 @@
             c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
             c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
             marcarCalificacion(c, p, true);
-            var kx = c.width / (l.ancho_foto || c.width), ky = c.height / (l.alto_foto || c.height);
+            var kx = c.width / (l.ancho_foto || c.width), ky = c.height / (l.alto_foto || c.height), girar = alReves(l);
             var xs = [], ys = [];
             Object.keys(l.posiciones).forEach(function (q) { xs.push(l.posiciones[q][0] * kx); ys.push(l.posiciones[q][1] * ky); });
             if (!xs.length) return c.toDataURL('image/jpeg', 0.8);
@@ -1381,6 +1416,7 @@
             var r = document.createElement('canvas');
             r.width = Math.round(x1 - x0); r.height = Math.round(y1 - y0);
             r.getContext('2d').drawImage(c, x0, y0, r.width, r.height, 0, 0, r.width, r.height);
+            if (girar) r = enderezar(r, l);
             return r.toDataURL('image/jpeg', 0.82);
         }).catch(function () { return null; });
     }
@@ -1493,6 +1529,7 @@
         pararBusqueda();
         ocultarNotaCamara();
         elImg.src = p.url;
+        elLienzo.classList.toggle('girada', alReves(lectura));
         elZoom.value = 100;
         elLienzo.style.width = '100%';
         var desdeCamara = camaraAbierta() && p === lote[lote.length - 1];

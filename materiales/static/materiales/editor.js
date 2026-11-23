@@ -368,19 +368,47 @@
     function cambio() {
         if (CFG.soloVer || CFG.bloqueado) return;
         anotar();
+        sucio = true;
         estado('Cambios sin guardar…');
         clearTimeout(temporizador);
         temporizador = setTimeout(guardar, 1200);
     }
+    // Sin conexión: cada guardada deja primero una copia en este equipo; si el servidor no responde, la copia
+    // espera y se sube sola al volver la conexión (también si se cierra y se vuelve a abrir el editor).
+    var LLAVE_BORRADOR = 'mm-borrador:' + CFG.doc;
+    function cuerpoActual() {
+        return {
+            titulo: $('#mm-titulo').value, area: $('#mm-area').value, asignatura: ($('#mm-asignatura') || {}).value || '', grado: $('#mm-grado').value,
+            periodo: $('#mm-periodo').value, contenido: datos, version: CFG.version
+        };
+    }
+    function borrador(valor) {
+        try {
+            if (valor === undefined) return JSON.parse(localStorage.getItem(LLAVE_BORRADOR) || 'null');
+            if (valor === null) localStorage.removeItem(LLAVE_BORRADOR);
+            else localStorage.setItem(LLAVE_BORRADOR, JSON.stringify(valor));
+        } catch (e) { /* sin almacenamiento o lleno */ }
+        return null;
+    }
+    var sinRed = false, sucio = false, LLAVE_COPIA = 'mm-copia:' + CFG.doc;
+    // Al cerrar la pestaña con cambios aún sin enviar, quedan en el equipo
+    window.addEventListener('pagehide', function () { if (sucio && !CFG.soloVer) borrador({ cuerpo: cuerpoActual(), t: Date.now() }); });
+    // La última versión guardada, para abrir el editor sin conexión con lo más nuevo (la página guardada puede ser vieja)
+    function copiaGuardada(cuerpo) {
+        var texto = JSON.stringify({ cuerpo: cuerpo, t: Date.now() });
+        try { localStorage.setItem(LLAVE_COPIA, texto); }
+        catch (e) {      // lleno: se borran las copias de otros documentos y se intenta otra vez
+            try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('mm-copia:') === 0) localStorage.removeItem(k); }); localStorage.setItem(LLAVE_COPIA, texto); } catch (e2) { /* nada */ }
+        }
+    }
+    window.addEventListener('online', function () { if (sinRed || borrador()) { sinRed = false; guardar(); } });
     function guardar() {
         if (CFG.soloVer || CFG.bloqueado) return Promise.resolve();
         if (guardando) { pendiente = true; return Promise.resolve(); }
         guardando = true;
         estado('Guardando…');
-        var cuerpo = {
-            titulo: $('#mm-titulo').value, area: $('#mm-area').value, asignatura: ($('#mm-asignatura') || {}).value || '', grado: $('#mm-grado').value,
-            periodo: $('#mm-periodo').value, contenido: datos, version: CFG.version
-        };
+        var cuerpo = cuerpoActual();
+        borrador({ cuerpo: cuerpo, t: Date.now() });
         return fetch(CFG.guardar, {
             method: 'POST', credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CFG.csrf }, body: JSON.stringify(cuerpo)
@@ -390,11 +418,18 @@
                 CFG.bloqueado = true;
                 window.dispatchEvent(new CustomEvent('mm-conflicto', { detail: j }));
             }
+            if (j.ok || !j.conflicto) borrador(null);       // ya está en el servidor (o el servidor lo rechazó por otra razón)
+            if (j.ok) { sucio = false; cuerpo.version = CFG.version; copiaGuardada(cuerpo); }
+            sinRed = false;
             estado(j.ok ? (j.aviso ? 'Todo guardado · ' + j.aviso : 'Todo guardado') : (j.error || 'No se pudo guardar'), !j.ok || !!j.aviso);
-        }).catch(function () { estado('Sin conexión: se guardará al volver', true); pendiente = true; })
+        }).catch(function () {
+            sinRed = true;
+            estado('📴 Sin conexión: los cambios quedan guardados en este equipo y se suben solos al volver', true);
+        })
             .then(function () {
                 guardando = false;
                 if (pendiente) { pendiente = false; setTimeout(guardar, 800); }
+                else if (sinRed) setTimeout(function () { if (sinRed && !guardando) guardar(); }, navigator.onLine === false ? 20000 : 8000);
             });
     }
     ['#mm-titulo', '#mm-area', '#mm-asignatura', '#mm-grado', '#mm-periodo'].forEach(function (s) { if ($(s)) { $(s).addEventListener('input', cambio); $(s).addEventListener('change', cambio); } });
@@ -788,7 +823,60 @@
 
     $$('[data-cmd]').forEach(function (b) {
         b.addEventListener('mousedown', function (e) { e.preventDefault(); });
-        b.addEventListener('click', function () { document.execCommand(b.getAttribute('data-cmd'), false, null); });
+        // Sin CSS: negrilla, cursiva… quedan como etiquetas (<b>, <i>, <s>) que se guardan bien
+        b.addEventListener('click', function () { document.execCommand('styleWithCSS', false, false); document.execCommand(b.getAttribute('data-cmd'), false, null); marcarAlineacion(); });
+    });
+    // Ctrl+L / E / R / J: alinear, como en Word
+    document.addEventListener('keydown', function (e) {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || !e.target.closest || !e.target.closest('.mm-edit')) return;
+        var cmd = { l: 'justifyLeft', e: 'justifyCenter', r: 'justifyRight', j: 'justifyFull' }[e.key.toLowerCase()];
+        if (!cmd) return;
+        e.preventDefault(); document.execCommand(cmd, false, null); marcarAlineacion();
+    });
+    // El botón de la alineación del párrafo donde está el cursor queda marcado
+    function marcarAlineacion() {
+        var s = window.getSelection(), n = s.rangeCount ? s.getRangeAt(0).startContainer : null, valor = '';
+        n = n && (n.nodeType === 1 ? n : n.parentElement);
+        if (n && n.closest('.mm-edit')) valor = getComputedStyle(n).textAlign.replace('start', 'left').replace('end', 'right');
+        $$('[data-alinear]').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-alinear') === valor); });
+        // y el tipo y el tamaño de letra de ese texto
+        if (n && n.closest('.mm-edit')) {
+            var cs = getComputedStyle(n), fam = (cs.fontFamily.split(',')[0] || '').replace(/["']/g, '').trim().toLowerCase();
+            var selF = $('#mm-fuente'), selT = $('#mm-tam');
+            if (selF) selF.value = Array.prototype.slice.call(selF.options).map(function (o) { return o.value; }).filter(function (v) { return v && v.toLowerCase() === fam; })[0] || '';
+            if (selT) { var pt = Math.round(parseFloat(cs.fontSize) * 0.75 * 2) / 2; selT.value = Array.prototype.slice.call(selT.options).some(function (o) { return +o.value === pt; }) ? String(pt) : ''; }
+        }
+    }
+    document.addEventListener('selectionchange', function () { clearTimeout(marcarAlineacion.t); marcarAlineacion.t = setTimeout(marcarAlineacion, 120); });
+    // Tipo y tamaño de letra: se aplican al texto seleccionado (como en Word). El navegador solo sabe poner
+    // <font face> y tamaños del 1 al 7: se pone el 7 de marca y se cambia por el tamaño en puntos.
+    var FUENTES_CSS = {};
+    Array.prototype.forEach.call(($('#mm-fuente') || { options: [] }).options, function (o) { if (o.value) FUENTES_CSS[o.value] = o.style.fontFamily || o.value; });
+    function aplicarLetra(tipo, valor) {
+        if (!valor) return;
+        if (!ultimoRango) { estado('Seleccione primero el texto al que le quiere cambiar la letra'); return; }
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(ultimoRango);
+        var ed = ultimoRango.commonAncestorContainer;
+        ed = ed && (ed.nodeType === 1 ? ed : ed.parentElement);
+        ed = ed && ed.closest('.mm-edit');
+        if (!ed) return;
+        document.execCommand('styleWithCSS', false, false);
+        if (tipo === 'fuente') document.execCommand('fontName', false, 'MMFUENTE');
+        else document.execCommand('fontSize', false, '7');
+        Array.prototype.forEach.call(ed.querySelectorAll(tipo === 'fuente' ? 'font[face="MMFUENTE"]' : 'font[size="7"]'), function (f) {
+            var sp = document.createElement('span');
+            if (tipo === 'fuente') sp.style.fontFamily = FUENTES_CSS[valor] || valor; else sp.style.fontSize = valor + 'pt';
+            while (f.firstChild) sp.appendChild(f.firstChild);
+            f.parentNode.replaceChild(sp, f);
+            // lo de adentro que tenía otro tamaño u otro tipo de letra toma el nuevo
+            Array.prototype.forEach.call(sp.querySelectorAll('span'), function (x) { if (tipo === 'fuente') x.style.fontFamily = ''; else x.style.fontSize = ''; });
+        });
+        ed.dispatchEvent(new Event('input', { bubbles: true }));
+        marcarAlineacion();
+    }
+    ['fuente', 'tam'].forEach(function (k) {
+        var sel = $('#mm-' + k); if (!sel) return;
+        sel.addEventListener('change', function () { aplicarLetra(k === 'fuente' ? 'fuente' : 'tam', sel.value); });
     });
 
     // Color de letra y relleno (como en Word): sobre el texto seleccionado o sobre la celda de la tabla donde está el cursor
@@ -1453,6 +1541,30 @@
         });
     });
 
+    // ¿Quedaron cambios hechos sin conexión en este equipo? Se recuperan y se suben
+    (function () {
+        var b = borrador();
+        if (!b || !b.cuerpo) {
+            // Sin cambios pendientes: si la copia del equipo es más nueva que la página (abierta sin conexión), se usa
+            try { b = JSON.parse(localStorage.getItem(LLAVE_COPIA) || 'null'); } catch (e) { b = null; }
+            if (b && b.cuerpo && b.cuerpo.contenido && b.cuerpo.version > CFG.version) {
+                var k = b.cuerpo; datos.bloques = k.contenido.bloques || []; datos.opciones = Object.assign(datos.opciones, k.contenido.opciones || {});
+                datos.anotaciones = k.contenido.anotaciones || []; CFG.version = k.version;
+                ['titulo', 'area', 'asignatura', 'grado', 'periodo'].forEach(function (x) { var e = $('#mm-' + x); if (e && k[x] !== undefined) e.value = k[x]; });
+            }
+            return;
+        }
+        if (!b.cuerpo.contenido || CFG.soloVer) return;
+        var c = b.cuerpo, d = c.contenido;
+        if (JSON.stringify(d) === JSON.stringify(datos) && c.titulo === $('#mm-titulo').value) { borrador(null); return; }
+        if (c.version < CFG.version && !confirm('En este equipo hay cambios de este documento hechos sin conexión (' +
+            new Date(b.t).toLocaleString() + '), pero el documento se guardó después desde otro lado.\n\n' +
+            '¿Recuperar los cambios de este equipo? (Aceptar = usar los de este equipo · Cancelar = descartarlos)')) { borrador(null); return; }
+        datos.bloques = d.bloques || []; datos.opciones = Object.assign(datos.opciones, d.opciones || {}); datos.anotaciones = d.anotaciones || [];
+        ['titulo', 'area', 'asignatura', 'grado', 'periodo'].forEach(function (k) { var e = $('#mm-' + k); if (e && c[k] !== undefined) e.value = c[k]; });
+        estado('Se recuperaron los cambios hechos sin conexión · subiendo…');
+        setTimeout(guardar, 600);
+    })();
     pintarOpciones();
     pintar();
     foto = fotoActual();

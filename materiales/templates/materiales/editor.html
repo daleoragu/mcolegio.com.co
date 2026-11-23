@@ -163,11 +163,28 @@
       <button type="button" class="btn btn-outline-secondary" data-cmd="bold" title="Negrilla"><i class="fas fa-bold"></i></button>
       <button type="button" class="btn btn-outline-secondary" data-cmd="italic" title="Cursiva"><i class="fas fa-italic"></i></button>
       <button type="button" class="btn btn-outline-secondary" data-cmd="underline" title="Subrayado"><i class="fas fa-underline"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="strikeThrough" title="Tachado"><i class="fas fa-strikethrough"></i></button>
       <button type="button" class="btn btn-outline-secondary" data-cmd="insertUnorderedList" title="Viñetas"><i class="fas fa-list-ul"></i></button>
       <button type="button" class="btn btn-outline-secondary" data-cmd="insertOrderedList" title="Numeración"><i class="fas fa-list-ol"></i></button>
       <button type="button" class="btn btn-outline-secondary" data-cmd="superscript" title="Exponente"><i class="fas fa-superscript"></i></button>
       <button type="button" class="btn btn-outline-secondary" data-cmd="subscript" title="Subíndice"><i class="fas fa-subscript"></i></button>
     </div>
+    {# Alineación del párrafo, como en Word #}
+    <div class="btn-group btn-group-sm" role="group" aria-label="Alineación del párrafo">
+      <button type="button" class="btn btn-outline-secondary" data-cmd="justifyLeft" data-alinear="left" title="Alinear a la izquierda (Ctrl+L)"><i class="fas fa-align-left"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="justifyCenter" data-alinear="center" title="Centrar (Ctrl+E)"><i class="fas fa-align-center"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="justifyRight" data-alinear="right" title="Alinear a la derecha (Ctrl+R)"><i class="fas fa-align-right"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="justifyFull" data-alinear="justify" title="Justificar (Ctrl+J)"><i class="fas fa-align-justify"></i></button>
+    </div>
+    {# Tipo y tamaño de letra del texto seleccionado #}
+    <select class="form-select form-select-sm mm-letra" id="mm-fuente" title="Tipo de letra" aria-label="Tipo de letra" style="width:150px">
+      <option value="">Tipo de letra</option>
+      {% for nombre, css in fuentes.items %}<option value="{{ nombre }}" style="font-family:{{ css }}">{{ nombre }}</option>{% endfor %}
+    </select>
+    <select class="form-select form-select-sm mm-letra" id="mm-tam" title="Tamaño de letra" aria-label="Tamaño de letra" style="width:78px">
+      <option value="">Tam.</option>
+      {% for t in tamanos %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+    </select>
     {# Color de letra y relleno, como en Word: el botón aplica el último color; la flecha abre la paleta #}
     {% for tipo, titulo in colores_texto %}
     <div class="btn-group btn-group-sm mm-colorbtn" data-tipo="{{ tipo }}">

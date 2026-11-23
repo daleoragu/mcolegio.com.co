@@ -54,6 +54,16 @@ class AppInstalable(ColegioDePrueba):
         self.assertIn('application/javascript', r['Content-Type'])
         self.assertContains(r, "SIN_CONEXION = '/sin-conexion/'")
         self.assertContains(self.cliente().get('/sin-conexion/'), 'No hay conexión a internet')
+        # Sin conexión: solo la pizarra y el editor de materiales se guardan; al cerrar sesión se borran
+        import re
+        sw = r.content.decode()
+        reglas = [re.compile(x.replace('\\/', '/')) for x in re.findall(r'^  /(\^.*?\$)/,', sw, re.M)]
+        dentro = lambda ruta: any(x.match(ruta) for x in reglas)
+        for ruta in ('/salon_digital/pizarra/tablero/', '/salon_digital/pizarra/tablero/12/', '/aula/3/tablero/12/', '/materiales/', '/materiales/45/'):
+            self.assertTrue(dentro(ruta), ruta)
+        for ruta in ('/dashboard/', '/notas/', '/materiales/45/pdf/', '/boletines/1/', '/aula/tablero/1/estado/'):
+            self.assertFalse(dentro(ruta), ruta)
+        self.assertIn("url.pathname.startsWith('/logout')) { caches.delete(PAGINAS)", sw)
 
     def test_pagina_de_revision(self):
         self.assertContains(self.cliente().get('/app/revisar/'), 'Revisión de la app del colegio')

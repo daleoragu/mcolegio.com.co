@@ -1,4 +1,4 @@
-Versión 0084 · 2026-11-22 17:06
+Versión 0087 · 2026-11-22 23:43
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -665,6 +665,7 @@ NUEVO     materiales/tests/test_dibujo.py
 NUEVO     materiales/tests/test_ecuaciones.py
 NUEVO     materiales/tests/test_equipo.py
 CAMBIADO  materiales/tests/test_fase3.py
+NUEVO     materiales/tests/test_formato_texto.py
 NUEVO     materiales/tests/test_graficas.py
 NUEVO     materiales/tests/test_imagenes.py
 NUEVO     materiales/tests/test_juegos_colores.py
@@ -762,6 +763,7 @@ NUEVO     notas/templatetags/asesoria_tags.py
 CAMBIADO  notas/templatetags/auth_extras.py
 CAMBIADO  notas/templatetags/nota_filters.py
 NUEVO     notas/templatetags/pases_tags.py
+CAMBIADO  notas/tests/test_app.py
 NUEVO     notas/tests/test_asesoria.py
 NUEVO     notas/tests/test_colores_iconos.py
 NUEVO     notas/tests/test_excusas.py

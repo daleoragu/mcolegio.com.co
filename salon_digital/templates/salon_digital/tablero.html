@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   * { box-sizing:border-box; }
-  html, body { margin:0; height:100%; overflow:hidden; font-family:system-ui,'Segoe UI',Arial,sans-serif; background:#0f172a; touch-action:none; overscroll-behavior:none; -webkit-user-select:none; user-select:none; }
+  html, body { margin:0; height:100%; overflow:hidden; font-family:system-ui,'Segoe UI',Arial,sans-serif; background:#0f172a; touch-action:none; overscroll-behavior:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
   canvas { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
   .tb-barra { position:fixed; left:50%; bottom:12px; transform:translateX(-50%); z-index:5; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:4px;
               background:rgba(15,23,42,.93); color:#fff; border-radius:16px; padding:7px 9px; box-shadow:0 8px 24px rgba(0,0,0,.35); max-width:calc(100vw - 12px); }
@@ -31,6 +31,8 @@
   .tb-interruptor { display:flex; align-items:center; gap:8px; margin-top:10px; font-weight:600; cursor:pointer; }
   .tb-interruptor input { width:40px; height:22px; accent-color:#047857; }
   .tb-enlace { margin-top:8px; font-size:.78rem; word-break:break-all; background:#f1f5f9; border-radius:8px; padding:6px 8px; display:none; }
+  .tb-red { position:fixed; right:12px; bottom:12px; z-index:7; background:#b45309; color:#fff; padding:6px 12px; border-radius:999px; font-size:.82rem; display:none; box-shadow:0 4px 14px rgba(0,0,0,.25); }
+  .tb-red.ok { background:#15803d; }
   .tb-aviso { position:fixed; left:50%; top:62px; transform:translateX(-50%); z-index:7; background:#0f172a; color:#fff; padding:8px 14px; border-radius:10px; font-size:.88rem; display:none; max-width:92vw; text-align:center; }
   .tb-texto { position:fixed; z-index:6; min-width:140px; background:rgba(255,255,255,.92); border:2px dashed #38bdf8; outline:none; padding:2px 4px; font-family:system-ui, sans-serif; resize:both; -webkit-user-select:text; user-select:text; }
   .tb-color-libre { width:26px!important; height:26px!important; border-radius:50%!important; background:conic-gradient(red, yellow, lime, cyan, blue, magenta, red)!important; border:2px solid rgba(255,255,255,.7)!important; overflow:hidden; }
@@ -80,6 +82,7 @@
 </div>
 {% endif %}
 <div class="tb-aviso" id="tb-aviso"></div>
+<div class="tb-red" id="tb-red" role="status" aria-live="polite"></div>
 <div class="tb-soltar" id="tb-soltar">Suelte la imagen aquí</div>
 <div class="tb-zoom">
   <button type="button" id="tb-mas" title="Acercar">+</button><span id="tb-z">100%</span><button type="button" id="tb-menos" title="Alejar">−</button>
@@ -144,6 +147,7 @@
       <li>En el programa de la tableta (en la XP-Pen: <i>PenTablet</i> → <i>Teclas rápidas</i>) ponga a cada tecla de la tableta una de las letras de arriba: por ejemplo P, B, E, S, T, Ctrl+Z, y la rueda en <b>[</b> y <b>]</b> para el grosor o en <b>+</b> y <b>−</b> para acercar.</li></ul></div>
 </div>
 {{ cfg|json_script:"tb-cfg" }}
+<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function () {});</script>
 <script>
 (function () {
   'use strict';
@@ -156,6 +160,15 @@
   const FONDOS = ['blanco', 'cuadros', 'rayas', 'verde'];
   const CM = 37.8;                                       // 1 cm en el mundo (a 100 %)
   let objetos = CFG.objetos || [], version = CFG.v, fondo = CFG.fondo || 'cuadros', editar = CFG.editar, compartido = CFG.compartido;
+  // Abierto sin conexión (página guardada) o con cambios sin subir: se usa la copia del equipo si es más nueva
+  (function () {
+    try {
+      const c = JSON.parse(localStorage.getItem('tb-copia:' + CFG.id + ':' + CFG.yo) || 'null');
+      if (c && Array.isArray(c.objetos) && (c.v > CFG.v || (c.v === CFG.v && localStorage.getItem('tb-pendientes:' + CFG.id + ':' + CFG.yo)))) {
+        objetos = c.objetos; version = c.v; fondo = c.fondo || fondo;
+      }
+    } catch (e) { /* sin almacenamiento */ }
+  })();
   let herramienta = editar ? 'lapiz' : 'mano', color = COLORES[0], grosor = GROSORES[0], forma = 'rect';
   const vista = {x: -40, y: -40, z: 1};
   let actual = null, seleccion = null, accion = null, espacio = false, guia = null, rotulo = '', compas = null, lapizVisto = false;
@@ -370,13 +383,51 @@
 
   // ================================================================= servidor (en vivo)
   function aviso(t, ms) { const a = document.getElementById('tb-aviso'); a.textContent = t; a.style.display = 'block'; clearTimeout(aviso.t); aviso.t = setTimeout(() => { a.style.display = 'none'; }, ms || 2500); }
+  // Cada cambio entra a una cola guardada en el equipo y se envía en orden. Sin conexión (o con la red
+  // inestable) se queda en la cola y se reintenta solo: nada de lo dibujado se pierde ni se borra.
+  const LLAVE = 'tb-pendientes:' + CFG.id + ':' + CFG.yo, LLAVE_COPIA = 'tb-copia:' + CFG.id + ':' + CFG.yo;
+  function leerLocal(k, defecto) { try { return JSON.parse(localStorage.getItem(k)) || defecto; } catch (e) { return defecto; } }
+  function guardarLocal(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* lleno o privado */ } }
+  let pendientes = leerLocal(LLAVE, []), enviando = false, sinRed = false, reintento = null;
   function enviar(op) {
-    return fetch(CFG.urlOp, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF}, body: JSON.stringify(op)})
-      .then(r => r.json()).then(j => {
-        if (!j.ok) { aviso(j.error || 'No se pudo guardar.'); traer(true); return; }
-        if (j.v === version + 1) version = j.v; else traer();
-      }).catch(() => aviso('Sin conexión: lo último puede no haberse guardado.'));
+    pendientes.push(JSON.parse(JSON.stringify(op)));
+    guardarLocal(LLAVE, pendientes); copiaLocal(); vaciar();
   }
+  function vaciar() {
+    if (enviando || !pendientes.length) { estadoRed(); return; }
+    enviando = true; clearTimeout(reintento);
+    const op = pendientes[0];
+    fetch(CFG.urlOp, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF}, body: JSON.stringify(op)})
+      .then(r => r.json().then(j => [r.status, j]))
+      .then(([estado, j]) => {
+        enviando = false; sinRed = false;
+        pendientes.shift(); guardarLocal(LLAVE, pendientes.length ? pendientes : null);
+        if (!j.ok) { aviso(j.error || 'No se pudo guardar.'); traer(true); }
+        else if (j.v === version + 1) version = j.v; else traer();
+        copiaLocal(); vaciar();
+      })
+      .catch(() => {                          // sin conexión, servidor caído o la sesión se venció: se reintenta
+        enviando = false; sinRed = true; estadoRed();
+        reintento = setTimeout(vaciar, navigator.onLine === false ? 15000 : 5000);
+      });
+  }
+  window.addEventListener('online', () => { sinRed = false; vaciar(); traer(); });
+  window.addEventListener('offline', () => { sinRed = true; estadoRed(); });
+  function estadoRed() {
+    const e = document.getElementById('tb-red'), n = pendientes.length;
+    if (!sinRed && !n) { e.style.display = 'none'; return; }
+    e.style.display = 'block'; e.classList.toggle('ok', !sinRed);
+    e.textContent = sinRed ? '📴 Sin conexión · ' + (n ? n + ' cambio' + (n === 1 ? '' : 's') + ' guardado' + (n === 1 ? '' : 's') + ' en este equipo' : 'siga dibujando')
+                           : '⏳ Subiendo ' + n + ' cambio' + (n === 1 ? '' : 's') + '…';
+  }
+  // Copia del tablero en el equipo: para abrirlo sin conexión con lo último que se dibujó
+  let esperaCopia = null;
+  function copiaLocal() {
+    clearTimeout(esperaCopia);
+    esperaCopia = setTimeout(() => guardarLocal(LLAVE_COPIA, {v: version, fondo: fondo, objetos: objetos, t: Date.now()}), 600);
+  }
+  // Lo que aún no llegó al servidor se vuelve a poner encima de lo que manda el servidor
+  function reponerPendientes() { pendientes.forEach(aplicar); }
   function aplicar(op) {
     if (op.op === 'agregar') { if (!objetos.some(o => o.id === op.obj.id)) objetos.push(op.obj); }
     else if (op.op === 'reemplazar') { const k = objetos.findIndex(o => o.id === op.obj.id); if (k >= 0) objetos[k] = op.obj; }
@@ -390,12 +441,16 @@
     fetch(CFG.urlEstado + '?desde=' + (todo ? -1 : version), {credentials: 'same-origin'}).then(r => r.json()).then(j => {
       pidiendo = false;
       if (j.objetos) { objetos = j.objetos; seleccion = null; } else if (j.ops) j.ops.forEach(aplicar);
+      if (pendientes.length) reponerPendientes();
+      sinRed = false; copiaLocal(); estadoRed();
       const cambio = j.v !== version || j.objetos; version = j.v; fondo = j.fondo || fondo; compartido = j.compartido;
       if (j.editar !== editar) { editar = j.editar; permisos(); aviso(editar ? '✏️ El docente habilitó la escritura: ya puede escribir.' : '👀 El docente desactivó la escritura: ahora solo puede ver.', 4000); }
       if (cambio) pintar(); estadoRotulo();
-    }).catch(() => { pidiendo = false; });
+    }).catch(() => { pidiendo = false; sinRed = true; estadoRed(); });
   }
   setInterval(() => { if (!document.hidden && (compartido || !CFG.docente) && !actual && !accion) traer(); }, 2500);
+  // Lo que quedó sin subir la vez pasada (se cerró sin conexión): se vuelve a poner y se sube
+  if (pendientes.length) { reponerPendientes(); setTimeout(vaciar, 300); }
 
   // ================================================================= herramientas
   function permisos() {
@@ -488,6 +543,8 @@
 
   // ================================================================= tocar y escribir
   const dedos = new Map();
+  let plumaAbajo = false;
+  const toques = () => [...dedos.values()].filter(d => d[2] === 'touch');
   function golpe(wx, wy, filtro) {
     const tol = 8 / vista.z;
     for (let k = objetos.length - 1; k >= 0; k--) {
@@ -513,13 +570,21 @@
   }
   capa.addEventListener('contextmenu', ev => ev.preventDefault());     // el clic derecho (botón del lápiz) borra, no abre menú
   capa.addEventListener('pointerdown', ev => {
-    capa.setPointerCapture(ev.pointerId);
+    try { capa.setPointerCapture(ev.pointerId); } catch (e) { /* algunos navegadores lo rechazan: se sigue igual */ }
     menuInst.classList.remove('abierto'); menuFormas.classList.remove('abierto');
     if (ev.pointerType === 'pen' && !lapizVisto) { lapizVisto = true; aviso('✍️ Lápiz detectado: ahora el dedo solo mueve y acerca la vista (la palma no raya).', 4500); }
+    // iPad y tabletas: mientras el lápiz escribe, cualquier toque es la palma o un dedo apoyado: no cuenta
+    if (ev.pointerType === 'touch' && plumaAbajo) return;
+    if (ev.pointerType === 'pen') {
+      plumaAbajo = true;
+      for (const [id, d] of [...dedos]) if (d[2] === 'touch') dedos.delete(id);     // la palma que ya estaba apoyada se olvida
+      if (accion && (accion.tipo === 'pellizco' || accion.tipo === 'vista')) accion = null;
+    }
     dedos.set(ev.pointerId, [ev.clientX, ev.clientY, ev.pointerType]);
     const [wx, wy] = aMundo(ev.clientX, ev.clientY);
-    if (dedos.size === 2) {
-      actual = null; guia = null; const [a, b] = [...dedos.values()];
+    // Pellizco: solo con dos dedos (nunca un dedo y el lápiz)
+    if (ev.pointerType === 'touch' && toques().length === 2) {
+      actual = null; guia = null; const [a, b] = toques();
       const ins = accion && accion.tipo === 'instrumento' ? accion.ins : null;
       accion = {tipo: 'pellizco', d: Math.hypot(a[0] - b[0], a[1] - b[1]), m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], ang: Math.atan2(b[1] - a[1], b[0] - a[0]), ins: ins};
       pedirCapa(); return;
@@ -567,11 +632,12 @@
   });
   capa.addEventListener('pointermove', ev => {
     if (!dedos.has(ev.pointerId)) return;
+    if (plumaAbajo && ev.pointerType === 'touch') return;
     dedos.set(ev.pointerId, [ev.clientX, ev.clientY, ev.pointerType]);
     const [wx, wy] = aMundo(ev.clientX, ev.clientY);
     if (!accion) return;
-    if (accion.tipo === 'pellizco' && dedos.size === 2) {
-      const [a, b] = [...dedos.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
+    if (accion.tipo === 'pellizco' && toques().length === 2) {
+      const [a, b] = toques(), d = Math.hypot(a[0] - b[0], a[1] - b[1]), m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
       if (accion.ins) {          // dos dedos sobre un instrumento: girarlo y moverlo
         accion.ins.ang += ang - accion.ang; accion.ins.x += (m[0] - accion.m[0]) / vista.z; accion.ins.y += (m[1] - accion.m[1]) / vista.z;
         accion.ang = ang; accion.m = m; pedirCapa(); return;
@@ -632,8 +698,10 @@
   });
   function soltar(ev) {
     dedos.delete(ev.pointerId);
+    if (ev.pointerType === 'pen') plumaAbajo = false;
+    else if (plumaAbajo) return;                     // se levantó la palma: el trazo del lápiz sigue
     if (!accion) return;
-    if (accion.tipo === 'pellizco') { if (dedos.size < 2) accion = null; return; }
+    if (accion.tipo === 'pellizco') { if (toques().length < 2) accion = null; return; }
     if (accion.tipo === 'arrastrar' || accion.tipo === 'tamano') {
       const o = accion.o; ['x', 'y', 'w', 'h'].forEach(k => { if (o[k] !== undefined) o[k] = r1(o[k]); });
       if (o.p) o.p = o.p.map(p => p.length > 2 ? [r1(p[0]), r1(p[1]), p[2]] : [r1(p[0]), r1(p[1])]);
