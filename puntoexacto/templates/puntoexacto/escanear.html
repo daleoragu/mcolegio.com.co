@@ -1387,8 +1387,16 @@
                     r.getContext('2d').drawImage(m, mg, mg, r.width, r.height, 0, 0, r.width, r.height);
                     m = r;
                 }
-                // Hoja al revés: se endereza y la nota se pone ya derecha
-                m = enderezar(m, p.lectura);
+                // Hoja al revés: se endereza y la nota se pone ya derecha. Si la foto ya se enderezó con sus 4 esquinas,
+                // se mira cómo quedaron las burbujas DESPUÉS de enderezarla (antes se giraba dos veces y la nota
+                // salía al revés).
+                var lFinal = p.lectura;
+                if (dzp && p.lectura && p.lectura.posiciones) {
+                    var Hq = PEScan.homografia(p.quad, dzp.marcas), pos = {};
+                    if (Hq) Object.keys(p.lectura.posiciones).forEach(function (k) { var v = p.lectura.posiciones[k]; pos[k] = Hq(v[0], v[1]); });
+                    lFinal = Hq ? {posiciones: pos} : null;
+                }
+                m = enderezar(m, lFinal);
                 if (conNota) selloNota(m, p);
                 return PEScan.aJPEG(m, 0.8).then(function (b) {
                     var horizontal = m.width > m.height, aw = p.ancho_mm, ah = p.alto_mm;

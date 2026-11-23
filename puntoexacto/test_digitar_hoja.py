@@ -18,6 +18,8 @@ class HojaDigital(ColegioDePrueba):
         r = c.get(f'/puntoexacto/{ex.id}/hoja/{h.id}/digitar/')
         html = r.content.decode()
         self.assertIn('id="pe-hojad"', html)
+        self.assertIn("a.id = 'pe-inicio'", html)                                    # botón fijo a «Mis exámenes»
+        self.assertNotIn("a.id = 'pe-inicio'", c.get('/puntoexacto/').content.decode())   # en la lista misma, no
         burbujas = re.findall(r'<g class="bur" data-n="(\d+)" data-l="([A-D])"><circle cx="([\d.]+)" cy="([\d.]+)"', html)
         self.assertEqual(len(burbujas), 42 * 4)
         # en el mismo sitio que en la hoja impresa (milímetros, con «y» hacia abajo)
