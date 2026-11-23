@@ -775,6 +775,42 @@ def imprimir(request, examen_id):
 # Digitar respuestas
 # ---------------------------------------------------------------------------
 
+def _hoja_digital(examen, preguntas):
+    """La hoja de respuestas como está impresa (mismos bloques, columnas y burbujas), para marcar con el dedo.
+    Sale del mismo mapa con que se imprime y se lee: en milímetros, con «y» hacia abajo para el SVG."""
+    try:
+        info = hojas_mod.mapa_de_examen(examen)
+        geo = hojas_mod.geometria(examen.hojas_por_pagina or 1)
+    except Exception:
+        return None
+    W, H, mapa, r = info['hoja_w_mm'], info['hoja_h_mm'], info['mapa'], info['radio_mm']
+    burbujas, numeros = [], []
+    for p in preguntas:
+        primera = None
+        for letra, rotulo in zip(p.letras(), p.lista_rotulos()):
+            xy = mapa.get(f'{p.numero}{letra}')
+            if not xy:
+                continue
+            x, y = xy[0], H - xy[1]
+            primera = primera or (x, y)
+            burbujas.append({'n': p.numero, 'l': letra, 'rot': rotulo, 'x': round(x, 2), 'y': round(y, 2)})
+        if primera:
+            numeros.append({'n': p.numero, 'x': round(primera[0] - r * 2.1, 2), 'y': round(primera[1], 2), 'anulada': p.anulada})
+    formas = [{'l': k[1:], 'x': round(v[0], 2), 'y': round(H - v[1], 2)} for k, v in mapa.items() if k.startswith('F') and len(k) == 2]
+    titulos = []
+    for b in info.get('bloques') or []:
+        if not b.get('nombre'):
+            continue
+        pts = [mapa[k] for k in mapa if k[:-1].isdigit() and b['desde'] <= int(k[:-1]) <= b['hasta']]
+        if pts:
+            titulos.append({'nombre': b['nombre'], 'desde': b['desde'], 'hasta': b['hasta'],
+                            'x': round(min(x for x, _ in pts) - r * 3.2, 2), 'y': round(H - max(y for _, y in pts) - r * 2.6, 2)})
+    mk = geo['marca_mm']
+    marcas = [{'x': round(x - mk / 2, 2), 'y': round(H - y - mk / 2, 2), 'l': mk} for x, y in geo['marcas_mm']]
+    return {'W': W, 'H': H, 'r': r, 'burbujas': burbujas, 'numeros': numeros, 'formas': formas,
+            'titulos': titulos, 'marcas': marcas, 'letra': round(r * 1.15, 2), 'letra_num': round(r * 1.25, 2)}
+
+
 @login_required
 def digitar(request, examen_id, hoja_id):
     examen = _examen_o_404(request, examen_id)
@@ -821,7 +857,7 @@ def digitar(request, examen_id, hoja_id):
               'opciones': list(zip(p.letras(), p.lista_rotulos()))}
              for p in preguntas]
     return render(request, 'puntoexacto/digitar.html', {
-        'examen': examen, 'hoja': hoja, 'filas': filas,
+        'examen': examen, 'hoja': hoja, 'filas': filas, 'hoja_digital': _hoja_digital(examen, preguntas),
         'con_formas': examen.formas.exists(),
         'letras_forma': formas_mod.letras_del_examen(examen),
     })

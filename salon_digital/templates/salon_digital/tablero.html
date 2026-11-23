@@ -389,9 +389,28 @@
   function leerLocal(k, defecto) { try { return JSON.parse(localStorage.getItem(k)) || defecto; } catch (e) { return defecto; } }
   function guardarLocal(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* lleno o privado */ } }
   let pendientes = leerLocal(LLAVE, []), enviando = false, sinRed = false, reintento = null;
+  // Guardar en el equipo (convertir todo a texto) tarda: si pasa mientras se escribe, la pantalla se congela un
+  // instante y se pierde el comienzo del trazo siguiente (se notaba al levantar el lápiz y volver a apoyarlo).
+  // Por eso se guarda solo con el lápiz quieto un momento; al salir de la página se guarda de una vez.
+  let ultimoToque = 0, pendSucio = false, copiaSucia = false;
+  const escribiendo = (quieto) => !!(actual || accion) || performance.now() - ultimoToque < (quieto || 1200);
+  function enCalma(fn, espera, quieto) {
+    const probar = () => { if (escribiendo(quieto)) setTimeout(probar, 700); else fn(); };
+    setTimeout(probar, espera || 300);
+  }
+  function guardarPendientes() {
+    if (pendSucio) return; pendSucio = true;
+    enCalma(() => { pendSucio = false; guardarLocal(LLAVE, pendientes.length ? pendientes : null); });
+  }
+  function guardarTodoYa() {
+    pendSucio = false; guardarLocal(LLAVE, pendientes.length ? pendientes : null);
+    if (copiaSucia) { copiaSucia = false; guardarLocal(LLAVE_COPIA, {v: version, fondo: fondo, objetos: objetos, t: Date.now()}); }
+  }
+  window.addEventListener('pagehide', guardarTodoYa);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) guardarTodoYa(); });
   function enviar(op) {
     pendientes.push(JSON.parse(JSON.stringify(op)));
-    guardarLocal(LLAVE, pendientes); copiaLocal(); vaciar();
+    guardarPendientes(); copiaLocal(); vaciar();
   }
   function vaciar() {
     if (enviando || !pendientes.length) { estadoRed(); return; }
@@ -401,7 +420,7 @@
       .then(r => r.json().then(j => [r.status, j]))
       .then(([estado, j]) => {
         enviando = false; sinRed = false;
-        pendientes.shift(); guardarLocal(LLAVE, pendientes.length ? pendientes : null);
+        pendientes.shift(); guardarPendientes();
         if (!j.ok) { aviso(j.error || 'No se pudo guardar.'); traer(true); }
         else if (j.v === version + 1) version = j.v; else traer();
         copiaLocal(); vaciar();
@@ -421,10 +440,10 @@
                            : '⏳ Subiendo ' + n + ' cambio' + (n === 1 ? '' : 's') + '…';
   }
   // Copia del tablero en el equipo: para abrirlo sin conexión con lo último que se dibujó
-  let esperaCopia = null;
   function copiaLocal() {
-    clearTimeout(esperaCopia);
-    esperaCopia = setTimeout(() => guardarLocal(LLAVE_COPIA, {v: version, fondo: fondo, objetos: objetos, t: Date.now()}), 600);
+    if (copiaSucia) return; copiaSucia = true;
+    // La copia completa pesa (todo el tablero): solo tras 8 s sin escribir, o al salir de la pizarra o de la app
+    enCalma(() => { if (!copiaSucia) return; copiaSucia = false; guardarLocal(LLAVE_COPIA, {v: version, fondo: fondo, objetos: objetos, t: Date.now()}); }, 2500, 8000);
   }
   // Lo que aún no llegó al servidor se vuelve a poner encima de lo que manda el servidor
   function reponerPendientes() { pendientes.forEach(aplicar); }
@@ -440,10 +459,12 @@
     if (pidiendo) return; pidiendo = true;
     fetch(CFG.urlEstado + '?desde=' + (todo ? -1 : version), {credentials: 'same-origin'}).then(r => r.json()).then(j => {
       pidiendo = false;
+      // Llegó mientras se está escribiendo: no se redibuja ahora (eso frena el trazo); la próxima consulta lo trae
+      if (actual || accion) return;
       if (j.objetos) { objetos = j.objetos; seleccion = null; } else if (j.ops) j.ops.forEach(aplicar);
       if (pendientes.length) reponerPendientes();
-      sinRed = false; copiaLocal(); estadoRed();
-      const cambio = j.v !== version || j.objetos; version = j.v; fondo = j.fondo || fondo; compartido = j.compartido;
+      const cambio = j.v !== version || j.objetos;
+      sinRed = false; if (cambio) copiaLocal(); estadoRed(); version = j.v; fondo = j.fondo || fondo; compartido = j.compartido;
       if (j.editar !== editar) { editar = j.editar; permisos(); aviso(editar ? '✏️ El docente habilitó la escritura: ya puede escribir.' : '👀 El docente desactivó la escritura: ahora solo puede ver.', 4000); }
       if (cambio) pintar(); estadoRotulo();
     }).catch(() => { pidiendo = false; sinRed = true; estadoRed(); });
@@ -570,6 +591,7 @@
   }
   capa.addEventListener('contextmenu', ev => ev.preventDefault());     // el clic derecho (botón del lápiz) borra, no abre menú
   capa.addEventListener('pointerdown', ev => {
+    ultimoToque = performance.now();
     try { capa.setPointerCapture(ev.pointerId); } catch (e) { /* algunos navegadores lo rechazan: se sigue igual */ }
     menuInst.classList.remove('abierto'); menuFormas.classList.remove('abierto');
     if (ev.pointerType === 'pen' && !lapizVisto) { lapizVisto = true; aviso('✍️ Lápiz detectado: ahora el dedo solo mueve y acerca la vista (la palma no raya).', 4500); }
@@ -632,6 +654,7 @@
   });
   capa.addEventListener('pointermove', ev => {
     if (!dedos.has(ev.pointerId)) return;
+    ultimoToque = performance.now();
     if (plumaAbajo && ev.pointerType === 'touch') return;
     dedos.set(ev.pointerId, [ev.clientX, ev.clientY, ev.pointerType]);
     const [wx, wy] = aMundo(ev.clientX, ev.clientY);
