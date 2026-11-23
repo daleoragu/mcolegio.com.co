@@ -1590,6 +1590,8 @@ def procesar_foto(request, examen_id):
     if request.method != 'POST' or 'foto' not in request.FILES:
         return JsonResponse({'ok': False, 'error': 'No llegó ninguna foto.'}, status=400)
 
+    import time as _time
+    t_inicio = _time.perf_counter()
     archivo = request.FILES['foto']
     if archivo.size > 25 * 1024 * 1024:
         return JsonResponse({'ok': False,
@@ -1666,12 +1668,49 @@ def procesar_foto(request, examen_id):
     for pp in [examen.hojas_por_pagina or 1, 1, 4, 2, 8]:
         if pp not in orden and hojas_mod.capacidad(pp, examen.opciones_maximas()) >= examen.numero_preguntas:
             orden.append(pp)
+    # Hoja al revés (las de 4 por hoja, cortadas, llegan de cualquier lado): si el código de barras no se lee,
+    # se prueba de una vez la foto girada 180° con el MISMO reparto, antes de pasar a los demás repartos.
+    # Antes se leía con los cuatro repartos y solo después se giraba: unas cinco veces más lento.
+    estado_giro = {'girada': False}
+
+    def girar():
+        nonlocal gris, pistas
+        alto_f, ancho_f = gris.shape
+        gris = np.ascontiguousarray(gris[::-1, ::-1])
+        if pistas:
+            gir = lambda q: (ancho_f - 1 - q[0], alto_f - 1 - q[1])
+            pistas = [gir(pistas[2]), gir(pistas[3]), gir(pistas[0]), gir(pistas[1])]
+        estado_giro['girada'] = not estado_giro['girada']
+
+    def leer_derecha_o_girada(pp):
+        """Lee con este reparto; si el código no sale, también girada. Deja la foto en la orientación que ganó."""
+        r, fallo = None, None
+        try:
+            r = leer_con(pp)
+        except Exception as e:
+            fallo = e
+        if r is not None and r['leido']:
+            return r, None
+        girar()
+        try:
+            r2 = leer_con(pp)
+        except Exception as e:
+            r2 = None
+            fallo = fallo or e
+        if r2 is not None and (r is None or calidad(r2) < calidad(r)):
+            return r2, None
+        girar()                                   # no sirvió: la foto vuelve como estaba
+        if r is None:
+            raise fallo
+        return r, None
+
     def elegir():
         """Lee la foto con cada reparto posible y se queda con la mejor lectura (código leído y pocas dudas)."""
         mejor, error = None, None
+        giro_mejor = estado_giro['girada']
         for pp in orden:
             try:
-                r = leer_con(pp)
+                r, _ = leer_derecha_o_girada(pp)
             except lector_mod.LecturaFallida as e:
                 error = error or str(e)
                 continue
@@ -1679,7 +1718,7 @@ def procesar_foto(request, examen_id):
                 error = error or f'No se pudo leer la foto ({type(e).__name__}).'
                 continue
             if mejor is None or calidad(r) < calidad(mejor):
-                mejor = r
+                mejor, giro_mejor = r, estado_giro['girada']
             if r['leido'] and len(r['dudas']) <= max(2, examen.numero_preguntas // 10):
                 # Las hojas de 1 y 4 por página (y las de 2 y 8) tienen la misma forma: el código se lee con
                 # cualquiera de las dos y la lectura equivocada puede quedar con pocas dudas. Se lee también con la
@@ -1701,25 +1740,14 @@ def procesar_foto(request, examen_id):
                     cache.set(f'pe_reparto_{examen.id}', mejor['por_pagina'], 6 * 3600)
                 else:
                     mejor = r
+                giro_mejor = estado_giro['girada']
                 break                      # código leído y lectura limpia: es este reparto
+        if estado_giro['girada'] != giro_mejor:
+            girar()                        # la foto queda en la orientación de la mejor lectura
         return mejor, error
 
     mejor, error = elegir()
-    # Hoja al revés: si el celular giró mal la foto (180°), el código de barras queda a la derecha y no se lee;
-    # las burbujas tampoco cuadran. Se lee otra vez girada y, si así sí se lee el código, gana esa lectura.
-    girada = False
-    if mejor is None or not mejor['leido']:
-        alto_f, ancho_f = gris.shape
-        antes = (gris, pistas)
-        gris = np.ascontiguousarray(gris[::-1, ::-1])
-        if pistas:
-            gir = lambda q: (ancho_f - 1 - q[0], alto_f - 1 - q[1])
-            pistas = [gir(pistas[2]), gir(pistas[3]), gir(pistas[0]), gir(pistas[1])]
-        m2, e2 = elegir()
-        if m2 is not None and (mejor is None or calidad(m2) < calidad(mejor)):
-            mejor, error, girada = m2, e2, True
-        else:
-            gris, pistas = antes
+    girada = estado_giro['girada']
     if mejor is None:
         return JsonResponse({'ok': False, 'error': error or 'No se pudo leer la foto.'})
     if mejor['leido'] in identificadores and mejor['por_pagina'] != (examen.hojas_por_pagina or 1):
@@ -1793,6 +1821,8 @@ def procesar_foto(request, examen_id):
         'ancho_foto': int(gris.shape[1]), 'alto_foto': int(gris.shape[0]),
         'opciones': {str(k): v for k, v in opciones.items()},
         'letras': hojas_mod.LETRAS,
+        'girada': girada,
+        'servidor_ms': round((_time.perf_counter() - t_inicio) * 1000),
     })
 
 

@@ -607,6 +607,7 @@
             return;
         }
         p.lectura = d;
+        if (p.t0) p.tTotal = performance.now() - p.t0;
         p.respuestas = Object.assign({}, d.respuestas);
         p.notaInfo = d.nota_previa || null;
         p.dudas = (d.dudas || []).length;
@@ -1062,6 +1063,7 @@
     // Toma la hoja: la endereza (quede como quede en la foto), la pone en el lote y, al calificar, la manda.
     // La cámara vuelve a buscar de una vez: el enderezado va aparte y no la frena.
     function disparar(lienzo) {
+        var t0 = performance.now();
         pararBusqueda();
         enfoque = null;
         sonar('foto');
@@ -1087,6 +1089,7 @@
         var salida = modo === 'pdf' ? derecho : enGris(derecho);
         PEScan.aJPEG(salida, modo === 'pdf' ? 0.88 : 0.8).then(function (blob) {
             var p = nuevaPagina(blob, dz, !lienzo.quad, 0, derecho.quad);
+            p.t0 = t0; p.tFoto = performance.now() - t0; p.kb = Math.round(blob.size / 1024);
             if (modo === 'pdf') { pintarLote(); return; }
             if (confirmar) { p.esperando = true; p.confirmar = true; }
             if (pausa) { p.pausa = true; elCamNota.pagina = p; }
@@ -1484,6 +1487,13 @@
             ? '<span class="fw-semibold">Hoja en blanco: quedó como «No presentó»</span>. Si sí la presentó, ábrala en el lote y marque «Calificar aunque esté en blanco».'
             : (repetida ? '<span class="text-muted">Ya estaba (repetida) · </span>' : '<span class="text-success fw-semibold">Guardada</span> · ') +
               (info ? '<span class="pe-c-bien">' + info.buenas + ' bien</span> · <span class="pe-c-mal">' + info.malas + ' mal</span>' : '');
+        // Cuánto tardó: preparar la foto en el celular, el viaje por internet y la lectura en el servidor
+        if (p.tTotal && p.lectura) {
+            var srv = (p.lectura.servidor_ms || 0) / 1000, foto = (p.tFoto || 0) / 1000, total = p.tTotal / 1000;
+            var red = Math.max(0, total - foto - srv), f = function (v) { return v.toFixed(1).replace('.', ','); };
+            $('pe-cam-nota-detalle').insertAdjacentHTML('beforeend', '<div class="small text-muted mt-1" title="Celular: preparar la foto · Internet: subirla y recibir la respuesta · Servidor: leer la hoja">' +
+                '⏱ ' + f(total) + ' s · celular ' + f(foto) + ' · internet ' + f(red) + ' (' + (p.kb || '?') + ' KB) · servidor ' + f(srv) + '</div>');
+        }
         elCamNota.pagina = p;
         elCamNota.classList.add('si');
         if (p) ponerPrevia(p);
