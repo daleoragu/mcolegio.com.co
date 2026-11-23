@@ -27,7 +27,42 @@
         Deje en blanco la pregunta que el estudiante no marcó. Use «{{ hoja.MARCA_DOBLE }}»
         si marcó dos opciones: la hoja queda señalada para revisar.
     </p>
-    <div class="table-responsive">
+    {% if hoja_digital %}{% with d=hoja_digital %}
+    {# La hoja de respuestas como está impresa: se marca tocando las burbujas (la lista de abajo es lo mismo) #}
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+        <div class="btn-group btn-group-sm" role="group" aria-label="Cómo digitar">
+            <button type="button" class="btn btn-outline-primary active" data-vista-dig="hoja"><i class="far fa-file-lines me-1"></i>Hoja</button>
+            <button type="button" class="btn btn-outline-primary" data-vista-dig="lista"><i class="fas fa-list me-1"></i>Lista</button>
+        </div>
+        <span class="text-muted" style="font-size:.85rem;">Toque la burbuja que marcó (otro toque la borra). Toque el número si marcó dos: queda «doble».</span>
+    </div>
+    <div id="pe-hojad" class="pe-hojad">
+        <svg viewBox="0 0 {{ d.W|stringformat:'.2f' }} {{ d.H|stringformat:'.2f' }}" role="group" aria-label="Hoja de respuestas de {{ hoja.nombre }}">
+            <rect x="0" y="0" width="{{ d.W|stringformat:'.2f' }}" height="{{ d.H|stringformat:'.2f' }}" fill="#fff"/>
+            {% for m in d.marcas %}<rect x="{{ m.x|stringformat:'.2f' }}" y="{{ m.y|stringformat:'.2f' }}" width="{{ m.l|stringformat:'.2f' }}" height="{{ m.l|stringformat:'.2f' }}" fill="#1f2937"/>{% endfor %}
+            {% for t in d.titulos %}<text class="tit" x="{{ t.x|stringformat:'.2f' }}" y="{{ t.y|stringformat:'.2f' }}" font-size="{{ d.letra_num|stringformat:'.2f' }}">{{ t.nombre|upper }} · {{ t.desde }} a {{ t.hasta }}</text>{% endfor %}
+            {% for f in d.formas %}<g class="bur forma" data-forma="{{ f.l }}"><circle cx="{{ f.x|stringformat:'.2f' }}" cy="{{ f.y|stringformat:'.2f' }}" r="{{ d.r|stringformat:'.2f' }}"/><text x="{{ f.x|stringformat:'.2f' }}" y="{{ f.y|stringformat:'.2f' }}" font-size="{{ d.letra|stringformat:'.2f' }}">{{ f.l }}</text></g>{% endfor %}
+            {% for n in d.numeros %}<text class="num{% if n.anulada %} anulada{% endif %}" data-n="{{ n.n }}" x="{{ n.x|stringformat:'.2f' }}" y="{{ n.y|stringformat:'.2f' }}" font-size="{{ d.letra_num|stringformat:'.2f' }}">{{ n.n }}</text>{% endfor %}
+            {% for b in d.burbujas %}<g class="bur" data-n="{{ b.n }}" data-l="{{ b.l }}"><circle cx="{{ b.x|stringformat:'.2f' }}" cy="{{ b.y|stringformat:'.2f' }}" r="{{ d.r|stringformat:'.2f' }}"/><text x="{{ b.x|stringformat:'.2f' }}" y="{{ b.y|stringformat:'.2f' }}" font-size="{{ d.letra|stringformat:'.2f' }}">{{ b.rot }}</text></g>{% endfor %}
+        </svg>
+    </div>
+    <style>
+        .pe-hojad { background:#e5e7eb; border-radius:10px; padding:10px; }
+        .pe-hojad svg { display:block; width:100%; max-width:680px; margin:0 auto; box-shadow:0 4px 18px rgba(15,23,42,.15); background:#fff; touch-action:manipulation; user-select:none; -webkit-user-select:none; }
+        .pe-hojad .bur { cursor:pointer; }
+        .pe-hojad .bur circle { fill:#fff; stroke:#6b7280; stroke-width:.35; }
+        .pe-hojad .bur text { fill:#6b7280; text-anchor:middle; dominant-baseline:central; font-family:Arial, sans-serif; pointer-events:none; }
+        .pe-hojad .bur.si circle { fill:#1f2937; stroke:#1f2937; }
+        .pe-hojad .bur.si text { fill:#fff; font-weight:bold; }
+        .pe-hojad .bur.doble circle { stroke:#f59e0b; stroke-width:.7; }
+        .pe-hojad .num { fill:#1f2937; font-weight:bold; text-anchor:end; dominant-baseline:central; font-family:Arial, sans-serif; cursor:pointer; }
+        .pe-hojad .num.doble { fill:#d97706; }
+        .pe-hojad .num.anulada { fill:#9ca3af; text-decoration:line-through; }
+        .pe-hojad .tit { fill:#1b5fa8; font-weight:bold; font-family:Arial, sans-serif; }
+        .pe-hojad .bur:hover circle { stroke:#1b5fa8; stroke-width:.6; }
+    </style>
+    {% endwith %}{% endif %}
+    <div class="table-responsive" id="pe-lista-dig"{% if hoja_digital %} hidden{% endif %}>
         <table class="pe-tabla">
             <thead><tr><th class="pe-num">#</th><th>Marcó</th></tr></thead>
             <tbody>
@@ -66,4 +101,50 @@
         </label>
     </div>
 </form>
+{% if hoja_digital %}
+<script>
+(function () {
+    var svg = document.querySelector('#pe-hojad svg');
+    if (!svg) return;
+    function radio(n, v) { return document.querySelector('input[name="p_' + n + '"][value="' + v + '"]'); }
+    function valor(n) { var c = document.querySelector('input[name="p_' + n + '"]:checked'); return c ? c.value : ''; }
+    function poner(n, v) { var r = radio(n, v); if (r) { r.checked = true; pintar(); } }
+    function pintar() {
+        Array.prototype.forEach.call(svg.querySelectorAll('.bur[data-n]'), function (g) {
+            var v = valor(g.getAttribute('data-n'));
+            g.classList.toggle('si', v === g.getAttribute('data-l'));
+            g.classList.toggle('doble', v === '?');
+        });
+        Array.prototype.forEach.call(svg.querySelectorAll('.num'), function (t) { t.classList.toggle('doble', valor(t.getAttribute('data-n')) === '?'); });
+        Array.prototype.forEach.call(svg.querySelectorAll('.bur.forma'), function (g) {
+            var c = document.querySelector('input[name="forma"]:checked');
+            g.classList.toggle('si', !!c && c.value === g.getAttribute('data-forma'));
+        });
+    }
+    svg.addEventListener('click', function (ev) {
+        var g = ev.target.closest('.bur'), t = ev.target.closest('.num');
+        if (g && g.hasAttribute('data-forma')) {
+            var f = document.querySelector('input[name="forma"][value="' + g.getAttribute('data-forma') + '"]');
+            if (f) { f.checked = true; pintar(); }
+        } else if (g) {
+            var n = g.getAttribute('data-n'), l = g.getAttribute('data-l');
+            poner(n, valor(n) === l ? '' : l);
+        } else if (t) {
+            var k = t.getAttribute('data-n');
+            poner(k, valor(k) === '?' ? '' : '?');
+        }
+    });
+    document.querySelector('form.pe-tarjeta').addEventListener('change', pintar);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-vista-dig]'), function (b) {
+        b.addEventListener('click', function () {
+            var hoja = b.getAttribute('data-vista-dig') === 'hoja';
+            document.getElementById('pe-hojad').hidden = !hoja;
+            document.getElementById('pe-lista-dig').hidden = hoja;
+            Array.prototype.forEach.call(document.querySelectorAll('[data-vista-dig]'), function (x) { x.classList.toggle('active', x === b); });
+        });
+    });
+    pintar();
+})();
+</script>
+{% endif %}
 {% endblock %}
