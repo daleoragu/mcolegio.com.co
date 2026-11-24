@@ -1,4 +1,5 @@
 {% extends 'puntoexacto/_base_pe.html' %}
+{% load static %}
 {% block title %}{{ u.titulo }} - {{ block.super }}{% endblock %}
 {% block page_title %}{{ u.titulo }}{% endblock %}
 
@@ -125,4 +126,5 @@
 })();
 </script>
 {% endif %}
+<script src="{% static 'puntoexacto/descarga_partes.js' %}"></script>
 {% endblock %}

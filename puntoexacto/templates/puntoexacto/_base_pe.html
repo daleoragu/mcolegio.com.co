@@ -37,13 +37,13 @@
     .pe-clave-mas { margin-left:auto; font-size:.86rem; padding:8px 4px; }
 </style>
 {% if request.resolver_match.url_name != 'lista' %}
-{# Botón fijo para volver siempre a la lista de exámenes de PuntoExacto, desde cualquier página #}
+{# «Mis exámenes»: el primer botón arriba de cada página de PuntoExacto, para volver siempre a la lista de exámenes #}
 <style>
-    .pe-inicio { position:fixed; right:16px; bottom:16px; z-index:1040; display:inline-flex; align-items:center; gap:8px;
-                 background:#193661; color:#fff !important; text-decoration:none; font-weight:700; font-size:.92rem;
-                 padding:10px 16px; border-radius:999px; box-shadow:0 6px 20px rgba(15,23,42,.28); }
+    .pe-inicio { display:inline-flex; align-items:center; gap:7px; background:#193661; color:#fff !important; text-decoration:none;
+                 font-weight:700; font-size:.92rem; padding:7px 14px; border-radius:8px; border:1px solid #193661; }
     .pe-inicio:hover { background:#0f2647; }
-    @media print { .pe-inicio { display:none !important; } }
+    .pe-barra-inicio { margin-bottom:12px; }
+    @media print { .pe-inicio, .pe-barra-inicio { display:none !important; } }
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -51,8 +51,14 @@ document.addEventListener('DOMContentLoaded', function () {
     var a = document.createElement('a');
     a.id = 'pe-inicio'; a.className = 'pe-inicio'; a.href = "{% url 'puntoexacto:lista' %}";
     a.title = 'Volver a la lista de exámenes de PuntoExacto';
-    a.innerHTML = '<i class="fas fa-list-check"></i><span>Mis exámenes</span>';
-    document.body.appendChild(a);
+    a.innerHTML = '<i class="fas fa-house"></i><span>Mis exámenes</span>';
+    // Va de primero en la barra de botones de la página; si la página no tiene barra, arriba del contenido
+    var barra = document.querySelector('.pe-barra');
+    if (barra) { barra.insertBefore(a, barra.firstChild); return; }
+    var primero = document.querySelector('.pe-tarjeta, form, table');
+    if (!primero) return;
+    var envoltura = document.createElement('div'); envoltura.className = 'pe-barra-inicio'; envoltura.appendChild(a);
+    primero.parentNode.insertBefore(envoltura, primero);
 });
 </script>
 {% endif %}

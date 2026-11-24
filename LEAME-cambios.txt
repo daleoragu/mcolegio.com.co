@@ -1,4 +1,4 @@
-Versión 0092 · 2026-11-23 18:08
+Versión 0095 · 2026-11-24 11:31
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -806,6 +806,7 @@ NUEVO     puntoexacto/migrations/0012_pruebas_unidas.py
 NUEVO     puntoexacto/migrations/0013_respuesta_varias_letras.py
 NUEVO     puntoexacto/migrations/0014_hoja_en_blanco_no_presento.py
 CAMBIADO  puntoexacto/models.py
+NUEVO     puntoexacto/static/puntoexacto/descarga_partes.js
 NUEVO     puntoexacto/static/puntoexacto/escaner.js
 CAMBIADO  puntoexacto/templates/puntoexacto/_base_pe.html
 NUEVO     puntoexacto/templates/puntoexacto/_informe_estilos.html

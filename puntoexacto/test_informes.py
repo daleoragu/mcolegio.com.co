@@ -443,3 +443,57 @@ class InformesPorNota(InformesIcfes):
         d = INFN.construir(self.mat)
         self.assertTrue(d['referencia'])
         self.assertEqual([n['nombre'] for n in d['niveles']], ['BAJO', 'BÁSICO', 'ALTO', 'SUPERIOR'])
+
+
+class DescargarPorPartes(DescargarTodo):
+    """Con muchos estudiantes el ZIP se pide por partes (el navegador las une): las partes juntas traen lo mismo."""
+    test_un_pdf_por_estudiante = test_solo_los_escogidos_y_todo_junto = test_sin_escoger_nada = None
+
+    def test_partes_juntas_igual_que_de_una_vez(self):
+        import io
+        import json
+        import zipfile
+        from unittest import mock
+        from . import views_informes as VI
+        ids = list(self.mat.hojas.values_list('id', flat=True))
+        base = {'tipos': ['general', 'informes', 'hojas', 'excel'], 'modo': 'separado', 'hojas': ids}
+        de_una = sorted(self._zip(base).namelist())
+        with mock.patch.object(VI, 'POR_LOTE', 2):                      # 3 estudiantes: 2 lotes
+            plan = self.c.post(f'/puntoexacto/{self.mat.id}/informes/descargar/', dict(base, plan='1')).json()
+            self.assertEqual([p['que'] for p in plan['partes']], ['general', 'estudiantes', 'estudiantes'])
+            self.assertEqual(plan['nombre'][-4:], '.zip')
+            juntas = []
+            for parte in plan['partes']:
+                juntas += self._zip(dict(base, parte=json.dumps(parte))).namelist()
+        self.assertEqual(sorted(juntas), de_una)
+        # «Todos en un PDF»: cada lote trae su PDF con «(parte N)» para que no se pisen al unirlos
+        with mock.patch.object(VI, 'POR_LOTE', 2):
+            plan = self.c.post(f'/puntoexacto/{self.mat.id}/informes/descargar/', dict(base, modo='junto', plan='1')).json()
+            nombres = []
+            for parte in plan['partes']:
+                if parte['que'] == 'estudiantes':
+                    nombres += self._zip(dict(base, modo='junto', parte=json.dumps(parte))).namelist()
+        self.assertEqual(sorted(nombres), ['Hojas calificadas (parte 1).pdf', 'Hojas calificadas (parte 2).pdf',
+                                           'Informes por estudiante (parte 1).pdf', 'Informes por estudiante (parte 2).pdf'])
+        # la pantalla trae el script que arma el ZIP por partes
+        self.assertContains(self.c.get(f'/puntoexacto/{self.mat.id}/resultados/'), 'puntoexacto/descarga_partes.js')
+
+
+class DescargarUnidaPorPartes(DescargarUnida):
+    test_todo_separado = test_escogidos_y_junto = test_sin_escoger = None
+
+    def test_partes_juntas_igual_que_de_una_vez(self):
+        import json
+        from unittest import mock
+        from . import views_informes as VI
+        claves = [f'e{e.id}' for e in self.estudiantes]
+        base = {'tipos': ['general', 'informes', 'hojas', 'excel'], 'modo': 'separado', 'personas': claves}
+        de_una = sorted(self._zip(base).namelist())
+        with mock.patch.object(VI, 'POR_LOTE', 2):
+            plan = self.c.post(f'/puntoexacto/unida/{self.u.pk}/descargar/', dict(base, plan='1')).json()
+            self.assertEqual(plan['lotes'], 2)
+            juntas = []
+            for parte in plan['partes']:
+                juntas += self._zip(dict(base, parte=json.dumps(parte))).namelist()
+        self.assertEqual(sorted(juntas), de_una)
+        self.assertContains(self.c.get(f'/puntoexacto/unida/{self.u.pk}/'), 'puntoexacto/descarga_partes.js')
