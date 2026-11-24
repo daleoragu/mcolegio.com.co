@@ -1580,7 +1580,7 @@ def escanear(request, examen_id):
             continue
         geo = _geometria_de_examen(examen, ids, pp)
         guia.append(dict({k: geo[k] for k in ('ancho_mm', 'alto_mm', 'marca_mm', 'marcas_mm', 'barras_x_mm',
-                                             'barras_grosor_mm', 'barras_y0_mm', 'barras_largo_max_mm')},
+                                             'barras_grosor_mm', 'barras_y0_mm', 'barras_largo_max_mm', 'barras_ancho_pt')},
                           por_pagina=pp))
     return render(request, 'puntoexacto/escanear.html', {
         'examen': examen,

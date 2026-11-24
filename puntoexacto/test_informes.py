@@ -497,3 +497,31 @@ class DescargarUnidaPorPartes(DescargarUnida):
                 juntas += self._zip(dict(base, parte=json.dumps(parte))).namelist()
         self.assertEqual(sorted(juntas), de_una)
         self.assertContains(self.c.get(f'/puntoexacto/unida/{self.u.pk}/'), 'puntoexacto/descarga_partes.js')
+
+
+class UnidaPorNota(DescargarUnida):
+    """La prueba unida también con los informes por nota (cada examen con la escala de su área)."""
+    test_todo_separado = test_escogidos_y_junto = test_sin_escoger = None
+
+    def test_informes_por_nota(self):
+        import io
+        from pypdf import PdfReader
+        claves = [f'e{e.id}' for e in self.estudiantes]
+        pagina = self.c.get(f'/puntoexacto/unida/{self.u.pk}/')
+        self.assertContains(pagina, 'id="pe-est-nota"')
+        self.assertContains(pagina, 'data-inf="1"')
+        # el general por nota: un bloque por examen
+        r = self.c.get(f'/puntoexacto/unida/{self.u.pk}/informe/?estilo=nota')
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        texto = ' '.join(p.extract_text() for p in PdfReader(io.BytesIO(r.content)).pages)
+        self.assertIn('Simulacro Matemáticas', texto); self.assertIn('Simulacro Lectura crítica', texto)
+        # el de Ana: sus páginas de los dos exámenes
+        ana = f'e{self.estudiantes[0].id}'
+        r = self.c.get(f'/puntoexacto/unida/{self.u.pk}/estudiante/{ana}/?estilo=nota')
+        texto = ' '.join(p.extract_text() for p in PdfReader(io.BytesIO(r.content)).pages)
+        self.assertIn('Simulacro Matemáticas', texto); self.assertIn('Simulacro Lectura crítica', texto)
+        # el ZIP por nota
+        z = self._zip({'tipos': ['general', 'informes'], 'modo': 'separado', 'personas': claves, 'estilo': 'nota'})
+        nombres = z.namelist()
+        self.assertIn('Informe por nota (total).pdf', nombres)
+        self.assertEqual(len([n for n in nombres if n.startswith('Informes por estudiante/')]), 3)

@@ -225,6 +225,63 @@ def _html_nota_estudiantes(request, examen, incluir=None, claves=None):
                                       request=request)
 
 
+def _unir_pdfs(partes):
+    """Varios PDF (bytes) en uno solo, en ese orden."""
+    import io
+    from pypdf import PdfReader, PdfWriter
+    w = PdfWriter()
+    for b in partes:
+        for pagina in PdfReader(io.BytesIO(b)).pages:
+            w.add_page(pagina)
+    salida = io.BytesIO()
+    w.write(salida)
+    return salida.getvalue()
+
+
+def _a_pdf(html, request):
+    from weasyprint import HTML
+    return HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+
+
+def _nota_cursos_varios(request, examenes, incluir, titulo):
+    """Prueba unida, por nota: el informe de cursos de cada examen (cada uno con la escala de su área), uno tras otro."""
+    partes = []
+    for ex in examenes:
+        d, html = _html_nota_cursos(request, ex, incluir, f'{titulo} · {ex.titulo}' if len(examenes) > 1 else titulo)
+        if d['filas']:
+            partes.append(_a_pdf(html, request))
+    return _unir_pdfs(partes) if partes else None
+
+
+def _nota_estudiantes_varios(request, examenes, incluir, claves):
+    """Prueba unida, por nota: para cada persona, sus páginas de cada examen que presentó.
+    Devuelve [(clave, nombre, pdf)] en el orden de «claves»."""
+    import io
+    from pypdf import PdfReader, PdfWriter
+    from weasyprint import HTML
+    por_persona, nombres = {}, {}
+    for ex in examenes:
+        d, lista, html = _html_nota_estudiantes(request, ex, incluir=incluir, claves=list(dict.fromkeys(claves)))
+        if not lista:
+            continue
+        doc = HTML(string=html, base_url=request.build_absolute_uri('/')).render()
+        for n, paginas in _paginas_por_estudiante(doc):
+            f = lista[n - 1]
+            por_persona.setdefault(f['clave'], []).append(doc.copy(paginas).write_pdf())
+            nombres.setdefault(f['clave'], f['nombre'])
+    salida = []
+    for k in dict.fromkeys(claves):
+        if k in por_persona:
+            salida.append((k, nombres[k], _unir_pdfs(por_persona[k])))
+    return salida
+
+
+def _pdf_bytes(contenido, nombre):
+    r = HttpResponse(contenido, content_type='application/pdf')
+    r['Content-Disposition'] = f'inline; filename="{nombre}.pdf"'
+    return r
+
+
 def _pdf_html(html, request, nombre):
     from weasyprint import HTML
     r = HttpResponse(HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf(), content_type='application/pdf')
@@ -491,7 +548,6 @@ def _armar_zip(request, examenes, titulo, areas, incluir, claves, hojas_por_exam
     from .views import exportar
 
     varios = len(examenes) > 1
-    por_nota = por_nota and not varios           # el informe por nota es de un examen solo (sin unir)
     buf = io.BytesIO()
     zf = zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED)
     datos = None
@@ -506,11 +562,10 @@ def _armar_zip(request, examenes, titulo, areas, incluir, claves, hojas_por_exam
         zf.writestr(archivo, HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf())
 
     if por_nota:
-        examen = examenes[0]
         if quiere('general'):
-            d, html = _html_nota_cursos(request, examen, incluir, titulo)
-            if d['filas']:
-                escribir_pdf(html, 'Informe por nota (total).pdf')
+            pdf = _nota_cursos_varios(request, examenes, incluir, titulo)
+            if pdf:
+                zf.writestr('Informe por nota (total).pdf', pdf)
     elif quiere('general') and datos and datos['personas']:
         general(datos, 'Informe general (total).pdf')
     # Un informe general por grado y por curso, con solo los escogidos de cada uno.
@@ -526,25 +581,23 @@ def _armar_zip(request, examenes, titulo, areas, incluir, claves, hojas_por_exam
             nombre_v = v if tipo == "grados" else "Curso " + v
             filtro_v = (lambda h, v=v, de=de: incluir(h) and de(h) == v)
             if por_nota:
-                d, html = _html_nota_cursos(request, examenes[0], filtro_v, f'{titulo} · {nombre_v}')
-                if d['filas']:
-                    escribir_pdf(html, f'{carpeta}/{_nombre_archivo(nombre_v)}.pdf')
+                pdf = _nota_cursos_varios(request, examenes, filtro_v, f'{titulo} · {nombre_v}')
+                if pdf:
+                    zf.writestr(f'{carpeta}/{_nombre_archivo(nombre_v)}.pdf', pdf)
                 continue
             d = INF.construir(examenes, f'{titulo} · {nombre_v}', areas, incluir=filtro_v)
             if d['personas']:
                 general(d, f'{carpeta}/{_nombre_archivo(nombre_v)}.pdf')
 
     if quiere('informes') and por_nota:
-        d, lista, html = _html_nota_estudiantes(request, examenes[0], incluir=incluir, claves=list(dict.fromkeys(claves)))
-        if lista:
-            doc = HTML(string=html, base_url=request.build_absolute_uri('/')).render()
+        personas = _nota_estudiantes_varios(request, examenes, incluir, claves)
+        if personas:
             if not separado:
-                zf.writestr(f'Informes por estudiante{sufijo}.pdf', doc.write_pdf())
+                zf.writestr(f'Informes por estudiante{sufijo}.pdf', _unir_pdfs([pdf for _, _, pdf in personas]))
             else:
                 usados = set()
-                for n, paginas in _paginas_por_estudiante(doc):
-                    zf.writestr(f'Informes por estudiante/{_nombre_unico(lista[n - 1]["nombre"], usados)}.pdf',
-                                doc.copy(paginas).write_pdf())
+                for _, nombre, pdf in personas:
+                    zf.writestr(f'Informes por estudiante/{_nombre_unico(nombre, usados)}.pdf', pdf)
 
     if quiere('informes') and datos:
         tema = _tema(request)
@@ -688,6 +741,12 @@ def unida_general(request, pk):
     u, examenes = _unida_o_404(request, pk)
     incluir, sufijo = _filtro(request)
     titulo = f'{u.titulo} · {sufijo}' if sufijo else u.titulo
+    if _por_nota(request):
+        pdf = _nota_cursos_varios(request, examenes, incluir, titulo)
+        if not pdf:
+            messages.info(request, 'Todavía no hay hojas calificadas en estos exámenes.')
+            return redirect('puntoexacto:unida', pk=u.pk)
+        return _pdf_bytes(pdf, f'Informe por nota - {_nombre_archivo(titulo)}')
     datos = INF.construir(examenes, titulo, u.areas, incluir=incluir)
     if not datos['personas']:
         messages.info(request, 'Todavía no hay hojas calificadas en estos exámenes.')
@@ -701,6 +760,15 @@ def unida_estudiantes(request, pk, clave=None):
     u, examenes = _unida_o_404(request, pk)
     datos = INF.construir(examenes, u.titulo, u.areas)
     curso = request.GET.get('curso')
+    if _por_nota(request):
+        claves = [clave] if clave else [p['clave'] for p in sorted(datos['personas'], key=lambda p: (p['curso'], p['nombre']))
+                                        if not curso or p['curso'] == curso]
+        personas = _nota_estudiantes_varios(request, examenes, None, claves)
+        if not personas:
+            messages.info(request, 'Todavía no hay hojas calificadas en estos exámenes.')
+            return redirect('puntoexacto:unida', pk=u.pk)
+        nombre = personas[0][1] if clave else u.titulo
+        return _pdf_bytes(_unir_pdfs([pdf for _, _, pdf in personas]), f'Informe por nota - {_nombre_archivo(nombre)}')
     claves = [clave] if clave else [p['clave'] for p in sorted(datos['personas'], key=lambda p: (p['curso'], p['nombre']))
                                     if not curso or p['curso'] == curso]
     tema = _tema(request)
@@ -751,5 +819,5 @@ def unida_descargar(request, pk):
         hojas_por_examen = {e: [h for h in hs if INF._clave_persona(h) in lote] for e, hs in hojas_por_examen.items()}
         sufijo = f' (parte {int(parte.get("n") or 1)})'
     contenido = _armar_zip(request, examenes, u.titulo, u.areas, lambda h: INF._clave_persona(h) in escogidas,
-                           claves, hojas_por_examen, tipos, separado, solo=parte, sufijo=sufijo)
+                           claves, hojas_por_examen, tipos, separado, por_nota=_por_nota(request), solo=parte, sufijo=sufijo)
     return _respuesta_zip(contenido, nombre_zip)
