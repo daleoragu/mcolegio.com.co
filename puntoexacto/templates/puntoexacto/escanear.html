@@ -672,7 +672,8 @@
     //   sola     → cuando la hoja lleva ~0,8 s quieta (antes bastaban 2 cuadros y se tomaba cosas que no eran hojas)
     //   boton    → la cámara solo marca la hoja; la foto la toma el botón
     //   esquinas → se tocan las 4 esquinas en la pantalla (lo más cómodo en el celular)
-    // Cada equipo recuerda el suyo; de entrada, «esquinas» en el celular y «sola» en la tableta.
+    // Cada equipo recuerda el suyo; de entrada, en todos (celular y tableta) como funciona mejor en el iPad: «sola».
+    // (La clave es nueva: lo que el celular tenía guardado de antes se vuelve a empezar igual que en el iPad.)
     var MODOS_DISPARO = ['sola', 'boton', 'esquinas'];
     var NOMBRE_DISPARO = {sola: 'Sola', boton: 'Botón', esquinas: 'Esquinas'};
     var ICONO_DISPARO = {sola: 'fa-camera', boton: 'fa-circle-dot', esquinas: 'fa-hand-pointer'};
@@ -680,16 +681,18 @@
                          boton: 'Apunte a la hoja y toque el botón grande para tomarla.',
                          esquinas: 'Toque las 4 esquinas negras de la hoja en la pantalla.'};
     var ESPERA_SOLA = 800;
-    var modoDisparo = Math.min(screen.width, screen.height) < 600 ? 'esquinas' : 'sola';
-    try { var gd = localStorage.getItem('pe-disparo'); if (MODOS_DISPARO.indexOf(gd) >= 0) modoDisparo = gd; } catch (e) {}
+    var modoDisparo = 'sola';
+    try { var gd = localStorage.getItem('pe-disparo-2'); if (MODOS_DISPARO.indexOf(gd) >= 0) modoDisparo = gd; } catch (e) {}
     function pintarDisparo() {
         $('pe-disparo-txt').textContent = NOMBRE_DISPARO[modoDisparo];
         $('pe-disparo').querySelector('i').className = 'fas ' + ICONO_DISPARO[modoDisparo];
         $('pe-disparo').title = 'Cómo se toma la foto: ' + NOMBRE_DISPARO[modoDisparo] + '. Toque para cambiar.';
         if (typeof pintarBotonVisores === 'function') pintarBotonVisores();
     }
-    var usarVisores = true, ultimaVista = null;
-    try { usarVisores = localStorage.getItem('pe-visores') !== '0'; } catch (e) {}
+    // Búsqueda libre (sin recuadros), como en el iPad: la cámara encuentra sola las 4 esquinas negras. Los recuadros
+    // siguen disponibles con su botón. Clave nueva: el celular que tenía los recuadros guardados empieza como el iPad.
+    var usarVisores = false, ultimaVista = null;
+    try { usarVisores = localStorage.getItem('pe-visores-2') === '1'; } catch (e) {}
     var girarVisores = false;
     try { girarVisores = localStorage.getItem('pe-girar') === '1'; } catch (e) {}
     // Forma de la hoja para los visores (completa, media, cuarto u octavo de página) y tamaño de los recuadros:
@@ -722,7 +725,7 @@
     }
     $('pe-disparo').addEventListener('click', function () {
         modoDisparo = MODOS_DISPARO[(MODOS_DISPARO.indexOf(modoDisparo) + 1) % MODOS_DISPARO.length];
-        try { localStorage.setItem('pe-disparo', modoDisparo); } catch (e) {}
+        try { localStorage.setItem('pe-disparo-2', modoDisparo); } catch (e) {}
         pintarDisparo();
         ultimaVista = null; anterior = null; estables = 0; quietoDesde = 0; enfoque = null;
         dibujar(null);
@@ -749,7 +752,7 @@
     window.addEventListener('orientationchange', function () { setTimeout(alGirar, 250); });
     $('pe-visores').addEventListener('click', function () {
         usarVisores = !usarVisores;
-        try { localStorage.setItem('pe-visores', usarVisores ? '1' : '0'); } catch (e) {}
+        try { localStorage.setItem('pe-visores-2', usarVisores ? '1' : '0'); } catch (e) {}
         pintarBotonVisores();
         estado(usarVisores ? 'Visores: ponga los 4 cuadrados negros dentro de los recuadros.' : 'Búsqueda libre: la cámara busca la hoja en todo el cuadro.');
         anterior = null; estables = 0;
