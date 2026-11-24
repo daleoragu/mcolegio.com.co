@@ -38,3 +38,25 @@ class HojaDigital(ColegioDePrueba):
         from . import formas as F
         lectura = F.lectura_de(h, list(ex.preguntas.order_by('numero')))
         self.assertEqual((lectura['1'], lectura['22'], lectura['30']), ('B', 'D', '?'))
+
+
+class DesdeResultados(ColegioDePrueba):
+    def test_nombre_y_boton_llevan_a_la_hoja_digital_y_vuelve_a_resultados(self):
+        c = self.cliente(self.rectora)
+        c.post('/puntoexacto/nuevo/', {'titulo': 'Sesión 2', 'fecha': '2026-10-06', 'componente': 'SABER',
+                                       'numero_preguntas': '10', 'numero_opciones': '4', 'hojas_por_pagina': '4',
+                                       'metodo': 'con_piso', 'nota_todo_mal': '1', 'nota_nada_marcado': '1', 'opciones_por_pregunta': '{}'})
+        ex = Examen.objects.get()
+        h = Hoja.objects.create(examen=ex, identificador='PE-00001-0001', nombre_libre='Ana')
+        url = f'/puntoexacto/{ex.id}/hoja/{h.id}/digitar/?desde=resultados'
+        r = c.get(f'/puntoexacto/{ex.id}/resultados/')
+        self.assertContains(r, f'href="{url}"', count=2)                  # el nombre y el botón
+        self.assertContains(r, 'Digitar respuestas')
+        r = c.get(url)
+        self.assertContains(r, 'Volver a los resultados')
+        datos = {f'p_{n}': '' for n in range(1, 11)}
+        datos.update({'p_1': 'A', 'desde': 'resultados'})
+        r = c.post(f'/puntoexacto/{ex.id}/hoja/{h.id}/digitar/', datos)
+        self.assertRedirects(r, f'/puntoexacto/{ex.id}/resultados/', fetch_redirect_response=False)
+        # desde la lista de hojas, como antes
+        self.assertContains(c.get(f'/puntoexacto/{ex.id}/hoja/{h.id}/digitar/'), 'Volver a las hojas')

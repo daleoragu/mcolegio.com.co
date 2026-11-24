@@ -258,7 +258,8 @@
         {% for h in hojas %}
             <tr>
                 <td>{% if h.clave_informe %}<input type="checkbox" name="hojas" value="{{ h.id }}" form="pe-descarga" class="pe-sel" checked aria-label="Incluir a {{ h.nombre }}">{% endif %}</td>
-                <td>{{ h.nombre }}</td>
+                <td><a href="{% url 'puntoexacto:digitar' examen_id=examen.id hoja_id=h.id %}?desde=resultados" class="text-decoration-none fw-semibold"
+                       title="Ver y corregir sus respuestas en la hoja digital">{{ h.nombre }}</a></td>
                 <td>
                     {% if h.estado == 'calificada' %}<span class="pe-chip pe-ok">Calificada</span>
                     {% elif h.estado == 'revisar' %}<span class="pe-chip pe-media">Revisar</span>
@@ -274,8 +275,8 @@
                        class="btn btn-sm btn-outline-primary" title="Informe del estudiante en PDF"><i class="fas fa-file-pdf"></i> Informe</a>{% endif %}
                     {% if h.clave_informe %}<a href="{% url 'puntoexacto:hoja_calificada' examen_id=examen.id hoja_id=h.id %}" target="_blank"
                        class="btn btn-sm btn-outline-primary" title="Su hoja calificada en PDF"><i class="fas fa-file-circle-check"></i> Hoja</a>{% endif %}
-                    <a href="{% url 'puntoexacto:digitar' examen_id=examen.id hoja_id=h.id %}"
-                       class="btn btn-sm btn-outline-secondary">Editar</a>
+                    <a href="{% url 'puntoexacto:digitar' examen_id=examen.id hoja_id=h.id %}?desde=resultados"
+                       class="btn btn-sm btn-outline-secondary" title="Marcar o corregir sus respuestas en la hoja digital"><i class="fas fa-pen-to-square"></i> Digitar respuestas</a>
                 </td>
             </tr>
         {% endfor %}

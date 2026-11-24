@@ -4,14 +4,21 @@
 
 {% block content %}
 <div class="pe-barra">
+    {% if desde == 'resultados' %}
+    <a href="{% url 'puntoexacto:resultados' examen_id=examen.id %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Volver a los resultados
+    </a>
+    {% else %}
     <a href="{% url 'puntoexacto:hojas' examen_id=examen.id %}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left me-1"></i> Volver a las hojas
     </a>
+    {% endif %}
     <span class="text-muted crece">{{ examen.titulo }} · {{ hoja.identificador }}</span>
 </div>
 
 <form method="post" class="pe-tarjeta" style="max-width:720px;">
     {% csrf_token %}
+    <input type="hidden" name="desde" value="{{ desde }}">
     <h5>Respuestas{% if con_formas %} · forma {{ hoja.forma }}{% endif %}</h5>
     {% if con_formas %}
     <div class="pe-opciones mb-2" style="font-size:1rem;">

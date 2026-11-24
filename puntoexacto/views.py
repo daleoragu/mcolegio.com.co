@@ -816,6 +816,9 @@ def digitar(request, examen_id, hoja_id):
     examen = _examen_o_404(request, examen_id)
     hoja = get_object_or_404(examen.hojas, id=hoja_id)
     preguntas = list(examen.preguntas.order_by('numero'))
+    # Desde dónde se abrió (la lista de hojas o los resultados): ahí se vuelve
+    desde = 'resultados' if (request.POST.get('desde') or request.GET.get('desde')) == 'resultados' else ''
+    volver = (lambda: redirect('puntoexacto:resultados', examen_id=examen.id)) if desde else (lambda: redirect('puntoexacto:hojas', examen_id=examen.id))
 
     if request.method == 'POST':
         if request.POST.get('ausente') == 'on':
@@ -823,7 +826,7 @@ def digitar(request, examen_id, hoja_id):
             hoja.nota = None
             hoja.save(update_fields=['estado', 'nota', 'actualizada'])
             messages.success(request, f'{hoja.nombre} quedó marcado como que no presentó.')
-            return redirect('puntoexacto:hojas', examen_id=examen.id)
+            return volver()
         forma = (request.POST.get('forma') or hoja.forma).strip().upper()[:1]
         if forma in formas_mod.letras_del_examen(examen) and forma != hoja.forma:
             hoja.forma = forma
@@ -846,8 +849,11 @@ def digitar(request, examen_id, hoja_id):
             messages.success(request, f'Respuestas de {hoja.nombre} guardadas.')
         siguiente = examen.hojas.filter(estado='pendiente').exclude(id=hoja.id).first()
         if siguiente and request.POST.get('seguir') == 'on':
-            return redirect('puntoexacto:digitar', examen_id=examen.id, hoja_id=siguiente.id)
-        return redirect('puntoexacto:hojas', examen_id=examen.id)
+            r = redirect('puntoexacto:digitar', examen_id=examen.id, hoja_id=siguiente.id)
+            if desde:
+                r['Location'] += '?desde=resultados'
+            return r
+        return volver()
 
     # Las preguntas se muestran como están en la hoja del estudiante: si le
     # tocó la forma B, la 1 es la 1 de su hoja aunque sea la 7 de la A.
@@ -857,7 +863,7 @@ def digitar(request, examen_id, hoja_id):
               'opciones': list(zip(p.letras(), p.lista_rotulos()))}
              for p in preguntas]
     return render(request, 'puntoexacto/digitar.html', {
-        'examen': examen, 'hoja': hoja, 'filas': filas, 'hoja_digital': _hoja_digital(examen, preguntas),
+        'examen': examen, 'hoja': hoja, 'filas': filas, 'hoja_digital': _hoja_digital(examen, preguntas), 'desde': desde,
         'con_formas': examen.formas.exists(),
         'letras_forma': formas_mod.letras_del_examen(examen),
     })
