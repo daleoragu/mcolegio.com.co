@@ -525,3 +525,13 @@ class UnidaPorNota(DescargarUnida):
         nombres = z.namelist()
         self.assertIn('Informe por nota (total).pdf', nombres)
         self.assertEqual(len([n for n in nombres if n.startswith('Informes por estudiante/')]), 3)
+
+
+class ColoresDeDesempeno(InformesIcfes):
+    """Superior en azul y Alto en verde, como en la escala del colegio."""
+    def test_superior_azul_alto_verde(self):
+        from . import informes_nota as N
+        niveles = N.Escala(self.mat).niveles(None)
+        color = {n['nombre'].upper(): n['color'] for n in niveles}
+        self.assertEqual(color.get('SUPERIOR'), '#1c7ed6')
+        self.assertEqual(color.get('ALTO'), '#2b8a3e')

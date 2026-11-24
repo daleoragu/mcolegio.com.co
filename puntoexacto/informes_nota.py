@@ -16,7 +16,8 @@ from statistics import mean, pstdev
 # Bajo · Básico · Alto · Superior en una escala de 1 a 5: 1,0–2,9 · 3,0–3,9 · 4,0–4,5 · 4,6–5,0 (en fracción del rango)
 REFERENCIA = [('BAJO', 0.0), ('BÁSICO', 0.5), ('ALTO', 0.75), ('SUPERIOR', 0.9)]
 COLORES = {1: ['#2b8a3e'], 2: ['#c92a2a', '#2b8a3e'], 3: ['#c92a2a', '#e8a317', '#2b8a3e'],
-           4: ['#c92a2a', '#e8a317', '#1c7ed6', '#2b8a3e'], 5: ['#c92a2a', '#e8590c', '#e8a317', '#1c7ed6', '#2b8a3e']}
+           # Como en la escala del colegio: Superior en azul y Alto en verde (antes estaban al revés)
+           4: ['#c92a2a', '#e8a317', '#2b8a3e', '#1c7ed6'], 5: ['#c92a2a', '#e8590c', '#e8a317', '#2b8a3e', '#1c7ed6']}
 MENSAJES = {
     'BAJO': 'Necesita reforzar los temas evaluados: repase las preguntas que falló y pida apoyo a su docente.',
     'BÁSICO': 'Alcanzó lo básico. Practique los temas de las preguntas que falló para subir de nivel.',
