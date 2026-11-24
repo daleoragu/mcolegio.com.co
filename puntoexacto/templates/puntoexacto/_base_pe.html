@@ -36,6 +36,27 @@
     .pe-importar summary { cursor:pointer; }
     .pe-clave-mas { margin-left:auto; font-size:.86rem; padding:8px 4px; }
 </style>
+{# «Arriba»: aparece cuando se bajó bastante (listas e informes largos) y sube al inicio de la página #}
+<style>
+    .pe-arriba { position:fixed; right:16px; bottom:18px; z-index:1040; width:48px; height:48px; border-radius:50%; border:0;
+                 background:#193661; color:#fff; font-size:1.2rem; box-shadow:0 6px 18px rgba(15,23,42,.3); cursor:pointer;
+                 opacity:0; transform:translateY(12px); pointer-events:none; transition:opacity .2s, transform .2s; }
+    .pe-arriba.si { opacity:.92; transform:none; pointer-events:auto; }
+    .pe-arriba:hover { opacity:1; }
+    @media print { .pe-arriba { display:none !important; } }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'pe-arriba'; b.id = 'pe-arriba';
+    b.title = 'Volver arriba'; b.setAttribute('aria-label', 'Volver arriba');
+    b.innerHTML = '<i class="fas fa-arrow-up"></i>';
+    b.addEventListener('click', function () { window.scrollTo({top: 0, behavior: 'smooth'}); });
+    document.body.appendChild(b);
+    var pintar = function () { b.classList.toggle('si', window.scrollY > 500); };
+    window.addEventListener('scroll', pintar, {passive: true}); pintar();
+});
+</script>
 {% if request.resolver_match.url_name != 'lista' %}
 {# «Mis exámenes»: el primer botón arriba de cada página de PuntoExacto, para volver siempre a la lista de exámenes #}
 <style>

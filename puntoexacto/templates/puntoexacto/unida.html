@@ -7,8 +7,8 @@
 <div class="pe-barra">
     <a href="{% url 'puntoexacto:unidas' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Pruebas unidas</a>
     {% if d.personas %}
-    <a href="{% url 'puntoexacto:unida_general' pk=u.pk %}" target="_blank" class="btn btn-primary"><i class="fas fa-file-pdf me-1"></i> Informe general</a>
-    <a href="{% url 'puntoexacto:unida_estudiantes' pk=u.pk %}" target="_blank" class="btn btn-outline-primary"><i class="fas fa-file-pdf me-1"></i> Informes de todos los estudiantes</a>
+    <a data-inf="1" href="{% url 'puntoexacto:unida_general' pk=u.pk %}" target="_blank" class="btn btn-primary"><i class="fas fa-file-pdf me-1"></i> Informe general</a>
+    <a data-inf="1" href="{% url 'puntoexacto:unida_estudiantes' pk=u.pk %}" target="_blank" class="btn btn-outline-primary"><i class="fas fa-file-pdf me-1"></i> Informes de todos los estudiantes</a>
     {% endif %}
     <form method="post" class="crece" onsubmit="return confirm('¿Eliminar esta prueba unida? Los exámenes y sus notas no cambian.');">{% csrf_token %}
         <input type="hidden" name="accion" value="eliminar">
@@ -17,14 +17,22 @@
 </div>
 
 {% if d.personas %}
+<div class="pe-tarjeta d-flex flex-wrap align-items-center gap-2 py-2" id="pe-estilo-caja">
+    <b class="me-1"><i class="fas fa-file-lines me-1"></i>Tipo de informe:</b>
+    <input type="radio" class="btn-check" name="estilo" value="nota" id="pe-est-nota" form="pe-descarga" checked>
+    <label class="btn btn-sm btn-outline-primary" for="pe-est-nota"><i class="fas fa-scale-balanced me-1"></i>Por nota (escala de valoración)</label>
+    <input type="radio" class="btn-check" name="estilo" value="icfes" id="pe-est-icfes" form="pe-descarga">
+    <label class="btn btn-sm btn-outline-primary" for="pe-est-icfes"><i class="fas fa-chart-column me-1"></i>Estilo ICFES (puntajes y niveles)</label>
+    <span class="small text-muted" id="pe-est-ayuda"></span>
+</div>
 <div class="pe-tarjeta">
     <h5><i class="fas fa-file-zipper me-1"></i> Descargar informes</h5>
     {% if grados|length > 1 or cursos|length > 1 %}
     <div class="mb-3" style="font-size:.9rem;">
         {% if grados|length > 1 %}<div class="mb-1"><strong>Informe general por grado:</strong>
-            {% for g in grados %}<a href="{% url 'puntoexacto:unida_general' pk=u.pk %}?grado={{ g|urlencode }}" target="_blank" class="btn btn-sm btn-outline-primary ms-1 mb-1"><i class="fas fa-file-pdf"></i> {{ g }}</a>{% endfor %}</div>{% endif %}
+            {% for g in grados %}<a data-inf="1" href="{% url 'puntoexacto:unida_general' pk=u.pk %}?grado={{ g|urlencode }}" target="_blank" class="btn btn-sm btn-outline-primary ms-1 mb-1"><i class="fas fa-file-pdf"></i> {{ g }}</a>{% endfor %}</div>{% endif %}
         {% if cursos|length > 1 %}<div><strong>Por curso:</strong>
-            {% for c in cursos %}<a href="{% url 'puntoexacto:unida_general' pk=u.pk %}?curso={{ c|urlencode }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1 mb-1">{{ c }}</a>{% endfor %}</div>{% endif %}
+            {% for c in cursos %}<a data-inf="1" href="{% url 'puntoexacto:unida_general' pk=u.pk %}?curso={{ c|urlencode }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1 mb-1">{{ c }}</a>{% endfor %}</div>{% endif %}
     </div>
     {% endif %}
     <form method="post" action="{% url 'puntoexacto:unida_descargar' pk=u.pk %}" id="pe-descarga">{% csrf_token %}
@@ -95,7 +103,7 @@
             {% for a in d.areas %}<td class="pe-num">{% for k, v in p.areas.items %}{% if k == a.clave %}{{ v.puntaje }}{% endif %}{% endfor %}</td>{% endfor %}
             <td class="pe-num"><strong>{{ p.global }}</strong></td>
             <td class="pe-num">{{ p.percentil }}</td>
-            <td class="text-end"><a href="{% url 'puntoexacto:unida_estudiante' pk=u.pk clave=p.clave %}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-pdf"></i> Informe</a></td>
+            <td class="text-end"><a data-inf="1" href="{% url 'puntoexacto:unida_estudiante' pk=u.pk clave=p.clave %}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-pdf"></i> Informe</a></td>
         </tr>
         {% endfor %}
         </tbody>
@@ -126,5 +134,24 @@
 })();
 </script>
 {% endif %}
+<script>
+(function () {
+    // Tipo de informe: los botones de informes y el ZIP siguen lo escogido (se recuerda en este equipo, igual que en un examen)
+    var AYUDA = {nota: 'Cada examen con la escala de valoración de su área: la nota y el desempeño (Superior, Alto, Básico, Bajo) de cada estudiante en cada examen, y cada curso con su promedio.',
+                 icfes: 'Puntaje de 0 a 100 por área, global de 0 a 500, percentiles y niveles como en Saber 11 (una aproximación).'};
+    var enlaces = document.querySelectorAll('a[data-inf]'), ayuda = document.getElementById('pe-est-ayuda');
+    if (!ayuda) return;
+    enlaces.forEach(function (a) { a.dataset.base = a.getAttribute('href'); });
+    function aplicar() {
+        var est = document.querySelector('input[name=estilo]:checked').value;
+        enlaces.forEach(function (a) { var b = a.dataset.base; a.href = est === 'nota' ? b + (b.indexOf('?') >= 0 ? '&' : '?') + 'estilo=nota' : b; });
+        ayuda.textContent = AYUDA[est];
+        try { localStorage.setItem('pe-estilo-informe', est); } catch (e) {}
+    }
+    try { if (localStorage.getItem('pe-estilo-informe') === 'icfes') document.getElementById('pe-est-icfes').checked = true; } catch (e) {}
+    document.querySelectorAll('input[name=estilo]').forEach(function (r) { r.addEventListener('change', aplicar); });
+    aplicar();
+})();
+</script>
 <script src="{% static 'puntoexacto/descarga_partes.js' %}"></script>
 {% endblock %}

@@ -645,14 +645,20 @@
     // Detalle de la foto que va al lector: ~9 píxeles por milímetro de la hoja (unos 230 ppp) le sobran para ver
     // las burbujas. Un cuarto de hoja ocupaba toda la cámara y salía a más de 450 ppp: pesaba 4 veces más y
     // tardaba 4 veces más en subir, sin leer mejor.
-    var PX_POR_MM = 9;
+    // El mínimo lo pone la barra más delgada del código de barras: ~3,6 píxeles por barra para leerlo. En las hojas
+    // de 1, 2 y 4 por página (barra de 0,49 mm) son ~7,5 px/mm; en las de 8 por página la barra es más delgada y
+    // se deja más detalle.
+    var BARRA_MM = {};
+    GEOS.forEach(function (g) { if (g.barras_ancho_pt) BARRA_MM[g.por_pagina] = g.barras_ancho_pt * 25.4 / 72; });
+    function pxPorMm(dz) { var b = dz && BARRA_MM[dz.pp]; return b ? Math.max(7.5, 3.6 / b) : 9; }
     function escalaPorDetalle(quad) {
         var dz = quad && quad.diseno;
         if (!dz || !dz.spanW) return 1;
         var lado = Math.max(Math.hypot(quad[1][0] - quad[0][0], quad[1][1] - quad[0][1]), Math.hypot(quad[2][0] - quad[3][0], quad[2][1] - quad[3][1]));
         var ladoAlto = Math.max(Math.hypot(quad[3][0] - quad[0][0], quad[3][1] - quad[0][1]), Math.hypot(quad[2][0] - quad[1][0], quad[2][1] - quad[1][1]));
         var pxmm = Math.max(lado / dz.spanW, ladoAlto / dz.spanH);
-        return pxmm > PX_POR_MM ? PX_POR_MM / pxmm : 1;
+        var tope = pxPorMm(dz);
+        return pxmm > tope ? tope / pxmm : 1;
     }
     var enfoque = null, buscando = false, temporizador = null;
     var anterior = null, estables = 0, esperarRetiro = false, perdidas = 0;
@@ -1100,13 +1106,24 @@
         // Para calificar va en gris y algo más comprimida: pesa cerca de la mitad, sube más rápido y el lector
         // (que trabaja en gris) lee igual. Para el PDF se deja a color.
         var salida = modo === 'pdf' ? derecho : enGris(derecho);
-        PEScan.aJPEG(salida, modo === 'pdf' ? 0.88 : 0.8).then(function (blob) {
+        (modo === 'pdf' ? PEScan.aJPEG(salida, 0.88) : comprimir(salida)).then(function (blob) {
             var p = nuevaPagina(blob, dz, !lienzo.quad, 0, derecho.quad);
             p.t0 = t0; p.tFoto = performance.now() - t0; p.kb = Math.round(blob.size / 1024);
             if (modo === 'pdf') { pintarLote(); return; }
             if (confirmar) { p.esperando = true; p.confirmar = true; }
             if (pausa) { p.pausa = true; elCamNota.pagina = p; }
             encolar(p);
+        });
+    }
+
+    // Para calificar: WebP si el navegador lo sabe hacer (pesa ~30 % menos que JPEG con la misma nitidez y el
+    // servidor lo lee igual); si no, JPEG como antes.
+    var webp = null;
+    function comprimir(c) {
+        if (webp === false) return PEScan.aJPEG(c, 0.8);
+        return new Promise(function (ok) { c.toBlob(ok, 'image/webp', 0.8); }).then(function (b) {
+            if (b && b.type === 'image/webp') { webp = true; return b; }
+            webp = false; return PEScan.aJPEG(c, 0.8);
         });
     }
 
