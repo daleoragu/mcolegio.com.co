@@ -286,12 +286,13 @@
             <span id="pe-cuenta-cola" style="display:none;"> · <i class="fas fa-spinner fa-spin"></i> <span id="pe-contador-cola">0</span></span>
             <span id="pe-cuenta-red" style="display:none;color:#c7d2fe;"> · <i class="fas fa-wifi"></i><i class="fas fa-slash" style="margin-left:-1.05em;"></i> <span id="pe-contador-red">0</span></span></span>
         <span style="display:flex;gap:6px;">
+            <button type="button" class="pe-cam-boton" id="pe-disparo" aria-label="Cómo se toma la foto"><i class="fas fa-camera"></i><small id="pe-disparo-txt">Sola</small></button>
             <button type="button" class="pe-cam-boton" id="pe-visores" aria-label="Visores fijos o búsqueda libre"><i class="fas fa-vector-square"></i></button>
             <button type="button" class="pe-cam-boton" id="pe-girar" aria-label="Girar los visores (hoja acostada o derecha)"><i class="fas fa-rotate"></i></button>
             <button type="button" class="pe-cam-boton" id="pe-mano" aria-label="Marcar las esquinas con el dedo"><i class="fas fa-hand-pointer"></i></button>
             <button type="button" class="pe-cam-boton" id="pe-vivo-cam" aria-label="Cómo va el grupo"><i class="fas fa-chart-column"></i></button>
             <button type="button" class="pe-cam-boton" id="pe-sonido" aria-label="Sonido"><i class="fas fa-volume-high"></i></button>
-            <button type="button" class="pe-cam-boton" id="pe-auto-cam" aria-label="Guardar sola"><i class="fas fa-wand-magic-sparkles"></i><small>Auto</small></button>
+            <button type="button" class="pe-cam-boton" id="pe-auto-cam" aria-label="Guardar sola cada hoja que se lea sin dudas" title="Guardar sola cada hoja que se lea sin dudas"><i class="fas fa-floppy-disk"></i><small>Guardar</small></button>
             <button type="button" class="pe-cam-boton" id="pe-linterna" aria-label="Linterna" style="display:none;"><i class="fas fa-bolt"></i></button>
         </span>
     </div>
@@ -667,6 +668,26 @@
 
     // Visores fijos (como ZipGrade): la cámara solo mira dentro de 4 ventanas donde van los cuadrados negros.
     // Es mucho más rápido y el fondo no confunde. Con el botón se cambia a la búsqueda libre en todo el cuadro.
+    // Cómo se toma la foto:
+    //   sola     → cuando la hoja lleva ~0,8 s quieta (antes bastaban 2 cuadros y se tomaba cosas que no eran hojas)
+    //   boton    → la cámara solo marca la hoja; la foto la toma el botón
+    //   esquinas → se tocan las 4 esquinas en la pantalla (lo más cómodo en el celular)
+    // Cada equipo recuerda el suyo; de entrada, «esquinas» en el celular y «sola» en la tableta.
+    var MODOS_DISPARO = ['sola', 'boton', 'esquinas'];
+    var NOMBRE_DISPARO = {sola: 'Sola', boton: 'Botón', esquinas: 'Esquinas'};
+    var ICONO_DISPARO = {sola: 'fa-camera', boton: 'fa-circle-dot', esquinas: 'fa-hand-pointer'};
+    var AYUDA_DISPARO = {sola: 'Se toma sola cuando la hoja está quieta un momento.',
+                         boton: 'Apunte a la hoja y toque el botón grande para tomarla.',
+                         esquinas: 'Toque las 4 esquinas negras de la hoja en la pantalla.'};
+    var ESPERA_SOLA = 800;
+    var modoDisparo = Math.min(screen.width, screen.height) < 600 ? 'esquinas' : 'sola';
+    try { var gd = localStorage.getItem('pe-disparo'); if (MODOS_DISPARO.indexOf(gd) >= 0) modoDisparo = gd; } catch (e) {}
+    function pintarDisparo() {
+        $('pe-disparo-txt').textContent = NOMBRE_DISPARO[modoDisparo];
+        $('pe-disparo').querySelector('i').className = 'fas ' + ICONO_DISPARO[modoDisparo];
+        $('pe-disparo').title = 'Cómo se toma la foto: ' + NOMBRE_DISPARO[modoDisparo] + '. Toque para cambiar.';
+        if (typeof pintarBotonVisores === 'function') pintarBotonVisores();
+    }
     var usarVisores = true, ultimaVista = null;
     try { usarVisores = localStorage.getItem('pe-visores') !== '0'; } catch (e) {}
     var girarVisores = false;
@@ -692,11 +713,22 @@
     $('pe-tam-mas').addEventListener('click', function () { tamVisor = Math.min(1.1, +(tamVisor + 0.1).toFixed(2)); guardarForma(); });
     guardarForma();
     function pintarBotonVisores() {
-        $('pe-cam-forma').style.display = usarVisores ? '' : 'none';
+        var conVisores = usarVisores && modoDisparo !== 'esquinas';      // tocando esquinas no hay recuadros
+        $('pe-cam-forma').style.display = conVisores ? '' : 'none';
+        $('pe-visores').style.display = modoDisparo === 'esquinas' ? 'none' : '';
         $('pe-visores').classList.toggle('activo', usarVisores);
-        $('pe-girar').style.display = usarVisores ? '' : 'none';
+        $('pe-girar').style.display = conVisores ? '' : 'none';
         $('pe-girar').classList.toggle('activo', girarVisores);
     }
+    $('pe-disparo').addEventListener('click', function () {
+        modoDisparo = MODOS_DISPARO[(MODOS_DISPARO.indexOf(modoDisparo) + 1) % MODOS_DISPARO.length];
+        try { localStorage.setItem('pe-disparo', modoDisparo); } catch (e) {}
+        pintarDisparo();
+        ultimaVista = null; anterior = null; estables = 0; quietoDesde = 0; enfoque = null;
+        dibujar(null);
+        estado('Foto: ' + NOMBRE_DISPARO[modoDisparo].toLowerCase() + '. ' + AYUDA_DISPARO[modoDisparo], 'bien');
+    });
+    pintarDisparo();
     // Girar los visores a mano: para la hoja acostada aunque la pantalla no gire (rotación bloqueada).
     $('pe-girar').addEventListener('click', function () {
         girarVisores = !girarVisores;
@@ -749,6 +781,7 @@
     $('pe-disparar').addEventListener('click', function () {
         if (!buscando) return;
         ocultarNotaCamara();
+        if (modoDisparo === 'esquinas') { if (entrarManual()) estado('Toque las 4 esquinas negras de la hoja.', 'bien'); return; }
         var q = anterior;
         if (!q && elVideo.videoWidth) q = detectorFino.buscar(elVideo, elVideo.videoWidth, elVideo.videoHeight).quad;
         if (q) { disparar(fotograma(q)); return; }
@@ -869,7 +902,7 @@
             });
         }
         // Los visores: esquinas en L, blancas; verdes cuando hay un cuadrado negro adentro.
-        if (usarVisores && elVideo.videoWidth && !manual) {
+        if (usarVisores && modoDisparo !== 'esquinas' && elVideo.videoWidth && !manual) {
             var vis = ultimaVista && ultimaVista.visores ? ultimaVista.visores : PEScan.visores(elVideo.videoWidth, elVideo.videoHeight, disenoVisor(), girarVisores, tamVisor);
             var lado = vis.lado, b = lado * 0.32, gv = Math.max(3, Math.max(vw, elVideo.videoHeight) / 260);
             vis.centros.forEach(function (c, i) {
@@ -890,8 +923,9 @@
         buscando = true;
         anterior = null; estables = 0; enfoque = null;
         elLeyendo.classList.remove('si');
-        if (esperarRetiro) estado('Ponga la siguiente hoja.');
-        else estado(modo === 'pdf' ? 'Apunte a la hoja (o toque sus 4 esquinas).' : 'Apunte a la hoja o toque sus 4 esquinas.');
+        quietoDesde = 0;
+        if (esperarRetiro && modoDisparo === 'sola') estado('Ponga la siguiente hoja.');
+        else estado(AYUDA_DISPARO[modoDisparo]);
         clearTimeout(temporizador);
         temporizador = setTimeout(cuadro, 50);
     }
@@ -905,8 +939,15 @@
         return (lado / dz.spanW * dz.ancho) / Math.min(elVideo.videoWidth, elVideo.videoHeight);
     }
 
+    var quietoDesde = 0;
     function cuadro() {
         if (!buscando) return;
+        if (modoDisparo === 'esquinas') {
+            // Nada que buscar: se espera que toquen las esquinas (el primer toque congela la imagen)
+            dibujar(null);
+            temporizador = setTimeout(cuadro, 400);
+            return;
+        }
         if (elVideo.readyState >= 2 && elVideo.videoWidth && !document.hidden) {
             var r = usarVisores ? detector.buscarEnVisores(elVideo, elVideo.videoWidth, elVideo.videoHeight, disenoVisor(), girarVisores, tamVisor)
                                 : detector.buscar(elVideo, elVideo.videoWidth, elVideo.videoHeight);
@@ -917,27 +958,38 @@
                 dibujar(null);
                 if (!quad) { perdidas++; if (perdidas >= 1) esperarRetiro = false; }
                 else if (anterior && cambio(quad, anterior) > 0.25) esperarRetiro = false;
-                if (!esperarRetiro) { estado(modo === 'pdf' ? 'Siguiente hoja.' : 'Apunte a la siguiente hoja.'); anterior = null; }
+                if (!esperarRetiro) { estado(modo === 'pdf' ? 'Siguiente hoja.' : 'Apunte a la siguiente hoja.'); anterior = null; quietoDesde = 0; }
             } else if (quad) {
                 var ancho = Math.hypot(quad[1][0] - quad[0][0], quad[1][1] - quad[0][1]);
                 var quieto = anterior && quad.every(function (h, i) {
                     return Math.hypot(h[0] - anterior[i][0], h[1] - anterior[i][1]) < ancho * 0.04;
                 });
                 estables = quieto ? estables + 1 : 1;
+                var ahora = performance.now();
+                if (!quieto || !quietoDesde) quietoDesde = ahora;
                 anterior = quad;
-                dibujar(quad, Math.min(1, estables / 2));
-                if (!usarVisores && cerca(quad) < 0.46) {
-                    estables = 0;
+                var progreso = Math.min(1, (ahora - quietoDesde) / ESPERA_SOLA);
+                if (modoDisparo === 'boton') {
+                    // Solo se marca: la foto la toma el botón (con esta hoja)
+                    dibujar(quad, 1);
+                    if (!enfoque) pedirEnfoque();
+                    estado('Hoja encontrada: toque el botón para tomarla.', 'bien');
+                } else if (!usarVisores && cerca(quad) < 0.46) {
+                    estables = 0; quietoDesde = 0;
+                    dibujar(quad, 0);
                     estado('Hoja encontrada. Acérquese un poco más.');
-                } else if (estables >= 2) {
+                } else if (progreso >= 1) {
+                    dibujar(quad, 1);
                     if (elegirFotograma(quad)) return;
                     estado('Enfocando… no mueva el celular', 'bien');
                 } else {
+                    // El contorno se va llenando: así se ve que la foto está por tomarse (y da tiempo de retirar)
+                    dibujar(quad, progreso);
                     if (!enfoque) pedirEnfoque();
-                    estado('¡Hoja encontrada! No mueva el celular…', 'bien');
+                    estado('¡Hoja encontrada! Quieto… se toma sola.', 'bien');
                 }
             } else {
-                estables = 0; anterior = null; enfoque = null;
+                estables = 0; anterior = null; enfoque = null; quietoDesde = 0;
                 dibujar(null);
                 if (usarVisores) {
                     var n = r.encontrados.filter(Boolean).length;
