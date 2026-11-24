@@ -361,6 +361,42 @@ def en_vivo(request, examen_id):
 
 
 # ----------------------------------------------------------------------------- todo de una vez (ZIP)
+# Con un curso completo (o varios) el ZIP tardaba más de lo que el servidor deja a una petición y se cortaba.
+# El navegador pide primero el «plan» (qué partes hay) y luego cada parte por separado: el total, cada grado,
+# cada curso y los estudiantes de a POR_LOTE. Cada parte tarda unos segundos; el navegador las une en un ZIP.
+POR_LOTE = 12
+
+
+def _plan_zip(tipos, grados, cursos, ids_estudiantes, nombre_zip):
+    partes = []
+    if tipos & {'general', 'excel'}:
+        partes.append({'que': 'general'})
+    for t, valores in (('grados', grados), ('cursos', cursos)):
+        if t in tipos:
+            partes += [{'que': t, 'valor': v} for v in valores]
+    if tipos & {'informes', 'hojas'}:
+        for i in range(0, len(ids_estudiantes), POR_LOTE):
+            partes.append({'que': 'estudiantes', 'lote': ids_estudiantes[i:i + POR_LOTE], 'n': i // POR_LOTE + 1})
+    return JsonResponse({'ok': True, 'partes': partes, 'nombre': nombre_zip, 'lotes': sum(1 for x in partes if x['que'] == 'estudiantes')})
+
+
+def _parte_pedida(request):
+    import json
+    try:
+        parte = json.loads(request.POST.get('parte') or 'null')
+    except ValueError:
+        return None
+    if not isinstance(parte, dict) or parte.get('que') not in ('general', 'grados', 'cursos', 'estudiantes'):
+        return None
+    return parte
+
+
+def _respuesta_zip(contenido, nombre):
+    r = HttpResponse(contenido, content_type='application/zip')
+    r['Content-Disposition'] = f'attachment; filename="{nombre}"'
+    return r
+
+
 def _nombre_unico(nombre, usados):
     base, n = _nombre_archivo(nombre) or 'estudiante', 2
     final = base
@@ -397,12 +433,19 @@ def descargar_informes(request, examen_id):
         return redirect('puntoexacto:resultados', examen_id=examen.id)
 
     escogidas = {h.id for h in hojas}
+    nombre_zip = f'Informes - {_nombre_archivo(examen.titulo)}.zip'
+    if request.POST.get('plan') == '1':
+        grados, cursos = grupos_de(hojas)
+        return _plan_zip(tipos, grados, cursos, [h.id for h in hojas], nombre_zip)
+    parte, sufijo, del_lote = _parte_pedida(request), '', hojas
+    if parte and parte['que'] == 'estudiantes':
+        lote = {int(x) for x in parte.get('lote') or [] if str(x).isdigit()}
+        del_lote = [h for h in hojas if h.id in lote]
+        sufijo = f' (parte {int(parte.get("n") or 1)})'
     contenido = _armar_zip(request, [examen], examen.titulo, None, lambda h: h.id in escogidas,
-                           [INF._clave_persona(h) for h in hojas], {examen.id: hojas}, tipos, separado,
-                           por_nota=_por_nota(request))
-    r = HttpResponse(contenido, content_type='application/zip')
-    r['Content-Disposition'] = f'attachment; filename="Informes - {_nombre_archivo(examen.titulo)}.zip"'
-    return r
+                           [INF._clave_persona(h) for h in del_lote], {examen.id: del_lote}, tipos, separado,
+                           por_nota=_por_nota(request), solo=parte, sufijo=sufijo)
+    return _respuesta_zip(contenido, nombre_zip)
 
 
 def _paginas_por_estudiante(doc):
@@ -419,12 +462,25 @@ def _paginas_por_estudiante(doc):
     return grupos
 
 
-def _armar_zip(request, examenes, titulo, areas, incluir, claves, hojas_por_examen, tipos, separado, por_nota=False):
+def _armar_zip(request, examenes, titulo, areas, incluir, claves, hojas_por_examen, tipos, separado, por_nota=False,
+               solo=None, sufijo=''):
     """El ZIP de informes, para un examen o para una prueba unida (varios exámenes).
 
     incluir: hoja -> bool (los escogidos). claves: las personas escogidas, en el orden de los informes.
     hojas_por_examen: {examen.id: [hojas escogidas]} para las hojas calificadas.
+    solo: una PARTE del ZIP (lo pide el navegador por partes y las une): {'que': 'general'} (el total y el Excel),
+          {'que': 'grados'|'cursos', 'valor': v} (el informe de ese grado o curso) o {'que': 'estudiantes'} (los
+          informes y hojas de las personas de «claves» / «hojas_por_examen», que ya vienen recortadas al lote).
+    sufijo: se pone al nombre de los PDF «todos juntos» de un lote, para que no se pisen al unir las partes.
     """
+    def quiere(t):
+        if t not in tipos:
+            return False
+        if solo is None:
+            return True
+        return {'general': 'general', 'excel': 'general', 'grados': 'grados', 'cursos': 'cursos',
+                'informes': 'estudiantes', 'hojas': 'estudiantes'}[t] == solo.get('que')
+
     import io
     import zipfile
 
@@ -439,7 +495,7 @@ def _armar_zip(request, examenes, titulo, areas, incluir, claves, hojas_por_exam
     buf = io.BytesIO()
     zf = zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED)
     datos = None
-    if tipos & {'general', 'informes'} and not por_nota:
+    if (quiere('general') or quiere('informes')) and not por_nota:
         datos = INF.construir(examenes, titulo, areas, incluir=incluir)
 
     def general(d, archivo):
@@ -451,20 +507,22 @@ def _armar_zip(request, examenes, titulo, areas, incluir, claves, hojas_por_exam
 
     if por_nota:
         examen = examenes[0]
-        if 'general' in tipos:
+        if quiere('general'):
             d, html = _html_nota_cursos(request, examen, incluir, titulo)
             if d['filas']:
                 escribir_pdf(html, 'Informe por nota (total).pdf')
-    elif 'general' in tipos and datos and datos['personas']:
+    elif quiere('general') and datos and datos['personas']:
         general(datos, 'Informe general (total).pdf')
     # Un informe general por grado y por curso, con solo los escogidos de cada uno.
     todas = [h for hs in hojas_por_examen.values() for h in hs]
     grados, cursos = grupos_de(todas)
     for tipo, carpeta, valores, de in (('grados', 'Informes por grado', grados, INF.grado_de),
                                        ('cursos', 'Informes por curso', cursos, INF.curso_de)):
-        if tipo not in tipos:
+        if not quiere(tipo):
             continue
         for v in valores:
+            if solo is not None and solo.get('valor') != v:
+                continue
             nombre_v = v if tipo == "grados" else "Curso " + v
             filtro_v = (lambda h, v=v, de=de: incluir(h) and de(h) == v)
             if por_nota:
@@ -476,19 +534,19 @@ def _armar_zip(request, examenes, titulo, areas, incluir, claves, hojas_por_exam
             if d['personas']:
                 general(d, f'{carpeta}/{_nombre_archivo(nombre_v)}.pdf')
 
-    if 'informes' in tipos and por_nota:
+    if quiere('informes') and por_nota:
         d, lista, html = _html_nota_estudiantes(request, examenes[0], incluir=incluir, claves=list(dict.fromkeys(claves)))
         if lista:
             doc = HTML(string=html, base_url=request.build_absolute_uri('/')).render()
             if not separado:
-                zf.writestr('Informes por estudiante.pdf', doc.write_pdf())
+                zf.writestr(f'Informes por estudiante{sufijo}.pdf', doc.write_pdf())
             else:
                 usados = set()
                 for n, paginas in _paginas_por_estudiante(doc):
                     zf.writestr(f'Informes por estudiante/{_nombre_unico(lista[n - 1]["nombre"], usados)}.pdf',
                                 doc.copy(paginas).write_pdf())
 
-    if 'informes' in tipos and datos:
+    if quiere('informes') and datos:
         tema = _tema(request)
         lista, vistos = [], set()
         for k in claves:
@@ -502,7 +560,7 @@ def _armar_zip(request, examenes, titulo, areas, incluir, claves, hojas_por_exam
                                      'hoy': timezone.localdate(), 'tema': tema, **_fechas(datos)}, request=request)
             doc = HTML(string=html, base_url=request.build_absolute_uri('/')).render()
             if not separado:
-                zf.writestr('Informes por estudiante.pdf', doc.write_pdf())
+                zf.writestr(f'Informes por estudiante{sufijo}.pdf', doc.write_pdf())
             else:
                 # Cada estudiante empieza en la página que tiene su ancla «est-N».
                 # (el ancla de un estudiante aparece en todas sus páginas: se cambia de grupo cuando cambia el número)
@@ -521,7 +579,7 @@ def _armar_zip(request, examenes, titulo, areas, incluir, claves, hojas_por_exam
                     nombre = _nombre_unico(e['persona']['nombre'], usados)
                     zf.writestr(f'Informes por estudiante/{nombre}.pdf', doc.copy(paginas).write_pdf())
 
-    if 'hojas' in tipos:
+    if quiere('hojas'):
         # En una prueba unida, cada estudiante tiene una hoja por examen: van todas juntas en su PDF.
         por_persona, nombres, orden = {}, {}, []
         usados_junto = set()
@@ -531,7 +589,7 @@ def _armar_zip(request, examenes, titulo, areas, incluir, claves, hojas_por_exam
             if not pdf:
                 continue
             if not separado:
-                nombre = 'Hojas calificadas' + (f' - {_nombre_unico(ex.titulo, usados_junto)}' if varios else '')
+                nombre = 'Hojas calificadas' + (f' - {_nombre_unico(ex.titulo, usados_junto)}' if varios else '') + sufijo
                 zf.writestr(f'{nombre}.pdf', pdf)
                 continue
             for pagina, h in zip(PdfReader(io.BytesIO(pdf)).pages, hs):
@@ -549,7 +607,7 @@ def _armar_zip(request, examenes, titulo, areas, incluir, claves, hojas_por_exam
             w.write(b)
             zf.writestr(f'Hojas calificadas/{_nombre_unico(nombres[k], usados)}.pdf', b.getvalue())
 
-    if 'excel' in tipos:
+    if quiere('excel'):
         usados = set()
         for ex in examenes:
             nombre = f'Resultados - {_nombre_unico(ex.titulo, usados)}.xlsx' if varios else 'Resultados.xlsx'
@@ -682,8 +740,16 @@ def unida_descargar(request, pk):
     if not tipos or (not claves and tipos - {'excel'}):
         messages.warning(request, 'Escoja qué descargar y al menos un estudiante.')
         return redirect('puntoexacto:unida', pk=u.pk)
+    nombre_zip = f'Informes - {_nombre_archivo(u.titulo)}.zip'
+    if request.POST.get('plan') == '1':
+        grados, cursos = grupos_de([h for hs in hojas_por_examen.values() for h in hs])
+        return _plan_zip(tipos, grados, cursos, claves, nombre_zip)
+    parte, sufijo = _parte_pedida(request), ''
+    if parte and parte['que'] == 'estudiantes':
+        lote = {str(x) for x in parte.get('lote') or []}
+        claves = [k for k in claves if k in lote]
+        hojas_por_examen = {e: [h for h in hs if INF._clave_persona(h) in lote] for e, hs in hojas_por_examen.items()}
+        sufijo = f' (parte {int(parte.get("n") or 1)})'
     contenido = _armar_zip(request, examenes, u.titulo, u.areas, lambda h: INF._clave_persona(h) in escogidas,
-                           claves, hojas_por_examen, tipos, separado)
-    r = HttpResponse(contenido, content_type='application/zip')
-    r['Content-Disposition'] = f'attachment; filename="Informes - {_nombre_archivo(u.titulo)}.zip"'
-    return r
+                           claves, hojas_por_examen, tipos, separado, solo=parte, sufijo=sufijo)
+    return _respuesta_zip(contenido, nombre_zip)
