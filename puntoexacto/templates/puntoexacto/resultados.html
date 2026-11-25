@@ -28,6 +28,23 @@
         Pasar a la planilla</a>
     {% endif %}
 </div>
+{% if fuera_informes.ausente or fuera_informes.pendiente or cursos_sin_grado %}
+<div class="pe-aviso" id="pe-fuera">
+    <b><i class="fas fa-circle-info me-1"></i>En los informes entran {{ n_en_informes }} estudiante{{ n_en_informes|pluralize }}.</b>
+    {% if fuera_informes.ausente %}
+    <details class="mt-1"><summary><b>{{ fuera_informes.ausente|length }}</b> quedaron como «No presentó» (el lector vio la hoja en blanco) y no entran.
+        Si sí la presentaron, ábrala y marque sus respuestas.</summary>
+        <ul class="mb-0">{% for h in fuera_informes.ausente %}<li><a href="{% url 'puntoexacto:digitar' examen_id=examen.id hoja_id=h.id %}?desde=resultados">{{ h.nombre }}</a></li>{% endfor %}</ul>
+    </details>{% endif %}
+    {% if fuera_informes.pendiente %}
+    <details class="mt-1"><summary><b>{{ fuera_informes.pendiente|length }}</b> están «Sin calificar» (no se ha guardado su hoja) y no entran.</summary>
+        <ul class="mb-0">{% for h in fuera_informes.pendiente %}<li><a href="{% url 'puntoexacto:digitar' examen_id=examen.id hoja_id=h.id %}?desde=resultados">{{ h.nombre }}</a></li>{% endfor %}</ul>
+    </details>{% endif %}
+    {% if cursos_sin_grado %}
+    <div class="mt-1">No se pudo saber el grado de {{ cursos_sin_grado|join:", " }}: esos estudiantes salen en el informe total y en el de su curso,
+        pero no en el de un grado. Escriba el grado en la ficha del curso.</div>{% endif %}
+</div>
+{% endif %}
 <div class="pe-tarjeta d-flex flex-wrap align-items-center gap-2 py-2" id="pe-estilo-caja">
     <b class="me-1"><i class="fas fa-file-lines me-1"></i>Tipo de informe:</b>
     <input type="radio" class="btn-check" name="estilo" value="nota" id="pe-est-nota" form="pe-descarga" checked>

@@ -535,3 +535,28 @@ class ColoresDeDesempeno(InformesIcfes):
         color = {n['nombre'].upper(): n['color'] for n in niveles}
         self.assertEqual(color.get('SUPERIOR'), '#1c7ed6')
         self.assertEqual(color.get('ALTO'), '#2b8a3e')
+
+
+class QuienEntraALosInformes(InformePorGrado):
+    """Un curso del mismo grado sin el grado escrito (o escrito distinto) cae en su grado; y la pantalla dice quién
+    no entra a los informes y por qué."""
+    test_zip_con_grados_y_cursos = None
+
+    def test_cursos_sin_grado_y_hojas_fuera(self):
+        from notas.models import Curso
+        from . import informes as INF
+        c702 = Curso.objects.create(colegio=self.a, nombre='702', grado=None, subgrupo='2') if 'grado' in [f.name for f in Curso._meta.get_fields()] else None
+        eva = self.crear_estudiante('eva', curso=c702)
+        self._hoja(self.mat, eva, 'ABCD')
+        h_eva = self.mat.hojas.get(estudiante=eva)
+        h_dani = self.mat.hojas.get(estudiante=self.dani)
+        self.assertEqual(INF.grado_de(h_dani), 'Grado 7')
+        self.assertEqual(INF.grado_de(h_eva), 'Grado 7')            # 702 sin grado: sale del nombre
+        datos = INF.construir([self.mat], incluir=lambda h: INF.grado_de(h) == 'Grado 7')
+        self.assertEqual({p['nombre'] for p in datos['personas']}, {h_dani.nombre, h_eva.nombre})
+        # Una hoja que quedó en blanco («No presentó») no entra y la pantalla lo dice con su nombre
+        h_eva.estado = 'ausente'; h_eva.save(update_fields=['estado'])
+        r = self.c.get(f'/puntoexacto/{self.mat.id}/resultados/')
+        self.assertContains(r, 'id="pe-fuera"')
+        self.assertContains(r, 'quedaron como «No presentó»')
+        self.assertContains(r, h_eva.nombre)

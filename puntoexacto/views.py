@@ -902,7 +902,15 @@ def resultados(request, examen_id):
             resumen_icfes = INF.construir([examen])
         except Exception:
             resumen_icfes = None
+    # Quién NO entra a los informes y por qué: así se ve de una vez si falta alguien (hoja en blanco, sin guardar…)
+    fuera_informes = {'ausente': [h for h in lista_hojas if h.estado == 'ausente'],
+                      'pendiente': [h for h in lista_hojas if h.estado not in ('calificada', 'revisar', 'ausente')]}
+    from . import informes as INF_
+    cursos_sin_grado = sorted({INF_.curso_de(h) for h in lista_hojas if h.estado in ('calificada', 'revisar')
+                               and not INF_.grado_de(h).startswith('Grado ')})
     return render(request, 'puntoexacto/resultados.html', {
+        'fuera_informes': fuera_informes, 'cursos_sin_grado': cursos_sin_grado,
+        'n_en_informes': sum(1 for h in lista_hojas if h.estado in ('calificada', 'revisar')),
         'resumen_nota': resumen_nota, 'resumen_icfes': resumen_icfes,
         'grados': grados, 'cursos': cursos,
         'examen': examen, 'analisis': datos, 'hojas': lista_hojas,

@@ -50,7 +50,7 @@ class DesdeResultados(ColegioDePrueba):
         h = Hoja.objects.create(examen=ex, identificador='PE-00001-0001', nombre_libre='Ana')
         url = f'/puntoexacto/{ex.id}/hoja/{h.id}/digitar/?desde=resultados'
         r = c.get(f'/puntoexacto/{ex.id}/resultados/')
-        self.assertContains(r, f'href="{url}"', count=2)                  # el nombre y el botón
+        self.assertContains(r, f'href="{url}"', count=3)                  # el nombre, el botón y el aviso «Sin calificar»
         self.assertContains(r, 'Digitar respuestas')
         r = c.get(url)
         self.assertContains(r, 'Volver a los resultados')
