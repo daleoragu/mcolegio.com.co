@@ -80,15 +80,47 @@ def _clave_persona(h):
     return f'n{_plano(h.nombre_libre)}' if h.nombre_libre else f'h{h.pk}'
 
 
+_GRADOS_PALABRA = {'transicion': 0, 'primero': 1, 'segundo': 2, 'tercero': 3, 'cuarto': 4, 'quinto': 5, 'sexto': 6,
+                   'septimo': 7, 'octavo': 8, 'noveno': 9, 'decimo': 10, 'undecimo': 11, 'once': 11, 'doce': 12}
+
+
+def numero_de_grado(valor):
+    """6 de «6», «6°», «6.º», «Grado 6», «Sexto», «601», «6-1», «Sexto B»; None si no se reconoce.
+    (Tres o más cifras: las dos últimas son el grupo: 601 → 6, 1102 → 11.)"""
+    import re
+    import unicodedata
+    t = unicodedata.normalize('NFKD', str(valor or '')).encode('ascii', 'ignore').decode().lower()
+    for palabra, n in _GRADOS_PALABRA.items():
+        if re.search(rf'\b{palabra}\b', t):
+            return n
+    m = re.search(r'\d+', t)
+    if not m:
+        return None
+    dig = m.group(0)
+    if len(dig) >= 3:
+        dig = dig[:-2]
+    n = int(dig)
+    return n if 0 <= n <= 13 else None
+
+
 def grado_de(h):
-    """«Grado 6» del estudiante de la hoja; sin curso con grado, el nombre del curso o del grupo."""
+    """«Grado 6» del estudiante de la hoja. Sale del grado del curso y, si el curso no lo tiene (o lo tiene escrito
+    distinto: «6°», «Sexto»), del nombre del curso: así 601, 602 y «Sexto B» quedan todos en «Grado 6».
+    Si no se puede saber, el nombre del curso o del grupo."""
     from . import hojas as hojas_mod
     try:
         c = hojas_mod.curso_de_hoja(h)
     except Exception:
         c = None
-    if c is not None and getattr(c, 'grado', None) not in (None, ''):
-        return f'Grado {c.grado}'
+    n = None
+    if c is not None:
+        n = numero_de_grado(getattr(c, 'grado', None))
+        if n is None:
+            n = numero_de_grado(c.nombre)
+    elif h.integrante_id and getattr(h.integrante, 'grupo', None):
+        n = numero_de_grado(h.integrante.grupo.nombre)
+    if n is not None:
+        return f'Grado {n}'
     return _curso_de(h)
 
 
