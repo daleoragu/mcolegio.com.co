@@ -36,6 +36,10 @@
         .asignatura-row .nota { text-align: center; }
         .logro-descriptivo-row td { text-align: left; font-size: 0.95em; padding-left: 20px; border-top: none; }
         .observacion-materia-row td { font-style: italic; }
+        /* Cada área (franja, asignaturas, logros y observaciones) queda entera en una página */
+        .bloque-area { break-inside: avoid; page-break-inside: avoid; }
+        /* El resumen, las áreas a mejorar y las firmas van juntos: la firma nunca queda sola en una hoja */
+        .cierre-boletin { break-inside: avoid; page-break-inside: avoid; break-before: avoid; page-break-before: avoid; }
         
         .tabla-resumen { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 1.1em; }
         .tabla-resumen th, .tabla-resumen td { border: 1px solid #999; padding: 4px; text-align: center; }
@@ -118,12 +122,10 @@
                     <th style="width: 5%;">INAS</th>
                 </tr>
             </thead>
-            <tbody>
             {% for area in boletin.areas %}
-                
-                <!-- El área se omite cuando tiene una sola asignatura: la fila de
-                     la asignatura lleva su nombre y evita repetir la misma nota. -->
-                {% if not area.colapsada %}
+            <tbody class="bloque-area">
+                <!-- Toda área lleva su franja (desempeño, DEF y ACUM). Con una sola asignatura, debajo va solo
+                     el docente con las notas: no se repite el nombre. -->
                 <tr class="{{ area.estado_color_css_class }}">
                     <td class="area-header">{{ area.nombre }}</td>
                     <td class="area-header" style="text-align: center; font-weight: bold;" colspan="{{ componentes|length|add:2 }}">{{ area.desempeno_area }}</td>
@@ -131,14 +133,11 @@
                     <td class="area-header" style="text-align: center;"><strong>{{ area.nota_final_area_acumulada|coma_decimal|default_if_none:"" }}</strong></td>
                     <td class="area-header"></td>
                 </tr>
-                {% endif %}
 
                 {% for materia in area.materias %}
-                <tr class="asignatura-row{% if area.colapsada %} {{ area.estado_color_css_class }}{% endif %}">
-                    <td style="{% if not area.colapsada %}padding-left: 10px;{% endif %}">
-                        {% if area.colapsada %}
-                            <strong>{{ area.nombre }}</strong><br>
-                        {% elif area.materias|length > 1 %}
+                <tr class="asignatura-row">
+                    <td style="padding-left: 10px;">
+                        {% if area.materias|length > 1 %}
                             {{ materia.nombre }}<br>
                         {% endif %}
                         <small><strong>Docente:</strong> {{ materia.docente.user.get_full_name }}</small>
@@ -192,10 +191,11 @@
                 {% endif %}
 
                 {% endfor %}
-            {% endfor %}
             </tbody>
+            {% endfor %}
         </table>
-        
+
+        <div class="cierre-boletin">
         <table class="tabla-resumen">
             <thead>
                 <tr><th colspan="4">Resumen de Rendimiento por Áreas</th></tr>
@@ -268,6 +268,7 @@
             </tr>
         </table>
         {% endwith %}
+        </div>
     </div>
 {% endfor %}
 </body>
