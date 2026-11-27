@@ -1,9 +1,27 @@
 {% extends 'notas/base.html' %}
 
-{% block title %}Alertas tempranas{% endblock %}
+{% block title %}Alertas tempranas<script>
+document.querySelectorAll('form.at-permiso').forEach(function (f) {
+    f.addEventListener('submit', function (ev) {
+        var motivo = window.prompt('Motivo para el administrador (opcional):', '');
+        if (motivo === null) { ev.preventDefault(); return; }
+        f.querySelector('[name=motivo]').value = motivo;
+    });
+});
+</script>
+{% endblock %}
 
 {% block page_title %}
     <h1>Alertas tempranas</h1>
+<script>
+document.querySelectorAll('form.at-permiso').forEach(function (f) {
+    f.addEventListener('submit', function (ev) {
+        var motivo = window.prompt('Motivo para el administrador (opcional):', '');
+        if (motivo === null) { ev.preventDefault(); return; }
+        f.querySelector('[name=motivo]').value = motivo;
+    });
+});
+</script>
 {% endblock %}
 
 {% block content %}
@@ -77,7 +95,12 @@
     (con las asignaturas que las hacen perder y cuánto les falta para aprobar), el promedio general mínimo si el colegio
     lo exige y las notas que ya puso la comisión. <strong>Riesgo alto</strong>: el boletín final dice NO PROMOVIDO.
     <strong>Medio</strong>: pasa, pero pierde alguna área.
+    {% if not puede_comision %}Junto a sus asignaturas puede <strong>pedir permiso</strong> al administrador para ajustar la nota en la comisión.{% endif %}
 </p>
+{% if puede_comision and pendientes_comision %}
+<div class="alert alert-warning py-2"><i class="fas fa-key me-1"></i> Hay <strong>{{ pendientes_comision }}</strong> permiso{{ pendientes_comision|pluralize }} de docentes para ajustar notas esperando respuesta.
+    <a href="{% url 'notas:permisos_comision' %}" class="alert-link">Revisar</a></div>
+{% endif %}
 {% else %}
 <p class="small text-muted">
     Cuenta las <strong>materias</strong> cuya nota acumulada del año, hasta el periodo escogido, está por debajo de
@@ -157,6 +180,21 @@
                             <div class="small"><strong>{{ a.area }}</strong>{% if a.nota is not None %} ({{ a.nota }}){% endif %}:
                             {% for m in a.materias %}
                                 <span class="at-mat" title="{% if m.docente %}Docente: {{ m.docente }}{% endif %}">{{ m.materia }} <b>{{ m.acumulada|default:"-" }}</b>{% if m.falta %} <span class="text-muted">(+{{ m.falta }})</span>{% endif %}</span>
+                                {% if m.mia %}
+                                    {% if m.permiso == 'APROBADO' %}
+                                        <a class="small" href="{% url 'notas:comision_estudiante' f.estudiante.id %}?ano={{ ano }}"><i class="fas fa-pen me-1"></i>Ajustar nota</a>
+                                    {% elif m.permiso == 'PENDIENTE' %}
+                                        <span class="small text-muted"><i class="fas fa-hourglass-half me-1"></i>Permiso pedido</span>
+                                    {% else %}
+                                        <form method="post" action="{% url 'notas:pedir_permiso_comision' %}" class="d-inline at-permiso">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="ano" value="{{ ano }}"><input type="hidden" name="estudiante" value="{{ f.estudiante.id }}">
+                                            <input type="hidden" name="materia" value="{{ m.materia_id }}"><input type="hidden" name="curso" value="{{ curso_sel.id|default:'' }}">
+                                            <input type="hidden" name="motivo" value="">
+                                            <button type="submit" class="btn btn-link btn-sm p-0 small"><i class="fas fa-key me-1"></i>{% if m.permiso %}Pedir otra vez{% else %}Pedir permiso para ajustar{% endif %}</button>
+                                        </form>
+                                    {% endif %}
+                                {% endif %}
                             {% endfor %}</div>
                         {% empty %}<span class="text-muted small">—</span>{% endfor %}
                         {% if f.motivo %}<div class="small text-danger">{{ f.motivo }}</div>{% endif %}
@@ -181,4 +219,13 @@
         </table>
     </div>
 </div>
+<script>
+document.querySelectorAll('form.at-permiso').forEach(function (f) {
+    f.addEventListener('submit', function (ev) {
+        var motivo = window.prompt('Motivo para el administrador (opcional):', '');
+        if (motivo === null) { ev.preventDefault(); return; }
+        f.querySelector('[name=motivo]').value = motivo;
+    });
+});
+</script>
 {% endblock %}

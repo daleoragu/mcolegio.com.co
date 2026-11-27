@@ -1,0 +1,92 @@
+{% extends "notas/base.html" %}
+
+{% block page_title %}
+    <h1>{{ titulo }}</h1>
+{% endblock %}
+
+{% block content %}
+<style>
+    .pc-caja { background:#fff; border:1px solid #e3e6ec; border-radius:10px; margin-bottom:16px; }
+    .pc-caja h5 { padding:12px 14px; margin:0; border-bottom:1px solid #eef0f3; font-weight:700; }
+    .pc-tabla td { vertical-align:middle; font-size:.92rem; }
+    .pc-estado { display:inline-block; border-radius:999px; padding:1px 9px; font-size:.75rem; font-weight:700; }
+    .pc-estado.APROBADO { background:#e6f4ea; color:#1f7a3a; }
+    .pc-estado.RECHAZADO, .pc-estado.REVOCADO { background:#fdecec; color:#a3161a; }
+</style>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<p class="text-muted small">
+    Los docentes piden permiso desde <strong>Alertas tempranas → Final del año</strong> para ajustar, en la pantalla de la comisión,
+    la nota de la asignatura que dictan a un estudiante. Aprobado, el docente solo ve y ajusta esa asignatura de ese estudiante.
+    Usted puede ajustar todo en cualquier momento.
+</p>
+
+<div class="pc-caja">
+    <h5><i class="fas fa-hourglass-half me-1 text-warning"></i> Pendientes ({{ pendientes|length }})</h5>
+    <div class="table-responsive">
+        <table class="table table-sm pc-tabla mb-0">
+            <thead class="table-light"><tr><th>Docente</th><th>Estudiante</th><th>Asignatura</th><th>Año</th><th>Motivo</th><th style="min-width:320px">Respuesta</th></tr></thead>
+            <tbody>
+            {% for p in pendientes %}
+                <tr>
+                    <td>{{ p.docente.user.get_full_name }}</td>
+                    <td>{{ p.estudiante.user.last_name }} {{ p.estudiante.user.first_name }} <span class="text-muted small">· {{ p.estudiante.curso.nombre }}</span>
+                        <br><a class="small" href="{% url 'notas:comision_estudiante' p.estudiante_id %}?ano={{ p.ano_lectivo }}">Ver en la comisión</a></td>
+                    <td>{{ p.materia.nombre }}</td>
+                    <td>{{ p.ano_lectivo }}</td>
+                    <td class="small">{{ p.motivo|default:"—" }}</td>
+                    <td>
+                        <form method="post" class="d-flex flex-wrap gap-1">
+                            {% csrf_token %}
+                            <input type="hidden" name="permiso" value="{{ p.id }}">
+                            <input type="text" name="respuesta" class="form-control form-control-sm" style="max-width:170px" placeholder="Comentario (opcional)" maxlength="300">
+                            <button name="accion" value="aprobar" class="btn btn-sm btn-success"><i class="fas fa-check me-1"></i>Aprobar</button>
+                            <button name="accion" value="rechazar" class="btn btn-sm btn-outline-danger"><i class="fas fa-xmark me-1"></i>Rechazar</button>
+                        </form>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-3">No hay permisos pendientes.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="pc-caja">
+    <h5>Respondidos</h5>
+    <div class="table-responsive">
+        <table class="table table-sm pc-tabla mb-0">
+            <thead class="table-light"><tr><th>Docente</th><th>Estudiante</th><th>Asignatura</th><th>Año</th><th>Estado</th><th>Respondió</th><th></th></tr></thead>
+            <tbody>
+            {% for p in resueltos %}
+                <tr>
+                    <td>{{ p.docente.user.get_full_name }}</td>
+                    <td>{{ p.estudiante.user.last_name }} {{ p.estudiante.user.first_name }}</td>
+                    <td>{{ p.materia.nombre }}</td>
+                    <td>{{ p.ano_lectivo }}</td>
+                    <td><span class="pc-estado {{ p.estado }}">{{ p.get_estado_display }}</span>{% if p.respuesta %}<div class="small text-muted">{{ p.respuesta }}</div>{% endif %}</td>
+                    <td class="small">{{ p.revisado_por.get_full_name|default:p.revisado_por.username }}<br><span class="text-muted">{{ p.revisado_en|date:"d/m/Y H:i" }}</span></td>
+                    <td>
+                        {% if p.estado == 'APROBADO' %}
+                        <form method="post">{% csrf_token %}<input type="hidden" name="permiso" value="{{ p.id }}">
+                            <button name="accion" value="quitar" class="btn btn-sm btn-outline-secondary">Quitar permiso</button></form>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-3">Todavía no hay permisos respondidos.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

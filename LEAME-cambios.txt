@@ -1,4 +1,4 @@
-Versión 0106 · 2026-11-27 12:28
+Versión 0108 · 2026-11-27 13:01
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -698,6 +698,7 @@ NUEVO     notas/migrations/0062_colores_iconos_topbar.py
 NUEVO     notas/migrations/0063_docente_estilo_planilla.py
 NUEVO     notas/migrations/0064_colegio_estilo_planilla.py
 NUEVO     notas/migrations/0065_comision_y_promedio_minimo.py
+NUEVO     notas/migrations/0066_permisos_comision.py
 CAMBIADO  notas/models/__init__.py
 CAMBIADO  notas/models/academicos.py
 NUEVO     notas/models/excusas.py
@@ -720,6 +721,7 @@ NUEVO     notas/static/notas/vendor/jsQR.js
 NUEVO     notas/static/notas/ver_clave.js
 NUEVO     notas/templates/notas/admin_crud/comision_estudiante.html
 CAMBIADO  notas/templates/notas/admin_crud/formulario_estudiante.html
+NUEVO     notas/templates/notas/admin_crud/permisos_comision.html
 CAMBIADO  notas/templates/notas/admin_crud/promocion_anual.html
 CAMBIADO  notas/templates/notas/admin_portal/personalizacion_portal.html
 CAMBIADO  notas/templates/notas/admin_tools/admin_dashboard.html
@@ -991,6 +993,7 @@ HAY MIGRACIONES NUEVAS (build.sh ya corre «migrate»):
   materiales/migrations/0014_puntos_y_comentarios.py  (biblioteca: puntos de cada material y comentarios de docentes)
   materiales/migrations/0015_imagen_dibujo.py        (editor: dibujo a mano alzada editable)
   notas/migrations/0065_comision_y_promedio_minimo.py (promoción: promedio mínimo y notas de la comisión)
+  notas/migrations/0066_permisos_comision.py (permisos del docente para ajustar notas en la comisión)
   puntoexacto/migrations/0012_pruebas_unidas.py  (pruebas unidas para los informes tipo Saber 11)
   puntoexacto/migrations/0013_respuesta_varias_letras.py  (respuesta con varias letras)
   puntoexacto/migrations/0014_hoja_en_blanco_no_presento.py  (hoja en blanco = No presentó; arregla las que ya tenían nota)
