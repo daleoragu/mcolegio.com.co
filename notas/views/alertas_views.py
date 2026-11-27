@@ -9,7 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, HttpResponseNotFound
 from django.shortcuts import render
 
-from ..alertas import alertas_de_curso, maximo_permitido, resumen
+from ..alertas import alertas_de_curso, alertas_finales, maximo_permitido, resumen
 from ..boletin.ponderacion import nota_aprobacion
 from ..models import Curso, Docente, PeriodoAcademico, Sede
 from ..permisos import es_admin, es_admin_usuario
@@ -41,8 +41,10 @@ def alertas_tempranas(request):
     except ValueError:
         ano = anos[0] if anos else 0
     periodos = list(PeriodoAcademico.objects.filter(colegio=request.colegio, ano_lectivo=ano).order_by('orden'))
+    # «Final del año»: la cuenta del boletín final, para llegar a la comisión de evaluación sabiendo quién pierde.
+    es_final = request.GET.get('periodo') == 'final' and bool(periodos)
     periodo = next((p for p in periodos if str(p.id) == request.GET.get('periodo')), None)
-    if periodo is None and periodos:
+    if periodo is None and periodos and not es_final:
         # Por defecto: el último periodo abierto, o el último del año.
         abiertos = [p for p in periodos if p.esta_activo]
         periodo = abiertos[-1] if abiertos else periodos[-1]
@@ -59,9 +61,10 @@ def alertas_tempranas(request):
     maximo = maximo_permitido(request.colegio)
 
     filas, por_curso = [], []
-    if periodo is not None:
+    if periodo is not None or es_final:
         for c in ([curso_sel] if curso_sel else cursos):
-            del_curso = alertas_de_curso(request.colegio, c, ano, periodo, aprobacion, maximo)
+            del_curso = (alertas_finales(request.colegio, c, ano) if es_final
+                         else alertas_de_curso(request.colegio, c, ano, periodo, aprobacion, maximo))
             filas.extend(del_curso)
             r = resumen(del_curso)
             if r['total']:
@@ -76,5 +79,7 @@ def alertas_tempranas(request):
         'sedes': sedes, 'sede_sel': sede_sel,
         'anos': anos, 'ano': ano, 'periodos': periodos, 'periodo': periodo,
         'filas': visibles, 'total_filas': len(filas), 'resumen': resumen(filas), 'por_curso': por_curso,
-        'aprobacion': aprobacion, 'maximo': maximo, 'ver': ver,
+        'aprobacion': aprobacion, 'maximo': maximo, 'ver': ver, 'es_final': es_final,
+        'periodo_param': 'final' if es_final else (periodo.id if periodo else ''),
+        'puede_comision': es_admin(request),
     })

@@ -108,3 +108,47 @@ def resumen(filas):
         r[f['riesgo']] += 1
     r['total'] = len(filas)
     return r
+
+
+def alertas_finales(colegio, curso, ano):
+    """Las alertas del año completo, con la misma cuenta del boletín final (áreas perdidas, promedio mínimo y
+    notas de la comisión): lo que la comisión de evaluación necesita tener claro.
+
+    Riesgo: alto -> el boletín final dice NO PROMOVIDO; medio -> pasa, pero pierde alguna área.
+    """
+    from .boletin.logic import _umbral, get_datos_boletin_final
+    try:
+        boletines, _ = get_datos_boletin_final(colegio, curso, ano)
+    except Exception:
+        return []
+    salida = []
+    for b in boletines:
+        areas = []
+        for area in b.get('areas', []):
+            if area.get('estado_color_css_class') != 'desempeno-reprobado':
+                continue
+            materias = []
+            for m in area['materias']:
+                if not m.get('promedia', True):
+                    continue
+                actual = m['comision'] if m.get('comision') is not None else (
+                    m['definitiva_recuperada'] if m['definitiva_recuperada'] is not None else m['definitiva_original'])
+                piso = _umbral(colegio, m['materia_id'], curso.grado)
+                if actual is None or actual < piso:
+                    materias.append({'materia': m['nombre'], 'acumulada': actual,
+                                     'docente': m['docente'].user.get_full_name() if m.get('docente') else '',
+                                     'falta': (piso - actual).quantize(Decimal('0.1')) if actual is not None else None})
+            areas.append({'area': area['nombre'], 'nota': area.get('nota_final_area'), 'materias': materias})
+        con_notas = bool(b.get('areas'))
+        n = b.get('areas_reprobadas', 0)
+        if not con_notas:
+            riesgo = 'sin_notas'
+        elif b.get('estado_promocion') != 'PROMOVIDO':
+            riesgo = 'alto'
+        else:
+            riesgo = 'medio' if n else 'ok'
+        salida.append({'estudiante': b['estudiante'], 'curso': curso, 'n': n, 'riesgo': riesgo,
+                       'areas_perdidas': areas, 'promedio': b.get('promedio_general_final'),
+                       'motivo': b.get('motivo_promocion', ''), 'por_comision': b.get('por_comision', False),
+                       'perdidas': [], 'perdidas_periodo': None})
+    return salida
