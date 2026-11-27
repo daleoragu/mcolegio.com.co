@@ -1,9 +1,10 @@
 # notas/views/alertas_views.py
 """Tablero de alertas tempranas.
 
-Lo ve el administrador (todos los cursos) y el director de grado (solo los
-cursos que dirige). Un docente sin dirección de grupo no entra: estas son
-notas de todas las materias, no solo de las suyas.
+Lo ve el administrador (todos los cursos) y cada docente: los cursos que dirige
+y aquellos en los que da clase (con todas las materias del curso, para que llegue
+a la comisión sabiendo quién puede perder). Aquí solo se mira: las notas las
+cambia el administrador desde la pantalla de la comisión.
 """
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, HttpResponseNotFound
@@ -23,7 +24,9 @@ def _cursos_visibles(request):
     docente = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
     if docente is None:
         return Curso.objects.none()
-    return Curso.objects.filter(colegio=request.colegio, director_grado=docente)
+    from django.db.models import Q
+    return Curso.objects.filter(Q(director_grado=docente) | Q(asignaciondocente__docente=docente),
+                                colegio=request.colegio).distinct()
 
 
 @login_required
@@ -32,7 +35,7 @@ def alertas_tempranas(request):
         return HttpResponseNotFound('<h1>Colegio no configurado</h1>')
     cursos = list(_cursos_visibles(request).order_by('grado', 'orden', 'nombre'))
     if not cursos and not es_admin(request):
-        return HttpResponseForbidden('Las alertas tempranas las ven el administrador y el director de grado.')
+        return HttpResponseForbidden('Las alertas tempranas las ven el administrador y los docentes de cada curso.')
 
     anos = sorted(set(PeriodoAcademico.objects.filter(colegio=request.colegio)
                       .values_list('ano_lectivo', flat=True)), reverse=True)

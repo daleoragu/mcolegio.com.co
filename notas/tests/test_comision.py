@@ -168,3 +168,21 @@ class AlertasFinales(BaseComision):
         r = self.ver(periodo=self.p2.id)
         self.assertContains(r, 'Perdidas en')
         self.assertNotContains(r, 'Promedio general')
+
+    def test_docente_que_da_clase_ve_las_alertas_de_su_curso(self):
+        from django.contrib.auth.models import User
+        from notas.models import Curso, Docente
+        self.perder_dos()
+        u = User.objects.create_user('profe2', password='x')
+        otro = Docente.objects.create(colegio=self.a, user=u)
+        u_sin = User.objects.create_user('profe3', password='x')
+        Docente.objects.create(colegio=self.a, user=u_sin)
+        Curso.objects.create(colegio=self.a, nombre='602', grado=6, subgrupo='2')
+        AsignacionDocente.objects.filter(materia=self.ingles, curso=self.curso).update(docente=otro)
+        r = self.ver(u)
+        self.assertContains(r, 'No promovido · 2 áreas')           # ve todo el curso, no solo su materia
+        self.assertNotContains(r, '602')
+        self.assertNotContains(r, self.url())                        # mira, pero no ajusta notas
+        self.assertEqual(self.cliente(u).get(self.url()).status_code, 302)
+        self.assertEqual(self.ver(u_sin).status_code, 403)          # sin clases ni dirección: nada que ver
+        self.assertContains(self.cliente(u).get(reverse('notas:panel_docente')), reverse('notas:alertas_tempranas'))
