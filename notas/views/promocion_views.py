@@ -82,6 +82,8 @@ def _sugerencias(colegio, curso, ano):
             'resultado': 'PROMOVIDO' if (sin_notas or b.get('estado_promocion') == 'PROMOVIDO')
                          else 'NO_PROMOVIDO',
             'areas_reprobadas': b.get('areas_reprobadas', 0),
+            'motivo': b.get('motivo_promocion', ''),
+            'por_comision': b.get('por_comision', False),
             'sin_notas': sin_notas,
         }
     return salida

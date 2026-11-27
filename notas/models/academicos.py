@@ -239,6 +239,10 @@ class InasistenciasManualesPeriodo(models.Model):
 class ConfiguracionSistema(models.Model):
     colegio = models.OneToOneField(Colegio, on_delete=models.CASCADE, related_name="configuracion", null=True)
     max_areas_reprobadas = models.PositiveSmallIntegerField(default=2, verbose_name="Máximo de áreas reprobadas para ser promovido")
+    # Opcional: quien pierde áreas (sin pasar del máximo) solo se promueve si su promedio general llega a esta nota.
+    promedio_minimo_promocion = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        verbose_name="Promedio general mínimo cuando pierde áreas")
     
     def __str__(self):
         if self.colegio:
@@ -246,6 +250,28 @@ class ConfiguracionSistema(models.Model):
         return "Configuración de Promoción (sin colegio)"
     class Meta:
         verbose_name = "Configuración del Sistema"; verbose_name_plural = "Configuraciones del Sistema"
+
+class NotaComision(models.Model):
+    """La nota del año que pone la comisión de evaluación y promoción en una asignatura.
+
+    No borra la definitiva original: el boletín final muestra las dos («2,8 (3,0 Comisión)»).
+    """
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="notas_comision")
+    estudiante = models.ForeignKey(Estudiante, on_delete=models.CASCADE, related_name="notas_comision")
+    materia = models.ForeignKey('Materia', on_delete=models.CASCADE)
+    ano_lectivo = models.PositiveIntegerField()
+    valor_nota = models.DecimalField(max_digits=5, decimal_places=2)
+    acta = models.CharField(max_length=120, blank=True, default='', help_text="Acta de la comisión (número o fecha)")
+    registrado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    registrado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('colegio', 'estudiante', 'materia', 'ano_lectivo')
+        verbose_name = "Nota de comisión"; verbose_name_plural = "Notas de comisión"
+
+    def __str__(self):
+        return f"{self.estudiante} · {self.materia} · {self.ano_lectivo}: {self.valor_nota}"
+
 
 class PublicacionBoletin(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="publicaciones_boletines", null=True)

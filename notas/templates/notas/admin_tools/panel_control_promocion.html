@@ -100,6 +100,20 @@
             </p>
         </div>
 
+        <div class="form-group">
+            <label for="id_promedio_minimo_promocion">Promedio general mínimo cuando pierde áreas (opcional)</label>
+            <input type="number" id="id_promedio_minimo_promocion" name="promedio_minimo_promocion"
+                   value="{{ config.promedio_minimo_promocion|default_if_none:''|stringformat:'s' }}" min="0" step="0.01"
+                   placeholder="Vacío: no se exige">
+            <p class="help-text">
+                Solo cuenta para quien pierde áreas sin pasar del máximo: además debe tener este promedio general.
+                Quien no pierde ninguna área pasa sin importar el promedio.
+                <br>
+                <strong>Ejemplo:</strong> máximo 1 área y promedio 3,5: con 1 área perdida y promedio 3,4 no es promovido;
+                con 1 área perdida y promedio 3,6 sí.
+            </p>
+        </div>
+
         <div class="form-actions">
             <button type="submit" class="btn-submit">
                 <i class="fas fa-save fa-fw"></i> Guardar Cambios

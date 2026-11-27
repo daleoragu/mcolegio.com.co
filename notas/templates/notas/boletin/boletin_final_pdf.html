@@ -145,7 +145,9 @@
                     {% endif %}
                     <td class="nota-definitiva">
                         {{ materia.definitiva_original|coma_decimal|default_if_none:"-" }}
-                        {% if materia.definitiva_recuperada is not None %}
+                        {% if materia.comision is not None %}
+                            <span class="nota-recuperada"> ({{ materia.comision|coma_decimal }} Comisión)</span>
+                        {% elif materia.definitiva_recuperada is not None %}
                             <span class="nota-recuperada"> ({{ materia.definitiva_recuperada|coma_decimal }})</span>
                         {% endif %}
                     </td>
@@ -183,7 +185,8 @@
         </table>
 
         <div class="estado-final {% if boletin.estado_promocion == 'PROMOVIDO' %}promovido{% else %}no-promovido{% endif %}">
-            ESTADO FINAL: {{ boletin.estado_promocion }}
+            ESTADO FINAL: {{ boletin.estado_promocion }}{% if boletin.por_comision and boletin.estado_promocion == 'PROMOVIDO' %} POR DECISIÓN DE LA COMISIÓN{% endif %}
+            {% if boletin.motivo_promocion %}<div style="font-size: 0.7em; font-weight: normal; margin-top: 3px;">{{ boletin.motivo_promocion }}</div>{% endif %}
         </div>
 
         {% if boletin.detalle_areas_reprobadas %}
