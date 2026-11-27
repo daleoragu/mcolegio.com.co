@@ -1,4 +1,4 @@
-Versión 0105 · 2026-11-27 12:09
+Versión 0106 · 2026-11-27 12:28
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -679,6 +679,7 @@ CAMBIADO  materiales/views_biblioteca.py
 NUEVO     materiales/views_equipo.py
 CAMBIADO  materiales/views_ia.py
 NUEVO     materiales/views_juegos.py
+CAMBIADO  notas/alertas.py
 NUEVO     notas/asesoria.py
 CAMBIADO  notas/boletin/logic.py
 NUEVO     notas/colores.py
@@ -726,6 +727,7 @@ CAMBIADO  notas/templates/notas/admin_tools/configuracion_calificaciones.html
 CAMBIADO  notas/templates/notas/admin_tools/impresion_masiva_carnets.html
 CAMBIADO  notas/templates/notas/admin_tools/panel_control_promocion.html
 NUEVO     notas/templates/notas/admin_tools/pines_carnet.html
+CAMBIADO  notas/templates/notas/alertas_tempranas.html
 CAMBIADO  notas/templates/notas/base.html
 CAMBIADO  notas/templates/notas/base_portal.html
 CAMBIADO  notas/templates/notas/boletin/boletin_final_pdf.html
@@ -783,6 +785,7 @@ CAMBIADO  notas/tests/test_sabana_reporte_parcial.py
 NUEVO     notas/tests/test_solicitudes_ficha.py
 CAMBIADO  notas/urls.py
 CAMBIADO  notas/views/admin_tools_views.py
+CAMBIADO  notas/views/alertas_views.py
 CAMBIADO  notas/views/app_views.py
 CAMBIADO  notas/views/asistencia_views.py
 CAMBIADO  notas/views/boletin_views.py

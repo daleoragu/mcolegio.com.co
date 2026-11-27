@@ -43,6 +43,7 @@
         <label class="form-label mb-1 small" for="at-periodo">Hasta el periodo</label>
         <select name="periodo" id="at-periodo" class="form-select" onchange="this.form.submit()">
             {% for p in periodos %}<option value="{{ p.id }}" {% if periodo and p.id == periodo.id %}selected{% endif %}>{{ p.get_nombre_display }}</option>{% endfor %}
+            {% if periodos %}<option value="final" {% if es_final %}selected{% endif %}>Final del año (para la comisión)</option>{% endif %}
         </select>
     </div>
     {% if sedes|length > 1 %}
@@ -70,17 +71,26 @@
     </div>
 </form>
 
+{% if es_final %}
+<p class="small text-muted">
+    <strong>Final del año:</strong> la misma cuenta del boletín final. Se cuentan las <strong>áreas</strong> perdidas
+    (con las asignaturas que las hacen perder y cuánto les falta para aprobar), el promedio general mínimo si el colegio
+    lo exige y las notas que ya puso la comisión. <strong>Riesgo alto</strong>: el boletín final dice NO PROMOVIDO.
+    <strong>Medio</strong>: pasa, pero pierde alguna área.
+</p>
+{% else %}
 <p class="small text-muted">
     Cuenta las <strong>materias</strong> cuya nota acumulada del año, hasta el periodo escogido, está por debajo de
     <strong>{{ aprobacion }}</strong>, con la misma cuenta del boletín. <strong>Riesgo alto</strong>: más de {{ maximo }}
     materia{{ maximo|pluralize }} perdida{{ maximo|pluralize }}, más de las que el colegio permite para ser promovido
     (la promoción se decide por áreas; en un área de una sola materia es lo mismo).
 </p>
+{% endif %}
 
 <div class="at-resumen">
-    <div class="at-caja alto"><div class="num">{{ resumen.alto }}</div><div class="txt">en riesgo alto de perder el año</div></div>
-    <div class="at-caja medio"><div class="num">{{ resumen.medio }}</div><div class="txt">van perdiendo alguna materia</div></div>
-    <div class="at-caja ok"><div class="num">{{ resumen.ok }}</div><div class="txt">van ganando todo</div></div>
+    <div class="at-caja alto"><div class="num">{{ resumen.alto }}</div><div class="txt">{% if es_final %}no promovidos según el boletín final{% else %}en riesgo alto de perder el año{% endif %}</div></div>
+    <div class="at-caja medio"><div class="num">{{ resumen.medio }}</div><div class="txt">{% if es_final %}pasan, pero pierden alguna área{% else %}van perdiendo alguna materia{% endif %}</div></div>
+    <div class="at-caja ok"><div class="num">{{ resumen.ok }}</div><div class="txt">{% if es_final %}ganan todas las áreas{% else %}van ganando todo{% endif %}</div></div>
     <div class="at-caja"><div class="num">{{ resumen.total }}</div><div class="txt">estudiantes{% if resumen.sin_notas %} · {{ resumen.sin_notas }} sin notas aún{% endif %}</div></div>
 </div>
 
@@ -93,7 +103,7 @@
             <tbody>
             {% for c in por_curso %}
                 <tr>
-                    <td><a href="?ano={{ ano }}&periodo={{ periodo.id }}&curso={{ c.curso.id }}&ver={{ ver }}">{{ c.curso.nombre }}</a></td>
+                    <td><a href="?ano={{ ano }}&periodo={{ periodo_param }}&curso={{ c.curso.id }}&ver={{ ver }}">{{ c.curso.nombre }}</a></td>
                     <td class="at-num">{{ c.alto }}</td><td class="at-num">{{ c.medio }}</td><td class="at-num">{{ c.total }}</td>
                     <td>
                         <div class="at-barra" title="{{ c.alto }} alto · {{ c.medio }} medio · {{ c.ok }} sin riesgo">
@@ -115,8 +125,13 @@
         <table class="table at-tabla mb-0">
             <thead class="table-light"><tr>
                 <th>Estudiante</th><th>Curso</th><th>Riesgo</th>
+                {% if es_final %}
+                <th>Áreas perdidas: asignaturas con su definitiva (le falta)</th>
+                <th class="at-num">Promedio general</th>
+                {% else %}
                 <th>Materias perdidas en el acumulado (le falta)</th>
                 <th class="at-num">Perdidas en {{ periodo.get_nombre_display|default:"el periodo" }}</th>
+                {% endif %}
             </tr></thead>
             <tbody>
             {% for f in filas %}
@@ -124,17 +139,38 @@
                     <td><strong>{{ f.estudiante.user.last_name }} {{ f.estudiante.user.first_name }}</strong></td>
                     <td>{{ f.curso.nombre }}</td>
                     <td>
+                        {% if es_final %}
+                        {% if f.riesgo == 'alto' %}<span class="at-pill alto">No promovido · {{ f.n }} área{{ f.n|pluralize }}</span>
+                        {% elif f.riesgo == 'medio' %}<span class="at-pill medio">Pasa · {{ f.n }} área{{ f.n|pluralize }}</span>
+                        {% elif f.riesgo == 'ok' %}<span class="at-pill ok">{% if f.por_comision %}Promovido por comisión{% else %}Sin riesgo{% endif %}</span>
+                        {% else %}<span class="at-pill sin_notas">Sin notas</span>{% endif %}
+                        {% else %}
                         {% if f.riesgo == 'alto' %}<span class="at-pill alto">Alto · {{ f.n }}</span>
                         {% elif f.riesgo == 'medio' %}<span class="at-pill medio">Medio · {{ f.n }}</span>
                         {% elif f.riesgo == 'ok' %}<span class="at-pill ok">Sin riesgo</span>
                         {% else %}<span class="at-pill sin_notas">Sin notas</span>{% endif %}
+                        {% endif %}
                     </td>
+                    {% if es_final %}
+                    <td>
+                        {% for a in f.areas_perdidas %}
+                            <div class="small"><strong>{{ a.area }}</strong>{% if a.nota is not None %} ({{ a.nota }}){% endif %}:
+                            {% for m in a.materias %}
+                                <span class="at-mat" title="{% if m.docente %}Docente: {{ m.docente }}{% endif %}">{{ m.materia }} <b>{{ m.acumulada|default:"-" }}</b>{% if m.falta %} <span class="text-muted">(+{{ m.falta }})</span>{% endif %}</span>
+                            {% endfor %}</div>
+                        {% empty %}<span class="text-muted small">—</span>{% endfor %}
+                        {% if f.motivo %}<div class="small text-danger">{{ f.motivo }}</div>{% endif %}
+                        {% if puede_comision and f.n %}<a class="small" href="{% url 'notas:comision_estudiante' f.estudiante.id %}?ano={{ ano }}"><i class="fas fa-scale-balanced me-1"></i>Comisión: ajustar notas</a>{% endif %}
+                    </td>
+                    <td class="at-num">{{ f.promedio|floatformat:2 }}</td>
+                    {% else %}
                     <td>
                         {% for m in f.perdidas %}
                             <span class="at-mat" title="{% if m.docente %}Docente: {{ m.docente }}{% endif %}">{{ m.materia }} <b>{{ m.acumulada }}</b> <span class="text-muted">(+{{ m.falta }})</span></span>
                         {% empty %}<span class="text-muted small">—</span>{% endfor %}
                     </td>
                     <td class="at-num">{{ f.perdidas_periodo }}</td>
+                    {% endif %}
                 </tr>
             {% empty %}
                 <tr><td colspan="5" class="text-center text-muted py-4">

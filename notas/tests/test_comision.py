@@ -11,7 +11,7 @@ from notas.models import (AreaConocimiento, AsignacionDocente, Calificacion, Con
 from .base import ColegioDePrueba
 
 
-class Comision(ColegioDePrueba):
+class BaseComision(ColegioDePrueba):
 
     def setUp(self):
         self.ingles = Materia.objects.create(colegio=self.a, nombre='Inglés')
@@ -33,6 +33,15 @@ class Comision(ColegioDePrueba):
 
     def url(self):
         return reverse('notas:comision_estudiante', args=[self.ana.id]) + '?ano=2026'
+
+    def perder_dos(self):
+        for p in (self.p1, self.p2):
+            self.nota(self.ingles, '2.5', p)
+            self.nota(self.materia, '2.8', p)
+        self.assertEqual(self.boletin()['estado_promocion'], 'NO PROMOVIDO')
+
+
+class Comision(BaseComision):
 
     # --- Regla del promedio ----------------------------------------------------
 
@@ -61,12 +70,6 @@ class Comision(ColegioDePrueba):
         self.assertEqual((self.conf.max_areas_reprobadas, self.conf.promedio_minimo_promocion), (2, Decimal('3.50')))
 
     # --- La comisión -----------------------------------------------------------
-
-    def perder_dos(self):
-        for p in (self.p1, self.p2):
-            self.nota(self.ingles, '2.5', p)
-            self.nota(self.materia, '2.8', p)
-        self.assertEqual(self.boletin()['estado_promocion'], 'NO PROMOVIDO')
 
     def test_pantalla_muestra_lo_que_necesita(self):
         self.perder_dos()
@@ -125,3 +128,43 @@ class Comision(ColegioDePrueba):
     def test_solo_administradores(self):
         r = self.cliente(self.u_docente).get(self.url())
         self.assertNotEqual(r.status_code, 200)
+
+
+class AlertasFinales(BaseComision):
+    """Alertas tempranas con «Final del año»: la cuenta del boletín final, para llegar a la comisión."""
+
+    def ver(self, usuario=None, **params):
+        q = '&'.join(f'{k}={v}' for k, v in {'ano': 2026, 'periodo': 'final', 'ver': 'todos', **params}.items())
+        return self.cliente(usuario or self.rectora).get(reverse('notas:alertas_tempranas') + '?' + q)
+
+    def test_final_cuenta_areas_y_enlaza_a_la_comision(self):
+        self.perder_dos()
+        r = self.ver()
+        self.assertContains(r, 'Final del año (para la comisión)')
+        self.assertContains(r, 'No promovido · 2 áreas')
+        self.assertContains(r, 'HUMANIDADES')
+        self.assertContains(r, '(+0,5)')                                     # a Inglés (2,5) le falta 0,5
+        self.assertContains(r, self.url())
+
+    def test_final_respeta_la_comision_y_el_promedio(self):
+        self.perder_dos()
+        NotaComision.objects.create(colegio=self.a, estudiante=self.ana, materia=self.ingles, ano_lectivo=2026,
+                                    valor_nota=Decimal('3.0'))
+        self.assertContains(self.ver(), 'Pasa · 1 área')
+        self.conf.promedio_minimo_promocion = Decimal('3.5')
+        self.conf.save()
+        r = self.ver()
+        self.assertContains(r, 'No promovido · 1 área')
+        self.assertContains(r, 'no alcanza el mínimo')
+
+    def test_el_director_de_grado_lo_ve_sin_enlace_a_la_comision(self):
+        self.perder_dos()
+        r = self.ver(self.u_docente)
+        self.assertContains(r, 'No promovido · 2 áreas')
+        self.assertNotContains(r, self.url())
+
+    def test_por_periodo_sigue_igual(self):
+        self.perder_dos()
+        r = self.ver(periodo=self.p2.id)
+        self.assertContains(r, 'Perdidas en')
+        self.assertNotContains(r, 'Promedio general')
