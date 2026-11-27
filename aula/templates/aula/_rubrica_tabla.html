@@ -3,7 +3,7 @@
     <thead class="table-light"><tr><th style="min-width:160px">Criterio</th>
         {% if inst.tipo == 'rubrica' %}{% for n in niveles %}<th class="au-n{{ forloop.counter0 }}">{{ n.nombre }} <span class="text-muted fw-normal">({{ n.valor|floatformat:1 }})</span></th>{% endfor %}
         {% else %}<th>Sí / No</th>{% endif %}</tr></thead>
-    <tbody>{% for cr in criterios %}<tr><td class="fw-semibold">{{ cr.nombre }}{% if cr.peso != 1 %} <span class="text-muted">×{{ cr.peso|floatformat:-2 }}</span>{% endif %}</td>
+    <tbody>{% for cr in criterios %}<tr><td class="fw-semibold">{{ cr.nombre }} <span class="text-muted small">({{ cr.porcentaje|floatformat:-1 }} %)</span></td>
         {% if inst.tipo == 'rubrica' %}{% for celda in cr.celdas %}<td>{{ celda.texto }}</td>{% endfor %}
         {% else %}<td class="text-muted">Cumple / no cumple</td>{% endif %}</tr>{% endfor %}</tbody>
 </table></div>

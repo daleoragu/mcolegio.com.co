@@ -343,3 +343,46 @@ class GrupoSalonEditable(ColegioDePrueba):
             est3.post(f'/aula/{aula.pk}/entrar/', {'codigo': grupo.codigo, 'integrante': sara.pk, 'pin': '9999' if sara.pin_chat != '9999' else '8888'})
         r = est3.post(f'/aula/{aula.pk}/entrar/', {'codigo': grupo.codigo, 'integrante': sara.pk, 'pin': sara.pin_chat})
         self.assertContains(r, 'Demasiados intentos')
+
+
+@override_settings(MEDIA_ROOT=MEDIA)
+class PorcentajesDeLosCriterios(ColegioDePrueba):
+    """El docente escribe el porcentaje de cada criterio, o marca que todos valen lo mismo."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.a.modulos_activos = list(cls.a.modulos_activos) + ['salon']
+        cls.a.save(update_fields=['modulos_activos'])
+
+    def setUp(self):
+        self.inst = logica.desde_plantilla(self.u_docente, self.a, 'cuaderno')
+        self.profe = self.cliente(self.u_docente)
+        self.url = f'/aula/instrumentos/{self.inst.pk}/'
+
+    def enviar(self, pesos, iguales=False):
+        datos = {'nombre': 'Cuaderno', 'pesos_en': 'porcentaje',
+                 'crit_nombre': [c.nombre for c in self.inst.criterios.all()], 'crit_peso': pesos}
+        if iguales:
+            datos['iguales'] = 'on'
+        return self.profe.post(self.url, datos, follow=True)
+
+    def test_muestra_porcentajes_y_todos_iguales(self):
+        r = self.profe.get(self.url)
+        self.assertContains(r, 'Porcentaje')
+        self.assertContains(r, 'value="20"', count=5)          # 5 criterios de peso 1 = 20 % cada uno
+        self.assertContains(r, 'id="au-iguales" checked')
+
+    def test_guarda_porcentajes_y_exige_100(self):
+        r = self.enviar(['40', '15', '15', '15', '10'])
+        self.assertContains(r, 'suman 95 %')
+        self.enviar(['40', '15', '15', '15', '15'])
+        self.assertEqual([c.porcentaje for c in self.inst.criterios.all()],
+                         [Decimal('40.0'), Decimal('15.0'), Decimal('15.0'), Decimal('15.0'), Decimal('15.0')])
+        self.assertNotContains(self.profe.get(self.url), 'id="au-iguales" checked')
+        # Cumplir solo el primero (40 %) da 1 + 4 × 0,4 = 2,6
+        cumple = {str(c.id): k == 0 for k, c in enumerate(self.inst.criterios.all())}
+        self.assertEqual(logica.calcular_nota(self.inst, cumple, Decimal('1'), Decimal('5'))[0], Decimal('2.6'))
+        # Todos iguales: se reparten solos
+        self.enviar(['1', '2', '3', '4', '5'], iguales=True)
+        self.assertEqual({c.porcentaje for c in self.inst.criterios.all()}, {Decimal('20.0')})

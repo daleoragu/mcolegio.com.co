@@ -231,6 +231,12 @@ class Criterio(models.Model):
     def descriptor(self, nivel):
         return (self.descriptores or {}).get(str(nivel.id), '')
 
+    @property
+    def porcentaje(self):
+        """Cuánto vale este criterio sobre el total del instrumento (el peso es relativo: 1-1-1 = 33 % cada uno)."""
+        total = sum(c.peso for c in self.instrumento.criterios.all()) or Decimal('1')
+        return (self.peso * 100 / total).quantize(Decimal('0.1'))
+
 
 # ---------------------------------------------------------------------------
 # Tareas y entregas
