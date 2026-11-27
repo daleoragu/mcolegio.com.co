@@ -1,0 +1,185 @@
+{% extends "notas/base.html" %}
+{% load nota_filters %}
+
+{% block page_title %}
+    <h1>{{ titulo }}</h1>
+{% endblock %}
+
+{% block content %}
+<style>
+    .cm-cab { background:#fff; border:1px solid #e3e6ec; border-radius:10px; padding:12px 16px; margin-bottom:14px; }
+    .cm-estado { display:inline-block; border-radius:999px; padding:3px 12px; font-weight:700; font-size:.9rem; }
+    .cm-estado.ok { background:#e6f4ea; color:#1f7a3a; }
+    .cm-estado.mal { background:#fdecec; color:#a3161a; }
+    .cm-mat { background:#fff; border:1px solid #e3e6ec; border-radius:10px; margin-bottom:12px; }
+    .cm-mat-cab { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; padding:10px 14px; border-bottom:1px solid #eef0f3; }
+    .cm-mat-cab h5 { margin:0; font-weight:700; font-size:1.05rem; }
+    .cm-chip { display:inline-block; border-radius:999px; padding:1px 9px; font-size:.78rem; background:#eef1f5; color:#4b5563; }
+    .cm-chip.mal { background:#fdecec; color:#a3161a; }
+    .cm-chip.ok { background:#e6f4ea; color:#1f7a3a; }
+    .cm-modos { display:flex; flex-wrap:wrap; gap:6px 18px; padding:10px 14px 0; }
+    .cm-panel { padding:10px 14px 14px; }
+    .cm-panel[hidden] { display:none; }
+    .cm-tabla { font-size:.9rem; margin:0; }
+    .cm-tabla td, .cm-tabla th { vertical-align:middle; text-align:center; }
+    .cm-tabla input { max-width:90px; margin:0 auto; text-align:center; }
+    .cm-pista { font-size:.78rem; color:#6b7280; }
+    .cm-pista.ok { color:#1f7a3a; }
+    .cm-pista.mal { color:#a3161a; }
+    .cm-resultado { font-weight:700; margin-top:8px; }
+    .cm-resultado.ok { color:#1f7a3a; }
+    .cm-resultado.mal { color:#a3161a; }
+    .cm-pie { position:sticky; bottom:0; background:#fff; border-top:1px solid #e3e6ec; padding:12px 0; margin-top:10px; z-index:5; }
+</style>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="mb-3"><a href="{{ volver }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Volver a la promoción</a></div>
+
+<div class="cm-cab">
+    <div class="d-flex flex-wrap gap-3 align-items-center">
+        <div><strong>{{ estudiante.user.last_name|upper }} {{ estudiante.user.first_name|upper }}</strong> · {{ curso.nombre }} · {{ ano }}</div>
+        <span class="cm-estado {% if boletin.estado_promocion == 'PROMOVIDO' %}ok{% else %}mal{% endif %}">
+            Boletín final: {{ boletin.estado_promocion }}{% if boletin.por_comision and boletin.estado_promocion == 'PROMOVIDO' %} POR DECISIÓN DE LA COMISIÓN{% endif %}
+        </span>
+        <span class="text-muted small">Promedio general: {{ boletin.promedio_general_final|floatformat:2 }} · Áreas perdidas: {{ boletin.areas_reprobadas }}</span>
+    </div>
+    {% if boletin.motivo_promocion %}<div class="small text-danger mt-1">{{ boletin.motivo_promocion }}</div>{% endif %}
+    <div class="small text-muted mt-2">
+        Si la comisión decide promoverlo, ajuste aquí las asignaturas que no cumplen: con una <strong>nota de la comisión</strong>
+        para el año o con <strong>nivelaciones por periodo</strong>. El boletín final conserva la nota original y muestra la nueva al lado.
+    </div>
+</div>
+
+{% if not asignaturas %}
+    <div class="alert alert-success">El estudiante no tiene asignaturas perdidas en {{ ano }}.</div>
+{% else %}
+<form method="post" id="cm-form">
+    {% csrf_token %}
+    <input type="hidden" name="ano" value="{{ ano }}">
+    <div class="cm-cab">
+        <label for="cm-acta" class="form-label small mb-1">Acta de la comisión (opcional)</label>
+        <input type="text" id="cm-acta" name="acta" maxlength="120" class="form-control form-control-sm" style="max-width:360px"
+               value="{{ acta }}" placeholder="Ej.: Acta 05 del 28 de noviembre">
+    </div>
+
+    {% for m in asignaturas %}
+    <div class="cm-mat" data-materia="{{ m.id }}" data-umbral="{{ m.umbral|stringformat:'s' }}" data-maximo="{{ m.maximo|stringformat:'s' }}">
+        <input type="hidden" name="materia" value="{{ m.id }}">
+        <div class="cm-mat-cab">
+            <h5>{{ m.nombre }}</h5>
+            <span class="cm-chip">{{ m.area }}{% if m.area_pierde %} · área perdida ({{ m.nota_area|coma_decimal }}){% endif %}</span>
+            <span class="cm-chip {% if m.pierde %}mal{% else %}ok{% endif %}">Definitiva: {{ m.original|coma_decimal|default:"-" }}{% if m.actual != m.original %} → {{ m.actual|coma_decimal }}{% endif %}</span>
+            <span class="cm-chip">Necesita para aprobar: <strong>{{ m.umbral|coma_decimal }}</strong></span>
+        </div>
+        <div class="cm-modos">
+            <label class="form-check-label"><input class="form-check-input me-1 cm-modo" type="radio" name="modo_{{ m.id }}" value="comision" {% if m.comision is not None %}checked{% endif %}> Nota de la comisión para el año</label>
+            <label class="form-check-label"><input class="form-check-input me-1 cm-modo" type="radio" name="modo_{{ m.id }}" value="nivelacion" {% if m.comision is None %}checked{% endif %}> Nivelación por periodos</label>
+        </div>
+
+        <div class="cm-panel" data-panel="comision" {% if m.comision is None %}hidden{% endif %}>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <input type="text" inputmode="decimal" name="comision_{{ m.id }}" class="form-control form-control-sm cm-comision" style="max-width:110px"
+                       value="{% if m.comision is not None %}{{ m.comision|coma_decimal }}{% endif %}" placeholder="{{ m.umbral|coma_decimal }}">
+                <span class="cm-pista">Entre {{ m.umbral|coma_decimal }} y {{ m.maximo|coma_decimal }}. Déjela vacía para quitarla.</span>
+            </div>
+        </div>
+
+        <div class="cm-panel" data-panel="nivelacion" {% if m.comision is not None %}hidden{% endif %}>
+            <div class="table-responsive">
+                <table class="table table-sm cm-tabla">
+                    <thead><tr><th class="text-start">Periodo</th><th>Peso</th><th>Nota del periodo</th><th>Nivelación</th><th>Si solo sube este periodo</th></tr></thead>
+                    <tbody>
+                    {% for p in m.periodos %}
+                        <tr data-peso="{{ p.peso|stringformat:'f' }}" data-prom="{% if p.prom is not None %}{{ p.prom|stringformat:'s' }}{% endif %}">
+                            <td class="text-start">{{ p.nombre }}</td>
+                            <td>{% widthratio p.peso 1 100 %}%</td>
+                            <td>{% if p.prom is not None %}{{ p.prom|coma_decimal }}{% else %}<span class="text-muted">sin nota</span>{% endif %}</td>
+                            <td><input type="text" inputmode="decimal" name="niv_{{ m.id }}_{{ p.id }}" class="form-control form-control-sm cm-niv"
+                                       value="{% if p.niv is not None %}{{ p.niv|coma_decimal }}{% endif %}"></td>
+                            <td class="cm-pista cm-necesita"></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="cm-resultado"></div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="cm-pie d-flex flex-wrap gap-2 align-items-center">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Guardar y recalcular el boletín</button>
+        <span class="small text-muted">Al guardar se recalcula el boletín final y se le dice si ya queda promovido.</span>
+    </div>
+</form>
+{% endif %}
+
+<script>
+(function () {
+    var PIDE_TODOS = {{ pide_todos|yesno:"true,false" }};
+    function num(t) { t = (t || '').toString().trim().replace(',', '.'); if (!t) return null; var n = parseFloat(t); return isNaN(n) ? NaN : n; }
+    function coma(n) { return n.toFixed(1).replace('.', ','); }
+    function redondear(n) { return Math.round(n * 10 + 1e-9) / 10; }      // como ROUND_HALF_UP a un decimal
+
+    function calcular(bloque) {
+        var umbral = parseFloat(bloque.dataset.umbral), maximo = parseFloat(bloque.dataset.maximo);
+        var filas = [].slice.call(bloque.querySelectorAll('[data-panel="nivelacion"] tbody tr'));
+        var datos = filas.map(function (tr) {
+            var niv = num(tr.querySelector('.cm-niv').value), prom = num(tr.dataset.prom);
+            var vale = (niv !== null && !isNaN(niv)) ? niv : prom;
+            tr.querySelector('.cm-niv').classList.toggle('is-invalid', niv !== null && (isNaN(niv) || niv <= 0 || niv > maximo));
+            return {tr: tr, peso: parseFloat(tr.dataset.peso) || 0, vale: vale, nombre: tr.cells[0].textContent.trim()};
+        });
+        var res = bloque.querySelector('.cm-resultado');
+        var faltan = datos.filter(function (d) { return d.vale === null; });
+        var con = datos.filter(function (d) { return d.vale !== null && !isNaN(d.vale); });
+        var W = con.reduce(function (s, d) { return s + d.peso; }, 0);
+        var suma = con.reduce(function (s, d) { return s + d.vale * d.peso; }, 0);
+        var objetivo = umbral - 0.05;           // la definitiva se redondea a un decimal
+        datos.forEach(function (d) {
+            var celda = d.tr.querySelector('.cm-necesita');
+            celda.className = 'cm-pista cm-necesita';
+            if (d.peso <= 0) { celda.textContent = ''; return; }
+            var Wp = W + (d.vale === null ? d.peso : 0);
+            var otros = suma - (d.vale !== null && !isNaN(d.vale) ? d.vale * d.peso : 0);
+            var x = Math.ceil(((objetivo * Wp - otros) / d.peso) * 10 - 1e-9) / 10;
+            if (d.vale !== null && x <= d.vale) { celda.textContent = 'Ya alcanza'; celda.classList.add('ok'); }
+            else if (x > maximo) { celda.textContent = 'No alcanza solo con este periodo'; celda.classList.add('mal'); }
+            else { celda.textContent = 'Necesita ' + coma(Math.max(x, 0)); }
+        });
+        if (PIDE_TODOS && faltan.length) {
+            res.className = 'cm-resultado mal';
+            res.textContent = 'Falta la nota de: ' + faltan.map(function (d) { return d.nombre; }).join(', ') + '.';
+            return;
+        }
+        if (!W) { res.textContent = ''; return; }
+        var def = redondear(suma / W);
+        if (def >= umbral - 1e-9) {
+            res.className = 'cm-resultado ok';
+            res.textContent = 'Con estas notas la definitiva del año queda en ' + coma(def) + ': aprueba.';
+        } else {
+            res.className = 'cm-resultado mal';
+            res.textContent = 'Con estas notas la definitiva del año queda en ' + coma(def) + ': le faltan ' + coma(umbral - def) + ' para llegar a ' + coma(umbral) + '.';
+        }
+    }
+
+    document.querySelectorAll('.cm-mat').forEach(function (bloque) {
+        bloque.querySelectorAll('.cm-modo').forEach(function (r) {
+            r.addEventListener('change', function () {
+                bloque.querySelectorAll('.cm-panel').forEach(function (p) { p.hidden = p.dataset.panel !== r.value; });
+            });
+        });
+        bloque.querySelectorAll('.cm-niv').forEach(function (i) { i.addEventListener('input', function () { calcular(bloque); }); });
+        calcular(bloque);
+    });
+})();
+</script>
+{% endblock %}

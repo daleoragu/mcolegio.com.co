@@ -17,10 +17,10 @@ from django.db.models import Prefetch
 
 
 
-def _coma(valor):
+def _coma(valor, decimales=1):
     """4.80 -> «4,8» (como el filtro coma_decimal de los boletines)."""
     try:
-        return f"{Decimal(valor):.1f}".replace('.', ',')
+        return f"{Decimal(valor):.{decimales}f}".replace('.', ',')
     except Exception:
         return str(valor)
 
@@ -246,9 +246,11 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
 
 @calculo_en_lote
 def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=None):
+    promedio_minimo = None
     try:
         config = ConfiguracionSistema.objects.get(colegio=colegio)
         max_areas_reprobadas = config.max_areas_reprobadas
+        promedio_minimo = config.promedio_minimo_promocion
     except ConfiguracionSistema.DoesNotExist:
         max_areas_reprobadas = 2
 
@@ -294,6 +296,11 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
                 calificaciones_pivot[key]['ultima_observacion_inclusion'] = cal.observacion_inclusion
         elif cal.tipo_nota == 'NIVELACION':
             calificaciones_pivot[key][period_key]['niv'] = cal.valor_nota
+
+    # Notas que puso la comisión de evaluación y promoción: mandan sobre la definitiva del año.
+    from ..models import NotaComision
+    notas_comision = {(n.estudiante_id, n.materia_id): n for n in NotaComision.objects.filter(
+        colegio=colegio, ano_lectivo=ano_lectivo, estudiante__in=estudiantes, materia_id__in=materias_del_curso_ids)}
 
     boletines_finales = []
     for estudiante in estudiantes:
@@ -353,6 +360,10 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
                 definitiva_materia_rec, periodos_faltantes = definitiva_anual(
                     colegio, notas_rec_por_periodo, periodos_del_ano)
                 
+                comision = notas_comision.get((estudiante.id, materia_id))
+                if comision is not None:
+                    definitiva_materia_rec = comision.valor_nota
+                    datos_estudiante['por_comision'] = True
                 definitiva_para_calculo_area = definitiva_materia_rec
                 promedia_boletin = getattr(asignacion.materia, 'promedia_en_boletin', True)
 
@@ -374,9 +385,11 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
 
                 datos_area_actual['materias'].append({
                     'nombre': asignacion.materia.nombre,
+                    'materia_id': materia_id,
                     'docente': asignacion.docente,
                     'ih': ih,
                     'notas_periodos': notas_periodos_display,
+                    'comision': comision.valor_nota if comision is not None else None,
                     'definitiva_original': definitiva_materia_orig,
                     'definitiva_recuperada': definitiva_materia_rec if definitiva_materia_rec != definitiva_materia_orig else None,
                     'valoracion': valoracion,
@@ -418,6 +431,17 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
         promedio_general_final = (suma_ponderada_final / total_ih_anual).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if total_ih_anual > 0 else Decimal('0.0')
 
         estado_promocion = "PROMOVIDO" if datos_estudiante['areas_reprobadas'] <= max_areas_reprobadas else "NO PROMOVIDO"
+        motivo = ''
+        if estado_promocion == "NO PROMOVIDO":
+            motivo = (f"Perdió {datos_estudiante['areas_reprobadas']} área(s); el máximo permitido es "
+                      f"{max_areas_reprobadas}.")
+        elif (promedio_minimo is not None and datos_estudiante['areas_reprobadas'] > 0
+              and promedio_general_final < promedio_minimo):
+            # Quien pierde áreas (sin pasar del máximo) necesita además el promedio general mínimo.
+            estado_promocion = "NO PROMOVIDO"
+            motivo = (f"Perdió {datos_estudiante['areas_reprobadas']} área(s) y su promedio general "
+                      f"({_coma(promedio_general_final, 2)}) no alcanza el mínimo de {_coma(promedio_minimo, 2)}.")
+        datos_estudiante['motivo_promocion'] = motivo
 
         datos_estudiante.update({
             'promedio_general_final': promedio_general_final,

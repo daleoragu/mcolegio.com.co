@@ -1,4 +1,5 @@
 # notas/views/admin_tools_views.py
+from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -225,8 +226,16 @@ def panel_control_promocion_vista(request):
     if request.method == 'POST':
         max_reprobadas_str = request.POST.get('max_areas_reprobadas')
         
-        if max_reprobadas_str is not None and max_reprobadas_str.isdigit():
+        promedio_str = (request.POST.get('promedio_minimo_promocion') or '').strip().replace(',', '.')
+        try:
+            promedio = Decimal(promedio_str) if promedio_str else None
+        except Exception:
+            promedio = 'mal'
+        if promedio == 'mal' or (promedio is not None and promedio < 0):
+            messages.error(request, "El promedio mínimo no es un número válido.")
+        elif max_reprobadas_str is not None and max_reprobadas_str.isdigit():
             config.max_areas_reprobadas = int(max_reprobadas_str)
+            config.promedio_minimo_promocion = promedio
             config.save()
             messages.success(request, "La regla de promoción ha sido actualizada correctamente.")
             return redirect('notas:panel_control_promocion')
