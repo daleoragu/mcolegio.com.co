@@ -247,9 +247,17 @@
         tam = tam || 1;
         var acostada = (vw > vh) !== !!girar;
         var prop = acostada ? 1 / dz.prop : dz.prop;          // alto/ancho del rectángulo de marcas en pantalla
-        var ancho = Math.min(vw * 0.82 * tam, vh * 0.82 * tam / prop), alto = ancho * prop;
+        // Lo más grande que quepa: las cuatro marcas cerca de las esquinas de lo que muestra la cámara, con los
+        // recuadros completos adentro (antes quedaban pegados o cortados contra el borde).
+        var ladoDe = function (a) { return Math.max(Math.min(vw, vh) * 0.12, dz.marca / (acostada ? dz.spanH : dz.spanW) * a * 2.4); };
+        var ancho = Math.min(vw * 0.92 * tam, vh * 0.92 * tam / prop);
+        for (var k = 0; k < 3; k++) {
+            var l = ladoDe(ancho);
+            ancho = Math.min(ancho, vw - l * 1.1, (vh - l * 1.1) / prop);
+        }
+        var alto = ancho * prop;
         var x0 = (vw - ancho) / 2, y0 = (vh - alto) / 2;
-        var lado = Math.max(Math.min(vw, vh) * 0.12, dz.marca / (acostada ? dz.spanH : dz.spanW) * ancho * 2.4);
+        var lado = ladoDe(ancho);
         return {centros: [[x0, y0], [x0 + ancho, y0], [x0 + ancho, y0 + alto], [x0, y0 + alto]],
                 lado: lado, acostada: acostada, marca: dz.marca / (acostada ? dz.spanH : dz.spanW) * ancho};
     }
