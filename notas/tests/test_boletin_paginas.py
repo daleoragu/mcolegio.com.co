@@ -73,3 +73,21 @@ class BoletinPaginas(ColegioDePrueba):
         datos, nombres = get_datos_boletin_final(self.a, self.curso, 2026, ana)
         materia = datos[0]['areas'][0]['materias'][0]
         self.assertEqual(materia['notas_periodos'][nombres[0]], '4,8')
+
+    def test_final_hereda_las_firmas_y_muestra_la_asignatura(self):
+        from django.template.loader import render_to_string
+        from notas.boletin.logic import get_datos_boletin_final
+        from notas.boletin.ponderacion import ajustes
+        self.datos()
+        self.a.mostrar_firma_rector_boletin = True
+        self.a.nombre_rector = 'Rosa Rectora'
+        self.a.firmas_director = {'boletin': True}
+        self.a.save()
+        datos, nombres = get_datos_boletin_final(self.a, self.curso, 2026, self.estudiantes[0])
+        html = render_to_string('notas/boletin/boletin_final_pdf.html', {
+            'boletines': datos, 'nombres_periodos': nombres, 'curso': self.curso, 'ano_lectivo': 2026,
+            'colegio': self.a, 'ajustes': ajustes(self.a)})
+        self.assertIn('Director(a) de Grupo', html)
+        self.assertIn('ROSA RECTORA', html)
+        # El área tiene una sola asignatura y aun así sale su nombre.
+        self.assertIn(f'{self.materia.nombre}<br>', html)

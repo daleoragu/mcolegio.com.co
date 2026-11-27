@@ -118,7 +118,7 @@
             </thead>
             {% for area in boletin.areas %}
             <tbody class="bloque-area">
-                <!-- Toda área lleva su franja; con una sola asignatura, debajo va solo el docente con las notas. -->
+                <!-- Toda área lleva su franja y debajo cada asignatura con su nombre y docente (aunque sea una sola). -->
                 <tr class="{{ area.estado_color_css_class }}">
                     <td class="area-nombre">{{ area.nombre }}</td>
                     <td colspan="{{ nombres_periodos|length }}" class="area-nombre" style="text-align: center; font-weight: bold;">{{ area.desempeno_area }}</td>
@@ -130,9 +130,7 @@
                 {% for materia in area.materias %}
                 <tr>
                     <td class="materia-nombre">
-                        {% if area.materias|length > 1 %}
-                            {{ materia.nombre }}<br>
-                        {% endif %}
+                        {{ materia.nombre }}<br>
                         {% if materia.docente %}
                             <small><strong>Docente:</strong> {{ materia.docente.user.get_full_name }}</small>
                         {% endif %}
@@ -218,10 +216,10 @@
                         </div>
                         <div class="linea-firma" style="width: 40%;"></div>
                         <p style="margin: 0; text-transform: uppercase;">{{ director_nombre }}</p>
-                        <p style="margin: 0;"><strong>{% if colegio.firma_director.boletin_final %}Rector(a) y Director(a) de Grupo{% else %}Rector(a){% endif %}</strong></p>
+                        <p style="margin: 0;"><strong>{% if colegio.firma_director.boletin %}Rector(a) y Director(a) de Grupo{% else %}Rector(a){% endif %}</strong></p>
                     </td>
                 {% else %}
-                    {% if colegio.firma_director.boletin_final %}
+                    {% if colegio.firma_director.boletin %}
                     <td style="width: {% if colegio.mostrar_firma_rector_boletin %}50%{% else %}100%{% endif %};">
                         <div class="contenedor-firma"></div>
                         <div class="linea-firma"></div>
@@ -231,7 +229,7 @@
                     {% endif %}
                     
                     {% if colegio.mostrar_firma_rector_boletin %}
-                    <td style="width: {% if colegio.firma_director.boletin_final %}50%{% else %}100%{% endif %};">
+                    <td style="width: {% if colegio.firma_director.boletin %}50%{% else %}100%{% endif %};">
                         <div class="contenedor-firma">
                             {% if colegio.firma_rector %}
                                 <img src="{{ colegio.firma_rector.url }}" class="img-firma">
