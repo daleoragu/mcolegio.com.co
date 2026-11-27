@@ -1,4 +1,4 @@
-Versión 0108 · 2026-11-27 13:01
+Versión 0109 · 2026-11-27 19:09
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -201,11 +201,13 @@ NUEVO     aula/templates/aula/_invertida_form.html
 NUEVO     aula/templates/aula/_invertida_js.html
 NUEVO     aula/templates/aula/_mate.html
 NUEVO     aula/templates/aula/_nube_grabaciones.html
+CAMBIADO  aula/templates/aula/_rubrica_tabla.html
 CAMBIADO  aula/templates/aula/actividad.html
 NUEVO     aula/templates/aula/banco.html
 CAMBIADO  aula/templates/aula/base_salon.html
 CAMBIADO  aula/templates/aula/calificaciones.html
 NUEVO     aula/templates/aula/calificaciones_pdf.html
+CAMBIADO  aula/templates/aula/calificar.html
 NUEVO     aula/templates/aula/compartidos.html
 CAMBIADO  aula/templates/aula/cuestionario.html
 CAMBIADO  aula/templates/aula/entrar.html
@@ -228,6 +230,7 @@ NUEVO     aula/templates/aula/gamificacion.html
 CAMBIADO  aula/templates/aula/importar.html
 CAMBIADO  aula/templates/aula/inicio.html
 CAMBIADO  aula/templates/aula/inicio_salon.html
+CAMBIADO  aula/templates/aula/instrumento.html
 NUEVO     aula/templates/aula/invertida.html
 NUEVO     aula/templates/aula/invertidas.html
 NUEVO     aula/templates/aula/juego.html

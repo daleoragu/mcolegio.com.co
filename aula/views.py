@@ -945,10 +945,14 @@ def instrumento(request, iid):
         return redirect('aula:instrumento', iid=inst.pk)
     niveles = list(inst.niveles.all())
     criterios = list(inst.criterios.all())
+    total = sum(cr.peso for cr in criterios) or Decimal('1')
     for cr in criterios:
         cr.textos = [cr.descriptor(n) for n in niveles]
+        # El peso se muestra como porcentaje del total (internamente es un peso relativo).
+        cr.pct = (cr.peso * 100 / total).quantize(Decimal('0.01'))
+    iguales = len({cr.peso for cr in criterios}) <= 1
     return render(request, 'aula/instrumento.html', {
-        'inst': inst, 'niveles': niveles, 'criterios': criterios, 'propio': propio, 'usado': usado,
+        'inst': inst, 'niveles': niveles, 'criterios': criterios, 'propio': propio, 'usado': usado, 'iguales': iguales,
         'base': base, 'colegio': colegio, 'imprimir': request.GET.get('imprimir') == '1'})
 
 
@@ -968,6 +972,14 @@ def _guardar_instrumento(request, inst, usado):
             return 'La rúbrica necesita al menos dos niveles, cada uno con su valor.'
     if not filas_c:
         return 'Agregue al menos un criterio.'
+    if P.get('iguales') == 'on':
+        # Todos los criterios valen lo mismo
+        filas_c = [(i, n, Decimal('1')) for i, n, _ in filas_c]
+    elif P.get('pesos_en') == 'porcentaje':
+        suma = sum(p for _, _, p in filas_c)
+        if abs(suma - 100) > Decimal('0.5'):
+            return (f'Los porcentajes de los criterios suman {str(suma.normalize()).replace(".", ",")} %; deben sumar 100 %. '
+                    f'O marque «Todos los criterios valen lo mismo».')
     niveles = list(inst.niveles.all())
     criterios = list(inst.criterios.all())
     if usado and (len(filas_c) != len(criterios) or (inst.tipo == 'rubrica' and len(filas_n) != len(niveles))):

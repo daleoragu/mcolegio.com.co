@@ -40,7 +40,7 @@
             <h6>{{ inst.nombre }}</h6>
             {% for cr in criterios %}
             <div class="mb-3">
-                <div class="fw-semibold mb-1">{{ cr.nombre }}{% if cr.peso != 1 %} <span class="text-muted small">×{{ cr.peso|floatformat:-2 }}</span>{% endif %}</div>
+                <div class="fw-semibold mb-1">{{ cr.nombre }} <span class="text-muted small">({{ cr.porcentaje|floatformat:-1 }} %)</span></div>
                 {% if inst.tipo == 'lista' %}
                     <div class="btn-group w-100" role="group">
                         <input type="radio" class="btn-check au-sel" name="c{{ cr.pk }}" id="c{{ cr.pk }}-si" value="si" {% if cr.elegido is True %}checked{% endif %}>
