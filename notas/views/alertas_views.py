@@ -74,6 +74,24 @@ def alertas_tempranas(request):
                 por_curso.append({'curso': c, **r})
     filas.sort(key=lambda f: (ORDEN_RIESGO[f['riesgo']], -f['n'], f['curso'].orden,
                               f['estudiante'].user.last_name))
+    # Final del año: el docente pide permiso para ajustar sus asignaturas; el administrador ve los pendientes.
+    pendientes_comision = 0
+    if es_final:
+        from ..models import AsignacionDocente, PermisoComision
+        if es_admin(request):
+            pendientes_comision = PermisoComision.objects.filter(colegio=request.colegio, estado='PENDIENTE').count()
+        else:
+            docente = Docente.objects.filter(user=request.user, colegio=request.colegio).first()
+            mias = set(AsignacionDocente.objects.filter(colegio=request.colegio, docente=docente)
+                       .values_list('curso_id', 'materia_id')) if docente else set()
+            permisos = {(p.estudiante_id, p.materia_id): p.estado for p in PermisoComision.objects.filter(
+                colegio=request.colegio, docente=docente, ano_lectivo=ano).order_by('creado')} if docente else {}
+            for f in filas:
+                for a in f.get('areas_perdidas', []):
+                    for m in a['materias']:
+                        if (f['curso'].id, m['materia_id']) in mias:
+                            m['mia'] = True
+                            m['permiso'] = permisos.get((f['estudiante'].id, m['materia_id']))
     ver = request.GET.get('ver', 'riesgo')
     visibles = [f for f in filas if f['riesgo'] in ('alto', 'medio')] if ver == 'riesgo' else filas
 
@@ -84,5 +102,5 @@ def alertas_tempranas(request):
         'filas': visibles, 'total_filas': len(filas), 'resumen': resumen(filas), 'por_curso': por_curso,
         'aprobacion': aprobacion, 'maximo': maximo, 'ver': ver, 'es_final': es_final,
         'periodo_param': 'final' if es_final else (periodo.id if periodo else ''),
-        'puede_comision': es_admin(request),
+        'puede_comision': es_admin(request), 'pendientes_comision': pendientes_comision,
     })

@@ -10,7 +10,7 @@ from .academicos import (
     AreaConocimiento, Materia, PeriodoAcademico, AsignacionDocente,
     Calificacion, NotaDetallada, IndicadorLogroPeriodo, ReporteParcial, Observacion,
     PlanDeMejoramiento, Asistencia, InasistenciasManualesPeriodo, EscalaValoracion, 
-    ConfiguracionSistema, NotaComision, PublicacionBoletin, PublicacionBoletinFinal,PonderacionAreaMateria,
+    ConfiguracionSistema, NotaComision, PermisoComision, PublicacionBoletin, PublicacionBoletinFinal,PonderacionAreaMateria,
     PlanNotas, ComponenteEvaluacion, PonderacionGrado, EscalaEspecial, NivelEscalaEspecial
 )
 from .comunicaciones import Mensaje, RegistroObservador, Notificacion, FaltaCatalogo, TIPOS_FALTA, SuscripcionPush, ClavePush
@@ -29,7 +29,7 @@ __all__ = [
     'AreaConocimiento', 'Materia', 'PeriodoAcademico', 'AsignacionDocente', 'EscalaValoracion', 
     'Calificacion', 'NotaDetallada', 'IndicadorLogroPeriodo', 'ReporteParcial', 'Observacion',
     'PlanDeMejoramiento', 'Asistencia', 'InasistenciasManualesPeriodo','PonderacionAreaMateria',
-    'ConfiguracionSistema', 'NotaComision', 'PublicacionBoletin', 'PublicacionBoletinFinal', 'PlanNotas', 'ComponenteEvaluacion', 'PonderacionGrado', 'EscalaEspecial', 'NivelEscalaEspecial',
+    'ConfiguracionSistema', 'NotaComision', 'PermisoComision', 'PublicacionBoletin', 'PublicacionBoletinFinal', 'PlanNotas', 'ComponenteEvaluacion', 'PonderacionGrado', 'EscalaEspecial', 'NivelEscalaEspecial',
     'RecursoEducativo', 'VideoPortal', 'Mensaje', 'FaltaCatalogo', 'TIPOS_FALTA', 'RegistroObservador', 'Notificacion', 'SuscripcionPush', 'ClavePush',
     'DocumentoPublico', 'FotoGaleria', 'Noticia', 'ImagenCarrusel',
 ]

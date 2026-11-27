@@ -273,6 +273,35 @@ class NotaComision(models.Model):
         return f"{self.estudiante} · {self.materia} · {self.ano_lectivo}: {self.valor_nota}"
 
 
+class PermisoComision(models.Model):
+    """El docente pide permiso para ajustar, en la pantalla de la comisión, la nota de su asignatura a un estudiante.
+
+    El administrador lo aprueba o lo rechaza (y puede quitarlo después). Aprobado, el docente entra a la pantalla de
+    la comisión solo para esa asignatura de ese estudiante; el administrador sigue pudiendo cambiar todo.
+    """
+    ESTADOS = [('PENDIENTE', 'Pendiente'), ('APROBADO', 'Aprobado'), ('RECHAZADO', 'Rechazado'),
+               ('REVOCADO', 'Quitado')]
+    colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="permisos_comision")
+    estudiante = models.ForeignKey(Estudiante, on_delete=models.CASCADE, related_name="permisos_comision")
+    materia = models.ForeignKey('Materia', on_delete=models.CASCADE)
+    ano_lectivo = models.PositiveIntegerField()
+    docente = models.ForeignKey(Docente, on_delete=models.CASCADE, related_name="permisos_comision")
+    motivo = models.CharField(max_length=300, blank=True, default='')
+    estado = models.CharField(max_length=10, choices=ESTADOS, default='PENDIENTE')
+    respuesta = models.CharField(max_length=300, blank=True, default='')
+    revisado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    revisado_en = models.DateTimeField(null=True, blank=True)
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado']
+        verbose_name = "Permiso para ajustar notas (comisión)"
+        verbose_name_plural = "Permisos para ajustar notas (comisión)"
+
+    def __str__(self):
+        return f"{self.docente} · {self.estudiante} · {self.materia} · {self.get_estado_display()}"
+
+
 class PublicacionBoletin(models.Model):
     colegio = models.ForeignKey(Colegio, on_delete=models.CASCADE, related_name="publicaciones_boletines", null=True)
     periodo = models.OneToOneField(PeriodoAcademico, on_delete=models.CASCADE, verbose_name="Periodo Publicado")

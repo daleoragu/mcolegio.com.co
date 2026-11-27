@@ -135,7 +135,7 @@ def alertas_finales(colegio, curso, ano):
                     m['definitiva_recuperada'] if m['definitiva_recuperada'] is not None else m['definitiva_original'])
                 piso = _umbral(colegio, m['materia_id'], curso.grado)
                 if actual is None or actual < piso:
-                    materias.append({'materia': m['nombre'], 'acumulada': actual,
+                    materias.append({'materia': m['nombre'], 'materia_id': m['materia_id'], 'acumulada': actual,
                                      'docente': m['docente'].user.get_full_name() if m.get('docente') else '',
                                      'falta': (piso - actual).quantize(Decimal('0.1')) if actual is not None else None})
             areas.append({'area': area['nombre'], 'nota': area.get('nota_final_area'), 'materias': materias})

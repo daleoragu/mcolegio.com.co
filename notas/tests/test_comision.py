@@ -183,6 +183,81 @@ class AlertasFinales(BaseComision):
         self.assertContains(r, 'No promovido · 2 áreas')           # ve todo el curso, no solo su materia
         self.assertNotContains(r, '602')
         self.assertNotContains(r, self.url())                        # mira, pero no ajusta notas
-        self.assertEqual(self.cliente(u).get(self.url()).status_code, 302)
+        self.assertEqual(self.cliente(u).get(self.url()).status_code, 403)
         self.assertEqual(self.ver(u_sin).status_code, 403)          # sin clases ni dirección: nada que ver
         self.assertContains(self.cliente(u).get(reverse('notas:panel_docente')), reverse('notas:alertas_tempranas'))
+
+
+class PermisosDelDocente(BaseComision):
+    """El docente pide permiso para ajustar su asignatura; el administrador lo aprueba; el docente ajusta solo eso."""
+
+    def setUp(self):
+        super().setUp()
+        from django.contrib.auth.models import User
+        from notas.models import Docente
+        self.u_ing = User.objects.create_user('teacher', password='x', first_name='Tina', last_name='Inglés')
+        self.d_ing = Docente.objects.create(colegio=self.a, user=self.u_ing)
+        AsignacionDocente.objects.filter(materia=self.ingles, curso=self.curso).update(docente=self.d_ing)
+        self.perder_dos()
+
+    def alertas(self, usuario):
+        return self.cliente(usuario).get(reverse('notas:alertas_tempranas') + '?ano=2026&periodo=final&ver=todos')
+
+    def pedir(self, materia):
+        return self.cliente(self.u_ing).post(reverse('notas:pedir_permiso_comision'), {
+            'ano': '2026', 'estudiante': self.ana.id, 'materia': materia.id, 'motivo': 'Presentó el trabajo final'})
+
+    def responder(self, accion):
+        from notas.models import PermisoComision
+        p = PermisoComision.objects.get()
+        return self.cliente(self.rectora).post(reverse('notas:permisos_comision'),
+                                               {'permiso': p.id, 'accion': accion, 'respuesta': 'Visto en comisión'})
+
+    def test_flujo_completo(self):
+        from notas.models import Notificacion, PermisoComision
+        r = self.alertas(self.u_ing)
+        self.assertContains(r, 'Pedir permiso para ajustar', count=1)     # solo junto a Inglés, que es suya
+        self.assertEqual(self.cliente(self.u_ing).get(self.url()).status_code, 403)
+        # Pide; no puede pedir por una materia que no dicta.
+        self.pedir(self.materia)
+        self.assertFalse(PermisoComision.objects.exists())
+        self.pedir(self.ingles)
+        p = PermisoComision.objects.get()
+        self.assertEqual((p.estado, p.motivo), ('PENDIENTE', 'Presentó el trabajo final'))
+        self.assertTrue(Notificacion.objects.filter(destinatario=self.rectora, mensaje__contains='pide permiso').exists())
+        self.assertContains(self.alertas(self.u_ing), 'Permiso pedido')
+        self.assertContains(self.alertas(self.rectora), 'esperando respuesta')
+        r = self.cliente(self.rectora).get(reverse('notas:permisos_comision'))
+        self.assertContains(r, 'Presentó el trabajo final')
+        # Aprobado: entra a la comisión solo con Inglés.
+        self.responder('aprobar')
+        aviso = Notificacion.objects.filter(destinatario=self.u_ing).latest('id')
+        self.assertIn('aprobó', aviso.mensaje)
+        self.assertEqual(aviso.url, self.url())
+        self.assertContains(self.alertas(self.u_ing), 'Ajustar nota')
+        r = self.cliente(self.u_ing).get(self.url())
+        self.assertContains(r, 'name="modo_%d"' % self.ingles.id)
+        self.assertNotContains(r, 'name="modo_%d"' % self.materia.id)
+        # Guarda Inglés; lo de Matemáticas se ignora.
+        self.cliente(self.u_ing).post(self.url(), {
+            'ano': '2026', 'materia': [self.ingles.id, self.materia.id],
+            f'modo_{self.ingles.id}': 'comision', f'comision_{self.ingles.id}': '3,0',
+            f'modo_{self.materia.id}': 'comision', f'comision_{self.materia.id}': '3,0'})
+        self.assertEqual(list(NotaComision.objects.values_list('materia_id', flat=True)), [self.ingles.id])
+        self.assertEqual(NotaComision.objects.get().registrado_por, self.u_ing)
+        # Quitado: ya no entra.
+        self.responder('quitar')
+        self.assertEqual(self.cliente(self.u_ing).get(self.url()).status_code, 403)
+
+    def test_rechazado_puede_pedir_otra_vez(self):
+        from notas.models import PermisoComision
+        self.pedir(self.ingles)
+        self.responder('rechazar')
+        self.assertContains(self.alertas(self.u_ing), 'Pedir otra vez')
+        self.pedir(self.ingles)
+        self.assertEqual(PermisoComision.objects.filter(estado='PENDIENTE').count(), 1)
+
+    def test_solo_el_administrador_responde(self):
+        self.pedir(self.ingles)
+        r = self.cliente(self.u_ing).get(reverse('notas:permisos_comision'))
+        self.assertNotEqual(r.status_code, 200)
