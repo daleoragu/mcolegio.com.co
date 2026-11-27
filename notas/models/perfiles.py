@@ -13,8 +13,8 @@ from django.db.models import Max # <--- IMPORTADO PARA EL ORDEN
 # Documentos en los que puede salir la firma del director(a) de grado, con su valor de fábrica.
 # Por lo general el director firma el boletín; el libro final y otros documentos los firma rectoría.
 FIRMA_DIRECTOR_DOCUMENTOS = [
-    ('boletin', 'Boletín de periodo', True),
-    ('boletin_final', 'Boletín final', True),
+    # El boletín final hereda la firma del de periodo: una sola casilla para los dos.
+    ('boletin', 'Boletines de periodo y final', True),
     ('preescolar', 'Boletines de preescolar', True),
     ('informe_parcial', 'Informe parcial (a mitad de periodo)', True),
     ('libro', 'Libro final de calificaciones', False),

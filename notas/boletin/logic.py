@@ -16,6 +16,14 @@ from ..pesos_area import pesos_areas
 from django.db.models import Prefetch
 
 
+
+def _coma(valor):
+    """4.80 -> «4,8» (como el filtro coma_decimal de los boletines)."""
+    try:
+        return f"{Decimal(valor):.1f}".replace('.', ',')
+    except Exception:
+        return str(valor)
+
 def estudiantes_del_curso_en(colegio, curso, ano_lectivo):
     """Los estudiantes que estuvieron en `curso` el año `ano_lectivo`.
 
@@ -329,9 +337,10 @@ def get_datos_boletin_final(colegio, curso, ano_lectivo, estudiante_especifico=N
                     nota_orig = cal_data.get('prom')
                     nota_rec = cal_data.get('niv')
 
-                    display_str = f"{nota_orig}" if nota_orig is not None else "-"
+                    # Con coma y un decimal, igual que la definitiva (antes salía «4.80» al lado de «4,8»)
+                    display_str = _coma(nota_orig) if nota_orig is not None else "-"
                     if nota_rec is not None:
-                        display_str += f" ({nota_rec})"
+                        display_str += f" ({_coma(nota_rec)})"
                     notas_periodos_display[p.get_nombre_display()] = display_str
 
                     notas_orig_por_periodo[p.id] = Decimal(nota_orig) if nota_orig is not None else None

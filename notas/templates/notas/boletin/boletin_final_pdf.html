@@ -22,8 +22,10 @@
         .tabla-notas { width: 100%; border-collapse: collapse; font-size: 1em; }
         .tabla-notas th, .tabla-notas td { border: 1px solid #999; padding: 4px; text-align: center; vertical-align: middle; }
         .tabla-notas th { background-color: #E0E0E0; font-weight: bold; }
-        .materia-nombre { text-align: left; }
-        .area-nombre { text-align: left; font-weight: bold; }
+        /* Igual que el boletín de periodo: franja gris del área (texto en el color del desempeño) y las
+           asignaturas con su docente a la izquierda, todas con la misma sangría */
+        .tabla-notas td.materia-nombre { text-align: left; padding-left: 10px; }
+        .tabla-notas td.area-nombre { font-weight: bold; background-color: #f0f0f0; }
         .nota-definitiva { font-weight: bold; }
         
         .tabla-resumen { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 1.1em; }
@@ -38,6 +40,9 @@
         
         /* Estilos de las Firmas Corregidos */
         .pie-pagina-tabla { width: 100%; margin-top: 40px; text-align: center; page-break-inside: avoid; font-size: 1.1em; border-collapse: collapse; }
+        /* Cada área queda entera en una página, y el resumen, el estado final y las firmas van juntos */
+        .bloque-area { break-inside: avoid; page-break-inside: avoid; }
+        .cierre-boletin { break-inside: avoid; page-break-inside: avoid; break-before: avoid; page-break-before: avoid; }
         .pie-pagina-tabla td { border: none !important; vertical-align: bottom; padding: 5px; }
         .linea-firma { border-top: 1px solid #000; width: 80%; margin: 0 auto 5px auto; }
         .contenedor-firma { height: 65px; text-align: center; }
@@ -111,11 +116,9 @@
                     <th style="width: 11%;">DEFINITIVA</th>
                 </tr>
             </thead>
-            <tbody>
             {% for area in boletin.areas %}
-                
-                <!-- El área se omite cuando tiene una sola asignatura. -->
-                {% if not area.colapsada %}
+            <tbody class="bloque-area">
+                <!-- Toda área lleva su franja y debajo cada asignatura con su nombre y docente (aunque sea una sola). -->
                 <tr class="{{ area.estado_color_css_class }}">
                     <td class="area-nombre">{{ area.nombre }}</td>
                     <td colspan="{{ nombres_periodos|length }}" class="area-nombre" style="text-align: center; font-weight: bold;">{{ area.desempeno_area }}</td>
@@ -123,16 +126,11 @@
                         {{ area.nota_final_area|coma_decimal|default_if_none:"-" }}
                     </td>
                 </tr>
-                {% endif %}
 
                 {% for materia in area.materias %}
-                <tr class="{% if area.colapsada %}{{ area.estado_color_css_class }}{% endif %}">
-                    <td class="materia-nombre" style="{% if not area.colapsada %}padding-left: 15px;{% endif %}">
-                        {% if area.colapsada %}
-                            <strong>{{ area.nombre }}</strong><br>
-                        {% elif area.materias|length > 1 %}
-                            {{ materia.nombre }}<br>
-                        {% endif %}
+                <tr>
+                    <td class="materia-nombre">
+                        {{ materia.nombre }}<br>
                         {% if materia.docente %}
                             <small><strong>Docente:</strong> {{ materia.docente.user.get_full_name }}</small>
                         {% endif %}
@@ -165,10 +163,11 @@
                 {% endif %}
 
                 {% endfor %}
-            {% endfor %}
             </tbody>
+            {% endfor %}
         </table>
-        
+
+        <div class="cierre-boletin">
         <table class="tabla-resumen">
             <thead>
                 <tr><th colspan="4">Resumen de Rendimiento Final por Áreas</th></tr>
@@ -217,10 +216,10 @@
                         </div>
                         <div class="linea-firma" style="width: 40%;"></div>
                         <p style="margin: 0; text-transform: uppercase;">{{ director_nombre }}</p>
-                        <p style="margin: 0;"><strong>{% if colegio.firma_director.boletin_final %}Rector(a) y Director(a) de Grupo{% else %}Rector(a){% endif %}</strong></p>
+                        <p style="margin: 0;"><strong>{% if colegio.firma_director.boletin %}Rector(a) y Director(a) de Grupo{% else %}Rector(a){% endif %}</strong></p>
                     </td>
                 {% else %}
-                    {% if colegio.firma_director.boletin_final %}
+                    {% if colegio.firma_director.boletin %}
                     <td style="width: {% if colegio.mostrar_firma_rector_boletin %}50%{% else %}100%{% endif %};">
                         <div class="contenedor-firma"></div>
                         <div class="linea-firma"></div>
@@ -230,7 +229,7 @@
                     {% endif %}
                     
                     {% if colegio.mostrar_firma_rector_boletin %}
-                    <td style="width: {% if colegio.firma_director.boletin_final %}50%{% else %}100%{% endif %};">
+                    <td style="width: {% if colegio.firma_director.boletin %}50%{% else %}100%{% endif %};">
                         <div class="contenedor-firma">
                             {% if colegio.firma_rector %}
                                 <img src="{{ colegio.firma_rector.url }}" class="img-firma">
@@ -245,6 +244,7 @@
             </tr>
         </table>
         {% endwith %}
+        </div>
     </div>
 {% endfor %}
 </body>

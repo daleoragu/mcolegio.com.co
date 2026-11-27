@@ -1,4 +1,4 @@
-Versión 0101 · 2026-11-27 01:25
+Versión 0104 · 2026-11-27 11:42
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -724,6 +724,7 @@ CAMBIADO  notas/templates/notas/admin_tools/impresion_masiva_carnets.html
 NUEVO     notas/templates/notas/admin_tools/pines_carnet.html
 CAMBIADO  notas/templates/notas/base.html
 CAMBIADO  notas/templates/notas/base_portal.html
+CAMBIADO  notas/templates/notas/boletin/boletin_final_pdf.html
 CAMBIADO  notas/templates/notas/boletin/boletin_pdf.html
 CAMBIADO  notas/templates/notas/boletin/boletin_prescolar_pdf.html
 CAMBIADO  notas/templates/notas/docente/_panel_docente_content.html
@@ -765,8 +766,10 @@ CAMBIADO  notas/templatetags/nota_filters.py
 NUEVO     notas/templatetags/pases_tags.py
 CAMBIADO  notas/tests/test_app.py
 NUEVO     notas/tests/test_asesoria.py
+NUEVO     notas/tests/test_boletin_paginas.py
 NUEVO     notas/tests/test_colores_iconos.py
 NUEVO     notas/tests/test_excusas.py
+CAMBIADO  notas/tests/test_firmas_director.py
 NUEVO     notas/tests/test_kiosko_carnet.py
 NUEVO     notas/tests/test_meses_asistencia.py
 NUEVO     notas/tests/test_permisos_salida.py
