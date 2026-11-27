@@ -178,6 +178,29 @@ class Excusas(ColegioDePrueba):
         mate = next(m for area in datos['areas'] for m in area['materias'] if m['nombre'] == 'Matemáticas')
         self.assertEqual((mate['inasistencias'], mate['inasistencias_excusa']), (2, 1))
 
+    def test_boletin_trae_las_inasistencias_escritas_en_la_planilla(self):
+        """La columna «Inasistencias» de la planilla llega al boletín (antes salía 0 si no se tomó asistencia día a día);
+        un 0 que la planilla crea al abrirse no tapa las fallas tomadas en Asistencia."""
+        from notas.boletin.logic import get_datos_boletin_curso
+        from notas.models import AreaConocimiento, InasistenciasManualesPeriodo, PonderacionAreaMateria
+        area = AreaConocimiento.objects.create(colegio=self.a, nombre='Matemáticas')
+        PonderacionAreaMateria.objects.create(colegio=self.a, area=area, materia=self.materia, peso_porcentual=100)
+        self.p1.fecha_inicio, self.p1.fecha_fin = self.hoy - timedelta(days=60), self.hoy + timedelta(days=5)
+        self.p1.save()
+
+        def faltas(est):
+            datos = get_datos_boletin_curso(self.a, self.curso, self.p1, estudiante_especifico=est)
+            datos = datos[0] if isinstance(datos, list) else next(iter(datos.values()))
+            return next(m for area in datos['areas'] for m in area['materias'] if m['nombre'] == 'Matemáticas')['inasistencias']
+
+        InasistenciasManualesPeriodo.objects.create(colegio=self.a, estudiante=self.ana, asignacion=self.asig, periodo=self.p1, cantidad=7)
+        self.assertEqual(faltas(self.ana), 7)
+        # Beto: 2 fallas tomadas día a día y la planilla en 0 (la crea al abrirse): quedan las 2
+        Asistencia.objects.create(colegio=self.a, estudiante=self.beto, asignacion=self.asig, fecha=self.ayer, estado='A')
+        Asistencia.objects.create(colegio=self.a, estudiante=self.beto, asignacion=self.asig, fecha=dia_habil_anterior(self.ayer), estado='A')
+        InasistenciasManualesPeriodo.objects.create(colegio=self.a, estudiante=self.beto, asignacion=self.asig, periodo=self.p1, cantidad=0)
+        self.assertEqual(faltas(self.beto), 2)
+
     def test_plazo_configurable(self):
         self.cliente(self.rectora).post('/excusas/', {'accion': 'plazo', 'dias': '5'})
         self.a.refresh_from_db()

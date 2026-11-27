@@ -5,7 +5,7 @@ from collections import defaultdict
 from decimal import Decimal, ROUND_HALF_UP
 
 from ..models import (
-    Estudiante, Calificacion, IndicadorLogroPeriodo, Asistencia,
+    Estudiante, Calificacion, IndicadorLogroPeriodo, Asistencia, InasistenciasManualesPeriodo,
     AsignacionDocente, AreaConocimiento, Materia, ConfiguracionSistema,
     PeriodoAcademico, FichaEstudiante, PonderacionAreaMateria, EscalaValoracion
 )
@@ -159,6 +159,14 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
                 fallas = Asistencia.objects.filter(estudiante=estudiante, asignacion=asignacion, estado='A', fecha__range=(periodo.fecha_inicio, periodo.fecha_fin), colegio=colegio)
                 inasistencias = fallas.count()
                 inasistencias_excusa = fallas.filter(justificada=True).count() if inasistencias else 0
+                # Las que el docente escribió en la planilla (columna «Inasistencias»): antes el boletín solo contaba
+                # la asistencia tomada día a día y salía 0. Se toma la mayor de las dos (la planilla crea el registro
+                # en 0 al abrirse: ese 0 no debe tapar las fallas tomadas en Asistencia).
+                manual = InasistenciasManualesPeriodo.objects.filter(
+                    estudiante=estudiante, asignacion=asignacion, periodo=periodo, colegio=colegio).values_list('cantidad', flat=True).first()
+                if manual is not None and manual > inasistencias:
+                    inasistencias = manual
+                inasistencias_excusa = min(inasistencias_excusa, inasistencias)
 
                 datos_materia = {
                     'nombre': materia.nombre, 'ih': asignacion.intensidad_horaria_semanal, 'docente': asignacion.docente,
