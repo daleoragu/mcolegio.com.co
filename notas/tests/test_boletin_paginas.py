@@ -61,3 +61,15 @@ class BoletinPaginas(ColegioDePrueba):
         yield caja
         for hija in getattr(caja, 'children', []):
             yield from self._cajas(hija)
+
+    def test_final_notas_de_periodo_con_coma(self):
+        from decimal import Decimal
+        from notas.boletin.logic import get_datos_boletin_final
+        from notas.models import Calificacion
+        self.datos()
+        ana = self.estudiantes[0]
+        Calificacion.objects.create(colegio=self.a, estudiante=ana, materia=self.materia, periodo=self.p1,
+                                    tipo_nota='PROM_PERIODO', valor_nota=Decimal('4.80'))
+        datos, nombres = get_datos_boletin_final(self.a, self.curso, 2026, ana)
+        materia = datos[0]['areas'][0]['materias'][0]
+        self.assertEqual(materia['notas_periodos'][nombres[0]], '4,8')

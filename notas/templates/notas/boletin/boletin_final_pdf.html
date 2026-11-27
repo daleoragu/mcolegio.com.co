@@ -22,8 +22,10 @@
         .tabla-notas { width: 100%; border-collapse: collapse; font-size: 1em; }
         .tabla-notas th, .tabla-notas td { border: 1px solid #999; padding: 4px; text-align: center; vertical-align: middle; }
         .tabla-notas th { background-color: #E0E0E0; font-weight: bold; }
-        .materia-nombre { text-align: left; }
-        .area-nombre { text-align: left; font-weight: bold; }
+        /* Igual que el boletín de periodo: franja gris del área (texto en el color del desempeño) y las
+           asignaturas con su docente a la izquierda, todas con la misma sangría */
+        .tabla-notas td.materia-nombre { text-align: left; padding-left: 10px; }
+        .tabla-notas td.area-nombre { font-weight: bold; background-color: #f0f0f0; }
         .nota-definitiva { font-weight: bold; }
         
         .tabla-resumen { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 1.1em; }
@@ -127,7 +129,7 @@
 
                 {% for materia in area.materias %}
                 <tr>
-                    <td class="materia-nombre" style="padding-left: 15px;">
+                    <td class="materia-nombre">
                         {% if area.materias|length > 1 %}
                             {{ materia.nombre }}<br>
                         {% endif %}
