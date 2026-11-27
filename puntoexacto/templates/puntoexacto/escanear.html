@@ -693,8 +693,12 @@
     // siguen disponibles con su botón. Clave nueva: el celular que tenía los recuadros guardados empieza como el iPad.
     var usarVisores = false, ultimaVista = null;
     try { usarVisores = localStorage.getItem('pe-visores-2') === '1'; } catch (e) {}
-    var girarVisores = false;
-    try { girarVisores = localStorage.getItem('pe-girar') === '1'; } catch (e) {}
+    // Orientación de los visores: arrancan como la pantalla (celular vertical = hoja derecha; acostado = hoja
+    // acostada). Si las marcas negras de la hoja no aparecen así pero sí con los visores girados, se giran solos:
+    // se adaptan a como está la hoja de verdad. El botón de girar los fija a mano hasta cerrar la cámara.
+    var girarVisores = false, giroManual = false, fallasVisores = 0;
+    function girarActual() { return girarVisores; }
+    function cuantas(r) { return r && r.encontrados ? r.encontrados.filter(Boolean).length : 0; }
     // Forma de la hoja para los visores (completa, media, cuarto u octavo de página) y tamaño de los recuadros:
     // se recuerdan por examen en este celular.
     var NOMBRES_FORMA = {1: 'Hoja completa', 2: 'Media hoja', 4: 'Cuarto de hoja', 8: 'Octavo de hoja'};
@@ -735,11 +739,11 @@
     // Girar los visores a mano: para la hoja acostada aunque la pantalla no gire (rotación bloqueada).
     $('pe-girar').addEventListener('click', function () {
         girarVisores = !girarVisores;
-        try { localStorage.setItem('pe-girar', girarVisores ? '1' : '0'); } catch (e) {}
+        giroManual = true;
         pintarBotonVisores();
         ultimaVista = null; anterior = null; estables = 0;
         var vw = elVideo.videoWidth, vh = elVideo.videoHeight;
-        var acostada = (vw > vh) !== girarVisores;
+        var acostada = (vw > vh) !== girarActual();
         estado(acostada ? 'Visores para la hoja ACOSTADA.' : 'Visores para la hoja DERECHA.', 'bien');
         dibujar(null);
     });
@@ -823,6 +827,7 @@
             return;
         }
         ponerModo(m || 'calificar');
+        girarVisores = false; giroManual = false; fallasVisores = 0;      // cada vez arranca como la pantalla
         elCamara.classList.add('abierta');
         document.body.style.overflow = 'hidden';
         pantallaCompleta(true);
@@ -842,6 +847,8 @@
                 pista.__enfoqueUnaVez = !!(cap.focusMode && cap.focusMode.indexOf('single-shot') >= 0);
                 if (cap.focusMode && cap.focusMode.indexOf('continuous') >= 0) {
                     pista.applyConstraints({advanced: [{focusMode: 'continuous'}]}).catch(function () {});
+                    // Enfocar el centro (donde está la hoja), no la mesa de alrededor, si el celular lo permite
+                    pista.applyConstraints({advanced: [{pointsOfInterest: [{x: 0.5, y: 0.5}]}]}).catch(function () {});
                 }
             } catch (e) {}
             elVideo.srcObject = s;
@@ -906,7 +913,7 @@
         }
         // Los visores: esquinas en L, blancas; verdes cuando hay un cuadrado negro adentro.
         if (usarVisores && modoDisparo !== 'esquinas' && elVideo.videoWidth && !manual) {
-            var vis = ultimaVista && ultimaVista.visores ? ultimaVista.visores : PEScan.visores(elVideo.videoWidth, elVideo.videoHeight, disenoVisor(), girarVisores, tamVisor);
+            var vis = ultimaVista && ultimaVista.visores ? ultimaVista.visores : PEScan.visores(elVideo.videoWidth, elVideo.videoHeight, disenoVisor(), girarActual(), tamVisor);
             var lado = vis.lado, b = lado * 0.32, gv = Math.max(3, Math.max(vw, elVideo.videoHeight) / 260);
             vis.centros.forEach(function (c, i) {
                 var ok = ultimaVista && ultimaVista.encontrados && ultimaVista.encontrados[i];
@@ -952,8 +959,23 @@
             return;
         }
         if (elVideo.readyState >= 2 && elVideo.videoWidth && !document.hidden) {
-            var r = usarVisores ? detector.buscarEnVisores(elVideo, elVideo.videoWidth, elVideo.videoHeight, disenoVisor(), girarVisores, tamVisor)
+            var r = usarVisores ? detector.buscarEnVisores(elVideo, elVideo.videoWidth, elVideo.videoHeight, disenoVisor(), girarActual(), tamVisor)
                                 : detector.buscar(elVideo, elVideo.videoWidth, elVideo.videoHeight);
+            if (usarVisores && !giroManual && !r.quad) {
+                // ¿La hoja está al revés de los visores? Cada tanto se prueban girados; si ahí sí están las marcas, se quedan así.
+                fallasVisores = cuantas(r) >= 2 ? 0 : fallasVisores + 1;
+                if (fallasVisores >= 4) {
+                    fallasVisores = 0;
+                    var r2 = detector.buscarEnVisores(elVideo, elVideo.videoWidth, elVideo.videoHeight, disenoVisor(), !girarVisores, tamVisor);
+                    if (cuantas(r2) >= 3 && cuantas(r2) > cuantas(r)) {
+                        girarVisores = !girarVisores;
+                        r = r2;
+                        pintarBotonVisores();
+                        var acost = (elVideo.videoWidth > elVideo.videoHeight) !== girarVisores;
+                        estado(acost ? 'Visores ajustados a la hoja ACOSTADA.' : 'Visores ajustados a la hoja DERECHA.', 'bien');
+                    }
+                }
+            } else if (r.quad) fallasVisores = 0;
             ultimaVista = usarVisores ? r : null;
             var quad = r.quad;
             if (esperarRetiro) {
