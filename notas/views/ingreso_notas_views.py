@@ -128,6 +128,11 @@ class IngresoNotasView(LoginRequiredMixin, View):
                 # CORRECCIÓN DE CÁRGA: Asegura que se empaquete la información correctamente
                 # para que JavaScript reciba la observación existente y arme la lista múltiple
                 es_inclu = getattr(estudiante, 'es_inclusion', False)
+                if es_inclu and not (obs_inc or '').strip():
+                    # Si los indicadores se escribieron en el PIAR, la planilla los muestra
+                    from ..inclusion_piar import objetivos_del_piar
+                    obs_inc = objetivos_del_piar(request.colegio, estudiante, asignacion_seleccionada.materia_id,
+                                                 periodo_seleccionado)
                 inclusion_data[str(estudiante.id)] = {
                     'es_inclusion': es_inclu,
                     'obs': obs_inc if obs_inc else "",

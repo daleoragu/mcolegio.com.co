@@ -126,6 +126,10 @@ def guardar_estudiante(colegio, asignacion, periodo, estudiante, notas_por_compo
         tipo_nota='PROM_PERIODO', defaults=defaults)
     if definitiva_obj.observacion_inclusion is None:      # el boletín espera texto, no NULL
         Calificacion.objects.filter(pk=definitiva_obj.pk).update(observacion_inclusion='')
+    if observacion_inclusion:
+        # Lo mismo queda en el PIAR del estudiante (objetivos de la asignatura en el periodo)
+        from ..inclusion_piar import planilla_a_piar
+        planilla_a_piar(colegio, estudiante, asignacion.materia, periodo, observacion_inclusion, asignacion.docente)
 
     if inasistencias is not None:
         try:

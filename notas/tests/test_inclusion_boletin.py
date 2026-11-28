@@ -62,3 +62,46 @@ class IndicadoresDeInclusion(ColegioDePrueba):
         self.assertNotIn('resuelve problemas con fracciones', beto.lower())
         # Lo de la planilla manda sobre el PIAR
         self.assertIn('Cuenta hasta 20 con material concreto', self.boletin(self.ana))
+
+
+class PlanillaYPiarSincronizados(IndicadoresDeInclusion):
+    """Lo que se escribe en la planilla queda en el PIAR, y lo del PIAR en la planilla."""
+
+    def setUp(self):
+        super().setUp()
+        from piar.models import Piar
+        self.piar = Piar.objects.create(colegio=self.a, estudiante=self.ana, ano_lectivo=2026)
+
+    def test_cada_uno_con_los_suyos(self):           # ya probado arriba
+        pass
+
+    def test_si_no_hay_en_la_planilla_usa_los_objetivos_del_piar(self):
+        pass
+
+    def test_de_la_planilla_al_piar(self):
+        from piar.models import AjustePiar
+        self.guardar({self.ana.id: 'Cuenta hasta 20\nReconoce el 10'})
+        aj = AjustePiar.objects.get(piar=self.piar, materia=self.materia, periodo=self.p1)
+        self.assertEqual(aj.objetivos, 'Cuenta hasta 20\nReconoce el 10')
+        # Beto no tiene PIAR: no se crea nada
+        self.guardar({self.beto.id: 'Suma con apoyo'})
+        self.assertEqual(AjustePiar.objects.count(), 1)
+
+    def test_del_piar_a_la_planilla_y_al_boletin(self):
+        from notas.models import Calificacion
+        self.guardar({})                                  # ya hay definitiva, sin indicadores
+        r = self.cliente(self.u_docente).post(
+            f'/piar/{self.piar.pk}/ajuste/{self.materia.id}/{self.p1.id}/',
+            {'objetivos': '- Identifica figuras planas\n- Cuenta de 2 en 2', 'barreras': '', 'ajustes': '', 'apoyos': '',
+             'evaluacion': ''})
+        self.assertEqual(r.status_code, 302, r.content[:500])
+        cal = Calificacion.objects.get(estudiante=self.ana, materia=self.materia, periodo=self.p1, tipo_nota='PROM_PERIODO')
+        self.assertEqual(cal.observacion_inclusion, 'Identifica figuras planas\nCuenta de 2 en 2')
+        self.assertIn('Identifica figuras planas', self.boletin(self.ana))
+
+    def test_la_planilla_muestra_lo_del_piar(self):
+        from piar.models import AjustePiar
+        AjustePiar.objects.create(piar=self.piar, materia=self.materia, periodo=self.p1, objetivos='Lee palabras cortas')
+        r = self.cliente(self.u_docente).get(
+            f'/docente/ingresar-notas/?asignacion_id={self.asig.id}&periodo_id={self.p1.id}')
+        self.assertContains(r, 'Lee palabras cortas')

@@ -150,8 +150,8 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
                 observacion_inclusion_actual = (definitiva_obj.observacion_inclusion if definitiva_obj else "") or ""  # puede venir NULL (Excel, registros viejos)
                 lista_obs_inclusion = [obs.strip() for obs in observacion_inclusion_actual.split('\n') if obs.strip()]
                 if not lista_obs_inclusion and getattr(estudiante, 'es_inclusion', False):
-                    lista_obs_inclusion = [o.strip(' •-\t') for o in objetivos_piar.get((estudiante.id, materia.id), '').split('\n')
-                                           if o.strip(' •-\t')]
+                    from ..inclusion_piar import lineas
+                    lista_obs_inclusion = lineas(objetivos_piar.get((estudiante.id, materia.id), ''))
 
                 if definitiva_valor_periodo is not None and definitiva_valor_periodo < _umbral(colegio, materia.id, curso.grado):
                     materias_reprobadas_en_area.append(materia.nombre)

@@ -318,6 +318,8 @@ def ajuste(request, pk, materia_id, periodo_id):
             a = form.save(commit=False)
             a.docente = logica.docente_de(request) or a.docente
             a.save()
+            from notas.inclusion_piar import piar_a_planilla
+            piar_a_planilla(a)          # los objetivos quedan también como indicadores de la planilla
             if a.no_requiere and form.cleaned_data.get('todos_los_periodos'):
                 for per in logica.periodos(piar.colegio, piar.ano_lectivo):
                     if per.id == periodo.id:
