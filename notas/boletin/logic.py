@@ -110,6 +110,18 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
     datos_completos_estudiantes = []
     UMBRAL_APROBACION = Decimal('3.0')
 
+    # Indicadores del PIAR: si al estudiante de inclusión no le escribieron indicadores propios en la planilla,
+    # el boletín usa los objetivos de aprendizaje de su PIAR en esa asignatura y periodo (no los del curso).
+    objetivos_piar = {}
+    try:
+        from piar.models import AjustePiar
+        for aj in AjustePiar.objects.filter(piar__colegio=colegio, periodo=periodo, no_requiere=False,
+                                            piar__estudiante__in=[e for e in estudiantes if getattr(e, 'es_inclusion', False)]
+                                            ).exclude(objetivos='').values('piar__estudiante_id', 'materia_id', 'objetivos'):
+            objetivos_piar[(aj['piar__estudiante_id'], aj['materia_id'])] = aj['objetivos']
+    except Exception:
+        objetivos_piar = {}
+
     for estudiante in estudiantes:
         datos_estudiante = {
             'estudiante': estudiante, 'promedio_general': Decimal('0.0'), 'total_ih': 0,
@@ -137,6 +149,9 @@ def get_datos_boletin_curso(colegio, curso, periodo, estudiante_especifico=None)
                 # EXTRAYENDO LA OBSERVACIÓN DE INCLUSIÓN Y CONVIRTIENDOLA EN LISTA
                 observacion_inclusion_actual = (definitiva_obj.observacion_inclusion if definitiva_obj else "") or ""  # puede venir NULL (Excel, registros viejos)
                 lista_obs_inclusion = [obs.strip() for obs in observacion_inclusion_actual.split('\n') if obs.strip()]
+                if not lista_obs_inclusion and getattr(estudiante, 'es_inclusion', False):
+                    lista_obs_inclusion = [o.strip(' •-\t') for o in objetivos_piar.get((estudiante.id, materia.id), '').split('\n')
+                                           if o.strip(' •-\t')]
 
                 if definitiva_valor_periodo is not None and definitiva_valor_periodo < _umbral(colegio, materia.id, curso.grado):
                     materias_reprobadas_en_area.append(materia.nombre)
