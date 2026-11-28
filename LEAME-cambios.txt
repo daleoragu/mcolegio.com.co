@@ -1,4 +1,4 @@
-Versión 0110 · 2026-11-27 21:19
+Versión 0111 · 2026-11-28 02:07
 
 ARCHIVOS DE LA RAMA mejoras-sabana-y-pegado (cada uno va en la misma ruta dentro del proyecto)
 
@@ -782,6 +782,7 @@ NUEVO     notas/tests/test_colores_iconos.py
 NUEVO     notas/tests/test_comision.py
 NUEVO     notas/tests/test_excusas.py
 CAMBIADO  notas/tests/test_firmas_director.py
+NUEVO     notas/tests/test_inclusion_boletin.py
 NUEVO     notas/tests/test_kiosko_carnet.py
 NUEVO     notas/tests/test_meses_asistencia.py
 NUEVO     notas/tests/test_permisos_salida.py
